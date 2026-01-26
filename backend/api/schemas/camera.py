@@ -14,6 +14,7 @@ from backend.models.enums import CameraStatus
 
 # Re-export CameraStatus for convenient imports from this module
 __all__ = [
+    "AreaBasic",
     "CameraCreate",
     "CameraListResponse",
     "CameraPathValidationResponse",
@@ -91,6 +92,27 @@ def _validate_camera_name(v: str) -> str:
         )
 
     return stripped
+
+
+class AreaBasic(BaseModel):
+    """Minimal area schema for embedding in CameraResponse.
+
+    NEM-3597: Basic area information for API responses that include
+    camera-area relationships without full area details.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "name": "Front Yard",
+            }
+        },
+    )
+
+    id: int = Field(..., description="Unique area identifier")
+    name: str = Field(..., description="Area name")
 
 
 class CameraCreate(BaseModel):
@@ -182,7 +204,10 @@ class CameraUpdate(BaseModel):
 
 
 class CameraResponse(BaseModel):
-    """Schema for camera response."""
+    """Schema for camera response.
+
+    NEM-3597: Added property_id and areas fields to expose camera relationships.
+    """
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -194,6 +219,8 @@ class CameraResponse(BaseModel):
                 "status": "online",
                 "created_at": "2025-12-23T10:00:00Z",
                 "last_seen_at": "2025-12-23T12:00:00Z",
+                "property_id": 1,
+                "areas": [{"id": 1, "name": "Front Yard"}],
             }
         },
     )
@@ -206,6 +233,10 @@ class CameraResponse(BaseModel):
     status: CameraStatus = Field(..., description="Camera status (online, offline, error, unknown)")
     created_at: datetime = Field(..., description="Timestamp when camera was created")
     last_seen_at: datetime | None = Field(None, description="Last time camera was active")
+    property_id: int | None = Field(None, description="ID of the property this camera belongs to")
+    areas: list[AreaBasic] | None = Field(
+        None, description="List of areas this camera is assigned to"
+    )
 
 
 class CameraListResponse(BaseModel):

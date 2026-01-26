@@ -8,6 +8,7 @@ Schemas:
     LLMRiskResponse: Validated risk assessment with strict constraints
     LLMRawResponse: Lenient parsing for raw LLM JSON output
     RiskLevel: Enum of valid risk level values
+    RiskFactor: Individual contributing factor to risk score (NEM-3603)
     RiskEntity: Entity identified in the risk analysis (NEM-3601)
     RiskFlag: Risk flags with severity levels (NEM-3601)
     ConfidenceFactors: Factors affecting confidence in the analysis (NEM-3601)
@@ -76,6 +77,45 @@ def infer_risk_level_from_score(score: int) -> RiskLevel:
 # =============================================================================
 # Advanced Risk Analysis Schemas (NEM-3601)
 # =============================================================================
+
+
+class RiskFactor(BaseModel):
+    """Individual factor contributing to the overall risk score (NEM-3603).
+
+    Risk factors represent specific aspects of the analysis that contribute
+    positively or negatively to the overall risk score. Positive contributions
+    increase risk (e.g., nighttime activity, unknown person), while negative
+    contributions decrease risk (e.g., recognized face, routine timing).
+
+    Attributes:
+        factor_name: Name of the risk factor (e.g., "nighttime_activity", "recognized_face")
+        contribution: Contribution to risk score (positive increases risk, negative decreases)
+        description: Optional explanation of why this factor applies
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "factor_name": "nighttime_activity",
+                "contribution": 15.0,
+                "description": "Activity detected outside normal hours (11 PM - 6 AM)",
+            }
+        },
+    )
+
+    factor_name: str = Field(
+        ...,
+        description="Name of the risk factor",
+    )
+    contribution: float = Field(
+        ...,
+        description="Contribution to risk score (positive increases, negative decreases)",
+    )
+    description: str | None = Field(
+        None,
+        description="Optional explanation of why this factor applies",
+    )
 
 
 class RiskEntity(BaseModel):
@@ -206,6 +246,7 @@ class LLMRiskResponse(BaseModel):
         risk_level: Risk classification level
         summary: Human-readable event summary
         reasoning: Detailed reasoning for the risk assessment
+        risk_factors: Individual factors contributing to the risk score (NEM-3603)
         entities: List of entities identified in the analysis (NEM-3601)
         flags: List of risk flags raised during analysis (NEM-3601)
         recommended_action: Suggested action to take (NEM-3601)
@@ -220,6 +261,23 @@ class LLMRiskResponse(BaseModel):
                 "risk_level": "high",
                 "summary": "Suspicious activity detected at front entrance",
                 "reasoning": "Person detected at unusual time with unknown vehicle",
+                "risk_factors": [
+                    {
+                        "factor_name": "nighttime_activity",
+                        "contribution": 15.0,
+                        "description": "Activity detected outside normal hours",
+                    },
+                    {
+                        "factor_name": "unknown_person",
+                        "contribution": 20.0,
+                        "description": "Person not recognized by face detection",
+                    },
+                    {
+                        "factor_name": "routine_location",
+                        "contribution": -10.0,
+                        "description": "Activity at commonly used entrance",
+                    },
+                ],
                 "entities": [
                     {
                         "type": "person",
@@ -261,6 +319,11 @@ class LLMRiskResponse(BaseModel):
     reasoning: str = Field(
         ...,
         description="Detailed reasoning for the risk assessment",
+    )
+    # Risk factors breakdown (NEM-3603)
+    risk_factors: list[RiskFactor] = Field(
+        default_factory=list,
+        description="Individual factors contributing to the risk score",
     )
     # Advanced fields (NEM-3601)
     entities: list[RiskEntity] = Field(
@@ -355,6 +418,7 @@ class LLMRawResponse(BaseModel):
         risk_level: Raw risk level string (may be invalid)
         summary: Optional event summary
         reasoning: Optional reasoning text
+        risk_factors: Optional list of risk factors (NEM-3603)
         entities: Optional list of entities (NEM-3601)
         flags: Optional list of risk flags (NEM-3601)
         recommended_action: Optional recommended action (NEM-3601)
@@ -388,6 +452,11 @@ class LLMRawResponse(BaseModel):
     reasoning: str | None = Field(
         None,
         description="Reasoning text (optional in raw response)",
+    )
+    # Risk factors (NEM-3603) - stored as raw dicts for lenient parsing
+    risk_factors: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Raw risk factors from LLM (validated during conversion)",
     )
     # Advanced fields (NEM-3601) - stored as raw dicts for lenient parsing
     entities: list[dict[str, Any]] = Field(
@@ -441,7 +510,8 @@ class LLMRawResponse(BaseModel):
         2. Normalizes risk_level to lowercase
         3. Infers risk_level from score if invalid
         4. Provides defaults for missing summary/reasoning
-        5. Validates and converts advanced fields (NEM-3601)
+        5. Validates and converts risk factors (NEM-3603)
+        6. Validates and converts advanced fields (NEM-3601)
 
         Returns:
             Validated LLMRiskResponse instance
@@ -471,6 +541,9 @@ class LLMRawResponse(BaseModel):
         summary = self.summary if self.summary else "Risk analysis completed"
         reasoning = self.reasoning if self.reasoning else "No detailed reasoning provided"
 
+        # Parse risk factors (NEM-3603)
+        validated_risk_factors = self._parse_risk_factors()
+
         # Parse advanced fields (NEM-3601)
         validated_entities = self._parse_entities()
         validated_flags = self._parse_flags()
@@ -481,11 +554,30 @@ class LLMRawResponse(BaseModel):
             risk_level=normalized_level,
             summary=summary,
             reasoning=reasoning,
+            risk_factors=validated_risk_factors,
             entities=validated_entities,
             flags=validated_flags,
             recommended_action=self.recommended_action,
             confidence_factors=validated_confidence_factors,
         )
+
+    def _parse_risk_factors(self) -> list[RiskFactor]:
+        """Parse and validate risk factors from raw data (NEM-3603).
+
+        Invalid risk factors are filtered out with debug logging to handle
+        malformed LLM output gracefully.
+
+        Returns:
+            List of validated RiskFactor instances
+        """
+        validated: list[RiskFactor] = []
+        for factor_data in self.risk_factors:
+            try:
+                validated.append(RiskFactor.model_validate(factor_data))
+            except Exception as e:
+                # Skip invalid risk factors with debug logging
+                logger.debug("Skipping invalid risk factor: %s (error: %s)", factor_data, e)
+        return validated
 
     def _parse_entities(self) -> list[RiskEntity]:
         """Parse and validate entities from raw data.

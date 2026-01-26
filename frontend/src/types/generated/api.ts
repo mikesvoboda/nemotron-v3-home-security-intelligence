@@ -1314,7 +1314,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Camera object
+         *         CameraResponse with camera data
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
@@ -9928,6 +9928,29 @@ export interface components {
             period_days: number;
         };
         /**
+         * AreaBasic
+         * @description Minimal area schema for embedding in CameraResponse.
+         *
+         *     NEM-3597: Basic area information for API responses that include
+         *     camera-area relationships without full area details.
+         * @example {
+         *       "id": 1,
+         *       "name": "Front Yard"
+         *     }
+         */
+        AreaBasic: {
+            /**
+             * Id
+             * @description Unique area identifier
+             */
+            id: number;
+            /**
+             * Name
+             * @description Area name
+             */
+            name: string;
+        };
+        /**
          * AreaCameraResponse
          * @description Schema for camera info in area context (minimal camera info).
          * @example {
@@ -11229,16 +11252,30 @@ export interface components {
         /**
          * CameraResponse
          * @description Schema for camera response.
+         *
+         *     NEM-3597: Added property_id and areas fields to expose camera relationships.
          * @example {
+         *       "areas": [
+         *         {
+         *           "id": 1,
+         *           "name": "Front Yard"
+         *         }
+         *       ],
          *       "created_at": "2025-12-23T10:00:00Z",
          *       "folder_path": "/export/foscam/front_door",
          *       "id": "front_door",
          *       "last_seen_at": "2025-12-23T12:00:00Z",
          *       "name": "Front Door Camera",
+         *       "property_id": 1,
          *       "status": "online"
          *     }
          */
         CameraResponse: {
+            /**
+             * Areas
+             * @description List of areas this camera is assigned to
+             */
+            areas?: components["schemas"]["AreaBasic"][] | null;
             /**
              * Created At
              * Format: date-time
@@ -11265,6 +11302,11 @@ export interface components {
              * @description Camera name
              */
             name: string;
+            /**
+             * Property Id
+             * @description ID of the property this camera belongs to
+             */
+            property_id?: number | null;
             /** @description Camera status (online, offline, error, unknown) */
             status: components["schemas"]["CameraStatus"];
         };
@@ -15445,6 +15487,18 @@ export interface components {
          *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *       "reviewed": false,
+         *       "risk_factors": [
+         *         {
+         *           "contribution": -10,
+         *           "description": "Activity during normal hours",
+         *           "factor_name": "daytime_activity"
+         *         },
+         *         {
+         *           "contribution": 5,
+         *           "description": "Activity at primary entrance",
+         *           "factor_name": "front_entrance"
+         *         }
+         *       ],
          *       "risk_level": "medium",
          *       "risk_score": 75,
          *       "started_at": "2025-12-23T12:00:00Z",
@@ -15525,6 +15579,11 @@ export interface components {
              * @default false
              */
             reviewed: boolean;
+            /**
+             * Risk Factors
+             * @description Individual factors contributing to the risk score (NEM-3603)
+             */
+            risk_factors?: components["schemas"]["RiskFactor"][] | null;
             /**
              * Risk Level
              * @description Compute risk level from risk_score (NEM-3398).
@@ -23458,6 +23517,42 @@ export interface components {
              * @description Category of entity (e.g., person, vehicle, package)
              */
             type: string;
+        };
+        /**
+         * RiskFactor
+         * @description Individual factor contributing to the overall risk score (NEM-3603).
+         *
+         *     Risk factors represent specific aspects of the analysis that contribute
+         *     positively or negatively to the overall risk score. Positive contributions
+         *     increase risk (e.g., nighttime activity, unknown person), while negative
+         *     contributions decrease risk (e.g., recognized face, routine timing).
+         *
+         *     Attributes:
+         *         factor_name: Name of the risk factor (e.g., "nighttime_activity", "recognized_face")
+         *         contribution: Contribution to risk score (positive increases risk, negative decreases)
+         *         description: Optional explanation of why this factor applies
+         * @example {
+         *       "contribution": 15,
+         *       "description": "Activity detected outside normal hours (11 PM - 6 AM)",
+         *       "factor_name": "nighttime_activity"
+         *     }
+         */
+        RiskFactor: {
+            /**
+             * Contribution
+             * @description Contribution to risk score (positive increases, negative decreases)
+             */
+            contribution: number;
+            /**
+             * Description
+             * @description Optional explanation of why this factor applies
+             */
+            description?: string | null;
+            /**
+             * Factor Name
+             * @description Name of the risk factor
+             */
+            factor_name: string;
         };
         /**
          * RiskFlag
