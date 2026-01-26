@@ -29,7 +29,6 @@ import FeedbackForm from './FeedbackForm';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import RiskFactorsBreakdown from './RiskFactorsBreakdown';
-import RiskFactorsList from './RiskFactorsList';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import { useToast } from '../../hooks/useToast';
@@ -835,10 +834,10 @@ export default function EventDetailModal({
                         className="mb-6"
                       />
 
-                      {/* Risk Factors List (NEM-3603) */}
+                      {/* Risk Factors Breakdown (NEM-3603) */}
                       {event.risk_factors && event.risk_factors.length > 0 && (
                         <div className="mb-6" data-testid="risk-factors-section">
-                          <RiskFactorsList riskFactors={event.risk_factors} />
+                          <RiskFactorsBreakdown riskFactors={event.risk_factors} />
                         </div>
                       )}
 

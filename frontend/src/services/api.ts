@@ -179,7 +179,6 @@ import type {
   DLQRequeueResponse as GeneratedDLQRequeueResponse,
   DLQStatsResponse as GeneratedDLQStatsResponse,
   Event,
-  EventClustersResponse,
   EventEnrichmentsResponse as GeneratedEventEnrichmentsResponse,
   EventListResponse as GeneratedEventListResponse,
   EventStatsResponse as GeneratedEventStatsResponse,
@@ -246,6 +245,7 @@ import type {
   RecordingResponse,
   RecordingsListResponse,
   ReplayResponse,
+  EventRegistryResponse,
 } from '../types/generated';
 import type { SummariesLatestResponse } from '../types/summary';
 
@@ -329,13 +329,8 @@ export type {
 // Re-export pipeline and system status types for consumers of this module
 export type { PipelineStatusResponse, QueuesStatusResponse } from '../types/generated';
 
-// Re-export event clustering types for consumers of this module (NEM-3676)
-export type {
-  EventClustersResponse,
-  EventCluster,
-  ClusterEventSummary,
-  ClusterRiskLevels,
-} from '../types/generated';
+// Re-export WebSocket event discovery types (NEM-3639)
+export type { EventRegistryResponse, EventTypeInfo } from '../types/generated';
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -2114,6 +2109,21 @@ export async function fetchPipelineStatus(): Promise<PipelineStatusResponse> {
   return fetchApi<PipelineStatusResponse>('/api/system/pipeline');
 }
 
+/**
+ * Fetch WebSocket event type registry (NEM-3639).
+ *
+ * Returns the complete registry of WebSocket event types including:
+ * - Event type identifiers and descriptions
+ * - JSON Schema for each event payload
+ * - WebSocket channels for subscription
+ * - Deprecation information with suggested replacements
+ *
+ * @returns EventRegistryResponse with all available event types
+ */
+export async function fetchWebSocketEventTypes(): Promise<EventRegistryResponse> {
+  return fetchApi<EventRegistryResponse>('/api/system/websocket/events');
+}
+
 // ============================================================================
 // Event Endpoints
 // ============================================================================
@@ -2178,58 +2188,6 @@ export async function fetchEventStats(
   const endpoint = queryString ? `/api/events/stats?${queryString}` : '/api/events/stats';
 
   return fetchApi<GeneratedEventStatsResponse>(endpoint, options);
-}
-
-/**
- * Query parameters for the event clusters endpoint (NEM-3676).
- */
-export interface EventClustersQueryParams {
-  /** Start date for clustering (ISO format, required) */
-  start_date: string;
-  /** End date for clustering (ISO format, required) */
-  end_date: string;
-  /** Filter by camera ID (optional) */
-  camera_id?: string;
-  /** Time window in minutes for clustering events (1-60, default 5) */
-  time_window_minutes?: number;
-  /** Minimum events required to form a cluster (2-100, default 2) */
-  min_cluster_size?: number;
-}
-
-/**
- * Fetch event clusters grouped by temporal proximity (NEM-3676).
- *
- * Groups events that occur within a specified time window into clusters.
- * Events from the same camera within `time_window_minutes` are grouped together.
- * Events from different cameras within 2 minutes are also grouped (cross-camera clusters).
- *
- * @param params - Query parameters for clustering
- * @param options - Optional fetch options including AbortSignal for cancellation
- * @returns EventClustersResponse with clusters and unclustered event count
- */
-export async function fetchEventClusters(
-  params: EventClustersQueryParams,
-  options?: { signal?: AbortSignal }
-): Promise<EventClustersResponse> {
-  const queryParams = new URLSearchParams();
-
-  // Required parameters
-  queryParams.append('start_date', params.start_date);
-  queryParams.append('end_date', params.end_date);
-
-  // Optional parameters
-  if (params.camera_id) {
-    queryParams.append('camera_id', params.camera_id);
-  }
-  if (params.time_window_minutes !== undefined) {
-    queryParams.append('time_window_minutes', String(params.time_window_minutes));
-  }
-  if (params.min_cluster_size !== undefined) {
-    queryParams.append('min_cluster_size', String(params.min_cluster_size));
-  }
-
-  const endpoint = `/api/events/clusters?${queryParams.toString()}`;
-  return fetchApi<EventClustersResponse>(endpoint, options);
 }
 
 export interface EventUpdateData {

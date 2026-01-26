@@ -2217,6 +2217,31 @@
         "title": "AnomalyListResponse",
         "type": "object"
       },
+      "AreaBasic": {
+        "description": "Minimal area schema for embedding in CameraResponse.\n\nNEM-3597: Basic area information for API responses that include\ncamera-area relationships without full area details.",
+        "example": {
+          "id": 1,
+          "name": "Front Yard"
+        },
+        "properties": {
+          "id": {
+            "description": "Unique area identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Area name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AreaBasic",
+        "type": "object"
+      },
       "AreaCameraResponse": {
         "description": "Schema for camera info in area context (minimal camera info).",
         "example": {
@@ -3981,16 +4006,38 @@
         "type": "object"
       },
       "CameraResponse": {
-        "description": "Schema for camera response.",
+        "description": "Schema for camera response.\n\nNEM-3597: Added property_id and areas fields to expose camera relationships.",
         "example": {
+          "areas": [
+            {
+              "id": 1,
+              "name": "Front Yard"
+            }
+          ],
           "created_at": "2025-12-23T10:00:00Z",
           "folder_path": "/export/foscam/front_door",
           "id": "front_door",
           "last_seen_at": "2025-12-23T12:00:00Z",
           "name": "Front Door Camera",
+          "property_id": 1,
           "status": "online"
         },
         "properties": {
+          "areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AreaBasic"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of areas this camera is assigned to",
+            "title": "Areas"
+          },
           "created_at": {
             "description": "Timestamp when camera was created",
             "format": "date-time",
@@ -4024,6 +4071,18 @@
             "description": "Camera name",
             "title": "Name",
             "type": "string"
+          },
+          "property_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the property this camera belongs to",
+            "title": "Property Id"
           },
           "status": {
             "$ref": "#/components/schemas/CameraStatus",
@@ -10036,6 +10095,18 @@
           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
           "reviewed": false,
+          "risk_factors": [
+            {
+              "contribution": -10.0,
+              "description": "Activity during normal hours",
+              "factor_name": "daytime_activity"
+            },
+            {
+              "contribution": 5.0,
+              "description": "Activity at primary entrance",
+              "factor_name": "front_entrance"
+            }
+          ],
           "risk_level": "medium",
           "risk_score": 75,
           "started_at": "2025-12-23T12:00:00Z",
@@ -10185,6 +10256,21 @@
             "description": "Whether event has been reviewed",
             "title": "Reviewed",
             "type": "boolean"
+          },
+          "risk_factors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RiskFactor"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Individual factors contributing to the risk score (NEM-3603)",
+            "title": "Risk Factors"
           },
           "risk_level": {
             "anyOf": [
@@ -21897,6 +21983,44 @@
         "title": "RiskEntity",
         "type": "object"
       },
+      "RiskFactor": {
+        "description": "Individual factor contributing to the overall risk score (NEM-3603).\n\nRisk factors represent specific aspects of the analysis that contribute\npositively or negatively to the overall risk score. Positive contributions\nincrease risk (e.g., nighttime activity, unknown person), while negative\ncontributions decrease risk (e.g., recognized face, routine timing).\n\nAttributes:\n    factor_name: Name of the risk factor (e.g., \"nighttime_activity\", \"recognized_face\")\n    contribution: Contribution to risk score (positive increases risk, negative decreases)\n    description: Optional explanation of why this factor applies",
+        "example": {
+          "contribution": 15.0,
+          "description": "Activity detected outside normal hours (11 PM - 6 AM)",
+          "factor_name": "nighttime_activity"
+        },
+        "properties": {
+          "contribution": {
+            "description": "Contribution to risk score (positive increases, negative decreases)",
+            "title": "Contribution",
+            "type": "number"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional explanation of why this factor applies",
+            "title": "Description"
+          },
+          "factor_name": {
+            "description": "Name of the risk factor",
+            "title": "Factor Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "factor_name",
+          "contribution"
+        ],
+        "title": "RiskFactor",
+        "type": "object"
+      },
       "RiskFlag": {
         "description": "Risk flag indicating a specific concern or anomaly.\n\nFlags represent specific behaviors, patterns, or conditions that\nwarrant attention (e.g., loitering, nighttime activity, weapon detected).\n\nAttributes:\n    type: Category of flag (e.g., \"loitering\", \"weapon_detected\")\n    description: Explanation of the flag\n    severity: How severe this flag is (warning, alert, critical)",
         "example": {
@@ -26778,7 +26902,7 @@
           },
           "webhooks": {
             "items": {
-              "$ref": "#/components/schemas/backend__api__schemas__outbound_webhook__WebhookResponse"
+              "$ref": "#/components/schemas/WebhookResponse"
             },
             "title": "Webhooks",
             "type": "array"
@@ -26788,40 +26912,125 @@
         "type": "object"
       },
       "WebhookResponse": {
-        "description": "Schema for webhook processing response.",
-        "example": {
-          "message": "Processed 1 alert(s)",
-          "processed": 1,
-          "received": 1,
-          "status": "ok"
-        },
+        "description": "Full webhook configuration response.\n\nReturns complete webhook information including configuration,\nmetadata, and delivery statistics.\n\nAttributes:\n    id: Unique webhook identifier.\n    name: Webhook name.\n    url: Webhook endpoint URL.\n    event_types: Subscribed event types.\n    integration_type: Integration type.\n    enabled: Whether active.\n    custom_headers: Custom HTTP headers.\n    payload_template: Jinja2 payload template.\n    max_retries: Max retry attempts.\n    retry_delay_seconds: Initial retry delay.\n    created_at: Creation timestamp.\n    updated_at: Last update timestamp.\n    total_deliveries: Total delivery attempts.\n    successful_deliveries: Successful delivery count.\n    last_delivery_at: Last delivery timestamp.\n    last_delivery_status: Status of last delivery.",
         "properties": {
-          "message": {
-            "description": "Human-readable status message",
-            "title": "Message",
+          "created_at": {
+            "description": "Creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
             "type": "string"
           },
-          "processed": {
-            "description": "Number of alerts processed",
-            "title": "Processed",
+          "custom_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Custom Headers",
+            "type": "object"
+          },
+          "enabled": {
+            "description": "Whether active",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "event_types": {
+            "description": "Subscribed events",
+            "items": {
+              "$ref": "#/components/schemas/WebhookEventType"
+            },
+            "title": "Event Types",
+            "type": "array"
+          },
+          "id": {
+            "description": "Unique webhook identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "integration_type": {
+            "$ref": "#/components/schemas/IntegrationType",
+            "description": "Integration type"
+          },
+          "last_delivery_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last delivery timestamp",
+            "title": "Last Delivery At"
+          },
+          "last_delivery_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebhookDeliveryStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_retries": {
+            "title": "Max Retries",
             "type": "integer"
           },
-          "received": {
-            "description": "Number of alerts received",
-            "title": "Received",
+          "name": {
+            "description": "Webhook name",
+            "title": "Name",
+            "type": "string"
+          },
+          "payload_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payload Template"
+          },
+          "retry_delay_seconds": {
+            "title": "Retry Delay Seconds",
             "type": "integer"
           },
-          "status": {
-            "description": "Processing status (ok or error)",
-            "title": "Status",
+          "successful_deliveries": {
+            "default": 0,
+            "description": "Successful deliveries",
+            "title": "Successful Deliveries",
+            "type": "integer"
+          },
+          "total_deliveries": {
+            "default": 0,
+            "description": "Total delivery attempts",
+            "title": "Total Deliveries",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Last update timestamp",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "url": {
+            "description": "Webhook endpoint URL",
+            "title": "Url",
             "type": "string"
           }
         },
         "required": [
-          "status",
-          "received",
-          "processed",
-          "message"
+          "id",
+          "name",
+          "url",
+          "event_types",
+          "integration_type",
+          "enabled",
+          "max_retries",
+          "retry_delay_seconds",
+          "created_at",
+          "updated_at"
         ],
         "title": "WebhookResponse",
         "type": "object"
@@ -28118,126 +28327,41 @@
         "title": "ZoneUpdate",
         "type": "object"
       },
-      "backend__api__schemas__outbound_webhook__WebhookResponse": {
-        "description": "Full webhook configuration response.\n\nReturns complete webhook information including configuration,\nmetadata, and delivery statistics.\n\nAttributes:\n    id: Unique webhook identifier.\n    name: Webhook name.\n    url: Webhook endpoint URL.\n    event_types: Subscribed event types.\n    integration_type: Integration type.\n    enabled: Whether active.\n    custom_headers: Custom HTTP headers.\n    payload_template: Jinja2 payload template.\n    max_retries: Max retry attempts.\n    retry_delay_seconds: Initial retry delay.\n    created_at: Creation timestamp.\n    updated_at: Last update timestamp.\n    total_deliveries: Total delivery attempts.\n    successful_deliveries: Successful delivery count.\n    last_delivery_at: Last delivery timestamp.\n    last_delivery_status: Status of last delivery.",
+      "backend__api__schemas__webhooks__WebhookResponse": {
+        "description": "Schema for webhook processing response.",
+        "example": {
+          "message": "Processed 1 alert(s)",
+          "processed": 1,
+          "received": 1,
+          "status": "ok"
+        },
         "properties": {
-          "created_at": {
-            "description": "Creation timestamp",
-            "format": "date-time",
-            "title": "Created At",
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
             "type": "string"
           },
-          "custom_headers": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Custom Headers",
-            "type": "object"
-          },
-          "enabled": {
-            "description": "Whether active",
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "event_types": {
-            "description": "Subscribed events",
-            "items": {
-              "$ref": "#/components/schemas/WebhookEventType"
-            },
-            "title": "Event Types",
-            "type": "array"
-          },
-          "id": {
-            "description": "Unique webhook identifier",
-            "title": "Id",
-            "type": "string"
-          },
-          "integration_type": {
-            "$ref": "#/components/schemas/IntegrationType",
-            "description": "Integration type"
-          },
-          "last_delivery_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Last delivery timestamp",
-            "title": "Last Delivery At"
-          },
-          "last_delivery_status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WebhookDeliveryStatus"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "max_retries": {
-            "title": "Max Retries",
+          "processed": {
+            "description": "Number of alerts processed",
+            "title": "Processed",
             "type": "integer"
           },
-          "name": {
-            "description": "Webhook name",
-            "title": "Name",
-            "type": "string"
-          },
-          "payload_template": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Payload Template"
-          },
-          "retry_delay_seconds": {
-            "title": "Retry Delay Seconds",
+          "received": {
+            "description": "Number of alerts received",
+            "title": "Received",
             "type": "integer"
           },
-          "successful_deliveries": {
-            "default": 0,
-            "description": "Successful deliveries",
-            "title": "Successful Deliveries",
-            "type": "integer"
-          },
-          "total_deliveries": {
-            "default": 0,
-            "description": "Total delivery attempts",
-            "title": "Total Deliveries",
-            "type": "integer"
-          },
-          "updated_at": {
-            "description": "Last update timestamp",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "url": {
-            "description": "Webhook endpoint URL",
-            "title": "Url",
+          "status": {
+            "description": "Processing status (ok or error)",
+            "title": "Status",
             "type": "string"
           }
         },
         "required": [
-          "id",
-          "name",
-          "url",
-          "event_types",
-          "integration_type",
-          "enabled",
-          "max_retries",
-          "retry_delay_seconds",
-          "created_at",
-          "updated_at"
+          "status",
+          "received",
+          "processed",
+          "message"
         ],
         "title": "WebhookResponse",
         "type": "object"
@@ -38493,7 +38617,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__outbound_webhook__WebhookResponse"
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             },
@@ -38698,7 +38822,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__outbound_webhook__WebhookResponse"
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             },
@@ -38755,7 +38879,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__outbound_webhook__WebhookResponse"
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             },
@@ -38873,7 +38997,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__outbound_webhook__WebhookResponse"
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             },
@@ -38922,7 +39046,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__outbound_webhook__WebhookResponse"
+                  "$ref": "#/components/schemas/WebhookResponse"
                 }
               }
             },
@@ -42915,7 +43039,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WebhookResponse"
+                  "$ref": "#/components/schemas/backend__api__schemas__webhooks__WebhookResponse"
                 }
               }
             },

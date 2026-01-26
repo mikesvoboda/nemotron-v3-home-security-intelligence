@@ -9928,6 +9928,29 @@ export interface components {
             period_days: number;
         };
         /**
+         * AreaBasic
+         * @description Minimal area schema for embedding in CameraResponse.
+         *
+         *     NEM-3597: Basic area information for API responses that include
+         *     camera-area relationships without full area details.
+         * @example {
+         *       "id": 1,
+         *       "name": "Front Yard"
+         *     }
+         */
+        AreaBasic: {
+            /**
+             * Id
+             * @description Unique area identifier
+             */
+            id: number;
+            /**
+             * Name
+             * @description Area name
+             */
+            name: string;
+        };
+        /**
          * AreaCameraResponse
          * @description Schema for camera info in area context (minimal camera info).
          * @example {
@@ -11229,16 +11252,30 @@ export interface components {
         /**
          * CameraResponse
          * @description Schema for camera response.
+         *
+         *     NEM-3597: Added property_id and areas fields to expose camera relationships.
          * @example {
+         *       "areas": [
+         *         {
+         *           "id": 1,
+         *           "name": "Front Yard"
+         *         }
+         *       ],
          *       "created_at": "2025-12-23T10:00:00Z",
          *       "folder_path": "/export/foscam/front_door",
          *       "id": "front_door",
          *       "last_seen_at": "2025-12-23T12:00:00Z",
          *       "name": "Front Door Camera",
+         *       "property_id": 1,
          *       "status": "online"
          *     }
          */
         CameraResponse: {
+            /**
+             * Areas
+             * @description List of areas this camera is assigned to
+             */
+            areas?: components["schemas"]["AreaBasic"][] | null;
             /**
              * Created At
              * Format: date-time
@@ -11265,6 +11302,11 @@ export interface components {
              * @description Camera name
              */
             name: string;
+            /**
+             * Property Id
+             * @description ID of the property this camera belongs to
+             */
+            property_id?: number | null;
             /** @description Camera status (online, offline, error, unknown) */
             status: components["schemas"]["CameraStatus"];
         };
@@ -15445,6 +15487,18 @@ export interface components {
          *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *       "reviewed": false,
+         *       "risk_factors": [
+         *         {
+         *           "contribution": -10,
+         *           "description": "Activity during normal hours",
+         *           "factor_name": "daytime_activity"
+         *         },
+         *         {
+         *           "contribution": 5,
+         *           "description": "Activity at primary entrance",
+         *           "factor_name": "front_entrance"
+         *         }
+         *       ],
          *       "risk_level": "medium",
          *       "risk_score": 75,
          *       "started_at": "2025-12-23T12:00:00Z",
@@ -15525,6 +15579,11 @@ export interface components {
              * @default false
              */
             reviewed: boolean;
+            /**
+             * Risk Factors
+             * @description Individual factors contributing to the risk score (NEM-3603)
+             */
+            risk_factors?: components["schemas"]["RiskFactor"][] | null;
             /**
              * Risk Level
              * @description Compute risk level from risk_score (NEM-3398).
@@ -23460,6 +23519,42 @@ export interface components {
             type: string;
         };
         /**
+         * RiskFactor
+         * @description Individual factor contributing to the overall risk score (NEM-3603).
+         *
+         *     Risk factors represent specific aspects of the analysis that contribute
+         *     positively or negatively to the overall risk score. Positive contributions
+         *     increase risk (e.g., nighttime activity, unknown person), while negative
+         *     contributions decrease risk (e.g., recognized face, routine timing).
+         *
+         *     Attributes:
+         *         factor_name: Name of the risk factor (e.g., "nighttime_activity", "recognized_face")
+         *         contribution: Contribution to risk score (positive increases risk, negative decreases)
+         *         description: Optional explanation of why this factor applies
+         * @example {
+         *       "contribution": 15,
+         *       "description": "Activity detected outside normal hours (11 PM - 6 AM)",
+         *       "factor_name": "nighttime_activity"
+         *     }
+         */
+        RiskFactor: {
+            /**
+             * Contribution
+             * @description Contribution to risk score (positive increases, negative decreases)
+             */
+            contribution: number;
+            /**
+             * Description
+             * @description Optional explanation of why this factor applies
+             */
+            description?: string | null;
+            /**
+             * Factor Name
+             * @description Name of the risk factor
+             */
+            factor_name: string;
+        };
+        /**
          * RiskFlag
          * @description Risk flag indicating a specific concern or anomaly.
          *
@@ -26942,39 +27037,101 @@ export interface components {
              */
             total: number;
             /** Webhooks */
-            webhooks?: components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"][];
+            webhooks?: components["schemas"]["WebhookResponse"][];
         };
         /**
          * WebhookResponse
-         * @description Schema for webhook processing response.
-         * @example {
-         *       "message": "Processed 1 alert(s)",
-         *       "processed": 1,
-         *       "received": 1,
-         *       "status": "ok"
-         *     }
+         * @description Full webhook configuration response.
+         *
+         *     Returns complete webhook information including configuration,
+         *     metadata, and delivery statistics.
+         *
+         *     Attributes:
+         *         id: Unique webhook identifier.
+         *         name: Webhook name.
+         *         url: Webhook endpoint URL.
+         *         event_types: Subscribed event types.
+         *         integration_type: Integration type.
+         *         enabled: Whether active.
+         *         custom_headers: Custom HTTP headers.
+         *         payload_template: Jinja2 payload template.
+         *         max_retries: Max retry attempts.
+         *         retry_delay_seconds: Initial retry delay.
+         *         created_at: Creation timestamp.
+         *         updated_at: Last update timestamp.
+         *         total_deliveries: Total delivery attempts.
+         *         successful_deliveries: Successful delivery count.
+         *         last_delivery_at: Last delivery timestamp.
+         *         last_delivery_status: Status of last delivery.
          */
         WebhookResponse: {
             /**
-             * Message
-             * @description Human-readable status message
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
              */
-            message: string;
+            created_at: string;
+            /** Custom Headers */
+            custom_headers?: {
+                [key: string]: string;
+            };
             /**
-             * Processed
-             * @description Number of alerts processed
+             * Enabled
+             * @description Whether active
              */
-            processed: number;
+            enabled: boolean;
             /**
-             * Received
-             * @description Number of alerts received
+             * Event Types
+             * @description Subscribed events
              */
-            received: number;
+            event_types: components["schemas"]["WebhookEventType"][];
             /**
-             * Status
-             * @description Processing status (ok or error)
+             * Id
+             * @description Unique webhook identifier
              */
-            status: string;
+            id: string;
+            /** @description Integration type */
+            integration_type: components["schemas"]["IntegrationType"];
+            /**
+             * Last Delivery At
+             * @description Last delivery timestamp
+             */
+            last_delivery_at?: string | null;
+            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
+            /** Max Retries */
+            max_retries: number;
+            /**
+             * Name
+             * @description Webhook name
+             */
+            name: string;
+            /** Payload Template */
+            payload_template?: string | null;
+            /** Retry Delay Seconds */
+            retry_delay_seconds: number;
+            /**
+             * Successful Deliveries
+             * @description Successful deliveries
+             * @default 0
+             */
+            successful_deliveries: number;
+            /**
+             * Total Deliveries
+             * @description Total delivery attempts
+             * @default 0
+             */
+            total_deliveries: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+            /**
+             * Url
+             * @description Webhook endpoint URL
+             */
+            url: string;
         };
         /**
          * WebhookTestNotificationRequest
@@ -27827,97 +27984,35 @@ export interface components {
         };
         /**
          * WebhookResponse
-         * @description Full webhook configuration response.
-         *
-         *     Returns complete webhook information including configuration,
-         *     metadata, and delivery statistics.
-         *
-         *     Attributes:
-         *         id: Unique webhook identifier.
-         *         name: Webhook name.
-         *         url: Webhook endpoint URL.
-         *         event_types: Subscribed event types.
-         *         integration_type: Integration type.
-         *         enabled: Whether active.
-         *         custom_headers: Custom HTTP headers.
-         *         payload_template: Jinja2 payload template.
-         *         max_retries: Max retry attempts.
-         *         retry_delay_seconds: Initial retry delay.
-         *         created_at: Creation timestamp.
-         *         updated_at: Last update timestamp.
-         *         total_deliveries: Total delivery attempts.
-         *         successful_deliveries: Successful delivery count.
-         *         last_delivery_at: Last delivery timestamp.
-         *         last_delivery_status: Status of last delivery.
+         * @description Schema for webhook processing response.
+         * @example {
+         *       "message": "Processed 1 alert(s)",
+         *       "processed": 1,
+         *       "received": 1,
+         *       "status": "ok"
+         *     }
          */
-        backend__api__schemas__outbound_webhook__WebhookResponse: {
+        backend__api__schemas__webhooks__WebhookResponse: {
             /**
-             * Created At
-             * Format: date-time
-             * @description Creation timestamp
+             * Message
+             * @description Human-readable status message
              */
-            created_at: string;
-            /** Custom Headers */
-            custom_headers?: {
-                [key: string]: string;
-            };
+            message: string;
             /**
-             * Enabled
-             * @description Whether active
+             * Processed
+             * @description Number of alerts processed
              */
-            enabled: boolean;
+            processed: number;
             /**
-             * Event Types
-             * @description Subscribed events
+             * Received
+             * @description Number of alerts received
              */
-            event_types: components["schemas"]["WebhookEventType"][];
+            received: number;
             /**
-             * Id
-             * @description Unique webhook identifier
+             * Status
+             * @description Processing status (ok or error)
              */
-            id: string;
-            /** @description Integration type */
-            integration_type: components["schemas"]["IntegrationType"];
-            /**
-             * Last Delivery At
-             * @description Last delivery timestamp
-             */
-            last_delivery_at?: string | null;
-            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
-            /** Max Retries */
-            max_retries: number;
-            /**
-             * Name
-             * @description Webhook name
-             */
-            name: string;
-            /** Payload Template */
-            payload_template?: string | null;
-            /** Retry Delay Seconds */
-            retry_delay_seconds: number;
-            /**
-             * Successful Deliveries
-             * @description Successful deliveries
-             * @default 0
-             */
-            successful_deliveries: number;
-            /**
-             * Total Deliveries
-             * @description Total delivery attempts
-             * @default 0
-             */
-            total_deliveries: number;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description Last update timestamp
-             */
-            updated_at: string;
-            /**
-             * Url
-             * @description Webhook endpoint URL
-             */
-            url: string;
+            status: string;
         };
     };
     responses: never;
@@ -35137,7 +35232,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                    "application/json": components["schemas"]["WebhookResponse"];
                 };
             };
             /** @description Validation error */
@@ -35297,7 +35392,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                    "application/json": components["schemas"]["WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -35389,7 +35484,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                    "application/json": components["schemas"]["WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -35482,7 +35577,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                    "application/json": components["schemas"]["WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -35527,7 +35622,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                    "application/json": components["schemas"]["WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -38813,7 +38908,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__webhooks__WebhookResponse"];
                 };
             };
             /** @description Invalid payload format */
