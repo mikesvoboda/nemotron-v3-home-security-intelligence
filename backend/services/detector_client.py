@@ -1,7 +1,18 @@
-"""Detector client service for RT-DETRv2 object detection.
+"""Detector client service for object detection (RT-DETRv2 and YOLO26).
 
-This service provides an HTTP client interface to the RT-DETRv2 detection server,
-sending images for object detection and storing results in the database.
+This service provides an HTTP client interface to object detection servers,
+supporting multiple detector backends (RT-DETRv2 and YOLO26) configurable via
+the DETECTOR_TYPE setting. The client sends images for object detection and
+stores results in the database.
+
+Multi-Detector Support:
+    The detector type is selected via the DETECTOR_TYPE setting:
+    - "rtdetr" (default): Uses RT-DETRv2 detection server
+    - "yolo26": Uses YOLO26 TensorRT detection server
+
+    Each detector has its own URL, API key, and timeout configuration:
+    - RT-DETRv2: RTDETR_URL, RTDETR_API_KEY, RTDETR_READ_TIMEOUT
+    - YOLO26: YOLO26_URL, YOLO26_API_KEY, YOLO26_READ_TIMEOUT
 
 Detection Flow:
     1. Read image file from filesystem
@@ -149,10 +160,18 @@ def _get_preprocess_worker_count() -> int:
 
 
 class DetectorClient:
-    """Client for interacting with RT-DETRv2 object detection service.
+    """Client for interacting with object detection services (RT-DETRv2 or YOLO26).
 
-    This client handles communication with the external detector service,
-    including health checks, image submission, and response parsing.
+    This client handles communication with external detector services,
+    supporting multiple backends based on the DETECTOR_TYPE configuration.
+    It handles health checks, image submission, and response parsing.
+
+    Multi-Detector Support:
+        The detector type is selected via the DETECTOR_TYPE setting:
+        - "rtdetr" (default): Uses RT-DETRv2 detection server
+        - "yolo26": Uses YOLO26 TensorRT detection server
+
+        Each detector has independent URL, API key, and timeout configuration.
 
     Features:
         - Retry logic with exponential backoff for transient failures (NEM-1343)
@@ -160,6 +179,7 @@ class DetectorClient:
         - API key authentication via X-API-Key header when configured
         - Concurrency limiting via semaphore to prevent GPU overload (NEM-1500)
         - Parallel preprocessing with ThreadPoolExecutor (free-threading optimized)
+        - Circuit breaker per detector type to prevent retry storms
 
     Free-Threading Support (Python 3.13t/3.14t):
         When running on free-threaded Python (GIL disabled), this client
@@ -167,7 +187,7 @@ class DetectorClient:
         to leverage true thread parallelism for AI inference operations.
 
     Security: Supports API key authentication via X-API-Key header when
-    configured in settings (RTDETR_API_KEY environment variable).
+    configured in settings (RTDETR_API_KEY or YOLO26_API_KEY environment variables).
     """
 
     # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
@@ -256,16 +276,26 @@ class DetectorClient:
         """
         self._frame_buffer = frame_buffer
         settings = get_settings()
-        self._detector_url = settings.rtdetr_url
+
+        # Select detector type and corresponding settings
+        self._detector_type = settings.detector_type
+
+        if self._detector_type == "yolo26":
+            self._detector_url = settings.yolo26_url
+            self._api_key = settings.yolo26_api_key
+            read_timeout = settings.yolo26_read_timeout
+        else:  # rtdetr (default)
+            self._detector_url = settings.rtdetr_url
+            self._api_key = settings.rtdetr_api_key
+            read_timeout = settings.rtdetr_read_timeout
+
         self._confidence_threshold = settings.detection_confidence_threshold
-        # Security: Store API key for authentication (None if not configured)
-        self._api_key = settings.rtdetr_api_key
         # Use httpx.Timeout for proper timeout configuration from Settings
         # connect: time to establish connection, read: time to wait for response
         self._timeout = httpx.Timeout(
             connect=settings.ai_connect_timeout,
-            read=settings.rtdetr_read_timeout,
-            write=settings.rtdetr_read_timeout,
+            read=read_timeout,
+            write=read_timeout,
             pool=settings.ai_connect_timeout,
         )
         self._health_timeout = httpx.Timeout(
@@ -274,6 +304,8 @@ class DetectorClient:
             write=settings.ai_health_timeout,
             pool=settings.ai_health_timeout,
         )
+        # Store read timeout for use in explicit timeout calculation
+        self._read_timeout = read_timeout
         # Retry configuration (NEM-1343)
         self._max_retries = (
             max_retries if max_retries is not None else settings.detector_max_retries
@@ -292,13 +324,14 @@ class DetectorClient:
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
         )
 
-        # Circuit breaker for RT-DETRv2 service protection (NEM-1724)
+        # Circuit breaker for detector service protection (NEM-1724)
+        # Named per detector type to maintain separate circuit breaker state
         # Prevents retry storms when the detector service is unavailable.
         # - failure_threshold=5: Opens circuit after 5 consecutive failures
         # - recovery_timeout=60: Waits 60 seconds before attempting recovery
         # - excluded_exceptions: ValueError (client errors) don't count as failures
         self._circuit_breaker = CircuitBreaker(
-            name="rtdetr",
+            name=f"detector_{self._detector_type}",
             config=CircuitBreakerConfig(
                 failure_threshold=5,
                 recovery_timeout=60.0,
@@ -321,15 +354,26 @@ class DetectorClient:
         logger.info(
             "DetectorClient initialized",
             extra={
+                "detector_type": self._detector_type,
+                "detector_url": self._detector_url,
                 "free_threading": free_threading,
                 "max_concurrent_inferences": self._max_concurrent,
                 "preprocess_workers": preprocess_workers,
                 "max_retries": self._max_retries,
-                "timeout_seconds": settings.rtdetr_read_timeout,
+                "timeout_seconds": read_timeout,
                 "circuit_breaker_failure_threshold": 5,
                 "circuit_breaker_recovery_timeout": 60.0,
             },
         )
+
+    @property
+    def detector_type(self) -> str:
+        """Return the configured detector type.
+
+        Returns:
+            The detector type string: "rtdetr" or "yolo26"
+        """
+        return self._detector_type
 
     async def close(self) -> None:
         """Close the HTTP client connections.
@@ -338,7 +382,10 @@ class DetectorClient:
         """
         await self._http_client.aclose()
         await self._health_http_client.aclose()
-        logger.debug("DetectorClient HTTP connections closed")
+        logger.debug(
+            "DetectorClient HTTP connections closed",
+            extra={"detector_type": self._detector_type},
+        )
 
     def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication and correlation headers for API requests.
@@ -583,13 +630,14 @@ class DetectorClient:
         semaphore = self._get_semaphore()
         settings = get_settings()
         # Explicit timeout as defense-in-depth (NEM-1465)
-        # Use rtdetr_read_timeout from settings (default 60s)
-        explicit_timeout = settings.rtdetr_read_timeout + settings.ai_connect_timeout
+        # Use detector-specific read timeout from settings
+        explicit_timeout = self._read_timeout + settings.ai_connect_timeout
 
         # Create span for AI service call with attributes for observability
         with trace_span(
-            "rtdetr_detection_request",
-            ai_service="rtdetr",
+            f"{self._detector_type}_detection_request",
+            ai_service=self._detector_type,
+            detector_type=self._detector_type,
             camera_id=camera_id,
             image_path=image_path,
             image_size_bytes=len(image_data),
@@ -622,6 +670,7 @@ class DetectorClient:
                         logger.warning(
                             "Detector connection error, retrying",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempt": attempt + 1,
@@ -632,10 +681,11 @@ class DetectorClient:
                         )
                         await asyncio.sleep(delay)
                     else:
-                        record_pipeline_error("rtdetr_connection_error")
+                        record_pipeline_error(f"{self._detector_type}_connection_error")
                         logger.error(
                             "Detector connection error after all attempts",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempts": self._max_retries,
@@ -651,6 +701,7 @@ class DetectorClient:
                         logger.warning(
                             "Detector timeout, retrying",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempt": attempt + 1,
@@ -661,10 +712,11 @@ class DetectorClient:
                         )
                         await asyncio.sleep(delay)
                     else:
-                        record_pipeline_error("rtdetr_timeout")
+                        record_pipeline_error(f"{self._detector_type}_timeout")
                         logger.error(
                             "Detector timeout after all attempts",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempts": self._max_retries,
@@ -682,6 +734,7 @@ class DetectorClient:
                             f"Detector asyncio timeout (attempt {attempt + 1}/{self._max_retries}), "
                             f"retrying in {delay}s: request timed out after {explicit_timeout}s",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempt": attempt + 1,
@@ -692,11 +745,12 @@ class DetectorClient:
                         )
                         await asyncio.sleep(delay)
                     else:
-                        record_pipeline_error("rtdetr_asyncio_timeout")
+                        record_pipeline_error(f"{self._detector_type}_asyncio_timeout")
                         logger.error(
                             f"Detector asyncio timeout after {self._max_retries} attempts: "
                             f"request timed out after {explicit_timeout}s",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempts": self._max_retries,
@@ -716,6 +770,7 @@ class DetectorClient:
                             logger.warning(
                                 "Detector server error, retrying",
                                 extra={
+                                    "detector_type": self._detector_type,
                                     "camera_id": camera_id,
                                     "file_path": image_path,
                                     "status_code": status_code,
@@ -726,10 +781,11 @@ class DetectorClient:
                             )
                             await asyncio.sleep(delay)
                         else:
-                            record_pipeline_error("rtdetr_server_error")
+                            record_pipeline_error(f"{self._detector_type}_server_error")
                             logger.error(
                                 "Detector server error after all attempts",
                                 extra={
+                                    "detector_type": self._detector_type,
                                     "camera_id": camera_id,
                                     "file_path": image_path,
                                     "status_code": status_code,
@@ -748,10 +804,11 @@ class DetectorClient:
                                 # JSON parsing failures - fall back to raw text
                                 error_detail = e.response.text[:500] if e.response.text else str(e)
 
-                        record_pipeline_error("rtdetr_client_error")
+                        record_pipeline_error(f"{self._detector_type}_client_error")
                         logger.error(
                             "Detector client error",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "status_code": status_code,
@@ -773,6 +830,7 @@ class DetectorClient:
                             f"Detector JSON/value error (attempt {attempt + 1}/{self._max_retries}), "
                             f"retrying in {delay}s: {sanitize_error(e)}",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempt": attempt + 1,
@@ -782,11 +840,12 @@ class DetectorClient:
                         )
                         await asyncio.sleep(delay)
                     else:
-                        record_pipeline_error("rtdetr_json_error")
+                        record_pipeline_error(f"{self._detector_type}_json_error")
                         logger.error(
                             f"Detector JSON/value error after {self._max_retries} attempts: "
                             f"{sanitize_error(e)}",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempts": self._max_retries,
@@ -803,6 +862,7 @@ class DetectorClient:
                         logger.warning(
                             "Unexpected detector error, retrying",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempt": attempt + 1,
@@ -813,10 +873,11 @@ class DetectorClient:
                         )
                         await asyncio.sleep(delay)
                     else:
-                        record_pipeline_error("rtdetr_unexpected_error")
+                        record_pipeline_error(f"{self._detector_type}_unexpected_error")
                         logger.error(
                             "Unexpected detector error after all attempts",
                             extra={
+                                "detector_type": self._detector_type,
                                 "camera_id": camera_id,
                                 "file_path": image_path,
                                 "attempts": self._max_retries,
@@ -917,7 +978,8 @@ class DetectorClient:
     ) -> list[Detection]:
         """Send image to detector service and store detections.
 
-        Reads the image file, sends it to the RT-DETRv2 service with retry logic,
+        Reads the image file, sends it to the configured detector service
+        (RT-DETRv2 or YOLO26 based on DETECTOR_TYPE setting) with retry logic,
         parses the response, filters by confidence threshold, and stores detections
         in the database.
 
@@ -973,8 +1035,9 @@ class DetectorClient:
             # This prevents retry storms when the detector is known to be unavailable
             if not await self._circuit_breaker.allow_call():
                 logger.warning(
-                    "Circuit breaker open for RT-DETR, rejecting detection request",
+                    f"Circuit breaker open for {self._detector_type}, rejecting detection request",
                     extra={
+                        "detector_type": self._detector_type,
                         "camera_id": camera_id,
                         "file_path": image_path,
                         "circuit_state": self._circuit_breaker.state.value,
@@ -982,7 +1045,7 @@ class DetectorClient:
                 )
                 record_pipeline_error("circuit_breaker_open")
                 raise DetectorUnavailableError(
-                    "RT-DETR service temporarily unavailable (circuit breaker open)"
+                    f"{self._detector_type} service temporarily unavailable (circuit breaker open)"
                 )
 
             # Read image file asynchronously to avoid blocking the event loop
@@ -1020,9 +1083,9 @@ class DetectorClient:
                     image_path=image_path,
                 )
 
-            # Record AI request duration
+            # Record AI request duration with detector type label
             ai_duration = time.time() - ai_start_time
-            observe_ai_request_duration("rtdetr", ai_duration)
+            observe_ai_request_duration(self._detector_type, ai_duration)
 
             if "detections" not in result:
                 logger.warning(
@@ -1200,8 +1263,9 @@ class DetectorClient:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("circuit_breaker_open")
             logger.warning(
-                "Circuit breaker open for RT-DETR",
+                f"Circuit breaker open for {self._detector_type}",
                 extra={
+                    "detector_type": self._detector_type,
                     "camera_id": camera_id,
                     "file_path": image_path,
                     "duration_ms": duration_ms,
@@ -1210,7 +1274,7 @@ class DetectorClient:
                 },
             )
             raise DetectorUnavailableError(
-                "RT-DETR service temporarily unavailable (circuit breaker open)",
+                f"{self._detector_type} service temporarily unavailable (circuit breaker open)",
                 original_error=e,
             ) from e
         except DetectorUnavailableError:
@@ -1221,10 +1285,11 @@ class DetectorClient:
             # RuntimeError: asyncio/event loop issues
             # Catch any other unexpected errors (e.g., file read errors)
             duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("rtdetr_unexpected_error")
+            record_pipeline_error(f"{self._detector_type}_unexpected_error")
             logger.error(
                 "Unexpected error during object detection",
                 extra={
+                    "detector_type": self._detector_type,
                     "camera_id": camera_id,
                     "duration_ms": duration_ms,
                     "error": sanitize_error(e),

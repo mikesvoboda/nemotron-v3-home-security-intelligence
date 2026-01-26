@@ -10,6 +10,8 @@ This directory contains benchmark results and performance measurements for the H
 benchmarks/
   AGENTS.md                  # This file
   model-zoo-benchmark.md     # Model Zoo benchmark results
+  yolo26-vs-rtdetr.md        # YOLO26 vs RT-DETR accuracy comparison (auto-generated)
+  yolo26-export-formats.md   # YOLO26 export format evaluation (Phase 1.4)
 ```
 
 ## Key Files
@@ -45,6 +47,78 @@ benchmarks/
 - VRAM recovered after unload
 
 **When to use:** Evaluating model performance, deciding which models to use, debugging VRAM issues.
+
+### yolo26-vs-rtdetr.md
+
+**Purpose:** Accuracy comparison between YOLO26 variants and RT-DETRv2 on security-relevant classes.
+
+**Content:**
+
+- Accuracy benchmarks on 9 security-relevant classes (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
+- Model comparison (YOLO26N/S/M vs RT-DETRv2)
+- Per-class recall analysis
+- Inference speed comparisons
+- Model selection recommendations
+
+**Key Results:**
+
+| Model     | Recall | Avg Inference (ms) | Key Strength                   |
+| --------- | ------ | ------------------ | ------------------------------ |
+| YOLO26N   | 66.7%  | 31.6               | Lowest VRAM (~150MB)           |
+| YOLO26S   | 66.7%  | 28.7               | Balanced                       |
+| YOLO26M   | 91.7%  | 27.4               | Best efficiency (recall/speed) |
+| RT-DETRv2 | 100.0% | 49.1               | Best accuracy                  |
+
+**Key Findings:**
+
+- YOLO26M is 44% faster than RT-DETRv2 with only 8.3% lower recall
+- YOLO26N/S struggle with cat detection (0% recall)
+- RT-DETRv2 excels at small/distant object detection
+- All models occasionally confuse compact cars with trucks
+
+**Model Selection Guide:**
+
+| Use Case                      | Recommended Model    |
+| ----------------------------- | -------------------- |
+| Real-time streaming (30+ FPS) | YOLO26S              |
+| Balanced accuracy/speed       | YOLO26M              |
+| Maximum accuracy              | RT-DETRv2            |
+| Resource-constrained          | YOLO26N              |
+| Pet detection priority        | YOLO26M or RT-DETRv2 |
+
+**When to use:** Choosing detection models for home security, comparing YOLO26 variants, evaluating RT-DETRv2 replacement options.
+
+**Script:** `scripts/benchmark_yolo26_accuracy.py`
+
+### yolo26-export-formats.md
+
+**Purpose:** Export format evaluation for YOLO26 deployment (Phase 1.4).
+
+**Content:**
+
+- Export format comparison (ONNX, TensorRT, OpenVINO)
+- File size analysis
+- Inference speed benchmarks
+- Version requirements
+- Deployment recommendations
+
+**Key Results:**
+
+| Format             | File Size | Status        | Best For            |
+| ------------------ | --------- | ------------- | ------------------- |
+| PyTorch (.pt)      | 5.29 MB   | Baseline      | Development         |
+| ONNX (.onnx)       | 9.48 MB   | Exported      | Cross-platform      |
+| TensorRT (.engine) | ~5-6 MB   | Requires CUDA | Production (NVIDIA) |
+
+**Recommendations:**
+
+- **Production (NVIDIA GPU):** TensorRT with FP16
+- **Cross-platform:** ONNX
+- **Development:** PyTorch
+
+**When to use:** Choosing export format for deployment, understanding version requirements, troubleshooting export issues.
+
+**Script:** `scripts/export_yolo26.py`
 
 ## Benchmark Format
 
@@ -97,7 +171,20 @@ uv run python scripts/benchmark_model_zoo.py
 uv run python scripts/benchmark_model_zoo.py --models yolo11-license-plate,clip-vit-l
 
 # Results are written to docs/benchmarks/model-zoo-benchmark.md
+
+# YOLO26 vs RT-DETRv2 accuracy benchmark (requires GPU)
+python3 scripts/benchmark_yolo26_accuracy.py --local-only
+
+# Full COCO validation benchmark (requires COCO val2017 dataset)
+python3 scripts/benchmark_yolo26_accuracy.py --coco-path /path/to/coco
+
+# Benchmark specific detection models
+python3 scripts/benchmark_yolo26_accuracy.py --models yolo26n,yolo26m,rtdetr --local-only
+
+# Results are written to docs/benchmarks/yolo26-vs-rtdetr.md
 ```
+
+**Note:** The YOLO26 benchmark requires system Python with CUDA-enabled PyTorch (not uv run) due to GPU requirements.
 
 ## Refresh Procedure
 

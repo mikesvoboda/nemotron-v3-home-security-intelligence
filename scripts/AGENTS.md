@@ -56,7 +56,10 @@ scripts/
 
   # AI Pipeline Scripts
   benchmark_model_zoo.py             # Model Zoo performance benchmarks
+  benchmark_yolo26_accuracy.py       # YOLO26 vs RT-DETRv2 accuracy comparison
   download-model-zoo.py              # Download AI model zoo models
+  download_yolo26.py                 # Download YOLO26 model weights
+  export_yolo26.py                   # Export YOLO26 to ONNX/TensorRT
   test_ai_pipeline_e2e.py            # AI pipeline end-to-end test
   test_context_window.py             # 32K context window test
   test_model_outputs.py              # Quick AI model output test
@@ -602,6 +605,68 @@ python scripts/benchmark_model_zoo.py --output results.md    # Custom output
 ./scripts/trigger-filewatcher.sh --camera kitchen  # Specific camera
 ./scripts/trigger-filewatcher.sh --dry-run         # Preview only
 ```
+
+#### export_yolo26.py
+
+**Purpose:** Export YOLO26 models to various formats (ONNX, TensorRT) and benchmark inference speeds.
+
+**Usage:**
+
+```bash
+# Export ONNX only
+uv run python scripts/export_yolo26.py --format onnx
+
+# Export all formats (ONNX + TensorRT if CUDA available)
+uv run python scripts/export_yolo26.py
+
+# Export specific model
+uv run python scripts/export_yolo26.py --model yolo26s.pt
+
+# Benchmark only (skip export)
+uv run python scripts/export_yolo26.py --benchmark-only
+
+# Force re-export even if files exist
+uv run python scripts/export_yolo26.py --force
+```
+
+**Export Formats:**
+
+| Format   | Extension         | GPU Required | Notes                            |
+| -------- | ----------------- | ------------ | -------------------------------- |
+| ONNX     | .onnx             | No           | Cross-platform, simplify enabled |
+| TensorRT | .engine           | Yes          | FP16 optimized for NVIDIA GPUs   |
+| OpenVINO | \_openvino_model/ | No           | Intel hardware optimized         |
+
+**Output Locations:**
+
+- Exported models: `/export/ai_models/model-zoo/yolo26/exports/`
+- Benchmark report: `docs/benchmarks/yolo26-vs-rtdetr.md`
+- Local report: `/export/ai_models/model-zoo/yolo26/exports/EXPORT_REPORT.md`
+
+**Requirements:**
+
+- ultralytics>=8.4.0
+- onnx (for ONNX export)
+- tensorrt (for TensorRT export, optional)
+- CUDA-enabled PyTorch (for TensorRT export)
+
+#### download_yolo26.py
+
+**Purpose:** Download and validate YOLO26 model weights from Ultralytics.
+
+**Usage:**
+
+```bash
+uv run python scripts/download_yolo26.py
+```
+
+**Models Downloaded:**
+
+- yolo26n.pt (Nano - fastest, ~5 MB)
+- yolo26s.pt (Small - balanced, ~20 MB)
+- yolo26m.pt (Medium - higher accuracy, ~42 MB)
+
+**Output Location:** `/export/ai_models/model-zoo/yolo26/`
 
 ### Maintenance Scripts
 
