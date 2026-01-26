@@ -415,7 +415,7 @@ class ConfigResponse(BaseModel):
     )
     log_retention_days: int = Field(
         ...,
-        description="Number of days to retain logs",
+        description="Number of days to retain logs (separate from event retention)",
         ge=1,
         le=365,
     )

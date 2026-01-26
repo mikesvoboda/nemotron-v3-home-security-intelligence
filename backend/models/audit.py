@@ -72,6 +72,12 @@ class AuditAction(str, Enum):
     ZONE_UPDATED = "zone_updated"
     ZONE_DELETED = "zone_deleted"
 
+    # Export compliance actions (NEM-3572)
+    EXPORT_CREATED = "export_created"
+    EXPORT_DOWNLOADED = "export_downloaded"
+    EXPORT_EXPIRED = "export_expired"
+    EXPORT_CANCELLED = "export_cancelled"
+
 
 class AuditStatus(str, Enum):
     """Enumeration of audit log statuses."""

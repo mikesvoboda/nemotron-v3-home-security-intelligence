@@ -12,17 +12,23 @@ Job Status Flow:
     pending -> running -> completed
                       -> failed
 
+Compliance Features (NEM-3572):
+    - File expiration with configurable retention (default 7 days)
+    - Download tracking for audit purposes
+    - Data sensitivity acknowledgment
+
 Usage:
     Export jobs are created when users request data exports. The export
     service updates progress as the export runs, and the frontend can
     poll for status updates or receive them via WebSocket.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum, auto
 from uuid import uuid7
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -31,12 +37,15 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.time_utils import utc_now
 
 from .camera import Base
+
+# Default retention period for export files (days)
+DEFAULT_EXPORT_RETENTION_DAYS = 7
 
 
 class ExportJobStatus(StrEnum):
@@ -129,12 +138,56 @@ class ExportJob(Base):
     # Filter parameters used for the export (stored as JSON string)
     filter_params: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Compliance fields (NEM-3572)
+    # File expiration
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=lambda: utc_now() + timedelta(days=DEFAULT_EXPORT_RETENTION_DAYS),
+    )
+
+    # Download tracking
+    download_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_downloaded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Data sensitivity acknowledgment
+    sensitivity_acknowledged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Compliance fields (NEM-3669)
+    # Configurable retention period for this export
+    retention_days: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Days to retain export (overrides system default)",
+    )
+
+    # Legal hold prevents automatic deletion
+    legal_hold: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        doc="Prevent automatic deletion when set to True",
+    )
+
+    # Compliance metadata for audit trail
+    compliance_metadata: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        doc="Audit trail info (requestor, reason, authorization)",
+    )
+
     # Indexes for common queries
     __table_args__ = (
         Index("idx_export_jobs_status", "status"),
         Index("idx_export_jobs_export_type", "export_type"),
         Index("idx_export_jobs_created_at", "created_at"),
         Index("idx_export_jobs_status_created_at", "status", "created_at"),
+        # Index for expired files cleanup (NEM-3572)
+        Index("idx_export_jobs_expires_at", "expires_at"),
+        # Index for legal hold queries (NEM-3669)
+        Index("idx_export_jobs_legal_hold", "legal_hold"),
         # CHECK constraints for business rules
         CheckConstraint(
             "progress_percent >= 0 AND progress_percent <= 100",
@@ -151,6 +204,15 @@ class ExportJob(Base):
         CheckConstraint(
             "output_size_bytes IS NULL OR output_size_bytes >= 0",
             name="ck_export_jobs_size_non_negative",
+        ),
+        CheckConstraint(
+            "download_count >= 0",
+            name="ck_export_jobs_download_count_non_negative",
+        ),
+        # Retention days must be positive if specified (NEM-3669)
+        CheckConstraint(
+            "retention_days IS NULL OR retention_days > 0",
+            name="ck_export_jobs_retention_days_positive",
         ),
     )
 

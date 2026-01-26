@@ -1,20 +1,26 @@
 import { Card, Title, Text, Button } from '@tremor/react';
 import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 import CleanupPreviewPanel from './CleanupPreviewPanel';
 import DetectionThresholdsPanel from './DetectionThresholdsPanel';
 import DlqMonitor from './DlqMonitor';
+import QueueSettings from './QueueSettings';
+import RateLimitingSettings from './RateLimitingSettings';
 import SeverityThresholds from './SeverityThresholds';
 import StorageDashboard from './StorageDashboard';
+import { useSettingsQuery, useUpdateSettings } from '../../hooks/useSettingsApi';
 import {
   fetchConfig,
   updateConfig,
   triggerCleanup,
+  fetchAnomalyConfig,
   type SystemConfig,
   type SystemConfigUpdate,
   type CleanupResponse,
+  type AnomalyConfig,
 } from '../../services/api';
+import AnomalyConfigPanel from '../analytics/AnomalyConfigPanel';
 
 export interface ProcessingSettingsProps {
   className?: string;
@@ -38,6 +44,17 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<CleanupResponse | null>(null);
+  const [anomalyConfig, setAnomalyConfig] = useState<AnomalyConfig | null>(null);
+  const [anomalyConfigLoading, setAnomalyConfigLoading] = useState(true);
+  const [anomalyConfigError, setAnomalyConfigError] = useState<string | null>(null);
+
+  // Settings API for rate limiting and queue configuration (NEM-3670)
+  const {
+    settings,
+    isLoading: settingsLoading,
+    error: settingsError,
+  } = useSettingsQuery();
+  const updateSettingsMutation = useUpdateSettings();
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -55,6 +72,29 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
     };
 
     void loadConfig();
+  }, []);
+
+  useEffect(() => {
+    const loadAnomalyConfig = async () => {
+      try {
+        setAnomalyConfigLoading(true);
+        setAnomalyConfigError(null);
+        const data = await fetchAnomalyConfig();
+        setAnomalyConfig(data);
+      } catch (err) {
+        setAnomalyConfigError(
+          err instanceof Error ? err.message : 'Failed to load anomaly configuration'
+        );
+      } finally {
+        setAnomalyConfigLoading(false);
+      }
+    };
+
+    void loadAnomalyConfig();
+  }, []);
+
+  const handleAnomalyConfigUpdated = useCallback((updatedConfig: AnomalyConfig) => {
+    setAnomalyConfig(updatedConfig);
   }, []);
 
   const hasChanges = !!(
@@ -380,6 +420,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 disabled={!hasChanges || saving}
                 variant="secondary"
                 className="flex-1 disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="processing-settings-reset"
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Reset
@@ -417,6 +458,70 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               )}
             </div>
 
+            {/* Rate Limiting Settings (NEM-3670) */}
+            <div className="border-t border-gray-800 pt-4">
+              {settingsLoading && (
+                <div className="space-y-4">
+                  <div className="skeleton h-12 w-full"></div>
+                </div>
+              )}
+              {settingsError && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+                  <Text className="text-red-400">{settingsError.message}</Text>
+                </div>
+              )}
+              {!settingsLoading && !settingsError && settings && (
+                <RateLimitingSettings
+                  enabled={settings.rate_limiting.enabled}
+                  requestsPerMinute={settings.rate_limiting.requests_per_minute}
+                  burstSize={settings.rate_limiting.burst_size}
+                  onEnabledChange={(enabled) => {
+                    updateSettingsMutation.mutate({
+                      rate_limiting: { enabled },
+                    });
+                  }}
+                  onRequestsPerMinuteChange={(value) => {
+                    updateSettingsMutation.mutate({
+                      rate_limiting: { requests_per_minute: value },
+                    });
+                  }}
+                  onBurstSizeChange={(value) => {
+                    updateSettingsMutation.mutate({
+                      rate_limiting: { burst_size: value },
+                    });
+                  }}
+                  disabled={updateSettingsMutation.isPending}
+                />
+              )}
+            </div>
+
+            {/* Queue Settings (NEM-3670) */}
+            <div className="border-t border-gray-800 pt-4">
+              {settingsLoading && (
+                <div className="space-y-4">
+                  <div className="skeleton h-12 w-full"></div>
+                </div>
+              )}
+              {!settingsLoading && !settingsError && settings && (
+                <QueueSettings
+                  maxSize={settings.queue.max_size}
+                  backpressureThreshold={Math.round(settings.queue.backpressure_threshold * 100)}
+                  onMaxSizeChange={(value) => {
+                    updateSettingsMutation.mutate({
+                      queue: { max_size: value },
+                    });
+                  }}
+                  onBackpressureThresholdChange={(value) => {
+                    updateSettingsMutation.mutate({
+                      queue: { backpressure_threshold: value / 100 },
+                    });
+                  }}
+                  disabled={updateSettingsMutation.isPending}
+                />
+              )}
+            </div>
+
             {/* Application Info */}
             <div className="border-t border-gray-800 pt-4">
               <div className="mb-2 flex items-center justify-between">
@@ -440,6 +545,32 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
       {/* Severity Thresholds - Display risk score thresholds */}
       <SeverityThresholds className="mt-6" />
+
+      {/* Anomaly Detection Settings */}
+      <Card className="mt-6 border-gray-800 bg-[#1A1A1A] shadow-lg">
+        <Title className="mb-4 flex items-center gap-2 text-white">
+          <SettingsIcon className="h-5 w-5 text-[#76B900]" />
+          Anomaly Detection
+        </Title>
+        {anomalyConfigLoading && (
+          <div className="space-y-4">
+            <div className="skeleton h-12 w-full"></div>
+            <div className="skeleton h-12 w-full"></div>
+          </div>
+        )}
+        {anomalyConfigError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+            <Text className="text-red-400">{anomalyConfigError}</Text>
+          </div>
+        )}
+        {!anomalyConfigLoading && !anomalyConfigError && anomalyConfig && (
+          <AnomalyConfigPanel
+            config={anomalyConfig}
+            onConfigUpdated={handleAnomalyConfigUpdated}
+          />
+        )}
+      </Card>
 
       {/* DLQ Monitor - Always visible below config card */}
       <DlqMonitor className="mt-6" />

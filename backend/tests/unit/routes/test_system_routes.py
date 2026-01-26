@@ -1573,8 +1573,9 @@ async def test_get_config_returns_settings() -> None:
     mock_settings.grafana_url = "http://localhost:3002"
     mock_settings.debug = False
 
+    mock_response = Response()
+
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
-        mock_response = MagicMock()
         response = await system_routes.get_config(response=mock_response)
 
     assert isinstance(response, ConfigResponse)
@@ -1613,6 +1614,7 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
 
     update = ConfigUpdateRequest(retention_days=7)
     mock_request = MagicMock()
+    mock_response = Response()
     mock_db = AsyncMock()
 
     with (
@@ -1620,7 +1622,6 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        mock_response = MagicMock()
         response = await system_routes.patch_config(
             request=mock_request, response=mock_response, update=update, db=mock_db
         )
@@ -1655,6 +1656,7 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
 
     update = ConfigUpdateRequest(batch_window_seconds=120)
     mock_request = MagicMock()
+    mock_response = Response()
     mock_db = AsyncMock()
 
     with (
@@ -1662,7 +1664,6 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        mock_response = MagicMock()
         response = await system_routes.patch_config(
             request=mock_request, response=mock_response, update=update, db=mock_db
         )
@@ -1696,6 +1697,7 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
 
     update = ConfigUpdateRequest(batch_idle_timeout_seconds=45)
     mock_request = MagicMock()
+    mock_response = Response()
     mock_db = AsyncMock()
 
     with (
@@ -1703,7 +1705,6 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        mock_response = MagicMock()
         response = await system_routes.patch_config(
             request=mock_request, response=mock_response, update=update, db=mock_db
         )
@@ -1737,6 +1738,7 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
 
     update = ConfigUpdateRequest(detection_confidence_threshold=0.75)
     mock_request = MagicMock()
+    mock_response = Response()
     mock_db = AsyncMock()
 
     with (
@@ -1744,7 +1746,6 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        mock_response = MagicMock()
         response = await system_routes.patch_config(
             request=mock_request, response=mock_response, update=update, db=mock_db
         )
@@ -1779,6 +1780,7 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
     # Empty update - no fields set
     update = ConfigUpdateRequest()
     mock_request = MagicMock()
+    mock_response = Response()
     mock_db = AsyncMock()
 
     with (
@@ -1786,7 +1788,6 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        mock_response = MagicMock()
         response = await system_routes.patch_config(
             request=mock_request, response=mock_response, update=update, db=mock_db
         )
@@ -1826,6 +1827,7 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
         detection_confidence_threshold=0.8,
     )
     mock_request = MagicMock()
+    mock_response = Response()
     mock_db = AsyncMock()
 
     with (
@@ -1833,7 +1835,6 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        mock_response = MagicMock()
         response = await system_routes.patch_config(
             request=mock_request, response=mock_response, update=update, db=mock_db
         )
