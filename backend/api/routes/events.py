@@ -783,9 +783,9 @@ async def get_timeline_summary(
         end_date=effective_end_date,
     )
 
-    # Cache the result
+    # Cache the result (use mode='json' to serialize datetime objects)
     try:
-        await cache.set(cache_key, response.model_dump(), ttl=SHORT_TTL)
+        await cache.set(cache_key, response.model_dump(mode="json"), ttl=SHORT_TTL)
     except Exception as e:
         logger.warning(f"Cache write failed: {e}")
 
