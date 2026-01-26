@@ -431,31 +431,33 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
           // Start countdown for this attempt
           startCountdown(pendingRetry.id, currentDelay, currentRetryAt);
 
-          pendingRetry.timerId = setTimeout(async () => {
-            // Check if cancelled
-            if (pendingRetry.cancelled) {
-              cleanupRetry(pendingRetry.id);
-              pendingRetry.reject(new Error('Retry cancelled by user'));
-              return;
-            }
-
-            try {
-              const result = await pendingRetry.execute();
-              cleanupRetry(pendingRetry.id);
-              pendingRetry.resolve(result);
-            } catch (error) {
-              // Check if we should retry again
-              if (pendingRetry.attempt < pendingRetry.maxAttempts) {
-                pendingRetry.attempt += 1;
-                scheduleRetry(pendingRetry);
-              } else {
-                // Max retries reached
+          pendingRetry.timerId = setTimeout(() => {
+            void (async () => {
+              // Check if cancelled
+              if (pendingRetry.cancelled) {
                 cleanupRetry(pendingRetry.id);
-                pendingRetry.reject(
-                  error instanceof Error ? error : new Error('Max retries exceeded')
-                );
+                pendingRetry.reject(new Error('Retry cancelled by user'));
+                return;
               }
-            }
+
+              try {
+                const result = await pendingRetry.execute();
+                cleanupRetry(pendingRetry.id);
+                pendingRetry.resolve(result);
+              } catch (error) {
+                // Check if we should retry again
+                if (pendingRetry.attempt < pendingRetry.maxAttempts) {
+                  pendingRetry.attempt += 1;
+                  scheduleRetry(pendingRetry);
+                } else {
+                  // Max retries reached
+                  cleanupRetry(pendingRetry.id);
+                  pendingRetry.reject(
+                    error instanceof Error ? error : new Error('Max retries exceeded')
+                  );
+                }
+              }
+            })();
           }, currentDelay);
         };
 
