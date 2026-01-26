@@ -378,6 +378,7 @@ class BatchSettingsUpdate(BaseModel):
     """Batch settings update schema (all fields optional).
 
     Used for PATCH /api/v1/settings to partially update batch processing settings.
+    Validates that idle_timeout_seconds < window_seconds when both are provided.
     """
 
     window_seconds: int | None = Field(
@@ -400,6 +401,18 @@ class BatchSettingsUpdate(BaseModel):
             }
         }
     )
+
+    @model_validator(mode="after")
+    def validate_timeout_relationship(self) -> BatchSettingsUpdate:
+        """Validate that idle_timeout_seconds is less than window_seconds when both provided."""
+        # Only validate when both fields are provided together
+        if self.window_seconds is not None and self.idle_timeout_seconds is not None:
+            if self.idle_timeout_seconds >= self.window_seconds:
+                raise ValueError(
+                    "idle_timeout_seconds must be less than window_seconds for optimal batch processing"
+                )
+
+        return self
 
 
 class SeveritySettingsUpdate(BaseModel):
