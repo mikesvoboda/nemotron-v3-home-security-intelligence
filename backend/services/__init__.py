@@ -287,6 +287,10 @@ from .scene_change_detector import (
     get_scene_change_detector,
     reset_scene_change_detector,
 )
+from .scene_change_service import (
+    SceneChangeService,
+    classify_scene_change_type,
+)
 from .search import (
     SearchFilters,
     SearchResponse,
@@ -475,6 +479,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SceneAnalysis",
     "SceneChangeDetector",
     "SceneChangeResult",
+    "SceneChangeService",
     "SearchFilters",
     "SearchResponse",
     "SearchResult",
@@ -507,6 +512,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     # Functions
     "audit_service",
     "bbox_center",
+    "classify_scene_change_type",
     "get_audit_service",
     "build_dedup_key",
     "clean_plate_text",

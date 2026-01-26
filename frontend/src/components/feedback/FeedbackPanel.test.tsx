@@ -64,7 +64,7 @@ describe('FeedbackPanel', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       expect(screen.getByText('Loading feedback...')).toBeInTheDocument();
     });
@@ -73,7 +73,7 @@ describe('FeedbackPanel', () => {
       // Return null (no feedback exists)
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-panel')).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe('FeedbackPanel', () => {
     it('renders all four feedback buttons', async () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('FeedbackPanel', () => {
     it('renders existing feedback in read-only mode', async () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(mockFeedbackResponse);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByText('False Positive')).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('FeedbackPanel', () => {
         created_at: '2024-01-15T10:30:00Z',
       });
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe('FeedbackPanel', () => {
       await waitFor(() => {
         expect(api.submitEventFeedback).toHaveBeenCalled();
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
-        expect(callArgs).toEqual({
+        expect(callArgs).toMatchObject({
           event_id: 123,
           feedback_type: 'accurate',
         });
@@ -191,7 +191,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
@@ -209,7 +209,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-missed_threat-button')).toBeInTheDocument();
@@ -227,7 +227,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-severity_wrong-button')).toBeInTheDocument();
@@ -245,7 +245,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
@@ -263,7 +263,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
@@ -283,7 +283,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
@@ -314,7 +314,7 @@ describe('FeedbackPanel', () => {
         created_at: '2024-01-15T10:30:00Z',
       });
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
@@ -330,7 +330,7 @@ describe('FeedbackPanel', () => {
       await waitFor(() => {
         expect(api.submitEventFeedback).toHaveBeenCalled();
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
-        expect(callArgs).toEqual({
+        expect(callArgs).toMatchObject({
           event_id: 123,
           feedback_type: 'false_positive',
           notes: 'Test note',
@@ -367,7 +367,7 @@ describe('FeedbackPanel', () => {
         expect(api.submitEventFeedback).toHaveBeenCalled();
         // Check the first argument passed to the mutation function
         const callArgs = vi.mocked(api.submitEventFeedback).mock.calls[0][0];
-        expect(callArgs).toEqual({
+        expect(callArgs).toMatchObject({
           event_id: 123,
           feedback_type: 'severity_wrong',
           notes: 'Current score: 75. Should be lower',
@@ -382,7 +382,7 @@ describe('FeedbackPanel', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
       vi.mocked(api.submitEventFeedback).mockRejectedValue(new Error('Server error'));
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
@@ -402,7 +402,7 @@ describe('FeedbackPanel', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
       vi.mocked(api.submitEventFeedback).mockRejectedValue(new Error('Server error'));
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
@@ -433,7 +433,7 @@ describe('FeedbackPanel', () => {
           })
       );
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
@@ -461,7 +461,7 @@ describe('FeedbackPanel', () => {
     it('has title attributes on feedback buttons', async () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-accurate-button')).toHaveAttribute(
@@ -487,7 +487,7 @@ describe('FeedbackPanel', () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
 
-      renderWithQueryClient(<FeedbackPanel eventId={123} />);
+      renderWithQueryClient(<FeedbackPanel eventId={123} currentRiskScore={50} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();

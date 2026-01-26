@@ -160,8 +160,17 @@ export default function ProductTour({
         }
       }
 
-      // Handle tour end events (completion, skip, or close)
-      // Only process these when the tour actually ends, not on intermediate callbacks
+      // Handle close action at any point (overlay click, escape key, or X button)
+      // This must be checked before tour end events because close actions
+      // may not always trigger a tour:end event (NEM-3518 fix)
+      if (action === ACTIONS.CLOSE) {
+        setInternalRun(false);
+        markTourCompleted();
+        onComplete?.();
+        return; // Exit early to prevent duplicate handling
+      }
+
+      // Handle tour end events (completion or skip)
       if (type === EVENTS.TOUR_END) {
         if (status === STATUS.FINISHED) {
           // User completed the tour by clicking through all steps
@@ -173,11 +182,6 @@ export default function ProductTour({
           setInternalRun(false);
           markTourSkipped();
           onSkip?.();
-        } else if (action === ACTIONS.CLOSE) {
-          // User clicked the X button or overlay to close
-          setInternalRun(false);
-          markTourCompleted();
-          onComplete?.();
         }
       }
     },

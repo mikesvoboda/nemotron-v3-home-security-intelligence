@@ -10,6 +10,30 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class EnrichmentModelInfo(BaseModel):
+    """Information about the AI model that produced an enrichment result (NEM-3535).
+
+    Exposes which model processed each enrichment, enabling model performance
+    tracking and debugging.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "model_name": "yolov11-face",
+                "model_version": "1.0.0",
+                "inference_time_ms": 25.3,
+            }
+        }
+    )
+
+    model_name: str = Field(..., description="Name of the AI model that produced this enrichment")
+    model_version: str | None = Field(None, description="Version of the model (if available)")
+    inference_time_ms: float | None = Field(
+        None, ge=0.0, description="Time taken for model inference in milliseconds"
+    )
+
+
 class LicensePlateEnrichment(BaseModel):
     """License plate detection and OCR results."""
 
@@ -30,6 +54,9 @@ class LicensePlateEnrichment(BaseModel):
     text: str | None = Field(None, description="OCR-extracted plate text")
     ocr_confidence: float | None = Field(None, ge=0.0, le=1.0, description="OCR confidence")
     bbox: list[float] | None = Field(None, description="Bounding box [x1, y1, x2, y2]")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class FaceEnrichment(BaseModel):
@@ -48,6 +75,9 @@ class FaceEnrichment(BaseModel):
     detected: bool = Field(False, description="Whether faces were detected")
     count: int = Field(0, ge=0, description="Number of faces detected")
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Highest face confidence")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class VehicleEnrichment(BaseModel):
@@ -70,6 +100,9 @@ class VehicleEnrichment(BaseModel):
     is_commercial: bool | None = Field(None, description="Whether vehicle is commercial/delivery")
     damage_detected: bool | None = Field(None, description="Whether vehicle damage was detected")
     damage_types: list[str] | None = Field(None, description="Types of damage detected")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class ClothingEnrichment(BaseModel):
@@ -99,6 +132,9 @@ class ClothingEnrichment(BaseModel):
     )
     has_bag: bool | None = Field(None, description="Whether person is carrying a bag")
     clothing_items: list[str] | None = Field(None, description="List of detected clothing items")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class ViolenceEnrichment(BaseModel):
@@ -117,6 +153,9 @@ class ViolenceEnrichment(BaseModel):
     detected: bool = Field(False, description="Whether violence was detected")
     score: float = Field(0.0, ge=0.0, le=1.0, description="Violence probability score")
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Model confidence")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class WeatherEnrichment(BaseModel):
@@ -133,6 +172,9 @@ class WeatherEnrichment(BaseModel):
 
     condition: str | None = Field(None, description="Weather condition (clear, rain, fog, etc.)")
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Classification confidence")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class PoseEnrichment(BaseModel):
@@ -161,6 +203,9 @@ class PoseEnrichment(BaseModel):
     )
     keypoint_count: int | None = Field(None, ge=0, description="Number of detected keypoints")
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Pose estimation confidence")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class DepthEnrichment(BaseModel):
@@ -179,6 +224,9 @@ class DepthEnrichment(BaseModel):
         None, ge=0.0, description="Estimated distance in meters"
     )
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Estimation confidence")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class ImageQualityEnrichment(BaseModel):
@@ -202,6 +250,9 @@ class ImageQualityEnrichment(BaseModel):
     quality_change_detected: bool | None = Field(
         None, description="Whether sudden quality change was detected"
     )
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class PetEnrichment(BaseModel):
@@ -222,6 +273,9 @@ class PetEnrichment(BaseModel):
     type: str | None = Field(None, description="Pet type (cat, dog)")
     confidence: float | None = Field(None, ge=0.0, le=1.0, description="Classification confidence")
     is_household_pet: bool | None = Field(None, description="Whether classified as household pet")
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
 
 
 class EnrichmentResponse(BaseModel):

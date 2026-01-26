@@ -492,6 +492,7 @@ export type EventFeedbackCreate = components['schemas']['EventFeedbackCreate'];
 export type EventFeedbackResponse = components['schemas']['EventFeedbackResponse'];
 export type FeedbackType = components['schemas']['FeedbackType'];
 export type FeedbackStatsResponse = components['schemas']['FeedbackStatsResponse'];
+export type ActualThreatLevel = components['schemas']['ActualThreatLevel'];
 
 // Request Recording types (NEM-2721)
 export type RecordingResponse = components['schemas']['RecordingResponse'];
