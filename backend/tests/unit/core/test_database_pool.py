@@ -981,3 +981,261 @@ class TestConcurrentSessionAccess:
 
         finally:
             db_module._async_session_factory = original_factory
+
+
+# =============================================================================
+# Connection Pool Warming Tests (NEM-3757)
+# =============================================================================
+
+
+class TestConnectionPoolWarming:
+    """Tests for warm_connection_pool() function."""
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_when_not_initialized(self) -> None:
+        """Test that warm_connection_pool returns error when DB not initialized."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            db_module._engine = None
+
+            result = await db_module.warm_connection_pool()
+
+            assert result["success"] is False
+            assert result["connections_warmed"] == 0
+            assert "not initialized" in result["error"].lower()
+
+        finally:
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_success(self) -> None:
+        """Test successful connection pool warming."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            # Create mock engine with connect method
+            mock_engine = AsyncMock()
+            mock_conn = AsyncMock()
+            mock_conn.execute = AsyncMock()
+
+            @asynccontextmanager
+            async def mock_connect() -> AsyncGenerator[AsyncMock]:
+                yield mock_conn
+
+            mock_engine.connect = mock_connect
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_pool_warming_size=3,
+                    database_pool_warming_timeout=30,
+                    database_pool_size=20,
+                )
+
+                result = await db_module.warm_connection_pool()
+
+                assert result["success"] is True
+                assert result["connections_warmed"] == 3
+                assert result["target_connections"] == 3
+                assert result["error"] is None
+                assert result["duration_ms"] >= 0
+
+        finally:
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_with_custom_target(self) -> None:
+        """Test pool warming with custom target connections."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            mock_engine = AsyncMock()
+            mock_conn = AsyncMock()
+            mock_conn.execute = AsyncMock()
+
+            @asynccontextmanager
+            async def mock_connect() -> AsyncGenerator[AsyncMock]:
+                yield mock_conn
+
+            mock_engine.connect = mock_connect
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_pool_warming_size=5,
+                    database_pool_warming_timeout=30,
+                    database_pool_size=20,
+                )
+
+                # Override with custom target
+                result = await db_module.warm_connection_pool(target_connections=2)
+
+                assert result["success"] is True
+                assert result["connections_warmed"] == 2
+                assert result["target_connections"] == 2
+
+        finally:
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_clamps_to_pool_size(self) -> None:
+        """Test that target is clamped to pool_size."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            mock_engine = AsyncMock()
+            mock_conn = AsyncMock()
+            mock_conn.execute = AsyncMock()
+
+            @asynccontextmanager
+            async def mock_connect() -> AsyncGenerator[AsyncMock]:
+                yield mock_conn
+
+            mock_engine.connect = mock_connect
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_pool_warming_size=50,  # Higher than pool_size
+                    database_pool_warming_timeout=30,
+                    database_pool_size=10,  # Smaller pool
+                )
+
+                result = await db_module.warm_connection_pool()
+
+                # Should be clamped to pool_size
+                assert result["target_connections"] == 10
+                assert result["connections_warmed"] == 10
+
+        finally:
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_handles_connection_failures(self) -> None:
+        """Test pool warming handles some connection failures gracefully."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            mock_engine = AsyncMock()
+            call_count = 0
+
+            @asynccontextmanager
+            async def mock_connect() -> AsyncGenerator[AsyncMock]:
+                nonlocal call_count
+                call_count += 1
+                if call_count % 2 == 0:
+                    raise RuntimeError("Connection failed")
+                mock_conn = AsyncMock()
+                mock_conn.execute = AsyncMock()
+                yield mock_conn
+
+            mock_engine.connect = mock_connect
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_pool_warming_size=4,
+                    database_pool_warming_timeout=30,
+                    database_pool_size=20,
+                )
+
+                result = await db_module.warm_connection_pool()
+
+                # 2 out of 4 should succeed (odd calls)
+                assert result["connections_warmed"] == 2
+                assert result["target_connections"] == 4
+                # Still considered success if at least one warmed
+                assert result["success"] is True
+
+        finally:
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_timeout(self) -> None:
+        """Test pool warming timeout handling."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            mock_engine = AsyncMock()
+
+            @asynccontextmanager
+            async def slow_connect() -> AsyncGenerator[AsyncMock]:
+                # Simulate slow connection that exceeds timeout
+                await asyncio.sleep(10)  # 10 seconds delay
+                mock_conn = AsyncMock()
+                mock_conn.execute = AsyncMock()
+                yield mock_conn
+
+            mock_engine.connect = slow_connect
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_pool_warming_size=3,
+                    database_pool_warming_timeout=1,  # 1 second timeout
+                    database_pool_size=20,
+                )
+
+                result = await db_module.warm_connection_pool(timeout_seconds=1)
+
+                # Should timeout
+                assert result["connections_warmed"] == 0
+                assert "timed out" in result["error"].lower()
+                assert result["success"] is False
+
+        finally:
+            db_module._engine = original_engine
+
+    @pytest.mark.asyncio
+    async def test_warm_pool_all_failures(self) -> None:
+        """Test pool warming when all connections fail."""
+        import backend.core.database as db_module
+
+        original_engine = db_module._engine
+
+        try:
+            mock_engine = AsyncMock()
+
+            @asynccontextmanager
+            async def failing_connect() -> AsyncGenerator[AsyncMock]:
+                raise RuntimeError("All connections fail")
+                yield AsyncMock()
+
+            mock_engine.connect = failing_connect
+
+            db_module._engine = mock_engine
+
+            with patch("backend.core.database.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    database_pool_warming_size=3,
+                    database_pool_warming_timeout=30,
+                    database_pool_size=20,
+                )
+
+                result = await db_module.warm_connection_pool()
+
+                assert result["connections_warmed"] == 0
+                # No error message since individual failures don't set it
+                # But success should be False since no connections were warmed
+                assert result["success"] is False
+
+        finally:
+            db_module._engine = original_engine

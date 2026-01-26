@@ -239,8 +239,8 @@ export default function AuditTable({
       {totalCount > 0 && (
         <div className="mb-4 flex items-center justify-between text-sm text-gray-400">
           <p>
-            Showing {offset + 1}-{Math.min(offset + limit, totalCount)} of {totalCount} audit
-            entries
+            Showing {Math.min(offset + 1, totalCount)}-{Math.min(offset + limit, totalCount)} of{' '}
+            {totalCount} audit entries
           </p>
         </div>
       )}

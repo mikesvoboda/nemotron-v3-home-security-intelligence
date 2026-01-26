@@ -1,0 +1,345 @@
+"""Unit tests for read-through cache service (NEM-3765)."""
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
+
+from backend.services.read_through_cache import (
+    ReadThroughCache,
+    ReadThroughResult,
+    get_camera_read_through_cache,
+    reset_read_through_caches,
+)
+
+
+@pytest.fixture
+def mock_settings():
+    """Mock settings for read-through cache tests."""
+    settings = MagicMock()
+    settings.cache_default_ttl = 300
+    settings.cache_short_ttl = 60
+    settings.redis_key_prefix = "hsi"
+    return settings
+
+
+@pytest.fixture
+def mock_redis():
+    """Mock Redis client for testing."""
+    redis = AsyncMock()
+    redis.get = AsyncMock(return_value=None)
+    redis.set = AsyncMock(return_value=True)
+    redis.delete = AsyncMock(return_value=1)
+    return redis
+
+
+@pytest.fixture
+async def read_through_cache(mock_settings, mock_redis):
+    """Create a read-through cache for testing."""
+    await reset_read_through_caches()
+
+    async def mock_loader(key: str) -> dict | None:
+        if key == "existing":
+            return {"id": "existing", "name": "Existing Item"}
+        return None
+
+    with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+        cache = ReadThroughCache(
+            cache_prefix="test",
+            loader=mock_loader,
+            ttl=300,
+        )
+        cache._redis = mock_redis
+        yield cache
+
+    await reset_read_through_caches()
+
+
+class TestReadThroughResult:
+    """Tests for ReadThroughResult dataclass."""
+
+    def test_result_from_cache(self):
+        """Test result when value is from cache."""
+        result = ReadThroughResult(
+            value={"id": "1"},
+            from_cache=True,
+            cache_key="test:1",
+            ttl_remaining=250,
+        )
+        assert result.from_cache is True
+        assert result.value == {"id": "1"}
+
+    def test_result_from_loader(self):
+        """Test result when value is from loader."""
+        result = ReadThroughResult(
+            value={"id": "2"},
+            from_cache=False,
+            cache_key="test:2",
+        )
+        assert result.from_cache is False
+        assert result.ttl_remaining is None
+
+
+class TestReadThroughCache:
+    """Tests for ReadThroughCache class."""
+
+    def test_make_cache_key(self, mock_settings):
+        """Test cache key generation."""
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="cameras",
+                loader=AsyncMock(),
+            )
+            key = cache._make_cache_key("cam1")
+
+        assert key == "hsi:cache:cameras:cam1"
+
+    def test_make_lock_key(self, mock_settings):
+        """Test lock key generation for stampede protection."""
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="cameras",
+                loader=AsyncMock(),
+            )
+            key = cache._make_lock_key("cam1")
+
+        assert key == "hsi:cache:cameras:cam1:loading"
+
+    @pytest.mark.asyncio
+    async def test_get_cache_hit(self, read_through_cache, mock_redis):
+        """Test cache hit returns cached value."""
+        cached_data = {"id": "1", "name": "Cached Item"}
+        mock_redis.get.return_value = cached_data
+
+        result = await read_through_cache.get("1")
+
+        assert result.from_cache is True
+        assert result.value == cached_data
+        mock_redis.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_cache_miss_loads_data(self, read_through_cache, mock_redis):
+        """Test cache miss triggers loader and caches result."""
+        mock_redis.get.return_value = None
+        mock_redis.set.return_value = True
+
+        result = await read_through_cache.get("existing")
+
+        assert result.from_cache is False
+        assert result.value == {"id": "existing", "name": "Existing Item"}
+        # Should have called set to cache the value (plus lock key for stampede protection)
+        assert mock_redis.set.call_count == 2  # Lock key + cache key
+
+    @pytest.mark.asyncio
+    async def test_get_cache_miss_not_found(self, read_through_cache, mock_redis):
+        """Test cache miss with loader returning None."""
+        mock_redis.get.return_value = None
+        mock_redis.set.return_value = True
+
+        result = await read_through_cache.get("nonexistent")
+
+        assert result.from_cache is False
+        assert result.value is None
+        # Should only set the lock key (stampede protection), not cache None values
+        assert mock_redis.set.call_count == 1  # Only lock key, no cache for None
+
+    @pytest.mark.asyncio
+    async def test_get_with_stampede_protection(self, mock_settings, mock_redis):
+        """Test stampede protection with lock."""
+        load_count = 0
+
+        async def counting_loader(key: str) -> dict:
+            nonlocal load_count
+            load_count += 1
+            await asyncio.sleep(0.05)  # Simulate slow load
+            return {"id": key}
+
+        # First request gets lock (returns True), second request doesn't (returns False)
+        mock_redis.set.side_effect = [True, True]  # nx=True returns True on first call
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=counting_loader,
+                ttl=300,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            result = await cache.get("key1")
+
+        assert result.value == {"id": "key1"}
+
+    @pytest.mark.asyncio
+    async def test_get_without_stampede_protection(self, mock_settings, mock_redis):
+        """Test loading without stampede protection."""
+
+        async def simple_loader(key: str) -> dict:
+            return {"id": key}
+
+        mock_redis.get.return_value = None
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=simple_loader,
+                ttl=300,
+                stampede_protection=False,  # Disable stampede protection
+            )
+            cache._redis = mock_redis
+
+            result = await cache.get("key1")
+
+        assert result.value == {"id": "key1"}
+        assert result.from_cache is False
+
+    @pytest.mark.asyncio
+    async def test_get_redis_error_fallback(self, mock_settings, mock_redis):
+        """Test fallback to loader on Redis error."""
+
+        async def fallback_loader(key: str) -> dict:
+            return {"id": key, "source": "fallback"}
+
+        mock_redis.get.side_effect = RedisConnectionError("Connection refused")
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=fallback_loader,
+                ttl=300,
+            )
+            cache._redis = mock_redis
+
+            result = await cache.get("key1")
+
+        assert result.value == {"id": "key1", "source": "fallback"}
+        assert result.from_cache is False
+
+    @pytest.mark.asyncio
+    async def test_invalidate(self, read_through_cache, mock_redis):
+        """Test cache invalidation."""
+        mock_redis.delete.return_value = 1
+
+        deleted = await read_through_cache.invalidate("key1")
+
+        assert deleted is True
+        mock_redis.delete.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_invalidate_nonexistent(self, read_through_cache, mock_redis):
+        """Test invalidating nonexistent key."""
+        mock_redis.delete.return_value = 0
+
+        deleted = await read_through_cache.invalidate("nonexistent")
+
+        assert deleted is False
+
+    @pytest.mark.asyncio
+    async def test_refresh(self, read_through_cache, mock_redis):
+        """Test cache refresh."""
+        mock_redis.delete.return_value = 1
+        mock_redis.get.return_value = None
+        mock_redis.set.return_value = True
+
+        result = await read_through_cache.refresh("existing")
+
+        # Should delete first (invalidate), then load
+        # Delete is called twice: once for invalidate, once for lock release
+        assert mock_redis.delete.call_count == 2
+        assert result.from_cache is False
+
+
+class TestPreConfiguredCaches:
+    """Tests for pre-configured read-through caches."""
+
+    @pytest.mark.asyncio
+    async def test_get_camera_cache_singleton(self, mock_settings):
+        """Test camera cache is a singleton."""
+        await reset_read_through_caches()
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache1 = await get_camera_read_through_cache()
+            cache2 = await get_camera_read_through_cache()
+
+        assert cache1 is cache2
+        await reset_read_through_caches()
+
+    @pytest.mark.asyncio
+    async def test_camera_cache_prefix(self, mock_settings):
+        """Test camera cache uses correct prefix."""
+        await reset_read_through_caches()
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = await get_camera_read_through_cache()
+
+        assert cache._prefix == "cameras"
+        await reset_read_through_caches()
+
+
+class TestStampedeProtection:
+    """Tests for cache stampede protection."""
+
+    @pytest.mark.asyncio
+    async def test_wait_for_cache_success(self, mock_settings, mock_redis):
+        """Test waiting for cache to be populated by another request."""
+        # Initially None, then populated
+        get_results = [None, None, {"id": "1", "name": "Item"}]
+        mock_redis.get.side_effect = get_results
+
+        async def slow_loader(key: str) -> dict:
+            return {"id": key}
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=slow_loader,
+                ttl=300,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            # Call _wait_for_cache directly to test the waiting logic
+            result = await cache._wait_for_cache(
+                "key1",
+                "hsi:cache:test:key1",
+                300,
+                mock_redis,
+                max_wait=0.5,
+                poll_interval=0.05,
+            )
+
+        assert result.value == {"id": "1", "name": "Item"}
+        assert result.from_cache is True
+
+    @pytest.mark.asyncio
+    async def test_wait_for_cache_timeout(self, mock_settings, mock_redis):
+        """Test timeout while waiting for cache."""
+        mock_redis.get.return_value = None  # Never populated
+        mock_redis.set.return_value = True
+
+        async def quick_loader(key: str) -> dict:
+            return {"id": key}
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=quick_loader,
+                ttl=300,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            # Short wait timeout to trigger fallback to direct load
+            result = await cache._wait_for_cache(
+                "key1",
+                "hsi:cache:test:key1",
+                300,
+                mock_redis,
+                max_wait=0.1,
+                poll_interval=0.05,
+            )
+
+        # Should have loaded directly after timeout
+        assert result.value == {"id": "key1"}
+        assert result.from_cache is False
