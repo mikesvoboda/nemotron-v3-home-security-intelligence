@@ -221,9 +221,9 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-35}
+      - GPU_LAYERS=${GPU_LAYERS:-40}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
-      - CTX_SIZE=${CTX_SIZE:-32768}
+      - CTX_SIZE=${CTX_SIZE:-65536}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
