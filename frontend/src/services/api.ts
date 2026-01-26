@@ -246,6 +246,7 @@ import type {
   RecordingResponse,
   RecordingsListResponse,
   ReplayResponse,
+  EventRegistryResponse,
 } from '../types/generated';
 import type { SummariesLatestResponse } from '../types/summary';
 
@@ -336,6 +337,9 @@ export type {
   ClusterEventSummary,
   ClusterRiskLevels,
 } from '../types/generated';
+
+// Re-export WebSocket event discovery types (NEM-3639)
+export type { EventRegistryResponse, EventTypeInfo } from '../types/generated';
 
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
@@ -2112,6 +2116,21 @@ export async function fetchQueuesStatus(): Promise<QueuesStatusResponse> {
  */
 export async function fetchPipelineStatus(): Promise<PipelineStatusResponse> {
   return fetchApi<PipelineStatusResponse>('/api/system/pipeline');
+}
+
+/**
+ * Fetch WebSocket event type registry (NEM-3639).
+ *
+ * Returns the complete registry of WebSocket event types including:
+ * - Event type identifiers and descriptions
+ * - JSON Schema for each event payload
+ * - WebSocket channels for subscription
+ * - Deprecation information with suggested replacements
+ *
+ * @returns EventRegistryResponse with all available event types
+ */
+export async function fetchWebSocketEventTypes(): Promise<EventRegistryResponse> {
+  return fetchApi<EventRegistryResponse>('/api/system/websocket/events');
 }
 
 // ============================================================================

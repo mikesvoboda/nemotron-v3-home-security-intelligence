@@ -92,6 +92,30 @@ vi.mock('./PipelineLatencyPanel', () => ({
   ),
 }));
 
+vi.mock('./RiskScoreDistributionCard', () => ({
+  default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
+    <div
+      data-testid="risk-score-distribution-card"
+      data-start={dateRange.startDate}
+      data-end={dateRange.endDate}
+    >
+      Risk Score Distribution Mock
+    </div>
+  ),
+}));
+
+vi.mock('./RiskScoreTrendCard', () => ({
+  default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
+    <div
+      data-testid="risk-score-trend-card"
+      data-start={dateRange.startDate}
+      data-end={dateRange.endDate}
+    >
+      Risk Score Trend Mock
+    </div>
+  ),
+}));
+
 vi.mock('./CameraAnalyticsSelector', () => ({
   default: () => <div data-testid="camera-analytics-selector">Camera Selector Mock</div>,
 }));

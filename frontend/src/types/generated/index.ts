@@ -508,5 +508,9 @@ export type ReplayResponse = components['schemas']['ReplayResponse'];
 // Degradation Mode enum (NEM-3653)
 export type DegradationModeEnum = components['schemas']['DegradationModeEnum'];
 
+// WebSocket Event Discovery types (NEM-3639)
+export type EventTypeInfo = components['schemas']['EventTypeInfo'];
+export type EventRegistryResponse = components['schemas']['EventRegistryResponse'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';

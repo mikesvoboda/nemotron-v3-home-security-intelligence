@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from backend.api.dependencies import (
     get_baseline_service_dep,
@@ -75,6 +75,7 @@ router = APIRouter(prefix="/api/cameras", tags=["cameras"])
 snapshot_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 # Valid fields for sparse fieldsets on list_cameras endpoint (NEM-1434)
+# NEM-3597: Added property_id and areas to valid fields
 VALID_CAMERA_LIST_FIELDS = frozenset(
     {
         "id",
@@ -83,6 +84,8 @@ VALID_CAMERA_LIST_FIELDS = frozenset(
         "status",
         "created_at",
         "last_seen_at",
+        "property_id",
+        "areas",
     }
 )
 
@@ -175,7 +178,8 @@ async def list_cameras(
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
     # Cache miss - query database
-    query = select(Camera)
+    # NEM-3597: Eagerly load areas relationship for expanded CameraResponse schema
+    query = select(Camera).options(selectinload(Camera.areas))
 
     # Apply status filter if provided
     if status_filter:
@@ -185,6 +189,7 @@ async def list_cameras(
     cameras = result.scalars().all()
 
     # Serialize cameras for cache (SQLAlchemy objects can't be directly cached)
+    # NEM-3597: Include property_id and areas in serialization
     cameras_data = [
         {
             "id": c.id,
@@ -193,6 +198,8 @@ async def list_cameras(
             "status": c.status,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
+            "property_id": c.property_id,
+            "areas": [{"id": a.id, "name": a.name} for a in c.areas] if c.areas else None,
         }
         for c in cameras
     ]
@@ -256,12 +263,19 @@ async def list_deleted_cameras(
         DeletedCamerasListResponse containing list of deleted cameras and count
     """
     # Query for cameras where deleted_at is not null
-    query = select(Camera).where(Camera.deleted_at.isnot(None)).order_by(Camera.deleted_at.desc())
+    # NEM-3597: Eagerly load areas relationship for expanded CameraResponse schema
+    query = (
+        select(Camera)
+        .options(selectinload(Camera.areas))
+        .where(Camera.deleted_at.isnot(None))
+        .order_by(Camera.deleted_at.desc())
+    )
 
     result = await db.execute(query)
     deleted_cameras = result.scalars().all()
 
     # Serialize cameras for response using Pydantic models
+    # NEM-3597: Include property_id and areas in serialization
     cameras_data = [
         CameraResponse(
             id=c.id,
@@ -270,6 +284,8 @@ async def list_deleted_cameras(
             status=c.status,
             created_at=c.created_at,
             last_seen_at=c.last_seen_at,
+            property_id=c.property_id,
+            areas=[{"id": a.id, "name": a.name} for a in c.areas] if c.areas else None,
         )
         for c in deleted_cameras
     ]

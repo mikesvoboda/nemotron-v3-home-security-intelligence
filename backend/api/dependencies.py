@@ -88,7 +88,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import undefer
+from sqlalchemy.orm import selectinload, undefer
 
 from backend.core.database import get_db
 from backend.core.exceptions import CacheUnavailableError
@@ -437,6 +437,9 @@ async def get_camera_or_404(
     This utility function queries the database for a camera with the given ID
     and raises an HTTPException with status 404 if not found.
 
+    NEM-3597: Eagerly loads the 'areas' relationship to support the expanded
+    CameraResponse schema that includes property_id and areas.
+
     Args:
         camera_id: The camera ID (string) to look up. Camera IDs are normalized
                    folder names (e.g., "front_door"), not UUIDs.
@@ -445,14 +448,14 @@ async def get_camera_or_404(
                          Required for restore operations (NEM-1955).
 
     Returns:
-        Camera object if found
+        Camera object if found (with areas relationship loaded)
 
     Raises:
         HTTPException: 404 if camera not found
     """
     # Note: Camera IDs are strings (normalized folder names), not UUIDs
 
-    query = select(Camera).where(Camera.id == camera_id)
+    query = select(Camera).options(selectinload(Camera.areas)).where(Camera.id == camera_id)
     if not include_deleted:
         query = query.where(Camera.deleted_at.is_(None))
 

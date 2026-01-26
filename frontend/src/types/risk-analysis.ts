@@ -69,6 +69,23 @@ export interface RiskFlag {
 }
 
 /**
+ * Individual factor contributing to the overall risk score (NEM-3603)
+ *
+ * Risk factors represent specific aspects of the analysis that contribute
+ * positively or negatively to the overall risk score. Positive contributions
+ * increase risk (e.g., nighttime activity, unknown person), while negative
+ * contributions decrease risk (e.g., recognized face, routine timing).
+ */
+export interface RiskFactor {
+  /** Name of the risk factor (e.g., "nighttime_activity", "recognized_face") */
+  factor_name: string;
+  /** Contribution to risk score (positive increases, negative decreases) */
+  contribution: number;
+  /** Optional explanation of why this factor applies */
+  description: string | null;
+}
+
+/**
  * Factors affecting confidence in the risk analysis
  *
  * These factors help explain the reliability of the risk assessment
@@ -94,6 +111,8 @@ export interface AdvancedRiskAnalysis {
   entities: RiskEntity[];
   /** Risk flags raised during analysis */
   flags: RiskFlag[];
+  /** Individual factors contributing to the risk score (NEM-3603) */
+  risk_factors: RiskFactor[] | null;
   /** Suggested action based on the analysis */
   recommended_action: string | null;
   /** Factors affecting confidence in the analysis */
@@ -141,6 +160,19 @@ export function isRiskFlag(value: unknown): value is RiskFlag {
     typeof obj.type === 'string' &&
     typeof obj.description === 'string' &&
     isFlagSeverity(obj.severity)
+  );
+}
+
+/**
+ * Check if value is a valid RiskFactor (NEM-3603)
+ */
+export function isRiskFactor(value: unknown): value is RiskFactor {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.factor_name === 'string' &&
+    typeof obj.contribution === 'number' &&
+    (obj.description === null || typeof obj.description === 'string')
   );
 }
 

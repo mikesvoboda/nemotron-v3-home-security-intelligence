@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
+import ConfidenceIndicators from './ConfidenceIndicators';
 import EnrichmentPanel from './EnrichmentPanel';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
@@ -68,7 +69,7 @@ import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
 import type { FeedbackType, EventFeedbackResponse } from '../../types/generated';
-import type { RiskEntity, RiskFlag, ConfidenceFactors } from '../../types/risk-analysis';
+import type { RiskEntity, RiskFactor, RiskFlag, ConfidenceFactors } from '../../types/risk-analysis';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
@@ -108,6 +109,8 @@ export interface Event {
   flags?: RiskFlag[] | null;
   recommended_action?: string | null;
   confidence_factors?: ConfidenceFactors | null;
+  /** Individual factors contributing to risk score (NEM-3603) */
+  risk_factors?: RiskFactor[] | null;
 }
 
 export interface EventDetailModalProps {
@@ -830,6 +833,23 @@ export default function EventDetailModal({
                         isReviewed={event.reviewed}
                         className="mb-6"
                       />
+
+                      {/* Risk Factors Breakdown (NEM-3603) */}
+                      {event.risk_factors && event.risk_factors.length > 0 && (
+                        <div className="mb-6" data-testid="risk-factors-section">
+                          <RiskFactorsBreakdown riskFactors={event.risk_factors} />
+                        </div>
+                      )}
+
+                      {/* Risk Score Confidence Indicators (NEM-3606) */}
+                      {event.confidence_factors && (
+                        <div className="mb-6" data-testid="confidence-indicators-section">
+                          <ConfidenceIndicators
+                            confidenceFactors={event.confidence_factors}
+                            mode="detailed"
+                          />
+                        </div>
+                      )}
 
                       {/* Detections with Color-Coded Confidence */}
                       {event.detections.length > 0 && (
