@@ -221,7 +221,7 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-40}
+      - GPU_LAYERS=${GPU_LAYERS:-45}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
     healthcheck:
@@ -353,6 +353,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      # TensorRT engine cache (persists compiled engines across restarts)
+      - enrichment-light-tensorrt-cache:/cache/tensorrt
     environment:
       - SERVICE_NAME=ai-enrichment-light
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -444,9 +446,10 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 0 (A5500 24GB) - Heavy transformer models
+            # GPU 1 (A400 4GB) - Moved to share with light models
+            # Uses lazy loading - only loads models when requested
             - driver: nvidia
-              device_ids: ['0']
+              device_ids: ['1']
               capabilities: [gpu]
 
   backend:
@@ -1249,6 +1252,8 @@ volumes:
   # Persistent HuggingFace cache volume (NEM-3812)
   # Shared across all AI services to avoid re-downloading models
   hf_cache:
+    driver: local
+  enrichment-light-tensorrt-cache:
     driver: local
   # Redis Sentinel volumes (uncomment when enabling Sentinel)
   # sentinel1_data:
