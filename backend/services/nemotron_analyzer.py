@@ -48,6 +48,7 @@ from sqlalchemy import select
 
 from backend.api.middleware.correlation import get_correlation_headers
 from backend.api.schemas.llm_response import LLMRawResponse, LLMRiskResponse
+from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.config import get_settings
 from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_session
@@ -112,6 +113,7 @@ from backend.services.prompts import (
     format_violence_context,
     format_weather_context,
 )
+from backend.services.webhook_service import get_webhook_service
 
 # Pre-compiled regex patterns for LLM response parsing
 # These are compiled once at module load time for better performance
@@ -1867,6 +1869,9 @@ class NemotronAnalyzer:
                 extra={"error": str(e)},
             )
 
+        # Trigger outbound webhooks for EVENT_CREATED (NEM-3624)
+        await self._trigger_event_created_webhook(event)
+
         return event
 
     async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
@@ -2212,6 +2217,9 @@ class NemotronAnalyzer:
                 "Failed to invalidate event stats cache",
                 extra={"error": str(e)},
             )
+
+        # Trigger outbound webhooks for EVENT_CREATED (NEM-3624)
+        await self._trigger_event_created_webhook(event)
 
         return event
 
@@ -3220,6 +3228,45 @@ class NemotronAnalyzer:
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to broadcast event: {e}", exc_info=True)  # pragma: no cover
+
+    async def _trigger_event_created_webhook(self, event: Event) -> None:
+        """Trigger outbound webhooks for EVENT_CREATED (NEM-3624).
+
+        Webhook failures are logged but do not fail event creation.
+
+        Args:
+            event: Event that was created.
+        """
+        # Skip webhook for soft-deleted events
+        if event.deleted_at is not None:
+            return
+
+        try:
+            webhook_service = get_webhook_service()
+            # Use a fresh session for webhook operations to avoid session scope issues
+            async with get_session() as db:
+                await webhook_service.trigger_webhooks_for_event(
+                    db,
+                    WebhookEventType.EVENT_CREATED,
+                    {
+                        "event_id": event.id,
+                        "batch_id": event.batch_id,
+                        "camera_id": event.camera_id,
+                        "risk_score": event.risk_score,
+                        "risk_level": event.risk_level,
+                        "summary": event.summary,
+                        "started_at": event.started_at.isoformat() if event.started_at else None,
+                        "ended_at": event.ended_at.isoformat() if event.ended_at else None,
+                        "is_fast_path": event.is_fast_path,
+                    },
+                    event_id=str(event.id),
+                )
+        except Exception as e:
+            # Log but don't fail the main operation if webhook triggering fails
+            logger.warning(
+                f"Failed to trigger EVENT_CREATED webhooks: {e}",
+                extra={"event_id": event.id},
+            )
 
     async def _enqueue_for_evaluation(self, event_id: int, risk_score: int) -> None:
         """Enqueue event for background AI audit evaluation.

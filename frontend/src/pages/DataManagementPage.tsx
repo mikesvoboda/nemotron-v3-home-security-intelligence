@@ -16,7 +16,6 @@ import {
   Calendar,
   CheckCircle,
   Clock,
-  Database,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
+import { BackupSection } from '../components/backup';
 import Button from '../components/common/Button';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -378,53 +378,6 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
   );
 }
 
-// ============================================================================
-// Backup Section Component
-// ============================================================================
-
-function BackupSection() {
-  const [isCreating, setIsCreating] = useState(false);
-
-  const handleCreateBackup = async () => {
-    setIsCreating(true);
-    // For now, creating a full_backup export serves as the backup mechanism
-    // In the future, this could call a dedicated backup API
-    try {
-      // Simulate backup creation - in production this would call the API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6">
-      <div className="flex items-start gap-4">
-        <div className="rounded-lg bg-purple-500/20 p-3">
-          <Database className="h-6 w-6 text-purple-400" />
-        </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-white">Database Backup</h3>
-          <p className="mt-1 text-sm text-gray-400">
-            Create a full backup of your security monitoring database including events, detections,
-            and configuration.
-          </p>
-          <div className="mt-4">
-            <Button
-              variant="outline-primary"
-              leftIcon={<Database className="h-4 w-4" />}
-              onClick={() => void handleCreateBackup()}
-              isLoading={isCreating}
-              disabled={isCreating}
-            >
-              Create Backup
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ============================================================================
 // Main Component
@@ -501,9 +454,10 @@ export default function DataManagementPage() {
           </p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Export Form Section */}
-          <div className="lg:col-span-2">
+        <div className="space-y-8">
+          {/* Export Section */}
+          <div className="grid gap-8 lg:grid-cols-2">
+            {/* Export Form */}
             <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
@@ -524,7 +478,7 @@ export default function DataManagementPage() {
             </div>
 
             {/* Export Jobs List */}
-            <div className="mt-8">
+            <div>
               <h2 className="mb-4 text-lg font-semibold text-white">Export History</h2>
 
               {jobs.length === 0 ? (
@@ -533,6 +487,7 @@ export default function DataManagementPage() {
                   title="No export jobs"
                   description="Start an export to see your job history here."
                   variant="muted"
+                  size="sm"
                 />
               ) : (
                 <div className="space-y-4">
@@ -551,9 +506,7 @@ export default function DataManagementPage() {
           </div>
 
           {/* Backup Section */}
-          <div className="lg:col-span-1">
-            <BackupSection />
-          </div>
+          <BackupSection />
         </div>
       </div>
     </div>

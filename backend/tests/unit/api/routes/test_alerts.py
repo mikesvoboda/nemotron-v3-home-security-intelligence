@@ -1048,7 +1048,8 @@ class TestAcknowledgeAlert:
             assert mock_alert.status == AlertStatusEnum.ACKNOWLEDGED
             mock_db.commit.assert_called_once()
             # NEM-2582: Broadcast now uses background task instead of direct call
-            mock_background_tasks.add_task.assert_called_once()
+            # NEM-3624: Webhook triggering is also added as background task
+            assert mock_background_tasks.add_task.call_count == 2
 
     @pytest.mark.asyncio
     async def test_acknowledge_alert_from_delivered(self) -> None:
@@ -1244,7 +1245,8 @@ class TestDismissAlert:
             assert mock_alert.status == AlertStatusEnum.DISMISSED
             mock_db.commit.assert_called_once()
             # NEM-2582: Broadcast now uses background task instead of direct call
-            mock_background_tasks.add_task.assert_called_once()
+            # NEM-3624: Webhook triggering is also added as background task
+            assert mock_background_tasks.add_task.call_count == 2
 
     @pytest.mark.asyncio
     async def test_dismiss_alert_from_delivered(self) -> None:

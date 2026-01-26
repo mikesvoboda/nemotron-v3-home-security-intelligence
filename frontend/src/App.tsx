@@ -103,6 +103,12 @@ const ZonesPage = lazy(() => import('./pages/ZonesPage'));
 // GPU Settings Page
 const GpuSettingsPage = lazy(() => import('./pages/GpuSettingsPage'));
 
+// Webhooks Page
+const WebhooksPage = lazy(() => import('./pages/WebhooksPage'));
+
+// Scheduled Reports Page
+const ScheduledReportsPage = lazy(() => import('./pages/ScheduledReportsPage'));
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -167,6 +173,8 @@ export default function App() {
                           <Route path="/data" element={<DataManagementPage />} />
                           <Route path="/zones" element={<ZonesPage />} />
                           <Route path="/settings/gpu" element={<GpuSettingsPage />} />
+                          <Route path="/webhooks" element={<WebhooksPage />} />
+                          <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>

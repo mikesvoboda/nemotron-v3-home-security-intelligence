@@ -395,3 +395,36 @@ export {
   getPriorityLabel,
   PRIORITY_LABELS,
 } from './job';
+
+// ============================================================================
+// Backup/Restore Types (NEM-3566)
+// ============================================================================
+
+export type {
+  BackupJobStatus,
+  RestoreJobStatus,
+  BackupContentInfo,
+  BackupManifest,
+  BackupJobProgress,
+  BackupJob,
+  BackupListItem,
+  BackupListResponse,
+  RestoreJobProgress,
+  RestoreJob,
+  BackupJobStartResponse,
+  RestoreJobStartResponse,
+  BackupDeleteResponse,
+} from './backup';
+
+export {
+  isBackupJob,
+  isRestoreJob,
+  isBackupJobComplete,
+  isBackupJobRunning,
+  isBackupJobPending,
+  isBackupJobFailed,
+  isRestoreJobComplete,
+  isRestoreJobInProgress,
+  isRestoreJobPending,
+  isRestoreJobFailed,
+} from './backup';

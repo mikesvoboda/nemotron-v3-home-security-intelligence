@@ -1,12 +1,18 @@
 """Alert service for CRUD operations with WebSocket event emissions.
 
 This module provides a service layer for managing alerts (create, read, update, delete)
-with integrated WebSocket event broadcasting for real-time frontend updates.
+with integrated WebSocket event broadcasting for real-time frontend updates and
+outbound webhook triggering for external system notifications.
 
 WebSocket Events:
     - alert.created: Emitted when a new alert is created
     - alert.updated: Emitted when an alert is updated (including acknowledgment)
     - alert.deleted: Emitted when an alert is deleted
+
+Webhook Events (NEM-3624):
+    - ALERT_FIRED: Triggered when a new alert is created
+    - ALERT_ACKNOWLEDGED: Triggered when an alert is acknowledged
+    - ALERT_DISMISSED: Triggered when an alert is dismissed
 
 Example Usage:
     from backend.services.alert_service import AlertService, get_alert_service
@@ -36,9 +42,11 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.logging import get_logger
 from backend.core.websocket.event_types import WebSocketEventType
 from backend.models import Alert, AlertSeverity, AlertStatus
+from backend.services.webhook_service import get_webhook_service
 
 if TYPE_CHECKING:
     from backend.services.websocket_emitter import WebSocketEmitterService
@@ -131,6 +139,13 @@ class AlertService:
 
         # Emit WebSocket event
         await self._emit_alert_created(alert, correlation_id=correlation_id)
+
+        # Trigger outbound webhooks for ALERT_FIRED event (NEM-3624)
+        await self._trigger_webhook(
+            WebhookEventType.ALERT_FIRED,
+            self._build_alert_webhook_data(alert),
+            alert.id,
+        )
 
         logger.debug(
             f"Created alert {alert.id} for event {event_id}",
@@ -315,6 +330,13 @@ class AlertService:
             correlation_id=correlation_id,
         )
 
+        # Trigger outbound webhooks for ALERT_ACKNOWLEDGED event (NEM-3624)
+        await self._trigger_webhook(
+            WebhookEventType.ALERT_ACKNOWLEDGED,
+            self._build_alert_webhook_data(alert),
+            alert.id,
+        )
+
         logger.debug(
             f"Acknowledged alert {alert_id}",
             extra={"alert_id": alert_id},
@@ -366,6 +388,16 @@ class AlertService:
             alert,
             updated_fields=["status"],
             correlation_id=correlation_id,
+        )
+
+        # Trigger outbound webhooks for ALERT_DISMISSED event (NEM-3624)
+        webhook_data = self._build_alert_webhook_data(alert)
+        if reason:
+            webhook_data["dismissed_reason"] = reason
+        await self._trigger_webhook(
+            WebhookEventType.ALERT_DISMISSED,
+            webhook_data,
+            alert.id,
         )
 
         logger.debug(
@@ -558,6 +590,64 @@ class AlertService:
             payload["acknowledged"] = True
 
         return payload
+
+    # =========================================================================
+    # Outbound Webhook Helpers (NEM-3624)
+    # =========================================================================
+
+    def _build_alert_webhook_data(self, alert: Alert) -> dict[str, Any]:
+        """Build webhook payload data for an alert.
+
+        Args:
+            alert: Alert instance.
+
+        Returns:
+            Dictionary with alert data for webhook payload.
+        """
+        return {
+            "alert_id": alert.id,
+            "event_id": alert.event_id,
+            "rule_id": alert.rule_id,
+            "severity": alert.severity.value
+            if hasattr(alert.severity, "value")
+            else alert.severity,
+            "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+            "dedup_key": alert.dedup_key,
+            "channels": alert.channels or [],
+            "created_at": alert.created_at.isoformat()
+            if alert.created_at
+            else datetime.now(UTC).isoformat(),
+        }
+
+    async def _trigger_webhook(
+        self,
+        event_type: WebhookEventType,
+        event_data: dict[str, Any],
+        alert_id: str,
+    ) -> None:
+        """Trigger outbound webhooks for an event type.
+
+        Webhook failures are logged but do not fail the main operation.
+
+        Args:
+            event_type: Type of webhook event to trigger.
+            event_data: Data to include in webhook payload.
+            alert_id: Alert ID for logging context.
+        """
+        try:
+            webhook_service = get_webhook_service()
+            await webhook_service.trigger_webhooks_for_event(
+                self._session,
+                event_type,
+                event_data,
+                event_id=alert_id,
+            )
+        except Exception as e:
+            # Log but don't fail the main operation if webhook triggering fails
+            logger.warning(
+                f"Failed to trigger {event_type.value} webhooks: {e}",
+                extra={"alert_id": alert_id, "event_type": event_type.value},
+            )
 
 
 # =============================================================================

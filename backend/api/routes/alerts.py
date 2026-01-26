@@ -40,6 +40,7 @@ from backend.api.schemas.alerts import (
     RuleTestRequest,
     RuleTestResponse,
 )
+from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.websocket import WebSocketAlertEventType
 from backend.core.constants import CacheInvalidationReason
@@ -53,6 +54,9 @@ from backend.services.cache_service import CacheService
 from backend.services.event_broadcaster import (
     EventBroadcaster,
     broadcast_alert_with_retry_background,
+)
+from backend.services.webhook_service import (
+    trigger_webhook_background,
 )
 
 logger = get_logger(__name__)
@@ -477,6 +481,27 @@ def _alert_to_websocket_data(alert: Alert) -> dict[str, Any]:
     return alert.to_dict(for_websocket=True)
 
 
+def _build_alert_webhook_data(alert: Alert) -> dict[str, Any]:
+    """Build webhook payload data for an alert (NEM-3624).
+
+    Args:
+        alert: Alert instance.
+
+    Returns:
+        Dictionary with alert data for webhook payload.
+    """
+    return {
+        "alert_id": alert.id,
+        "event_id": alert.event_id,
+        "rule_id": alert.rule_id,
+        "severity": alert.severity.value if hasattr(alert.severity, "value") else alert.severity,
+        "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+        "dedup_key": alert.dedup_key,
+        "channels": alert.channels or [],
+        "created_at": alert.created_at.isoformat() if alert.created_at else None,
+    }
+
+
 async def _get_alert_or_404(alert_id: str, db: AsyncSession) -> Alert:
     """Get an alert by ID or raise 404."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
@@ -564,6 +589,16 @@ async def acknowledge_alert(
         # Log if broadcaster not initialized, but don't fail the request
         logger.warning(f"Failed to schedule alert broadcast: {e}")
 
+    # Trigger outbound webhooks for ALERT_ACKNOWLEDGED event (NEM-3624)
+    # Uses background task to avoid blocking the main request
+    background_tasks.add_task(
+        trigger_webhook_background,
+        db,
+        WebhookEventType.ALERT_ACKNOWLEDGED,
+        _build_alert_webhook_data(alert),
+        alert.id,
+    )
+
     return AlertResponse(**alert.to_dict())
 
 
@@ -642,5 +677,15 @@ async def dismiss_alert(
     except RuntimeError as e:
         # Log if broadcaster not initialized, but don't fail the request
         logger.warning(f"Failed to schedule alert broadcast: {e}")
+
+    # Trigger outbound webhooks for ALERT_DISMISSED event (NEM-3624)
+    # Uses background task to avoid blocking the main request
+    background_tasks.add_task(
+        trigger_webhook_background,
+        db,
+        WebhookEventType.ALERT_DISMISSED,
+        _build_alert_webhook_data(alert),
+        alert.id,
+    )
 
     return AlertResponse(**alert.to_dict())

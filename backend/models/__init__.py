@@ -3,6 +3,7 @@
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from .area import Area, camera_areas
 from .audit import AuditAction, AuditLog, AuditStatus
+from .backup_job import BackupJob, BackupJobStatus, RestoreJob, RestoreJobStatus
 from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .camera_calibration import CameraCalibration
@@ -59,6 +60,13 @@ from .notification_preferences import (
     QuietHoursPeriod,
     RiskLevel,
 )
+from .outbound_webhook import (
+    IntegrationType,
+    OutboundWebhook,
+    WebhookDelivery,
+    WebhookDeliveryStatus,
+    WebhookEventType,
+)
 from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
 from .property import Property
@@ -83,6 +91,8 @@ __all__ = [
     "AuditAction",
     "AuditLog",
     "AuditStatus",
+    "BackupJob",
+    "BackupJobStatus",
     "Base",
     "Camera",
     "CameraCalibration",
@@ -112,6 +122,7 @@ __all__ = [
     "GpuDevice",
     "Household",
     "HouseholdMember",
+    "IntegrationType",
     "Job",
     "JobAttempt",
     "JobAttemptStatus",
@@ -124,6 +135,7 @@ __all__ = [
     "MemberRole",
     "NotificationPreferences",
     "NotificationSound",
+    "OutboundWebhook",
     "PersonEmbedding",
     "PoseResult",
     "PrometheusAlert",
@@ -135,6 +147,8 @@ __all__ = [
     "RegisteredVehicle",
     "ReportFormat",
     "ReportFrequency",
+    "RestoreJob",
+    "RestoreJobStatus",
     "RiskLevel",
     "SceneChange",
     "SceneChangeType",
@@ -148,6 +162,9 @@ __all__ = [
     "TrustStatus",
     "UserCalibration",
     "VehicleType",
+    "WebhookDelivery",
+    "WebhookDeliveryStatus",
+    "WebhookEventType",
     "Zone",
     "ZoneActivityBaseline",
     "ZoneAnomaly",
