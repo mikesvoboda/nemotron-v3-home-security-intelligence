@@ -87,7 +87,7 @@ jobs:
 
       - name: Comment on PR with drift summary
         if: github.event_name == 'pull_request' && steps.check-drift.outputs.drift_detected == 'true'
-        uses: actions/github-script@e69f5dd54fb5a0ee7fbaf10f961ad06f6dcad5cb # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
         with:
           github-token: ${{ github.token }}
           script: |
