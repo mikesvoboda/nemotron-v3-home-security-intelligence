@@ -370,11 +370,13 @@ export function createDebouncedUniqueChecker<T extends { id: string }>(
 
       return new Promise((resolve) => {
         pendingResolve = resolve;
-        timeoutId = setTimeout(async () => {
-          const result = await validator.isUnique(value, excludeId);
-          pendingResolve = null;
-          timeoutId = null;
-          resolve(result);
+        timeoutId = setTimeout(() => {
+          void (async () => {
+            const result = await validator.isUnique(value, excludeId);
+            pendingResolve = null;
+            timeoutId = null;
+            resolve(result);
+          })();
         }, debounceMs);
       });
     },
