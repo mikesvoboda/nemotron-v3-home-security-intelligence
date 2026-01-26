@@ -59,8 +59,9 @@ ENRICHMENT_CONNECT_TIMEOUT = 10.0  # Fallback, use settings.ai_connect_timeout
 ENRICHMENT_READ_TIMEOUT = 60.0  # Fallback, use settings.enrichment_read_timeout (was 30s, now 60s)
 ENRICHMENT_HEALTH_TIMEOUT = 5.0  # Fallback, use settings.ai_health_timeout
 
-# Default Enrichment service URL
+# Default Enrichment service URLs
 DEFAULT_ENRICHMENT_URL = "http://ai-enrichment:8094"
+DEFAULT_ENRICHMENT_LIGHT_URL = "http://ai-enrichment-light:8096"
 
 
 @dataclass(slots=True)
@@ -722,46 +723,64 @@ class EnrichmentClient:
             action = await client.classify_action(video_frames)
     """
 
-    def __init__(self, base_url: str | None = None) -> None:
+    def __init__(self, base_url: str | None = None, light_base_url: str | None = None) -> None:
         """Initialize Enrichment client with configuration.
 
         Args:
-            base_url: Optional base URL for the Enrichment service.
+            base_url: Optional base URL for the heavy Enrichment service (GPU 0).
                      Defaults to ENRICHMENT_URL setting or http://ai-enrichment:8094
+            light_base_url: Optional base URL for the light Enrichment service (GPU 1).
+                     Defaults to ENRICHMENT_LIGHT_URL setting or http://ai-enrichment-light:8096
         """
-        settings = get_settings()
+        self._settings = get_settings()
 
-        # Use provided URL, or settings, or default
+        # Use provided URL, or settings, or default for heavy service
         if base_url is not None:
             self._base_url = base_url.rstrip("/")
         else:
-            self._base_url = getattr(settings, "enrichment_url", DEFAULT_ENRICHMENT_URL).rstrip("/")
+            self._base_url = getattr(
+                self._settings, "enrichment_url", DEFAULT_ENRICHMENT_URL
+            ).rstrip("/")
+
+        # Use provided URL, or settings, or default for light service
+        if light_base_url is not None:
+            self._light_base_url = light_base_url.rstrip("/")
+        else:
+            self._light_base_url = getattr(
+                self._settings, "enrichment_light_url", DEFAULT_ENRICHMENT_LIGHT_URL
+            ).rstrip("/")
 
         # Use httpx.Timeout for proper timeout configuration from Settings (NEM-2524)
         # Read timeout from settings (configurable via ENRICHMENT_READ_TIMEOUT env var)
         self._timeout = httpx.Timeout(
-            connect=settings.ai_connect_timeout,
-            read=settings.enrichment_read_timeout,
-            write=settings.enrichment_read_timeout,
-            pool=settings.ai_connect_timeout,
+            connect=self._settings.ai_connect_timeout,
+            read=self._settings.enrichment_read_timeout,
+            write=self._settings.enrichment_read_timeout,
+            pool=self._settings.ai_connect_timeout,
         )
         self._health_timeout = httpx.Timeout(
-            connect=settings.ai_health_timeout,
-            read=settings.ai_health_timeout,
-            write=settings.ai_health_timeout,
-            pool=settings.ai_health_timeout,
+            connect=self._settings.ai_health_timeout,
+            read=self._settings.ai_health_timeout,
+            write=self._settings.ai_health_timeout,
+            pool=self._settings.ai_health_timeout,
         )
 
-        # Initialize circuit breaker with configuration
+        # Initialize circuit breakers for both services
         self._circuit_breaker = CircuitBreaker(
             name="enrichment",
-            failure_threshold=settings.enrichment_cb_failure_threshold,
-            recovery_timeout=settings.enrichment_cb_recovery_timeout,
-            half_open_max_calls=settings.enrichment_cb_half_open_max_calls,
+            failure_threshold=self._settings.enrichment_cb_failure_threshold,
+            recovery_timeout=self._settings.enrichment_cb_recovery_timeout,
+            half_open_max_calls=self._settings.enrichment_cb_half_open_max_calls,
+        )
+        self._light_circuit_breaker = CircuitBreaker(
+            name="enrichment_light",
+            failure_threshold=self._settings.enrichment_cb_failure_threshold,
+            recovery_timeout=self._settings.enrichment_cb_recovery_timeout,
+            half_open_max_calls=self._settings.enrichment_cb_half_open_max_calls,
         )
 
         # Retry configuration for transient failures (NEM-1732)
-        self._max_retries = settings.enrichment_max_retries
+        self._max_retries = self._settings.enrichment_max_retries
 
         # Create persistent HTTP connection pool (NEM-1721)
         # Reusing connections avoids TCP overhead and resource exhaustion
@@ -775,6 +794,23 @@ class EnrichmentClient:
         )
 
         logger.info(f"EnrichmentClient initialized with base_url={self._base_url}")
+
+    def _get_service_for_model(self, model: str) -> tuple[str, CircuitBreaker]:
+        """Get the service URL and circuit breaker for a specific model.
+
+        Uses configuration from Settings to determine which service hosts the model.
+
+        Args:
+            model: Model name (pose, threat, reid, pet, depth, vehicle, clothing, action, demographics)
+
+        Returns:
+            Tuple of (service_url, circuit_breaker)
+        """
+        url = self._settings.get_enrichment_url_for_model(model)
+        # Determine which circuit breaker based on URL
+        if url == self._light_base_url or "8096" in url or "light" in url:
+            return url, self._light_circuit_breaker
+        return url, self._circuit_breaker
 
     def _get_headers(self) -> dict[str, str]:
         """Get headers for outgoing HTTP requests.
@@ -939,6 +975,8 @@ class EnrichmentClient:
     ) -> VehicleClassificationResult | None:
         """Classify vehicle type from an image.
 
+        Routes to configured service based on ENRICHMENT_VEHICLE_SERVICE env var.
+
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
 
@@ -955,8 +993,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable after retries
         """
+        # Get service URL and circuit breaker based on configuration
+        service_url, circuit_breaker = self._get_service_for_model("vehicle")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -967,10 +1008,11 @@ class EnrichmentClient:
         endpoint_name = "vehicle"
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
-        settings = get_settings()
-        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
 
-        logger.debug("Sending vehicle classification request")
+        logger.debug("Sending vehicle classification request to %s", service_url)
 
         # Encode image to base64 (done once before retry loop)
         image_b64 = self._encode_image_to_base64(image)
@@ -991,7 +1033,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                     )
@@ -1005,7 +1047,7 @@ class EnrichmentClient:
                 result = response.json()
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return VehicleClassificationResult(
                     vehicle_type=result["vehicle_type"],
@@ -1042,7 +1084,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_vehicle_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -1067,7 +1109,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_vehicle_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -1090,7 +1132,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_vehicle_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -1102,7 +1144,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_vehicle_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during vehicle classification: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},
@@ -1142,8 +1184,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable after retries
         """
+        # Get service URL and circuit breaker based on configuration
+        service_url, circuit_breaker = self._get_service_for_model("pet")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -1154,10 +1199,11 @@ class EnrichmentClient:
         endpoint_name = "pet"
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
-        settings = get_settings()
-        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
 
-        logger.debug("Sending pet classification request")
+        logger.debug("Sending pet classification request to %s", service_url)
 
         # Encode image to base64 (done once before retry loop)
         image_b64 = self._encode_image_to_base64(image)
@@ -1178,7 +1224,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                     )
@@ -1192,7 +1238,7 @@ class EnrichmentClient:
                 result = response.json()
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return PetClassificationResult(
                     pet_type=result["pet_type"],
@@ -1228,7 +1274,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_pet_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -1253,7 +1299,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_pet_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -1276,7 +1322,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_pet_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -1288,7 +1334,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_pet_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during pet classification: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},
@@ -1312,6 +1358,8 @@ class EnrichmentClient:
     ) -> ClothingClassificationResult | None:
         """Classify clothing attributes from a person image using FashionCLIP.
 
+        Routes to configured service based on ENRICHMENT_CLOTHING_SERVICE env var.
+
         Defense-in-depth (NEM-1465): Uses explicit asyncio.timeout() wrapper around
         HTTP calls to ensure requests don't hang indefinitely even if httpx timeout fails.
 
@@ -1325,8 +1373,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable or circuit is open
         """
+        # Get service URL and circuit breaker based on configuration
+        service_url, circuit_breaker = self._get_service_for_model("clothing")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -1337,10 +1388,11 @@ class EnrichmentClient:
         endpoint_name = "clothing"
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
-        settings = get_settings()
-        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
 
-        logger.debug("Sending clothing classification request")
+        logger.debug("Sending clothing classification request to %s", service_url)
 
         # Encode image to base64 (done once before retry loop)
         image_b64 = self._encode_image_to_base64(image)
@@ -1361,7 +1413,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                     )
@@ -1375,7 +1427,7 @@ class EnrichmentClient:
                 result = response.json()
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return ClothingClassificationResult(
                     clothing_type=result["clothing_type"],
@@ -1415,7 +1467,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_clothing_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -1440,7 +1492,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_clothing_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -1463,7 +1515,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_clothing_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -1475,7 +1527,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_clothing_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during clothing classification: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},
@@ -1513,8 +1565,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable after retries
         """
+        # Get service URL and circuit breaker based on configuration
+        service_url, circuit_breaker = self._get_service_for_model("depth")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -1525,10 +1580,11 @@ class EnrichmentClient:
         endpoint_name = "depth"
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
-        settings = get_settings()
-        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
 
-        logger.debug("Sending depth estimation request")
+        logger.debug("Sending depth estimation request to %s", service_url)
 
         # Encode image to base64 (done once before retry loop)
         image_b64 = self._encode_image_to_base64(image)
@@ -1547,7 +1603,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                     )
@@ -1561,7 +1617,7 @@ class EnrichmentClient:
                 result = response.json()
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return DepthEstimationResult(
                     depth_map_base64=result["depth_map_base64"],
@@ -1597,7 +1653,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_depth_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -1622,7 +1678,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_depth_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -1645,7 +1701,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_depth_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -1657,7 +1713,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_depth_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during depth estimation: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},
@@ -1682,6 +1738,8 @@ class EnrichmentClient:
     ) -> ObjectDistanceResult | None:
         """Estimate distance to an object within a bounding box.
 
+        Routes to configured service for depth model (ENRICHMENT_DEPTH_SERVICE env var).
+
         This method validates and clamps the bounding box to image boundaries
         before processing. Invalid bounding boxes (zero width/height, NaN values,
         inverted coordinates) will return None.
@@ -1703,8 +1761,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable after retries
         """
+        # Get service URL and circuit breaker based on configuration (depth model)
+        service_url, circuit_breaker = self._get_service_for_model("depth")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -1715,8 +1776,9 @@ class EnrichmentClient:
         endpoint_name = "distance"
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
-        settings = get_settings()
-        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
 
         # Validate and clamp bounding box (NEM-1102, NEM-1122)
         image_width, image_height = image.size
@@ -1745,7 +1807,7 @@ class EnrichmentClient:
                 f"for image size {image_width}x{image_height}"
             )
 
-        logger.debug(f"Sending object distance request with method={method}")
+        logger.debug("Sending object distance request with method=%s to %s", method, service_url)
 
         # Encode image to base64 (done once before retry loop)
         image_b64 = self._encode_image_to_base64(image)
@@ -1768,7 +1830,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                     )
@@ -1782,7 +1844,7 @@ class EnrichmentClient:
                 result = response.json()
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return ObjectDistanceResult(
                     estimated_distance_m=result["estimated_distance_m"],
@@ -1817,7 +1879,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_distance_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -1842,7 +1904,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_distance_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -1865,7 +1927,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_distance_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -1877,7 +1939,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_distance_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during distance estimation: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},
@@ -1900,7 +1962,10 @@ class EnrichmentClient:
         bbox: tuple[float, float, float, float] | None = None,
         min_confidence: float = 0.3,
     ) -> PoseAnalysisResult | None:
-        """Analyze human pose keypoints from an image using ViTPose.
+        """Analyze human pose keypoints from an image.
+
+        Routes to heavy service (ViTPose+) or light service (YOLOv8n-pose)
+        based on configuration (ENRICHMENT_POSE_SERVICE env var).
 
         Includes retry logic with exponential backoff for transient failures
         (ConnectError, TimeoutException, HTTP 5xx).
@@ -1919,8 +1984,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable after retries
         """
+        # Get service URL and circuit breaker based on configuration
+        service_url, circuit_breaker = self._get_service_for_model("pose")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -1931,10 +1999,11 @@ class EnrichmentClient:
         endpoint_name = "pose"
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
-        settings = get_settings()
-        explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = (
+            self._settings.enrichment_read_timeout + self._settings.ai_connect_timeout
+        )
 
-        logger.debug("Sending pose analysis request")
+        logger.debug("Sending pose analysis request to %s", service_url)
 
         # Encode image to base64 (done once before retry loop)
         image_b64 = self._encode_image_to_base64(image)
@@ -1958,7 +2027,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                     )
@@ -1983,7 +2052,7 @@ class EnrichmentClient:
                 ]
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return PoseAnalysisResult(
                     keypoints=keypoints,
@@ -2018,7 +2087,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_pose_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -2043,7 +2112,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_pose_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -2066,7 +2135,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_pose_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -2078,7 +2147,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_pose_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during pose analysis: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},
@@ -2102,6 +2171,8 @@ class EnrichmentClient:
     ) -> ActionClassificationResult | None:
         """Classify action from a sequence of video frames using X-CLIP.
 
+        Routes to configured service based on ENRICHMENT_ACTION_SERVICE env var.
+
         X-CLIP analyzes temporal patterns across frames to detect security-relevant
         actions like loitering, running away, or suspicious behavior.
 
@@ -2121,8 +2192,11 @@ class EnrichmentClient:
         Raises:
             EnrichmentUnavailableError: If the service is unavailable after retries
         """
+        # Get service URL and circuit breaker based on configuration
+        service_url, circuit_breaker = self._get_service_for_model("action")
+
         # Check circuit breaker before making request
-        if not self._circuit_breaker.allow_request():
+        if not circuit_breaker.allow_request():
             record_pipeline_error("enrichment_circuit_open")
             raise EnrichmentUnavailableError(
                 "Enrichment service circuit open - requests temporarily blocked"
@@ -2134,11 +2208,12 @@ class EnrichmentClient:
         last_error: Exception | None = None
         # Explicit timeout as defense-in-depth (NEM-1465)
         # Use longer timeout for multi-frame video processing (60s read + connect timeout)
-        settings = get_settings()
         action_read_timeout = 60.0  # Longer timeout for video processing
-        explicit_timeout = action_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = action_read_timeout + self._settings.ai_connect_timeout
 
-        logger.debug(f"Sending action classification request with {len(frames)} frames")
+        logger.debug(
+            "Sending action classification request with %d frames to %s", len(frames), service_url
+        )
 
         # Encode all frames to base64 (done once before retry loop)
         frames_b64 = [self._encode_image_to_base64(frame) for frame in frames]
@@ -2167,7 +2242,7 @@ class EnrichmentClient:
                 # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
-                        f"{self._base_url}/{endpoint}",
+                        f"{service_url}/{endpoint}",
                         json=payload,
                         headers=self._get_headers(),
                         timeout=action_timeout,  # Override default timeout for this request
@@ -2182,7 +2257,7 @@ class EnrichmentClient:
                 result = response.json()
 
                 # Record success with circuit breaker
-                self._circuit_breaker.record_success()
+                circuit_breaker.record_success()
 
                 return ActionClassificationResult(
                     action=result["action"],
@@ -2219,7 +2294,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_action_server_error")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment returned server error after {self._max_retries} retries: "
                         f"{e.response.status_code} - {e}",
@@ -2244,7 +2319,7 @@ class EnrichmentClient:
                     duration_ms = int((time.time() - start_time) * 1000)
                     error_metric = f"enrichment_action_{error_type}"
                     record_pipeline_error(error_metric)
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} failed after {self._max_retries} retries: {e}",
                         extra={"duration_ms": duration_ms},
@@ -2267,7 +2342,7 @@ class EnrichmentClient:
                     # Final attempt failed
                     duration_ms = int((time.time() - start_time) * 1000)
                     record_pipeline_error("enrichment_action_asyncio_timeout")
-                    self._circuit_breaker.record_failure()
+                    circuit_breaker.record_failure()
                     logger.error(
                         f"Enrichment {endpoint_name} asyncio timeout after {self._max_retries} retries: "
                         f"request timed out after {explicit_timeout}s",
@@ -2279,7 +2354,7 @@ class EnrichmentClient:
                 # Unexpected errors - don't retry
                 duration_ms = int((time.time() - start_time) * 1000)
                 record_pipeline_error("enrichment_action_unexpected_error")
-                self._circuit_breaker.record_failure()
+                circuit_breaker.record_failure()
                 logger.error(
                     f"Unexpected error during action classification: {sanitize_error(e)}",
                     extra={"duration_ms": duration_ms},

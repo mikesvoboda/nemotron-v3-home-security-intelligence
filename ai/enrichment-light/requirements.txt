@@ -1,0 +1,33 @@
+# Lightweight Enrichment Service Dependencies
+# For small, efficient models on GPU 1 (A400 4GB)
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Deep learning frameworks
+# Note: torch comes from base image (pytorch/pytorch:2.4.0-cuda12.4)
+transformers>=4.35.0
+timm>=0.9.0
+
+# YOLO models (pose, threat detection)
+ultralytics>=8.0.0
+
+# OSNet re-ID model
+torchreid>=0.2.5
+
+# Image processing
+pillow>=10.0.0
+numpy>=1.24.0
+
+# HTTP utilities
+httpx>=0.25.0
+
+# Utilities
+pydantic>=2.4.0
+
+# Monitoring
+nvidia-ml-py>=12.560.30
+prometheus-client>=0.21.0
+safetensors>=0.4.0
