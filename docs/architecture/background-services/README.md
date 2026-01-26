@@ -32,7 +32,7 @@ This documentation covers the background services that power the AI-powered home
             |         |       |       |      |              |                 |
             v         v       v       v      v              v                 v
     +-------+---+ +---+---+ +-+---+ +-+--+ +-+--------+ +---+-----+ +--------+--------+
-    | Camera    | |Detect | |Anal | |Batch| |pynvml/  | |Database | |RT-DETRv2/       |
+    | Camera    | |Detect | |Anal | |Batch| |pynvml/  | |Database | |YOLO26/       |
     | Directories| |Worker| |Worker| |Timeout| |nvidia-smi| |(cleanup)| |Nemotron Health |
     +-----------+ +-------+ +-----+ +------+ +---------+ +---------+ +-----------------+
 ```

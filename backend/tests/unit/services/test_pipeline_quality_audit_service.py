@@ -197,7 +197,7 @@ class TestCreatePartialAudit:
         assert audit.audited_at is not None
 
         # Verify all model contribution flags
-        assert audit.has_rtdetr is True  # Always true
+        assert audit.has_yolo26 is True  # Always true
         assert audit.has_florence is True
         assert audit.has_clip is True
         assert audit.has_violence is True
@@ -226,8 +226,8 @@ class TestCreatePartialAudit:
             enrichment_result=None,
         )
 
-        # Only rtdetr should be true
-        assert audit.has_rtdetr is True
+        # Only yolo26 should be true
+        assert audit.has_yolo26 is True
         assert audit.has_florence is False
         assert audit.has_clip is False
         assert audit.has_violence is False
@@ -240,7 +240,7 @@ class TestCreatePartialAudit:
         assert audit.has_baseline is False
         assert audit.has_cross_camera is False
 
-        # Utilization should be 1/12 (only rtdetr)
+        # Utilization should be 1/12 (only yolo26)
         assert audit.enrichment_utilization == pytest.approx(1 / 12)
 
     def test_create_partial_audit_with_none_prompt(self, audit_service):
@@ -277,7 +277,7 @@ class TestCreatePartialAudit:
         )
 
         # Check specific flags
-        assert audit.has_rtdetr is True
+        assert audit.has_yolo26 is True
         assert audit.has_florence is True
         assert audit.has_clothing is True
         assert audit.has_zones is True
@@ -286,7 +286,7 @@ class TestCreatePartialAudit:
         assert audit.has_baseline is False
         assert audit.has_cross_camera is False
 
-        # 4 models out of 12: rtdetr, florence, clothing, zones
+        # 4 models out of 12: yolo26, florence, clothing, zones
         assert audit.enrichment_utilization == pytest.approx(4 / 12)
 
 
@@ -331,7 +331,7 @@ class TestUtilizationCalculation:
     def test_calc_utilization_none_inputs(self, audit_service):
         """Test utilization with None inputs."""
         util = audit_service._calc_utilization(None, None)
-        # Only rtdetr counts (always true)
+        # Only yolo26 counts (always true)
         assert util == pytest.approx(1 / 12)
 
     def test_calc_utilization_full_enrichment(self, audit_service):
@@ -372,7 +372,7 @@ class TestUtilizationCalculation:
         )
 
         util = audit_service._calc_utilization(context, result)
-        # rtdetr(1) + florence(1) + clip(1) + violence(1) + zones(1) + baseline(1) = 6
+        # yolo26(1) + florence(1) + clip(1) + violence(1) + zones(1) + baseline(1) = 6
         assert util == pytest.approx(6 / 12)
 
 
@@ -457,7 +457,7 @@ class TestPersistRecord:
         audit = EventAudit(
             event_id=1,
             audited_at=datetime.now(UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
         )
 
         result = await audit_service.persist_record(audit, mock_db_session)
@@ -940,7 +940,7 @@ class TestGetStats:
             overall_quality_score=overall_score,
             consistency_score=consistency_score,
             enrichment_utilization=utilization,
-            has_rtdetr=True,
+            has_yolo26=True,
         )
         for flag, value in model_flags.items():
             setattr(audit, flag, value)
@@ -1022,8 +1022,8 @@ class TestGetStats:
         assert stats["avg_enrichment_utilization"] == pytest.approx(0.6)
 
         # Model contribution rates
-        # rtdetr: 3/3 = 1.0
-        assert stats["model_contribution_rates"]["rtdetr"] == pytest.approx(1.0)
+        # yolo26: 3/3 = 1.0
+        assert stats["model_contribution_rates"]["yolo26"] == pytest.approx(1.0)
         # florence: 2/3 = 0.666...
         assert stats["model_contribution_rates"]["florence"] == pytest.approx(2 / 3)
         # clip: 1/3 = 0.333...
@@ -1091,7 +1091,7 @@ class TestGetLeaderboard:
         self._setup_mock_db_session(mock_db_session, [])
 
         contribution_rates = dict.fromkeys(MODEL_NAMES, 0.0)
-        contribution_rates["rtdetr"] = 1.0
+        contribution_rates["yolo26"] = 1.0
         contribution_rates["florence"] = 0.8
         contribution_rates["clip"] = 0.6
         contribution_rates["violence"] = 0.4
@@ -1108,7 +1108,7 @@ class TestGetLeaderboard:
             leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
 
         # Verify sorted order
-        assert leaderboard[0]["model_name"] == "rtdetr"
+        assert leaderboard[0]["model_name"] == "yolo26"
         assert leaderboard[0]["contribution_rate"] == 1.0
         assert leaderboard[0]["event_count"] == 100
 
@@ -1403,7 +1403,7 @@ class TestModelNamesConstant:
     def test_model_names_content(self):
         """Test MODEL_NAMES contains expected model names."""
         expected = [
-            "rtdetr",
+            "yolo26",
             "florence",
             "clip",
             "violence",
@@ -1641,7 +1641,7 @@ class TestComputeDailyBreakdown:
             audited_at=date,
             overall_quality_score=overall_score,
             enrichment_utilization=utilization,
-            has_rtdetr=True,
+            has_yolo26=True,
         )
         for flag, value in model_flags.items():
             setattr(audit, flag, value)
@@ -1674,7 +1674,7 @@ class TestComputeDailyBreakdown:
         assert day["count"] == 3
         assert day["avg_quality_score"] == pytest.approx((4.0 + 3.5 + 4.5) / 3)
         assert day["avg_enrichment_utilization"] == pytest.approx((0.8 + 0.6 + 0.7) / 3)
-        assert day["model_contributions"]["rtdetr"] == 3
+        assert day["model_contributions"]["yolo26"] == 3
 
     def test_compute_daily_breakdown_multiple_days(self, audit_service):
         """Test daily breakdown with audits across multiple days."""
@@ -1697,7 +1697,7 @@ class TestComputeDailyBreakdown:
         assert result[0]["date"] == "2026-01-01"
         assert result[0]["count"] == 2
         assert result[0]["avg_quality_score"] == pytest.approx((4.0 + 3.5) / 2)
-        assert result[0]["model_contributions"]["rtdetr"] == 2
+        assert result[0]["model_contributions"]["yolo26"] == 2
         assert result[0]["model_contributions"]["florence"] == 1
 
         # Day 2
@@ -1783,7 +1783,7 @@ class TestComputeDailyBreakdown:
         result = audit_service._compute_daily_breakdown(audits)
 
         contributions = result[0]["model_contributions"]
-        assert contributions["rtdetr"] == 3  # All have rtdetr=True by default
+        assert contributions["yolo26"] == 3  # All have yolo26=True by default
         assert contributions["florence"] == 2
         assert contributions["clip"] == 2
         assert contributions["violence"] == 2
@@ -1809,7 +1809,7 @@ class TestComputeQualityCorrelations:
             event_id=event_id,
             audited_at=datetime.now(UTC),
             overall_quality_score=overall_score,
-            has_rtdetr=True,
+            has_yolo26=True,
         )
         for flag, value in model_flags.items():
             setattr(audit, flag, value)
@@ -1848,7 +1848,7 @@ class TestComputeQualityCorrelations:
 
     def test_compute_quality_correlations_no_variance_in_model(self, audit_service):
         """Test correlation returns None for model with no variance."""
-        # All audits have rtdetr=True (no variance)
+        # All audits have yolo26=True (no variance)
         audits = [
             self._create_audit_with_score(1, 4.0, has_florence=True),
             self._create_audit_with_score(2, 3.5, has_florence=False),
@@ -1857,8 +1857,8 @@ class TestComputeQualityCorrelations:
 
         result = audit_service._compute_quality_correlations(audits)
 
-        # rtdetr has no variance (all True), so should be None
-        assert result["rtdetr"] is None
+        # yolo26 has no variance (all True), so should be None
+        assert result["yolo26"] is None
         # florence has variance, so should have a value
         assert result["florence"] is not None
 
@@ -1984,7 +1984,7 @@ class TestGetStatsAuditsByDay:
             audited_at=audited_at,
             overall_quality_score=overall_score,
             enrichment_utilization=utilization,
-            has_rtdetr=True,
+            has_yolo26=True,
         )
         for flag, value in model_flags.items():
             setattr(audit, flag, value)
@@ -2046,7 +2046,7 @@ class TestGetLeaderboardQualityCorrelation:
             event_id=event_id,
             audited_at=audited_at,
             overall_quality_score=overall_score,
-            has_rtdetr=True,
+            has_yolo26=True,
         )
         for flag, value in model_flags.items():
             setattr(audit, flag, value)
@@ -2105,7 +2105,7 @@ class TestGetLeaderboardQualityCorrelation:
     ):
         """Test that quality_correlation is None when model has no variance."""
         now = datetime.now(UTC)
-        # All audits have rtdetr=True, so no variance
+        # All audits have yolo26=True, so no variance
         audits = [
             self._create_mock_audit(1, now - timedelta(days=1), overall_score=4.0),
             self._create_mock_audit(2, now - timedelta(days=1), overall_score=3.5),
@@ -2125,13 +2125,13 @@ class TestGetLeaderboardQualityCorrelation:
             return_value={
                 "total_events": 3,
                 "model_contribution_rates": {
-                    "rtdetr": 1.0,
-                    **{m: 0 for m in MODEL_NAMES if m != "rtdetr"},
+                    "yolo26": 1.0,
+                    **{m: 0 for m in MODEL_NAMES if m != "yolo26"},
                 },
             },
         ):
             leaderboard = await audit_service.get_leaderboard(mock_db_session, days=7)
 
-        # rtdetr has no variance (all True), so correlation should be None
-        rtdetr_entry = next(e for e in leaderboard if e["model_name"] == "rtdetr")
-        assert rtdetr_entry["quality_correlation"] is None
+        # yolo26 has no variance (all True), so correlation should be None
+        yolo26_entry = next(e for e in leaderboard if e["model_name"] == "yolo26")
+        assert yolo26_entry["quality_correlation"] is None

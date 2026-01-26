@@ -49,7 +49,7 @@ The system uses CLIP ViT-L (Vision Transformer Large) to generate visual embeddi
 
 **How It Works:**
 
-1. **Detection** - RT-DETRv2 detects a person or vehicle in a camera frame
+1. **Detection** - YOLO26 detects a person or vehicle in a camera frame
 2. **Embedding Generation** - The detected region is cropped and processed through the CLIP model
 3. **768-Dimensional Vector** - The model outputs a compact visual fingerprint (embedding)
 4. **Cosine Similarity Matching** - New embeddings are compared against existing entity embeddings using cosine similarity

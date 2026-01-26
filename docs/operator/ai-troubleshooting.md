@@ -16,7 +16,7 @@ Run these commands first to identify the issue:
 ./scripts/start-ai.sh status
 
 # Test service health endpoints
-curl http://localhost:8090/health   # RT-DETRv2
+curl http://localhost:8090/health   # YOLO26
 curl http://localhost:8091/health   # Nemotron
 curl http://localhost:8092/health   # Florence-2 (optional)
 curl http://localhost:8093/health   # CLIP (optional)
@@ -26,20 +26,20 @@ curl http://localhost:8094/health   # Enrichment (optional)
 nvidia-smi
 
 # View recent logs
-tail -100 /tmp/rtdetr-detector.log
+tail -100 /tmp/yolo26-detector.log
 tail -100 /tmp/nemotron-llm.log
 ```
 
 ---
 
-## RT-DETRv2 Issues
+## YOLO26 Issues
 
 ### Service Won't Start
 
 **Check logs:**
 
 ```bash
-tail -f /tmp/rtdetr-detector.log
+tail -f /tmp/yolo26-detector.log
 ```
 
 **CUDA out of memory:**
@@ -54,7 +54,7 @@ RuntimeError: CUDA out of memory
 2. Check VRAM usage: `nvidia-smi`
 3. Restart services: `./scripts/start-ai.sh restart`
 
-**Python dependency not found (RT-DETRv2):**
+**Python dependency not found (YOLO26):**
 
 ```
 ModuleNotFoundError: No module named 'transformers'
@@ -70,7 +70,7 @@ uv sync --extra dev
 **Model file not found:**
 
 ```
-ImportError / ModuleNotFoundError in `ai/rtdetr/model.py`
+ImportError / ModuleNotFoundError in `ai/yolo26/model.py`
 ```
 
 **Solution:** Model auto-downloads on first use. Wait for download to complete (check logs).
@@ -276,7 +276,7 @@ If not resolving, use host IP directly.
 
 ## Log Analysis
 
-### RT-DETRv2 Common Log Messages
+### YOLO26 Common Log Messages
 
 | Message                     | Meaning         | Action             |
 | --------------------------- | --------------- | ------------------ |
@@ -314,7 +314,7 @@ curl http://localhost:8090/health 2>&1
 curl http://localhost:8091/health 2>&1
 
 # Recent logs
-tail -100 /tmp/rtdetr-detector.log
+tail -100 /tmp/yolo26-detector.log
 tail -100 /tmp/nemotron-llm.log
 ```
 

@@ -98,8 +98,8 @@ Distributed tracing with metric correlation (`monitoring/grafana/provisioning/da
           query: 'rate(hsi_pipeline_errors_total[1m]) * 60'
         - name: 'Detection Queue Depth'
           query: 'hsi_detection_queue_depth'
-        - name: 'RT-DETR Latency (p95)'
-          query: 'histogram_quantile(0.95, rate(rtdetr_inference_latency_seconds_bucket[5m]))'
+        - name: 'YOLO26 Latency (p95)'
+          query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
 ```
 
 ### Loki with Trace Correlation
@@ -244,7 +244,7 @@ Query configuration:
 
 ### Detection Processing Panel
 
-RT-DETR detection traces (`monitoring/grafana/dashboards/tracing.json:86-143`):
+YOLO26 detection traces (`monitoring/grafana/dashboards/tracing.json:86-143`):
 
 | Threshold | Duration | Meaning                |
 | --------- | -------- | ---------------------- |

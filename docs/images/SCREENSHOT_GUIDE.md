@@ -338,11 +338,11 @@ This document lists all screenshots needed for the user documentation. Each entr
 **Shows:**
 
 - Two model cards:
-  1. RT-DETRv2 Object Detection (status, memory, FPS)
+  1. YOLO26 Object Detection (status, memory, FPS)
   2. Nemotron Risk Analysis (status, memory, speed)
 - Total GPU memory usage bar at bottom
 
-**Alt text:** AI Models settings showing RT-DETRv2 and Nemotron model cards with status indicators, memory usage, and performance metrics
+**Alt text:** AI Models settings showing YOLO26 and Nemotron model cards with status indicators, memory usage, and performance metrics
 
 ---
 
@@ -683,10 +683,10 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 **Shows:**
 
-- RT-DETRv2 and Nemotron model cards
+- YOLO26 and Nemotron model cards
 - GPU memory usage bar
 
-**Alt text:** AI Models settings showing RT-DETRv2 and Nemotron model cards with status, memory, and performance metrics
+**Alt text:** AI Models settings showing YOLO26 and Nemotron model cards with status, memory, and performance metrics
 
 ---
 

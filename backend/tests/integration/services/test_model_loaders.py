@@ -4,7 +4,7 @@ These tests verify that model loaders work correctly with the Model Zoo
 infrastructure, handle loading/unloading, manage VRAM, and integrate properly
 with the enrichment pipeline.
 
-HTTP calls to external AI services (RT-DETRv2, Nemotron, Florence, CLIP)
+HTTP calls to external AI services (YOLO26, Nemotron, Florence, CLIP)
 are mocked to isolate the tests. We're testing the model loader infrastructure,
 not actual AI inference.
 """

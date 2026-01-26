@@ -246,7 +246,7 @@ match message_type:
   "type": "service.status",
   "sequence": 44,
   "data": {
-    "service": "rtdetr",
+    "service": "yolo26",
     "status": "healthy",
     "latency_ms": 245
   }

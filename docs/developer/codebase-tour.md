@@ -29,7 +29,7 @@
 │   └── tests/            # Component and E2E tests
 │
 ├── ai/                   # AI model integration
-│   ├── rtdetr/           # RT-DETRv2 detection server
+│   ├── yolo26/           # YOLO26 detection server
 │   └── nemotron/         # Nemotron LLM configuration
 │
 ├── docs/                 # Documentation
@@ -115,7 +115,7 @@ SQLAlchemy ORM models. Each file defines one table.
 backend/services/
 ├── file_watcher.py       # Monitor camera directories for new images
 ├── dedupe.py             # Prevent duplicate processing
-├── detector_client.py    # HTTP client for RT-DETRv2
+├── detector_client.py    # HTTP client for YOLO26
 ├── batch_aggregator.py   # Group detections into batches
 ├── nemotron_analyzer.py  # LLM risk analysis
 ├── thumbnail_generator.py # Create detection thumbnails
@@ -132,7 +132,7 @@ backend/services/
 Services contain business logic. The AI pipeline flows through these in order:
 
 1. `file_watcher.py` - Detects new images
-2. `detector_client.py` - Runs RT-DETRv2 detection
+2. `detector_client.py` - Runs YOLO26 detection
 3. `batch_aggregator.py` - Groups detections
 4. `nemotron_analyzer.py` - LLM analysis
 5. `event_broadcaster.py` - Sends to dashboard
@@ -212,8 +212,8 @@ frontend/src/services/
 
 ```
 ai/
-├── rtdetr/
-│   ├── model.py          # FastAPI server for RT-DETRv2
+├── yolo26/
+│   ├── model.py          # FastAPI server for YOLO26
 │   └── Dockerfile        # Container build
 │                         # (Dependencies in pyproject.toml)
 │
@@ -222,7 +222,7 @@ ai/
     └── Dockerfile        # Container with llama.cpp
 ```
 
-RT-DETRv2 detects objects. Nemotron analyzes risk.
+YOLO26 detects objects. Nemotron analyzes risk.
 
 ---
 

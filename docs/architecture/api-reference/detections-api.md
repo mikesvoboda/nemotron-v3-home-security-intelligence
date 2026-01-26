@@ -6,7 +6,7 @@ The Detections API provides endpoints for accessing object detection data and as
 
 ## Overview
 
-Detections are individual object detections from the RT-DETR AI model. Each detection:
+Detections are individual object detections from the YOLO26 AI model. Each detection:
 
 - Contains bounding box coordinates
 - Has a confidence score (0-1)

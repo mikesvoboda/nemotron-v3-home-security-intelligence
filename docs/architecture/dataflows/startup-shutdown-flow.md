@@ -161,7 +161,7 @@ def init_circuit_breakers() -> list[str]:
     """Pre-register circuit breakers for known external services.
 
     Pre-registered circuit breakers:
-    - rtdetr: RT-DETRv2 object detection service
+    - yolo26: YOLO26 object detection service
     - nemotron: Nemotron LLM risk analysis service
     - postgresql: Database connection pool
     - redis: Redis cache and queue service
@@ -463,7 +463,7 @@ logger.info("Shutdown complete")
 │           └── Initialize OpenTelemetry                              │
 │                                                                      │
 │  T+250ms  init_circuit_breakers()                                   │
-│           ├── Create rtdetr breaker                                 │
+│           ├── Create yolo26 breaker                                 │
 │           ├── Create nemotron breaker                               │
 │           ├── Create postgresql breaker                             │
 │           └── Create redis breaker                                  │

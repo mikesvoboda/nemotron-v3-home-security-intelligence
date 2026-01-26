@@ -21,7 +21,7 @@ The `yolo26-migration.md` file covers:
 2. **Prerequisites** - Hardware, software, and model file requirements
 3. **Configuration** - Environment variables and model selection
 4. **Migration Steps** - Step-by-step deployment instructions
-5. **Rollback Procedure** - How to revert to RT-DETRv2
+5. **Rollback Procedure** - How to revert to YOLO26
 6. **Performance** - Benchmark results and latency comparisons
 7. **Monitoring** - Prometheus metrics and Grafana integration
 8. **Troubleshooting** - Common issues and solutions
@@ -71,7 +71,7 @@ curl http://localhost:8000/api/system/health/ready
 curl http://localhost:8000/api/health/ai-services
 
 # Individual service health
-curl http://localhost:8090/health  # ai-detector (RT-DETRv2)
+curl http://localhost:8090/health  # ai-detector (YOLO26)
 curl http://localhost:8091/health  # ai-llm
 curl http://localhost:8095/health  # ai-yolo26
 ```

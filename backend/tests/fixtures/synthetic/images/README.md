@@ -1,7 +1,7 @@
 # Multimodal Test Images
 
 This directory contains curated test images for the multimodal evaluation pipeline.
-Images are organized by category to validate the local RT-DETRv2 + Nemotron pipeline
+Images are organized by category to validate the local YOLO26 + Nemotron pipeline
 against NVIDIA vision models.
 
 ## Directory Structure

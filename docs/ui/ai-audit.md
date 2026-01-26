@@ -80,7 +80,7 @@ A horizontal bar chart showing the contribution rate of each AI model to event a
 
 | Model              | Description                                 |
 | ------------------ | ------------------------------------------- |
-| RT-DETRv2          | Object detection (always active)            |
+| YOLO26             | Object detection (always active)            |
 | Florence-2         | Visual question-answering for scene details |
 | X-CLIP             | Action recognition (walking, running, etc.) |
 | Violence Detection | Violence classifier for suspicious behavior |
@@ -512,7 +512,7 @@ consistency_score = max(1.0, 5.0 - (risk_score_diff / 5))
 
 The `event_audits` table stores:
 
-- **Model contribution flags**: `has_rtdetr`, `has_florence`, `has_clip`, `has_violence`, `has_clothing`, `has_vehicle`, `has_pet`, `has_weather`, `has_image_quality`, `has_zones`, `has_baseline`, `has_cross_camera`
+- **Model contribution flags**: `has_yolo26`, `has_florence`, `has_clip`, `has_violence`, `has_clothing`, `has_vehicle`, `has_pet`, `has_weather`, `has_image_quality`, `has_zones`, `has_baseline`, `has_cross_camera`
 - **Quality scores**: `context_usage_score`, `reasoning_coherence_score`, `risk_justification_score`, `consistency_score`, `overall_quality_score`
 - **Consistency check results**: `consistency_risk_score`, `consistency_diff`
 - **Prompt metadata**: `prompt_length`, `prompt_token_estimate`, `enrichment_utilization`

@@ -10,7 +10,7 @@ This directory contains benchmark results and performance measurements for the H
 benchmarks/
   AGENTS.md                  # This file
   model-zoo-benchmark.md     # Model Zoo benchmark results
-  yolo26-vs-rtdetr.md        # YOLO26 vs RT-DETR accuracy comparison (auto-generated)
+  yolo26-vs-yolo26.md        # YOLO26 vs YOLO26 accuracy comparison (auto-generated)
   yolo26-export-formats.md   # YOLO26 export format evaluation (Phase 1.4)
 ```
 
@@ -48,45 +48,45 @@ benchmarks/
 
 **When to use:** Evaluating model performance, deciding which models to use, debugging VRAM issues.
 
-### yolo26-vs-rtdetr.md
+### yolo26-vs-yolo26.md
 
-**Purpose:** Accuracy comparison between YOLO26 variants and RT-DETRv2 on security-relevant classes.
+**Purpose:** Accuracy comparison between YOLO26 variants and YOLO26 on security-relevant classes.
 
 **Content:**
 
 - Accuracy benchmarks on 9 security-relevant classes (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
-- Model comparison (YOLO26N/S/M vs RT-DETRv2)
+- Model comparison (YOLO26N/S/M vs YOLO26)
 - Per-class recall analysis
 - Inference speed comparisons
 - Model selection recommendations
 
 **Key Results:**
 
-| Model     | Recall | Avg Inference (ms) | Key Strength                   |
-| --------- | ------ | ------------------ | ------------------------------ |
-| YOLO26N   | 66.7%  | 31.6               | Lowest VRAM (~150MB)           |
-| YOLO26S   | 66.7%  | 28.7               | Balanced                       |
-| YOLO26M   | 91.7%  | 27.4               | Best efficiency (recall/speed) |
-| RT-DETRv2 | 100.0% | 49.1               | Best accuracy                  |
+| Model   | Recall | Avg Inference (ms) | Key Strength                   |
+| ------- | ------ | ------------------ | ------------------------------ |
+| YOLO26N | 66.7%  | 31.6               | Lowest VRAM (~150MB)           |
+| YOLO26S | 66.7%  | 28.7               | Balanced                       |
+| YOLO26M | 91.7%  | 27.4               | Best efficiency (recall/speed) |
+| YOLO26  | 100.0% | 49.1               | Best accuracy                  |
 
 **Key Findings:**
 
-- YOLO26M is 44% faster than RT-DETRv2 with only 8.3% lower recall
+- YOLO26M is 44% faster than YOLO26 with only 8.3% lower recall
 - YOLO26N/S struggle with cat detection (0% recall)
-- RT-DETRv2 excels at small/distant object detection
+- YOLO26 excels at small/distant object detection
 - All models occasionally confuse compact cars with trucks
 
 **Model Selection Guide:**
 
-| Use Case                      | Recommended Model    |
-| ----------------------------- | -------------------- |
-| Real-time streaming (30+ FPS) | YOLO26S              |
-| Balanced accuracy/speed       | YOLO26M              |
-| Maximum accuracy              | RT-DETRv2            |
-| Resource-constrained          | YOLO26N              |
-| Pet detection priority        | YOLO26M or RT-DETRv2 |
+| Use Case                      | Recommended Model |
+| ----------------------------- | ----------------- |
+| Real-time streaming (30+ FPS) | YOLO26S           |
+| Balanced accuracy/speed       | YOLO26M           |
+| Maximum accuracy              | YOLO26            |
+| Resource-constrained          | YOLO26N           |
+| Pet detection priority        | YOLO26M or YOLO26 |
 
-**When to use:** Choosing detection models for home security, comparing YOLO26 variants, evaluating RT-DETRv2 replacement options.
+**When to use:** Choosing detection models for home security, comparing YOLO26 variants, evaluating YOLO26 replacement options.
 
 **Script:** `scripts/benchmark_yolo26_accuracy.py`
 
@@ -172,16 +172,16 @@ uv run python scripts/benchmark_model_zoo.py --models yolo11-license-plate,clip-
 
 # Results are written to docs/benchmarks/model-zoo-benchmark.md
 
-# YOLO26 vs RT-DETRv2 accuracy benchmark (requires GPU)
+# YOLO26 vs YOLO26 accuracy benchmark (requires GPU)
 python3 scripts/benchmark_yolo26_accuracy.py --local-only
 
 # Full COCO validation benchmark (requires COCO val2017 dataset)
 python3 scripts/benchmark_yolo26_accuracy.py --coco-path /path/to/coco
 
 # Benchmark specific detection models
-python3 scripts/benchmark_yolo26_accuracy.py --models yolo26n,yolo26m,rtdetr --local-only
+python3 scripts/benchmark_yolo26_accuracy.py --models yolo26n,yolo26m,yolo26 --local-only
 
-# Results are written to docs/benchmarks/yolo26-vs-rtdetr.md
+# Results are written to docs/benchmarks/yolo26-vs-yolo26.md
 ```
 
 **Note:** The YOLO26 benchmark requires system Python with CUDA-enabled PyTorch (not uv run) due to GPU requirements.

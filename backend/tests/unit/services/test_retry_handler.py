@@ -1333,7 +1333,7 @@ class TestJobFailureErrorContext:
         context = {
             "detection_queue_depth": 150,
             "analysis_queue_depth": 25,
-            "circuit_breaker_states": {"rtdetr": "closed", "nemotron": "half_open"},
+            "circuit_breaker_states": {"yolo26": "closed", "nemotron": "half_open"},
             "gpu_utilization": 85.5,
         }
         failure = JobFailure(

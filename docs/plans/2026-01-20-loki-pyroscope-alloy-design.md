@@ -22,7 +22,7 @@ Expand the observability stack with centralized log aggregation (Loki), continuo
 │                         Your Services                                │
 ├──────────────┬──────────────┬─────────────┬────────────┬───────────┤
 │   Backend    │  AI-Detector │   AI-LLM    │ AI-Florence│  AI-CLIP  │
-│  (Python)    │  (RT-DETR)   │ (Nemotron)  │            │           │
+│  (Python)    │  (YOLO26)   │ (Nemotron)  │            │           │
 │  +SDK prof   │              │             │            │           │
 └──────┬───────┴───────┬──────┴──────┬──────┴─────┬──────┴─────┬─────┘
        │               │             │            │            │

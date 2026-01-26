@@ -100,7 +100,7 @@ ls -lt /export/foscam/*/  # Should show recent files
 **3. Check AI service health:**
 
 ```bash
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 curl http://localhost:8092/health  # Florence-2 (optional)
 curl http://localhost:8093/health  # CLIP (optional)
@@ -241,7 +241,7 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 ### What You See
 
 - Health check shows AI services as unhealthy
-- Error: "RT-DETR service connection refused"
+- Error: "YOLO26 service connection refused"
 - Error: "Nemotron service connection refused"
 - No detections being created
 
@@ -272,14 +272,14 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
 ./scripts/start-ai.sh start
 
 # Or individually
-./ai/start_detector.sh  # RT-DETRv2
+./ai/start_detector.sh  # YOLO26
 ./ai/start_llm.sh       # Nemotron
 ```
 
 **2. Check for port conflicts:**
 
 ```bash
-lsof -i :8090  # RT-DETRv2 port
+lsof -i :8090  # YOLO26 port
 lsof -i :8091  # Nemotron port
 ```
 
@@ -299,7 +299,7 @@ ls -la ai/nemotron/*.gguf  # Should show ~2.5GB file
 **5. Check AI service logs:**
 
 ```bash
-cat /tmp/rtdetr-detector.log
+cat /tmp/yolo26-detector.log
 cat /tmp/nemotron-llm.log
 ```
 
@@ -527,7 +527,7 @@ curl -s http://localhost:8000/api/system/pipeline-latency | jq .
 **1. Verify GPU is being used:**
 
 ```bash
-# RT-DETRv2 should show "cuda" or "cuda:0"
+# YOLO26 should show "cuda" or "cuda:0"
 curl -s http://localhost:8090/health | jq '.device'
 
 # Check GPU processes
@@ -688,7 +688,7 @@ cat .env | grep -v PASSWORD | grep -v SECRET | grep -v KEY > env_safe.txt
 
 - [GPU Issues](gpu-issues.md) - CUDA, VRAM, temperature, container GPU access
 - [Connection Issues](connection-issues.md) - Network, containers, WebSocket, CORS
-- [AI Issues](ai-issues.md) - RT-DETRv2, Nemotron, pipeline, batch processing
+- [AI Issues](ai-issues.md) - YOLO26, Nemotron, pipeline, batch processing
 - [Database Issues](database-issues.md) - PostgreSQL connection, migrations, disk space
 
 ---

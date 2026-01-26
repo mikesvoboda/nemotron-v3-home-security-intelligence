@@ -40,7 +40,7 @@ The circuit breaker pattern prevents cascading failures by monitoring failure ra
 
 ### Why We Use It
 
-- **Prevents cascading failures**: When an AI service (RT-DETRv2, Nemotron) is down, we don't want to overwhelm it with retry storms
+- **Prevents cascading failures**: When an AI service (YOLO26, Nemotron) is down, we don't want to overwhelm it with retry storms
 - **Fails fast**: Instead of waiting for timeouts, immediately reject requests when a service is known to be unavailable
 - **Enables graceful degradation**: The system can use fallback behavior while waiting for recovery
 
@@ -108,9 +108,9 @@ from backend.services.circuit_breaker import (
     CircuitBreakerError,
 )
 
-# Create a circuit breaker for the RT-DETR service
+# Create a circuit breaker for the YOLO26 service
 breaker = CircuitBreaker(
-    name="rtdetr",
+    name="yolo26",
     config=CircuitBreakerConfig(
         failure_threshold=5,
         recovery_timeout=60.0,
@@ -130,7 +130,7 @@ async def detect_objects(image_path: str) -> list[Detection]:
         return result
     except CircuitBreakerError:
         # Circuit is open, use fallback
-        logger.warning("RT-DETR circuit open, returning empty detections")
+        logger.warning("YOLO26 circuit open, returning empty detections")
         return []
 ```
 
@@ -209,9 +209,9 @@ class DetectorClient:
     def __init__(self, max_retries: int | None = None) -> None:
         # ...
 
-        # Circuit breaker for RT-DETRv2 service protection
+        # Circuit breaker for YOLO26 service protection
         self._circuit_breaker = CircuitBreaker(
-            name="rtdetr",
+            name="yolo26",
             config=CircuitBreakerConfig(
                 failure_threshold=5,
                 recovery_timeout=60.0,
@@ -224,9 +224,9 @@ class DetectorClient:
     async def detect_objects(self, image_path: str, ...) -> list[Detection]:
         # Check circuit state before proceeding
         if not await self._circuit_breaker.allow_call():
-            logger.warning("Circuit breaker open for RT-DETR")
+            logger.warning("Circuit breaker open for YOLO26")
             raise DetectorUnavailableError(
-                "RT-DETR service temporarily unavailable (circuit breaker open)"
+                "YOLO26 service temporarily unavailable (circuit breaker open)"
             )
 
         # Execute with circuit breaker protection
@@ -426,7 +426,7 @@ if not result.success:
 
 | Service    | Retried Errors                          | Not Retried              |
 | ---------- | --------------------------------------- | ------------------------ |
-| RT-DETRv2  | Connection errors, timeouts, HTTP 5xx   | HTTP 4xx (client errors) |
+| YOLO26     | Connection errors, timeouts, HTTP 5xx   | HTTP 4xx (client errors) |
 | Nemotron   | Connection errors, timeouts, HTTP 5xx   | HTTP 4xx, parsing errors |
 | Redis      | Connection errors, timeouts             | Command errors           |
 | PostgreSQL | Connection errors, transaction failures | Constraint violations    |
@@ -808,13 +808,13 @@ class AIServiceClient:
 
 ## Related Documentation
 
-| Document                                                  | Purpose                       |
-| --------------------------------------------------------- | ----------------------------- |
-| [Architecture: Resilience](../architecture/resilience.md) | Full resilience architecture  |
-| [Code Patterns](../development/patterns.md)               | General code patterns         |
-| [Security Guide](../operator/admin/security.md)           | Security configuration        |
-| [Detection Service](detection-service.md)                 | RT-DETRv2 integration details |
-| [Risk Analysis](risk-analysis.md)                         | Nemotron LLM integration      |
+| Document                                                  | Purpose                      |
+| --------------------------------------------------------- | ---------------------------- |
+| [Architecture: Resilience](../architecture/resilience.md) | Full resilience architecture |
+| [Code Patterns](../development/patterns.md)               | General code patterns        |
+| [Security Guide](../operator/admin/security.md)           | Security configuration       |
+| [Detection Service](detection-service.md)                 | YOLO26 integration details   |
+| [Risk Analysis](risk-analysis.md)                         | Nemotron LLM integration     |
 
 ---
 

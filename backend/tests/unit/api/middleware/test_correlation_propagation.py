@@ -1,7 +1,7 @@
 """Unit tests for correlation ID propagation in AI service clients.
 
 NEM-1729: Test that correlation IDs are properly propagated through HTTP
-requests to AI services (RT-DETR detector, Nemotron analyzer).
+requests to AI services (YOLO26 detector, Nemotron analyzer).
 
 Tests follow TDD methodology - written before implementation.
 """

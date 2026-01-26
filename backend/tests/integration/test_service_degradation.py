@@ -317,15 +317,15 @@ class TestLLMServiceFailures:
         assert state.circuit_state == CircuitState.OPEN
 
     @pytest.mark.asyncio
-    async def test_rtdetr_failure_triggers_detection_skip(
+    async def test_yolo26_failure_triggers_detection_skip(
         self, ai_fallback_service: AIFallbackService
     ):
-        """Test that RT-DETR failures trigger detection skip."""
-        # Mark RT-DETR as unavailable
+        """Test that YOLO26 failures trigger detection skip."""
+        # Mark YOLO26 as unavailable
         ai_fallback_service._service_states[
-            AIService.RTDETR
+            AIService.YOLO26
         ].status = ai_fallback_service._service_states[
-            AIService.RTDETR
+            AIService.YOLO26
         ].status.__class__.UNAVAILABLE
 
         assert ai_fallback_service.should_skip_detection() is True
@@ -529,8 +529,8 @@ class TestPartialServiceAvailability:
         """Test system enters MINIMAL mode when critical services are down."""
         from backend.services.ai_fallback import ServiceStatus
 
-        # Mark RT-DETR (critical) as unavailable
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        # Mark YOLO26 (critical) as unavailable
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
 
         level = ai_fallback_service.get_degradation_level()
         assert level == DegradationLevel.MINIMAL
@@ -543,7 +543,7 @@ class TestPartialServiceAvailability:
         from backend.services.ai_fallback import ServiceStatus
 
         # Mark both critical services as unavailable
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         ai_fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.UNAVAILABLE
 
         level = ai_fallback_service.get_degradation_level()
@@ -569,8 +569,8 @@ class TestPartialServiceAvailability:
         assert "image_captioning" not in degraded_features
         assert "object_detection" in degraded_features  # Still available
 
-        # Mark RT-DETR as unavailable
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        # Mark YOLO26 as unavailable
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
 
         minimal_features = ai_fallback_service.get_available_features()
         assert "object_detection" not in minimal_features

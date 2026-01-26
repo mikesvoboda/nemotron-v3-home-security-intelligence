@@ -1793,7 +1793,7 @@ class TestPerformanceMetricsEndpoint:
                 "yolo26": AiModelMetrics(
                     status="healthy",
                     vram_gb=0.17,
-                    model="rtdetr_r50vd_coco_o365",
+                    model="yolo26_r50vd_coco_o365",
                     device="cuda:0",
                 ),
                 "nemotron": NemotronMetrics(
@@ -1810,7 +1810,7 @@ class TestPerformanceMetricsEndpoint:
                 context_size=4096,
             ),
             inference=InferenceMetrics(
-                rtdetr_latency_ms={"avg": 45, "p95": 82, "p99": 120},
+                yolo26_latency_ms={"avg": 45, "p95": 82, "p99": 120},
                 nemotron_latency_ms={"avg": 2100, "p95": 4800, "p99": 8200},
                 pipeline_latency_ms={"avg": 3200, "p95": 6100},
                 throughput={"images_per_min": 12.4, "events_per_min": 2.1},
@@ -2079,7 +2079,7 @@ class TestCheckAIServicesHealth:
         """Test AI services health when one service is unhealthy."""
         from backend.api.routes.system import check_ai_services_health
 
-        # Mock the circuit breaker checks - RT-DETR healthy, Nemotron unhealthy
+        # Mock the circuit breaker checks - YOLO26 healthy, Nemotron unhealthy
         with (
             patch(
                 "backend.api.routes.system._check_yolo26_health_with_circuit_breaker",

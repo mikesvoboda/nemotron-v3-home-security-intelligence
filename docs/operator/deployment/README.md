@@ -48,13 +48,13 @@ curl http://localhost:8000/api/system/health/ready
 
 ### Hardware Requirements
 
-| Resource       | Minimum | Recommended | Purpose                                |
-| -------------- | ------- | ----------- | -------------------------------------- |
-| CPU            | 4 cores | 8 cores     | Backend workers, AI inference          |
-| RAM            | 16 GB   | 32 GB       | Services + AI model loading            |
-| GPU VRAM       | 8 GB    | 24 GB       | RT-DETRv2 + Nemotron + optional models |
-| Disk Space     | 100 GB  | 500 GB      | Database, logs, media files            |
-| Camera Storage | 50 GB   | 200 GB      | FTP upload directory                   |
+| Resource       | Minimum | Recommended | Purpose                             |
+| -------------- | ------- | ----------- | ----------------------------------- |
+| CPU            | 4 cores | 8 cores     | Backend workers, AI inference       |
+| RAM            | 16 GB   | 32 GB       | Services + AI model loading         |
+| GPU VRAM       | 8 GB    | 24 GB       | YOLO26 + Nemotron + optional models |
+| Disk Space     | 100 GB  | 500 GB      | Database, logs, media files         |
+| Camera Storage | 50 GB   | 200 GB      | FTP upload directory                |
 
 ### Software Requirements
 
@@ -71,7 +71,7 @@ curl http://localhost:8000/api/system/health/ready
 | ------- | ----------- | -------- | ------------------ |
 | 80/5173 | Frontend    | HTTP     | Browser            |
 | 8000    | Backend API | HTTP/WS  | Frontend           |
-| 8090    | RT-DETRv2   | HTTP     | Backend            |
+| 8090    | YOLO26      | HTTP     | Backend            |
 | 8091    | Nemotron    | HTTP     | Backend            |
 | 8092    | Florence-2  | HTTP     | Backend (optional) |
 | 8093    | CLIP        | HTTP     | Backend (optional) |
@@ -213,7 +213,7 @@ docker compose -f docker-compose.prod.yml down
 ### Development with Host AI
 
 ```bash
-# Terminal 1: Start RT-DETRv2
+# Terminal 1: Start YOLO26
 ./ai/start_detector.sh
 
 # Terminal 2: Start Nemotron
@@ -305,7 +305,7 @@ docker compose up -d
 
 ```bash
 # AI services on compose network (internal DNS)
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -315,14 +315,14 @@ ENRICHMENT_URL=http://ai-enrichment:8094
 **Development with host AI:**
 
 ```bash
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 ```
 
 **Docker Desktop (macOS/Windows):**
 
 ```bash
-RTDETR_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -336,7 +336,7 @@ The system supports a multi-service AI stack:
 
 | Service    | Port | VRAM                      | Purpose                         |
 | ---------- | ---- | ------------------------- | ------------------------------- |
-| RT-DETRv2  | 8090 | ~4GB                      | Object detection                |
+| YOLO26     | 8090 | ~4GB                      | Object detection                |
 | Nemotron   | 8091 | ~3GB (4B) / ~14.7GB (30B) | Risk reasoning                  |
 | Florence-2 | 8092 | ~2GB                      | Vision extraction (optional)    |
 | CLIP       | 8093 | ~2GB                      | Re-identification (optional)    |
@@ -350,7 +350,7 @@ The system supports a multi-service AI stack:
 
 # What it downloads:
 # - Nemotron Mini 4B (~2.5GB) for development
-# - RT-DETRv2 auto-downloads on first use via HuggingFace
+# - YOLO26 auto-downloads on first use via HuggingFace
 ```
 
 ### Production Model Specifications
@@ -364,7 +364,7 @@ The system supports a multi-service AI stack:
 
 ```bash
 # Health checks
-curl http://localhost:8090/health   # RT-DETRv2
+curl http://localhost:8090/health   # YOLO26
 curl http://localhost:8091/health   # Nemotron
 curl http://localhost:8092/health   # Florence-2 (optional)
 curl http://localhost:8093/health   # CLIP (optional)
@@ -387,7 +387,7 @@ sequenceDiagram
     participant DC as Docker Compose
     participant PG as PostgreSQL
     participant RD as Redis
-    participant RT as RT-DETRv2
+    participant RT as YOLO26
     participant NM as Nemotron
     participant BE as Backend
     participant FE as Frontend
@@ -399,7 +399,7 @@ sequenceDiagram
     RD-->>DC: Healthy (5-10s)
 
     Note over DC,FE: Phase 2: AI Services (60-180s)
-    DC->>RT: Start RT-DETRv2
+    DC->>RT: Start YOLO26
     DC->>NM: Start Nemotron
     RT-->>DC: Healthy (60-90s, model loading)
     NM-->>DC: Healthy (90-120s, VRAM allocation)
@@ -423,7 +423,7 @@ sequenceDiagram
 
 **Phase 2: AI Services (60-180s)**
 
-- RT-DETRv2 (~60-90s, model loading)
+- YOLO26 (~60-90s, model loading)
 - Nemotron (~90-120s, VRAM allocation)
 - Florence-2, CLIP, Enrichment (optional)
 
@@ -465,7 +465,7 @@ backend:
 | ---------- | ----------------- | ----------------- | -------------- |
 | PostgreSQL | None              | None              | N/A            |
 | Redis      | None              | None              | N/A            |
-| RT-DETRv2  | GPU               | None              | No             |
+| YOLO26     | GPU               | None              | No             |
 | Nemotron   | GPU               | None              | No             |
 | Backend    | PostgreSQL, Redis | AI Services       | AI via monitor |
 | Frontend   | Backend           | None              | No             |

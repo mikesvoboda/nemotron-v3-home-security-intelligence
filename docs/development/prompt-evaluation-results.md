@@ -77,13 +77,13 @@ _Values represent percentage of edge cases with risk score within acceptable ran
 
 Measures alignment between local pipeline detections and NVIDIA vision model ground truth.
 
-| Detection Type | RT-DETRv2 IoU | Florence-2 Desc | Combined Score |
-| -------------- | ------------- | --------------- | -------------- |
-| Person         | TBD           | TBD             | TBD            |
-| Vehicle        | TBD           | TBD             | TBD            |
-| Animal         | TBD           | TBD             | TBD            |
-| Package        | TBD           | TBD             | TBD            |
-| **Average**    | TBD           | TBD             | TBD            |
+| Detection Type | YOLO26 IoU | Florence-2 Desc | Combined Score |
+| -------------- | ---------- | --------------- | -------------- |
+| Person         | TBD        | TBD             | TBD            |
+| Vehicle        | TBD        | TBD             | TBD            |
+| Animal         | TBD        | TBD             | TBD            |
+| Package        | TBD        | TBD             | TBD            |
+| **Average**    | TBD        | TBD             | TBD            |
 
 _IoU = Intersection over Union for bounding boxes. Desc = description similarity._
 
@@ -135,13 +135,13 @@ _IoU = Intersection over Union for bounding boxes. Desc = description similarity
 
 ### Multimodal Alignment (Post)
 
-| Detection Type | RT-DETRv2 IoU | Florence-2 Desc | Combined Score |
-| -------------- | ------------- | --------------- | -------------- |
-| Person         | TBD           | TBD             | TBD            |
-| Vehicle        | TBD           | TBD             | TBD            |
-| Animal         | TBD           | TBD             | TBD            |
-| Package        | TBD           | TBD             | TBD            |
-| **Average**    | TBD           | TBD             | TBD            |
+| Detection Type | YOLO26 IoU | Florence-2 Desc | Combined Score |
+| -------------- | ---------- | --------------- | -------------- |
+| Person         | TBD        | TBD             | TBD            |
+| Vehicle        | TBD        | TBD             | TBD            |
+| Animal         | TBD        | TBD             | TBD            |
+| Package        | TBD        | TBD             | TBD            |
+| **Average**    | TBD        | TBD             | TBD            |
 
 ---
 

@@ -35,11 +35,11 @@
   <rect x="50" y="137" width="400" height="8" fill="#76B900"/>
   <text x="250" y="137" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">GPU (RTX A5500 24GB)</text>
 
-  <!-- RT-DETRv2 Service -->
+  <!-- YOLO26 Service -->
   <rect x="70" y="160" width="170" height="135" rx="6" fill="#FFFFFF" stroke="#76B900" stroke-width="1.5" filter="url(#box-shadow)"/>
   <rect x="70" y="160" width="170" height="30" rx="6" fill="#E6F4D7"/>
   <rect x="70" y="182" width="170" height="8" fill="#E6F4D7"/>
-  <text x="155" y="181" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#4D7600" text-anchor="middle">RT-DETRv2 Server</text>
+  <text x="155" y="181" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#4D7600" text-anchor="middle">YOLO26 Server</text>
 
   <g font-family="Inter, system-ui, sans-serif" font-size="10">
     <text x="85" y="215" fill="#374151" font-weight="500">Port:</text>
@@ -52,7 +52,7 @@
     <text x="140" y="255" fill="#6B7280">30-50ms</text>
 
     <text x="85" y="275" fill="#374151" font-weight="500">Model:</text>
-    <text x="125" y="275" fill="#6B7280">RT-DETRv2-L</text>
+    <text x="125" y="275" fill="#6B7280">YOLO26-L</text>
   </g>
 
   <!-- Nemotron Service -->
@@ -130,7 +130,7 @@
   <path d="M 360 375 L 420 375 L 420 250 L 495 220" fill="none" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arr-i-blue)"/>
   <text x="440" y="300" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#3B82F6" text-anchor="middle">inotify</text>
 
-  <!-- Connection: Backend to RT-DETRv2 -->
+  <!-- Connection: Backend to YOLO26 -->
   <path d="M 500 200 L 340 200 L 250 200" fill="none" stroke="#76B900" stroke-width="1.5" marker-end="url(#arr-i-green)"/>
   <rect x="360" y="182" width="100" height="36" rx="4" fill="#FFFFFF" stroke="#76B900" stroke-width="1"/>
   <text x="410" y="196" font-family="Inter, system-ui, sans-serif" font-size="8" fill="#4D7600" text-anchor="middle">POST /detect</text>

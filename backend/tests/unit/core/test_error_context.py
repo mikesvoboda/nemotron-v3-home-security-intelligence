@@ -55,10 +55,10 @@ class TestErrorContext:
         """Test ErrorContext with service information."""
         from backend.core.error_context import ErrorContext
 
-        exc = DetectorUnavailableError("RT-DETR timeout")
+        exc = DetectorUnavailableError("YOLO26 timeout")
         ctx = ErrorContext.from_exception(exc)
 
-        assert ctx.service_name == "rtdetr"
+        assert ctx.service_name == "yolo26"
         assert ctx.error_type == "DetectorUnavailableError"
 
     def test_error_context_to_dict(self) -> None:

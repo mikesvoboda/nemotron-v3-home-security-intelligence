@@ -112,7 +112,7 @@ The model download script ([`ai/download_models.sh`](../../ai/download_models.sh
 | ----------------------- | ------ | -------------------- | --------------------------------------------------------------- |
 | **Nemotron-3-Nano-30B** | ~18GB  | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`      |
 | **Nemotron Mini 4B**    | ~2.5GB | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
-| **RT-DETRv2**           | varies | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
+| **YOLO26**              | varies | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
 
 ### Using Pre-downloaded Models
 
@@ -124,8 +124,8 @@ export NEMOTRON_GGUF_PATH=/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4k
 # Or for development (Mini 4B)
 # export NEMOTRON_GGUF_PATH=/path/to/nemotron-mini-4b-instruct-q4_k_m.gguf
 
-# RT-DETRv2 is loaded via HuggingFace (configure via RTDETR_MODEL_PATH if needed)
-export RTDETR_MODEL_PATH=PekingU/rtdetr_r50vd_coco_o365
+# YOLO26 is loaded via HuggingFace (configure via YOLO26_MODEL_PATH if needed)
+export YOLO26_MODEL_PATH=PekingU/yolo26_r50vd_coco_o365
 
 # Then run the script
 ./ai/download_models.sh
@@ -143,10 +143,10 @@ The script automatically searches these locations for existing models:
 /export/ai_models/weights
 /export/ai_models/cache
 
-# RT-DETRv2 search paths
-/export/ai_models/rt-detrv2
-/export/ai_models/rt-detrv2/weights
-/export/ai_models/rt-detrv2/optimized
+# YOLO26 search paths
+/export/ai_models/yolo26v2
+/export/ai_models/yolo26v2/weights
+/export/ai_models/yolo26v2/optimized
 ```
 
 ---
@@ -176,14 +176,14 @@ REDIS_URL=redis://redis:6379
 # See: docs/operator/deployment-modes.md
 #
 # Production (docker-compose.prod.yml): backend reaches AI via compose DNS
-# RTDETR_URL=http://ai-detector:8090
+# YOLO26_URL=http://ai-detector:8090
 # NEMOTRON_URL=http://ai-llm:8091
 # FLORENCE_URL=http://ai-florence:8092
 # CLIP_URL=http://ai-clip:8093
 # ENRICHMENT_URL=http://ai-enrichment:8094
 #
 # Development (host-run AI):
-# RTDETR_URL=http://localhost:8090
+# YOLO26_URL=http://localhost:8090
 # NEMOTRON_URL=http://localhost:8091
 
 # Camera Upload Directory
@@ -251,7 +251,7 @@ cd frontend && npm list --depth=0
 # Check models exist
 ls -la ai/nemotron/*.gguf
 
-# RT-DETRv2 weights live in HuggingFace cache. Verify by starting the service and hitting /health:
+# YOLO26 weights live in HuggingFace cache. Verify by starting the service and hitting /health:
 # curl http://localhost:8090/health
 
 # Check container runtime (choose one)

@@ -47,7 +47,7 @@ The page embeds the HSI System Logs dashboard from Grafana, which provides:
 The centralized logging system collects logs from:
 
 - **Backend API services** - API route handlers, authentication, and request processing
-- **AI detection pipeline** - RT-DETRv2 detection, Nemotron risk analysis, batch aggregation
+- **AI detection pipeline** - YOLO26 detection, Nemotron risk analysis, batch aggregation
 - **File watcher** - Camera FTP uploads and image processing
 - **WebSocket events** - Real-time connection status and broadcast messages
 - **Cleanup services** - Data retention and file management
@@ -117,7 +117,7 @@ Loki uses LogQL, a query language similar to PromQL. Common query patterns:
 ### Monitoring a Specific Service
 
 1. In the embedded dashboard, use the component/job filter dropdown
-2. Select the service you want to monitor (e.g., `hsi-rtdetr`, `hsi-nemotron`)
+2. Select the service you want to monitor (e.g., `hsi-yolo26`, `hsi-nemotron`)
 3. Optionally filter by log level to focus on warnings and errors
 
 ### Real-time Log Streaming
@@ -226,7 +226,7 @@ The frontend couldn't fetch the Grafana URL from the backend:
 flowchart LR
     subgraph Services["Logging Services"]
         B[Backend]
-        R[RT-DETRv2]
+        R[YOLO26]
         N[Nemotron]
     end
 

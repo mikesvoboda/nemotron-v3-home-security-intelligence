@@ -315,7 +315,7 @@ TLS_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
 
 ```bash
 # Production AI service URLs
-RTDETR_URL=https://your-rtdetr-host:8090
+YOLO26_URL=https://your-yolo26-host:8090
 NEMOTRON_URL=https://your-nemotron-host:8091
 ```
 
@@ -333,7 +333,7 @@ Only expose necessary ports:
 | 8000   | Backend API | User access       |
 | 5432   | PostgreSQL  | **Internal only** |
 | 6379   | Redis       | **Internal only** |
-| 8090   | RT-DETRv2   | **Internal only** |
+| 8090   | YOLO26      | **Internal only** |
 | 8091   | Nemotron    | **Internal only** |
 
 ```bash

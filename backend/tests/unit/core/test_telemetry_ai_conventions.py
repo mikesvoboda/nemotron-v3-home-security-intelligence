@@ -109,7 +109,7 @@ class TestAIModelAttributes:
 
         AIModelAttributes.set_on_span(
             mock_span,
-            model_name="rtdetr-v2",
+            model_name="yolo26-v2",
             model_version="1.0.0",
             model_provider="huggingface",
             device="cuda:0",
@@ -118,7 +118,7 @@ class TestAIModelAttributes:
         )
 
         assert mock_span.set_attribute.call_count == 6
-        mock_span.set_attribute.assert_any_call(AI_MODEL_NAME, "rtdetr-v2")
+        mock_span.set_attribute.assert_any_call(AI_MODEL_NAME, "yolo26-v2")
         mock_span.set_attribute.assert_any_call(AI_MODEL_VERSION, "1.0.0")
         mock_span.set_attribute.assert_any_call(AI_MODEL_PROVIDER, "huggingface")
         mock_span.set_attribute.assert_any_call(AI_INFERENCE_DEVICE, "cuda:0")

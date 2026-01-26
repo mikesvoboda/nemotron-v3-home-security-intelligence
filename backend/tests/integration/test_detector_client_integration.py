@@ -4,7 +4,7 @@ These tests use a real SQLite database to verify that the DetectorClient
 correctly persists detections and handles various scenarios including
 confidence filtering, error handling, and multiple detection scenarios.
 
-HTTP calls to the RT-DETRv2 service are mocked to isolate the tests.
+HTTP calls to the YOLO26 service are mocked to isolate the tests.
 """
 
 import tempfile
@@ -594,7 +594,7 @@ class TestBboxFormatHandling:
     async def test_detect_objects_with_dict_bbox_format(
         self, integration_db, sample_camera, temp_image_file, detector_client
     ):
-        """Test detection with dict bbox format from RT-DETRv2."""
+        """Test detection with dict bbox format from YOLO26."""
         from backend.core.database import get_session
 
         response_data = {

@@ -302,7 +302,7 @@ erDiagram
 
 ### detections
 
-**Purpose:** Stores individual object detection results from RT-DETRv2.
+**Purpose:** Stores individual object detection results from YOLO26.
 
 | Column           | Type     | Nullable | Default    | Description                             |
 | ---------------- | -------- | -------- | ---------- | --------------------------------------- |
@@ -327,7 +327,7 @@ erDiagram
 
 **Usage:**
 
-- Created by `DetectionQueueWorker` after RT-DETRv2 inference
+- Created by `DetectionQueueWorker` after YOLO26 inference
 - One detection record per detected object (multiple per image possible)
 - Linked to events via `batch_id` matching
 
@@ -998,7 +998,7 @@ system_status (channel)
 
 ### State Diagram
 
-![Data Lifecycle State Machine showing the flow from FTP upload through FileWatcher, deduplication, RT-DETRv2 detection, batch aggregation, Nemotron LLM analysis, and WebSocket broadcast](../images/data-model/data-lifecycle-state.svg)
+![Data Lifecycle State Machine showing the flow from FTP upload through FileWatcher, deduplication, YOLO26 detection, batch aggregation, Nemotron LLM analysis, and WebSocket broadcast](../images/data-model/data-lifecycle-state.svg)
 
 ### Diagram: Data Lifecycle State Machine
 
@@ -1018,7 +1018,7 @@ stateDiagram-v2
     }
 
     MarkProcessed --> Detecting: DetectionQueueWorker
-    Detecting --> DetectionStored: RT-DETRv2 inference
+    Detecting --> DetectionStored: YOLO26 inference
     DetectionStored --> Enriching: EnrichmentPipeline (optional)
     Enriching --> Batching: BatchAggregator
 
@@ -1061,7 +1061,7 @@ stateDiagram-v2
 
 4. **Object Detection:**
 
-   - Image sent to RT-DETRv2 service
+   - Image sent to YOLO26 service
    - Results filtered by confidence threshold
    - Detection record(s) created in PostgreSQL
    - Thumbnail generated and stored

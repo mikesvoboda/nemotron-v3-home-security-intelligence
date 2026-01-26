@@ -29,7 +29,7 @@ This report validates the 18 images in the AI Orchestration documentation hub ag
 | concept-prompt-template.png      | 5   | 4   | 4   | 5   | 4.50 | PASS              |
 | flow-llm-request-response.png    | 4   | 4   | 4   | 5   | 4.25 | PASS              |
 | concept-risk-scoring.png         | 5   | 5   | 4   | 5   | 4.75 | PASS              |
-| technical-rtdetr-client.png      | 5   | 4   | 5   | 5   | 4.75 | PASS              |
+| technical-yolo26-client.png      | 5   | 4   | 5   | 5   | 4.75 | PASS              |
 | flow-detection-inference.png     | 5   | 5   | 5   | 5   | 5.00 | PASS              |
 | concept-detection-outputs.png    | 3   | 2   | 2   | 4   | 2.75 | NEEDS IMPROVEMENT |
 | concept-model-zoo.png            | 3   | 3   | 2   | 4   | 3.00 | NEEDS IMPROVEMENT |
@@ -50,16 +50,16 @@ This report validates the 18 images in the AI Orchestration documentation hub ag
 #### hero-ai-orchestration.png (4.75)
 
 - **Strengths:** Visually stunning hero image with a central AI brain motif. Shows data flowing in from multiple sources (left side) and outputting to dashboards/analytics (right side). The "N" in the brain correctly references Nemotron. High-tech aesthetic appropriate for executive presentations.
-- **Minor Issues:** Generic AI visualization rather than system-specific components. Does not explicitly show RT-DETR, Nemotron, and Enrichment services as distinct elements.
+- **Minor Issues:** Generic AI visualization rather than system-specific components. Does not explicitly show YOLO26, Nemotron, and Enrichment services as distinct elements.
 
 #### concept-risk-scoring.png (4.75)
 
 - **Strengths:** Excellent gauge visualization showing the 0-100 risk scoring spectrum. Color gradient from green (low) through yellow (medium) to red (high/critical) matches the documented risk levels. Immediately communicates the concept of graduated risk assessment.
 - **Minor Issues:** Could include explicit score ranges (0-29, 30-59, 60-84, 85-100) for complete alignment with documentation.
 
-#### technical-rtdetr-client.png (4.75)
+#### technical-yolo26-client.png (4.75)
 
-- **Strengths:** Clearly shows the RT-DETR client architecture with labeled components: CONNECTION POOL, RT-DETR CLIENT, REQUEST FORMATTING, IMAGE PREPROCESSING, INFERENCE CALL, RESPONSE PARSING. Flow arrows demonstrate the request/response cycle accurately.
+- **Strengths:** Clearly shows the YOLO26 client architecture with labeled components: CONNECTION POOL, YOLO26 CLIENT, REQUEST FORMATTING, IMAGE PREPROCESSING, INFERENCE CALL, RESPONSE PARSING. Flow arrows demonstrate the request/response cycle accurately.
 - **Minor Issues:** Circuit breaker integration mentioned in docs is not visually represented.
 
 #### flow-detection-inference.png (5.00)
@@ -92,7 +92,7 @@ This report validates the 18 images in the AI Orchestration documentation hub ag
 #### flow-orchestration-overview.png (3.50)
 
 - **Strengths:** Shows data flow from multiple sources through central processing to distributed outputs. Professional appearance.
-- **Minor Issues:** The central green component and orange output nodes are not clearly labeled. Does not explicitly show the three main services (RT-DETR, Nemotron, Enrichment) documented in the hub README.
+- **Minor Issues:** The central green component and orange output nodes are not clearly labeled. Does not explicitly show the three main services (YOLO26, Nemotron, Enrichment) documented in the hub README.
 
 #### concept-enrichment-types.png (4.00)
 
@@ -107,7 +107,7 @@ This report validates the 18 images in the AI Orchestration documentation hub ag
 #### concept-fallback-chain.png (4.25)
 
 - **Strengths:** Shows chain of AI services with fallback paths (orange lines) when primary paths fail. Communicates graceful degradation concept.
-- **Minor Issues:** Services not labeled (should show RTDETR, Nemotron, Florence, CLIP). Fallback paths could show specific strategies.
+- **Minor Issues:** Services not labeled (should show YOLO26, Nemotron, Florence, CLIP). Fallback paths could show specific strategies.
 
 #### flow-fallback-execution.png (4.00)
 
@@ -128,7 +128,7 @@ This report validates the 18 images in the AI Orchestration documentation hub ag
 
 1. **Clarity (2):** The image is cluttered and difficult to parse. Bounding box labels are too small to read.
 2. **Technical Accuracy (2):** Does not clearly show the documented detection output format (class, confidence, bbox with x/y/width/height). The relationship between detections and their metadata is unclear.
-3. **Relevance (3):** While it shows bounding boxes, it does not illustrate the JSON response format or Detection model fields documented in rt-detr-client.md.
+3. **Relevance (3):** While it shows bounding boxes, it does not illustrate the JSON response format or Detection model fields documented in yolo26-client.md.
 
 **Recommendations:**
 
@@ -215,9 +215,9 @@ This report validates the 18 images in the AI Orchestration documentation hub ag
 | concept-prompt-template.png      | nemotron-analyzer.md (prompt building) |
 | flow-llm-request-response.png    | nemotron-analyzer.md                   |
 | concept-risk-scoring.png         | nemotron-analyzer.md (risk scoring)    |
-| technical-rtdetr-client.png      | rt-detr-client.md                      |
-| flow-detection-inference.png     | rt-detr-client.md                      |
-| concept-detection-outputs.png    | rt-detr-client.md (response format)    |
+| technical-yolo26-client.png      | yolo26-client.md                       |
+| flow-detection-inference.png     | yolo26-client.md                       |
+| concept-detection-outputs.png    | yolo26-client.md (response format)     |
 | concept-model-zoo.png            | model-zoo.md                           |
 | technical-model-registry.png     | model-zoo.md                           |
 | flow-enrichment-pipeline.png     | enrichment-pipeline.md                 |

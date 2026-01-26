@@ -189,7 +189,7 @@ Used by system routes for latency tracking.
 | Pattern                     | Purpose                 | TTL   | Example                       |
 | --------------------------- | ----------------------- | ----- | ----------------------------- |
 | `telemetry:latency:{stage}` | Pipeline stage latency  | 5 min | `telemetry:latency:detection` |
-| `model_zoo:latency:{model}` | Model inference latency | 5 min | `model_zoo:latency:rtdetr`    |
+| `model_zoo:latency:{model}` | Model inference latency | 5 min | `model_zoo:latency:yolo26`    |
 
 **Location:** `backend/api/routes/system.py`
 

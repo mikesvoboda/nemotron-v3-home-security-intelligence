@@ -58,7 +58,7 @@
 
 - **flow-image-to-event.png**: Excellent "DATA PROCESSING PIPELINE" diagram showing 6-stage flow with clear icons and legend. Professional color coding (blue/cyan/orange/green).
 - **technical-image-to-event-timing.png**: Outstanding timing diagram showing stages with specific durations (500ms, 500ms, 90s max, 2s, 50ms, 50ms). Excellent use of color-coded arrows showing progression.
-- **concept-detection-transformation.png**: Exceptional RT-DETRv2 visualization showing original image, processing, bounding boxes with labels, and detection records output. Includes actual visual example with person and dog detection.
+- **concept-detection-transformation.png**: Exceptional YOLO26 visualization showing original image, processing, bounding boxes with labels, and detection records output. Includes actual visual example with person and dog detection.
 - **technical-event-creation.png**: Professional diagram showing Detection Batch -> Nemotron LLM Analysis -> Event Record (with risk score gauge) -> Database/WebSocket output. Excellent visual hierarchy.
 
 ---
@@ -217,7 +217,7 @@
 
 **Notes:**
 
-- **concept-timing-parameters.png**: Outstanding "KEY TIMING PARAMETERS VISUALIZATION" showing horizontal bar chart of all system timeouts: File Debounce (0.5s), File Stability (2s), Batch Window (90s), Batch Idle (30s), RT-DETRv2 Timeout (60s), Nemotron Timeout (120s), WebSocket Idle (300s), Heartbeat (30s). Accurate values matching documentation.
+- **concept-timing-parameters.png**: Outstanding "KEY TIMING PARAMETERS VISUALIZATION" showing horizontal bar chart of all system timeouts: File Debounce (0.5s), File Stability (2s), Batch Window (90s), Batch Idle (30s), YOLO26 Timeout (60s), Nemotron Timeout (120s), WebSocket Idle (300s), Heartbeat (30s). Accurate values matching documentation.
 
 ---
 

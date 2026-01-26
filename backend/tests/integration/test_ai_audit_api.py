@@ -124,7 +124,7 @@ async def sample_event_audit(integration_db: str, sample_event_for_audit: Event)
             event_id=sample_event_for_audit.id,
             audited_at=datetime.now(UTC),
             # Model contributions
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=True,
             has_clip=False,
             has_violence=False,
@@ -196,7 +196,7 @@ async def _multiple_event_audits(
                 event_id=event.id,
                 audited_at=datetime.now(UTC),
                 # Vary model contributions
-                has_rtdetr=True,
+                has_yolo26=True,
                 has_florence=i % 2 == 0,
                 has_clip=i % 3 == 0,
                 has_violence=i > 2,
@@ -250,7 +250,7 @@ class TestGetEventAudit:
 
         # Check contributions
         assert "contributions" in data
-        assert data["contributions"]["rtdetr"] is True
+        assert data["contributions"]["yolo26"] is True
         assert data["contributions"]["florence"] is True
         assert data["contributions"]["clip"] is False
 
@@ -332,7 +332,7 @@ class TestGetAuditStats:
         # Check model contribution rates
         assert "model_contribution_rates" in data
         rates = data["model_contribution_rates"]
-        assert rates["rtdetr"] == 1.0  # All events have rtdetr
+        assert rates["yolo26"] == 1.0  # All events have yolo26
         assert rates["weather"] == 1.0  # All events have weather
         assert rates["pet"] == 0.0  # No events have pet
 
@@ -598,7 +598,7 @@ class TestAuditAPIResponseStructure:
         # Contributions structure
         contributions = data["contributions"]
         expected_models = [
-            "rtdetr",
+            "yolo26",
             "florence",
             "clip",
             "violence",
@@ -746,7 +746,7 @@ class TestEvaluateEventWithMockedLLM:
             audit = EventAudit(
                 event_id=event_with_llm_prompt.id,
                 audited_at=datetime.now(UTC),
-                has_rtdetr=True,
+                has_yolo26=True,
                 has_florence=True,
                 has_clip=False,
                 has_violence=False,
@@ -941,7 +941,7 @@ class TestStatsWithCameraFilter:
                     audit = EventAudit(
                         event_id=event.id,
                         audited_at=datetime.now(UTC),
-                        has_rtdetr=True,
+                        has_yolo26=True,
                         has_florence=cam_idx == 0,  # Only front_door has florence
                         has_clip=False,
                         has_violence=cam_idx == 1,  # Only backyard has violence
@@ -1064,7 +1064,7 @@ class TestBatchAuditAdvanced:
                     audit = EventAudit(
                         event_id=event.id,
                         audited_at=datetime.now(UTC),
-                        has_rtdetr=True,
+                        has_yolo26=True,
                         has_florence=False,
                         has_clip=False,
                         has_violence=False,
@@ -1228,7 +1228,7 @@ class TestLeaderboardRanking:
         model_names = [e["model_name"] for e in data["entries"]]
 
         expected_models = [
-            "rtdetr",
+            "yolo26",
             "florence",
             "clip",
             "violence",
@@ -1300,7 +1300,7 @@ class TestTimeRangeFiltering:
                 audit = EventAudit(
                     event_id=event.id,
                     audited_at=event_time,
-                    has_rtdetr=True,
+                    has_yolo26=True,
                     has_florence=True,
                     has_clip=False,
                     has_violence=False,
@@ -1365,11 +1365,11 @@ class TestTimeRangeFiltering:
         assert data_30["period_days"] == 30
 
         # Event counts should differ between time windows
-        rtdetr_7 = next(e for e in data_7["entries"] if e["model_name"] == "rtdetr")
-        rtdetr_30 = next(e for e in data_30["entries"] if e["model_name"] == "rtdetr")
+        yolo26_7 = next(e for e in data_7["entries"] if e["model_name"] == "yolo26")
+        yolo26_30 = next(e for e in data_30["entries"] if e["model_name"] == "yolo26")
 
         # 30-day window should have more or equal events
-        assert rtdetr_30["event_count"] >= rtdetr_7["event_count"]
+        assert yolo26_30["event_count"] >= yolo26_7["event_count"]
 
 
 class TestEdgeCasesAndErrorHandling:
@@ -1476,7 +1476,7 @@ class TestEdgeCasesAndErrorHandling:
             audit = EventAudit(
                 event_id=event.id,
                 audited_at=datetime.now(UTC),
-                has_rtdetr=True,
+                has_yolo26=True,
                 has_florence=False,
                 has_clip=False,
                 has_violence=False,

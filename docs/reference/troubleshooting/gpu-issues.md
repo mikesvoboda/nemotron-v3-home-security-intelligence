@@ -108,7 +108,7 @@ sudo fuser -k /dev/nvidia*
 
 | Service             | Expected VRAM  |
 | ------------------- | -------------- |
-| RT-DETRv2           | ~4GB           |
+| YOLO26              | ~4GB           |
 | Nemotron-3-Nano-30B | ~14.7GB (prod) |
 | Nemotron Mini 4B    | ~3GB (dev)     |
 | **Total (prod)**    | **~19GB**      |
@@ -137,7 +137,7 @@ Download Q4_K_S quantization instead of Q4_K_M (saves ~500MB).
 ### Diagnosis
 
 ```bash
-# Check RT-DETRv2 health
+# Check YOLO26 health
 curl http://localhost:8090/health | jq .device
 
 # Check if GPU processes exist
@@ -315,7 +315,7 @@ nvidia-smi dmon -s pucvmet
 **1. Specify GPU for service:**
 
 ```bash
-# RT-DETRv2 on GPU 0
+# YOLO26 on GPU 0
 CUDA_VISIBLE_DEVICES=0 python model.py
 
 # Nemotron on GPU 1

@@ -182,9 +182,9 @@ class TestMetricHelpers:
         record_detection_processed()
         record_detection_processed(count=5)
 
-    def test_observe_ai_request_duration_rtdetr(self) -> None:
-        """observe_ai_request_duration should record RT-DETRv2 duration."""
-        observe_ai_request_duration("rtdetr", 0.3)
+    def test_observe_ai_request_duration_yolo26(self) -> None:
+        """observe_ai_request_duration should record YOLO26 duration."""
+        observe_ai_request_duration("yolo26", 0.3)
 
     def test_observe_ai_request_duration_nemotron(self) -> None:
         """observe_ai_request_duration should record Nemotron duration."""
@@ -838,7 +838,7 @@ class TestMetricsServiceAI:
         from backend.core.metrics import get_metrics_service
 
         metrics = get_metrics_service()
-        metrics.observe_ai_request_duration("rtdetr", 0.3)
+        metrics.observe_ai_request_duration("yolo26", 0.3)
         metrics.observe_ai_request_duration("nemotron", 1.5)
 
     def test_record_pipeline_error(self) -> None:
@@ -1010,7 +1010,7 @@ class TestMetricsServiceCostTracking:
 
         metrics = get_metrics_service()
         metrics.record_gpu_seconds("nemotron", 1.5)
-        metrics.record_gpu_seconds("rtdetr", 0.3)
+        metrics.record_gpu_seconds("yolo26", 0.3)
 
     def test_record_gpu_seconds_zero(self) -> None:
         """MetricsService should skip zero GPU seconds."""
@@ -1032,7 +1032,7 @@ class TestMetricsServiceCostTracking:
 
         metrics = get_metrics_service()
         metrics.record_estimated_cost("nemotron", 0.05)
-        metrics.record_estimated_cost("rtdetr", 0.01)
+        metrics.record_estimated_cost("yolo26", 0.01)
 
     def test_record_estimated_cost_zero(self) -> None:
         """MetricsService should skip zero cost."""
@@ -1409,35 +1409,35 @@ class TestAIModelWarmupMetrics:
         """observe_model_warmup_duration should record histogram observation."""
         from backend.core.metrics import observe_model_warmup_duration
 
-        observe_model_warmup_duration("rtdetr", 1.5)
+        observe_model_warmup_duration("yolo26", 1.5)
         observe_model_warmup_duration("nemotron", 5.0)
 
     def test_record_model_cold_start(self) -> None:
         """record_model_cold_start should increment counter."""
         from backend.core.metrics import record_model_cold_start
 
-        record_model_cold_start("rtdetr")
+        record_model_cold_start("yolo26")
         record_model_cold_start("nemotron")
 
     def test_set_model_warmth_state(self) -> None:
         """set_model_warmth_state should set gauge value."""
         from backend.core.metrics import set_model_warmth_state
 
-        set_model_warmth_state("rtdetr", "cold")
+        set_model_warmth_state("yolo26", "cold")
         set_model_warmth_state("nemotron", "warming")
-        set_model_warmth_state("rtdetr", "warm")
+        set_model_warmth_state("yolo26", "warm")
 
     def test_set_model_warmth_state_invalid(self) -> None:
         """set_model_warmth_state should handle invalid state."""
         from backend.core.metrics import set_model_warmth_state
 
-        set_model_warmth_state("rtdetr", "invalid_state")  # Should default to 0
+        set_model_warmth_state("yolo26", "invalid_state")  # Should default to 0
 
     def test_set_model_last_inference_ago(self) -> None:
         """set_model_last_inference_ago should set gauge value."""
         from backend.core.metrics import set_model_last_inference_ago
 
-        set_model_last_inference_ago("rtdetr", 30.5)
+        set_model_last_inference_ago("yolo26", 30.5)
         set_model_last_inference_ago("nemotron", 120.0)
 
     def test_set_model_last_inference_ago_none(self) -> None:
@@ -1806,14 +1806,14 @@ class TestEnrichmentMetricsInResponse:
 class TestWorkloadSpecificHistograms:
     """Test workload-specific AI model histogram definitions and helpers."""
 
-    def test_rtdetr_inference_histogram_exists(self) -> None:
-        """RTDETR_INFERENCE_DURATION histogram should be defined with optimized buckets."""
-        from backend.core.metrics import RTDETR_INFERENCE_DURATION
+    def test_yolo26_inference_histogram_exists(self) -> None:
+        """YOLO26_INFERENCE_DURATION histogram should be defined with optimized buckets."""
+        from backend.core.metrics import YOLO26_INFERENCE_DURATION
 
-        assert RTDETR_INFERENCE_DURATION is not None
-        assert RTDETR_INFERENCE_DURATION._name == "hsi_rtdetr_inference_seconds"
+        assert YOLO26_INFERENCE_DURATION is not None
+        assert YOLO26_INFERENCE_DURATION._name == "hsi_yolo26_inference_seconds"
         # Verify buckets are optimized for fast inference (10ms - 500ms range)
-        buckets = RTDETR_INFERENCE_DURATION._upper_bounds
+        buckets = YOLO26_INFERENCE_DURATION._upper_bounds
         assert 0.01 in buckets  # 10ms minimum
         assert 0.05 in buckets  # 50ms typical
         assert 0.1 in buckets  # 100ms P95
@@ -1845,13 +1845,13 @@ class TestWorkloadSpecificHistograms:
         assert 1.0 in buckets  # 1s P95
         assert 2.0 in buckets  # 2s P99
 
-    def test_observe_rtdetr_inference(self) -> None:
-        """observe_rtdetr_inference should record to workload-specific histogram."""
-        from backend.core.metrics import observe_rtdetr_inference
+    def test_observe_yolo26_inference(self) -> None:
+        """observe_yolo26_inference should record to workload-specific histogram."""
+        from backend.core.metrics import observe_yolo26_inference
 
-        observe_rtdetr_inference(0.05)  # 50ms
-        observe_rtdetr_inference(0.1)  # 100ms
-        observe_rtdetr_inference(0.03)  # 30ms
+        observe_yolo26_inference(0.05)  # 50ms
+        observe_yolo26_inference(0.1)  # 100ms
+        observe_yolo26_inference(0.03)  # 30ms
         # No assertion needed - no exception means success
 
     def test_observe_nemotron_inference(self) -> None:
@@ -1878,16 +1878,16 @@ class TestWorkloadSpecificHistograms:
             get_metrics_response,
             observe_florence_inference,
             observe_nemotron_inference,
-            observe_rtdetr_inference,
+            observe_yolo26_inference,
         )
 
         # Record metrics to ensure they appear
-        observe_rtdetr_inference(0.05)
+        observe_yolo26_inference(0.05)
         observe_nemotron_inference(1.0)
         observe_florence_inference(0.3)
 
         response = get_metrics_response().decode("utf-8")
-        assert "hsi_rtdetr_inference_seconds" in response
+        assert "hsi_yolo26_inference_seconds" in response
         assert "hsi_nemotron_inference_seconds" in response
         assert "hsi_florence_inference_seconds" in response
 
@@ -1895,13 +1895,13 @@ class TestWorkloadSpecificHistograms:
 class TestMetricsServiceWorkloadMethods:
     """Test MetricsService workload-specific methods."""
 
-    def test_observe_rtdetr_inference(self) -> None:
-        """MetricsService should observe RT-DETR inference duration."""
+    def test_observe_yolo26_inference(self) -> None:
+        """MetricsService should observe YOLO26 inference duration."""
         from backend.core.metrics import get_metrics_service
 
         metrics = get_metrics_service()
-        metrics.observe_rtdetr_inference(0.05)
-        metrics.observe_rtdetr_inference(0.1)
+        metrics.observe_yolo26_inference(0.05)
+        metrics.observe_yolo26_inference(0.1)
 
     def test_observe_nemotron_inference(self) -> None:
         """MetricsService should observe Nemotron inference duration."""
@@ -1938,17 +1938,17 @@ class TestExemplarSupport:
 
     def test_observe_with_exemplar_without_trace(self) -> None:
         """observe_with_exemplar should work without active trace."""
-        from backend.core.metrics import RTDETR_INFERENCE_DURATION, observe_with_exemplar
+        from backend.core.metrics import YOLO26_INFERENCE_DURATION, observe_with_exemplar
 
         # Should not raise even without a trace
-        observe_with_exemplar(RTDETR_INFERENCE_DURATION, 0.05)
+        observe_with_exemplar(YOLO26_INFERENCE_DURATION, 0.05)
 
-    def test_observe_rtdetr_with_exemplar(self) -> None:
-        """observe_rtdetr_with_exemplar should record to histogram."""
-        from backend.core.metrics import observe_rtdetr_with_exemplar
+    def test_observe_yolo26_with_exemplar(self) -> None:
+        """observe_yolo26_with_exemplar should record to histogram."""
+        from backend.core.metrics import observe_yolo26_with_exemplar
 
-        observe_rtdetr_with_exemplar(0.05)
-        observe_rtdetr_with_exemplar(0.1)
+        observe_yolo26_with_exemplar(0.05)
+        observe_yolo26_with_exemplar(0.1)
         # No assertion needed - no exception means success
 
     def test_observe_nemotron_with_exemplar(self) -> None:
@@ -1971,7 +1971,7 @@ class TestExemplarSupport:
         """observe_ai_request_with_exemplar should record to histogram with service label."""
         from backend.core.metrics import observe_ai_request_with_exemplar
 
-        observe_ai_request_with_exemplar("rtdetr", 0.05)
+        observe_ai_request_with_exemplar("yolo26", 0.05)
         observe_ai_request_with_exemplar("nemotron", 1.5)
         observe_ai_request_with_exemplar("florence", 0.5)
         # No assertion needed - no exception means success
@@ -2014,13 +2014,13 @@ class TestExemplarSupport:
 class TestMetricsServiceExemplarMethods:
     """Test MetricsService exemplar methods."""
 
-    def test_observe_rtdetr_with_exemplar(self) -> None:
-        """MetricsService should observe RT-DETR with exemplar."""
+    def test_observe_yolo26_with_exemplar(self) -> None:
+        """MetricsService should observe YOLO26 with exemplar."""
         from backend.core.metrics import get_metrics_service
 
         metrics = get_metrics_service()
-        metrics.observe_rtdetr_with_exemplar(0.05)
-        metrics.observe_rtdetr_with_exemplar(0.1)
+        metrics.observe_yolo26_with_exemplar(0.05)
+        metrics.observe_yolo26_with_exemplar(0.1)
 
     def test_observe_nemotron_with_exemplar(self) -> None:
         """MetricsService should observe Nemotron with exemplar."""
@@ -2043,5 +2043,5 @@ class TestMetricsServiceExemplarMethods:
         from backend.core.metrics import get_metrics_service
 
         metrics = get_metrics_service()
-        metrics.observe_ai_request_with_exemplar("rtdetr", 0.05)
+        metrics.observe_ai_request_with_exemplar("yolo26", 0.05)
         metrics.observe_ai_request_with_exemplar("nemotron", 1.5)

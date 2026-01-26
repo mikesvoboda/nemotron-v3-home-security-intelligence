@@ -19,7 +19,7 @@ docs/ai/
 Comprehensive documentation covering:
 
 - **Architecture Overview** - Detection pipeline and service topology
-- **Always-Loaded Models** - RT-DETRv2, Florence-2, CLIP, Nemotron
+- **Always-Loaded Models** - YOLO26, Florence-2, CLIP, Nemotron
 - **On-Demand Models** - Threat detection, pose estimation, demographics, clothing, vehicle, pet, re-ID, depth, action recognition
 - **VRAM Management** - On-demand loading with LRU eviction and priority-based ordering
 - **API Reference** - Unified enrichment endpoint and model management APIs
@@ -32,7 +32,7 @@ Comprehensive documentation covering:
 | -------------------------- | -------------------------------------------------------- |
 | Model zoo architecture     | [model-zoo.md](model-zoo.md)                             |
 | AI service implementation  | [ai/AGENTS.md](../../ai/AGENTS.md)                       |
-| RT-DETRv2 detection        | [ai/rtdetr/AGENTS.md](../../ai/rtdetr/AGENTS.md)         |
+| YOLO26 detection           | [ai/yolo26/AGENTS.md](../../ai/yolo26/AGENTS.md)         |
 | Florence-2 vision-language | [ai/florence/AGENTS.md](../../ai/florence/AGENTS.md)     |
 | CLIP embeddings            | [ai/clip/AGENTS.md](../../ai/clip/AGENTS.md)             |
 | Enrichment service         | [ai/enrichment/AGENTS.md](../../ai/enrichment/AGENTS.md) |

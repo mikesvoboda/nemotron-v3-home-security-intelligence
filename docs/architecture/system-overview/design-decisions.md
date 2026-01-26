@@ -267,7 +267,7 @@ Implement **on-demand model loading** via ModelManager with VRAM budget constrai
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
-    - RT-DETRv2: 650 MB (always loaded)
+    - YOLO26: 650 MB (always loaded)
     - Available for Model Zoo: ~1,650 MB
     - Models load sequentially, never concurrently
 """
@@ -292,7 +292,7 @@ VRAM Budget:
 | Component        | VRAM (MB) | Notes                              |
 | ---------------- | --------- | ---------------------------------- |
 | Nemotron LLM     | ~21,700   | Always loaded, Q4_K_M quantization |
-| RT-DETRv2        | ~650      | Always loaded, object detection    |
+| YOLO26           | ~650      | Always loaded, object detection    |
 | Model Zoo Budget | ~1,650    | On-demand enrichment models        |
 | **Total**        | ~24,000   | Fits RTX A5500 24GB                |
 

@@ -584,7 +584,7 @@ class TestDashboardQueriesAgainstMetrics:
 
         # Metrics from external sources that are not exposed by /metrics endpoint
         # These come from GPU monitor, system health service, or runtime aggregates
-        # Note: hsi_inference_fps removed - dashboard now uses native rtdetr_inference_requests_total
+        # Note: hsi_inference_fps removed - dashboard now uses native yolo26_inference_requests_total
         external_metrics = {
             # GPU metrics from nvidia-smi / GPU monitor
             "hsi_gpu_utilization",

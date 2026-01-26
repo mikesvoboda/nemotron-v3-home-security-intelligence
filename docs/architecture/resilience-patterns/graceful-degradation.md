@@ -128,7 +128,7 @@ manager = get_degradation_manager()
 
 # Register AI services
 manager.register_service(
-    name="rtdetr",
+    name="yolo26",
     health_check=detector_client.health_check,
     critical=True,  # System cannot function without this
 )

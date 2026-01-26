@@ -161,13 +161,13 @@ The `CircuitBreakerRegistry` class (`backend/services/circuit_breaker.py:985-105
 from backend.services.circuit_breaker import get_circuit_breaker
 
 # Get or create from global registry
-breaker = get_circuit_breaker("rtdetr", CircuitBreakerConfig(
+breaker = get_circuit_breaker("yolo26", CircuitBreakerConfig(
     failure_threshold=5,
     recovery_timeout=30.0,
 ))
 
 # The registry ensures singleton instances per name
-another_ref = get_circuit_breaker("rtdetr")
+another_ref = get_circuit_breaker("yolo26")
 assert breaker is another_ref
 ```
 
@@ -316,7 +316,7 @@ Returns dictionary with current state (`backend/services/circuit_breaker.py:661-
 status = breaker.get_status()
 # Returns:
 # {
-#     "name": "rtdetr",
+#     "name": "yolo26",
 #     "state": "closed",
 #     "failure_count": 0,
 #     "success_count": 0,
@@ -394,7 +394,7 @@ Sync methods (for compatibility) operate without locks:
 
 ## Best Practices
 
-1. **Name circuit breakers descriptively**: Use service names like "rtdetr", "nemotron", "redis"
+1. **Name circuit breakers descriptively**: Use service names like "yolo26", "nemotron", "redis"
 2. **Use the global registry**: Ensures singleton instances and centralized management
 3. **Configure excluded exceptions**: Don't count validation errors as circuit breaker failures
 4. **Monitor metrics**: Set up Grafana alerts on `hsi_circuit_breaker_state` changes

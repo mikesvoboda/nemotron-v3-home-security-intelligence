@@ -129,7 +129,7 @@ sequenceDiagram
     participant DC as Docker Compose
     participant PG as PostgreSQL
     participant RD as Redis
-    participant RT as RT-DETRv2
+    participant RT as YOLO26
     participant NM as Nemotron
     participant BE as Backend
     participant FE as Frontend
@@ -141,7 +141,7 @@ sequenceDiagram
     RD-->>DC: Healthy (5-10s)
 
     Note over DC,FE: Phase 2: AI Services (60-180s)
-    DC->>RT: Start RT-DETRv2
+    DC->>RT: Start YOLO26
     DC->>NM: Start Nemotron
     Note right of RT: Model loading ~60-90s
     Note right of NM: VRAM allocation ~90-120s
@@ -173,13 +173,13 @@ Services with no dependencies start immediately:
 
 AI services start in parallel after infrastructure is healthy:
 
-| Service                 | Startup Time | Health Check  | Grace Period | Notes           |
-| ----------------------- | ------------ | ------------- | ------------ | --------------- |
-| ai-detector (RT-DETRv2) | 60-90s       | GET `/health` | 60s          | Model loading   |
-| ai-llm (Nemotron)       | 90-120s      | GET `/health` | 120s         | VRAM allocation |
-| ai-florence             | 60s          | GET `/health` | 60s          | Optional        |
-| ai-clip                 | 60s          | GET `/health` | 60s          | Optional        |
-| ai-enrichment           | 180s         | GET `/health` | 180s         | Multiple models |
+| Service              | Startup Time | Health Check  | Grace Period | Notes           |
+| -------------------- | ------------ | ------------- | ------------ | --------------- |
+| ai-detector (YOLO26) | 60-90s       | GET `/health` | 60s          | Model loading   |
+| ai-llm (Nemotron)    | 90-120s      | GET `/health` | 120s         | VRAM allocation |
+| ai-florence          | 60s          | GET `/health` | 60s          | Optional        |
+| ai-clip              | 60s          | GET `/health` | 60s          | Optional        |
+| ai-enrichment        | 180s         | GET `/health` | 180s         | Multiple models |
 
 ### Phase 3: Application (30-60 seconds)
 
@@ -455,7 +455,7 @@ GPU-accelerated AI inference services:
 
 | Service       | Display Name | Port | Grace Period | VRAM                                |
 | ------------- | ------------ | ---- | ------------ | ----------------------------------- |
-| ai-detector   | RT-DETRv2    | 8090 | 60s          | ~4GB                                |
+| ai-detector   | YOLO26       | 8090 | 60s          | ~4GB                                |
 | ai-llm        | Nemotron     | 8091 | 120s         | ~3GB (Mini 4B) / ~14.7GB (30B prod) |
 | ai-florence   | Florence-2   | 8092 | 60s          | ~2GB                                |
 | ai-clip       | CLIP         | 8093 | 60s          | ~2GB                                |
@@ -524,7 +524,7 @@ All service ports are configurable via OrchestratorSettings:
 class OrchestratorSettings(BaseSettings):
     postgres_port: int = 5432
     redis_port: int = 6379
-    rtdetr_port: int = 8090
+    yolo26_port: int = 8090
     nemotron_port: int = 8091
     florence_port: int = 8092
     clip_port: int = 8093
@@ -567,7 +567,7 @@ Service status changes are broadcast via WebSocket:
   "type": "service_status",
   "data": {
     "name": "ai-detector",
-    "display_name": "RT-DETRv2",
+    "display_name": "YOLO26",
     "category": "ai",
     "status": "running",
     "enabled": true,

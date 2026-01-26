@@ -34,7 +34,7 @@ These are actual captures from production Foscam cameras uploaded via FTP. They 
 
 **Purpose:**
 
-- Test RT-DETRv2 person detection accuracy
+- Test YOLO26 person detection accuracy
 - Validate high-risk scoring for human presence
 - Test Nemotron risk analysis reasoning
 
@@ -48,7 +48,7 @@ These are actual captures from production Foscam cameras uploaded via FTP. They 
 
 **Purpose:**
 
-- Test RT-DETRv2 animal detection (cat, dog classes)
+- Test YOLO26 animal detection (cat, dog classes)
 - Validate low-risk scoring for pets only
 - Test false alarm reduction
 
@@ -62,7 +62,7 @@ These are actual captures from production Foscam cameras uploaded via FTP. They 
 
 **Purpose:**
 
-- Test RT-DETRv2 vehicle detection (car, truck classes)
+- Test YOLO26 vehicle detection (car, truck classes)
 - Validate medium-risk scoring for vehicles
 - Test driveway monitoring scenarios
 
@@ -115,7 +115,7 @@ for image_path in IMAGES_DIR.glob("*.jpg"):
 
 ### Expected Detection Results
 
-When using these images with RT-DETRv2, expect:
+When using these images with YOLO26, expect:
 
 - **Person images:** `confidence >= 0.5` for `person` class
 - **Pet images:** `confidence >= 0.5` for `cat` or `dog` class
@@ -169,7 +169,7 @@ When adding new test images:
 
 - `/backend/tests/fixtures/images/AGENTS.md` - Parent directory documentation
 - `/backend/tests/e2e/test_gpu_pipeline.py` - E2E pipeline tests
-- `/ai/rtdetr/detect.py` - RT-DETRv2 detection service
+- `/ai/yolo26/detect.py` - YOLO26 detection service
 - `/backend/services/analysis.py` - Nemotron risk analysis service
 
 ## Content Safety

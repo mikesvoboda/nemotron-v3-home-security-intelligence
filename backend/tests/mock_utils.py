@@ -265,7 +265,7 @@ def create_mock_detector_client(
     health_status: str = "healthy",
     detect_response: list[dict[str, Any]] | None = None,
 ) -> AsyncMock:
-    """Create a mock RT-DETR detector client.
+    """Create a mock YOLO26 detector client.
 
     Args:
         health_status: Health check status

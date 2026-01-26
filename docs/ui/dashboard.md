@@ -102,7 +102,7 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
 
 **How Nemotron Calculates Risk:**
 
-1. **Object Detection**: RT-DETRv2 identifies objects (persons, vehicles, animals) with confidence scores
+1. **Object Detection**: YOLO26 identifies objects (persons, vehicles, animals) with confidence scores
 2. **Batch Aggregation**: Related detections are grouped into up to 90-second time windows (closing after 30 seconds of idle or when max detections reached)
 3. **Context Analysis**: Nemotron evaluates:
    - Time of day (e.g., 2 AM person detection vs noon)
@@ -116,7 +116,7 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
 ```mermaid
 flowchart TD
     subgraph Detection["Object Detection"]
-        A[Camera Captures Image] --> B[RT-DETRv2 Processing]
+        A[Camera Captures Image] --> B[YOLO26 Processing]
         B --> C{Objects Detected?}
         C -->|No| D[Discard Frame]
         C -->|Yes| E[Extract Objects with Confidence]
@@ -236,10 +236,10 @@ When enabled via Configure, displays AI pipeline metrics:
 
 Shows the current backlog of images waiting to be processed:
 
-| Queue               | Purpose                                     |
-| ------------------- | ------------------------------------------- |
-| **Detection Queue** | Images waiting for RT-DETR object detection |
-| **Analysis Queue**  | Batches waiting for Nemotron AI analysis    |
+| Queue               | Purpose                                    |
+| ------------------- | ------------------------------------------ |
+| **Detection Queue** | Images waiting for YOLO26 object detection |
+| **Analysis Queue**  | Batches waiting for Nemotron AI analysis   |
 
 **Queue Status Colors:**
 
@@ -450,7 +450,7 @@ No events have been detected in the current time range. Possible causes:
 
 - Cameras are not detecting motion
 - Detection confidence is below threshold (default 50%)
-- AI services (RT-DETRv2 or Nemotron) are offline
+- AI services (YOLO26 or Nemotron) are offline
 
 ### GPU Statistics shows "N/A"
 

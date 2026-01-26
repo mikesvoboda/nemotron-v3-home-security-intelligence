@@ -70,7 +70,7 @@ class TestGPUUnavailableMidInference:
             recovery_timeout=10,
             half_open_max_calls=1,
         )
-        breaker = CircuitBreaker(name="rtdetr", config=config)
+        breaker = CircuitBreaker(name="yolo26", config=config)
 
         # Simulate repeated GPU failures
         async def failing_detection() -> None:
@@ -100,10 +100,10 @@ class TestGPUUnavailableMidInference:
         async def failing_health_check() -> bool:
             raise httpx.ConnectError("GPU service unreachable")
 
-        manager.register_service(name="rtdetr", health_check=failing_health_check, critical=False)
+        manager.register_service(name="yolo26", health_check=failing_health_check, critical=False)
 
         # Update health - should detect failure
-        await manager.update_service_health("rtdetr", is_healthy=False)
+        await manager.update_service_health("yolo26", is_healthy=False)
 
         # Mode should transition to DEGRADED
         assert manager.mode in (DegradationMode.DEGRADED, DegradationMode.NORMAL)
@@ -409,7 +409,7 @@ class TestInferenceTimeout:
             failure_threshold=3,
             recovery_timeout=10,
         )
-        breaker = CircuitBreaker(name="rtdetr_timeout", config=config)
+        breaker = CircuitBreaker(name="yolo26_timeout", config=config)
 
         # Simulate consecutive timeouts
         async def always_timeout() -> None:

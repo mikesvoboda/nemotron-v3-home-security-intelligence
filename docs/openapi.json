@@ -118,9 +118,9 @@
         "description": "Health status for an AI service.\n\nIncludes service identification, health state, circuit breaker state,\nand response time metrics.",
         "example": {
           "circuit_state": "closed",
-          "display_name": "RT-DETRv2 Object Detection",
+          "display_name": "YOLO26 Object Detection",
           "last_check": "2026-01-08T10:30:00Z",
-          "name": "rtdetr",
+          "name": "yolo26",
           "response_time_ms": 45.2,
           "status": "healthy",
           "url": "http://ai-detector:8090"
@@ -162,7 +162,7 @@
             "title": "Last Check"
           },
           "name": {
-            "description": "Service identifier (e.g., 'rtdetr', 'nemotron')",
+            "description": "Service identifier (e.g., 'yolo26', 'nemotron')",
             "title": "Name",
             "type": "string"
           },
@@ -272,7 +272,7 @@
               "status": "healthy",
               "url": "http://llm-analyzer:8080"
             },
-            "rtdetr": {
+            "yolo26": {
               "circuit_state": "closed",
               "error_rate_1h": 0.02,
               "last_health_check": "2026-01-20T12:00:00Z",
@@ -552,10 +552,10 @@
         "type": "object"
       },
       "AiModelMetrics": {
-        "description": "Metrics for RT-DETRv2 model.",
+        "description": "Metrics for YOLO26 model.",
         "example": {
           "device": "cuda:0",
-          "model": "rtdetr_r50vd_coco_o365",
+          "model": "yolo26_r50vd_coco_o365",
           "status": "healthy",
           "vram_gb": 0.17
         },
@@ -657,7 +657,7 @@
               "vram_required_mb": 8192
             },
             {
-              "description": "RT-DETR real-time object detection",
+              "description": "YOLO26 real-time object detection",
               "display_name": "Object Detector",
               "name": "ai-detector",
               "vram_required_gb": 2.0,
@@ -2788,7 +2788,7 @@
               "day_of_week": "Wednesday",
               "model_contributions": {
                 "florence": 38,
-                "rtdetr": 45
+                "yolo26": 45
               }
             },
             {
@@ -2799,7 +2799,7 @@
               "day_of_week": "Thursday",
               "model_contributions": {
                 "florence": 45,
-                "rtdetr": 52
+                "yolo26": 52
               }
             },
             {
@@ -2810,7 +2810,7 @@
               "day_of_week": "Friday",
               "model_contributions": {
                 "florence": 30,
-                "rtdetr": 38
+                "yolo26": 38
               }
             }
           ],
@@ -2821,7 +2821,7 @@
           "model_contribution_rates": {
             "clothing": 0.72,
             "florence": 0.85,
-            "rtdetr": 0.98,
+            "yolo26": 0.98,
             "weather": 0.95
           },
           "total_events": 1250
@@ -4555,7 +4555,7 @@
             "enrichment": "closed",
             "florence": "open",
             "nemotron": "closed",
-            "rtdetr": "closed"
+            "yolo26": "closed"
           },
           "closed": 4,
           "half_open": 0,
@@ -4606,7 +4606,7 @@
         "description": "Response schema for circuit breakers status endpoint.",
         "example": {
           "circuit_breakers": {
-            "rtdetr": {
+            "yolo26": {
               "config": {
                 "failure_threshold": 5,
                 "half_open_max_calls": 3,
@@ -4614,7 +4614,7 @@
                 "success_threshold": 2
               },
               "failure_count": 0,
-              "name": "rtdetr",
+              "name": "yolo26",
               "rejected_calls": 0,
               "state": "closed",
               "success_count": 0,
@@ -6206,7 +6206,7 @@
             "florence": 38,
             "image_quality": 40,
             "pet": 3,
-            "rtdetr": 45,
+            "yolo26": 45,
             "vehicle": 8,
             "violence": 5,
             "weather": 42,
@@ -6483,7 +6483,7 @@
             {
               "consecutive_failures": 0,
               "last_check": 1735500000.0,
-              "name": "rtdetr",
+              "name": "yolo26",
               "status": "healthy"
             }
           ]
@@ -7459,7 +7459,7 @@
         "type": "object"
       },
       "DetectionSettings": {
-        "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by RT-DETRv2 for object detection\nand fast-path processing for high-priority alerts.",
+        "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by YOLO26 for object detection\nand fast-path processing for high-priority alerts.",
         "example": {
           "confidence_threshold": 0.5,
           "fast_path_threshold": 0.9
@@ -9080,7 +9080,7 @@
             "florence": true,
             "image_quality": true,
             "pet": false,
-            "rtdetr": true,
+            "yolo26": true,
             "vehicle": false,
             "violence": false,
             "weather": true,
@@ -11989,14 +11989,14 @@
         "type": "object"
       },
       "FullHealthResponse": {
-        "description": "Comprehensive health check response for GET /api/system/health/full.\n\nAggregates health status from all services:\n- Infrastructure (postgres, redis)\n- AI services (rtdetr, nemotron, florence, clip, enrichment)\n- Circuit breakers\n- Background workers\n\nHTTP Status Codes:\n- 200: System is healthy or degraded (can still serve traffic)\n- 503: Critical services are unhealthy (should not receive traffic)",
+        "description": "Comprehensive health check response for GET /api/system/health/full.\n\nAggregates health status from all services:\n- Infrastructure (postgres, redis)\n- AI services (yolo26, nemotron, florence, clip, enrichment)\n- Circuit breakers\n- Background workers\n\nHTTP Status Codes:\n- 200: System is healthy or degraded (can still serve traffic)\n- 503: Critical services are unhealthy (should not receive traffic)",
         "example": {
           "ai_services": [
             {
               "circuit_state": "closed",
-              "display_name": "RT-DETRv2 Object Detection",
+              "display_name": "YOLO26 Object Detection",
               "last_check": "2026-01-08T10:30:00Z",
-              "name": "rtdetr",
+              "name": "yolo26",
               "response_time_ms": 45.2,
               "status": "healthy",
               "url": "http://ai-detector:8090"
@@ -12005,7 +12005,7 @@
           "circuit_breakers": {
             "breakers": {
               "nemotron": "closed",
-              "rtdetr": "closed"
+              "yolo26": "closed"
             },
             "closed": 5,
             "half_open": 0,
@@ -14106,7 +14106,7 @@
             "analysis": 0,
             "detection": 0
           },
-          "rtdetr_latency_ms": {
+          "yolo26_latency_ms": {
             "avg": 45,
             "p95": 82,
             "p99": 120
@@ -14141,11 +14141,11 @@
             "title": "Queues",
             "type": "object"
           },
-          "rtdetr_latency_ms": {
+          "yolo26_latency_ms": {
             "additionalProperties": {
               "type": "number"
             },
-            "description": "RT-DETRv2 latency stats (avg, p95, p99)",
+            "description": "YOLO26 latency stats (avg, p95, p99)",
             "title": "Rtdetr Latency Ms",
             "type": "object"
           },
@@ -14159,7 +14159,7 @@
           }
         },
         "required": [
-          "rtdetr_latency_ms",
+          "yolo26_latency_ms",
           "nemotron_latency_ms",
           "pipeline_latency_ms",
           "throughput",
@@ -15676,7 +15676,7 @@
             {
               "contribution_rate": 0.98,
               "event_count": 1200,
-              "model_name": "rtdetr",
+              "model_name": "yolo26",
               "quality_correlation": 0.85
             },
             {
@@ -16337,7 +16337,7 @@
           "florence": true,
           "image_quality": true,
           "pet": false,
-          "rtdetr": true,
+          "yolo26": true,
           "vehicle": false,
           "violence": false,
           "weather": true,
@@ -16386,9 +16386,9 @@
             "title": "Pet",
             "type": "boolean"
           },
-          "rtdetr": {
+          "yolo26": {
             "default": false,
-            "description": "RT-DETR object detection",
+            "description": "YOLO26 object detection",
             "title": "Rtdetr",
             "type": "boolean"
           },
@@ -16715,7 +16715,7 @@
             "type": "integer"
           },
           "vram_budget_mb": {
-            "description": "Total VRAM budget available for Model Zoo models (excludes Nemotron and RT-DETRv2)",
+            "description": "Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26)",
             "minimum": 0.0,
             "title": "Vram Budget Mb",
             "type": "integer"
@@ -18361,9 +18361,9 @@
         "description": "Complete performance update sent via WebSocket.\n\nThis is the main payload broadcast to frontend clients every 5 seconds.\nAll fields are optional to allow partial updates.",
         "example": {
           "ai_models": {
-            "rtdetr": {
+            "yolo26": {
               "device": "cuda:0",
-              "model": "rtdetr",
+              "model": "yolo26",
               "status": "healthy",
               "vram_gb": 0.17
             }
@@ -18645,7 +18645,7 @@
         "type": "object"
       },
       "PipelineLatencies": {
-        "description": "Latency statistics for all pipeline stages.\n\nPipeline stages:\n- watch: File watcher detecting new images (file event -> queue)\n- detect: RT-DETRv2 object detection (image -> detections)\n- batch: Batch aggregation window (detections -> batch)\n- analyze: Nemotron LLM risk analysis (batch -> event)",
+        "description": "Latency statistics for all pipeline stages.\n\nPipeline stages:\n- watch: File watcher detecting new images (file event -> queue)\n- detect: YOLO26 object detection (image -> detections)\n- batch: Batch aggregation window (detections -> batch)\n- analyze: Nemotron LLM risk analysis (batch -> event)",
         "example": {
           "analyze": {
             "avg_ms": 5000.0,
@@ -18716,7 +18716,7 @@
                 "type": "null"
               }
             ],
-            "description": "Object detection stage latency (RT-DETRv2 inference)"
+            "description": "Object detection stage latency (YOLO26 inference)"
           },
           "watch": {
             "anyOf": [
@@ -18792,7 +18792,7 @@
         "type": "object"
       },
       "PipelineLatencyResponse": {
-        "description": "Response schema for pipeline latency endpoint.\n\nProvides latency metrics for each stage transition in the AI pipeline:\n- watch_to_detect: Time from file watcher detecting image to RT-DETR processing start\n- detect_to_batch: Time from detection completion to batch aggregation\n- batch_to_analyze: Time from batch completion to Nemotron analysis start\n- total_pipeline: Total end-to-end processing time",
+        "description": "Response schema for pipeline latency endpoint.\n\nProvides latency metrics for each stage transition in the AI pipeline:\n- watch_to_detect: Time from file watcher detecting image to YOLO26 processing start\n- detect_to_batch: Time from detection completion to batch aggregation\n- batch_to_analyze: Time from batch completion to Nemotron analysis start\n- total_pipeline: Total end-to-end processing time",
         "example": {
           "batch_to_analyze": {
             "avg_ms": 5000.0,
@@ -18882,7 +18882,7 @@
                 "type": "null"
               }
             ],
-            "description": "Latency from file detection to RT-DETR processing"
+            "description": "Latency from file detection to YOLO26 processing"
           },
           "window_minutes": {
             "description": "Time window used for calculating statistics",
@@ -18899,7 +18899,7 @@
         "type": "object"
       },
       "PipelineStageLatency": {
-        "description": "Latency statistics for a single pipeline transition stage.\n\nTracks time between pipeline stages:\n- watch_to_detect: File detection to RT-DETR processing\n- detect_to_batch: Detection to batch aggregation\n- batch_to_analyze: Batch to Nemotron analysis\n- total_pipeline: End-to-end latency",
+        "description": "Latency statistics for a single pipeline transition stage.\n\nTracks time between pipeline stages:\n- watch_to_detect: File detection to YOLO26 processing\n- detect_to_batch: Detection to batch aggregation\n- batch_to_analyze: Batch to Nemotron analysis\n- total_pipeline: End-to-end latency",
         "example": {
           "avg_ms": 150.5,
           "max_ms": 500.0,
@@ -20491,7 +20491,7 @@
             "type": "integer"
           },
           "detection_queue": {
-            "description": "Number of items in detection queue waiting for RT-DETRv2 processing",
+            "description": "Number of items in detection queue waiting for YOLO26 processing",
             "minimum": 0.0,
             "title": "Detection Queue",
             "type": "integer"
@@ -21144,7 +21144,7 @@
                 "type": "null"
               }
             ],
-            "description": "Warmth status of AI models (NEM-1670). Keys are model names (e.g., 'rtdetr', 'nemotron'), values are states: 'cold', 'warming', 'warm'",
+            "description": "Warmth status of AI models (NEM-1670). Keys are model names (e.g., 'yolo26', 'nemotron'), values are states: 'cold', 'warming', 'warm'",
             "title": "Ai Warmth Status"
           },
           "ready": {
@@ -23781,10 +23781,10 @@
           "service": {
             "category": "ai",
             "container_id": "abc123...",
-            "display_name": "RT-DETRv2",
+            "display_name": "YOLO26",
             "enabled": true,
             "failure_count": 0,
-            "image": "ghcr.io/.../rtdetr:latest",
+            "image": "ghcr.io/.../yolo26:latest",
             "last_restart_at": "2026-01-05T15:50:00Z",
             "name": "ai-detector",
             "port": 8090,
@@ -23986,10 +23986,10 @@
         "example": {
           "category": "ai",
           "container_id": "abc123def456",
-          "display_name": "RT-DETRv2",
+          "display_name": "YOLO26",
           "enabled": true,
           "failure_count": 0,
-          "image": "ghcr.io/.../rtdetr:latest",
+          "image": "ghcr.io/.../yolo26:latest",
           "last_restart_at": "2026-01-05T10:30:00Z",
           "name": "ai-detector",
           "port": 8090,
@@ -24015,7 +24015,7 @@
             "title": "Container Id"
           },
           "display_name": {
-            "description": "Human-readable display name (e.g., 'RT-DETRv2', 'PostgreSQL')",
+            "description": "Human-readable display name (e.g., 'YOLO26', 'PostgreSQL')",
             "title": "Display Name",
             "type": "string"
           },
@@ -24041,7 +24041,7 @@
                 "type": "null"
               }
             ],
-            "description": "Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../rtdetr:latest')",
+            "description": "Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../yolo26:latest')",
             "title": "Image"
           },
           "last_restart_at": {
@@ -24178,10 +24178,10 @@
             {
               "category": "ai",
               "container_id": "abc123...",
-              "display_name": "RT-DETRv2",
+              "display_name": "YOLO26",
               "enabled": true,
               "failure_count": 0,
-              "image": "ghcr.io/.../rtdetr:latest",
+              "image": "ghcr.io/.../yolo26:latest",
               "last_restart_at": "2026-01-05T10:30:00Z",
               "name": "ai-detector",
               "port": 8090,
@@ -28693,7 +28693,7 @@
     },
     "/api/admin/seed/pipeline-latency": {
       "post": {
-        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + RT-DETR inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
+        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + YOLO26 inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
         "operationId": "admin_seed_pipeline_latency",
         "requestBody": {
           "content": {
@@ -40992,7 +40992,7 @@
     },
     "/api/system/models": {
       "get": {
-        "description": "Get the current status of all models in the Model Zoo.\n\nReturns comprehensive information about all AI models available in the system,\nincluding their VRAM requirements, loading status, and configuration.\n\n**VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,\nseparate from the RT-DETRv2 detector and Nemotron LLM allocations.\n\n**Loading Strategy**: Models are loaded sequentially (one at a time) to\nprevent VRAM fragmentation and ensure stable operation.\n\n**Model Categories**:\n- detection: Object detection models (YOLO variants)\n- recognition: Face and license plate recognition\n- ocr: Optical character recognition\n- embedding: Visual embedding models (CLIP)\n- depth-estimation: Depth estimation models\n- pose: Human pose estimation\n\nReturns:\n    ModelRegistryResponse with VRAM stats and all model statuses",
+        "description": "Get the current status of all models in the Model Zoo.\n\nReturns comprehensive information about all AI models available in the system,\nincluding their VRAM requirements, loading status, and configuration.\n\n**VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,\nseparate from the YOLO26 detector and Nemotron LLM allocations.\n\n**Loading Strategy**: Models are loaded sequentially (one at a time) to\nprevent VRAM fragmentation and ensure stable operation.\n\n**Model Categories**:\n- detection: Object detection models (YOLO variants)\n- recognition: Face and license plate recognition\n- ocr: Optical character recognition\n- embedding: Visual embedding models (CLIP)\n- depth-estimation: Depth estimation models\n- pose: Human pose estimation\n\nReturns:\n    ModelRegistryResponse with VRAM stats and all model statuses",
         "operationId": "system_get_models",
         "responses": {
           "200": {
@@ -41101,7 +41101,7 @@
     },
     "/api/system/performance": {
       "get": {
-        "description": "Get current system performance metrics.\n\nCollects and returns real-time metrics from all system components:\n- GPU: Utilization, VRAM usage, temperature, power consumption\n- AI Models: RT-DETRv2 and Nemotron status and resource usage\n- Inference: Latency percentiles and throughput metrics\n- Databases: PostgreSQL and Redis connection status and performance\n- Host: CPU, RAM, and disk usage\n- Containers: Health status of all running containers\n- Alerts: Active performance alerts when thresholds are exceeded\n\nThis endpoint powers the System Performance Dashboard and provides\na comprehensive snapshot of system health at the time of the request.\n\nReturns:\n    PerformanceUpdate with all available metrics. Fields may be None\n    if a particular metric source is unavailable.\n\nRaises:\n    HTTPException: 503 if performance collector is not initialized\n    HTTPException: 500 if metric collection fails",
+        "description": "Get current system performance metrics.\n\nCollects and returns real-time metrics from all system components:\n- GPU: Utilization, VRAM usage, temperature, power consumption\n- AI Models: YOLO26 and Nemotron status and resource usage\n- Inference: Latency percentiles and throughput metrics\n- Databases: PostgreSQL and Redis connection status and performance\n- Host: CPU, RAM, and disk usage\n- Containers: Health status of all running containers\n- Alerts: Active performance alerts when thresholds are exceeded\n\nThis endpoint powers the System Performance Dashboard and provides\na comprehensive snapshot of system health at the time of the request.\n\nReturns:\n    PerformanceUpdate with all available metrics. Fields may be None\n    if a particular metric source is unavailable.\n\nRaises:\n    HTTPException: 503 if performance collector is not initialized\n    HTTPException: 500 if metric collection fails",
         "operationId": "system_get_performance_metrics",
         "responses": {
           "200": {
@@ -41188,7 +41188,7 @@
     },
     "/api/system/pipeline-latency": {
       "get": {
-        "description": "Get pipeline latency metrics with percentiles.\n\nReturns latency statistics for each stage transition in the AI pipeline:\n- watch_to_detect: Time from file watcher detecting image to RT-DETR processing start\n- detect_to_batch: Time from detection completion to batch aggregation\n- batch_to_analyze: Time from batch completion to Nemotron analysis start\n- total_pipeline: Total end-to-end processing time\n\nEach stage includes:\n- avg_ms: Average latency in milliseconds\n- min_ms: Minimum latency\n- max_ms: Maximum latency\n- p50_ms: 50th percentile (median)\n- p95_ms: 95th percentile\n- p99_ms: 99th percentile\n- sample_count: Number of samples used\n\nArgs:\n    window_minutes: Time window for statistics calculation (default 60 minutes)\n\nReturns:\n    PipelineLatencyResponse with latency statistics for each stage",
+        "description": "Get pipeline latency metrics with percentiles.\n\nReturns latency statistics for each stage transition in the AI pipeline:\n- watch_to_detect: Time from file watcher detecting image to YOLO26 processing start\n- detect_to_batch: Time from detection completion to batch aggregation\n- batch_to_analyze: Time from batch completion to Nemotron analysis start\n- total_pipeline: Total end-to-end processing time\n\nEach stage includes:\n- avg_ms: Average latency in milliseconds\n- min_ms: Minimum latency\n- max_ms: Maximum latency\n- p50_ms: 50th percentile (median)\n- p95_ms: 95th percentile\n- p99_ms: 99th percentile\n- sample_count: Number of samples used\n\nArgs:\n    window_minutes: Time window for statistics calculation (default 60 minutes)\n\nReturns:\n    PipelineLatencyResponse with latency statistics for each stage",
         "operationId": "system_get_pipeline_latency",
         "parameters": [
           {

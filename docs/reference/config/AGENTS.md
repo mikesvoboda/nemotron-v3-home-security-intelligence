@@ -25,7 +25,7 @@ config/
 | ---------------------- | -------------------------------------------------------------- |
 | **Database**           | `DATABASE_URL`                                                 |
 | **Redis**              | `REDIS_URL`                                                    |
-| **AI Services**        | `RTDETR_URL`, `NEMOTRON_URL`, timeouts, API keys               |
+| **AI Services**        | `YOLO26_URL`, `NEMOTRON_URL`, timeouts, API keys               |
 | **Camera Integration** | `FOSCAM_BASE_PATH`                                             |
 | **File Watcher**       | `FILE_WATCHER_POLLING`, `FILE_WATCHER_POLLING_INTERVAL`        |
 | **Detection**          | `DETECTION_CONFIDENCE_THRESHOLD`                               |
@@ -101,7 +101,7 @@ Environment > .env file > Default value
 | Task                           | Variables to Set                                     |
 | ------------------------------ | ---------------------------------------------------- |
 | Connect to different database  | `DATABASE_URL`                                       |
-| Use remote AI services         | `RTDETR_URL`, `NEMOTRON_URL`                         |
+| Use remote AI services         | `YOLO26_URL`, `NEMOTRON_URL`                         |
 | Enable authentication          | `API_KEY_ENABLED=true`, `API_KEYS`                   |
 | Enable TLS                     | `TLS_MODE`, certificate paths                        |
 | Adjust batch timing            | `BATCH_WINDOW_SECONDS`, `BATCH_IDLE_TIMEOUT_SECONDS` |

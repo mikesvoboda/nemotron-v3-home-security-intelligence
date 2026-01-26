@@ -68,7 +68,7 @@
     <text x="90" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#9CA3AF">Monitored Services</text>
 
     <rect x="15" y="35" width="150" height="35" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
-    <text x="90" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">RT-DETRv2</text>
+    <text x="90" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">YOLO26</text>
     <text x="90" y="65" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#BFDBFE">GET /health</text>
 
     <rect x="15" y="78" width="150" height="35" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>

@@ -391,7 +391,7 @@
 
 3. **Object detection service down → Queue backpressure**:
 
-   - RT-DETR unavailable → Detection queue grows
+   - YOLO26 unavailable → Detection queue grows
    - Backpressure mechanism → Stop accepting new files
    - Recovery when service returns → Drain queue
 

@@ -54,7 +54,7 @@ def sample_event_audit():
         id=1,
         event_id=100,
         audited_at=datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC),
-        has_rtdetr=True,
+        has_yolo26=True,
         has_florence=True,
         has_clip=False,
         has_violence=False,
@@ -101,7 +101,7 @@ def unevaluated_audit():
     return EventAudit(
         id=2,
         event_id=201,
-        has_rtdetr=True,
+        has_yolo26=True,
         has_florence=False,
         prompt_length=3000,
         prompt_token_estimate=750,
@@ -142,7 +142,7 @@ class TestEventAuditModelInitialization:
         assert sample_event_audit.id == 1
         assert sample_event_audit.event_id == 100
         assert sample_event_audit.audited_at == datetime(2025, 1, 15, 10, 0, 0, tzinfo=UTC)
-        assert sample_event_audit.has_rtdetr is True
+        assert sample_event_audit.has_yolo26 is True
         assert sample_event_audit.has_florence is True
         assert sample_event_audit.has_clip is False
         assert sample_event_audit.prompt_length == 5000
@@ -161,7 +161,7 @@ class TestEventAuditModelInitialization:
         mapper = inspect(EventAudit)
 
         boolean_fields = [
-            "has_rtdetr",
+            "has_yolo26",
             "has_florence",
             "has_clip",
             "has_violence",
@@ -229,15 +229,15 @@ class TestEventAuditModelInitialization:
 class TestEventAuditContributionFlags:
     """Tests for EventAudit model contribution boolean flags."""
 
-    def test_rtdetr_flag_true(self):
-        """Test has_rtdetr flag set to True."""
-        audit = EventAudit(event_id=1, has_rtdetr=True)
-        assert audit.has_rtdetr is True
+    def test_yolo26_flag_true(self):
+        """Test has_yolo26 flag set to True."""
+        audit = EventAudit(event_id=1, has_yolo26=True)
+        assert audit.has_yolo26 is True
 
-    def test_rtdetr_flag_false(self):
-        """Test has_rtdetr flag set to False."""
-        audit = EventAudit(event_id=1, has_rtdetr=False)
-        assert audit.has_rtdetr is False
+    def test_yolo26_flag_false(self):
+        """Test has_yolo26 flag set to False."""
+        audit = EventAudit(event_id=1, has_yolo26=False)
+        assert audit.has_yolo26 is False
 
     def test_florence_flag(self):
         """Test has_florence flag."""
@@ -297,7 +297,7 @@ class TestEventAuditContributionFlags:
     def test_multiple_flags_combination(self, sample_event_audit):
         """Test multiple contribution flags set together."""
         # True flags
-        assert sample_event_audit.has_rtdetr is True
+        assert sample_event_audit.has_yolo26 is True
         assert sample_event_audit.has_florence is True
         assert sample_event_audit.has_clothing is True
         assert sample_event_audit.has_weather is True
@@ -747,7 +747,7 @@ class TestEventAuditProperties:
         assert audit.consistency_diff == diff
 
     @given(
-        has_rtdetr=st.booleans(),
+        has_yolo26=st.booleans(),
         has_florence=st.booleans(),
         has_clip=st.booleans(),
         has_violence=st.booleans(),
@@ -757,7 +757,7 @@ class TestEventAuditProperties:
     @settings(max_examples=50)
     def test_boolean_flags_roundtrip(
         self,
-        has_rtdetr: bool,
+        has_yolo26: bool,
         has_florence: bool,
         has_clip: bool,
         has_violence: bool,
@@ -767,14 +767,14 @@ class TestEventAuditProperties:
         """Property: Boolean flags roundtrip correctly."""
         audit = EventAudit(
             event_id=1,
-            has_rtdetr=has_rtdetr,
+            has_yolo26=has_yolo26,
             has_florence=has_florence,
             has_clip=has_clip,
             has_violence=has_violence,
             has_clothing=has_clothing,
             has_vehicle=has_vehicle,
         )
-        assert audit.has_rtdetr == has_rtdetr
+        assert audit.has_yolo26 == has_yolo26
         assert audit.has_florence == has_florence
         assert audit.has_clip == has_clip
         assert audit.has_violence == has_violence

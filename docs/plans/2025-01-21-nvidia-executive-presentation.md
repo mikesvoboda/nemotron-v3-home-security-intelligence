@@ -166,7 +166,7 @@ All presentation images are stored in: `docs/plans/presentation-images/`
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  1. CAMERA      │───▶│  2. RT-DETR     │───▶│  3. NEMOTRON    │───▶│  4. SMART       │
+│  1. CAMERA      │───▶│  2. YOLO26     │───▶│  3. NEMOTRON    │───▶│  4. SMART       │
 │  captures       │    │  detects        │    │  reasons about  │    │  ALERT          │
 │  motion         │    │  objects        │    │  context        │    │  (not 50 dumb   │
 │                 │    │  (30-50ms)      │    │  (2-5 sec)      │    │  ones)          │
@@ -198,7 +198,7 @@ All presentation images are stored in: `docs/plans/presentation-images/`
 
 1. Show the dashboard with real-time activity
 2. Trigger a detection event
-3. Watch RT-DETR identify objects (30-50ms)
+3. Watch YOLO26 identify objects (30-50ms)
 4. See batch aggregation collect context
 5. Observe Nemotron analysis with reasoning
 6. Receive intelligent alert with risk score
@@ -248,7 +248,7 @@ All presentation images are stored in: `docs/plans/presentation-images/`
 
 | Component             | Model            | Inference Time | VRAM  |
 | --------------------- | ---------------- | -------------- | ----- |
-| Detection             | RT-DETRv2        | 30-50ms        | 650MB |
+| Detection             | YOLO26           | 30-50ms        | 650MB |
 | Reasoning             | Nemotron-3-Nano  | 2-5 seconds    | ~18GB |
 | Scene Understanding   | Florence-2-Large | 100-300ms      | 1.2GB |
 | Cross-Camera Matching | CLIP ViT-L/14    | ~50ms          | 800MB |
@@ -679,7 +679,7 @@ docker-compose up
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │ GPU Services Layer (NVIDIA Container Toolkit)             │   │
 │  │ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │   │
-│  │ │ RT-DETR  │ │ Nemotron │ │Florence-2│ │  CLIP    │      │   │
+│  │ │ YOLO26  │ │ Nemotron │ │Florence-2│ │  CLIP    │      │   │
 │  │ │ :8090    │ │ :8091    │ │ :8092    │ │  :8093   │      │   │
 │  │ └──────────┘ └──────────┘ └──────────┘ └──────────┘      │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -737,7 +737,7 @@ Total GPU Memory: 24GB (RTX A5500/4090)
 
 ┌─────────────────────────────────────────────────┐
 │ Always Loaded (~2.65GB)                         │
-│ ├── RT-DETRv2: 650MB                           │
+│ ├── YOLO26: 650MB                           │
 │ ├── Florence-2-Large: 1.2GB                    │
 │ └── CLIP ViT-L/14: 800MB                       │
 ├─────────────────────────────────────────────────┤

@@ -66,7 +66,7 @@ A **trace** represents a single request as it flows through the system. Each tra
 ```
 Trace: "Process Detection"
 ├── Span: "receive_image" (backend) - 5ms
-├── Span: "detect_objects" (rtdetr) - 150ms
+├── Span: "detect_objects" (yolo26) - 150ms
 │   ├── Span: "preprocess" - 10ms
 │   ├── Span: "inference" - 130ms
 │   └── Span: "postprocess" - 10ms
@@ -114,12 +114,12 @@ Click a span to see detailed information:
 
 Traces are tagged with service names:
 
-| Service          | Description        | Typical Operations                  |
-| ---------------- | ------------------ | ----------------------------------- |
-| **hsi-backend**  | FastAPI backend    | API requests, batch processing      |
-| **hsi-rtdetr**   | RT-DETRv2 detector | Object detection, image processing  |
-| **hsi-nemotron** | Nemotron LLM       | Risk analysis, prompt processing    |
-| **hsi-frontend** | React frontend     | User interactions (if instrumented) |
+| Service          | Description     | Typical Operations                  |
+| ---------------- | --------------- | ----------------------------------- |
+| **hsi-backend**  | FastAPI backend | API requests, batch processing      |
+| **hsi-yolo26**   | YOLO26 detector | Object detection, image processing  |
+| **hsi-nemotron** | Nemotron LLM    | Risk analysis, prompt processing    |
+| **hsi-frontend** | React frontend  | User interactions (if instrumented) |
 
 ## Understanding the AI Pipeline
 
@@ -131,7 +131,7 @@ A typical detection flows through the system like this:
 sequenceDiagram
     participant C as Camera
     participant B as Backend
-    participant R as RT-DETRv2
+    participant R as YOLO26
     participant N as Nemotron
     participant DB as Database
 
@@ -203,7 +203,7 @@ Traces with errors are typically highlighted in red or orange:
 
 | Error                | Location       | Common Cause            |
 | -------------------- | -------------- | ----------------------- |
-| `timeout`            | rtdetr spans   | GPU overloaded          |
+| `timeout`            | yolo26 spans   | GPU overloaded          |
 | `connection_refused` | backend spans  | Service down            |
 | `out_of_memory`      | nemotron spans | Model too large for GPU |
 | `validation_error`   | API spans      | Invalid request data    |
@@ -325,7 +325,7 @@ The frontend couldn't fetch the Grafana URL:
 flowchart LR
     subgraph Services["Instrumented Services"]
         B[Backend]
-        R[RT-DETRv2]
+        R[YOLO26]
         N[Nemotron]
     end
 

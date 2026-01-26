@@ -30,7 +30,7 @@ The system runs 5 GPU-enabled AI containers:
 
 | Service           | Port | Models                           | VRAM          | Loading                                   |
 | ----------------- | ---- | -------------------------------- | ------------- | ----------------------------------------- |
-| **ai-detector**   | 8090 | RT-DETRv2                        | ~650MB        | Always                                    |
+| **ai-detector**   | 8090 | YOLO26                           | ~650MB        | Always                                    |
 | **ai-llm**        | 8091 | Nemotron 30B                     | CPU-offloaded | Always                                    |
 | **ai-florence**   | 8092 | Florence-2-large                 | ~1.2GB        | Always                                    |
 | **ai-clip**       | 8093 | CLIP ViT-L/14                    | ~800MB        | Always                                    |
@@ -58,7 +58,7 @@ The system runs 5 GPU-enabled AI containers:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Always Loaded (~2.65GB)                  │
 ├─────────────────────────────────────────────────────────────┤
-│     RT-DETRv2     │     Florence-2     │       CLIP        │
+│     YOLO26     │     Florence-2     │       CLIP        │
 │      ~650MB       │       ~1.2GB       │      ~800MB       │
 └─────────────────────────────────────────────────────────────┘
 
@@ -152,7 +152,7 @@ async def extract_security_context(self, image: bytes) -> dict:
 **Expected Impact:**
 
 - Scene descriptions: 2-3x more detail
-- Object detection: Catches packages, bags, tools not in RT-DETR classes
+- Object detection: Catches packages, bags, tools not in YOLO26 classes
 - OCR: Spatial context for license plate locations
 
 ---
@@ -395,7 +395,7 @@ def format_florence_scene_context(florence_result: dict) -> str:
 
 | Category           | Models                      | VRAM          | Loading       |
 | ------------------ | --------------------------- | ------------- | ------------- |
-| **Always Loaded**  | RT-DETRv2, Florence-2, CLIP | ~2.65GB       | Startup       |
+| **Always Loaded**  | YOLO26, Florence-2, CLIP    | ~2.65GB       | Startup       |
 | **On-Demand Pool** | All enrichment + new models | ~6.8GB budget | Per-detection |
 
 ### 2.3 Models in On-Demand Pool
@@ -1639,10 +1639,10 @@ transformers[video]       # X-CLIP video support
 
 ### VRAM Summary
 
-| State      | Always Loaded                                | On-Demand Budget | Total              |
-| ---------- | -------------------------------------------- | ---------------- | ------------------ |
-| **Before** | ~5.3GB (RT-DETR, Florence, CLIP, Enrichment) | N/A              | ~5.3GB             |
-| **After**  | ~2.65GB (RT-DETR, Florence, CLIP)            | ~6.8GB           | Up to ~9.45GB peak |
+| State      | Always Loaded                               | On-Demand Budget | Total              |
+| ---------- | ------------------------------------------- | ---------------- | ------------------ |
+| **Before** | ~5.3GB (YOLO26, Florence, CLIP, Enrichment) | N/A              | ~5.3GB             |
+| **After**  | ~2.65GB (YOLO26, Florence, CLIP)            | ~6.8GB           | Up to ~9.45GB peak |
 
 ### Model Priority Order
 

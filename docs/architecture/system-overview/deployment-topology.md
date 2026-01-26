@@ -27,7 +27,7 @@ flowchart TB
             end
 
             subgraph AI["AI Services (GPU)"]
-                DET["ai-detector<br/>RT-DETRv2<br/>:8090"]
+                DET["ai-detector<br/>YOLO26<br/>:8090"]
                 LLM["ai-llm<br/>Nemotron<br/>:8091"]
                 FLO["ai-florence<br/>Florence-2<br/>:8092"]
                 CLIP["ai-clip<br/>CLIP ViT-L<br/>:8093"]
@@ -142,7 +142,7 @@ Total GPU VRAM: ~24GB (RTX A5500)
 | Nemotron LLM (Q4_K_M)                          | ~21,700 MB       |
 | ================================================                  |
 +------------------------------------------------------------------+
-| RT-DETRv2                                      | ~650 MB          |
+| YOLO26                                      | ~650 MB          |
 | ======                                                            |
 +------------------------------------------------------------------+
 | Enrichment Service Budget                      | ~6,800 MB        |
@@ -165,7 +165,7 @@ Total GPU VRAM: ~24GB (RTX A5500)
 | Service               | VRAM       | Notes                               |
 | --------------------- | ---------- | ----------------------------------- |
 | **Nemotron LLM**      | ~21,700 MB | Q4_K_M quantization, 128K context   |
-| **RT-DETRv2**         | ~650 MB    | Object detection, always loaded     |
+| **YOLO26**            | ~650 MB    | Object detection, always loaded     |
 | **Enrichment Budget** | ~6,800 MB  | On-demand model loading (Model Zoo) |
 | **Florence-2**        | ~1,500 MB  | Vision-language, optional           |
 | **CLIP ViT-L**        | ~400 MB    | Re-identification, optional         |
@@ -238,7 +238,7 @@ All services include Docker health checks for orchestration and monitoring.
 
 AI services have longer start periods due to model loading:
 
-- **ai-detector**: 60s for RT-DETRv2 model loading
+- **ai-detector**: 60s for YOLO26 model loading
 - **ai-llm**: 120s for Nemotron LLM loading (largest model)
 - **ai-enrichment**: 180s for multiple model initialization
 

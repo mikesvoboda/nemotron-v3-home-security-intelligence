@@ -67,7 +67,7 @@ DATABASE_URL=postgresql+asyncpg://security:<password>@postgres:5432/security
 REDIS_URL=redis://redis:6379
 
 # AI Services (production - compose network)
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -111,7 +111,7 @@ RETENTION_DAYS=30
 | ----------------------- | ------- | ---------- | ------------------------ |
 | `AI_CONNECT_TIMEOUT`    | `10.0`  | 1.0-60.0   | Connection timeout (s)   |
 | `AI_HEALTH_TIMEOUT`     | `5.0`   | 1.0-30.0   | Health check timeout (s) |
-| `RTDETR_READ_TIMEOUT`   | `60.0`  | 10.0-300.0 | Detection timeout (s)    |
+| `YOLO26_READ_TIMEOUT`   | `60.0`  | 10.0-300.0 | Detection timeout (s)    |
 | `NEMOTRON_READ_TIMEOUT` | `120.0` | 30.0-600.0 | LLM timeout (s)          |
 
 ### GPU Monitoring
@@ -413,18 +413,18 @@ docker compose exec redis redis-cli FLUSHALL
 
 ```bash
 # Production (docker-compose.prod.yml)
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
 ENRICHMENT_URL=http://ai-enrichment:8094
 
 # Development (host AI)
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 
 # Docker Desktop (macOS/Windows)
-RTDETR_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -601,7 +601,7 @@ curl -X POST "http://localhost:8000/api/system/cleanup"
 ```bash
 DATABASE_URL=postgresql+asyncpg://security:dev_password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 FOSCAM_BASE_PATH=/export/foscam
 DEBUG=true
@@ -613,7 +613,7 @@ LOG_LEVEL=DEBUG
 ```bash
 DATABASE_URL=postgresql+asyncpg://security:secure_password@postgres:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://redis:6379
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 DEBUG=false
 LOG_LEVEL=WARNING
@@ -637,7 +637,7 @@ python -c "from core.config import get_settings; s = get_settings(); print(s.mod
 
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
-curl http://localhost:8090/health                # RT-DETRv2
+curl http://localhost:8090/health                # YOLO26
 curl http://localhost:8091/health                # Nemotron
 redis-cli ping                                   # Redis
 ```

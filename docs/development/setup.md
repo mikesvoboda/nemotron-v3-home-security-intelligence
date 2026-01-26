@@ -32,10 +32,10 @@ Before starting, ensure you have the following installed:
 
 ### Optional (for GPU features)
 
-| Requirement       | Minimum Version | Check Command    | Notes                   |
-| ----------------- | --------------- | ---------------- | ----------------------- |
-| **NVIDIA Driver** | 535+            | `nvidia-smi`     | For GPU-accelerated AI  |
-| **CUDA**          | 12.x            | `nvcc --version` | For RT-DETRv2 inference |
+| Requirement       | Minimum Version | Check Command    | Notes                  |
+| ----------------- | --------------- | ---------------- | ---------------------- |
+| **NVIDIA Driver** | 535+            | `nvidia-smi`     | For GPU-accelerated AI |
+| **CUDA**          | 12.x            | `nvcc --version` | For YOLO26 inference   |
 
 ### Hardware Recommendations
 
@@ -151,7 +151,7 @@ REDIS_URL=redis://localhost:6379/0
 FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints (optional for dev)
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 ```
 

@@ -260,11 +260,11 @@ uv run python scripts/export_yolo26.py --skip-verification
 ### Output Files
 
 - Exported models: `/export/ai_models/model-zoo/yolo26/exports/`
-- Benchmark report: `docs/benchmarks/yolo26-vs-rtdetr.md` (appended)
+- Benchmark report: `docs/benchmarks/yolo26-vs-yolo26.md` (appended)
 - Local report: `/export/ai_models/model-zoo/yolo26/exports/EXPORT_REPORT.md`
 
 ## Related Documentation
 
-- [YOLO26 vs RT-DETR Accuracy Benchmark](./yolo26-vs-rtdetr.md)
+- [YOLO26 vs YOLO26 Accuracy Benchmark](./yolo26-vs-yolo26.md)
 - [Model Zoo Benchmark](./model-zoo-benchmark.md)
 - [YOLO26 Validation Report](/export/ai_models/model-zoo/yolo26/VALIDATION_REPORT.md)

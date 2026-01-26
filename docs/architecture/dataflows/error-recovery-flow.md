@@ -124,7 +124,7 @@ infrastructure_config = CircuitBreakerConfig(
 
 | Service    | Failure Threshold | Recovery Timeout | Source                |
 | ---------- | ----------------- | ---------------- | --------------------- |
-| RT-DETRv2  | 5                 | 30s              | AI config             |
+| YOLO26  | 5                 | 30s              | AI config             |
 | Nemotron   | 5                 | 30s              | AI config             |
 | PostgreSQL | 10                | 60s              | Infrastructure config |
 | Redis      | 10                | 60s              | Infrastructure config |
@@ -181,14 +181,14 @@ sequenceDiagram
     Note over CB: Normal operation resumes
 ```
 
-## RT-DETRv2 Circuit Breaker
+## YOLO26 Circuit Breaker
 
 **Source:** `backend/services/detector_client.py:295-309`
 
 ```python
 # backend/services/detector_client.py:295-309
 self._circuit_breaker = CircuitBreaker(
-    name="rtdetr",
+    name="yolo26",
     config=CircuitBreakerConfig(
         failure_threshold=5,        # Opens after 5 consecutive failures
         recovery_timeout=60.0,      # Waits 60 seconds before attempting recovery
@@ -332,7 +332,7 @@ self._circuit_breaker = WebSocketCircuitBreaker(
 sequenceDiagram
     participant DW as Detection Worker
     participant CB as Circuit Breaker
-    participant RT as RT-DETRv2
+    participant RT as YOLO26
     participant DLQ as Dead Letter Queue
 
     DW->>CB: Send detection request
@@ -446,9 +446,9 @@ class CircuitBreakerMetrics:
 
 ```
 Normal Flow:
-  Image -> RT-DETRv2 -> Detection -> Batch -> LLM
+  Image -> YOLO26 -> Detection -> Batch -> LLM
 
-Degraded Flow (RT-DETRv2 down):
+Degraded Flow (YOLO26 down):
   Image -> Queue (waiting) -> DLQ after max retries
 
 Recovery:

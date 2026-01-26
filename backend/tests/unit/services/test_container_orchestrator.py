@@ -85,9 +85,9 @@ def discovered_service() -> DiscoveredService:
     """Create a discovered service fixture."""
     return DiscoveredService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abc123def456",
-        image="ghcr.io/example/rtdetr:latest",
+        image="ghcr.io/example/yolo26:latest",
         port=8090,
         category=ServiceCategory.AI,
         health_endpoint="/health",
@@ -103,9 +103,9 @@ def managed_service() -> ManagedService:
     """Create a managed service fixture."""
     return ManagedService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abc123def456",
-        image="ghcr.io/example/rtdetr:latest",
+        image="ghcr.io/example/yolo26:latest",
         port=8090,
         category=ServiceCategory.AI,
         health_endpoint="/health",
@@ -151,7 +151,7 @@ class TestCreateServiceStatusEvent:
 
         assert event["type"] == "service_status"
         assert event["data"]["name"] == "ai-detector"
-        assert event["data"]["display_name"] == "RT-DETRv2"
+        assert event["data"]["display_name"] == "YOLO26"
         assert event["message"] == "Test message"
 
     def test_includes_container_id_truncated(self, managed_service: ManagedService) -> None:

@@ -173,7 +173,7 @@ pytest backend/tests/unit/ -v --no-cov
 | File                        | Tests For                   |
 | --------------------------- | --------------------------- |
 | `test_batch_aggregator.py`  | Detection batch aggregation |
-| `test_detector_client.py`   | RT-DETRv2 HTTP client       |
+| `test_detector_client.py`   | YOLO26 HTTP client          |
 | `test_file_watcher.py`      | File system monitoring      |
 | `test_nemotron_analyzer.py` | Nemotron LLM risk analysis  |
 | `test_pipeline_worker.py`   | AI pipeline worker          |

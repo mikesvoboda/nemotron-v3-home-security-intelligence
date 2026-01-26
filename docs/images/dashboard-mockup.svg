@@ -107,7 +107,7 @@
 
   <!-- Status items -->
   <rect x="40" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>
-  <text x="55" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">RT-DETRv2</text>
+  <text x="55" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">YOLO26</text>
   <text x="55" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#4ade80">Online</text>
 
   <rect x="240" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>

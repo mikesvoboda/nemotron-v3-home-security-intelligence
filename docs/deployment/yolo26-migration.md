@@ -205,14 +205,14 @@ If you encounter issues after migration, rolling back is simple:
 ### Step 1: Update Environment
 
 ```bash
-# Edit .env to switch back to RT-DETRv2
-DETECTOR_TYPE=rtdetr
+# Edit .env to switch back to YOLO26
+DETECTOR_TYPE=yolo26
 ```
 
 ### Step 2: Restart Backend
 
 ```bash
-# Restart the backend to use RT-DETRv2
+# Restart the backend to use YOLO26
 podman-compose -f docker-compose.prod.yml restart backend
 ```
 
@@ -222,7 +222,7 @@ podman-compose -f docker-compose.prod.yml restart backend
 # Check backend logs to confirm detector type
 podman-compose -f docker-compose.prod.yml logs backend | grep -i "detector"
 
-# Expected: "DetectorClient initialized" with "detector_type": "rtdetr"
+# Expected: "DetectorClient initialized" with "detector_type": "yolo26"
 ```
 
 ### Important Notes on Rollback
@@ -236,14 +236,14 @@ podman-compose -f docker-compose.prod.yml logs backend | grep -i "detector"
 
 ### Benchmark Results (RTX A5500 24GB)
 
-| Model          | Format        | Mean    | P50     | P95     | P99     | FPS | VRAM   |
-| -------------- | ------------- | ------- | ------- | ------- | ------- | --- | ------ |
-| yolo26n        | tensorrt-fp16 | 4.49ms  | 4.46ms  | 5.07ms  | 5.46ms  | 223 | ~50MB  |
-| yolo26s        | tensorrt-fp16 | 4.86ms  | 4.81ms  | 5.47ms  | 5.67ms  | 206 | ~60MB  |
-| **yolo26m**    | tensorrt-fp16 | 5.76ms  | 5.75ms  | 6.29ms  | 6.44ms  | 174 | ~100MB |
-| RT-DETRv2-R101 | pytorch       | 30.64ms | 30.65ms | 31.90ms | 32.56ms | 33  | ~570MB |
+| Model       | Format        | Mean    | P50     | P95     | P99     | FPS | VRAM   |
+| ----------- | ------------- | ------- | ------- | ------- | ------- | --- | ------ |
+| yolo26n     | tensorrt-fp16 | 4.49ms  | 4.46ms  | 5.07ms  | 5.46ms  | 223 | ~50MB  |
+| yolo26s     | tensorrt-fp16 | 4.86ms  | 4.81ms  | 5.47ms  | 5.67ms  | 206 | ~60MB  |
+| **yolo26m** | tensorrt-fp16 | 5.76ms  | 5.75ms  | 6.29ms  | 6.44ms  | 174 | ~100MB |
+| YOLO26-R101 | pytorch       | 30.64ms | 30.65ms | 31.90ms | 32.56ms | 33  | ~570MB |
 
-### Speedup vs RT-DETRv2
+### Speedup vs YOLO26
 
 | Model   | Format        | Speedup  | Latency Reduction |
 | ------- | ------------- | -------- | ----------------- |
@@ -254,7 +254,7 @@ podman-compose -f docker-compose.prod.yml logs backend | grep -i "detector"
 ### VRAM Comparison
 
 ```
-RT-DETRv2:  ████████████████████████████████████████████████ ~570MB
+YOLO26:  ████████████████████████████████████████████████ ~570MB
 YOLO26m:    ████████ ~100MB
 YOLO26s:    █████ ~60MB
 YOLO26n:    ████ ~50MB
@@ -264,7 +264,7 @@ YOLO26n:    ████ ~50MB
 
 - TensorRT FP16 has <0.1% mAP loss compared to FP32
 - YOLO26m provides the best accuracy among YOLO26 variants
-- For maximum accuracy requirements, continue using RT-DETRv2
+- For maximum accuracy requirements, continue using YOLO26
 - Run accuracy validation: `scripts/benchmark_yolo26_accuracy.py`
 
 ## Monitoring
@@ -508,7 +508,7 @@ podman run --rm \
 
 ## Related Documentation
 
-- [YOLO26 vs RT-DETRv2 Benchmark Results](../benchmarks/yolo26-vs-rtdetr.md)
+- [YOLO26 vs YOLO26 Benchmark Results](../benchmarks/yolo26-vs-yolo26.md)
 - [YOLO26 Export Formats](../benchmarks/yolo26-export-formats.md)
 - [Container Orchestration](./container-orchestration.md)
 - [Multi-GPU Support](../development/multi-gpu.md)

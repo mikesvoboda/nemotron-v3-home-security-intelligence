@@ -77,7 +77,7 @@ The original image showed horizontal bars with only a few technology icons and w
 **AI/ML Layer (correctly shown):**
 
 - PyTorch 2.x (with icon)
-- RT-DETRv2 (labeled)
+- YOLO26 (labeled)
 - Nemotron-3-Nano (labeled)
 - llama.cpp (labeled with version 1.0.0)
 
@@ -258,7 +258,7 @@ The original image showed a generic hierarchy without configuration-specific lab
 
 - Database (database_url, pool_size, credentials)
 - Redis (redis_url, channels)
-- AI Services (rtdetr_url, nemotron_url)
+- AI Services (yolo26_url, nemotron_url)
 - Image (image_max_size, jpeg_quality, cache_enabled)
 
 **Code Snippets:**

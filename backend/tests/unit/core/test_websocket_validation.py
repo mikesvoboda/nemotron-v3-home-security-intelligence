@@ -881,7 +881,7 @@ class TestWebSocketServiceStatusData:
         """Test status validator when passed a WebSocketServiceStatus enum directly."""
         # This tests lines 360-361: if isinstance(v, WebSocketServiceStatus): return v
         status_data = WebSocketServiceStatusData(
-            service="rtdetr",
+            service="yolo26",
             status=WebSocketServiceStatus.RESTARTING,
         )
         assert status_data.status == WebSocketServiceStatus.RESTARTING

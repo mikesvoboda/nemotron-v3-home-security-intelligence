@@ -163,10 +163,10 @@ class TestValidateConfig:
         result = validate_config(settings)
 
         # Find yolo26_url validation item
-        rtdetr_item = next((item for item in result.items if item.name == "yolo26_url"), None)
-        assert rtdetr_item is not None
+        yolo26_item = next((item for item in result.items if item.name == "yolo26_url"), None)
+        assert yolo26_item is not None
         # Status should be ok, info (localhost), or warning - not error
-        assert rtdetr_item.status in ("ok", "warning", "info")
+        assert yolo26_item.status in ("ok", "warning", "info")
 
         # Find nemotron_url validation item
         nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
@@ -445,20 +445,20 @@ class TestEdgeCases:
         result = validate_config(settings)
 
         # Localhost URLs should be valid
-        rtdetr_item = next((item for item in result.items if item.name == "yolo26_url"), None)
+        yolo26_item = next((item for item in result.items if item.name == "yolo26_url"), None)
         nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
 
-        assert rtdetr_item is not None
+        assert yolo26_item is not None
         assert nemotron_item is not None
         # Should be ok or warning (not error) for localhost
-        assert rtdetr_item.status in ("ok", "warning", "info")
+        assert yolo26_item.status in ("ok", "warning", "info")
         assert nemotron_item.status in ("ok", "warning", "info")
 
     def test_validate_config_with_https_ai_services(self, clean_env):
         """Test validation with HTTPS AI service URLs (production setup)."""
         from backend.core.config_validation import validate_config
 
-        clean_env.setenv("YOLO26_URL", "https://rtdetr.example.com:8090")
+        clean_env.setenv("YOLO26_URL", "https://yolo26.example.com:8090")
         clean_env.setenv("NEMOTRON_URL", "https://nemotron.example.com:8091")
         get_settings.cache_clear()
 
@@ -466,10 +466,10 @@ class TestEdgeCases:
         result = validate_config(settings)
 
         # HTTPS URLs should be valid
-        rtdetr_item = next((item for item in result.items if item.name == "yolo26_url"), None)
+        yolo26_item = next((item for item in result.items if item.name == "yolo26_url"), None)
         nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
 
-        assert rtdetr_item is not None
+        assert yolo26_item is not None
         assert nemotron_item is not None
-        assert rtdetr_item.status in ("ok", "warning", "info")
+        assert yolo26_item.status in ("ok", "warning", "info")
         assert nemotron_item.status in ("ok", "warning", "info")

@@ -1,7 +1,7 @@
 """Unit tests for AI inference concurrency limits (NEM-1463).
 
 These tests verify that asyncio.Semaphore properly limits concurrent
-AI inference operations for both RT-DETR detection and Nemotron analysis.
+AI inference operations for both YOLO26 detection and Nemotron analysis.
 """
 
 import asyncio

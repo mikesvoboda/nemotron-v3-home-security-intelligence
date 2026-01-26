@@ -21,7 +21,7 @@ flowchart TD
     G -->|New| H[detection_queue]
     G -->|Duplicate| I[Skip]
     H --> J[DetectionQueueWorker]
-    J -->|Image| K[RT-DETRv2]
+    J -->|Image| K[YOLO26]
     J -->|Video| L[Extract Frames]
     L --> K
     K --> M[Store Detections]
@@ -35,7 +35,7 @@ flowchart TD
 1. Camera uploads via FTP to `/export/foscam/{camera}/`
 2. FileWatcher detects new files, validates, deduplicates
 3. Valid files queued to Redis `detection_queue`
-4. RT-DETRv2 performs object detection
+4. YOLO26 performs object detection
 5. Detections batched (90s window) and analyzed by Nemotron LLM
 6. Events created and broadcast via WebSocket
 
@@ -90,7 +90,7 @@ if is_valid_image("/path/to/image.jpg"):
 
 ### AI Detection
 
-Images sent directly to RT-DETRv2 via `DetectorClient`:
+Images sent directly to YOLO26 via `DetectorClient`:
 
 ```python
 from backend.services import DetectorClient
@@ -198,7 +198,7 @@ stats = await cleanup.run_cleanup()
 
 ## AI Integration
 
-### RT-DETRv2 API
+### YOLO26 API
 
 **Request:**
 
@@ -234,7 +234,7 @@ DETECTION_CONFIDENCE_THRESHOLD=0.5
 
 ### Security Classes
 
-RT-DETRv2 filters to: `person`, `car`, `truck`, `dog`, `cat`, `bird`, `bicycle`, `motorcycle`, `bus`
+YOLO26 filters to: `person`, `car`, `truck`, `dog`, `cat`, `bird`, `bicycle`, `motorcycle`, `bus`
 
 ---
 
@@ -287,7 +287,7 @@ Extend `DetectionQueueWorker._process_image_detection()` with preprocessing befo
 
 ### Alternative AI Models
 
-Replace RT-DETRv2 with any model that implements:
+Replace YOLO26 with any model that implements:
 
 ```
 POST /detect (multipart file) -> {"detections": [...]}
@@ -312,7 +312,7 @@ POST /detect (multipart file) -> {"detections": [...]}
 ## Next Steps
 
 - [Pipeline Overview](pipeline-overview.md) - Detection and analysis details
-- [Detection Service](detection-service.md) - How RT-DETRv2 processes images
+- [Detection Service](detection-service.md) - How YOLO26 processes images
 
 ---
 

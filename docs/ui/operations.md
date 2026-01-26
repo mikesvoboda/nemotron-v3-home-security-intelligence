@@ -38,7 +38,7 @@ flowchart LR
 
     subgraph Detect["Detection Stage"]
         D1[Detection Queue]
-        D2[RT-DETRv2]
+        D2[YOLO26]
         D1 --> D2
     end
 
@@ -81,7 +81,7 @@ flowchart LR
 Worker types:
 
 - **Watcher** (file_watcher) - Monitors camera FTP directories for new images
-- **Detector** (detection_worker) - Processes the detection queue with RT-DETRv2
+- **Detector** (detection_worker) - Processes the detection queue with YOLO26
 - **Aggregator** (batch_aggregator) - Groups related detections into batches (90-second windows)
 - **Analyzer** (analysis_worker) - Processes batches through Nemotron for risk analysis
 - **Cleanup** (cleanup_service) - Removes old data based on retention policy

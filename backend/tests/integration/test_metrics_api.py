@@ -80,7 +80,7 @@ async def test_metrics_endpoint_contains_event_counters(client, mock_redis):
 
     These counters track:
     - hsi_events_created_total: Total security events created
-    - hsi_detections_processed_total: Total detections processed by RT-DETRv2
+    - hsi_detections_processed_total: Total detections processed by YOLO26
     """
     response = await client.get("/api/metrics")
     assert response.status_code == 200
@@ -118,7 +118,7 @@ async def test_metrics_endpoint_contains_ai_request_duration_histogram(client, m
     """GET /api/metrics should expose AI request duration histogram.
 
     The histogram tracks:
-    - hsi_ai_request_duration_seconds: Duration of AI service requests (rtdetr, nemotron)
+    - hsi_ai_request_duration_seconds: Duration of AI service requests (yolo26, nemotron)
     """
     response = await client.get("/api/metrics")
     assert response.status_code == 200
@@ -364,7 +364,7 @@ class TestMetricsWithRecordedValues:
         from backend.core.metrics import observe_ai_request_duration
 
         # Observe AI request durations
-        observe_ai_request_duration("rtdetr", 0.3)
+        observe_ai_request_duration("yolo26", 0.3)
         observe_ai_request_duration("nemotron", 5.0)
 
         response = await client.get("/api/metrics")
@@ -462,7 +462,7 @@ class TestMetricsResponseValidation:
 
         # Record observations so histograms emit bucket data
         observe_stage_duration("test_hist", 0.5)
-        observe_ai_request_duration("rtdetr", 0.3)
+        observe_ai_request_duration("yolo26", 0.3)
 
         response = await client.get("/api/metrics")
         assert response.status_code == 200

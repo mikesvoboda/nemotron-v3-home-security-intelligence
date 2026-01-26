@@ -2,7 +2,7 @@
 
 ## Purpose
 
-End-to-end tests validate the complete AI pipeline from file detection through event creation and WebSocket broadcasting. These tests use real business logic and database operations while mocking only external AI services (RT-DETRv2, Nemotron).
+End-to-end tests validate the complete AI pipeline from file detection through event creation and WebSocket broadcasting. These tests use real business logic and database operations while mocking only external AI services (YOLO26, Nemotron).
 
 ## Pipeline Flow Tested
 
@@ -12,7 +12,7 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket 
 ```
 
 1. **File Detection**: Image/video file appears in camera folder
-2. **RT-DETRv2 Detection**: Object detection service processes image
+2. **YOLO26 Detection**: Object detection service processes image
 3. **Batch Aggregation**: Detections grouped into time-based batches
 4. **Nemotron Analysis**: LLM analyzes batch and generates risk assessment
 5. **Event Creation**: Event record created in database
@@ -76,10 +76,10 @@ GPU-specific tests with real or mocked AI services:
 
 | Test                                             | Description                          |
 | ------------------------------------------------ | ------------------------------------ |
-| `test_gpu_detector_client_health_check`          | RT-DETRv2 service health check       |
+| `test_gpu_detector_client_health_check`          | YOLO26 service health check          |
 | `test_gpu_nemotron_analyzer_health_check`        | Nemotron LLM service health check    |
 | `test_gpu_full_pipeline_with_real_services`      | Complete E2E with real AI services   |
-| `test_gpu_detector_client_inference_performance` | RT-DETRv2 performance measurement    |
+| `test_gpu_detector_client_inference_performance` | YOLO26 performance measurement       |
 | `test_gpu_nemotron_analysis_performance`         | Nemotron LLM performance measurement |
 | `test_detector_client_integration_mocked`        | DetectorClient with mocked HTTP      |
 | `test_nemotron_analyzer_integration_mocked`      | NemotronAnalyzer with mocked HTTP    |
@@ -106,7 +106,7 @@ Test-specific fixtures in each file:
 | `test_camera`            | Creates test camera in database           |
 | `test_image_path`        | Generates valid test JPEG image           |
 | `mock_redis_client`      | In-memory Redis mock for batch operations |
-| `mock_detector_response` | Mock RT-DETRv2 detection response         |
+| `mock_detector_response` | Mock YOLO26 detection response            |
 | `mock_nemotron_response` | Mock Nemotron LLM analysis response       |
 | `clean_pipeline`         | Truncates all tables before test          |
 
@@ -114,7 +114,7 @@ Test-specific fixtures in each file:
 
 ### Mocked Components
 
-- **RT-DETRv2 HTTP service**: `httpx.AsyncClient` for detector requests
+- **YOLO26 HTTP service**: `httpx.AsyncClient` for detector requests
 - **Nemotron LLM HTTP service**: `httpx.AsyncClient` for LLM requests
 - **Redis**: In-memory mock with queue and cache operations
 

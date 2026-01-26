@@ -84,7 +84,7 @@ camera_folder_paths = st.from_regex(
 # Object Type Strategies
 # =============================================================================
 
-# Common object types detected by RT-DETR
+# Common object types detected by YOLO26
 object_types = st.sampled_from(
     [
         "person",

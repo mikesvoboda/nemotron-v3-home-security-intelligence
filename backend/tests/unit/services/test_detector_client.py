@@ -48,7 +48,7 @@ def detector_client():
 
 @pytest.fixture
 def sample_detector_response():
-    """Sample response from RT-DETRv2 detector."""
+    """Sample response from YOLO26 detector."""
     return {
         "detections": [
             {
@@ -1736,7 +1736,7 @@ async def test_detector_client_has_circuit_breaker():
     client = DetectorClient(max_retries=1)
 
     # Verify circuit breaker is present with correct configuration
-    # Circuit breaker is named per detector type (e.g., "detector_rtdetr", "detector_yolo26")
+    # Circuit breaker is named per detector type (e.g., "detector_yolo26", "detector_yolo26")
     assert client._circuit_breaker is not None
     assert client._circuit_breaker.name == f"detector_{client.detector_type}"
     assert client._circuit_breaker.config.failure_threshold == 5
@@ -1830,7 +1830,7 @@ async def test_circuit_breaker_allows_recovery_after_timeout(mock_session):
     from backend.services.circuit_breaker import CircuitBreaker
 
     detector_client._circuit_breaker = CircuitBreaker(
-        name="rtdetr",
+        name="yolo26",
         config=CircuitBreakerConfig(
             failure_threshold=5,
             recovery_timeout=0.1,  # 100ms for testing
@@ -2024,7 +2024,7 @@ async def test_detector_client_get_circuit_breaker_status():
     status = detector_client._circuit_breaker.get_status()
 
     assert "name" in status
-    # Circuit breaker is named per detector type (e.g., "detector_rtdetr", "detector_yolo26")
+    # Circuit breaker is named per detector type (e.g., "detector_yolo26", "detector_yolo26")
     assert status["name"] == f"detector_{detector_client.detector_type}"
     assert "state" in status
     assert "failure_count" in status

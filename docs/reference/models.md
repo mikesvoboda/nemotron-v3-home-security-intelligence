@@ -48,7 +48,7 @@ The production model for AI-driven risk reasoning and security analysis. Uses NV
 
 **Purpose in Pipeline:**
 
-- Analyzes batches of object detections from RT-DETRv2
+- Analyzes batches of object detections from YOLO26
 - Generates risk scores (0-100) and natural language summaries
 - Considers zone analysis, baseline comparison, and cross-camera correlation
 - Processes enrichment data (clothing, vehicles, behavior, scene descriptions)
@@ -441,7 +441,7 @@ For manual downloads or air-gapped environments:
 | Model               | Direct Download                                                                                                              |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Nemotron-3-Nano-30B | [Download GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf) |
-| RT-DETRv2           | Auto-downloaded by HuggingFace on first run                                                                                  |
+| YOLO26              | Auto-downloaded by HuggingFace on first run                                                                                  |
 | Florence-2          | `git clone https://huggingface.co/microsoft/Florence-2-large`                                                                |
 | CLIP ViT-L          | `git clone https://huggingface.co/openai/clip-vit-large-patch14`                                                             |
 | FashionCLIP         | `git clone https://huggingface.co/patrickjohncyh/fashion-clip`                                                               |
@@ -487,7 +487,7 @@ Camera Images
       │
       ▼
 ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│  RT-DETRv2  │─────▶│  Enrichment │─────▶│  Florence-2 │
+│  YOLO26  │─────▶│  Enrichment │─────▶│  Florence-2 │
 │   (8090)    │      │   (8094)    │      │   (8092)    │
 └─────────────┘      └─────────────┘      └─────────────┘
       │                    │                    │
@@ -504,7 +504,7 @@ Camera Images
 
 ### Pipeline Flow
 
-1. **RT-DETRv2**: Detects objects in camera images (30-50ms)
+1. **YOLO26**: Detects objects in camera images (30-50ms)
 2. **Enrichment**: Classifies detections (vehicle type, clothing, pet, depth, pose)
 3. **Florence-2**: Generates scene captions and OCR text (optional)
 4. **CLIP**: Entity re-identification across cameras (optional)
@@ -517,7 +517,7 @@ Camera Images
 - [AI Pipeline Architecture](../architecture/ai-pipeline.md)
 - [Enrichment Service Documentation](../../ai/enrichment/AGENTS.md)
 - [Nemotron LLM Configuration](../../ai/nemotron/AGENTS.md)
-- [RT-DETRv2 Detection Server](../../ai/rtdetr/AGENTS.md)
+- [YOLO26 Detection Server](../../ai/yolo26/AGENTS.md)
 - [Risk Levels Configuration](config/risk-levels.md)
 - [GPU Troubleshooting](troubleshooting/gpu-issues.md)
 

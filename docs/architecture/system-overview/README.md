@@ -22,7 +22,7 @@ flowchart TB
     end
 
     subgraph AI["AI Services Layer"]
-        DET["RT-DETRv2<br/>Object Detection<br/>:8090"]
+        DET["YOLO26<br/>Object Detection<br/>:8090"]
         LLM["Nemotron 30B<br/>Risk Analysis<br/>:8091"]
         FLO["Florence-2<br/>Vision Extraction<br/>:8092"]
         CLIP["CLIP ViT-L<br/>Re-identification<br/>:8093"]
@@ -57,7 +57,7 @@ flowchart TB
 | **Backend**      | 8000                    | `backend`       | `backend/main.py:992`         | FastAPI server with WebSocket support   |
 | **PostgreSQL**   | 5432                    | `postgres`      | `docker-compose.prod.yml:41`  | Primary database for events, detections |
 | **Redis**        | 6379                    | `redis`         | `docker-compose.prod.yml:403` | Queues, pub/sub, batch state            |
-| **RT-DETRv2**    | 8090                    | `ai-detector`   | `ai/rtdetr/`                  | Real-time object detection              |
+| **YOLO26**       | 8090                    | `ai-detector`   | `ai/yolo26/`                  | Real-time object detection              |
 | **Nemotron LLM** | 8091                    | `ai-llm`        | `ai/nemotron/`                | Risk analysis via llama.cpp             |
 | **Florence-2**   | 8092                    | `ai-florence`   | `ai/florence/`                | Vision-language extraction              |
 | **CLIP**         | 8093                    | `ai-clip`       | `ai/clip/`                    | Entity re-identification                |
@@ -96,7 +96,7 @@ flowchart TB
 
         subgraph ML["AI/ML"]
             PyTorch["PyTorch 2.x"]
-            RTDETR["RT-DETRv2"]
+            YOLO26["YOLO26"]
             Nemotron["Nemotron-3-Nano-30B"]
             LlamaCpp["llama.cpp"]
         end
@@ -121,7 +121,7 @@ flowchart TB
 ## Data Flow Summary
 
 1. **Image Capture**: Foscam cameras FTP upload images to `/export/foscam/{camera}/`
-2. **Detection**: FileWatcher queues images, RT-DETRv2 performs object detection
+2. **Detection**: FileWatcher queues images, YOLO26 performs object detection
 3. **Batching**: BatchAggregator groups detections (90s window, 30s idle timeout)
 4. **Analysis**: Nemotron LLM analyzes batches, assigns risk scores
 5. **Broadcast**: Events pushed via Redis pub/sub to WebSocket clients

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the migration from direct PyTorch/TensorRT inference to NVIDIA Triton Inference Server for object detection models (RT-DETR and YOLO26).
+This document describes the migration from direct PyTorch/TensorRT inference to NVIDIA Triton Inference Server for object detection models (YOLO26 and YOLO26).
 
 ## Why Triton?
 
@@ -40,7 +40,7 @@ This document describes the migration from direct PyTorch/TensorRT inference to 
   ┌────┴────┐
   ▼         ▼
 ┌─────┐  ┌──────┐
-│RTDETR│  │YOLO26│
+│YOLO26│  │YOLO26│
 │FastAPI│  │FastAPI│
 │8090   │  │8095   │
 └───────┘  └───────┘
@@ -68,7 +68,7 @@ Each AI service:
 │ 8000/8001   │
 ├─────────────┤
 │ ┌────────┐  │
-│ │ RT-DETR │  │
+│ │ YOLO26 │  │
 │ └────────┘  │
 │ ┌────────┐  │
 │ │ YOLO26 │  │
@@ -106,15 +106,15 @@ Single Triton server:
 
 **Tasks**:
 
-1. **RT-DETR Conversion**
+1. **YOLO26 Conversion**
 
    ```bash
    # Export to ONNX (if not already)
-   python ai/rtdetr/export_onnx.py --output rtdetr.onnx
+   python ai/yolo26/export_onnx.py --output yolo26.onnx
 
    # Convert to TensorRT
-   trtexec --onnx=rtdetr.onnx \
-           --saveEngine=ai/triton/model_repository/rtdetr/1/model.plan \
+   trtexec --onnx=yolo26.onnx \
+           --saveEngine=ai/triton/model_repository/yolo26/1/model.plan \
            --fp16 \
            --minShapes=images:1x3x640x640 \
            --optShapes=images:4x3x640x640 \
@@ -159,7 +159,7 @@ Single Triton server:
 
    ```bash
    # Use Triton's perf_analyzer
-   perf_analyzer -m rtdetr \
+   perf_analyzer -m yolo26 \
                  -u localhost:8097 \
                  --concurrency-range 1:16 \
                  --shape images:1,3,640,640
@@ -279,7 +279,7 @@ Single Triton server:
 | `TRITON_HTTP_URL`             | `localhost:8000` | HTTP endpoint             |
 | `TRITON_PROTOCOL`             | `grpc`           | Protocol (grpc/http)      |
 | `TRITON_TIMEOUT`              | `60`             | Request timeout (seconds) |
-| `TRITON_MODEL`                | `rtdetr`         | Default model             |
+| `TRITON_MODEL`                | `yolo26`         | Default model             |
 | `TRITON_MAX_RETRIES`          | `3`              | Max retry attempts        |
 | `TRITON_CONFIDENCE_THRESHOLD` | `0.5`            | Detection threshold       |
 

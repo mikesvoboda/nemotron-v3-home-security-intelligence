@@ -223,7 +223,7 @@ class TestNetworkPartitions:
         async def nemotron_ok() -> str:
             return "success"
 
-        # RT-DETR is partitioned
+        # YOLO26 is partitioned
         for _ in range(2):
             try:
                 await yolo26_breaker.call(yolo26_partitioned)

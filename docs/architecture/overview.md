@@ -36,7 +36,7 @@ source_refs:
   - frontend/src/hooks/useServiceStatus.ts
   - frontend/src/hooks/useConnectionStatus.ts
   - frontend/src/hooks/useModelZooStatus.ts
-  - ai/rtdetr/model.py
+  - ai/yolo26/model.py
   - ai/nemotron/AGENTS.md
 ---
 
@@ -68,18 +68,18 @@ Home Security Intelligence transforms commodity IP cameras into an intelligent t
 
 ## High-Level Architecture
 
-![System architecture overview diagram showing four layers: Camera Layer (Foscam IP cameras uploading via FTP), Application Layer (React frontend and FastAPI backend with Redis), GPU Services Layer (RT-DETRv2, Nemotron, Florence-2, CLIP, and Enrichment containers with GPU passthrough), and Data Layer (PostgreSQL database and filesystem storage for thumbnails)](../images/arch-system-overview.png)
+![System architecture overview diagram showing four layers: Camera Layer (Foscam IP cameras uploading via FTP), Application Layer (React frontend and FastAPI backend with Redis), GPU Services Layer (YOLO26, Nemotron, Florence-2, CLIP, and Enrichment containers with GPU passthrough), and Data Layer (PostgreSQL database and filesystem storage for thumbnails)](../images/arch-system-overview.png)
 
 The system is organized into four layers:
 
 - **Camera Layer:** Foscam IP cameras upload images via FTP
 - **Application Layer:** React frontend + FastAPI backend
-- **GPU Services:** 5 AI inference containers (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment)
+- **GPU Services:** 5 AI inference containers (YOLO26, Nemotron, Florence-2, CLIP, Enrichment)
 - **Data Layer:** PostgreSQL, Redis, and filesystem storage
 
 ### Detailed System Architecture Diagram
 
-![System architecture diagram showing four layers: Camera Layer with Foscam cameras, FTP Upload storage, Docker Services (Frontend, Backend, Redis), Containerized GPU Services (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment), and Persistent Storage (PostgreSQL, Filesystem)](../images/architecture/overview-system-architecture.svg)
+![System architecture diagram showing four layers: Camera Layer with Foscam cameras, FTP Upload storage, Docker Services (Frontend, Backend, Redis), Containerized GPU Services (YOLO26, Nemotron, Florence-2, CLIP, Enrichment), and Persistent Storage (PostgreSQL, Filesystem)](../images/architecture/overview-system-architecture.svg)
 
 <!--
 Original Mermaid diagram preserved for reference:
@@ -104,7 +104,7 @@ flowchart TB
     end
 
     subgraph GPU["Containerized GPU Services"]
-        DET["RT-DETRv2<br/>Object Detection<br/>:8090"]
+        DET["YOLO26<br/>Object Detection<br/>:8090"]
         FLO["Florence-2<br/>Vision extraction (optional)<br/>:8092"]
         CLIP["CLIP<br/>Re-identification (optional)<br/>:8093"]
         ENR["Enrichment API<br/>Model-zoo enrichment (optional)<br/>:8094"]
@@ -150,7 +150,7 @@ flowchart TB
 |                      | Pydantic         | 2.0     | Request validation, settings management, schema generation                     |
 | **Database**         | PostgreSQL       | 15+     | Concurrent writes, JSONB, full-text search, proper transaction isolation       |
 |                      | Redis            | 7.x     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache      |
-| **AI - Detection**   | RT-DETRv2        | -       | Real-time transformer detector, 30-50ms inference, COCO-trained                |
+| **AI - Detection**   | YOLO26        | -       | Real-time transformer detector, 30-50ms inference, COCO-trained                |
 |                      | PyTorch          | 2.x     | GPU acceleration, HuggingFace Transformers integration                         |
 | **AI - Reasoning**   | Nemotron-3-Nano-30B | Q4_K_M  | NVIDIA v3 Nano 30B LLM, 128K context, ~14.7GB VRAM (dev: Mini 4B ~3GB)         |
 |                      | llama.cpp        | -       | Efficient inference, GGUF format, GPU offloading, HTTP API                     |
@@ -179,7 +179,7 @@ flowchart TB
 | ------------------------- | -------------------------------------------- | --------------------------------------------------------- |
 | **FileWatcher**           | `backend/services/file_watcher.py`           | Monitor camera directories, debounce, queue new images    |
 | **DedupeService**         | `backend/services/dedupe.py`                 | Prevent duplicate processing via content hashes           |
-| **DetectorClient**        | `backend/services/detector_client.py`        | HTTP client for RT-DETRv2, store detections               |
+| **DetectorClient**        | `backend/services/detector_client.py`        | HTTP client for YOLO26, store detections               |
 | **BatchAggregator**       | `backend/services/batch_aggregator.py`       | Group detections into time-windowed batches               |
 | **NemotronAnalyzer**      | `backend/services/nemotron_analyzer.py`      | LLM risk analysis, event creation                         |
 | **ThumbnailGenerator**    | `backend/services/thumbnail_generator.py`    | Bounding box overlays, preview images                     |
@@ -254,7 +254,7 @@ flowchart TB
 
 | Service              | Location             | Responsibility                                       |
 | -------------------- | -------------------- | ---------------------------------------------------- |
-| **RT-DETRv2 Server** | `ai/rtdetr/model.py` | Object detection inference, security-class filtering |
+| **YOLO26 Server** | `ai/yolo26/model.py` | Object detection inference, security-class filtering |
 | **Nemotron LLM**     | `ai/nemotron/`       | Risk reasoning via llama.cpp server                  |
 | **Florence-2**       | `ai/florence/`       | Optional vision extraction used by enrichment        |
 | **CLIP**             | `ai/clip/`           | Optional entity re-identification used by enrichment |
@@ -329,18 +329,18 @@ Used for: Reliable async job processing
 
 Used for: AI inference requests
 
-| Service   | Endpoint      | Method | Request                             | Response                                    |
-| --------- | ------------- | ------ | ----------------------------------- | ------------------------------------------- |
-| RT-DETRv2 | `/detect`     | POST   | Multipart image                     | `{detections: [{class, confidence, bbox}]}` |
-| RT-DETRv2 | `/health`     | GET    | -                                   | `{status, model_loaded, cuda_available}`    |
-| Nemotron  | `/completion` | POST   | `{prompt, temperature, max_tokens}` | `{content: "..."}`                          |
-| Nemotron  | `/health`     | GET    | -                                   | `{status: "ok"}`                            |
+| Service  | Endpoint      | Method | Request                             | Response                                    |
+| -------- | ------------- | ------ | ----------------------------------- | ------------------------------------------- |
+| YOLO26   | `/detect`     | POST   | Multipart image                     | `{detections: [{class, confidence, bbox}]}` |
+| YOLO26   | `/health`     | GET    | -                                   | `{status, model_loaded, cuda_available}`    |
+| Nemotron | `/completion` | POST   | `{prompt, temperature, max_tokens}` | `{content: "..."}`                          |
+| Nemotron | `/health`     | GET    | -                                   | `{status: "ok"}`                            |
 
 ---
 
 ## Deployment Topology
 
-![Deployment topology diagram showing host machine with Docker Compose network (Frontend, Backend, Redis containers), Containerized GPU Services via CDI (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment), Persistent Storage volumes, and NVIDIA RTX A5500 GPU](../images/architecture/overview-deployment-topology.svg)
+![Deployment topology diagram showing host machine with Docker Compose network (Frontend, Backend, Redis containers), Containerized GPU Services via CDI (YOLO26, Nemotron, Florence-2, CLIP, Enrichment), Persistent Storage volumes, and NVIDIA RTX A5500 GPU](../images/architecture/overview-deployment-topology.svg)
 
 <!--
 Original Mermaid diagram preserved for reference:
@@ -355,7 +355,7 @@ flowchart TB
         end
 
         subgraph GPUContainers["Containerized GPU Services (CDI)"]
-            DET["RT-DETRv2 Container<br/>PyTorch + Transformers<br/>Port 8090<br/>~3–4GB VRAM"]
+            DET["YOLO26 Container<br/>PyTorch + Transformers<br/>Port 8090<br/>~3–4GB VRAM"]
             FLO["Florence-2 Container<br/>Vision extraction (optional)<br/>Port 8092<br/>VRAM varies"]
             CLIP["CLIP Container<br/>Re-ID (optional)<br/>Port 8093<br/>VRAM varies"]
             ENR["Enrichment Container<br/>Model-zoo API (optional)<br/>Port 8094<br/>VRAM varies"]
@@ -396,7 +396,7 @@ flowchart TB
 | **Backend**    | Podman                          | No GPU needed, isolated environment      |
 | **Redis**      | Podman                          | No GPU needed, ephemeral data acceptable |
 | **PostgreSQL** | Podman                          | Database isolation, volume persistence   |
-| **RT-DETRv2**  | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
+| **YOLO26**  | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
 | **Nemotron**   | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
 | **Florence-2** | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
 | **CLIP**       | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
@@ -410,7 +410,7 @@ flowchart TB
 | 80   | Frontend (prod) | HTTP     | Browser                      |
 | 8000 | Backend API     | HTTP/WS  | Browser, Frontend container  |
 | 6379 | Redis           | TCP      | Backend container only       |
-| 8090 | RT-DETRv2       | HTTP     | Backend container, localhost |
+| 8090 | YOLO26       | HTTP     | Backend container, localhost |
 | 8092 | Florence-2      | HTTP     | Backend container, localhost |
 | 8093 | CLIP            | HTTP     | Backend container, localhost |
 | 8094 | Enrichment      | HTTP     | Backend container, localhost |
@@ -422,7 +422,7 @@ flowchart TB
 
 ### Complete Pipeline: Camera to Dashboard
 
-![Sequence diagram showing the complete data flow from camera FTP upload through FileWatcher, detection queue, RT-DETRv2 inference, optional enrichment, fast path vs normal batching decision, Nemotron LLM analysis, and WebSocket broadcast to the dashboard](../images/architecture/overview-pipeline-sequence.svg)
+![Sequence diagram showing the complete data flow from camera FTP upload through FileWatcher, detection queue, YOLO26 inference, optional enrichment, fast path vs normal batching decision, Nemotron LLM analysis, and WebSocket broadcast to the dashboard](../images/architecture/overview-pipeline-sequence.svg)
 
 <!--
 Original Mermaid diagram preserved for reference:
@@ -434,7 +434,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
     participant DW as DetectionWorker
-    participant DET as RT-DETRv2
+    participant DET as YOLO26
     participant DB as PostgreSQL
     participant EN as EnrichmentPipeline
     participant BA as BatchAggregator
@@ -626,7 +626,7 @@ erDiagram
 
 ## Component Interaction Diagram
 
-![Component interaction diagram showing Frontend (React pages, custom hooks, services), Backend (FastAPI routes, AI pipeline, background workers, background services), and External Services (Redis, PostgreSQL, RT-DETRv2, Nemotron LLM, Florence-2, CLIP) with connection lines showing data flow between components](../images/architecture/overview-component-interaction.svg)
+![Component interaction diagram showing Frontend (React pages, custom hooks, services), Backend (FastAPI routes, AI pipeline, background workers, background services), and External Services (Redis, PostgreSQL, YOLO26, Nemotron LLM, Florence-2, CLIP) with connection lines showing data flow between components](../images/architecture/overview-component-interaction.svg)
 
 <!--
 Original Mermaid diagram preserved for reference:
@@ -700,7 +700,7 @@ flowchart TB
     subgraph External["External Services"]
         REDIS[(Redis)]
         POSTGRES[(PostgreSQL)]
-        RTDETR[RT-DETRv2]
+        YOLO26[YOLO26]
         NEMOTRON[Nemotron LLM]
         FLORENCE[Florence-2]
         CLIP[CLIP]
@@ -726,7 +726,7 @@ flowchart TB
     %% Backend internal
     FW --> REDIS
     DW --> DC
-    DC --> RTDETR
+    DC --> YOLO26
     DC --> POSTGRES
     DW --> EP
     EP --> FC
@@ -764,7 +764,7 @@ flowchart TB
 
 | Component  | Failure Mode  | Fallback Behavior                                                 |
 | ---------- | ------------- | ----------------------------------------------------------------- |
-| RT-DETRv2  | Unreachable   | DetectorClient returns empty list, skips detection                |
+| YOLO26  | Unreachable   | DetectorClient returns empty list, skips detection                |
 | Nemotron   | Unreachable   | NemotronAnalyzer returns default risk (50, medium)                |
 | Florence-2 | Unreachable   | EnrichmentPipeline skips vision extraction                        |
 | CLIP       | Unreachable   | EnrichmentPipeline skips re-identification                        |
@@ -812,7 +812,7 @@ flowchart TB
 
 The `HealthMonitor` service:
 
-1. Periodically checks service health (RT-DETRv2, Nemotron, Redis)
+1. Periodically checks service health (YOLO26, Nemotron, Redis)
 2. On failure, attempts restart with exponential backoff
 3. Broadcasts status changes via WebSocket
 4. Gives up after max retries (prevents infinite restart loops)
@@ -845,7 +845,7 @@ The `HealthMonitor` service:
 
 | Operation                 | Typical Latency | Notes                               |
 | ------------------------- | --------------- | ----------------------------------- |
-| RT-DETRv2 inference       | 30-50ms         | Per image, on RTX A5500             |
+| YOLO26 inference          | 30-50ms         | Per image, on RTX A5500             |
 | Nemotron analysis         | 2-5s            | Per batch, depends on prompt length |
 | WebSocket broadcast       | <10ms           | Redis pub/sub to clients            |
 | Database query            | <5ms            | PostgreSQL with proper indexes      |
@@ -856,7 +856,7 @@ The `HealthMonitor` service:
 
 | Resource       | Typical Usage          |
 | -------------- | ---------------------- |
-| RT-DETRv2 VRAM | ~4GB                   |
+| YOLO26 VRAM    | ~4GB                   |
 | Nemotron VRAM  | ~3GB                   |
 | Total GPU VRAM | ~7GB (fits 8GB+ cards) |
 | Backend RAM    | ~500MB                 |
@@ -877,7 +877,7 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # p
 REDIS_URL=redis://localhost:6379/0
 
 # AI Services
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 FLORENCE_URL=http://localhost:8092
 CLIP_URL=http://localhost:8093
@@ -952,7 +952,7 @@ BOTTOM CENTER - AI SERVICES (separate rounded rectangle):
 - Title: "Native GPU Services"
 - GPU chip icon prominently displayed
 - Two boxes:
-  1. "RT-DETRv2 Object Detection" port 8090
+  1. "YOLO26 Object Detection" port 8090
   2. "Nemotron LLM Risk Analysis" port 8091
 - Dashed arrow from Backend to these services labeled "host.docker.internal"
 
@@ -1001,7 +1001,7 @@ Docker Layer (blue container outline):
 - Shared network shown as connecting lines between containers
 
 Native Processes (green highlight, outside Docker):
-- RT-DETRv2 process (port 8090) with arrow to GPU
+- YOLO26 process (port 8090) with arrow to GPU
 - Nemotron LLM process (port 8091) with arrow to GPU
 
 EXTERNAL CONNECTIONS:
@@ -1056,7 +1056,7 @@ STEP 3 - QUEUE:
 STEP 4 - DETECT:
 - GPU chip icon glowing green
 - Bounding box overlay on sample image
-- Label: "RT-DETRv2"
+- Label: "YOLO26"
 - "30-50ms" timing indicator
 - Output: person, car, dog icons with confidence bars
 

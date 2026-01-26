@@ -12,7 +12,7 @@
 The AI pipeline transforms raw camera images into risk-scored security events through a multi-stage process:
 
 ```
-Camera FTP -> FileWatcher -> detection_queue -> RT-DETRv2 -> Detections
+Camera FTP -> FileWatcher -> detection_queue -> YOLO26 -> Detections
   -> Enrichment (context + model zoo + optional Florence/CLIP) -> BatchAggregator -> analysis_queue
   -> Nemotron LLM -> Event -> WebSocket
 ```
@@ -50,7 +50,7 @@ The FileWatcher service monitors directories using OS-native notifications (inot
 
 ### 3. Object Detection
 
-RT-DETRv2 receives images and returns detected objects with bounding boxes.
+YOLO26 receives images and returns detected objects with bounding boxes.
 
 **Security-relevant classes:**
 
@@ -58,7 +58,7 @@ RT-DETRv2 receives images and returns detected objects with bounding boxes.
 - dog, cat, bird
 - bicycle, motorcycle
 
-**Source:** `backend/services/detector_client.py`, `ai/rtdetr/model.py`
+**Source:** `backend/services/detector_client.py`, `ai/yolo26/model.py`
 
 ### 4. Batch Aggregation
 
@@ -132,7 +132,7 @@ New events are published via Redis pub/sub to all connected WebSocket clients.
                                           |
                                           v
 +----------------+     +-------------+   +-----------------+
-| analysis_queue |<----| BatchAggre- |<--| RT-DETRv2       |
+| analysis_queue |<----| BatchAggre- |<--| YOLO26       |
 +-------+--------+     | gator       |   | (Port 8090)     |
         |              +-------------+   +-----------------+
         v                    |
@@ -157,7 +157,7 @@ New events are published via Redis pub/sub to all connected WebSocket clients.
 | File upload detection | ~10ms    | OS filesystem notifications |
 | Debounce delay        | 500ms    | Configurable                |
 | Image validation      | ~5-10ms  | PIL verify()                |
-| RT-DETRv2 inference   | 30-50ms  | GPU accelerated             |
+| YOLO26 inference      | 30-50ms  | GPU accelerated             |
 | Database write        | ~5-10ms  | PostgreSQL async            |
 | Batch window          | 30-90s   | Collects related detections |
 | Nemotron inference    | 2-5s     | GPU accelerated             |
@@ -191,7 +191,7 @@ see [Environment Variable Reference](../reference/config/env-reference.md).
 
 ## Next Steps
 
-- [Detection Service](detection-service.md) - RT-DETRv2 integration details
+- [Detection Service](detection-service.md) - YOLO26 integration details
 - [Batching Logic](batching-logic.md) - How detections are grouped
 - [Risk Analysis](risk-analysis.md) - LLM processing and scoring
 
