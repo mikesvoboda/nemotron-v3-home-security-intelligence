@@ -236,11 +236,35 @@ class Detection(BaseModel):
     bbox: BoundingBox = Field(..., description="Bounding box coordinates")
 
 
+class TrackedDetection(BaseModel):
+    """Single object detection result with tracking information."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    class_name: str = Field(..., alias="class", description="Detected object class")
+    confidence: float = Field(..., description="Detection confidence score (0-1)")
+    bbox: BoundingBox = Field(..., description="Bounding box coordinates")
+    track_id: int | None = Field(
+        None, description="Unique track ID for object tracking (None if no track assigned yet)"
+    )
+
+
 class DetectionResponse(BaseModel):
     """Response format for detection endpoint."""
 
     detections: list[Detection] = Field(
         default_factory=list, description="List of detected objects"
+    )
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+    image_width: int = Field(..., description="Original image width")
+    image_height: int = Field(..., description="Original image height")
+
+
+class TrackingResponse(BaseModel):
+    """Response format for tracking endpoint."""
+
+    detections: list[TrackedDetection] = Field(
+        default_factory=list, description="List of tracked objects with track IDs"
     )
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
     image_width: int = Field(..., description="Original image width")
@@ -554,6 +578,103 @@ class YOLO26Model:
         total_time_ms = (time.perf_counter() - start_time) * 1000
 
         return all_detections, total_time_ms
+
+    def track(
+        self,
+        image: Image.Image,
+        tracker: str = "botsort.yaml",
+        persist: bool = True,
+    ) -> tuple[list[dict[str, Any]], float]:
+        """Run object tracking on an image.
+
+        Uses Ultralytics' built-in tracking to maintain object IDs across frames.
+        Unlike detect(), this method maintains tracker state between calls when
+        persist=True, allowing consistent track IDs across video frames.
+
+        Args:
+            image: PIL Image to track objects in
+            tracker: Tracker configuration file ('botsort.yaml' or 'bytetrack.yaml')
+            persist: If True, maintain track IDs across frames (default: True)
+
+        Returns:
+            Tuple of (detections list with track_ids, inference_time_ms)
+
+        Note:
+            - Track IDs may be None for detections that haven't been assigned a track yet
+            - CUDA cache is cleared after each tracking call to prevent memory fragmentation
+        """
+        if self.model is None:
+            raise RuntimeError("Model not loaded")
+
+        start_time = time.perf_counter()
+
+        try:
+            # Convert to RGB if needed
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+
+            # Run tracking with Ultralytics YOLO
+            results = self.model.track(
+                source=image,
+                tracker=tracker,
+                conf=self.confidence_threshold,
+                persist=persist,
+                verbose=False,
+                device=self.device,
+            )
+
+            # Process results
+            detections = []
+            if results and len(results) > 0:
+                result = results[0]
+                boxes = result.boxes
+
+                if boxes is not None and len(boxes) > 0:
+                    # Get track IDs if available
+                    track_ids = None
+                    if boxes.id is not None:
+                        track_ids = boxes.id.int().cpu().tolist()
+
+                    for idx, box in enumerate(boxes):
+                        # Get class ID and name
+                        class_id = int(box.cls.item())
+                        class_name = COCO_CLASSES.get(class_id)
+
+                        # Filter to security-relevant classes
+                        if class_name is None or class_name not in SECURITY_CLASSES:
+                            continue
+
+                        # Get confidence
+                        confidence = float(box.conf.item())
+
+                        # Get bounding box coordinates (xyxy format)
+                        x1, y1, x2, y2 = box.xyxy[0].tolist()
+
+                        # Get track ID for this detection
+                        track_id = None
+                        if track_ids is not None and idx < len(track_ids):
+                            track_id = track_ids[idx]
+
+                        detections.append(
+                            {
+                                "class": class_name,
+                                "confidence": confidence,
+                                "bbox": {
+                                    "x": int(x1),
+                                    "y": int(y1),
+                                    "width": int(x2 - x1),
+                                    "height": int(y2 - y1),
+                                },
+                                "track_id": track_id,
+                            }
+                        )
+
+            inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+            return detections, inference_time_ms
+        finally:
+            # Clear CUDA cache to prevent memory fragmentation
+            self._clear_cuda_cache()
 
 
 # Global model instance
@@ -889,6 +1010,177 @@ async def detect_objects(
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
         logger.error(f"Detection failed for {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Detection failed: {e!s}") from e
+
+
+@app.post("/track", response_model=TrackingResponse)
+async def track_objects(
+    file: UploadFile = File(None),
+    image_base64: str | None = None,
+    tracker: str = "botsort.yaml",
+    persist: bool = True,
+) -> TrackingResponse:
+    """Track objects in an image with persistent track IDs.
+
+    Similar to /detect, but uses Ultralytics' built-in tracking to maintain
+    object IDs across sequential frames. Track IDs persist between requests
+    when persist=True (default).
+
+    Accepts either:
+    - Multipart file upload (file parameter)
+    - Base64-encoded image (image_base64 parameter)
+
+    Args:
+        file: Image file upload
+        image_base64: Base64-encoded image data
+        tracker: Tracker configuration ('botsort.yaml' or 'bytetrack.yaml')
+        persist: If True, maintain track IDs across frames (default: True)
+
+    Returns:
+        Tracking results with bounding boxes, confidence scores, and track IDs
+
+    Raises:
+        HTTPException 400: Invalid image file (corrupted, truncated, or not an image)
+        HTTPException 413: Image size exceeds maximum allowed size
+        HTTPException 503: Model not loaded
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    # Track filename for error reporting
+    filename = file.filename if file else "base64_image"
+
+    try:
+        # Load image from file or base64 with size validation
+        if file:
+            # Validate file extension first
+            ext_valid, ext_error = validate_file_extension(file.filename)
+            if not ext_valid:
+                logger.warning(
+                    f"Invalid file extension for: {filename}. {ext_error}",
+                    extra={"source_file": filename, "error": ext_error},
+                )
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid file '{filename}': {ext_error}"
+                )
+
+            image_bytes = await file.read()
+            # Validate decoded image size
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Image size ({len(image_bytes)} bytes) exceeds maximum "
+                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes for: {filename}. {magic_result}",
+                    extra={"source_file": filename, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file '{filename}': {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
+            image = Image.open(io.BytesIO(image_bytes))
+        elif image_base64:
+            # Validate base64 string size BEFORE decoding to prevent DoS
+            if len(image_base64) > MAX_BASE64_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Base64 image data size ({len(image_base64)} bytes) exceeds "
+                    f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
+                    f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+                )
+            try:
+                image_bytes = base64.b64decode(image_base64)
+            except binascii.Error as e:
+                raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
+            # Validate decoded image size (base64 can decode to larger or smaller)
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
+                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes for: {filename}. {magic_result}",
+                    extra={"source_file": filename, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file '{filename}': {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
+            image = Image.open(io.BytesIO(image_bytes))
+        else:
+            raise HTTPException(
+                status_code=400, detail="Either 'file' or 'image_base64' must be provided"
+            )
+
+        # Get original dimensions
+        img_width, img_height = image.size
+
+        # Run tracking with metrics tracking
+        start_time = time.perf_counter()
+        detections, inference_time_ms = model.track(image, tracker=tracker, persist=persist)
+        latency_seconds = time.perf_counter() - start_time
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="track").observe(latency_seconds)
+        DETECTIONS_PER_IMAGE.observe(len(detections))
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="success").inc()
+
+        return TrackingResponse(
+            detections=[TrackedDetection(**d) for d in detections],
+            inference_time_ms=inference_time_ms,
+            image_width=img_width,
+            image_height=img_height,
+        )
+
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        raise
+    except UnidentifiedImageError as e:
+        # Handle corrupted/invalid image files - return 400 Bad Request
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        logger.warning(
+            f"Invalid image file received: {filename}. "
+            f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
+            extra={"source_file": filename, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image file '{filename}': Cannot identify image format. "
+            f"File may be corrupted, truncated, or not a supported image type "
+            f"(supported: JPEG, PNG, GIF, BMP, WEBP).",
+        ) from e
+    except OSError as e:
+        # Handle truncated or corrupted images that PIL can partially read
+        # This catches "image file is truncated" errors
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        logger.warning(
+            f"Corrupted image file received: {filename}. Error: {e}",
+            extra={"source_file": filename, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Corrupted image file '{filename}': {e!s}",
+        ) from e
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        logger.error(f"Tracking failed for {filename}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Tracking failed: {e!s}") from e
 
 
 @app.post("/detect/batch")

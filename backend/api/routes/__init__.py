@@ -24,6 +24,7 @@ from .services import router as services_router
 from .settings_api import router as settings_api_router
 from .summaries import router as summaries_router
 from .system_settings import router as system_settings_router
+from .tracks import router as tracks_router
 from .zone_anomalies import router as zone_anomalies_router
 from .zone_household import router as zone_household_router
 from .zones import router as zones_router
@@ -53,6 +54,7 @@ __all__ = [
     "settings_api_router",
     "summaries_router",
     "system_settings_router",
+    "tracks_router",
     "zone_anomalies_router",
     "zone_household_router",
     "zones_router",

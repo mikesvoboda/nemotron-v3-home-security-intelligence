@@ -73,6 +73,7 @@ from backend.api.routes import (
     summaries,
     system,
     system_settings,
+    tracks,
     webhooks,
     websocket,
     zone_anomalies,
@@ -1196,6 +1197,7 @@ app.include_router(settings_api.router)
 app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(system_settings.router)
+app.include_router(tracks.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)
 app.include_router(zone_anomalies.router)

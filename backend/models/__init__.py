@@ -73,6 +73,7 @@ from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .scheduled_report import ReportFormat, ReportFrequency, ScheduledReport
 from .summary import Summary, SummaryType
+from .track import Track
 from .user_calibration import UserCalibration
 from .zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly
 from .zone_baseline import ZoneActivityBaseline
@@ -158,6 +159,7 @@ __all__ = [
     "SummaryType",
     "SystemSetting",
     "ThreatDetection",
+    "Track",
     "TrustLevel",
     "TrustStatus",
     "UserCalibration",

@@ -7454,6 +7454,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracks/camera/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Tracks By Camera
+         * @description Get paginated list of tracks for a camera.
+         *
+         *     Returns a list of tracks observed on a specific camera with optional
+         *     filtering by time range and object class. Results are ordered by
+         *     first_seen timestamp (newest first).
+         *
+         *     Args:
+         *         camera_id: ID of the camera to query tracks for.
+         *         db: Database session.
+         *         start_time: Optional start time filter (inclusive, ISO format).
+         *         end_time: Optional end time filter (inclusive, ISO format).
+         *         object_class: Optional filter by object class (e.g., 'person', 'car').
+         *         page: Page number (1-indexed, default 1).
+         *         page_size: Number of items per page (1-100, default 50).
+         *
+         *     Returns:
+         *         TrackListResponse with paginated tracks and total count.
+         *
+         *     Example:
+         *         GET /api/tracks/camera/front_door?object_class=person&page=1&page_size=25
+         *         Returns first 25 person tracks from front_door camera.
+         */
+        get: operations["tracks_get_tracks_by_camera"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{camera_id}/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Track History
+         * @description Get full track history with trajectory and metrics.
+         *
+         *     Returns the complete trajectory data and computed movement metrics
+         *     for a specific track, suitable for visualization and analysis.
+         *
+         *     Args:
+         *         camera_id: ID of the camera where the track was observed.
+         *         track_id: Tracker-assigned track ID (unique per camera session).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         TrackHistoryResponse with full trajectory and movement metrics.
+         *
+         *     Raises:
+         *         HTTPException: 404 if track not found.
+         *
+         *     Example:
+         *         GET /api/tracks/front_door/42
+         *         Returns trajectory points and metrics for track 42 on front_door camera.
+         */
+        get: operations["tracks_get_track_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{camera_id}/{track_id}/trajectory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Track Trajectory
+         * @description Get just the trajectory points for a track.
+         *
+         *     Returns only the position data (x, y, timestamp) for efficient
+         *     trajectory plotting without full track metadata.
+         *
+         *     Args:
+         *         camera_id: ID of the camera where the track was observed.
+         *         track_id: Tracker-assigned track ID (unique per camera session).
+         *         db: Database session.
+         *         limit: Maximum number of trajectory points to return (default 100, max 1000).
+         *             Returns the most recent points if trajectory exceeds limit.
+         *
+         *     Returns:
+         *         List of TrajectoryPoint objects ordered by timestamp.
+         *
+         *     Raises:
+         *         HTTPException: 404 if track not found.
+         *
+         *     Example:
+         *         GET /api/tracks/front_door/42/trajectory?limit=50
+         *         Returns up to 50 most recent trajectory points.
+         */
+        get: operations["tracks_get_track_trajectory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/alertmanager/webhook": {
         parameters: {
             query?: never;
@@ -13526,6 +13644,16 @@ export interface components {
              */
             thumbnail_path?: string | null;
             /**
+             * Track Confidence
+             * @description Confidence score for the track assignment (0-1)
+             */
+            track_confidence?: number | null;
+            /**
+             * Track Id
+             * @description Unique track ID for tracking objects across frames
+             */
+            track_id?: number | null;
+            /**
              * Video Codec
              * @description Video codec (e.g., h264, hevc)
              */
@@ -13625,6 +13753,16 @@ export interface components {
              * @description Path to thumbnail
              */
             thumbnail_path?: string | null;
+            /**
+             * Track Confidence
+             * @description Confidence score for the track assignment (0-1)
+             */
+            track_confidence?: number | null;
+            /**
+             * Track Id
+             * @description Unique track ID for tracking objects across frames
+             */
+            track_id?: number | null;
         };
         /**
          * DetectionSettings
@@ -20262,6 +20400,41 @@ export interface components {
             up: number;
         };
         /**
+         * MovementMetrics
+         * @description Calculated movement metrics for a track.
+         *
+         *     Aggregated statistics computed from the track's trajectory points,
+         *     useful for behavioral analysis and anomaly detection.
+         * @example {
+         *       "avg_speed": 45.2,
+         *       "direction": 135,
+         *       "duration_seconds": 27.7,
+         *       "total_distance": 1250.5
+         *     }
+         */
+        MovementMetrics: {
+            /**
+             * Avg Speed
+             * @description Average speed (pixels/second)
+             */
+            avg_speed: number;
+            /**
+             * Direction
+             * @description Overall direction in degrees (0-360, where 0=right, 90=down)
+             */
+            direction?: number | null;
+            /**
+             * Duration Seconds
+             * @description Track duration in seconds
+             */
+            duration_seconds: number;
+            /**
+             * Total Distance
+             * @description Total distance traveled (pixels)
+             */
+            total_distance: number;
+        };
+        /**
          * NemotronMetrics
          * @description Metrics for Nemotron LLM.
          * @example {
@@ -26183,6 +26356,250 @@ export interface components {
             top_allocations?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * TrackHistoryResponse
+         * @description Response with full track history including trajectory.
+         *
+         *     Includes complete trajectory data for visualization and analysis.
+         *     Use for track detail views and trajectory plotting.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "first_seen": "2026-01-26T12:00:00Z",
+         *       "id": 1,
+         *       "last_seen": "2026-01-26T12:00:27Z",
+         *       "metrics": {
+         *         "avg_speed": 45.2,
+         *         "direction": 135,
+         *         "duration_seconds": 27.7,
+         *         "total_distance": 1250.5
+         *       },
+         *       "object_class": "person",
+         *       "track_id": 42,
+         *       "trajectory": [
+         *         {
+         *           "timestamp": "2026-01-26T12:00:00Z",
+         *           "x": 100,
+         *           "y": 200
+         *         },
+         *         {
+         *           "timestamp": "2026-01-26T12:00:05Z",
+         *           "x": 150.5,
+         *           "y": 220.3
+         *         },
+         *         {
+         *           "timestamp": "2026-01-26T12:00:10Z",
+         *           "x": 210.2,
+         *           "y": 245.8
+         *         },
+         *         {
+         *           "timestamp": "2026-01-26T12:00:15Z",
+         *           "x": 280,
+         *           "y": 270
+         *         },
+         *         {
+         *           "timestamp": "2026-01-26T12:00:20Z",
+         *           "x": 350.5,
+         *           "y": 300.2
+         *         },
+         *         {
+         *           "timestamp": "2026-01-26T12:00:27Z",
+         *           "x": 420,
+         *           "y": 330.5
+         *         }
+         *       ]
+         *     }
+         */
+        TrackHistoryResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID where track was observed
+             */
+            camera_id: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Timestamp of first observation
+             */
+            first_seen: string;
+            /**
+             * Id
+             * @description Database track ID
+             */
+            id: number;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Timestamp of last observation
+             */
+            last_seen: string;
+            /** @description Computed movement metrics */
+            metrics: components["schemas"]["MovementMetrics"];
+            /**
+             * Object Class
+             * @description Detected object class (person, car, etc.)
+             */
+            object_class: string;
+            /**
+             * Track Id
+             * @description Tracker-assigned ID (unique per camera session)
+             */
+            track_id: number;
+            /**
+             * Trajectory
+             * @description Ordered list of trajectory points
+             */
+            trajectory: components["schemas"]["TrajectoryPoint"][];
+        };
+        /**
+         * TrackListResponse
+         * @description Paginated list of tracks.
+         *
+         *     Standard pagination envelope for track list endpoints.
+         * @example {
+         *       "page": 1,
+         *       "page_size": 50,
+         *       "total": 2,
+         *       "tracks": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "first_seen": "2026-01-26T12:00:00Z",
+         *           "id": 1,
+         *           "last_seen": "2026-01-26T12:00:27Z",
+         *           "metrics": {
+         *             "avg_speed": 45.2,
+         *             "direction": 135,
+         *             "duration_seconds": 27.7,
+         *             "total_distance": 1250.5
+         *           },
+         *           "object_class": "person",
+         *           "track_id": 42
+         *         },
+         *         {
+         *           "camera_id": "front_door",
+         *           "first_seen": "2026-01-26T12:01:00Z",
+         *           "id": 2,
+         *           "last_seen": "2026-01-26T12:01:15Z",
+         *           "metrics": {
+         *             "avg_speed": 140,
+         *             "direction": 270,
+         *             "duration_seconds": 15,
+         *             "total_distance": 2100
+         *           },
+         *           "object_class": "car",
+         *           "track_id": 43
+         *         }
+         *       ]
+         *     }
+         */
+        TrackListResponse: {
+            /**
+             * Page
+             * @description Current page number (1-indexed)
+             */
+            page: number;
+            /**
+             * Page Size
+             * @description Number of items per page
+             */
+            page_size: number;
+            /**
+             * Total
+             * @description Total number of tracks matching the query
+             */
+            total: number;
+            /**
+             * Tracks
+             * @description List of tracks
+             */
+            tracks: components["schemas"]["TrackResponse"][];
+        };
+        /**
+         * TrackResponse
+         * @description Response for a single track.
+         *
+         *     Basic track information without full trajectory data.
+         *     Use TrackHistoryResponse for full trajectory details.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "first_seen": "2026-01-26T12:00:00Z",
+         *       "id": 1,
+         *       "last_seen": "2026-01-26T12:00:27Z",
+         *       "metrics": {
+         *         "avg_speed": 45.2,
+         *         "direction": 135,
+         *         "duration_seconds": 27.7,
+         *         "total_distance": 1250.5
+         *       },
+         *       "object_class": "person",
+         *       "track_id": 42
+         *     }
+         */
+        TrackResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID where track was observed
+             */
+            camera_id: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Timestamp of first observation
+             */
+            first_seen: string;
+            /**
+             * Id
+             * @description Database track ID
+             */
+            id: number;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Timestamp of last observation
+             */
+            last_seen: string;
+            /** @description Computed movement metrics (may be null for short tracks) */
+            metrics?: components["schemas"]["MovementMetrics"] | null;
+            /**
+             * Object Class
+             * @description Detected object class (person, car, etc.)
+             */
+            object_class: string;
+            /**
+             * Track Id
+             * @description Tracker-assigned ID (unique per camera session)
+             */
+            track_id: number;
+        };
+        /**
+         * TrajectoryPoint
+         * @description Single point in a track trajectory.
+         *
+         *     Represents a discrete position observation of a tracked object
+         *     at a specific point in time.
+         * @example {
+         *       "timestamp": "2026-01-26T12:00:00Z",
+         *       "x": 640.5,
+         *       "y": 480.2
+         *     }
+         */
+        TrajectoryPoint: {
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Time of this position
+             */
+            timestamp: string;
+            /**
+             * X
+             * @description X coordinate (pixels)
+             */
+            x: number;
+            /**
+             * Y
+             * @description Y coordinate (pixels)
+             */
+            y: number;
         };
         /**
          * TrustCheckResponse
@@ -38116,6 +38533,115 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventRegistryResponse"];
+                };
+            };
+        };
+    };
+    tracks_get_tracks_by_camera: {
+        parameters: {
+            query?: {
+                /** @description Filter tracks starting after this time (ISO format) */
+                start_time?: string | null;
+                /** @description Filter tracks starting before this time (ISO format) */
+                end_time?: string | null;
+                /** @description Filter by object class (e.g., 'person', 'car') */
+                object_class?: string | null;
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tracks_get_track_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                track_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tracks_get_track_trajectory: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of trajectory points */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+                track_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrajectoryPoint"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
