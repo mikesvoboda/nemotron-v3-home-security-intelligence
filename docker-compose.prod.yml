@@ -47,7 +47,6 @@
 #   - FRONTEND_PORT: Host port for frontend HTTP (default: 5173)
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8443)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
-#   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 30)
 #   - CTX_SIZE: LLM context window size (default: 131072)
@@ -414,6 +413,9 @@ services:
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
       - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
       - ACTION_MODEL_PATH=/models/xclip-base-patch32
+      # TensorRT acceleration (2-3x faster inference, auto-exports engine on first run)
+      - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
+      - THREAT_DETECTOR_USE_TENSORRT=${THREAT_DETECTOR_USE_TENSORRT:-true}
       # VRAM management
       - VRAM_BUDGET_GB=6.8
       - MODEL_LOAD_TIMEOUT=30
@@ -551,7 +553,6 @@ services:
       # Pyroscope continuous profiling (enabled by default, set PYROSCOPE_ENABLED=false to disable)
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
@@ -590,12 +591,12 @@ services:
       # AI services have health-based startup ordering (NEM-1582)
       # Backend will start after critical AI services are healthy
       # Expected startup times:
-      #   - ai-detector (RT-DETR): ~60s (model loading)
+      #   - ai-yolo26 (YOLO26): ~60s (TensorRT model loading)
       #   - ai-llm (Nemotron): ~120s (LLM loading, largest model)
       #   - ai-florence: ~60s (Florence-2 model loading)
       #   - ai-clip: ~60s (CLIP model loading)
       #   - ai-enrichment: ~180s (multiple models: vehicle, pet, clothing, depth)
-      ai-detector:
+      ai-yolo26:
         condition: service_healthy
       ai-llm:
         condition: service_healthy
@@ -605,8 +606,6 @@ services:
       # ai-clip:
       #   condition: service_healthy
       # ai-enrichment:
-      #   condition: service_healthy
-      # ai-yolo26:
       #   condition: service_healthy
     healthcheck:
       test:
