@@ -26953,6 +26953,45 @@
         "title": "WebhookListResponse",
         "type": "object"
       },
+      "WebhookProcessingResponse": {
+        "description": "Schema for webhook processing response.",
+        "example": {
+          "message": "Processed 1 alert(s)",
+          "processed": 1,
+          "received": 1,
+          "status": "ok"
+        },
+        "properties": {
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "processed": {
+            "description": "Number of alerts processed",
+            "title": "Processed",
+            "type": "integer"
+          },
+          "received": {
+            "description": "Number of alerts received",
+            "title": "Received",
+            "type": "integer"
+          },
+          "status": {
+            "description": "Processing status (ok or error)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "received",
+          "processed",
+          "message"
+        ],
+        "title": "WebhookProcessingResponse",
+        "type": "object"
+      },
       "WebhookResponse": {
         "description": "Full webhook configuration response.\n\nReturns complete webhook information including configuration,\nmetadata, and delivery statistics.\n\nAttributes:\n    id: Unique webhook identifier.\n    name: Webhook name.\n    url: Webhook endpoint URL.\n    event_types: Subscribed event types.\n    integration_type: Integration type.\n    enabled: Whether active.\n    custom_headers: Custom HTTP headers.\n    payload_template: Jinja2 payload template.\n    max_retries: Max retry attempts.\n    retry_delay_seconds: Initial retry delay.\n    created_at: Creation timestamp.\n    updated_at: Last update timestamp.\n    total_deliveries: Total delivery attempts.\n    successful_deliveries: Successful delivery count.\n    last_delivery_at: Last delivery timestamp.\n    last_delivery_status: Status of last delivery.",
         "properties": {
@@ -28367,45 +28406,6 @@
           }
         },
         "title": "ZoneUpdate",
-        "type": "object"
-      },
-      "backend__api__schemas__webhooks__WebhookResponse": {
-        "description": "Schema for webhook processing response.",
-        "example": {
-          "message": "Processed 1 alert(s)",
-          "processed": 1,
-          "received": 1,
-          "status": "ok"
-        },
-        "properties": {
-          "message": {
-            "description": "Human-readable status message",
-            "title": "Message",
-            "type": "string"
-          },
-          "processed": {
-            "description": "Number of alerts processed",
-            "title": "Processed",
-            "type": "integer"
-          },
-          "received": {
-            "description": "Number of alerts received",
-            "title": "Received",
-            "type": "integer"
-          },
-          "status": {
-            "description": "Processing status (ok or error)",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "received",
-          "processed",
-          "message"
-        ],
-        "title": "WebhookResponse",
         "type": "object"
       }
     }
@@ -43064,7 +43064,7 @@
     },
     "/api/webhooks/alerts": {
       "post": {
-        "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Logs the alert for observability\n2. Broadcasts to WebSocket clients for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are separate from AI-generated security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    background_tasks: FastAPI background tasks for async processing\n\nReturns:\n    WebhookResponse with processing status",
+        "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Logs the alert for observability\n2. Broadcasts to WebSocket clients for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are separate from AI-generated security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    background_tasks: FastAPI background tasks for async processing\n\nReturns:\n    WebhookProcessingResponse with processing status",
         "operationId": "webhooks_receive_alertmanager_webhook",
         "requestBody": {
           "content": {
@@ -43081,7 +43081,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/backend__api__schemas__webhooks__WebhookResponse"
+                  "$ref": "#/components/schemas/WebhookProcessingResponse"
                 }
               }
             },
