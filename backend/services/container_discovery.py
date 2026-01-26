@@ -12,7 +12,7 @@ Key Components:
 
 Pre-configured Service Categories:
 - INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis (critical, aggressive restart)
-- AI_CONFIGS: YOLO26v2, Nemotron, Florence, CLIP, Enrichment (standard backoff)
+- AI_CONFIGS: YOLO26, Nemotron, Florence, CLIP, Enrichment (standard backoff)
 - MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Redis Exporter, JSON Exporter,
                       Blackbox Exporter (lenient, per CATEGORY_DEFAULTS)
 
@@ -97,7 +97,7 @@ def build_service_configs(
 
     ai_configs: dict[str, ServiceConfig] = {
         "ai-detector": ServiceConfig(
-            display_name="YOLO26v2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             port=yolo26_port,
             health_endpoint="/health",
@@ -266,7 +266,7 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
 
 AI_CONFIGS: dict[str, ServiceConfig] = {
     "ai-detector": ServiceConfig(
-        display_name="YOLO26v2",
+        display_name="YOLO26",
         category=ServiceCategory.AI,
         port=8090,
         health_endpoint="/health",

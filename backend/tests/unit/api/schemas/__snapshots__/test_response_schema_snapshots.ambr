@@ -5,7 +5,6 @@
       'AreaBasic': dict({
         'description': '''
           Minimal area schema for embedding in CameraResponse.
-
           NEM-3597: Basic area information for API responses that include
           camera-area relationships without full area details.
         ''',
@@ -35,7 +34,6 @@
       'CameraStatus': dict({
         'description': '''
           Camera status values.
-
           Indicates the operational state of a camera:
           - ONLINE: Camera is active and receiving images
           - OFFLINE: Camera is not currently active (e.g., disconnected)
@@ -54,7 +52,6 @@
     }),
     'description': '''
       Schema for camera response.
-
       NEM-3597: Added property_id and areas fields to expose camera relationships.
     ''',
     'example': dict({
@@ -889,6 +886,7 @@
       'DetectionTrendItem': dict({
         'description': '''
           Schema for a single detection trend data point (for Grafana time series).
+
           Used by the Grafana Analytics dashboard to display detection trends over time.
           The timestamp field is Unix epoch milliseconds for Grafana JSON datasource compatibility.
         ''',
@@ -943,6 +941,7 @@
     }),
     'description': '''
       Schema for detection statistics response.
+
       Returns aggregate statistics about detections including counts by object class
       and detection trends over time. Used by the AI Performance page and Grafana
       Analytics dashboard.
@@ -2684,6 +2683,7 @@
   dict({
     'description': '''
       Schema for aggregate feedback statistics.
+
       Returns counts of feedback by type and by camera to help
       calibrate the AI model's risk assessment.
     ''',
@@ -2789,6 +2789,7 @@
   dict({
     'description': '''
       Pagination metadata for list responses.
+
       Contains information about the current page and total results.
       Supports both offset-based and cursor-based pagination.
     ''',
