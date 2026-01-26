@@ -67,6 +67,25 @@ AlertRuleEngineDep = AlertRuleEngine
 router = APIRouter(prefix="/api/alerts/rules", tags=["alert-rules"])
 
 
+async def _invalidate_alerts_cache_background(
+    cache: CacheService,
+    reason: CacheInvalidationReason,
+) -> None:
+    """Invalidate alert-related caches in background task (NEM-3744).
+
+    This function is designed to be run as a BackgroundTask to reduce
+    response latency by deferring non-critical cache invalidation.
+
+    Args:
+        cache: Cache service instance
+        reason: Reason for cache invalidation (for logging/metrics)
+    """
+    try:
+        await cache.invalidate_alerts(reason=reason)
+    except Exception as e:
+        logger.warning(f"Background cache invalidation failed: {e}")
+
+
 def _rule_to_response(rule: AlertRule) -> dict[str, Any]:
     """Convert an AlertRule model to response dict."""
     return {
@@ -165,6 +184,7 @@ async def list_rules(
 )
 async def create_rule(
     rule_data: AlertRuleCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> AlertRuleResponse:
@@ -212,12 +232,12 @@ async def create_rule(
     await db.commit()
     await db.refresh(rule)
 
-    # Invalidate alert-related caches after successful create (NEM-1952)
-    try:
-        await cache.invalidate_alerts(reason=CacheInvalidationReason.ALERT_RULE_CREATED)
-    except Exception as e:
-        # Cache invalidation is non-critical - log but don't fail the request
-        logger.warning(f"Cache invalidation failed after alert rule create: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_alerts_cache_background,
+        cache,
+        CacheInvalidationReason.ALERT_RULE_CREATED,
+    )
 
     return AlertRuleResponse(**_rule_to_response(rule))
 
@@ -296,6 +316,7 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
 async def update_rule(
     rule_id: str,
     rule_data: AlertRuleUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> AlertRuleResponse:
@@ -322,12 +343,12 @@ async def update_rule(
     await db.commit()
     await db.refresh(rule)
 
-    # Invalidate alert-related caches after successful update (NEM-1952)
-    try:
-        await cache.invalidate_alerts(reason=CacheInvalidationReason.ALERT_RULE_UPDATED)
-    except Exception as e:
-        # Cache invalidation is non-critical - log but don't fail the request
-        logger.warning(f"Cache invalidation failed after alert rule update: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_alerts_cache_background,
+        cache,
+        CacheInvalidationReason.ALERT_RULE_UPDATED,
+    )
 
     return AlertRuleResponse(**_rule_to_response(rule))
 
@@ -342,6 +363,7 @@ async def update_rule(
 )
 async def delete_rule(
     rule_id: str,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> None:
@@ -359,12 +381,12 @@ async def delete_rule(
     await db.delete(rule)
     await db.commit()
 
-    # Invalidate alert-related caches after successful delete (NEM-1952)
-    try:
-        await cache.invalidate_alerts(reason=CacheInvalidationReason.ALERT_RULE_DELETED)
-    except Exception as e:
-        # Cache invalidation is non-critical - log but don't fail the request
-        logger.warning(f"Cache invalidation failed after alert rule delete: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_alerts_cache_background,
+        cache,
+        CacheInvalidationReason.ALERT_RULE_DELETED,
+    )
 
 
 @router.post(

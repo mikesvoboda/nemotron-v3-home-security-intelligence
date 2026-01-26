@@ -1,4 +1,4 @@
-"""Unit tests for WebSocket message compression utilities (NEM-3154).
+"""Unit tests for WebSocket message compression utilities (NEM-3154, NEM-3737).
 
 Tests cover:
 - Compression threshold logic
@@ -6,6 +6,8 @@ Tests cover:
 - Magic byte protocol
 - Compression statistics tracking
 - Configuration settings integration
+- Serialization format detection (NEM-3737)
+- MessagePack integration (NEM-3737)
 """
 
 import json
@@ -16,12 +18,18 @@ import pytest
 
 from backend.core.websocket.compression import (
     COMPRESSION_MAGIC_BYTE,
+    MSGPACK_MAGIC_BYTE,
     CompressionStats,
+    SerializationFormat,
     compress_message,
+    decode_message_auto,
     decompress_message,
+    detect_format,
     get_compression_stats,
     is_compressed_message,
+    is_msgpack_message,
     prepare_message,
+    prepare_message_with_format,
     reset_compression_stats,
     should_compress,
 )
@@ -335,3 +343,210 @@ class TestRoundTrip:
         # Decompress and verify
         decompressed = decompress_message(prepared)
         assert json.loads(decompressed) == large_message
+
+
+class TestSerializationFormat:
+    """Tests for SerializationFormat enum (NEM-3737)."""
+
+    def test_from_query_param_json(self):
+        """Should parse 'json' query param."""
+        assert SerializationFormat.from_query_param("json") == SerializationFormat.JSON
+
+    def test_from_query_param_zlib(self):
+        """Should parse 'zlib' query param."""
+        assert SerializationFormat.from_query_param("zlib") == SerializationFormat.ZLIB
+
+    def test_from_query_param_msgpack(self):
+        """Should parse 'msgpack' query param."""
+        assert SerializationFormat.from_query_param("msgpack") == SerializationFormat.MSGPACK
+
+    def test_from_query_param_case_insensitive(self):
+        """Should handle case-insensitive input."""
+        assert SerializationFormat.from_query_param("MSGPACK") == SerializationFormat.MSGPACK
+        assert SerializationFormat.from_query_param("MsgPack") == SerializationFormat.MSGPACK
+
+    def test_from_query_param_none(self):
+        """Should default to JSON for None."""
+        assert SerializationFormat.from_query_param(None) == SerializationFormat.JSON
+
+    def test_from_query_param_empty(self):
+        """Should default to JSON for empty string."""
+        assert SerializationFormat.from_query_param("") == SerializationFormat.JSON
+
+    def test_from_query_param_invalid(self):
+        """Should default to JSON for invalid value."""
+        assert SerializationFormat.from_query_param("invalid") == SerializationFormat.JSON
+
+
+class TestFormatDetection:
+    """Tests for format detection (NEM-3737)."""
+
+    def test_detect_format_zlib(self):
+        """Should detect zlib format by magic byte."""
+        data = b"\x00compressed_data"
+        assert detect_format(data) == SerializationFormat.ZLIB
+
+    def test_detect_format_msgpack(self):
+        """Should detect MessagePack format by magic byte."""
+        data = b"\x01msgpack_data"
+        assert detect_format(data) == SerializationFormat.MSGPACK
+
+    def test_detect_format_json_bytes(self):
+        """Should detect JSON for bytes without magic byte."""
+        data = b'{"type": "event"}'
+        assert detect_format(data) == SerializationFormat.JSON
+
+    def test_detect_format_json_string(self):
+        """Should detect JSON for string input."""
+        data = '{"type": "event"}'
+        assert detect_format(data) == SerializationFormat.JSON
+
+    def test_detect_format_empty(self):
+        """Should default to JSON for empty bytes."""
+        assert detect_format(b"") == SerializationFormat.JSON
+
+    def test_is_msgpack_message(self):
+        """Should identify MessagePack messages."""
+        msgpack_data = MSGPACK_MAGIC_BYTE + b"data"
+        assert is_msgpack_message(msgpack_data)
+        assert not is_msgpack_message(b'{"json": true}')
+        assert not is_msgpack_message(COMPRESSION_MAGIC_BYTE + b"zlib")
+
+
+class TestDecodeMessageAuto:
+    """Tests for auto-detecting decode function (NEM-3737)."""
+
+    def test_decode_json_string(self):
+        """Should decode JSON string."""
+        data = '{"type": "event", "value": 42}'
+        result = decode_message_auto(data)
+        assert result == {"type": "event", "value": 42}
+
+    def test_decode_json_bytes(self):
+        """Should decode JSON bytes."""
+        data = b'{"type": "event", "value": 42}'
+        result = decode_message_auto(data)
+        assert result == {"type": "event", "value": 42}
+
+    def test_decode_zlib_compressed(self):
+        """Should decode zlib-compressed JSON."""
+        original = {"type": "event", "data": "test"}
+        compressed = COMPRESSION_MAGIC_BYTE + zlib.compress(json.dumps(original).encode("utf-8"))
+        result = decode_message_auto(compressed)
+        assert result == original
+
+    def test_decode_msgpack(self):
+        """Should decode MessagePack."""
+        from backend.core.websocket.msgpack_serialization import encode_msgpack
+
+        original = {"type": "event", "value": 123}
+        encoded = encode_msgpack(original, track_stats=False)
+        result = decode_message_auto(encoded)
+        assert result == original
+
+    def test_decode_invalid_json_raises(self):
+        """Should raise ValueError for invalid JSON."""
+        with pytest.raises(ValueError, match="Failed to decode JSON"):
+            decode_message_auto("not json")
+
+
+class TestPrepareMessageWithFormat:
+    """Tests for prepare_message_with_format (NEM-3737)."""
+
+    def test_prepare_json_format(self):
+        """Should return JSON string for JSON format."""
+        message = {"type": "event"}
+        prepared, format_used = prepare_message_with_format(
+            message, format=SerializationFormat.JSON, track_stats=False
+        )
+
+        assert format_used == SerializationFormat.JSON
+        assert isinstance(prepared, str)
+        assert json.loads(prepared) == message
+
+    def test_prepare_msgpack_format(self):
+        """Should return MessagePack bytes for MSGPACK format."""
+        message = {"type": "event", "value": 42}
+        prepared, format_used = prepare_message_with_format(
+            message, format=SerializationFormat.MSGPACK, track_stats=False
+        )
+
+        assert format_used == SerializationFormat.MSGPACK
+        assert isinstance(prepared, bytes)
+        assert prepared.startswith(MSGPACK_MAGIC_BYTE)
+
+        # Verify it decodes correctly
+        result = decode_message_auto(prepared)
+        assert result == message
+
+    def test_prepare_zlib_format_large_message(self):
+        """Should return zlib-compressed bytes for ZLIB format when above threshold."""
+        large_message = {"type": "event", "data": "x" * 2000}
+
+        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+            mock_settings.return_value.websocket_compression_enabled = True
+            mock_settings.return_value.websocket_compression_threshold = 1024
+            mock_settings.return_value.websocket_compression_level = 6
+
+            prepared, format_used = prepare_message_with_format(
+                large_message, format=SerializationFormat.ZLIB, track_stats=False
+            )
+
+        assert format_used == SerializationFormat.ZLIB
+        assert isinstance(prepared, bytes)
+        assert prepared.startswith(COMPRESSION_MAGIC_BYTE)
+
+    def test_prepare_zlib_format_small_message(self):
+        """Should return JSON for ZLIB format when below threshold."""
+        small_message = {"type": "ping"}
+
+        with patch("backend.core.websocket.compression.get_settings") as mock_settings:
+            mock_settings.return_value.websocket_compression_enabled = True
+            mock_settings.return_value.websocket_compression_threshold = 1024
+            mock_settings.return_value.websocket_compression_level = 6
+
+            prepared, format_used = prepare_message_with_format(
+                small_message, format=SerializationFormat.ZLIB, track_stats=False
+            )
+
+        # Falls back to JSON since message is below threshold
+        assert format_used == SerializationFormat.JSON
+        assert isinstance(prepared, str)
+
+    def test_prepare_msgpack_from_json_string(self):
+        """Should parse JSON string and encode as MessagePack."""
+        json_str = '{"type": "event", "value": 123}'
+        prepared, format_used = prepare_message_with_format(
+            json_str, format=SerializationFormat.MSGPACK, track_stats=False
+        )
+
+        assert format_used == SerializationFormat.MSGPACK
+        assert isinstance(prepared, bytes)
+
+        result = decode_message_auto(prepared)
+        assert result == {"type": "event", "value": 123}
+
+
+class TestMagicByteDistinction:
+    """Tests verifying magic bytes don't conflict."""
+
+    def test_zlib_and_msgpack_magic_bytes_distinct(self):
+        """Magic bytes should be distinct."""
+        assert COMPRESSION_MAGIC_BYTE != MSGPACK_MAGIC_BYTE
+        assert COMPRESSION_MAGIC_BYTE == b"\x00"
+        assert MSGPACK_MAGIC_BYTE == b"\x01"
+
+    def test_format_detection_zlib_vs_msgpack(self):
+        """Should correctly distinguish zlib from MessagePack."""
+        zlib_data = b"\x00" + b"compressed"
+        msgpack_data = b"\x01" + b"msgpack"
+        json_data = b'{"json": true}'
+
+        assert is_compressed_message(zlib_data)
+        assert not is_msgpack_message(zlib_data)
+
+        assert is_msgpack_message(msgpack_data)
+        assert not is_compressed_message(msgpack_data)
+
+        assert not is_compressed_message(json_data)
+        assert not is_msgpack_message(json_data)

@@ -1779,3 +1779,99 @@ class TestBatchSpanProcessorSettings:
             pytest.raises(ValidationError),
         ):
             Settings()
+
+
+# =============================================================================
+# NEM-3792: OTEL Logging Instrumentation Tests
+# =============================================================================
+
+
+class TestOTELLoggingSetup:
+    """Tests for _setup_otel_logging function."""
+
+    def test_setup_otel_logging_instruments_logging(self) -> None:
+        """Should instrument Python logging when OTEL logging is available."""
+        from backend.core.telemetry import _setup_otel_logging
+
+        mock_instrumentor = MagicMock()
+
+        with patch(
+            "opentelemetry.instrumentation.logging.LoggingInstrumentor",
+            return_value=mock_instrumentor,
+        ):
+            _setup_otel_logging("test-service")
+
+            mock_instrumentor.instrument.assert_called_once_with(set_logging_format=False)
+
+    def test_setup_otel_logging_handles_import_error(self) -> None:
+        """Should handle ImportError gracefully when OTEL logging is not available."""
+        import builtins
+
+        from backend.core.telemetry import _setup_otel_logging
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "opentelemetry.instrumentation.logging":
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            # Should not raise
+            _setup_otel_logging("test-service")
+
+    def test_setup_otel_logging_handles_exception(self) -> None:
+        """Should handle general exceptions gracefully."""
+        from backend.core.telemetry import _setup_otel_logging
+
+        mock_instrumentor = MagicMock()
+        mock_instrumentor.instrument.side_effect = Exception("Instrumentation failed")
+
+        with patch(
+            "opentelemetry.instrumentation.logging.LoggingInstrumentor",
+            return_value=mock_instrumentor,
+        ):
+            # Should not raise
+            _setup_otel_logging("test-service")
+
+
+class TestShutdownTelemetryWithLogging:
+    """Tests for shutdown_telemetry including logging uninstrumentation."""
+
+    def test_shutdown_telemetry_uninstruments_logging(self) -> None:
+        """Should uninstrument logging along with other instrumentors."""
+        from opentelemetry.sdk.trace import TracerProvider as RealTracerProvider
+
+        import backend.core.telemetry as telemetry_module
+
+        # Setup initialized state
+        mock_provider = MagicMock(spec=RealTracerProvider)
+        mock_provider.shutdown = MagicMock()
+        telemetry_module._is_initialized = True
+        telemetry_module._tracer_provider = mock_provider
+
+        with (
+            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
+            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+            ) as mock_sqlalchemy,
+            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            patch("opentelemetry.instrumentation.logging.LoggingInstrumentor") as mock_logging,
+        ):
+            from backend.core.telemetry import shutdown_telemetry
+
+            shutdown_telemetry()
+
+            # Verify logging uninstrument was called
+            mock_logging.return_value.uninstrument.assert_called_once()
+
+            # Verify other uninstrument calls
+            mock_fastapi.uninstrument.assert_called_once()
+            mock_httpx.return_value.uninstrument.assert_called_once()
+            mock_sqlalchemy.return_value.uninstrument.assert_called_once()
+            mock_redis.return_value.uninstrument.assert_called_once()
+
+        # Cleanup
+        telemetry_module._is_initialized = False
+        telemetry_module._tracer_provider = None

@@ -484,11 +484,16 @@ class TestUpdateEventRoute:
         mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         update_data = EventUpdate(reviewed=True)
+        mock_background_tasks = MagicMock()
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             with patch("backend.api.routes.events.AuditService.log_action", AsyncMock()):
                 result = await update_event(
-                    event_id=1, update_data=update_data, request=mock_request, db=mock_db
+                    event_id=1,
+                    update_data=update_data,
+                    request=mock_request,
+                    background_tasks=mock_background_tasks,
+                    db=mock_db,
                 )
 
         assert result.id == 1
@@ -975,6 +980,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         update_data = EventUpdate(reviewed=True, notes="Test note")
+        mock_background_tasks = MagicMock()
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             # Mock audit service to raise exception
@@ -983,7 +989,11 @@ class TestUpdateEventRouteComprehensive:
                 AsyncMock(side_effect=Exception("Audit failed")),
             ):
                 result = await update_event(
-                    event_id=1, update_data=update_data, request=mock_request, db=mock_db
+                    event_id=1,
+                    update_data=update_data,
+                    request=mock_request,
+                    background_tasks=mock_background_tasks,
+                    db=mock_db,
                 )
 
         # Event should still be updated despite audit failure
@@ -1018,12 +1028,17 @@ class TestUpdateEventRouteComprehensive:
         mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         update_data = EventUpdate(notes="New note")
+        mock_background_tasks = MagicMock()
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             with patch("backend.api.routes.events.AuditService.log_action", AsyncMock()):
                 with patch("backend.api.routes.events.record_event_reviewed") as mock_metric:
                     await update_event(
-                        event_id=1, update_data=update_data, request=mock_request, db=mock_db
+                        event_id=1,
+                        update_data=update_data,
+                        request=mock_request,
+                        background_tasks=mock_background_tasks,
+                        db=mock_db,
                     )
 
         # Metric should not be recorded for notes-only update

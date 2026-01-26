@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
@@ -59,6 +59,7 @@ from backend.services.audit import AuditService
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
+    CacheService,
 )
 from backend.services.websocket_emitter import get_websocket_emitter
 
@@ -100,6 +101,25 @@ _SNAPSHOT_CACHE_TTL = 3600  # Default, use settings.snapshot_cache_ttl
 
 # Thumbnail size for extracted video frames
 _SNAPSHOT_THUMBNAIL_SIZE = (640, 480)
+
+
+async def _invalidate_cameras_cache_background(
+    cache: CacheService,
+    reason: CacheInvalidationReason,
+) -> None:
+    """Invalidate cameras cache in background task (NEM-3744).
+
+    This function is designed to be run as a BackgroundTask to reduce
+    response latency by deferring non-critical cache invalidation.
+
+    Args:
+        cache: Cache service instance
+        reason: Reason for cache invalidation (for logging/metrics)
+    """
+    try:
+        await cache.invalidate_cameras(reason=reason)
+    except Exception as e:
+        logger.warning(f"Background cache invalidation failed: {e}")
 
 
 @router.get("", response_model=CameraListResponse)
@@ -307,6 +327,7 @@ async def list_deleted_cameras(
 )
 async def restore_camera(
     camera_id: str,
+    background_tasks: BackgroundTasks,
     db: DbSession,
     cache: CacheDep,
 ) -> CameraResponse:
@@ -342,11 +363,12 @@ async def restore_camera(
     await db.commit()
     await db.refresh(camera)
 
-    # Invalidate cameras cache
-    try:
-        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_RESTORED)
-    except Exception as e:
-        logger.warning(f"Cache invalidation failed after camera restore: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_cameras_cache_background,
+        cache,
+        CacheInvalidationReason.CAMERA_RESTORED,
+    )
 
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
     return CameraResponse(
@@ -396,6 +418,7 @@ async def get_camera(
 async def create_camera(
     camera_data: CameraCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: DbSession,
     cache: CacheDep,
 ) -> CameraResponse:
@@ -477,11 +500,12 @@ async def create_camera(
         await db.commit()
     await db.refresh(camera)
 
-    # Invalidate cameras cache (NEM-1682: use specific method with reason)
-    try:
-        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_CREATED)
-    except Exception as e:
-        logger.warning(f"Cache invalidation failed: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_cameras_cache_background,
+        cache,
+        CacheInvalidationReason.CAMERA_CREATED,
+    )
 
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
     # A newly created camera has no areas assigned, so we return areas=None explicitly
@@ -502,6 +526,7 @@ async def update_camera(
     camera_id: str,
     camera_data: CameraUpdate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: DbSession,
     cache: CacheDep,
 ) -> CameraResponse:
@@ -566,11 +591,12 @@ async def update_camera(
         await db.commit()
     await db.refresh(camera)
 
-    # Invalidate cameras cache (NEM-1682: use specific method with reason)
-    try:
-        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_UPDATED)
-    except Exception as e:
-        logger.warning(f"Cache invalidation failed: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_cameras_cache_background,
+        cache,
+        CacheInvalidationReason.CAMERA_UPDATED,
+    )
 
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
     # Areas relationship is not loaded by this endpoint, so we return None
@@ -590,6 +616,7 @@ async def update_camera(
 async def delete_camera(
     camera_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: DbSession,
     cache: CacheDep,
 ) -> None:
@@ -636,11 +663,12 @@ async def delete_camera(
         await db.delete(camera)
         await db.commit()
 
-    # Invalidate cameras cache (NEM-1682: use specific method with reason)
-    try:
-        await cache.invalidate_cameras(reason=CacheInvalidationReason.CAMERA_DELETED)
-    except Exception:
-        logger.warning("Cache invalidation failed", exc_info=True, extra={"camera_id": camera_id})
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_cameras_cache_background,
+        cache,
+        CacheInvalidationReason.CAMERA_DELETED,
+    )
 
 
 def _resolve_camera_dir(

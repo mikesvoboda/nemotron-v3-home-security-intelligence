@@ -8,6 +8,10 @@ import {
   selectRunningWorkers,
   selectWorkerByName,
   selectWorkersByType,
+  useWorkerStatusState,
+  usePipelineHealth,
+  useWorkerCounts,
+  useWorkerStatusActions,
 } from './worker-status-store';
 
 import type {
@@ -661,6 +665,32 @@ describe('worker-status-store', () => {
       // But original should be unchanged
       expect(workerAfterStart.state).toBe('running');
       expect(workerAfterError.state).toBe('error');
+    });
+  });
+
+  describe('shallow hooks (NEM-3790)', () => {
+    it('useWorkerStatusState exports all state fields', () => {
+      // Type check - ensure hook is exported
+      expect(useWorkerStatusState).toBeDefined();
+      expect(typeof useWorkerStatusState).toBe('function');
+    });
+
+    it('usePipelineHealth exports pipeline health selector', () => {
+      // Type check - ensure hook is exported
+      expect(usePipelineHealth).toBeDefined();
+      expect(typeof usePipelineHealth).toBe('function');
+    });
+
+    it('useWorkerCounts exports count statistics', () => {
+      // Type check - ensure hook is exported
+      expect(useWorkerCounts).toBeDefined();
+      expect(typeof useWorkerCounts).toBe('function');
+    });
+
+    it('useWorkerStatusActions exports action functions', () => {
+      // Type check - ensure hook is exported
+      expect(useWorkerStatusActions).toBeDefined();
+      expect(typeof useWorkerStatusActions).toBe('function');
     });
   });
 });

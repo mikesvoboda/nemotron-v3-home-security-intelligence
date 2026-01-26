@@ -4,7 +4,16 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,6 +106,27 @@ router = APIRouter(
 
 # Valid severity values for search filter
 VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
+
+
+async def _invalidate_events_cache_background(
+    cache: CacheService,
+    reason: str,
+) -> None:
+    """Invalidate event-related caches in background task (NEM-3744).
+
+    This function is designed to be run as a BackgroundTask to reduce
+    response latency by deferring non-critical cache invalidation.
+
+    Args:
+        cache: Cache service instance
+        reason: Reason for cache invalidation (for logging/metrics)
+    """
+    try:
+        await cache.invalidate_events(reason=reason)
+        await cache.invalidate_event_stats(reason=reason)
+    except Exception as e:
+        logger.warning(f"Background cache invalidation failed: {e}")
+
 
 # Valid fields for sparse fieldsets on list_events endpoint (NEM-1434)
 # NOTE: detection_ids was removed from events table (NEM-1592)
@@ -1836,6 +1866,7 @@ async def update_event(  # Allow branches for audit logging logic
     event_id: int,
     update_data: EventUpdate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
 ) -> EventResponse:
@@ -1976,13 +2007,12 @@ async def update_event(  # Allow branches for audit logging logic
             ) from None
     await db.refresh(event)
 
-    # Invalidate event-related caches after successful update (NEM-1950, NEM-1938)
-    try:
-        await cache.invalidate_events(reason="event_updated")
-        await cache.invalidate_event_stats(reason="event_updated")
-    except Exception as e:
-        # Cache invalidation is non-critical - log but don't fail the request
-        logger.warning(f"Cache invalidation failed after event update: {e}")
+    # NEM-3744: Defer cache invalidation to background task to reduce response latency
+    background_tasks.add_task(
+        _invalidate_events_cache_background,
+        cache,
+        "event_updated",
+    )
 
     # Parse detection_ids and calculate count
     parsed_detection_ids = get_detection_ids_from_event(event)
@@ -2640,6 +2670,7 @@ async def delete_event(
 )
 async def restore_event(
     event_id: int,
+    background_tasks: BackgroundTasks,
     cascade: bool = Query(True, description="Cascade restore to related detections"),
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
@@ -2671,12 +2702,12 @@ async def restore_event(
         )
         await db.commit()
 
-        # Invalidate event-related caches
-        try:
-            await cache.invalidate_events(reason="event_restored")
-            await cache.invalidate_event_stats(reason="event_restored")
-        except Exception as e:
-            logger.warning(f"Cache invalidation failed after restore: {e}")
+        # NEM-3744: Defer cache invalidation to background task to reduce response latency
+        background_tasks.add_task(
+            _invalidate_events_cache_background,
+            cache,
+            "event_restored",
+        )
 
         # Get detection IDs for the response
         detection_ids = get_detection_ids_from_event(event)

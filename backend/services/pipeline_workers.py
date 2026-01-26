@@ -54,6 +54,7 @@ from backend.core.metrics import (
 )
 from backend.core.redis import RedisClient
 from backend.core.telemetry import add_span_attributes, get_tracer, record_exception
+from backend.core.telemetry_ai_conventions import set_pipeline_context_attributes
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.frame_buffer import FrameBuffer, get_frame_buffer
@@ -425,8 +426,11 @@ class DetectionQueueWorker:
         # OpenTelemetry span for detection processing (NEM-1467)
         with (
             log_context(camera_id=camera_id, file_path=file_path, media_type=media_type),
-            tracer.start_as_current_span("detection_processing"),
+            tracer.start_as_current_span("detection_processing") as span,
         ):
+            # NEM-3794: Set pipeline context semantic attributes for standardized telemetry
+            set_pipeline_context_attributes(span, camera_id=camera_id, stage="detect")
+            # Legacy attributes for backward compatibility
             add_span_attributes(
                 camera_id=camera_id,
                 file_path=file_path,

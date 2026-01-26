@@ -333,6 +333,10 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
         RedisInstrumentor().instrument()
         logger.debug("Redis instrumented for tracing")
 
+        # NEM-3792: Instrument Python logging for trace-log correlation
+        # This adds trace_id and span_id to log records, enabling unified observability
+        _setup_otel_logging(settings.otel_service_name)
+
         _is_initialized = True
         logger.info(
             f"OpenTelemetry tracing initialized: service={settings.otel_service_name}, "
@@ -349,6 +353,40 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
         return False
 
 
+def _setup_otel_logging(service_name: str) -> None:
+    """Configure OpenTelemetry logging instrumentation for trace-log correlation (NEM-3792).
+
+    This function instruments Python's logging module to automatically inject
+    trace_id and span_id into log records when a span is active. This enables
+    unified observability by correlating logs with distributed traces.
+
+    The logging instrumentation:
+    1. Adds trace_id and span_id fields to log records
+    2. Sets otelTraceID and otelSpanID attributes for structured logging
+    3. Enables correlation in log aggregators (ELK, Loki, etc.)
+
+    Note: This uses the OTEL logging instrumentation which adds context to
+    existing Python logs, rather than the full OTEL Logs SDK which would
+    export logs via OTLP. This approach integrates better with existing
+    logging infrastructure while still enabling trace correlation.
+
+    Args:
+        service_name: Service name for identifying log source
+    """
+    try:
+        from opentelemetry.instrumentation.logging import LoggingInstrumentor
+
+        # Instrument Python logging to include trace context
+        # This adds trace_id and span_id to log records automatically
+        LoggingInstrumentor().instrument(set_logging_format=False)
+        logger.debug(f"OpenTelemetry logging instrumentation enabled for {service_name}")
+
+    except ImportError:
+        logger.warning("OpenTelemetry logging instrumentation not available")
+    except Exception as e:
+        logger.warning(f"Failed to setup OpenTelemetry logging: {e}")
+
+
 def shutdown_telemetry() -> None:
     """Shutdown OpenTelemetry and flush any pending traces.
 
@@ -363,6 +401,7 @@ def shutdown_telemetry() -> None:
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        from opentelemetry.instrumentation.logging import LoggingInstrumentor
         from opentelemetry.instrumentation.redis import RedisInstrumentor
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.sdk.trace import TracerProvider
@@ -372,6 +411,8 @@ def shutdown_telemetry() -> None:
         HTTPXClientInstrumentor().uninstrument()
         SQLAlchemyInstrumentor().uninstrument()
         RedisInstrumentor().uninstrument()
+        # NEM-3792: Uninstrument logging
+        LoggingInstrumentor().uninstrument()
 
         # Shutdown tracer provider (flushes pending spans)
         if isinstance(_tracer_provider, TracerProvider):

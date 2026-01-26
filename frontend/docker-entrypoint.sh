@@ -119,11 +119,82 @@ HTTP_LOCATIONS='
 # HTTPS Redirect Location (for SSL mode)
 # =============================================================================
 # When SSL is enabled, HTTP traffic is redirected to HTTPS.
+# IMPORTANT: API and WebSocket proxying is preserved on HTTP to avoid breaking
+# browser API calls when the page was loaded via HTTP redirect (NEM-3827).
 # The health check endpoint is exempted (it has higher priority with exact match).
 HTTPS_REDIRECT_PORT="${FRONTEND_HTTPS_PORT:-8443}"
 HTTPS_REDIRECT='
-    # Redirect all HTTP traffic to HTTPS
+    # Reverse proxy for API requests to backend (handles /api and /api/*)
+    # Preserved on HTTP even with SSL enabled to avoid "Failed to fetch" errors (NEM-3827)
+    # Uses $backend_upstream variable for dynamic DNS re-resolution
+    location ^~ /api {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts for long-running requests
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Reverse proxy for WebSocket connections (handles /ws and /ws/*)
+    # Preserved on HTTP even with SSL enabled to avoid WebSocket reconnection issues (NEM-3827)
+    # Uses validated upgrade header to prevent H2C smuggling attacks
+    location ^~ /ws {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+
+        # WebSocket upgrade headers with H2C smuggling protection
+        proxy_set_header Upgrade $websocket_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        # Standard proxy headers
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket-specific timeouts (longer for persistent connections)
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 86400s;
+        proxy_read_timeout 86400s;
+    }
+
+    # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
+    # Preserved on HTTP even with SSL enabled to allow Grafana embeds (NEM-3827)
+    location ^~ /grafana/ {
+        resolver __DNS_RESOLVER__ valid=10s ipv6=off;
+        set $grafana_upstream '"${GRAFANA_UPSTREAM}"';
+        proxy_pass $grafana_upstream;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Required for Grafana live/WebSocket features
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # Disable buffering for real-time dashboard updates
+        proxy_buffering off;
+    }
+
+    # Redirect all other HTTP traffic to HTTPS
     # The health check endpoint (location = /health) has higher priority and is not affected
+    # API (/api), WebSocket (/ws), and Grafana (/grafana/) are proxied directly above
     location / {
         return 301 https://$host:'"${HTTPS_REDIRECT_PORT}"'$request_uri;
     }

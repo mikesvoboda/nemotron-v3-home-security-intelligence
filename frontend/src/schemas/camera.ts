@@ -99,9 +99,9 @@ export const cameraStatusSchema = z.enum(CAMERA_STATUS_VALUES, {
  */
 export const cameraNameSchema = z
   .string()
-  .min(CAMERA_NAME_CONSTRAINTS.minLength, { message: 'Name is required' })
+  .min(CAMERA_NAME_CONSTRAINTS.minLength, { error: 'Name is required' })
   .max(CAMERA_NAME_CONSTRAINTS.maxLength, {
-    message: `Name must be at most ${CAMERA_NAME_CONSTRAINTS.maxLength} characters`,
+    error: `Name must be at most ${CAMERA_NAME_CONSTRAINTS.maxLength} characters`,
   })
   .transform((val) => val.trim());
 
@@ -114,9 +114,9 @@ export const cameraNameSchema = z
  */
 export const cameraFolderPathSchema = z
   .string()
-  .min(CAMERA_FOLDER_PATH_CONSTRAINTS.minLength, { message: 'Folder path is required' })
+  .min(CAMERA_FOLDER_PATH_CONSTRAINTS.minLength, { error: 'Folder path is required' })
   .max(CAMERA_FOLDER_PATH_CONSTRAINTS.maxLength, {
-    message: `Folder path must be at most ${CAMERA_FOLDER_PATH_CONSTRAINTS.maxLength} characters`,
+    error: `Folder path must be at most ${CAMERA_FOLDER_PATH_CONSTRAINTS.maxLength} characters`,
   })
   .superRefine((val, ctx) => {
     const result = validateFolderPath(val);

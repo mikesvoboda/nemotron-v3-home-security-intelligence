@@ -63,11 +63,15 @@ dependencies = [
     "opentelemetry-instrumentation-redis>=0.44b0",
     # NEM-3383: Container and host resource detection for correlation
     "opentelemetry-resourcedetector-docker>=0.4.0",
+    # NEM-3792: OpenTelemetry Logs SDK for unified telemetry (logs-traces correlation)
+    "opentelemetry-instrumentation-logging>=0.44b0",
     "urllib3==2.6.3",
     "openpyxl>=3.1.5",
     # Continuous profiling (NEM-3102)
     "pyroscope-io>=0.8.7",
     "orjson>=3.11.5",
+    # MessagePack binary serialization for WebSocket (NEM-3737)
+    "msgpack>=1.0.8",
 ]
 
 [project.optional-dependencies]
