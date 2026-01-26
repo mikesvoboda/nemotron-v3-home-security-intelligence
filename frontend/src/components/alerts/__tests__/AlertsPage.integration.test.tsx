@@ -169,6 +169,7 @@ function TestAlertsPage() {
             onAcknowledge={vi.fn()}
             onDismiss={vi.fn()}
             onSnooze={vi.fn()}
+            onUnsnooze={vi.fn()}
             onViewEvent={vi.fn()}
           />
         ))}

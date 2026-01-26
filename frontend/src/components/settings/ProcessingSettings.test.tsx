@@ -24,6 +24,22 @@ vi.mock('../analytics/AnomalyConfigPanel', () => ({
   ),
 }));
 
+// Mock the useBatchAggregatorStatus hook for BatchStatusMonitor (NEM-3872)
+vi.mock('../../hooks/useBatchAggregatorStatus', () => ({
+  useBatchAggregatorStatus: () => ({
+    isLoading: false,
+    error: null,
+    activeBatchCount: 2,
+    batches: [],
+    averageBatchAge: 30,
+    totalDetectionCount: 10,
+    batchWindowSeconds: 90,
+    idleTimeoutSeconds: 30,
+    healthIndicator: 'green',
+    refetch: vi.fn(),
+  }),
+}));
+
 // Mock the hooks used by child components (StorageDashboard, CleanupPreviewPanel)
 vi.mock('../../hooks/useStorageStatsQuery', () => ({
   useStorageStatsQuery: () => ({
@@ -846,14 +862,17 @@ describe('ProcessingSettings', () => {
 
       renderWithProviders(<ProcessingSettings />);
 
+      // Wait for the slider to be available
       await waitFor(() => {
-        expect(screen.getByText('90s')).toBeInTheDocument();
+        expect(screen.getByLabelText('Batch window duration in seconds')).toBeInTheDocument();
       });
 
       const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
       fireEvent.input(batchWindowInput, { target: { value: '150' } });
 
-      expect(screen.getByText('150s')).toBeInTheDocument();
+      // After changing, '150s' should appear (may appear in multiple places due to latency preview)
+      const values = screen.getAllByText('150s');
+      expect(values.length).toBeGreaterThan(0);
     });
 
     it('updates confidence threshold with decimal precision', async () => {

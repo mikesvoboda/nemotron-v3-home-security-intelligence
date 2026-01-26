@@ -929,3 +929,7 @@ export type {
   SecurityAlertOptions as IntegratedSecurityAlertOptions,
   UseIntegratedNotificationsReturn,
 } from './useIntegratedNotifications';
+
+// Event clip generation hook (NEM-3870)
+export { useEventClip } from './useEventClip';
+export type { UseEventClipOptions, UseEventClipResult } from './useEventClip';
