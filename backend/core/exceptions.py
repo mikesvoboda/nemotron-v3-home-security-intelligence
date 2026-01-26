@@ -24,7 +24,7 @@ class ServiceRequestContext:
     structured logging and easier debugging of transient service failures.
 
     Attributes:
-        service_name: Name of the service (e.g., "rtdetr", "nemotron", "enrichment")
+        service_name: Name of the service (e.g., "yolo26", "nemotron", "enrichment")
         endpoint: API endpoint that was called (e.g., "/detect", "/completion")
         method: HTTP method used (e.g., "POST", "GET")
         duration_ms: Total duration of the request in milliseconds
@@ -360,7 +360,7 @@ class AIServiceError(ExternalServiceError):
 
 
 class DetectorUnavailableError(AIServiceError):
-    """Raised when the RT-DETR object detection service is unavailable.
+    """Raised when the YOLO26 object detection service is unavailable.
 
     This exception is raised when the detector service cannot be reached due to:
     - Connection errors (service down, network issues)
@@ -394,7 +394,7 @@ class DetectorUnavailableError(AIServiceError):
         """
         self.original_error = original_error
         self.context = context
-        super().__init__(message, service_name="rtdetr", **kwargs)
+        super().__init__(message, service_name="yolo26", **kwargs)
 
     def to_log_dict(self) -> dict[str, Any]:
         """Convert to dictionary for structured logging.
