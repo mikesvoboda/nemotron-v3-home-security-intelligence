@@ -30,7 +30,7 @@ Represents a security camera in the system.
 
 ### Detection (`detection.py`)
 
-Represents an object detection result from RT-DETRv2.
+Represents an object detection result from YOLO26v2.
 
 **Fields:**
 

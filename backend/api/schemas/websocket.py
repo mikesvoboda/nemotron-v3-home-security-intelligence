@@ -375,7 +375,7 @@ class WebSocketServiceStatusData(BaseModel):
     service: str = Field(
         ...,
         validation_alias=AliasChoices("service", "name"),
-        description="Name of the service (redis, rtdetr, nemotron)",
+        description="Name of the service (redis, yolo26, nemotron)",
     )
     status: WebSocketServiceStatus = Field(..., description="Current service status")
     message: str | None = Field(None, description="Optional descriptive message")
@@ -2486,7 +2486,7 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
         "payload_schema": {
             "service": {
                 "type": "string",
-                "description": "Service name (e.g., 'redis', 'rtdetr', 'nemotron')",
+                "description": "Service name (e.g., 'redis', 'yolo26', 'nemotron')",
             },
             "status": {
                 "type": "string",
@@ -2506,7 +2506,7 @@ EVENT_REGISTRY: dict[WSEventType, dict[str, Any]] = {
             "message": {"type": "string", "description": "Status message (optional)"},
         },
         "example": {
-            "service": "rtdetr",
+            "service": "yolo26",
             "status": "healthy",
             "previous_status": "restarting",
             "message": "Service recovered",

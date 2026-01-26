@@ -139,17 +139,17 @@ gen "$STYLE Dataflows hero image showing end-to-end data journey. Camera icon on
     "$IMAGE_BASE/dataflows/hero-dataflows.png"
 
 # README.md - End-to-end flow
-gen "$STYLE Complete system dataflow overview. Vertical flow: Camera Upload -> File Watcher -> Detection Queue -> RT-DETRv2 -> Batch Aggregator -> Analysis Queue -> Nemotron LLM -> Event Creation -> WebSocket Broadcast. Each stage as a labeled box with timing annotations (debounce 0.5s, batch 90s, etc.)." \
+gen "$STYLE Complete system dataflow overview. Vertical flow: Camera Upload -> File Watcher -> Detection Queue -> YOLO26 -> Batch Aggregator -> Analysis Queue -> Nemotron LLM -> Event Creation -> WebSocket Broadcast. Each stage as a labeled box with timing annotations (debounce 0.5s, batch 90s, etc.)." \
     "$IMAGE_BASE/dataflows/flow-end-to-end-overview.png"
 
-gen "$STYLE Key timing parameters visualization as a timeline or table. Show: File debounce (0.5s), File stability (2s), Batch window (90s), Batch idle (30s), RT-DETRv2 timeout (60s), Nemotron timeout (120s), WebSocket idle (300s), Heartbeat (30s). Use clock icons and duration bars." \
+gen "$STYLE Key timing parameters visualization as a timeline or table. Show: File debounce (0.5s), File stability (2s), Batch window (90s), Batch idle (30s), YOLO26 timeout (60s), Nemotron timeout (120s), WebSocket idle (300s), Heartbeat (30s). Use clock icons and duration bars." \
     "$IMAGE_BASE/dataflows/concept-timing-parameters.png"
 
 # image-to-event.md
-gen "$STYLE Image to event complete pipeline flow. Detailed horizontal flow: Camera Image -> FTP Upload -> File Watcher (debounce) -> Validation -> Detection Queue -> RT-DETRv2 (bboxes) -> Batch Aggregator -> Analysis Queue -> Enrichment -> Nemotron (risk score) -> Event DB -> WebSocket. Show data transformation at each stage." \
+gen "$STYLE Image to event complete pipeline flow. Detailed horizontal flow: Camera Image -> FTP Upload -> File Watcher (debounce) -> Validation -> Detection Queue -> YOLO26 (bboxes) -> Batch Aggregator -> Analysis Queue -> Enrichment -> Nemotron (risk score) -> Event DB -> WebSocket. Show data transformation at each stage." \
     "$IMAGE_BASE/dataflows/flow-image-to-event.png"
 
-gen "$STYLE Detection data transformation visualization. Show image being processed: Original Image -> RT-DETRv2 -> Bounding Boxes with labels (person, vehicle, animal) -> Detection Records with metadata (class, confidence, bbox coordinates). Include sample JSON output structure." \
+gen "$STYLE Detection data transformation visualization. Show image being processed: Original Image -> YOLO26 -> Bounding Boxes with labels (person, vehicle, animal) -> Detection Records with metadata (class, confidence, bbox coordinates). Include sample JSON output structure." \
     "$IMAGE_BASE/dataflows/concept-detection-transformation.png"
 
 gen "$STYLE Event creation data model. Show Detection Batch being analyzed by Nemotron LLM, outputting: Event record with risk_score (0-100 gauge), summary text, detection links. Show database INSERT and WebSocket broadcast as final outputs." \

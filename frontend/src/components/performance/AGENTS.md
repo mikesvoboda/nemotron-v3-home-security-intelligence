@@ -26,7 +26,7 @@ Contains React components for real-time system performance monitoring, providing
 - Time range selector (5m, 15m, 60m)
 - Connection status indicator (WebSocket)
 - GPU Card: utilization %, VRAM usage, temperature, power
-- AI Models Card: RT-DETRv2 and Nemotron status with slots info
+- AI Models Card: YOLO26 and Nemotron status with slots info
 - Database Card: PostgreSQL connections, cache hit ratio, transactions/min
 - Redis Card: memory usage, hit ratio, connected clients
 - Host Card: CPU %, RAM %, disk %
@@ -42,7 +42,7 @@ Contains React components for real-time system performance monitoring, providing
 +----------------------------------------------------------+
 |  +---------------+  +---------------+  +---------------+ |
 |  | GPU           |  | AI Models     |  | PostgreSQL    | |
-|  | Util: 45%     |  | RT-DETRv2: OK |  | Conn: 12/100  | |
+|  | Util: 45%     |  | YOLO26: OK |  | Conn: 12/100  | |
 |  | VRAM: 8.2/24  |  | Nemotron: OK  |  | Cache: 98.2%  | |
 |  | Temp: 62C     |  | Slots: 2/4    |  | Trans: 150/m  | |
 |  +---------------+  +---------------+  +---------------+ |
@@ -74,7 +74,7 @@ interface PerformanceDashboardProps {
 - Four chart panels:
   1. GPU Utilization (AreaChart) - GPU % and VRAM % over time
   2. Temperature (LineChart) - GPU temp with warning (75C) and critical (85C) thresholds
-  3. Inference Latency (LineChart) - RT-DETRv2, Nemotron, and pipeline latencies
+  3. Inference Latency (LineChart) - YOLO26, Nemotron, and pipeline latencies
   4. Resource Usage (AreaChart) - CPU, RAM, Disk percentages
 - Time range selection (5m, 15m, 60m)
 - Connection status indicator
@@ -92,7 +92,7 @@ interface PerformanceDashboardProps {
 +---------------------------+  +---------------------------+
 |  Inference Latency        |  |  System Resources         |
 |  [LineChart]              |  |  [AreaChart]              |
-|  - RT-DETRv2              |  |  - CPU                    |
+|  - YOLO26              |  |  - CPU                    |
 |  - Nemotron               |  |  - RAM                    |
 |  - Pipeline               |  |  - Disk                   |
 +---------------------------+  +---------------------------+
@@ -172,7 +172,7 @@ interface GpuMetrics {
 
 ### AiModelMetrics
 
-AI model metrics (RT-DETRv2):
+AI model metrics (YOLO26):
 
 ```typescript
 interface AiModelMetrics {

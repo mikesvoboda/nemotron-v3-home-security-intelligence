@@ -109,7 +109,7 @@ class ErrorCode:
 
     # AI/ML Service errors (502, 503)
     DETECTOR_UNAVAILABLE = "DETECTOR_UNAVAILABLE"
-    RTDETR_UNAVAILABLE = "RTDETR_UNAVAILABLE"
+    YOLO26_UNAVAILABLE = "YOLO26_UNAVAILABLE"
     NEMOTRON_UNAVAILABLE = "NEMOTRON_UNAVAILABLE"
     FLORENCE_UNAVAILABLE = "FLORENCE_UNAVAILABLE"
     ENRICHMENT_SERVICE_UNAVAILABLE = "ENRICHMENT_SERVICE_UNAVAILABLE"
@@ -482,7 +482,7 @@ class ServiceUnavailableResponse(BaseModel):
                 "error": {
                     "code": "AI_SERVICE_UNAVAILABLE",
                     "message": "Object detection service temporarily unavailable",
-                    "service": "rtdetr",
+                    "service": "yolo26",
                     "retry_after": 30,
                     "request_id": "550e8400-e29b-41d4-a716-446655440000",
                 }

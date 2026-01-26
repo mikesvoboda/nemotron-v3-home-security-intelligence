@@ -257,7 +257,7 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 REDIS_URL=redis://localhost:6379
 
 # AI Services
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 
 # Processing

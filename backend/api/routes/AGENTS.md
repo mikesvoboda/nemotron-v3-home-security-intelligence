@@ -646,7 +646,7 @@ AI pipeline audit management for model performance, quality scoring, recommendat
 
 **Key Features:**
 
-- Model contribution tracking (RT-DETR, Florence, CLIP, violence, clothing, vehicle, pet, weather, etc.)
+- Model contribution tracking (YOLO26, Florence, CLIP, violence, clothing, vehicle, pet, weather, etc.)
 - Quality scoring (context usage, reasoning coherence, risk justification, consistency)
 - Prompt improvement suggestions (missing context, confusing sections, unused data, format suggestions)
 - Model leaderboard with quality correlation

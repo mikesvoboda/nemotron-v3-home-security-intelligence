@@ -59,7 +59,7 @@ The profiling page follows an iframe embedding pattern similar to the TracingPag
 
 ### Service Flame Graphs
 - Per-service flame graph visualization
-- Supported services: Backend, RT-DETR, Nemotron, Florence
+- Supported services: Backend, YOLO26, Nemotron, Florence
 - Profile type selection: CPU or Memory
 - Drill-down into hot code paths and resource consumption
 
@@ -164,7 +164,7 @@ Unit tests cover:
 4. Click "Explore" - should open Grafana Explore with Pyroscope datasource
 5. Click "Open Pyroscope" - should open native Pyroscope UI
 6. Click "Refresh" - iframe should reload with latest profile data
-7. Verify service filters show Backend, RT-DETR, Nemotron, Florence
+7. Verify service filters show Backend, YOLO26, Nemotron, Florence
 8. Verify model filter shows active model zoo models when Backend selected
 9. Verify no console errors in browser DevTools
 

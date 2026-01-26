@@ -4,7 +4,7 @@
 This script triggers real pipeline processing by touching images in camera
 watch folders, causing the file watcher to process them through:
   1. File Watcher → detects touched images
-  2. RT-DETRv2 → object detection
+  2. YOLO26 → object detection
   3. Batch Aggregator → groups detections into events
   4. Nemotron LLM → risk analysis with reasoning
 
@@ -188,7 +188,7 @@ def trigger_pipeline(num_images: int = 20, delay_between: float = 0.5) -> int:
 
     This updates the mtime of existing images, causing the file watcher
     to detect them as "new" and process them through the full pipeline:
-    File Watcher → RT-DETRv2 → Batch Aggregator → Nemotron LLM
+    File Watcher → YOLO26 → Batch Aggregator → Nemotron LLM
 
     Args:
         num_images: Number of images to process
@@ -211,7 +211,7 @@ def trigger_pipeline(num_images: int = 20, delay_between: float = 0.5) -> int:
 
     print(f"Found {len(all_images)} images, will process {len(selected)}")
     print(f"\nTouching {len(selected)} images to trigger pipeline processing...")
-    print("(Images will be processed: File Watcher → RT-DETRv2 → Batching → Nemotron)\n")
+    print("(Images will be processed: File Watcher → YOLO26 → Batching → Nemotron)\n")
 
     touched = 0
     for i, img_path in enumerate(selected, 1):
@@ -3398,7 +3398,7 @@ async def seed_prometheus_alerts(num_alerts: int = 25) -> int:
     ]
 
     instances = ["ai-detector:8090", "ai-llm:8091", "ai-florence:8092", "backend:8000"]
-    services = ["rtdetr", "nemotron", "florence", "clip", "backend"]
+    services = ["yolo26", "nemotron", "florence", "clip", "backend"]
     cameras = ["front_door", "backyard", "garage", "driveway"]
 
     created = 0
@@ -4028,14 +4028,14 @@ Examples:
 
 Pipeline Flow:
   1. Touch camera images to trigger file watcher
-  2. File Watcher → RT-DETRv2 (object detection)
-  3. RT-DETRv2 → Batch Aggregator (group detections)
+  2. File Watcher → YOLO26 (object detection)
+  3. YOLO26 → Batch Aggregator (group detections)
   4. Batch Aggregator → Nemotron LLM (risk analysis)
   5. Events created with AI-generated summaries and risk scores
 
 This generates real data including:
   - Events with actual LLM reasoning
-  - Detection bounding boxes from RT-DETRv2
+  - Detection bounding boxes from YOLO26
   - Entities with real CLIP embeddings
   - Pipeline latency metrics for performance monitoring
   - Activity baselines for anomaly detection
@@ -4198,7 +4198,7 @@ This generates real data including:
 
             if not success:
                 print("\n⚠ Warning: Pipeline may not have completed fully")
-                print("  Check that AI services (RT-DETR, Nemotron) are running")
+                print("  Check that AI services (YOLO26, Nemotron) are running")
         elif args.no_wait:
             print("\n--no-wait specified, skipping pipeline completion wait")
 

@@ -2,7 +2,7 @@
 """Comprehensive AI Model Zoo test with GPU monitoring and latency tracking.
 
 Exercises ALL available endpoints across all AI services:
-- RT-DETRv2: /detect, /detect/batch
+- YOLO26: /detect, /detect/batch
 - Florence-2: /extract with 8 different prompts
 - CLIP: /embed
 - Enrichment: /vehicle-classify, /pet-classify, /clothing-classify
@@ -125,8 +125,8 @@ def encode_image(path: str) -> str:
         return base64.b64encode(f.read()).decode()
 
 
-def test_rtdetr_detect(image_path: Path, client: httpx.Client) -> LatencyResult:
-    """Test RT-DETRv2 single image detection."""
+def test_yolo26_detect(image_path: Path, client: httpx.Client) -> LatencyResult:
+    """Test YOLO26 single image detection."""
     gpu_before = get_gpu_stats()
     start = time.perf_counter()
 
@@ -169,8 +169,8 @@ def test_rtdetr_detect(image_path: Path, client: httpx.Client) -> LatencyResult:
         )
 
 
-def test_rtdetr_batch(image_paths: list[Path], client: httpx.Client) -> LatencyResult:
-    """Test RT-DETRv2 batch detection."""
+def test_yolo26_batch(image_paths: list[Path], client: httpx.Client) -> LatencyResult:
+    """Test YOLO26 batch detection."""
     gpu_before = get_gpu_stats()
     start = time.perf_counter()
 
@@ -538,7 +538,7 @@ def main() -> int:
 
     # Results storage
     all_results: dict[str, ModelTestResults] = {
-        "RT-DETRv2": ModelTestResults(model_name="RT-DETRv2"),
+        "YOLO26": ModelTestResults(model_name="YOLO26"),
         "Florence-2": ModelTestResults(model_name="Florence-2"),
         "CLIP": ModelTestResults(model_name="CLIP"),
         "Vehicle Classifier": ModelTestResults(model_name="Vehicle Classifier"),
@@ -556,15 +556,15 @@ def main() -> int:
         person_b64 = encode_image(str(person_img))
 
         # =========================================
-        # 1. RT-DETRv2 Detection Tests
+        # 1. YOLO26 Detection Tests
         # =========================================
-        print_header("RT-DETRv2 OBJECT DETECTION (Port 8090)")
+        print_header("YOLO26 OBJECT DETECTION (Port 8090)")
 
         # Single detection on all images
         print_subheader("Single Image Detection (/detect)")
         for img_path in test_images[:5]:  # Test first 5 images
-            result = test_rtdetr_detect(img_path, client)
-            all_results["RT-DETRv2"].endpoint_results.append(result)
+            result = test_yolo26_detect(img_path, client)
+            all_results["YOLO26"].endpoint_results.append(result)
             status = "OK" if result.success else "FAIL"
             print(
                 f"  [{status}] {img_path.name}: {result.latency_ms:.1f}ms | "
@@ -574,8 +574,8 @@ def main() -> int:
 
         # Batch detection
         print_subheader("Batch Detection (/detect/batch)")
-        batch_result = test_rtdetr_batch(test_images[:4], client)
-        all_results["RT-DETRv2"].endpoint_results.append(batch_result)
+        batch_result = test_yolo26_batch(test_images[:4], client)
+        all_results["YOLO26"].endpoint_results.append(batch_result)
         status = "OK" if batch_result.success else "FAIL"
         print(
             f"  [{status}] Batch of {len(test_images[:4])} images: {batch_result.latency_ms:.1f}ms | "

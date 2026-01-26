@@ -455,7 +455,7 @@ Specialized API client for AI pipeline audit endpoints. Provides typed fetch wra
 
 ```typescript
 interface ModelContributions {
-  rtdetr: boolean;
+  yolo26: boolean;
   florence: boolean;
   clip: boolean;
   violence: boolean;
@@ -645,7 +645,7 @@ Specialized API client for prompt management endpoints including version history
 **Key Types:**
 
 ```typescript
-type AIModelEnum = 'nemotron' | 'rt-detr' | 'florence' | 'clip';
+type AIModelEnum = 'nemotron' | 'yolo26' | 'florence' | 'clip';
 
 interface ModelPromptConfig {
   model: AIModelEnum;

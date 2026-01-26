@@ -4,7 +4,7 @@ This directory contains components for the Settings page of the home security da
 
 ## AIModelsSettings
 
-Display AI model information and status for the RT-DETRv2 object detection model and Nemotron risk analysis model.
+Display AI model information and status for the YOLO26 object detection model and Nemotron risk analysis model.
 
 ### Features
 
@@ -18,7 +18,7 @@ Display AI model information and status for the RT-DETRv2 object detection model
 
 ```typescript
 interface AIModelsSettingsProps {
-  rtdetrModel?: ModelInfo;
+  yolo26Model?: ModelInfo;
   nemotronModel?: ModelInfo;
   totalMemory?: number | null; // Total GPU memory in MB
   className?: string;
@@ -39,7 +39,7 @@ When no props are provided, the component displays placeholder data:
 
 - Both models shown as "unloaded"
 - Memory and FPS shown as "N/A"
-- Default names: "RT-DETRv2" and "Nemotron"
+- Default names: "YOLO26" and "Nemotron"
 
 ### Usage
 
@@ -51,8 +51,8 @@ import { AIModelsSettings } from '@/components/settings';
 
 // With real data
 <AIModelsSettings
-  rtdetrModel={{
-    name: 'RT-DETRv2',
+  yolo26Model={{
+    name: 'YOLO26',
     status: 'loaded',
     memoryUsed: 4096,
     inferenceFps: 30,

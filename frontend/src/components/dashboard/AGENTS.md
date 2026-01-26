@@ -344,7 +344,7 @@ interface PipelineQueuesProps {
 
 **Key Features:**
 
-- Shows queue depth for RT-DETRv2 detection and Nemotron analysis
+- Shows queue depth for YOLO26 detection and Nemotron analysis
 - Warning indicators when queues exceed threshold
 - Color-coded badges (gray/green/yellow/red)
 - Warning alert when queues are backing up

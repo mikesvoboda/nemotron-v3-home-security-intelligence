@@ -88,7 +88,7 @@ generate_all() {
     gen "$IMAGE_BASE/system-overview/concept-three-tier.png" \
         "Infographic showing three tier architecture, presentation tier with React dashboard, application tier with FastAPI and workers, data tier with PostgreSQL and Redis, vertical layers, $STYLE"
     gen "$IMAGE_BASE/system-overview/concept-technology-stack.png" \
-        "Infographic showing technology stack layers as horizontal bands, React TypeScript frontend layer, FastAPI Python backend layer, PostgreSQL Redis data layer, RT-DETR Nemotron AI layer at bottom, $STYLE"
+        "Infographic showing technology stack layers as horizontal bands, React TypeScript frontend layer, FastAPI Python backend layer, PostgreSQL Redis data layer, YOLO26 Nemotron AI layer at bottom, $STYLE"
 
     # deployment-topology.md
     gen "$IMAGE_BASE/system-overview/technical-deployment-topology.png" \
@@ -119,9 +119,9 @@ generate_all() {
 
     # README.md - Hero + conceptual
     gen "$IMAGE_BASE/detection-pipeline/hero-detection-pipeline.png" \
-        "Technical illustration of AI detection pipeline, camera icons on left, images flowing into RT-DETR model box, detection records emerging, flowing into batch aggregation funnel, $STYLE, 1920x1080"
+        "Technical illustration of AI detection pipeline, camera icons on left, images flowing into YOLO26 model box, detection records emerging, flowing into batch aggregation funnel, $STYLE, 1920x1080"
     gen "$IMAGE_BASE/detection-pipeline/concept-pipeline-stages.png" \
-        "Infographic showing pipeline stages, Ingest from cameras, Detect with RT-DETR, Aggregate into batches, Analyze with LLM, Broadcast events, $STYLE"
+        "Infographic showing pipeline stages, Ingest from cameras, Detect with YOLO26, Aggregate into batches, Analyze with LLM, Broadcast events, $STYLE"
     gen "$IMAGE_BASE/detection-pipeline/flow-end-to-end.png" \
         "Horizontal flow from camera upload through all pipeline stages to event broadcast, numbered steps, timing annotations, $STYLE"
 
@@ -184,9 +184,9 @@ generate_all() {
     gen "$IMAGE_BASE/ai-orchestration/concept-risk-scoring.png" \
         "Risk score gauge from 0-100, color gradient from green to red, example scenarios at different levels, $STYLE"
 
-    # rt-detr-client.md
-    gen "$IMAGE_BASE/ai-orchestration/technical-rtdetr-client.png" \
-        "Technical diagram of RT-DETR client, connection pool, request formatting, image preprocessing, inference call, response parsing, $STYLE"
+    # yolo26-client.md
+    gen "$IMAGE_BASE/ai-orchestration/technical-yolo26-client.png" \
+        "Technical diagram of YOLO26 client, connection pool, request formatting, image preprocessing, inference call, response parsing, $STYLE"
     gen "$IMAGE_BASE/ai-orchestration/flow-detection-inference.png" \
         "Flow diagram from image input through preprocessing through model inference through bbox extraction through detection record creation, $STYLE"
     gen "$IMAGE_BASE/ai-orchestration/concept-detection-outputs.png" \
@@ -687,7 +687,7 @@ generate_all() {
 
     # image-to-event.md
     gen "$IMAGE_BASE/dataflows/flow-image-to-event.png" \
-        "Complete horizontal flow, camera upload, file watcher, detection queue, RT-DETR, batch aggregator, Nemotron analysis, event creation, WebSocket broadcast, numbered stages, $STYLE"
+        "Complete horizontal flow, camera upload, file watcher, detection queue, YOLO26, batch aggregator, Nemotron analysis, event creation, WebSocket broadcast, numbered stages, $STYLE"
     gen "$IMAGE_BASE/dataflows/technical-image-to-event-timing.png" \
         "Technical timeline showing image to event, ingestion 100ms, detection 500ms, aggregation 90s max, analysis 2s, broadcast 50ms, $STYLE"
 

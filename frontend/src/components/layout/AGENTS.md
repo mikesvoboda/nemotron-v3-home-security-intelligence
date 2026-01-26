@@ -91,7 +91,7 @@ interface LayoutProps {
 
 **Health Tooltip:**
 
-On hover, displays per-service status breakdown (redis, rtdetr, nemotron, etc.) with colored status dots.
+On hover, displays per-service status breakdown (redis, yolo26, nemotron, etc.) with colored status dots.
 
 **GPU Stats Display:**
 

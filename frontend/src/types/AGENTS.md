@@ -168,7 +168,7 @@ interface PerformanceAlert {
   message: string;
 }
 
-// RT-DETRv2 object detection model metrics
+// YOLO26 object detection model metrics
 interface AiModelMetrics {
   status: string;
   vram_gb: number;

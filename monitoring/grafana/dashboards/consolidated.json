@@ -160,7 +160,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(rate(rtdetr_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
+          "expr": "sum(rate(yolo26_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
           "legendFormat": "Inference FPS",
           "refId": "A"
         }
@@ -2395,7 +2395,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(rate(rtdetr_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
+          "expr": "sum(rate(yolo26_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
           "legendFormat": "Inference FPS",
           "refId": "A"
         }
@@ -3722,8 +3722,8 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "rtdetr_gpu_memory_used_gb",
-          "legendFormat": "RT-DETRv2",
+          "expr": "yolo26_gpu_memory_used_gb",
+          "legendFormat": "YOLO26",
           "refId": "A"
         },
         {
@@ -3852,7 +3852,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.50, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"rtdetr\"}[5m]))",
+          "expr": "histogram_quantile(0.50, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"yolo26\"}[5m]))",
           "legendFormat": "P50",
           "refId": "A"
         },
@@ -3861,7 +3861,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"rtdetr\"}[5m]))",
+          "expr": "histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"yolo26\"}[5m]))",
           "legendFormat": "P95",
           "refId": "B"
         },
@@ -3870,12 +3870,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.99, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"rtdetr\"}[5m]))",
+          "expr": "histogram_quantile(0.99, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"yolo26\"}[5m]))",
           "legendFormat": "P99",
           "refId": "C"
         }
       ],
-      "title": "RT-DETR Latency",
+      "title": "YOLO26 Latency",
       "type": "timeseries"
     },
     {
@@ -3957,12 +3957,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "rate(hsi_ai_request_duration_seconds_count{exported_service=\"rtdetr\"}[1m])",
-          "legendFormat": "RT-DETR req/s",
+          "expr": "rate(hsi_ai_request_duration_seconds_count{exported_service=\"yolo26\"}[1m])",
+          "legendFormat": "YOLO26 req/s",
           "refId": "A"
         }
       ],
-      "title": "RT-DETR Request Rate",
+      "title": "YOLO26 Request Rate",
       "type": "timeseries"
     },
     {
@@ -4534,7 +4534,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "RT-DETR"
+              "options": "YOLO26"
             },
             "properties": [
               {
@@ -4618,8 +4618,8 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"rtdetr\"}[5m]))",
-          "legendFormat": "RT-DETR",
+          "expr": "histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{exported_service=\"yolo26\"}[5m]))",
+          "legendFormat": "YOLO26",
           "refId": "A"
         },
         {
@@ -11946,7 +11946,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "### SLI/SLO Latency Metrics\n\n**Service Level Indicators (SLIs):**\n- **Analysis Latency P95/P99**: Time for LLM analysis of detection batches (Nemotron)\n- **Detection Latency P95/P99**: Time for RT-DETR object detection\n\n**Why these matter:**\n- P95 = 95% of requests complete within this time (typical user experience)\n- P99 = 99% of requests (catches outliers affecting 1% of users)\n\n**Criticality:** CRITICAL - These define system reliability and directly impact SLO compliance.\n\n**SLO Targets:** Analysis P95 < 2s, Detection P95 < 500ms, P99 within 2x P95",
+        "content": "### SLI/SLO Latency Metrics\n\n**Service Level Indicators (SLIs):**\n- **Analysis Latency P95/P99**: Time for LLM analysis of detection batches (Nemotron)\n- **Detection Latency P95/P99**: Time for YOLO26 object detection\n\n**Why these matter:**\n- P95 = 95% of requests complete within this time (typical user experience)\n- P99 = 99% of requests (catches outliers affecting 1% of users)\n\n**Criticality:** CRITICAL - These define system reliability and directly impact SLO compliance.\n\n**SLO Targets:** Analysis P95 < 2s, Detection P95 < 500ms, P99 within 2x P95",
         "mode": "markdown"
       },
       "pluginVersion": "10.0.0",
@@ -12875,7 +12875,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "RT-DETRv2 object detection model status",
+      "description": "YOLO26 object detection model status",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -12939,12 +12939,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "rtdetr_model_loaded",
-          "legendFormat": "RT-DETRv2",
+          "expr": "yolo26_model_loaded",
+          "legendFormat": "YOLO26",
           "refId": "A"
         }
       ],
-      "title": "RT-DETRv2",
+      "title": "YOLO26",
       "type": "stat"
     },
     {
@@ -13371,8 +13371,8 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.50, rate(rtdetr_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "RT-DETRv2 P50",
+          "expr": "histogram_quantile(0.50, rate(yolo26_inference_latency_seconds_bucket[5m]))",
+          "legendFormat": "YOLO26 P50",
           "refId": "A"
         },
         {
@@ -13380,8 +13380,8 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.95, rate(rtdetr_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "RT-DETRv2 P95",
+          "expr": "histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))",
+          "legendFormat": "YOLO26 P95",
           "refId": "B"
         },
         {
@@ -13503,8 +13503,8 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(rate(rtdetr_inference_requests_total{status=\"success\"}[1m]))",
-          "legendFormat": "RT-DETRv2",
+          "expr": "sum(rate(yolo26_inference_requests_total{status=\"success\"}[1m]))",
+          "legendFormat": "YOLO26",
           "refId": "A"
         },
         {
@@ -13621,8 +13621,8 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(rate(rtdetr_inference_requests_total{status=\"error\"}[1m]))",
-          "legendFormat": "RT-DETRv2 Errors",
+          "expr": "sum(rate(yolo26_inference_requests_total{status=\"error\"}[1m]))",
+          "legendFormat": "YOLO26 Errors",
           "refId": "A"
         },
         {
@@ -13661,7 +13661,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Average detections per image from RT-DETRv2",
+      "description": "Average detections per image from YOLO26",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -13736,7 +13736,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.50, rate(rtdetr_detections_per_image_bucket[5m]))",
+          "expr": "histogram_quantile(0.50, rate(yolo26_detections_per_image_bucket[5m]))",
           "legendFormat": "P50",
           "refId": "A"
         },
@@ -13745,7 +13745,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.95, rate(rtdetr_detections_per_image_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, rate(yolo26_detections_per_image_bucket[5m]))",
           "legendFormat": "P95",
           "refId": "B"
         }

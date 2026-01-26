@@ -1,7 +1,7 @@
 """Correlation ID and trace context helpers for outgoing HTTP requests.
 
 This module provides utilities for propagating correlation IDs and W3C Trace Context
-to outgoing HTTP requests when calling external services (RT-DETR, Nemotron, etc.).
+to outgoing HTTP requests when calling external services (YOLO26, Nemotron, etc.).
 
 NEM-1472: Correlation ID propagation to AI service HTTP clients
 NEM-3147: W3C Trace Context propagation for distributed tracing

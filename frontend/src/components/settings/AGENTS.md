@@ -143,7 +143,7 @@ interface Camera {
 
 **Key Features:**
 
-- Two model cards: RT-DETRv2 (detection) and Nemotron (risk analysis)
+- Two model cards: YOLO26 (detection) and Nemotron (risk analysis)
 - Status badges: loaded (green), unloaded (gray), error (red)
 - Memory usage per model with progress bar
 - Inference speed (FPS) when model is loaded
@@ -155,14 +155,14 @@ interface Camera {
 
 ```typescript
 interface AIModelsSettingsProps {
-  rtdetrModel?: ModelInfo;
+  yolo26Model?: ModelInfo;
   nemotronModel?: ModelInfo;
   totalMemory?: number | null;
   className?: string;
 }
 
 interface ModelInfo {
-  name: string; // "RT-DETRv2", "Nemotron"
+  name: string; // "YOLO26", "Nemotron"
   status: 'loaded' | 'unloaded' | 'error';
   memoryUsed: number | null; // MB
   inferenceFps: number | null; // Frames per second
@@ -172,7 +172,7 @@ interface ModelInfo {
 
 **Default Values:**
 
-- RT-DETRv2: "Real-time object detection model"
+- YOLO26: "Real-time object detection model"
 - Nemotron: "Risk analysis and reasoning model"
 - Both default to 'unloaded' status with null metrics
 
@@ -256,7 +256,7 @@ interface DlqMonitorProps {
 
 **Queue Types:**
 
-- `dlq:detection_queue` - Failed RT-DETRv2 detection jobs
+- `dlq:detection_queue` - Failed YOLO26 detection jobs
 - `dlq:analysis_queue` - Failed Nemotron analysis jobs
 
 **Job Information:**

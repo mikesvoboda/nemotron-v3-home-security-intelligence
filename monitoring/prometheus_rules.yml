@@ -33,10 +33,10 @@ groups:
         labels:
           severity: critical
           component: ai
-          service: rtdetr
+          service: yolo26
         annotations:
           summary: 'AI detector service is unavailable'
-          description: 'The RT-DETR object detection service has been unhealthy for more than 2 minutes. No new detections will be processed until the service recovers.'
+          description: 'The YOLO26 object detection service has been unhealthy for more than 2 minutes. No new detections will be processed until the service recovers.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectorunavailable'
           dashboard_url: 'http://localhost:3002/d/pipeline/pipeline?orgId=1'
 
@@ -61,7 +61,7 @@ groups:
       #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])) > 120
       #   ...
       # - alert: AIDetectorSlow
-      #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="rtdetr"}[5m])) > 5
+      #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) > 5
       #   ...
 
       # =========================================================================

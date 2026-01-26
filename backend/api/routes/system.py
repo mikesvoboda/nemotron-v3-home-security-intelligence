@@ -1857,7 +1857,7 @@ async def get_performance_metrics(
 
     Collects and returns real-time metrics from all system components:
     - GPU: Utilization, VRAM usage, temperature, power consumption
-    - AI Models: RT-DETRv2 and Nemotron status and resource usage
+    - AI Models: YOLO26v2 and Nemotron status and resource usage
     - Inference: Latency percentiles and throughput metrics
     - Databases: PostgreSQL and Redis connection status and performance
     - Host: CPU, RAM, and disk usage
@@ -2794,7 +2794,7 @@ async def get_pipeline_latency(
     """Get pipeline latency metrics with percentiles.
 
     Returns latency statistics for each stage transition in the AI pipeline:
-    - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+    - watch_to_detect: Time from file watcher detecting image to YOLO26 processing start
     - detect_to_batch: Time from detection completion to batch aggregation
     - batch_to_analyze: Time from batch completion to Nemotron analysis start
     - total_pipeline: Total end-to-end processing time
@@ -4233,7 +4233,7 @@ async def get_restart_history(
 # Model Zoo Endpoints
 # =============================================================================
 
-# VRAM budget for Model Zoo (excludes RT-DETRv2 and Nemotron allocations)
+# VRAM budget for Model Zoo (excludes YOLO26v2 and Nemotron allocations)
 MODEL_ZOO_VRAM_BUDGET_MB = 1650
 
 
@@ -4318,7 +4318,7 @@ async def get_models() -> ModelRegistryResponse:
     including their VRAM requirements, loading status, and configuration.
 
     **VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,
-    separate from the RT-DETRv2 detector and Nemotron LLM allocations.
+    separate from the YOLO26v2 detector and Nemotron LLM allocations.
 
     **Loading Strategy**: Models are loaded sequentially (one at a time) to
     prevent VRAM fragmentation and ensure stable operation.
@@ -4438,7 +4438,7 @@ MODEL_ZOO_LATENCY_TTL_SECONDS = 86400  # Keep data for 24 hours
 # EventAudit tracks which models contributed to each event analysis
 # This mapping allows us to derive "last used" timestamps from audit data
 AUDIT_MODEL_TO_ZOO_MODELS: dict[str, list[str]] = {
-    "rtdetr": [],  # RT-DETRv2 is not in Model Zoo (always loaded separately)
+    "yolo26": [],  # YOLO26v2 is not in Model Zoo (always loaded separately)
     "florence": ["florence-2-large"],
     "clip": ["clip-vit-l", "osnet-x0-25"],  # CLIP embeddings and OSNet re-id
     "violence": ["violence-detection"],

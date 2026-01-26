@@ -116,26 +116,26 @@ services:
   ai-detector:
     tmpfs:
       - /tmp
-      - /home/rtdetr/.cache # PyTorch compile cache
+      - /home/yolo26/.cache # PyTorch compile cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-detector'
     build:
       context: .
-      dockerfile: ai/rtdetr/Dockerfile
+      dockerfile: ai/yolo26/Dockerfile
     ports:
       - '8090:8090'
     volumes:
       # Persistent HuggingFace cache volume (NEM-3812)
-      # :U tells Podman to recursively chown the volume to match container user (rtdetr)
+      # :U tells Podman to recursively chown the volume to match container user (yolo26)
       # Docker ignores the :U flag, making this backward compatible
       - hf_cache:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-detector
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
-      - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
+      - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
+      - YOLO26_MODEL_PATH=${YOLO26_MODEL_PATH:-PekingU/yolo26_r50vd_coco_o365}
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
@@ -163,7 +163,7 @@ services:
               count: 1
               capabilities: [gpu]
 
-  # YOLO26 TensorRT-optimized object detection (alternative to RT-DETRv2)
+  # YOLO26 TensorRT-optimized object detection (alternative to YOLO26)
   # Enable by setting DETECTOR_TYPE=yolo26 in backend environment
   ai-yolo26:
     labels:

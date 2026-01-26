@@ -85,7 +85,7 @@ Correlation ID helpers for propagating correlation IDs to outgoing HTTP requests
 
 **Purpose:**
 
-Provides utilities for propagating correlation IDs from incoming requests to outgoing HTTP requests when calling external services (RT-DETR, Nemotron, etc.). Implements NEM-1472 (Correlation ID propagation to AI service HTTP clients).
+Provides utilities for propagating correlation IDs from incoming requests to outgoing HTTP requests when calling external services (YOLO26, Nemotron, etc.). Implements NEM-1472 (Correlation ID propagation to AI service HTTP clients).
 
 **Functions:**
 

@@ -124,7 +124,7 @@ backend/models/
 
 **Model:** `Detection`
 **Table:** `detections`
-**Purpose:** Stores individual object detection results from RT-DETRv2 AI inference
+**Purpose:** Stores individual object detection results from YOLO26v2 AI inference
 
 **Fields:**
 
@@ -676,7 +676,7 @@ The legacy `detection_ids` column is retained for backward compatibility during 
 
 | Field               | Type | Description                          |
 | ------------------- | ---- | ------------------------------------ |
-| `has_rtdetr`        | bool | RT-DETR object detection contributed |
+| `has_yolo26`        | bool | YOLO26 object detection contributed |
 | `has_florence`      | bool | Florence-2 vision attributes used    |
 | `has_clip`          | bool | CLIP embeddings used                 |
 | `has_violence`      | bool | Violence detection ran               |

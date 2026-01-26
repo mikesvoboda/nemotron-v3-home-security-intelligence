@@ -205,7 +205,7 @@ class AIServiceHealthStatus(BaseModel):
     and response time metrics.
     """
 
-    name: str = Field(..., description="Service identifier (e.g., 'rtdetr', 'nemotron')")
+    name: str = Field(..., description="Service identifier (e.g., 'yolo26', 'nemotron')")
     display_name: str = Field(..., description="Human-readable service name")
     status: ServiceHealthState = Field(..., description="Current health state")
     url: str | None = Field(default=None, description="Service URL if configured")
@@ -221,8 +221,8 @@ class AIServiceHealthStatus(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "name": "rtdetr",
-                "display_name": "RT-DETRv2 Object Detection",
+                "name": "yolo26",
+                "display_name": "YOLO26v2 Object Detection",
                 "status": "healthy",
                 "url": "http://ai-detector:8090",
                 "response_time_ms": 45.2,
@@ -281,7 +281,7 @@ class CircuitBreakerSummary(BaseModel):
                 "open": 1,
                 "half_open": 0,
                 "breakers": {
-                    "rtdetr": "closed",
+                    "yolo26": "closed",
                     "nemotron": "closed",
                     "florence": "open",
                     "clip": "closed",
@@ -318,7 +318,7 @@ class FullHealthResponse(BaseModel):
 
     Aggregates health status from all services:
     - Infrastructure (postgres, redis)
-    - AI services (rtdetr, nemotron, florence, clip, enrichment)
+    - AI services (yolo26, nemotron, florence, clip, enrichment)
     - Circuit breakers
     - Background workers
 
@@ -360,8 +360,8 @@ class FullHealthResponse(BaseModel):
                 },
                 "ai_services": [
                     {
-                        "name": "rtdetr",
-                        "display_name": "RT-DETRv2 Object Detection",
+                        "name": "yolo26",
+                        "display_name": "YOLO26v2 Object Detection",
                         "status": "healthy",
                         "url": "http://ai-detector:8090",
                         "response_time_ms": 45.2,
@@ -375,7 +375,7 @@ class FullHealthResponse(BaseModel):
                     "closed": 5,
                     "open": 0,
                     "half_open": 0,
-                    "breakers": {"rtdetr": "closed", "nemotron": "closed"},
+                    "breakers": {"yolo26": "closed", "nemotron": "closed"},
                 },
                 "workers": [{"name": "file_watcher", "running": True, "critical": True}],
                 "timestamp": "2026-01-08T10:30:00Z",

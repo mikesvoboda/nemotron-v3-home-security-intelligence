@@ -20,7 +20,7 @@ Quick reference for starting and managing AI inference services.
 Downloads:
 
 - Nemotron Mini 4B Instruct (Q4_K_M) - ~2.5GB
-- RT-DETRv2 model info (auto-downloads on first use)
+- YOLO26 model info (auto-downloads on first use)
 
 ### 2. Start All AI Services
 
@@ -30,7 +30,7 @@ Downloads:
 
 This starts:
 
-- **RT-DETRv2 Detection Server** on port 8090 (~4GB VRAM)
+- **YOLO26 Detection Server** on port 8090 (~4GB VRAM)
 - **Nemotron LLM Server** on port 8091 (~3GB VRAM)
 
 First startup takes 2-3 minutes for model loading and GPU warmup.
@@ -50,7 +50,7 @@ Shows running services, PIDs, health status, and GPU usage.
 ./scripts/start-ai.sh health
 
 # Manual health checks
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 ```
 
@@ -75,7 +75,7 @@ curl http://localhost:8091/health  # Nemotron
 
 ## Service Endpoints
 
-### RT-DETRv2 Detection Server (Port 8090)
+### YOLO26 Detection Server (Port 8090)
 
 ```bash
 # Health check
@@ -115,13 +115,13 @@ POST http://localhost:8091/v1/chat/completions
 
 Services log to:
 
-- RT-DETRv2: `/tmp/rtdetr-detector.log`
+- YOLO26: `/tmp/yolo26-detector.log`
 - Nemotron LLM: `/tmp/nemotron-llm.log`
 
 View logs:
 
 ```bash
-tail -f /tmp/rtdetr-detector.log
+tail -f /tmp/yolo26-detector.log
 tail -f /tmp/nemotron-llm.log
 ```
 
@@ -129,7 +129,7 @@ tail -f /tmp/nemotron-llm.log
 
 | Service   | VRAM     | CPU        | Latency | Port |
 | --------- | -------- | ---------- | ------- | ---- |
-| RT-DETRv2 | ~4GB     | 10-20%     | 30-50ms | 8090 |
+| YOLO26 | ~4GB     | 10-20%     | 30-50ms | 8090 |
 | Nemotron  | ~3GB     | 5-10%      | 2-5s    | 8091 |
 | **Total** | **~7GB** | **15-30%** | -       | -    |
 
@@ -148,7 +148,7 @@ tail -f /tmp/nemotron-llm.log
 2. **Check logs**:
 
    ```bash
-   tail -f /tmp/rtdetr-detector.log
+   tail -f /tmp/yolo26-detector.log
    tail -f /tmp/nemotron-llm.log
    ```
 
@@ -174,7 +174,7 @@ ps aux | grep -E "python.*model.py|llama-server"
 
 ```bash
 # Find and kill process using port
-lsof -ti:8090 | xargs kill -9  # RT-DETRv2
+lsof -ti:8090 | xargs kill -9  # YOLO26
 lsof -ti:8091 | xargs kill -9  # Nemotron
 
 # Restart services
@@ -186,7 +186,7 @@ lsof -ti:8091 | xargs kill -9  # Nemotron
 If you need to start services separately:
 
 ```bash
-# RT-DETRv2 (terminal 1)
+# YOLO26 (terminal 1)
 ./ai/start_detector.sh
 
 # Nemotron LLM (terminal 2)
@@ -199,13 +199,13 @@ The FastAPI backend automatically connects to these services:
 
 ```python
 # Backend configuration (backend/core/config.py)
-rtdetr_url: str = "http://localhost:8090"      # RT-DETRv2
+yolo26_url: str = "http://localhost:8090"      # YOLO26
 nemotron_url: str = "http://localhost:8091"    # Nemotron
 ```
 
 Backend services that use AI:
 
-- `backend/services/detector_client.py` - Calls RT-DETRv2
+- `backend/services/detector_client.py` - Calls YOLO26
 - `backend/services/nemotron_analyzer.py` - Calls Nemotron LLM
 
 ## Full Documentation
@@ -256,7 +256,7 @@ See `docs/operator/ai-installation.md` for details.
 ./scripts/start-ai.sh restart   # Restart if needed
 
 # Debugging
-tail -f /tmp/rtdetr-detector.log
+tail -f /tmp/yolo26-detector.log
 tail -f /tmp/nemotron-llm.log
 nvidia-smi
 curl http://localhost:8090/health
@@ -270,5 +270,5 @@ curl http://localhost:8091/health
 
 - **Full documentation**: `docs/operator/ai-installation.md`
 - **AI pipeline overview**: `ai/AGENTS.md`
-- **RT-DETRv2 details**: `ai/rtdetr/README.md`
+- **YOLO26 details**: `ai/yolo26/README.md`
 - **Nemotron details**: `ai/nemotron/AGENTS.md`
