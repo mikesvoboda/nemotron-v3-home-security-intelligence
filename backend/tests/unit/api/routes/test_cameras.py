@@ -288,9 +288,20 @@ class TestCreateCamera:
         mock_path_result = MagicMock()
         mock_path_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute.side_effect = [mock_name_result, mock_path_result]
+        # NEM-3597: Mock the get_camera_or_404 call which re-fetches with areas loaded
+        mock_created_camera = MagicMock(spec=Camera)
+        mock_created_camera.id = "new_camera"
+        mock_created_camera.name = "New Camera"
+        mock_created_camera.folder_path = "/cameras/new_camera"
+        mock_created_camera.status = "online"
+        mock_created_camera.areas = []
+        mock_camera_fetch_result = MagicMock()
+        mock_camera_fetch_result.unique.return_value.scalar_one_or_none.return_value = (
+            mock_created_camera
+        )
+
+        mock_db.execute.side_effect = [mock_name_result, mock_path_result, mock_camera_fetch_result]
         mock_db.commit = AsyncMock()
-        mock_db.refresh = AsyncMock()
 
         with patch("backend.api.routes.cameras.AuditService") as mock_audit:
             mock_audit.log_action = AsyncMock()
@@ -413,10 +424,21 @@ class TestCreateCamera:
         mock_path_result = MagicMock()
         mock_path_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute.side_effect = [mock_name_result, mock_path_result]
+        # NEM-3597: Mock the get_camera_or_404 call which re-fetches with areas loaded
+        mock_created_camera = MagicMock(spec=Camera)
+        mock_created_camera.id = "test_camera"
+        mock_created_camera.name = "Test Camera"
+        mock_created_camera.folder_path = "/cameras/test"
+        mock_created_camera.status = "online"
+        mock_created_camera.areas = []
+        mock_camera_fetch_result = MagicMock()
+        mock_camera_fetch_result.unique.return_value.scalar_one_or_none.return_value = (
+            mock_created_camera
+        )
+
+        mock_db.execute.side_effect = [mock_name_result, mock_path_result, mock_camera_fetch_result]
         mock_db.commit = AsyncMock()
         mock_db.rollback = AsyncMock()
-        mock_db.refresh = AsyncMock()
 
         with patch("backend.api.routes.cameras.AuditService") as mock_audit:
             # First commit fails (audit log failure)
@@ -458,9 +480,20 @@ class TestCreateCamera:
         mock_path_result = MagicMock()
         mock_path_result.scalar_one_or_none.return_value = None
 
-        mock_db.execute.side_effect = [mock_name_result, mock_path_result]
+        # NEM-3597: Mock the get_camera_or_404 call which re-fetches with areas loaded
+        mock_created_camera = MagicMock(spec=Camera)
+        mock_created_camera.id = "test_camera"
+        mock_created_camera.name = "Test Camera"
+        mock_created_camera.folder_path = "/cameras/test"
+        mock_created_camera.status = "online"
+        mock_created_camera.areas = []
+        mock_camera_fetch_result = MagicMock()
+        mock_camera_fetch_result.unique.return_value.scalar_one_or_none.return_value = (
+            mock_created_camera
+        )
+
+        mock_db.execute.side_effect = [mock_name_result, mock_path_result, mock_camera_fetch_result]
         mock_db.commit = AsyncMock()
-        mock_db.refresh = AsyncMock()
 
         # Mock cache invalidation failure
         mock_cache.invalidate_cameras.side_effect = Exception("Cache error")

@@ -35,9 +35,7 @@
   ],
 
   "expected_outputs": {
-    "detections": [
-      { "class": "person", "min_confidence": 0.80, "count": 1 }
-    ],
+    "detections": [{ "class": "person", "min_confidence": 0.8, "count": 1 }],
     "face": {
       "detected": true,
       "count": 1,
@@ -103,7 +101,7 @@
       ],
       "expected_output_overrides": {
         "detections": [
-          { "class": "person", "min_confidence": 0.80, "count": 1 },
+          { "class": "person", "min_confidence": 0.8, "count": 1 },
           { "class": "car", "min_confidence": 0.75, "count": 1 }
         ],
         "vehicle": {

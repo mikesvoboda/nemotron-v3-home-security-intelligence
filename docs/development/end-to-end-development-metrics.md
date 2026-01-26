@@ -1,7 +1,7 @@
 # End-to-End Development Metrics Summary
 
-**Project:** Home Security Intelligence (`mikesvoboda/nemotron-v3-home-security-intelligence`)  
-**Generated:** 2026-01-19  
+**Project:** Home Security Intelligence (`mikesvoboda/nemotron-v3-home-security-intelligence`)
+**Generated:** 2026-01-19
 **Scope:** Comprehensive engineering “velocity + quality + delivery pipeline” snapshot, derived from repository state plus live Linear and GitHub Actions data.
 
 ---
@@ -37,10 +37,10 @@
 
 ## Development velocity (git-derived)
 
-**Project age:** **29 days**  
-**First commit:** 2025-12-22  
-**Last commit:** 2026-01-19  
-**Total commits:** **906**  
+**Project age:** **29 days**
+**First commit:** 2025-12-22
+**Last commit:** 2026-01-19
+**Total commits:** **906**
 **Average:** **31.24 commits/day**
 
 **Commits by week** (7-day buckets since first commit):
@@ -131,7 +131,7 @@ Counts are **non-empty lines** (total lines in parentheses), with the directory 
 
 ## PR → CI feedback loop metrics (GitHub Actions job timings)
 
-Repo: `mikesvoboda/nemotron-v3-home-security-intelligence`  
+Repo: `mikesvoboda/nemotron-v3-home-security-intelligence`
 Sample: **15 most recent merged PRs on `main`**
 
 ### Aggregates (minutes)
@@ -141,6 +141,7 @@ Sample: **15 most recent merged PRs on `main`**
 - **Vitest (max shard duration)**: **p50 7.43**, **p95 8.28**, **max 8.28**
 
 > Notes:
+>
 > - “CI wall-clock” is measured from the earliest job start to the latest job completion in the selected CI run.
 > - For sharded stages, max shard time is the gating value; sum-of-shards is a compute-cost metric, not a feedback-loop metric.
 
@@ -224,43 +225,43 @@ Skipping is supported but intended for emergencies only (see `docs/development/h
 
 This repo has **35** GitHub Actions workflow files under `.github/workflows/`.
 
-| Workflow | File | Triggers | What it does |
-|---|---|---|---|
-| Accessibility Tests | `accessibility-tests.yml` | push | Playwright + axe-core accessibility checks (non-blocking), with reports/artifacts. |
-| AI Code Review | `ai-code-review.yml` | pull_request | Automated AI-assisted review checks on PRs. |
-| API Compatibility | `api-compatibility.yml` | pull_request, push | API compatibility checks for schema/type drift and backwards-compatibility. |
-| API Contract Tests | `api-contract.yml` | pull_request | PR contract testing: generate OpenAPI, compare against main using oasdiff, report breaking changes and changelog in PR comment. |
-| Benchmarks | `benchmarks.yml` | pull_request, push, workflow_dispatch | pytest-benchmark performance regression detection and memory profiling gates. |
-| Bundle Size Tracking | `bundle-size.yml` | push | Bundle size measurement/tracking for frontend builds (non-blocking). |
-| CI Analytics | `ci-analytics.yml` | schedule, workflow_dispatch | Scheduled CI/CD metrics collection (workflow durations, success rate, bottlenecks; DORA-like summary) and alert threshold checks. |
-| CI | `ci.yml` | pull_request, push, workflow_dispatch | Primary PR + main validation: backend lint/typecheck/unit+integration shards, frontend lint/typecheck/vitest shards, chromium E2E shards, coverage upload, and build checks. |
-| CodeQL Security Analysis | `codeql.yml` | push, schedule | CodeQL security analysis (scheduled and/or main) with results in GitHub Security tab. |
-| Dependency Audit | `dependency-audit.yml` | pull_request, push, schedule | Dependency auditing and SBOM/vulnerability review automation. |
-| Deploy | `deploy.yml` | push | Build and push multi-arch backend/frontend images to GHCR, run smoke tests, generate SBOM, sign images, and produce deployment readiness artifacts. |
-| Documentation Drift Detection | `docs-drift.yml` | pull_request, push | Detect documentation drift between code and docs (PR/main). |
-| Documentation | `docs.yml` | push, workflow_dispatch | Documentation build/publish checks. |
-| Secret Detection | `gitleaks.yml` | pull_request, push | Secret scanning using Gitleaks + TruffleHog. |
-| GPU Tests | `gpu-tests.yml` | push | GPU/self-hosted runner tests validating GPU pipeline and related hardware-dependent suites. |
-| Lighthouse Performance Tests | `lighthouse.yml` | push | Lighthouse performance/SEO/best-practices audit for frontend. |
-| Linear CI Status Sync | `linear-ci-status.yml` | push, workflow_dispatch, workflow_run | Sync Linear issue states with CI outcomes and merges to main. |
-| Linear-GitHub Issue Sync | `linear-github-sync.yml` | schedule, workflow_dispatch | Scheduled sync between Linear and GitHub metadata. |
-| Load Tests | `load-tests.yml` | push, schedule, workflow_dispatch | k6 load testing on main + scheduled runs; produces artifacts and summaries. |
-| Mutation Testing | `mutation-testing.yml` | schedule, workflow_dispatch | Scheduled/on-demand mutation testing to measure test suite strength. |
-| Nightly Analysis | `nightly.yml` | schedule, workflow_dispatch | Nightly scheduled deeper analysis suite (non-PR) for regression detection. |
-| PR Review Bot - Test Enforcement | `pr-review-bot.yml` | pull_request, workflow_dispatch | PR review bot / policy enforcement (e.g., test expectations, advisories). |
-| Preview Deploy | `preview-deploy.yml` | workflow_dispatch | Manual preview deployment workflow (on-demand). |
-| Release Drafter | `release-drafter.yml` | push | Maintains draft release notes based on merged PRs. |
-| Release | `release.yml` | push | Tag-triggered GitHub release creation and changelog generation. |
-| Automated Rollback | `rollback.yml` | workflow_run | Automated rollback workflow triggered from workflow_run events. |
-| SAST (Static Analysis) | `sast.yml` | pull_request, push | Static analysis security scanning (Semgrep + other SAST tooling) on PR/main. |
-| Semantic Release | `semantic-release.yml` | push, workflow_dispatch | Automated versioning + changelog + GitHub releases based on conventional commits. |
-| Test Coverage Gate | `test-coverage-gate.yml` | pull_request, workflow_dispatch | PR gate enforcing test/coverage requirements and posting PR comments when requirements are missing. |
-| Trivy Security Scan | `trivy.yml` | pull_request, push, schedule, workflow_dispatch | Trivy vulnerability scanning for deps and container configs/images. |
-| Visual Regression Tests | `visual-tests.yml` | push, workflow_dispatch | Playwright visual regression tests (non-blocking), with artifacts and optional baseline update. |
-| Vulnerability Management | `vulnerability-management.yml` | schedule, workflow_dispatch | Scheduled vulnerability management reporting and follow-ups. |
-| Weekly Audit | `weekly-audit.yml` | schedule, workflow_dispatch | Weekly audit workflow (security/quality checks) to keep hygiene high. |
-| Weekly Test Report | `weekly-test-report.yml` | schedule, workflow_dispatch | Weekly test/coverage reporting artifacts and trend capture. |
-| ZAP Security Scan | `zap-security.yml` | push, workflow_dispatch | OWASP ZAP dynamic scanning (scheduled/on-demand) and reporting. |
+| Workflow                         | File                           | Triggers                                        | What it does                                                                                                                                                                 |
+| -------------------------------- | ------------------------------ | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accessibility Tests              | `accessibility-tests.yml`      | push                                            | Playwright + axe-core accessibility checks (non-blocking), with reports/artifacts.                                                                                           |
+| AI Code Review                   | `ai-code-review.yml`           | pull_request                                    | Automated AI-assisted review checks on PRs.                                                                                                                                  |
+| API Compatibility                | `api-compatibility.yml`        | pull_request, push                              | API compatibility checks for schema/type drift and backwards-compatibility.                                                                                                  |
+| API Contract Tests               | `api-contract.yml`             | pull_request                                    | PR contract testing: generate OpenAPI, compare against main using oasdiff, report breaking changes and changelog in PR comment.                                              |
+| Benchmarks                       | `benchmarks.yml`               | pull_request, push, workflow_dispatch           | pytest-benchmark performance regression detection and memory profiling gates.                                                                                                |
+| Bundle Size Tracking             | `bundle-size.yml`              | push                                            | Bundle size measurement/tracking for frontend builds (non-blocking).                                                                                                         |
+| CI Analytics                     | `ci-analytics.yml`             | schedule, workflow_dispatch                     | Scheduled CI/CD metrics collection (workflow durations, success rate, bottlenecks; DORA-like summary) and alert threshold checks.                                            |
+| CI                               | `ci.yml`                       | pull_request, push, workflow_dispatch           | Primary PR + main validation: backend lint/typecheck/unit+integration shards, frontend lint/typecheck/vitest shards, chromium E2E shards, coverage upload, and build checks. |
+| CodeQL Security Analysis         | `codeql.yml`                   | push, schedule                                  | CodeQL security analysis (scheduled and/or main) with results in GitHub Security tab.                                                                                        |
+| Dependency Audit                 | `dependency-audit.yml`         | pull_request, push, schedule                    | Dependency auditing and SBOM/vulnerability review automation.                                                                                                                |
+| Deploy                           | `deploy.yml`                   | push                                            | Build and push multi-arch backend/frontend images to GHCR, run smoke tests, generate SBOM, sign images, and produce deployment readiness artifacts.                          |
+| Documentation Drift Detection    | `docs-drift.yml`               | pull_request, push                              | Detect documentation drift between code and docs (PR/main).                                                                                                                  |
+| Documentation                    | `docs.yml`                     | push, workflow_dispatch                         | Documentation build/publish checks.                                                                                                                                          |
+| Secret Detection                 | `gitleaks.yml`                 | pull_request, push                              | Secret scanning using Gitleaks + TruffleHog.                                                                                                                                 |
+| GPU Tests                        | `gpu-tests.yml`                | push                                            | GPU/self-hosted runner tests validating GPU pipeline and related hardware-dependent suites.                                                                                  |
+| Lighthouse Performance Tests     | `lighthouse.yml`               | push                                            | Lighthouse performance/SEO/best-practices audit for frontend.                                                                                                                |
+| Linear CI Status Sync            | `linear-ci-status.yml`         | push, workflow_dispatch, workflow_run           | Sync Linear issue states with CI outcomes and merges to main.                                                                                                                |
+| Linear-GitHub Issue Sync         | `linear-github-sync.yml`       | schedule, workflow_dispatch                     | Scheduled sync between Linear and GitHub metadata.                                                                                                                           |
+| Load Tests                       | `load-tests.yml`               | push, schedule, workflow_dispatch               | k6 load testing on main + scheduled runs; produces artifacts and summaries.                                                                                                  |
+| Mutation Testing                 | `mutation-testing.yml`         | schedule, workflow_dispatch                     | Scheduled/on-demand mutation testing to measure test suite strength.                                                                                                         |
+| Nightly Analysis                 | `nightly.yml`                  | schedule, workflow_dispatch                     | Nightly scheduled deeper analysis suite (non-PR) for regression detection.                                                                                                   |
+| PR Review Bot - Test Enforcement | `pr-review-bot.yml`            | pull_request, workflow_dispatch                 | PR review bot / policy enforcement (e.g., test expectations, advisories).                                                                                                    |
+| Preview Deploy                   | `preview-deploy.yml`           | workflow_dispatch                               | Manual preview deployment workflow (on-demand).                                                                                                                              |
+| Release Drafter                  | `release-drafter.yml`          | push                                            | Maintains draft release notes based on merged PRs.                                                                                                                           |
+| Release                          | `release.yml`                  | push                                            | Tag-triggered GitHub release creation and changelog generation.                                                                                                              |
+| Automated Rollback               | `rollback.yml`                 | workflow_run                                    | Automated rollback workflow triggered from workflow_run events.                                                                                                              |
+| SAST (Static Analysis)           | `sast.yml`                     | pull_request, push                              | Static analysis security scanning (Semgrep + other SAST tooling) on PR/main.                                                                                                 |
+| Semantic Release                 | `semantic-release.yml`         | push, workflow_dispatch                         | Automated versioning + changelog + GitHub releases based on conventional commits.                                                                                            |
+| Test Coverage Gate               | `test-coverage-gate.yml`       | pull_request, workflow_dispatch                 | PR gate enforcing test/coverage requirements and posting PR comments when requirements are missing.                                                                          |
+| Trivy Security Scan              | `trivy.yml`                    | pull_request, push, schedule, workflow_dispatch | Trivy vulnerability scanning for deps and container configs/images.                                                                                                          |
+| Visual Regression Tests          | `visual-tests.yml`             | push, workflow_dispatch                         | Playwright visual regression tests (non-blocking), with artifacts and optional baseline update.                                                                              |
+| Vulnerability Management         | `vulnerability-management.yml` | schedule, workflow_dispatch                     | Scheduled vulnerability management reporting and follow-ups.                                                                                                                 |
+| Weekly Audit                     | `weekly-audit.yml`             | schedule, workflow_dispatch                     | Weekly audit workflow (security/quality checks) to keep hygiene high.                                                                                                        |
+| Weekly Test Report               | `weekly-test-report.yml`       | schedule, workflow_dispatch                     | Weekly test/coverage reporting artifacts and trend capture.                                                                                                                  |
+| ZAP Security Scan                | `zap-security.yml`             | push, workflow_dispatch                         | OWASP ZAP dynamic scanning (scheduled/on-demand) and reporting.                                                                                                              |
 
 ---
 
@@ -269,4 +270,3 @@ This repo has **35** GitHub Actions workflow files under `.github/workflows/`.
 1. **DORA correctness**: `scripts/ci-metrics-collector.py` currently computes DORA-like values based on workflow runs and durations, not true deploy-based DORA. For correctness, base DORA on successful runs of the `Deploy` workflow and map merges → deploys for lead time.
 2. **CI metrics to Grafana**: the repo can generate Prometheus-format CI metrics, but Prometheus isn’t scraping them by default; consider pushgateway or backend ingestion so `ci_*` metrics appear in Grafana.
 3. **Epic definition**: define epics explicitly (label/project/initiative) if you want stable epic/subtask metrics over time; “parent issue” proxy is deterministic but may not match prior reporting.
-

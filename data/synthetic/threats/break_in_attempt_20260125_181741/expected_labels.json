@@ -14,12 +14,7 @@
   "pose": {
     "posture": "aggressive_stance",
     "is_suspicious": true,
-    "keypoints_visible": [
-      "left_shoulder",
-      "right_shoulder",
-      "left_elbow",
-      "right_elbow"
-    ]
+    "keypoints_visible": ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow"]
   },
   "action": {
     "action": "forcing_entry",
@@ -32,10 +27,7 @@
   },
   "threats": {
     "has_threat": true,
-    "types": [
-      "break_in",
-      "burglary_tool"
-    ],
+    "types": ["break_in", "burglary_tool"],
     "max_severity": "critical"
   },
   "violence": {
@@ -55,14 +47,7 @@
     ]
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "door"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "resident",
-      "welcome"
-    ]
+    "must_contain": ["person", "door"],
+    "must_not_contain": ["delivery", "resident", "welcome"]
   }
 }

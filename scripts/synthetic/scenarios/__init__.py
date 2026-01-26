@@ -62,6 +62,7 @@ class ModifierNotFoundError(Exception):
 
 def _load_json_file(path: Path) -> dict[str, Any]:
     """Load and parse a JSON file."""
+    # nosemgrep: path-traversal-open - paths are controlled by SCENARIOS_DIR constants
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -105,8 +106,7 @@ def _load_scenario(scenario_id: str) -> dict[str, Any]:
 
     if scenario_id not in available:
         raise ScenarioNotFoundError(
-            f"Scenario '{scenario_id}' not found. "
-            f"Available scenarios: {sorted(available.keys())}"
+            f"Scenario '{scenario_id}' not found. Available scenarios: {sorted(available.keys())}"
         )
 
     scenario = _load_json_file(available[scenario_id])
@@ -117,7 +117,7 @@ def _load_scenario(scenario_id: str) -> dict[str, Any]:
 
 def _load_time_modifiers() -> dict[str, dict[str, Any]]:
     """Load time modifiers from the environmental directory."""
-    global _time_modifiers_cache
+    global _time_modifiers_cache  # noqa: PLW0603 - caching pattern
 
     if _time_modifiers_cache is not None:
         return _time_modifiers_cache
@@ -135,7 +135,7 @@ def _load_time_modifiers() -> dict[str, dict[str, Any]]:
 
 def _load_weather_modifiers() -> dict[str, dict[str, Any]]:
     """Load weather modifiers from the environmental directory."""
-    global _weather_modifiers_cache
+    global _weather_modifiers_cache  # noqa: PLW0603 - caching pattern
 
     if _weather_modifiers_cache is not None:
         return _weather_modifiers_cache
@@ -286,9 +286,7 @@ def list_scenarios() -> dict[str, list[str]]:
         ("threats", THREATS_DIR),
     ]:
         if category_dir.exists():
-            result[category] = sorted(
-                [f.stem for f in category_dir.glob("*.json")]
-            )
+            result[category] = sorted([f.stem for f in category_dir.glob("*.json")])
 
     return result
 
@@ -529,7 +527,7 @@ def clear_cache() -> None:
 
     Useful for testing or when scenario files are modified.
     """
-    global _scenario_cache, _time_modifiers_cache, _weather_modifiers_cache
+    global _scenario_cache, _time_modifiers_cache, _weather_modifiers_cache  # noqa: PLW0602, PLW0603
 
     _scenario_cache.clear()
     _time_modifiers_cache = None
@@ -538,28 +536,28 @@ def clear_cache() -> None:
 
 # Public API
 __all__ = [
+    "ENVIRONMENTAL_DIR",
+    "NORMAL_DIR",
+    # Paths (for advanced usage)
+    "SCENARIOS_DIR",
+    "SUSPICIOUS_DIR",
+    "THREATS_DIR",
+    "ModifierNotFoundError",
     # Exceptions
     "ScenarioNotFoundError",
-    "ModifierNotFoundError",
+    # Combined functions
+    "apply_modifiers",
+    # Utilities
+    "clear_cache",
     # Scenario functions
     "get_scenario",
     "get_scenario_variation",
-    "list_scenarios",
-    "list_all_scenarios",
+    "get_scenario_with_modifiers",
     # Modifier functions
     "get_time_modifier",
     "get_weather_modifier",
+    "list_all_scenarios",
+    "list_scenarios",
     "list_time_modifiers",
     "list_weather_modifiers",
-    # Combined functions
-    "apply_modifiers",
-    "get_scenario_with_modifiers",
-    # Utilities
-    "clear_cache",
-    # Paths (for advanced usage)
-    "SCENARIOS_DIR",
-    "NORMAL_DIR",
-    "SUSPICIOUS_DIR",
-    "THREATS_DIR",
-    "ENVIRONMENTAL_DIR",
 ]

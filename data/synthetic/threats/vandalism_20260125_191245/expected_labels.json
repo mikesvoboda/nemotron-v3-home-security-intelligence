@@ -26,10 +26,7 @@
   },
   "threats": {
     "has_threat": true,
-    "types": [
-      "property_damage",
-      "gang_activity"
-    ],
+    "types": ["property_damage", "gang_activity"],
     "max_severity": "critical"
   },
   "risk": {
@@ -44,13 +41,7 @@
     ]
   },
   "florence_caption": {
-    "must_contain": [
-      "person"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "resident",
-      "worker"
-    ]
+    "must_contain": ["person"],
+    "must_not_contain": ["delivery", "resident", "worker"]
   }
 }

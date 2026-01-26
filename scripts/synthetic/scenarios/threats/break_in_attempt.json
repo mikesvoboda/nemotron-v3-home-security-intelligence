@@ -38,9 +38,7 @@
   ],
 
   "expected_outputs": {
-    "detections": [
-      { "class": "person", "min_confidence": 0.70, "count": 1 }
-    ],
+    "detections": [{ "class": "person", "min_confidence": 0.7, "count": 1 }],
     "face": {
       "detected": false,
       "count": 0,
@@ -73,7 +71,13 @@
       "min_score": 85,
       "max_score": 100,
       "level": "critical",
-      "expected_factors": ["forced_entry_attempt", "nighttime", "face_concealed", "tools_visible", "aggressive_behavior"]
+      "expected_factors": [
+        "forced_entry_attempt",
+        "nighttime",
+        "face_concealed",
+        "tools_visible",
+        "aggressive_behavior"
+      ]
     },
     "florence_caption": {
       "must_contain": ["person", "door"],
@@ -130,7 +134,12 @@
           "min_score": 90,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": ["forced_entry_attempt", "nighttime", "back_of_house", "face_concealed"]
+          "expected_factors": [
+            "forced_entry_attempt",
+            "nighttime",
+            "back_of_house",
+            "face_concealed"
+          ]
         }
       }
     },
@@ -154,7 +163,12 @@
           "min_score": 95,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": ["successful_entry", "active_intrusion", "nighttime", "face_concealed"]
+          "expected_factors": [
+            "successful_entry",
+            "active_intrusion",
+            "nighttime",
+            "face_concealed"
+          ]
         }
       }
     },
@@ -243,14 +257,17 @@
         }
       ],
       "expected_output_overrides": {
-        "detections": [
-          { "class": "person", "min_confidence": 0.70, "count": 2 }
-        ],
+        "detections": [{ "class": "person", "min_confidence": 0.7, "count": 2 }],
         "risk": {
           "min_score": 90,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": ["forced_entry_attempt", "multiple_intruders", "coordinated_attack", "nighttime"]
+          "expected_factors": [
+            "forced_entry_attempt",
+            "multiple_intruders",
+            "coordinated_attack",
+            "nighttime"
+          ]
         }
       }
     }

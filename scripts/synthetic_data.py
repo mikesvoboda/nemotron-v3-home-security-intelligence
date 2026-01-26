@@ -52,44 +52,36 @@ import json
 import os
 import shutil
 import sys
-import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 # Add project root to path for imports
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.synthetic import (
+from scripts.synthetic import (  # noqa: E402 - must be after sys.path modification
     ComparisonEngine,
-    MediaGeneratorError,
     PromptGenerator,
     ReportGenerator,
     SampleModelResult,
     generate_image_sync,
     generate_video_sync,
 )
-from scripts.synthetic.scenarios import (
+from scripts.synthetic.scenarios import (  # noqa: E402
     ScenarioNotFoundError,
     get_scenario,
     get_scenario_with_modifiers,
-    list_all_scenarios,
     list_scenarios,
     list_time_modifiers,
     list_weather_modifiers,
 )
-from scripts.synthetic.stock_footage import (
+from scripts.synthetic.stock_footage import (  # noqa: E402
     SCENARIO_SEARCH_TERMS,
-    StockFootageDownloader,
-    StockSource,
     download_stock_sync,
     search_stock_sync,
 )
-
-if TYPE_CHECKING:
-    pass
 
 # Output directories
 DATA_DIR = PROJECT_ROOT / "data" / "synthetic"
@@ -114,12 +106,14 @@ def get_output_dir(category: str, scenario_name: str, run_id: str) -> Path:
 def save_json(data: dict[str, Any], path: Path) -> None:
     """Save data as formatted JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    # nosemgrep: path-traversal-open - path is controlled by DATA_DIR constant
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, default=str)
 
 
 def load_json(path: Path) -> dict[str, Any]:
     """Load JSON data from a file."""
+    # nosemgrep: path-traversal-open - path is controlled by DATA_DIR constant
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -168,7 +162,9 @@ def validate_scenario_spec(spec: dict[str, Any]) -> list[str]:
     return errors
 
 
-def cmd_generate_stock(args: argparse.Namespace, spec: dict[str, Any], scenario_name: str, category: str, run_id: str) -> int:
+def cmd_generate_stock(
+    args: argparse.Namespace, spec: dict[str, Any], scenario_name: str, category: str, run_id: str
+) -> int:
     """Generate data using stock footage from Pexels/Pixabay."""
     count = args.count or spec.get("generation", {}).get("count", 3)
     gen_format = spec.get("generation", {}).get("format", "video")
@@ -183,10 +179,11 @@ def cmd_generate_stock(args: argparse.Namespace, spec: dict[str, Any], scenario_
     save_json(spec.get("expected_outputs", {}), output_dir / "expected_labels.json")
 
     # Determine stock source
-    stock_source = args.stock_source if hasattr(args, 'stock_source') and args.stock_source else "all"
+    stock_source = (
+        args.stock_source if hasattr(args, "stock_source") and args.stock_source else "all"
+    )
 
     # Check for API keys
-    import os
     pexels_key = os.environ.get("PEXELS_API_KEY")
     pixabay_key = os.environ.get("PIXABAY_API_KEY")
 
@@ -227,7 +224,7 @@ def cmd_generate_stock(args: argparse.Namespace, spec: dict[str, Any], scenario_
     downloaded_files = []
     failed = 0
 
-    for i, result in enumerate(results):
+    for _i, result in enumerate(results):
         if len(downloaded_files) >= count:
             break
 
@@ -235,20 +232,26 @@ def cmd_generate_stock(args: argparse.Namespace, spec: dict[str, Any], scenario_
         filename = f"{len(downloaded_files) + 1:03d}.{ext}"
         output_path = media_dir / filename
 
-        print(f"  [{len(downloaded_files) + 1}/{count}] {result.source.value}:{result.id}...", end=" ", flush=True)
+        print(
+            f"  [{len(downloaded_files) + 1}/{count}] {result.source.value}:{result.id}...",
+            end=" ",
+            flush=True,
+        )
 
         success = download_stock_sync(result, output_path)
 
         if success and output_path.exists():
             size_kb = output_path.stat().st_size / 1024
             print(f"OK ({size_kb:.1f} KB)")
-            downloaded_files.append({
-                "file": str(output_path.relative_to(output_dir)),
-                "source": result.source.value,
-                "source_id": result.id,
-                "source_url": result.url,
-                "tags": result.tags,
-            })
+            downloaded_files.append(
+                {
+                    "file": str(output_path.relative_to(output_dir)),
+                    "source": result.source.value,
+                    "source_id": result.id,
+                    "source_url": result.url,
+                    "tags": result.tags,
+                }
+            )
         else:
             print("FAILED")
             failed += 1
@@ -264,13 +267,13 @@ def cmd_generate_stock(args: argparse.Namespace, spec: dict[str, Any], scenario_
         "count_requested": count,
         "count_generated": len(downloaded_files),
         "count_failed": failed,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "files": downloaded_files,
         "search_terms": SCENARIO_SEARCH_TERMS.get(scenario_name, []),
     }
     save_json(metadata, output_dir / "metadata.json")
 
-    print(f"\nDownload complete:")
+    print("\nDownload complete:")
     print(f"  Downloaded: {len(downloaded_files)}/{count}")
     print(f"  Failed: {failed}")
     print(f"  Output: {output_dir}")
@@ -312,7 +315,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         return 1
 
     # Check if using stock footage source
-    if hasattr(args, 'source') and args.source == "stock":
+    if hasattr(args, "source") and args.source == "stock":
         return cmd_generate_stock(args, spec, scenario_name, category, run_id)
 
     # Validate spec
@@ -394,7 +397,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         "count_requested": count,
         "count_generated": len(generated_files),
         "count_failed": failed,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "files": generated_files,
         "applied_modifiers": {
             "variation": args.variation,
@@ -404,7 +407,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
     }
     save_json(metadata, output_dir / "metadata.json")
 
-    print(f"\nGeneration complete:")
+    print("\nGeneration complete:")
     print(f"  Generated: {len(generated_files)}/{count}")
     print(f"  Failed: {failed}")
     print(f"  Output: {output_dir}")
@@ -513,8 +516,11 @@ def cmd_test(args: argparse.Namespace) -> int:
             passed=result.passed,
             expected=expected,
             actual=actual,
-            diff={fr.field_name: {"expected": fr.expected, "actual": fr.actual}
-                  for fr in result.field_results if not fr.passed},
+            diff={
+                fr.field_name: {"expected": fr.expected, "actual": fr.actual}
+                for fr in result.field_results
+                if not fr.passed
+            },
         )
         all_results.append(sample_result)
 
@@ -537,7 +543,7 @@ def cmd_test(args: argparse.Namespace) -> int:
 
     # Print summary
     summary = report["summary"]
-    print(f"\nTest Results:")
+    print("\nTest Results:")
     print(f"  Total samples: {summary['total_samples']}")
     print(f"  Passed: {summary['passed']}")
     print(f"  Failed: {summary['failed']}")
@@ -637,11 +643,13 @@ def main() -> int:
         help="Generate synthetic media from scenario templates",
     )
     gen_parser.add_argument(
-        "--scenario", "-s",
+        "--scenario",
+        "-s",
         help="Built-in scenario template ID (e.g., loitering, break_in_attempt)",
     )
     gen_parser.add_argument(
-        "--variation", "-v",
+        "--variation",
+        "-v",
         help="Scenario variation ID",
     )
     gen_parser.add_argument(
@@ -649,21 +657,25 @@ def main() -> int:
         help="Path to custom scenario spec JSON file",
     )
     gen_parser.add_argument(
-        "--count", "-n",
+        "--count",
+        "-n",
         type=int,
         help="Number of media files to generate (overrides spec)",
     )
     gen_parser.add_argument(
-        "--format", "-f",
+        "--format",
+        "-f",
         choices=["image", "video"],
         help="Media format (overrides spec)",
     )
     gen_parser.add_argument(
-        "--time", "-t",
+        "--time",
+        "-t",
         help="Time modifier (dawn, day, dusk, night, midnight)",
     )
     gen_parser.add_argument(
-        "--weather", "-w",
+        "--weather",
+        "-w",
         help="Weather modifier (clear, rain, snow, fog, etc.)",
     )
     gen_parser.add_argument(
@@ -690,7 +702,8 @@ def main() -> int:
         help="Run A/B comparison tests on generated data",
     )
     test_parser.add_argument(
-        "--run-id", "-r",
+        "--run-id",
+        "-r",
         help="Run ID to test (timestamp, e.g., 20260125_143022)",
     )
     test_parser.add_argument(
@@ -699,7 +712,8 @@ def main() -> int:
         help="Test all available runs",
     )
     test_parser.add_argument(
-        "--models", "-m",
+        "--models",
+        "-m",
         help="Comma-separated list of models to test (default: all)",
     )
     test_parser.add_argument(
@@ -714,7 +728,8 @@ def main() -> int:
         help="List available scenario templates",
     )
     list_parser.add_argument(
-        "--category", "-c",
+        "--category",
+        "-c",
         choices=["normal", "suspicious", "threats"],
         help="Filter by category",
     )

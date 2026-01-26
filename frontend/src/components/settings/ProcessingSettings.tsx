@@ -19,8 +19,8 @@ import QueueSettings from './QueueSettings';
 import RateLimitingSettings from './RateLimitingSettings';
 import SeverityThresholds from './SeverityThresholds';
 import StorageDashboard from './StorageDashboard';
-import { useSettingsQuery, useUpdateSettings } from '../../hooks/useSettingsApi';
 import { useBatchStatus } from '../../hooks/useBatchStatus';
+import { useSettingsQuery, useUpdateSettings } from '../../hooks/useSettingsApi';
 import {
   fetchConfig,
   updateConfig,
