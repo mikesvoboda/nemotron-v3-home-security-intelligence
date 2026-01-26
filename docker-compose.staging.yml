@@ -131,15 +131,13 @@ services:
     ports:
       - '8093:8093'
     volumes:
-      # Read-only model mount (HuggingFace CLIP weights)
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
-      # Writable mount for TensorRT engine cache (if enabled)
-      - clip-tensorrt-cache-staging:/cache/tensorrt
+      # Writable mount to allow TensorRT engine auto-export if enabled
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l
     environment:
       - CLIP_MODEL_PATH=/models/clip-vit-l
       # TensorRT disabled by default in staging (enable for faster inference)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
-      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
+      - CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -588,8 +586,6 @@ volumes:
   grafana_staging_data:
     driver: local
   alertmanager_staging_data:
-    driver: local
-  clip-tensorrt-cache-staging:
     driver: local
 
 networks:
