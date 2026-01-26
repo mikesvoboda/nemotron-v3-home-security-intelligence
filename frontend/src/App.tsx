@@ -9,7 +9,6 @@ import {
   ChunkLoadErrorBoundary,
   ErrorBoundary,
   NavigationTracker,
-  OfflineStatusIndicator,
   PageTransition,
   ProductTour,
   RateLimitIndicator,
@@ -107,9 +106,6 @@ const GpuSettingsPage = lazy(() => import('./pages/GpuSettingsPage'));
 // Webhooks Page
 const WebhooksPage = lazy(() => import('./pages/WebhooksPage'));
 
-// Scheduled Reports Page
-const ScheduledReportsPage = lazy(() => import('./pages/ScheduledReportsPage'));
-
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -175,7 +171,6 @@ export default function App() {
                           <Route path="/zones" element={<ZonesPage />} />
                           <Route path="/settings/gpu" element={<GpuSettingsPage />} />
                           <Route path="/webhooks" element={<WebhooksPage />} />
-                          <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>
@@ -192,8 +187,6 @@ export default function App() {
           <RetryingIndicator />
           {/* PWA install prompt - shows after engagement criteria met */}
           <InstallPrompt />
-          {/* PWA offline status indicator - shows when offline (NEM-3675) */}
-          <OfflineStatusIndicator position="bottom-left" variant="banner" reloadOnRetry />
         </AnnouncementProvider>
         {/* React Query DevTools - only shown in development */}
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
