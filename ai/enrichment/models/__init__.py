@@ -9,6 +9,7 @@ Models:
 - PersonReID: OSNet-x0.25 for person re-identification (~100MB VRAM)
 - PoseEstimator: YOLOv8n-pose for human pose estimation (~300MB VRAM)
 - ThreatDetector: Weapon detection YOLOv8 variant (~400MB VRAM, CRITICAL priority)
+- YOLO26Detector: YOLO26 secondary object detection (~100MB VRAM, LOW priority)
 """
 
 from ai.enrichment.models.action_recognizer import (
@@ -51,9 +52,19 @@ from ai.enrichment.models.threat_detector import (
     ThreatResult,
     load_threat_detector,
 )
+from ai.enrichment.models.yolo26_detector import (
+    COCO_CLASSES,
+    YOLO26_DEFAULT_MODEL,
+    YOLO26_MODEL_PATH_ENV,
+    Detection,
+    YOLO26Detector,
+    YOLO26Result,
+    load_yolo26_detector,
+)
 
 __all__ = [
     "AGE_RANGES",
+    "COCO_CLASSES",
     "DEFAULT_AGE_CONFIDENCE_THRESHOLD",
     "DEFAULT_GENDER_CONFIDENCE_THRESHOLD",
     "DEFAULT_SIMILARITY_THRESHOLD",
@@ -66,10 +77,13 @@ __all__ = [
     "SUSPICIOUS_POSES",
     "THREAT_CLASSES",
     "THREAT_CLASSES_BY_NAME",
+    "YOLO26_DEFAULT_MODEL",
+    "YOLO26_MODEL_PATH_ENV",
     "ActionRecognizer",
     "ActionResult",
     "DemographicsEstimator",
     "DemographicsResult",
+    "Detection",
     "Keypoint",
     "PersonReID",
     "PoseEstimator",
@@ -78,9 +92,12 @@ __all__ = [
     "ThreatDetection",
     "ThreatDetector",
     "ThreatResult",
+    "YOLO26Detector",
+    "YOLO26Result",
     "load_action_recognizer",
     "load_demographics",
     "load_person_reid",
     "load_pose_estimator",
     "load_threat_detector",
+    "load_yolo26_detector",
 ]

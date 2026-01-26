@@ -220,6 +220,12 @@ class TestDetectorClientWarmup:
         mock.detector_max_retries = 1
         mock.detection_confidence_threshold = 0.5
         mock.ai_max_concurrent_inferences = 4
+        # Detector type selection (default to rtdetr)
+        mock.detector_type = "rtdetr"
+        # YOLO26 settings (needed even when using rtdetr to avoid attribute errors)
+        mock.yolo26_url = "http://localhost:8095"
+        mock.yolo26_api_key = None
+        mock.yolo26_read_timeout = 30.0
         # Warmup-specific settings (NEM-1670)
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0  # 5 minutes

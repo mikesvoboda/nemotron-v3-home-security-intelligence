@@ -9,8 +9,22 @@ This directory contains documentation for container orchestration, startup seque
 | File                         | Purpose                                            |
 | ---------------------------- | -------------------------------------------------- |
 | `container-orchestration.md` | Comprehensive container orchestrator documentation |
+| `yolo26-migration.md`        | YOLO26 detector migration guide and configuration  |
 
 ## Key Topics
+
+### YOLO26 Migration
+
+The `yolo26-migration.md` file covers:
+
+1. **Overview** - YOLO26 architecture and migration benefits (5.3x faster)
+2. **Prerequisites** - Hardware, software, and model file requirements
+3. **Configuration** - Environment variables and model selection
+4. **Migration Steps** - Step-by-step deployment instructions
+5. **Rollback Procedure** - How to revert to RT-DETRv2
+6. **Performance** - Benchmark results and latency comparisons
+7. **Monitoring** - Prometheus metrics and Grafana integration
+8. **Troubleshooting** - Common issues and solutions
 
 ### Container Orchestration
 
@@ -57,8 +71,9 @@ curl http://localhost:8000/api/system/health/ready
 curl http://localhost:8000/api/health/ai-services
 
 # Individual service health
-curl http://localhost:8090/health  # ai-detector
+curl http://localhost:8090/health  # ai-detector (RT-DETRv2)
 curl http://localhost:8091/health  # ai-llm
+curl http://localhost:8095/health  # ai-yolo26
 ```
 
 ### Service Management

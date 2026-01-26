@@ -29,6 +29,7 @@
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8443)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
+#   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 30)
 #   - CTX_SIZE: LLM context window size (default: 131072)
 #   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
@@ -146,6 +147,48 @@ services:
           'python',
           '-c',
           "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # YOLO26 TensorRT-optimized object detection (alternative to RT-DETRv2)
+  # Enable by setting DETECTOR_TYPE=yolo26 in backend environment
+  ai-yolo26:
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-yolo26'
+    build:
+      context: .
+      dockerfile: ai/yolo26/Dockerfile
+    ports:
+      - '8095:8095'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro
+    environment:
+      - SERVICE_NAME=ai-yolo26
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
+      - PYROSCOPE_URL=http://pyroscope:4040
+      - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
+      - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8095/health'); exit(0 if r.status_code == 200 else 1)",
         ]
       interval: 10s
       timeout: 5s
@@ -405,6 +448,7 @@ services:
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
+      - YOLO26_URL=http://ai-yolo26:8095
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
       - FOSCAM_BASE_PATH=/cameras
@@ -444,6 +488,8 @@ services:
       # ai-clip:
       #   condition: service_healthy
       # ai-enrichment:
+      #   condition: service_healthy
+      # ai-yolo26:
       #   condition: service_healthy
     healthcheck:
       test:
