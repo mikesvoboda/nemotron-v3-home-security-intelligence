@@ -210,20 +210,26 @@ class TestGetCamera:
     async def test_get_camera_success(self) -> None:
         """Test getting a specific camera by ID."""
         from backend.api.routes.cameras import get_camera
+        from backend.api.schemas.camera import CameraResponse
 
         mock_db = AsyncMock()
 
-        # Mock camera found
+        # Mock camera found with all required attributes for CameraResponse
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
         mock_camera.name = "Front Door"
         mock_camera.folder_path = "/cameras/front_door"
         mock_camera.status = "online"
+        mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.property_id = 1
 
         with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
             result = await get_camera("front_door", db=mock_db)
 
-        assert result == mock_camera
+        # NEM-3597: Now returns CameraResponse instead of Camera
+        assert isinstance(result, CameraResponse)
+        assert result.id == "front_door"
 
     @pytest.mark.asyncio
     async def test_get_camera_not_found(self) -> None:
@@ -252,7 +258,7 @@ class TestCreateCamera:
     async def test_create_camera_success(self) -> None:
         """Test successfully creating a new camera."""
         from backend.api.routes.cameras import create_camera
-        from backend.api.schemas.camera import CameraCreate
+        from backend.api.schemas.camera import CameraCreate, CameraResponse
 
         mock_db = AsyncMock()
         mock_db.add = MagicMock()  # db.add is synchronous in SQLAlchemy
@@ -273,7 +279,12 @@ class TestCreateCamera:
 
         mock_db.execute.side_effect = [mock_name_result, mock_path_result]
         mock_db.commit = AsyncMock()
-        mock_db.refresh = AsyncMock()
+
+        # Mock db.refresh to set the created_at attribute (simulating database default)
+        async def mock_refresh(camera: Camera) -> None:
+            camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+
+        mock_db.refresh = mock_refresh
 
         with patch("backend.api.routes.cameras.AuditService") as mock_audit:
             mock_audit.log_action = AsyncMock()
@@ -284,7 +295,8 @@ class TestCreateCamera:
                 cache=mock_cache,
             )
 
-        assert isinstance(result, Camera)
+        # NEM-3597: Now returns CameraResponse instead of Camera
+        assert isinstance(result, CameraResponse)
         assert result.name == "New Camera"
         assert result.folder_path == "/cameras/new_camera"
         mock_cache.invalidate_cameras.assert_called_once_with(
@@ -377,7 +389,7 @@ class TestCreateCamera:
     async def test_create_camera_audit_failure_recovers(self) -> None:
         """Test camera creation continues on audit log failure."""
         from backend.api.routes.cameras import create_camera
-        from backend.api.schemas.camera import CameraCreate
+        from backend.api.schemas.camera import CameraCreate, CameraResponse
 
         mock_db = AsyncMock()
         mock_db.add = MagicMock()  # db.add is synchronous in SQLAlchemy
@@ -399,7 +411,12 @@ class TestCreateCamera:
         mock_db.execute.side_effect = [mock_name_result, mock_path_result]
         mock_db.commit = AsyncMock()
         mock_db.rollback = AsyncMock()
-        mock_db.refresh = AsyncMock()
+
+        # Mock db.refresh to set the created_at attribute (simulating database default)
+        async def mock_refresh(camera: Camera) -> None:
+            camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+
+        mock_db.refresh = mock_refresh
 
         with patch("backend.api.routes.cameras.AuditService") as mock_audit:
             # First commit fails (audit log failure)
@@ -413,7 +430,8 @@ class TestCreateCamera:
                 cache=mock_cache,
             )
 
-        assert isinstance(result, Camera)
+        # NEM-3597: Now returns CameraResponse instead of Camera
+        assert isinstance(result, CameraResponse)
         assert mock_db.rollback.called
         # Should commit twice (once with audit failure, once recovery)
         assert mock_db.commit.call_count == 2
@@ -422,7 +440,7 @@ class TestCreateCamera:
     async def test_create_camera_cache_invalidation_failure(self) -> None:
         """Test camera creation continues on cache invalidation failure."""
         from backend.api.routes.cameras import create_camera
-        from backend.api.schemas.camera import CameraCreate
+        from backend.api.schemas.camera import CameraCreate, CameraResponse
 
         mock_db = AsyncMock()
         mock_db.add = MagicMock()  # db.add is synchronous in SQLAlchemy
@@ -443,7 +461,12 @@ class TestCreateCamera:
 
         mock_db.execute.side_effect = [mock_name_result, mock_path_result]
         mock_db.commit = AsyncMock()
-        mock_db.refresh = AsyncMock()
+
+        # Mock db.refresh to set the created_at attribute (simulating database default)
+        async def mock_refresh(camera: Camera) -> None:
+            camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+
+        mock_db.refresh = mock_refresh
 
         # Mock cache invalidation failure
         mock_cache.invalidate_cameras.side_effect = Exception("Cache error")
@@ -457,8 +480,8 @@ class TestCreateCamera:
                 cache=mock_cache,
             )
 
-        # Should still succeed despite cache error
-        assert isinstance(result, Camera)
+        # NEM-3597: Should still succeed despite cache error, now returns CameraResponse
+        assert isinstance(result, CameraResponse)
 
 
 class TestUpdateCamera:
@@ -468,7 +491,7 @@ class TestUpdateCamera:
     async def test_update_camera_success(self) -> None:
         """Test successfully updating a camera."""
         from backend.api.routes.cameras import update_camera
-        from backend.api.schemas.camera import CameraUpdate
+        from backend.api.schemas.camera import CameraResponse, CameraUpdate
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
@@ -476,12 +499,15 @@ class TestUpdateCamera:
 
         camera_data = CameraUpdate(status="offline")
 
-        # Mock existing camera
+        # Mock existing camera with all required attributes for CameraResponse
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
         mock_camera.name = "Front Door"
         mock_camera.folder_path = "/cameras/front_door"
-        mock_camera.status = "online"
+        mock_camera.status = "offline"  # After update
+        mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.property_id = 1
 
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
@@ -499,7 +525,9 @@ class TestUpdateCamera:
                 cache=mock_cache,
             )
 
-        assert result == mock_camera
+        # NEM-3597: Now returns CameraResponse instead of Camera
+        assert isinstance(result, CameraResponse)
+        assert result.id == "front_door"
         mock_cache.invalidate_cameras.assert_called_once_with(
             reason=CacheInvalidationReason.CAMERA_UPDATED
         )
@@ -537,7 +565,7 @@ class TestUpdateCamera:
     async def test_update_camera_partial_update(self) -> None:
         """Test partial update only changes specified fields."""
         from backend.api.routes.cameras import update_camera
-        from backend.api.schemas.camera import CameraUpdate
+        from backend.api.schemas.camera import CameraResponse, CameraUpdate
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
@@ -546,11 +574,15 @@ class TestUpdateCamera:
         # Only update name, leave other fields unchanged
         camera_data = CameraUpdate(name="Updated Name")
 
+        # Mock existing camera with all required attributes for CameraResponse
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
-        mock_camera.name = "Front Door"
+        mock_camera.name = "Updated Name"  # After update
         mock_camera.folder_path = "/cameras/front_door"
         mock_camera.status = "online"
+        mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.property_id = 1
 
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
@@ -566,7 +598,9 @@ class TestUpdateCamera:
                     cache=mock_cache,
                 )
 
-        assert result == mock_camera
+        # NEM-3597: Now returns CameraResponse instead of Camera
+        assert isinstance(result, CameraResponse)
+        assert result.id == "front_door"
         # Verify audit log contains changes
         mock_audit.log_action.assert_called_once()
 
@@ -574,7 +608,7 @@ class TestUpdateCamera:
     async def test_update_camera_audit_failure_recovers(self) -> None:
         """Test camera update continues on audit log failure."""
         from backend.api.routes.cameras import update_camera
-        from backend.api.schemas.camera import CameraUpdate
+        from backend.api.schemas.camera import CameraResponse, CameraUpdate
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
@@ -582,11 +616,15 @@ class TestUpdateCamera:
 
         camera_data = CameraUpdate(status="offline")
 
+        # Mock existing camera with all required attributes for CameraResponse
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
         mock_camera.name = "Front Door"
         mock_camera.folder_path = "/cameras/front_door"
-        mock_camera.status = "online"
+        mock_camera.status = "offline"  # After update
+        mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
+        mock_camera.property_id = 1
 
         mock_db.commit = AsyncMock()
         mock_db.rollback = AsyncMock()
@@ -606,7 +644,8 @@ class TestUpdateCamera:
                     cache=mock_cache,
                 )
 
-        assert result == mock_camera
+        # NEM-3597: Now returns CameraResponse instead of Camera
+        assert isinstance(result, CameraResponse)
         assert mock_db.rollback.called
         assert mock_db.commit.call_count == 2
 

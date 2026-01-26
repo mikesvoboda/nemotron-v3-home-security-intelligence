@@ -30449,7 +30449,7 @@
         ]
       },
       "get": {
-        "description": "Get a specific camera by ID.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    db: Database session\n\nReturns:\n    Camera object\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get a specific camera by ID.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    db: Database session\n\nReturns:\n    CameraResponse with camera data\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "cameras_get_camera",
         "parameters": [
           {

@@ -315,7 +315,7 @@ async def restore_camera(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> Camera:
+) -> CameraResponse:
     """Restore a soft-deleted camera.
 
     Clears the deleted_at timestamp on a soft-deleted camera, making it
@@ -354,14 +354,24 @@ async def restore_camera(
     except Exception as e:
         logger.warning(f"Cache invalidation failed after camera restore: {e}")
 
-    return camera
+    # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
+    return CameraResponse(
+        id=camera.id,
+        name=camera.name,
+        folder_path=camera.folder_path,
+        status=camera.status,
+        created_at=camera.created_at,
+        last_seen_at=camera.last_seen_at,
+        property_id=camera.property_id,
+        areas=None,
+    )
 
 
 @router.get("/{camera_id}", response_model=CameraResponse, response_model_exclude_unset=True)
 async def get_camera(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
-) -> Camera:
+) -> CameraResponse:
     """Get a specific camera by ID.
 
     Args:
@@ -369,12 +379,23 @@ async def get_camera(
         db: Database session
 
     Returns:
-        Camera object
+        CameraResponse with camera data
 
     Raises:
         HTTPException: 404 if camera not found
     """
-    return await get_camera_or_404(camera_id, db)
+    camera = await get_camera_or_404(camera_id, db)
+    # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
+    return CameraResponse(
+        id=camera.id,
+        name=camera.name,
+        folder_path=camera.folder_path,
+        status=camera.status,
+        created_at=camera.created_at,
+        last_seen_at=camera.last_seen_at,
+        property_id=camera.property_id,
+        areas=None,
+    )
 
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED)
@@ -383,7 +404,7 @@ async def create_camera(
     request: Request,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> Camera:
+) -> CameraResponse:
     """Create a new camera.
 
     Args:
@@ -468,7 +489,18 @@ async def create_camera(
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
-    return camera
+    # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
+    # A newly created camera has no areas assigned, so we return areas=None explicitly
+    return CameraResponse(
+        id=camera.id,
+        name=camera.name,
+        folder_path=camera.folder_path,
+        status=camera.status,
+        created_at=camera.created_at,
+        last_seen_at=camera.last_seen_at,
+        property_id=camera.property_id,
+        areas=None,
+    )
 
 
 @router.patch("/{camera_id}", response_model=CameraResponse)
@@ -478,7 +510,7 @@ async def update_camera(
     request: Request,
     db: AsyncSession = Depends(get_db),
     cache: CacheService = Depends(get_cache_service_dep),
-) -> Camera:
+) -> CameraResponse:
     """Update an existing camera.
 
     Args:
@@ -546,8 +578,18 @@ async def update_camera(
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
-    # Type is already narrowed by the None check above
-    return camera
+    # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
+    # Areas relationship is not loaded by this endpoint, so we return None
+    return CameraResponse(
+        id=camera.id,
+        name=camera.name,
+        folder_path=camera.folder_path,
+        status=camera.status,
+        created_at=camera.created_at,
+        last_seen_at=camera.last_seen_at,
+        property_id=camera.property_id,
+        areas=None,
+    )
 
 
 @router.delete("/{camera_id}", status_code=status.HTTP_204_NO_CONTENT)

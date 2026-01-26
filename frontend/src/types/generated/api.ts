@@ -1314,7 +1314,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Camera object
+         *         CameraResponse with camera data
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
