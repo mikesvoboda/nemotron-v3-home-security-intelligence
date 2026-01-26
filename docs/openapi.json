@@ -2217,6 +2217,31 @@
         "title": "AnomalyListResponse",
         "type": "object"
       },
+      "AreaBasic": {
+        "description": "Minimal area schema for embedding in CameraResponse.\n\nNEM-3597: Basic area information for API responses that include\ncamera-area relationships without full area details.",
+        "example": {
+          "id": 1,
+          "name": "Front Yard"
+        },
+        "properties": {
+          "id": {
+            "description": "Unique area identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Area name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "AreaBasic",
+        "type": "object"
+      },
       "AreaCameraResponse": {
         "description": "Schema for camera info in area context (minimal camera info).",
         "example": {
@@ -3981,16 +4006,38 @@
         "type": "object"
       },
       "CameraResponse": {
-        "description": "Schema for camera response.",
+        "description": "Schema for camera response.\n\nNEM-3597: Added property_id and areas fields to expose camera relationships.",
         "example": {
+          "areas": [
+            {
+              "id": 1,
+              "name": "Front Yard"
+            }
+          ],
           "created_at": "2025-12-23T10:00:00Z",
           "folder_path": "/export/foscam/front_door",
           "id": "front_door",
           "last_seen_at": "2025-12-23T12:00:00Z",
           "name": "Front Door Camera",
+          "property_id": 1,
           "status": "online"
         },
         "properties": {
+          "areas": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AreaBasic"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of areas this camera is assigned to",
+            "title": "Areas"
+          },
           "created_at": {
             "description": "Timestamp when camera was created",
             "format": "date-time",
@@ -4024,6 +4071,18 @@
             "description": "Camera name",
             "title": "Name",
             "type": "string"
+          },
+          "property_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the property this camera belongs to",
+            "title": "Property Id"
           },
           "status": {
             "$ref": "#/components/schemas/CameraStatus",
@@ -10036,6 +10095,18 @@
           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
           "reviewed": false,
+          "risk_factors": [
+            {
+              "contribution": -10.0,
+              "description": "Activity during normal hours",
+              "factor_name": "daytime_activity"
+            },
+            {
+              "contribution": 5.0,
+              "description": "Activity at primary entrance",
+              "factor_name": "front_entrance"
+            }
+          ],
           "risk_level": "medium",
           "risk_score": 75,
           "started_at": "2025-12-23T12:00:00Z",
@@ -10185,6 +10256,21 @@
             "description": "Whether event has been reviewed",
             "title": "Reviewed",
             "type": "boolean"
+          },
+          "risk_factors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RiskFactor"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Individual factors contributing to the risk score (NEM-3603)",
+            "title": "Risk Factors"
           },
           "risk_level": {
             "anyOf": [
@@ -21897,6 +21983,44 @@
         "title": "RiskEntity",
         "type": "object"
       },
+      "RiskFactor": {
+        "description": "Individual factor contributing to the overall risk score (NEM-3603).\n\nRisk factors represent specific aspects of the analysis that contribute\npositively or negatively to the overall risk score. Positive contributions\nincrease risk (e.g., nighttime activity, unknown person), while negative\ncontributions decrease risk (e.g., recognized face, routine timing).\n\nAttributes:\n    factor_name: Name of the risk factor (e.g., \"nighttime_activity\", \"recognized_face\")\n    contribution: Contribution to risk score (positive increases risk, negative decreases)\n    description: Optional explanation of why this factor applies",
+        "example": {
+          "contribution": 15.0,
+          "description": "Activity detected outside normal hours (11 PM - 6 AM)",
+          "factor_name": "nighttime_activity"
+        },
+        "properties": {
+          "contribution": {
+            "description": "Contribution to risk score (positive increases, negative decreases)",
+            "title": "Contribution",
+            "type": "number"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional explanation of why this factor applies",
+            "title": "Description"
+          },
+          "factor_name": {
+            "description": "Name of the risk factor",
+            "title": "Factor Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "factor_name",
+          "contribution"
+        ],
+        "title": "RiskFactor",
+        "type": "object"
+      },
       "RiskFlag": {
         "description": "Risk flag indicating a specific concern or anomaly.\n\nFlags represent specific behaviors, patterns, or conditions that\nwarrant attention (e.g., loitering, nighttime activity, weapon detected).\n\nAttributes:\n    type: Category of flag (e.g., \"loitering\", \"weapon_detected\")\n    description: Explanation of the flag\n    severity: How severe this flag is (warning, alert, critical)",
         "example": {
@@ -30325,7 +30449,7 @@
         ]
       },
       "get": {
-        "description": "Get a specific camera by ID.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    db: Database session\n\nReturns:\n    Camera object\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get a specific camera by ID.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    db: Database session\n\nReturns:\n    CameraResponse with camera data\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "cameras_get_camera",
         "parameters": [
           {

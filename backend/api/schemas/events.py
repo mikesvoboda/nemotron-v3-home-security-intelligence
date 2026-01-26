@@ -6,7 +6,12 @@ from functools import cached_property
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from backend.api.schemas.llm_response import ConfidenceFactors, RiskEntity, RiskFlag
+from backend.api.schemas.llm_response import (
+    ConfidenceFactors,
+    RiskEntity,
+    RiskFactor,
+    RiskFlag,
+)
 from backend.api.schemas.pagination import PaginationMeta
 
 # Default severity thresholds (matches backend.services.severity)
@@ -122,6 +127,18 @@ class EventResponse(BaseModel):
                     "success_rate": 1.0,
                 },
                 "version": 1,
+                "risk_factors": [
+                    {
+                        "factor_name": "daytime_activity",
+                        "contribution": -10.0,
+                        "description": "Activity during normal hours",
+                    },
+                    {
+                        "factor_name": "front_entrance",
+                        "contribution": 5.0,
+                        "description": "Activity at primary entrance",
+                    },
+                ],
                 "entities": [
                     {
                         "type": "person",
@@ -191,6 +208,11 @@ class EventResponse(BaseModel):
     deleted_at: datetime | None = Field(
         None,
         description="Timestamp when the event was soft-deleted (null if not deleted)",
+    )
+    # Risk factors breakdown (NEM-3603)
+    risk_factors: list[RiskFactor] | None = Field(
+        default=None,
+        description="Individual factors contributing to the risk score (NEM-3603)",
     )
     # Advanced risk analysis fields (NEM-3601)
     entities: list[RiskEntity] = Field(
