@@ -24,6 +24,7 @@ describe('useDebugConfigQuery', () => {
     log_level: 'INFO',
     api_key: '[REDACTED]',
     retention_days: 30,
+      log_retention_days: 7,
     batch_window_seconds: 90,
     max_connections: 100,
     null_value: null,

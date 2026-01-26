@@ -12083,7 +12083,7 @@ export interface components {
             grafana_url: string;
             /**
              * Log Retention Days
-             * @description Number of days to retain logs
+             * @description Number of days to retain logs (separate from event retention)
              */
             log_retention_days: number;
             /**
@@ -15707,9 +15707,15 @@ export interface components {
          *         "risk_score",
          *         "summary"
          *       ],
+         *       "compliance_metadata": {
+         *         "reason": "Monthly audit report",
+         *         "requestor": "admin@example.com"
+         *       },
          *       "end_date": "2025-01-12T23:59:59Z",
          *       "export_format": "csv",
          *       "export_type": "events",
+         *       "legal_hold": false,
+         *       "retention_days": 30,
          *       "risk_level": "high",
          *       "start_date": "2025-01-01T00:00:00Z"
          *     }
@@ -15726,6 +15732,13 @@ export interface components {
              */
             columns?: string[] | null;
             /**
+             * Compliance Metadata
+             * @description Audit trail info (requestor, reason, authorization)
+             */
+            compliance_metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * End Date
              * @description Filter events ending before this date (ISO format)
              */
@@ -15740,6 +15753,17 @@ export interface components {
              * @default events
              */
             export_type: components["schemas"]["ExportTypeEnum"];
+            /**
+             * Legal Hold
+             * @description Prevent automatic deletion of this export
+             * @default false
+             */
+            legal_hold: boolean;
+            /**
+             * Retention Days
+             * @description Days to retain export file (overrides system default)
+             */
+            retention_days?: number | null;
             /**
              * Reviewed
              * @description Filter by reviewed status (true=reviewed, false=unreviewed, null=all)
@@ -15914,6 +15938,13 @@ export interface components {
              */
             completed_at?: string | null;
             /**
+             * Compliance Metadata
+             * @description Audit trail info (requestor, reason, authorization)
+             */
+            compliance_metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
              * Created At
              * Format: date-time
              * @description Job creation timestamp
@@ -15944,10 +15975,21 @@ export interface components {
              * @description Unique export job identifier
              */
             id: string;
+            /**
+             * Legal Hold
+             * @description Whether automatic deletion is prevented
+             * @default false
+             */
+            legal_hold: boolean;
             /** @description Progress information */
             progress?: components["schemas"]["ExportJobProgress"];
             /** @description Export result (populated when completed) */
             result?: components["schemas"]["ExportJobResult"] | null;
+            /**
+             * Retention Days
+             * @description Days to retain export file
+             */
+            retention_days?: number | null;
             /**
              * Started At
              * @description Job start timestamp
