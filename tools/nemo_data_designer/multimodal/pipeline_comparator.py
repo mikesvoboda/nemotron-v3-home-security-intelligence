@@ -1,6 +1,6 @@
 """Compare local pipeline outputs against NVIDIA ground truth.
 
-This module provides tools to compare the local RT-DETRv2 + Nemotron detection
+This module provides tools to compare the local YOLO26v2 + Nemotron detection
 pipeline against NVIDIA vision ground truth to evaluate detection accuracy
 and risk score alignment.
 
@@ -84,7 +84,7 @@ class ComparisonReport:
 class PipelineComparator:
     """Compare local detection/risk pipeline against NVIDIA vision.
 
-    This class provides methods to evaluate how well the local RT-DETRv2 +
+    This class provides methods to evaluate how well the local YOLO26v2 +
     Nemotron pipeline matches NVIDIA's vision model analysis, which serves
     as ground truth.
 
@@ -216,7 +216,7 @@ class PipelineComparator:
         across all matched pairs.
 
         Args:
-            local_detections: List of detections from local RT-DETRv2 pipeline.
+            local_detections: List of detections from local YOLO26v2 pipeline.
                 Each detection should have 'type'/'object_type' and 'bbox' fields.
             nvidia_detections: List of detections from NVIDIA vision.
                 Each detection should have 'type' and 'bbox' fields.

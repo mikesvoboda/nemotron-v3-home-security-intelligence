@@ -1,6 +1,6 @@
 """Combined Enrichment Service package.
 
-HTTP server hosting multiple classification models for enriching RT-DETRv2
+HTTP server hosting multiple classification models for enriching YOLO26v2
 detections with additional attributes.
 
 Models hosted:

@@ -174,7 +174,7 @@ Models in the Model Zoo should inherit from the appropriate base class:
 
 | Model Type       | Base Class                    | Example Models                     |
 | ---------------- | ----------------------------- | ---------------------------------- |
-| Object Detection | `TensorRTDetectionModel`      | RT-DETR, YOLO, Threat Detector     |
+| Object Detection | `TensorRTDetectionModel`      | YOLO26, YOLO, Threat Detector      |
 | Classification   | `TensorRTClassificationModel` | Pet Classifier, Vehicle Classifier |
 | Pose Estimation  | `TensorRTInferenceBase`       | ViTPose, YOLOv8-pose               |
 | Embeddings       | `TensorRTInferenceBase`       | CLIP, Person ReID                  |

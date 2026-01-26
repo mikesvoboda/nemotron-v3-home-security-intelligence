@@ -4,7 +4,7 @@
 This script runs the full multimodal evaluation pipeline:
 1. Load curated test images from backend/tests/fixtures/synthetic/images/
 2. Generate NVIDIA ground truth (if not cached)
-3. Run local RT-DETRv2 + Nemotron pipeline on same images
+3. Run local YOLO26v2 + Nemotron pipeline on same images
 4. Compare outputs and generate report
 5. Export results
 
@@ -194,7 +194,7 @@ async def generate_mock_local_results(
 ) -> pd.DataFrame:
     """Generate mock local pipeline results for testing.
 
-    In production, this would run the actual RT-DETRv2 + Nemotron pipeline.
+    In production, this would run the actual YOLO26v2 + Nemotron pipeline.
     For now, generates mock results based on image categories.
     """
     import pandas as pd
@@ -249,7 +249,7 @@ async def _get_local_pipeline_results(
         raise FileNotFoundError("--skip-local-pipeline but no cached results found")
 
     # For now, generate mock local results
-    # In production, this would call the actual RT-DETRv2 + Nemotron pipeline
+    # In production, this would call the actual YOLO26v2 + Nemotron pipeline
     print("  Generating mock local pipeline results...")
     local_results = await generate_mock_local_results(images_dir)
     local_results.to_parquet(args.output / "local_pipeline_results.parquet", index=False)

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class Detection(BaseModel):
-    """Single object detection from RT-DETRv2.
+    """Single object detection from YOLO26v2.
 
     Represents a detected object with its classification, confidence score,
     bounding box coordinates, and temporal offset within the batch window.

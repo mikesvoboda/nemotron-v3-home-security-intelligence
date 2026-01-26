@@ -85,11 +85,11 @@ uv run python tools/nemo_data_designer/generate_scenarios.py --generate --rows 1
 
 ### LLM-Structured Columns (Pydantic Validated)
 
-| Column               | Type                        | Description                 |
-| -------------------- | --------------------------- | --------------------------- |
-| `detections`         | `list[Detection]`           | RT-DETRv2 detection objects |
-| `enrichment_context` | `EnrichmentContext \| None` | Enrichment pipeline output  |
-| `ground_truth`       | `GroundTruth`               | Expected risk assessment    |
+| Column               | Type                        | Description                |
+| -------------------- | --------------------------- | -------------------------- |
+| `detections`         | `list[Detection]`           | YOLO26v2 detection objects |
+| `enrichment_context` | `EnrichmentContext \| None` | Enrichment pipeline output |
+| `ground_truth`       | `GroundTruth`               | Expected risk assessment   |
 
 ### LLM-Text Columns
 

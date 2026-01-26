@@ -199,7 +199,7 @@ All examples completed successfully!
 The Redis queue operations directly support the Phase 4 AI pipeline:
 
 1. **File Watcher** - Pushes new image/video paths to `detection_queue`
-2. **RT-DETRv2 Detector** - Pops images, runs inference, stores results
+2. **YOLO26v2 Detector** - Pops images, runs inference, stores results
 3. **Batch Aggregator** - Groups detections by camera and time window
 4. **Nemotron Analyzer** - Analyzes batches and generates risk scores
 

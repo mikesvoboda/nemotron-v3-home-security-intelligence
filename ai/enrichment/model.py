@@ -1,7 +1,7 @@
 """Combined Enrichment Service for Detection Classification.
 
 HTTP server hosting multiple smaller classification models for enriching
-RT-DETRv2 detections with additional attributes.
+YOLO26v2 detections with additional attributes.
 
 Models hosted:
 1. Vehicle Segment Classification (~1.5GB) - ResNet-50 for vehicle type/color

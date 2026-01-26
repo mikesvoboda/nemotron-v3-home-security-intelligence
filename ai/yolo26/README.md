@@ -188,9 +188,9 @@ Environment variables:
 - Batch processing improves throughput for multiple images
 - TensorRT provides 2-3x speedup over native PyTorch
 
-## Comparison with RT-DETRv2
+## Comparison with YOLO26v2
 
-| Feature        | YOLO26 (TensorRT)        | RT-DETRv2 (HuggingFace)  |
+| Feature        | YOLO26 (TensorRT)        | YOLO26v2 (HuggingFace)   |
 | -------------- | ------------------------ | ------------------------ |
 | Port           | 8095                     | 8090                     |
 | Framework      | Ultralytics + TensorRT   | HuggingFace Transformers |

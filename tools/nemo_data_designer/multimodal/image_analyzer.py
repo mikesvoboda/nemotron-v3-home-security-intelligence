@@ -2,7 +2,7 @@
 
 This module provides a client for NVIDIA's vision-capable models (e.g., NVLM)
 to analyze security camera images and generate ground truth data for evaluating
-the local RT-DETRv2 + Nemotron pipeline.
+the local YOLO26v2 + Nemotron pipeline.
 
 The analyzer extracts:
 - Scene descriptions

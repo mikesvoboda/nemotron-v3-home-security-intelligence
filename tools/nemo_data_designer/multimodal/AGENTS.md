@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Evaluate the local RT-DETRv2 + Nemotron detection pipeline against NVIDIA's vision-capable models to generate ground truth and validate detection accuracy. This subpackage provides tools to analyze curated test images with NVIDIA vision APIs, generate structured ground truth datasets, and compare local pipeline outputs against this ground truth.
+Evaluate the local YOLO26v2 + Nemotron detection pipeline against NVIDIA's vision-capable models to generate ground truth and validate detection accuracy. This subpackage provides tools to analyze curated test images with NVIDIA vision APIs, generate structured ground truth datasets, and compare local pipeline outputs against this ground truth.
 
 ## Directory Contents
 
@@ -153,7 +153,7 @@ async with NVIDIAVisionAnalyzer() as analyzer:
 
 ### `pipeline_comparator.py` (Local vs NVIDIA Comparison)
 
-Compares local RT-DETRv2 + Nemotron pipeline outputs against NVIDIA vision ground truth.
+Compares local YOLO26v2 + Nemotron pipeline outputs against NVIDIA vision ground truth.
 
 **Comparison Metrics:**
 
