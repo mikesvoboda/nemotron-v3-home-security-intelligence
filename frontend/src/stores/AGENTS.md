@@ -13,30 +13,57 @@ Stores manage application state that needs to persist across sessions or be shar
 
 ## Files
 
-| File                               | Purpose                                               |
-| ---------------------------------- | ----------------------------------------------------- |
-| `middleware.ts`                    | Zustand middleware utilities (Immer, selectors)       |
-| `middleware.test.ts`               | Tests for middleware utilities                        |
-| `../utils/createSelectors.ts`      | Auto-selector generator for optimized re-renders      |
-| `../utils/createSelectors.test.ts` | Tests for auto-selector utility                       |
-| `dashboard-config-store.ts`        | Dashboard widget configuration store (Zustand)        |
-| `dashboard-config-store.test.ts`   | Tests for dashboard configuration store               |
-| `dashboardConfig.ts`               | Legacy dashboard config (deprecated, use new store)   |
-| `dashboardConfig.test.ts`          | Legacy tests (deprecated)                             |
-| `prometheus-alert-store.ts`        | Prometheus alert state management (Immer + selector)  |
-| `prometheus-alert-store.test.ts`   | Tests for Prometheus alert store                      |
-| `rate-limit-store.ts`              | API rate limit tracking store                         |
-| `rate-limit-store.test.ts`         | Tests for rate limit store                            |
-| `realtime-metrics-store.ts`        | High-frequency real-time metrics (transient updates)  |
-| `realtime-metrics-store.test.ts`   | Tests for real-time metrics store                     |
-| `storage-status-store.ts`          | Storage status tracking store                         |
-| `storage-status-store.test.ts`     | Tests for storage status store                        |
-| `worker-status-store.ts`           | Pipeline worker status (Immer + selector)             |
-| `worker-status-store.test.ts`      | Tests for worker status store                         |
+| File                               | Purpose                                                     |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `index.ts`                         | **Centralized exports for all stores (NEM-3789)**           |
+| `middleware.ts`                    | **Zustand middleware utilities with Immer (NEM-3788)**      |
+| `middleware.test.ts`               | Tests for middleware utilities                              |
+| `settings-store.ts`                | **Application settings with Zustand 5 patterns (NEM-3786)** |
+| `settings-store.test.ts`           | Tests for settings store                                    |
+| `../utils/createSelectors.ts`      | Auto-selector generator for optimized re-renders            |
+| `../utils/createSelectors.test.ts` | Tests for auto-selector utility                             |
+| `dashboard-config-store.ts`        | Dashboard widget configuration store (Zustand)              |
+| `dashboard-config-store.test.ts`   | Tests for dashboard configuration store                     |
+| `dashboardConfig.ts`               | Legacy dashboard config (deprecated, use new store)         |
+| `dashboardConfig.test.ts`          | Legacy tests (deprecated)                                   |
+| `prometheus-alert-store.ts`        | Prometheus alert state management (Immer + selector)        |
+| `prometheus-alert-store.test.ts`   | Tests for Prometheus alert store                            |
+| `rate-limit-store.ts`              | API rate limit tracking store                               |
+| `rate-limit-store.test.ts`         | Tests for rate limit store                                  |
+| `realtime-metrics-store.ts`        | High-frequency real-time metrics (transient updates)        |
+| `realtime-metrics-store.test.ts`   | Tests for real-time metrics store                           |
+| `storage-status-store.ts`          | Storage status tracking store                               |
+| `storage-status-store.test.ts`     | Tests for storage status store                              |
+| `worker-status-store.ts`           | Pipeline worker status (Immer + selector)                   |
+| `worker-status-store.test.ts`      | Tests for worker status store                               |
 
-## Middleware Utilities (`middleware.ts`)
+## Centralized Index (`index.ts`) - NEM-3789
 
-Provides advanced Zustand patterns for performance optimization (NEM-3402, NEM-3403, NEM-3426).
+All stores and middleware utilities are exported from `index.ts`. Import from here for consistent patterns:
+
+```typescript
+// Import from centralized index
+import { useSettingsStore, useAudioSettings, shallow, useShallow } from '@/stores';
+
+// Or import all
+import * as stores from '@/stores';
+```
+
+## Middleware Utilities (`middleware.ts`) - NEM-3788
+
+Provides advanced Zustand patterns for performance optimization (NEM-3402, NEM-3403, NEM-3426, NEM-3788).
+
+### Advanced Immer Utilities (NEM-3788)
+
+| Function                  | Purpose                                          |
+| ------------------------- | ------------------------------------------------ |
+| `createImmerDevtoolsStore`| Store with Immer + DevTools (configurable)       |
+| `applyImmerUpdate`        | Apply Immer update to any state object           |
+| `createImmerAction`       | Create reusable action functions                 |
+| `combineImmerUpdates`     | Combine multiple updates into one transaction    |
+| `safeReadCurrent`         | Read current state from within draft             |
+| `safeReadOriginal`        | Read original state from within draft            |
+| `createComputedSelector`  | Memoized selector with caching                   |
 
 ### createImmerStore
 

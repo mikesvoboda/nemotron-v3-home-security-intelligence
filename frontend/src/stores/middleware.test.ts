@@ -8,12 +8,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createImmerStore,
   createImmerSelectorStore,
+  createImmerDevtoolsStore,
   createTransientBatcher,
   createTransientSlice,
   createShallowSelector,
   shallowEqual,
   createWebSocketEventHandler,
   createDebouncedUpdater,
+  applyImmerUpdate,
+  createImmerAction,
+  safeReadCurrent,
+  createComputedSelector,
+  combineImmerUpdates,
   type TransientSlice,
 } from './middleware';
 
@@ -702,5 +708,201 @@ describe('middleware integration', () => {
     // Cleanup
     unsubUtil();
     unsubThresh();
+  });
+});
+
+// ============================================================================
+// Advanced Immer Utilities Tests (NEM-3788)
+// ============================================================================
+
+describe('createImmerDevtoolsStore', () => {
+  it('creates a store with Immer support', () => {
+    interface State {
+      items: string[];
+      addItem: (item: string) => void;
+    }
+
+    const useStore = createImmerDevtoolsStore<State>(
+      (set) => ({
+        items: [],
+        addItem: (item) =>
+          set((draft) => {
+            draft.items.push(item);
+          }),
+      }),
+      { name: 'test-store', devtools: false }
+    );
+
+    expect(useStore.getState().items).toEqual([]);
+
+    act(() => {
+      useStore.getState().addItem('test');
+    });
+
+    expect(useStore.getState().items).toEqual(['test']);
+  });
+
+  it('creates a store with selector support', () => {
+    interface State {
+      count: number;
+      increment: () => void;
+    }
+
+    const useStore = createImmerDevtoolsStore<State>(
+      (set) => ({
+        count: 0,
+        increment: () =>
+          set((draft) => {
+            draft.count += 1;
+          }),
+      }),
+      { withSelector: true, devtools: false }
+    );
+
+    const callback = vi.fn();
+    const unsub = (useStore.subscribe as any)((state: State) => state.count, callback);
+
+    act(() => {
+      useStore.getState().increment();
+    });
+
+    expect(callback).toHaveBeenCalledWith(1, 0);
+
+    unsub();
+  });
+});
+
+describe('applyImmerUpdate', () => {
+  it('applies immutable updates using Immer', () => {
+    interface State {
+      nested: { value: number };
+    }
+
+    const state: State = { nested: { value: 1 } };
+    const newState = applyImmerUpdate(state, (draft) => {
+      draft.nested.value = 2;
+    });
+
+    // Original should be unchanged
+    expect(state.nested.value).toBe(1);
+    // New state should have update
+    expect(newState.nested.value).toBe(2);
+    // Should be different references
+    expect(newState).not.toBe(state);
+    expect(newState.nested).not.toBe(state.nested);
+  });
+});
+
+describe('createImmerAction', () => {
+  it('creates a reusable action function', () => {
+    interface TodoState {
+      todos: { id: string; done: boolean }[];
+    }
+
+    const toggleTodo = createImmerAction<TodoState, [id: string]>((draft, id) => {
+      const todo = draft.todos.find((t) => t.id === id);
+      if (todo) todo.done = !todo.done;
+    });
+
+    const state: TodoState = { todos: [{ id: '1', done: false }] };
+    const newState = applyImmerUpdate(state, (draft) => toggleTodo(draft, '1'));
+
+    expect(newState.todos[0].done).toBe(true);
+    expect(state.todos[0].done).toBe(false);
+  });
+});
+
+describe('safeReadCurrent', () => {
+  it('returns the value for non-draft objects', () => {
+    const obj = { value: 1 };
+    expect(safeReadCurrent(obj)).toBe(obj);
+  });
+
+  it('returns primitives as-is', () => {
+    expect(safeReadCurrent(42)).toBe(42);
+    expect(safeReadCurrent('test')).toBe('test');
+  });
+});
+
+describe('createComputedSelector', () => {
+  it('memoizes selector results', () => {
+    interface State {
+      items: number[];
+    }
+
+    const computeFn = vi.fn((state: State) => state.items.filter((n) => n > 5));
+    const selector = createComputedSelector(computeFn);
+
+    const state1: State = { items: [1, 6, 3, 8] };
+
+    // First call
+    const result1 = selector(state1);
+    expect(result1).toEqual([6, 8]);
+    expect(computeFn).toHaveBeenCalledTimes(1);
+
+    // Same state - should use cached result
+    const result2 = selector(state1);
+    expect(result2).toBe(result1);
+    expect(computeFn).toHaveBeenCalledTimes(1);
+
+    // Different state - should recompute
+    const state2: State = { items: [1, 6, 3, 8, 10] };
+    const result3 = selector(state2);
+    expect(result3).toEqual([6, 8, 10]);
+    expect(computeFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('combineImmerUpdates', () => {
+  it('combines multiple updates into one', () => {
+    interface State {
+      a: number;
+      b: number;
+      c: number;
+    }
+
+    const state: State = { a: 0, b: 0, c: 0 };
+
+    const combined = combineImmerUpdates<State>(
+      (draft) => {
+        draft.a = 1;
+      },
+      (draft) => {
+        draft.b = 2;
+      },
+      (draft) => {
+        draft.c = 3;
+      }
+    );
+
+    const newState = applyImmerUpdate(state, combined);
+
+    expect(newState).toEqual({ a: 1, b: 2, c: 3 });
+    expect(state).toEqual({ a: 0, b: 0, c: 0 });
+  });
+
+  it('applies updates in order', () => {
+    interface State {
+      value: number;
+    }
+
+    const state: State = { value: 0 };
+
+    const combined = combineImmerUpdates<State>(
+      (draft) => {
+        draft.value = 1;
+      },
+      (draft) => {
+        draft.value = draft.value + 10;
+      },
+      (draft) => {
+        draft.value = draft.value * 2;
+      }
+    );
+
+    const newState = applyImmerUpdate(state, combined);
+
+    // (0 -> 1) -> (1 + 10 = 11) -> (11 * 2 = 22)
+    expect(newState.value).toBe(22);
   });
 });

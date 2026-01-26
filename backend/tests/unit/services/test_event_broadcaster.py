@@ -2983,3 +2983,175 @@ async def test_broadcast_batch_analysis_failed_logs_debug_info(
         and "connection" in record.message
         for record in caplog.records
     )
+
+
+# ==============================================================================
+# Concurrent Broadcast Tests (NEM-3739)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_send_to_all_clients_uses_concurrent_broadcast() -> None:
+    """Test that _send_to_all_clients sends to multiple clients concurrently.
+
+    NEM-3739: Uses asyncio.gather for concurrent WebSocket broadcasts.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Track send_text calls
+    send_calls: list[int] = []
+
+    ws1 = AsyncMock()
+    ws2 = AsyncMock()
+    ws3 = AsyncMock()
+
+    # Use side_effect functions that don't return coroutines
+    ws1.send_text = AsyncMock(side_effect=lambda _: send_calls.append(1))
+    ws2.send_text = AsyncMock(side_effect=lambda _: send_calls.append(2))
+    ws3.send_text = AsyncMock(side_effect=lambda _: send_calls.append(3))
+    ws1.close = AsyncMock()
+    ws2.close = AsyncMock()
+    ws3.close = AsyncMock()
+
+    broadcaster._connections = {ws1, ws2, ws3}  # type: ignore[assignment]
+
+    await broadcaster._send_to_all_clients({"type": "test", "data": {}})
+
+    # All clients should have received the message
+    ws1.send_text.assert_awaited()
+    ws2.send_text.assert_awaited()
+    ws3.send_text.assert_awaited()
+
+    # All three clients should have been called
+    assert len(send_calls) == 3
+    assert set(send_calls) == {1, 2, 3}
+
+    # All clients should still be connected (no failures)
+    assert len(broadcaster._connections) == 3
+
+
+@pytest.mark.asyncio
+async def test_send_to_all_clients_concurrent_partial_failure() -> None:
+    """Test concurrent broadcast handles partial failures gracefully.
+
+    NEM-3739: When some clients fail, others should still receive messages.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Create successful and failing clients
+    ok_ws1 = AsyncMock()
+    ok_ws2 = AsyncMock()
+    bad_ws = AsyncMock()
+
+    ok_ws1.send_text = AsyncMock(return_value=None)
+    ok_ws2.send_text = AsyncMock(return_value=None)
+    bad_ws.send_text = AsyncMock(side_effect=RuntimeError("connection closed"))
+
+    ok_ws1.close = AsyncMock()
+    ok_ws2.close = AsyncMock()
+    bad_ws.close = AsyncMock()
+
+    broadcaster._connections = {ok_ws1, ok_ws2, bad_ws}  # type: ignore[assignment]
+
+    await broadcaster._send_to_all_clients({"type": "test", "data": {}})
+
+    # All send_text methods should have been called
+    ok_ws1.send_text.assert_awaited()
+    ok_ws2.send_text.assert_awaited()
+    bad_ws.send_text.assert_awaited()
+
+    # Failed client should be removed
+    assert ok_ws1 in broadcaster._connections
+    assert ok_ws2 in broadcaster._connections
+    assert bad_ws not in broadcaster._connections
+
+    # Failed client should have been disconnected
+    bad_ws.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_send_to_all_clients_concurrent_all_failures() -> None:
+    """Test concurrent broadcast handles all clients failing.
+
+    NEM-3739: When all clients fail, all should be cleaned up properly.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Create all failing clients
+    bad_ws1 = AsyncMock()
+    bad_ws2 = AsyncMock()
+
+    bad_ws1.send_text = AsyncMock(side_effect=RuntimeError("boom"))
+    bad_ws2.send_text = AsyncMock(side_effect=ConnectionError("disconnected"))
+
+    bad_ws1.close = AsyncMock()
+    bad_ws2.close = AsyncMock()
+
+    broadcaster._connections = {bad_ws1, bad_ws2}  # type: ignore[assignment]
+
+    await broadcaster._send_to_all_clients({"type": "test", "data": {}})
+
+    # All clients should be removed
+    assert len(broadcaster._connections) == 0
+
+    # All clients should have been disconnected
+    bad_ws1.close.assert_awaited_once()
+    bad_ws2.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_send_to_single_client_success() -> None:
+    """Test _send_to_single_client returns None on success.
+
+    NEM-3739: Helper method for concurrent broadcast.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    ws = AsyncMock()
+    ws.send_text = AsyncMock(return_value=None)
+
+    result = await broadcaster._send_to_single_client(ws, "test message", was_compressed=False)
+
+    ws.send_text.assert_awaited_once_with("test message")
+    assert result is None  # Success
+
+
+@pytest.mark.asyncio
+async def test_send_to_single_client_failure() -> None:
+    """Test _send_to_single_client returns WebSocket on failure.
+
+    NEM-3739: Failed sends return the WebSocket for cleanup.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    ws = AsyncMock()
+    ws.send_text = AsyncMock(side_effect=RuntimeError("connection closed"))
+
+    result = await broadcaster._send_to_single_client(ws, "test message", was_compressed=False)
+
+    ws.send_text.assert_awaited_once_with("test message")
+    assert result is ws  # Return for cleanup
+
+
+@pytest.mark.asyncio
+async def test_send_to_single_client_compressed() -> None:
+    """Test _send_to_single_client handles compressed messages.
+
+    NEM-3739: Compressed messages use send_bytes.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    ws = AsyncMock()
+    ws.send_bytes = AsyncMock(return_value=None)
+
+    compressed_data = b"\x00compressed data"
+    result = await broadcaster._send_to_single_client(ws, compressed_data, was_compressed=True)
+
+    ws.send_bytes.assert_awaited_once_with(compressed_data)
+    assert result is None  # Success

@@ -361,6 +361,30 @@ class Settings(BaseSettings):
         "for connection multiplexing. NEM-3419.",
     )
 
+    # Connection pool warming (NEM-3757)
+    # Pre-establishes database connections at startup to reduce cold-start latency
+    database_pool_warming_enabled: bool = Field(
+        default=True,
+        description="Enable connection pool warming on startup. When enabled, pre-establishes "
+        "a configurable number of database connections during application startup to reduce "
+        "cold-start latency for the first requests. Recommended for production deployments.",
+    )
+    database_pool_warming_size: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Number of connections to pre-establish during pool warming. Should be "
+        "less than or equal to database_pool_size. Higher values reduce cold-start latency "
+        "but increase startup time. Recommended: 5-10 for most deployments.",
+    )
+    database_pool_warming_timeout: int = Field(
+        default=30,
+        ge=5,
+        le=120,
+        description="Maximum time in seconds to wait for pool warming to complete. If pool "
+        "warming exceeds this timeout, startup continues with partially warmed pool.",
+    )
+
     # Redis configuration
     # Development: redis://localhost:6379/0 (local dev)
     # Docker: redis://redis:6379/0 (container network with standard port 6379)
@@ -521,6 +545,33 @@ class Settings(BaseSettings):
         "Set to False if Redis is configured externally (e.g., via redis.conf).",
     )
 
+    # Redis Cluster settings for horizontal scalability (NEM-3761)
+    redis_cluster_enabled: bool = Field(
+        default=False,
+        description="Enable Redis Cluster mode for horizontal scalability. "
+        "When True, connects to a Redis Cluster instead of a single instance. "
+        "Requires redis_cluster_nodes to be configured with cluster node addresses.",
+    )
+    redis_cluster_nodes: str = Field(
+        default="redis-node1:6379,redis-node2:6379,redis-node3:6379",
+        description="Comma-separated list of Redis Cluster node host:port pairs. "
+        "Example: 'redis-node1:6379,redis-node2:6379,redis-node3:6379'. "
+        "At least 3 master nodes recommended for high availability.",
+    )
+    redis_cluster_read_from_replicas: bool = Field(
+        default=True,
+        description="Allow read operations from cluster replica nodes. "
+        "When True, distributes read load across replicas for better performance. "
+        "Set to False if strong read consistency is required.",
+    )
+    redis_cluster_max_connections_per_node: int = Field(
+        default=10,
+        ge=2,
+        le=50,
+        description="Maximum connections per cluster node. "
+        "Total connections = max_connections_per_node * number_of_nodes.",
+    )
+
     # HyperLogLog settings for unique entity counting (NEM-3414)
     hll_ttl_seconds: int = Field(
         default=86400,
@@ -575,6 +626,28 @@ class Settings(BaseSettings):
         ge=60,
         le=86400,
         description="TTL in seconds for cached camera snapshots extracted from videos. Default: 1 hour.",
+    )
+
+    # Cache warming settings (NEM-3762)
+    cache_warming_enabled: bool = Field(
+        default=True,
+        description="Enable cache warming on application startup. "
+        "Pre-populates frequently accessed cache keys to reduce cold-start latency.",
+    )
+    cache_warming_strategy: str = Field(
+        default="parallel",
+        description="Cache warming strategy: "
+        "'parallel' (warm all caches concurrently, faster startup), "
+        "'sequential' (warm one cache at a time, lower resource usage), "
+        "'eager' (alias for parallel), "
+        "'lazy' (disable warming, caches populated on first access).",
+    )
+    cache_warming_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Maximum time in seconds to wait for cache warming to complete. "
+        "Warming failures don't block startup but are logged.",
     )
 
     # Internal service timeout settings (NEM-2519)

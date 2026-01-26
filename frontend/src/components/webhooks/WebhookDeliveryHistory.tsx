@@ -305,7 +305,8 @@ function Pagination({
   isLoading: boolean;
 }) {
   const totalPages = Math.ceil(total / pageSize);
-  const startItem = page * pageSize + 1;
+  // Use Math.min to handle empty state (total=0) correctly - prevents "1-0 of 0"
+  const startItem = Math.min(page * pageSize + 1, total);
   const endItem = Math.min((page + 1) * pageSize, total);
 
   return (

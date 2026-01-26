@@ -1,0 +1,2898 @@
+# serializer version: 1
+# name: TestCameraResponseSnapshots.test_camera_response_json_schema
+  dict({
+    '$defs': dict({
+      'AreaBasic': dict({
+        'description': '''
+          Minimal area schema for embedding in CameraResponse.
+
+          NEM-3597: Basic area information for API responses that include
+          camera-area relationships without full area details.
+        ''',
+        'example': dict({
+          'id': 1,
+          'name': 'Front Yard',
+        }),
+        'properties': dict({
+          'id': dict({
+            'description': 'Unique area identifier',
+            'title': 'Id',
+            'type': 'integer',
+          }),
+          'name': dict({
+            'description': 'Area name',
+            'title': 'Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'id',
+          'name',
+        ]),
+        'title': 'AreaBasic',
+        'type': 'object',
+      }),
+      'CameraStatus': dict({
+        'description': '''
+          Camera status values.
+
+          Indicates the operational state of a camera:
+          - ONLINE: Camera is active and receiving images
+          - OFFLINE: Camera is not currently active (e.g., disconnected)
+          - ERROR: Camera is experiencing an error condition
+          - UNKNOWN: Camera status cannot be determined
+        ''',
+        'enum': list([
+          'online',
+          'offline',
+          'error',
+          'unknown',
+        ]),
+        'title': 'CameraStatus',
+        'type': 'string',
+      }),
+    }),
+    'description': '''
+      Schema for camera response.
+
+      NEM-3597: Added property_id and areas fields to expose camera relationships.
+    ''',
+    'example': dict({
+      'areas': list([
+        dict({
+          'id': 1,
+          'name': 'Front Yard',
+        }),
+      ]),
+      'created_at': '2025-12-23T10:00:00Z',
+      'folder_path': '/export/foscam/front_door',
+      'id': 'front_door',
+      'last_seen_at': '2025-12-23T12:00:00Z',
+      'name': 'Front Door Camera',
+      'property_id': 1,
+      'status': 'online',
+    }),
+    'properties': dict({
+      'areas': dict({
+        'anyOf': list([
+          dict({
+            'items': dict({
+              '$ref': '#/$defs/AreaBasic',
+            }),
+            'type': 'array',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'List of areas this camera is assigned to',
+        'title': 'Areas',
+      }),
+      'created_at': dict({
+        'description': 'Timestamp when camera was created',
+        'format': 'date-time',
+        'title': 'Created At',
+        'type': 'string',
+      }),
+      'folder_path': dict({
+        'description': 'File system path for camera uploads',
+        'title': 'Folder Path',
+        'type': 'string',
+      }),
+      'id': dict({
+        'description': "Normalized camera ID derived from folder name (e.g., 'front_door')",
+        'title': 'Id',
+        'type': 'string',
+      }),
+      'last_seen_at': dict({
+        'anyOf': list([
+          dict({
+            'format': 'date-time',
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Last time camera was active',
+        'title': 'Last Seen At',
+      }),
+      'name': dict({
+        'description': 'Camera name',
+        'title': 'Name',
+        'type': 'string',
+      }),
+      'property_id': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'ID of the property this camera belongs to',
+        'title': 'Property Id',
+      }),
+      'status': dict({
+        '$ref': '#/$defs/CameraStatus',
+        'description': 'Camera status (online, offline, error, unknown)',
+      }),
+    }),
+    'required': list([
+      'id',
+      'name',
+      'folder_path',
+      'status',
+      'created_at',
+    ]),
+    'title': 'CameraResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestCameraResponseSnapshots.test_camera_response_serialization
+  dict({
+    'areas': None,
+    'created_at': '2025-01-15T12:00:00Z',
+    'folder_path': '/export/foscam/front_door',
+    'id': 'front_door',
+    'last_seen_at': None,
+    'name': 'Front Door Camera',
+    'property_id': None,
+    'status': 'online',
+  })
+# ---
+# name: TestDetectionResponseSnapshots.test_detection_list_response_json_schema
+  dict({
+    '$defs': dict({
+      'DetectionResponse': dict({
+        'description': 'Schema for detection response.',
+        'example': dict({
+          'bbox_height': 400,
+          'bbox_width': 200,
+          'bbox_x': 100,
+          'bbox_y': 150,
+          'camera_id': 'front_door',
+          'confidence': 0.95,
+          'detected_at': '2025-12-23T12:00:00Z',
+          'duration': None,
+          'enrichment_data': dict({
+            'errors': list([
+            ]),
+            'person': dict({
+              'action': 'walking',
+              'carrying': list([
+                'backpack',
+              ]),
+              'clothing_description': 'dark jacket',
+              'is_suspicious': False,
+            }),
+            'pet': None,
+            'vehicle': dict({
+              'has_damage': False,
+              'is_commercial': False,
+              'vehicle_color': 'blue',
+              'vehicle_type': 'sedan',
+            }),
+            'weather': 'sunny',
+          }),
+          'file_path': '/export/foscam/front_door/20251223_120000.jpg',
+          'file_type': 'image/jpeg',
+          'id': 1,
+          'media_type': 'image',
+          'object_type': 'person',
+          'thumbnail_path': '/data/thumbnails/1_thumb.jpg',
+          'video_codec': None,
+          'video_height': None,
+          'video_width': None,
+        }),
+        'properties': dict({
+          'association_created_at': dict({
+            'anyOf': list([
+              dict({
+                'format': 'date-time',
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Timestamp when detection was associated with the event (NEM-3629). Only populated when fetching detections for an event with order_detections_by=created_at.',
+            'title': 'Association Created At',
+          }),
+          'bbox_height': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Bounding box height',
+            'title': 'Bbox Height',
+          }),
+          'bbox_width': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Bounding box width',
+            'title': 'Bbox Width',
+          }),
+          'bbox_x': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Bounding box X coordinate',
+            'title': 'Bbox X',
+          }),
+          'bbox_y': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Bounding box Y coordinate',
+            'title': 'Bbox Y',
+          }),
+          'camera_id': dict({
+            'description': "Normalized camera ID (e.g., 'front_door')",
+            'title': 'Camera Id',
+            'type': 'string',
+          }),
+          'confidence': dict({
+            'anyOf': list([
+              dict({
+                'type': 'number',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Detection confidence score (0-1)',
+            'title': 'Confidence',
+          }),
+          'detected_at': dict({
+            'description': 'Timestamp when detection was made',
+            'format': 'date-time',
+            'title': 'Detected At',
+            'type': 'string',
+          }),
+          'duration': dict({
+            'anyOf': list([
+              dict({
+                'type': 'number',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Video duration in seconds (video only)',
+            'title': 'Duration',
+          }),
+          'enrichment_data': dict({
+            'anyOf': list([
+              dict({
+                'additionalProperties': True,
+                'type': 'object',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'AI enrichment data including vehicle classification, pet identification, person attributes, license plates, weather, and image quality scores',
+            'title': 'Enrichment Data',
+          }),
+          'file_path': dict({
+            'description': 'Path to source image or video file',
+            'title': 'File Path',
+            'type': 'string',
+          }),
+          'file_type': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'MIME type of source file',
+            'title': 'File Type',
+          }),
+          'id': dict({
+            'description': 'Detection ID',
+            'title': 'Id',
+            'type': 'integer',
+          }),
+          'media_type': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': 'image',
+            'description': "Media type: 'image' or 'video'",
+            'title': 'Media Type',
+          }),
+          'object_type': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Type of detected object (person, car, etc.)',
+            'title': 'Object Type',
+          }),
+          'thumbnail_path': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Path to thumbnail image with bbox overlay',
+            'title': 'Thumbnail Path',
+          }),
+          'video_codec': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Video codec (e.g., h264, hevc)',
+            'title': 'Video Codec',
+          }),
+          'video_height': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Video resolution height',
+            'title': 'Video Height',
+          }),
+          'video_width': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Video resolution width',
+            'title': 'Video Width',
+          }),
+        }),
+        'required': list([
+          'id',
+          'camera_id',
+          'file_path',
+          'detected_at',
+        ]),
+        'title': 'DetectionResponse',
+        'type': 'object',
+      }),
+      'PaginationMeta': dict({
+        'description': '''
+          Pagination metadata for list responses.
+
+          Contains information about the current page and total results.
+          Supports both offset-based and cursor-based pagination.
+        ''',
+        'example': dict({
+          'cursor': None,
+          'has_more': True,
+          'limit': 50,
+          'next_cursor': 'eyJpZCI6IDUwfQ',
+          'offset': 0,
+          'total': 150,
+        }),
+        'properties': dict({
+          'cursor': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Current cursor position (cursor-based pagination)',
+            'title': 'Cursor',
+          }),
+          'has_more': dict({
+            'description': 'Whether more items are available beyond this page',
+            'title': 'Has More',
+            'type': 'boolean',
+          }),
+          'limit': dict({
+            'description': 'Maximum number of items returned per page',
+            'maximum': 10000,
+            'minimum': 1,
+            'title': 'Limit',
+            'type': 'integer',
+          }),
+          'next_cursor': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Cursor for the next page of results',
+            'title': 'Next Cursor',
+          }),
+          'offset': dict({
+            'anyOf': list([
+              dict({
+                'minimum': 0,
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Number of items skipped (offset-based pagination)',
+            'title': 'Offset',
+          }),
+          'total': dict({
+            'description': 'Total number of items matching the query',
+            'minimum': 0,
+            'title': 'Total',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'total',
+          'limit',
+          'has_more',
+        ]),
+        'title': 'PaginationMeta',
+        'type': 'object',
+      }),
+    }),
+    'description': '''
+      Schema for detection list response with standardized pagination envelope.
+
+      Uses the standard pagination envelope: {"items": [...], "pagination": {...}}
+      Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+    ''',
+    'example': dict({
+      'items': list([
+        dict({
+          'bbox_height': 400,
+          'bbox_width': 200,
+          'bbox_x': 100,
+          'bbox_y': 150,
+          'camera_id': 'front_door',
+          'confidence': 0.95,
+          'detected_at': '2025-12-23T12:00:00Z',
+          'file_path': '/export/foscam/front_door/20251223_120000.jpg',
+          'file_type': 'image/jpeg',
+          'id': 1,
+          'object_type': 'person',
+          'thumbnail_path': '/data/thumbnails/1_thumb.jpg',
+        }),
+      ]),
+      'pagination': dict({
+        'has_more': False,
+        'limit': 50,
+        'next_cursor': 'eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=',
+        'offset': 0,
+        'total': 1,
+      }),
+    }),
+    'properties': dict({
+      'deprecation_warning': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Warning message when using deprecated offset pagination',
+        'title': 'Deprecation Warning',
+      }),
+      'items': dict({
+        'description': 'List of detections',
+        'items': dict({
+          '$ref': '#/$defs/DetectionResponse',
+        }),
+        'title': 'Items',
+        'type': 'array',
+      }),
+      'pagination': dict({
+        '$ref': '#/$defs/PaginationMeta',
+        'description': 'Pagination metadata',
+      }),
+    }),
+    'required': list([
+      'items',
+      'pagination',
+    ]),
+    'title': 'DetectionListResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestDetectionResponseSnapshots.test_detection_response_json_schema
+  dict({
+    'description': 'Schema for detection response.',
+    'example': dict({
+      'bbox_height': 400,
+      'bbox_width': 200,
+      'bbox_x': 100,
+      'bbox_y': 150,
+      'camera_id': 'front_door',
+      'confidence': 0.95,
+      'detected_at': '2025-12-23T12:00:00Z',
+      'duration': None,
+      'enrichment_data': dict({
+        'errors': list([
+        ]),
+        'person': dict({
+          'action': 'walking',
+          'carrying': list([
+            'backpack',
+          ]),
+          'clothing_description': 'dark jacket',
+          'is_suspicious': False,
+        }),
+        'pet': None,
+        'vehicle': dict({
+          'has_damage': False,
+          'is_commercial': False,
+          'vehicle_color': 'blue',
+          'vehicle_type': 'sedan',
+        }),
+        'weather': 'sunny',
+      }),
+      'file_path': '/export/foscam/front_door/20251223_120000.jpg',
+      'file_type': 'image/jpeg',
+      'id': 1,
+      'media_type': 'image',
+      'object_type': 'person',
+      'thumbnail_path': '/data/thumbnails/1_thumb.jpg',
+      'video_codec': None,
+      'video_height': None,
+      'video_width': None,
+    }),
+    'properties': dict({
+      'association_created_at': dict({
+        'anyOf': list([
+          dict({
+            'format': 'date-time',
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Timestamp when detection was associated with the event (NEM-3629). Only populated when fetching detections for an event with order_detections_by=created_at.',
+        'title': 'Association Created At',
+      }),
+      'bbox_height': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Bounding box height',
+        'title': 'Bbox Height',
+      }),
+      'bbox_width': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Bounding box width',
+        'title': 'Bbox Width',
+      }),
+      'bbox_x': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Bounding box X coordinate',
+        'title': 'Bbox X',
+      }),
+      'bbox_y': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Bounding box Y coordinate',
+        'title': 'Bbox Y',
+      }),
+      'camera_id': dict({
+        'description': "Normalized camera ID (e.g., 'front_door')",
+        'title': 'Camera Id',
+        'type': 'string',
+      }),
+      'confidence': dict({
+        'anyOf': list([
+          dict({
+            'type': 'number',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Detection confidence score (0-1)',
+        'title': 'Confidence',
+      }),
+      'detected_at': dict({
+        'description': 'Timestamp when detection was made',
+        'format': 'date-time',
+        'title': 'Detected At',
+        'type': 'string',
+      }),
+      'duration': dict({
+        'anyOf': list([
+          dict({
+            'type': 'number',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Video duration in seconds (video only)',
+        'title': 'Duration',
+      }),
+      'enrichment_data': dict({
+        'anyOf': list([
+          dict({
+            'additionalProperties': True,
+            'type': 'object',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'AI enrichment data including vehicle classification, pet identification, person attributes, license plates, weather, and image quality scores',
+        'title': 'Enrichment Data',
+      }),
+      'file_path': dict({
+        'description': 'Path to source image or video file',
+        'title': 'File Path',
+        'type': 'string',
+      }),
+      'file_type': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'MIME type of source file',
+        'title': 'File Type',
+      }),
+      'id': dict({
+        'description': 'Detection ID',
+        'title': 'Id',
+        'type': 'integer',
+      }),
+      'media_type': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': 'image',
+        'description': "Media type: 'image' or 'video'",
+        'title': 'Media Type',
+      }),
+      'object_type': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Type of detected object (person, car, etc.)',
+        'title': 'Object Type',
+      }),
+      'thumbnail_path': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Path to thumbnail image with bbox overlay',
+        'title': 'Thumbnail Path',
+      }),
+      'video_codec': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Video codec (e.g., h264, hevc)',
+        'title': 'Video Codec',
+      }),
+      'video_height': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Video resolution height',
+        'title': 'Video Height',
+      }),
+      'video_width': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Video resolution width',
+        'title': 'Video Width',
+      }),
+    }),
+    'required': list([
+      'id',
+      'camera_id',
+      'file_path',
+      'detected_at',
+    ]),
+    'title': 'DetectionResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestDetectionResponseSnapshots.test_detection_response_serialization
+  dict({
+    'association_created_at': None,
+    'bbox_height': 400,
+    'bbox_width': 200,
+    'bbox_x': 100,
+    'bbox_y': 150,
+    'camera_id': 'front_door',
+    'confidence': 0.95,
+    'detected_at': '2025-01-15T12:00:00Z',
+    'duration': None,
+    'enrichment_data': None,
+    'file_path': '/export/foscam/front_door/20251223_120000.jpg',
+    'file_type': 'image/jpeg',
+    'id': 1,
+    'media_type': 'image',
+    'object_type': 'person',
+    'thumbnail_path': '/data/thumbnails/1_thumb.jpg',
+    'video_codec': None,
+    'video_height': None,
+    'video_width': None,
+  })
+# ---
+# name: TestDetectionResponseSnapshots.test_detection_stats_response_json_schema
+  dict({
+    '$defs': dict({
+      'DetectionTrendItem': dict({
+        'description': '''
+          Schema for a single detection trend data point (for Grafana time series).
+
+          Used by the Grafana Analytics dashboard to display detection trends over time.
+          The timestamp field is Unix epoch milliseconds for Grafana JSON datasource compatibility.
+        ''',
+        'example': dict({
+          'detection_count': 50,
+          'timestamp': 1737504000000,
+        }),
+        'properties': dict({
+          'detection_count': dict({
+            'description': 'Number of detections on this date',
+            'title': 'Detection Count',
+            'type': 'integer',
+          }),
+          'timestamp': dict({
+            'description': 'Unix epoch milliseconds for the trend data point (start of day)',
+            'title': 'Timestamp',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'timestamp',
+          'detection_count',
+        ]),
+        'title': 'DetectionTrendItem',
+        'type': 'object',
+      }),
+      'ObjectClassDistributionItem': dict({
+        'description': 'Schema for a single object class distribution item (for Grafana compatibility).',
+        'example': dict({
+          'count': 23,
+          'object_class': 'person',
+        }),
+        'properties': dict({
+          'count': dict({
+            'description': 'Number of detections of this class',
+            'title': 'Count',
+            'type': 'integer',
+          }),
+          'object_class': dict({
+            'description': 'Object class name (e.g., person, car)',
+            'title': 'Object Class',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'object_class',
+          'count',
+        ]),
+        'title': 'ObjectClassDistributionItem',
+        'type': 'object',
+      }),
+    }),
+    'description': '''
+      Schema for detection statistics response.
+
+      Returns aggregate statistics about detections including counts by object class
+      and detection trends over time. Used by the AI Performance page and Grafana
+      Analytics dashboard.
+    ''',
+    'example': dict({
+      'average_confidence': 0.87,
+      'detections_by_class': dict({
+        'bicycle': 1,
+        'car': 20,
+        'person': 23,
+        'truck': 6,
+      }),
+      'object_class_distribution': list([
+        dict({
+          'count': 23,
+          'object_class': 'person',
+        }),
+        dict({
+          'count': 20,
+          'object_class': 'car',
+        }),
+        dict({
+          'count': 6,
+          'object_class': 'truck',
+        }),
+        dict({
+          'count': 1,
+          'object_class': 'bicycle',
+        }),
+      ]),
+      'total_detections': 107,
+      'trends': list([
+        dict({
+          'detection_count': 10,
+          'timestamp': '2026-01-16T00:00:00Z',
+        }),
+        dict({
+          'detection_count': 15,
+          'timestamp': '2026-01-17T00:00:00Z',
+        }),
+        dict({
+          'detection_count': 12,
+          'timestamp': '2026-01-18T00:00:00Z',
+        }),
+        dict({
+          'detection_count': 8,
+          'timestamp': '2026-01-19T00:00:00Z',
+        }),
+        dict({
+          'detection_count': 20,
+          'timestamp': '2026-01-20T00:00:00Z',
+        }),
+        dict({
+          'detection_count': 25,
+          'timestamp': '2026-01-21T00:00:00Z',
+        }),
+        dict({
+          'detection_count': 50,
+          'timestamp': '2026-01-22T00:00:00Z',
+        }),
+      ]),
+    }),
+    'properties': dict({
+      'average_confidence': dict({
+        'anyOf': list([
+          dict({
+            'type': 'number',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Average confidence score across all detections',
+        'title': 'Average Confidence',
+      }),
+      'detections_by_class': dict({
+        'additionalProperties': dict({
+          'type': 'integer',
+        }),
+        'description': 'Detection counts grouped by object class (e.g., person, car, truck)',
+        'title': 'Detections By Class',
+        'type': 'object',
+      }),
+      'object_class_distribution': dict({
+        'description': 'Detections by class as array (for Grafana compatibility)',
+        'items': dict({
+          '$ref': '#/$defs/ObjectClassDistributionItem',
+        }),
+        'title': 'Object Class Distribution',
+        'type': 'array',
+      }),
+      'total_detections': dict({
+        'description': 'Total number of detections',
+        'title': 'Total Detections',
+        'type': 'integer',
+      }),
+      'trends': dict({
+        'description': 'Detection counts by day for the last 7 days (for Grafana time series)',
+        'items': dict({
+          '$ref': '#/$defs/DetectionTrendItem',
+        }),
+        'title': 'Trends',
+        'type': 'array',
+      }),
+    }),
+    'required': list([
+      'total_detections',
+      'detections_by_class',
+    ]),
+    'title': 'DetectionStatsResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestDetectionResponseSnapshots.test_detection_stats_response_serialization
+  dict({
+    'average_confidence': 0.87,
+    'detections_by_class': dict({
+      'bicycle': 7,
+      'car': 30,
+      'person': 50,
+      'truck': 20,
+    }),
+    'object_class_distribution': list([
+      dict({
+        'count': 50,
+        'object_class': 'person',
+      }),
+      dict({
+        'count': 30,
+        'object_class': 'car',
+      }),
+    ]),
+    'total_detections': 107,
+    'trends': list([
+    ]),
+  })
+# ---
+# name: TestEventResponseSnapshots.test_event_list_response_json_schema
+  dict({
+    '$defs': dict({
+      'ConfidenceFactors': dict({
+        'description': '''
+          Factors affecting confidence in the risk analysis.
+
+          These factors help explain the reliability of the risk assessment
+          and can be used to understand when additional review may be needed.
+
+          Attributes:
+              detection_quality: Quality of the detection data (good, fair, poor)
+              weather_impact: Impact of weather on detection accuracy
+              enrichment_coverage: Completeness of enrichment data used
+        ''',
+        'example': dict({
+          'detection_quality': 'good',
+          'enrichment_coverage': 'full',
+          'weather_impact': 'none',
+        }),
+        'properties': dict({
+          'detection_quality': dict({
+            'default': 'good',
+            'description': 'Quality of the detection data',
+            'enum': list([
+              'good',
+              'fair',
+              'poor',
+            ]),
+            'title': 'Detection Quality',
+            'type': 'string',
+          }),
+          'enrichment_coverage': dict({
+            'default': 'full',
+            'description': 'Completeness of enrichment data available',
+            'enum': list([
+              'full',
+              'partial',
+              'minimal',
+            ]),
+            'title': 'Enrichment Coverage',
+            'type': 'string',
+          }),
+          'weather_impact': dict({
+            'default': 'none',
+            'description': 'Impact of weather conditions on detection accuracy',
+            'enum': list([
+              'none',
+              'minor',
+              'significant',
+            ]),
+            'title': 'Weather Impact',
+            'type': 'string',
+          }),
+        }),
+        'title': 'ConfidenceFactors',
+        'type': 'object',
+      }),
+      'EnrichmentStatusEnum': dict({
+        'description': '''
+          Status of enrichment pipeline execution for an event.
+
+          Values:
+              full: All enrichment models succeeded
+              partial: Some models succeeded, some failed
+              failed: All models failed (no enrichment data)
+              skipped: Enrichment was not attempted
+        ''',
+        'enum': list([
+          'full',
+          'partial',
+          'failed',
+          'skipped',
+        ]),
+        'title': 'EnrichmentStatusEnum',
+        'type': 'string',
+      }),
+      'EnrichmentStatusResponse': dict({
+        'description': '''
+          Schema for enrichment status in event responses (NEM-1672).
+
+          Provides visibility into which enrichment models succeeded/failed
+          for a given event, instead of silently degrading.
+        ''',
+        'example': dict({
+          'errors': dict({
+            'clothing': 'Model not loaded',
+          }),
+          'failed_models': list([
+            'clothing',
+          ]),
+          'status': 'partial',
+          'success_rate': 0.75,
+          'successful_models': list([
+            'violence',
+            'weather',
+            'face',
+          ]),
+        }),
+        'properties': dict({
+          'errors': dict({
+            'additionalProperties': dict({
+              'type': 'string',
+            }),
+            'description': 'Model name to error message mapping',
+            'title': 'Errors',
+            'type': 'object',
+          }),
+          'failed_models': dict({
+            'description': 'List of enrichment models that failed',
+            'items': dict({
+              'type': 'string',
+            }),
+            'title': 'Failed Models',
+            'type': 'array',
+          }),
+          'status': dict({
+            '$ref': '#/$defs/EnrichmentStatusEnum',
+            'description': 'Overall enrichment status (full, partial, failed, skipped)',
+          }),
+          'success_rate': dict({
+            'description': 'Success rate (0.0 to 1.0)',
+            'maximum': 1.0,
+            'minimum': 0.0,
+            'title': 'Success Rate',
+            'type': 'number',
+          }),
+          'successful_models': dict({
+            'description': 'List of enrichment models that succeeded',
+            'items': dict({
+              'type': 'string',
+            }),
+            'title': 'Successful Models',
+            'type': 'array',
+          }),
+        }),
+        'required': list([
+          'status',
+          'success_rate',
+        ]),
+        'title': 'EnrichmentStatusResponse',
+        'type': 'object',
+      }),
+      'EventResponse': dict({
+        'description': 'Schema for event response.',
+        'example': dict({
+          'camera_id': 'front_door',
+          'confidence_factors': dict({
+            'detection_quality': 'good',
+            'enrichment_coverage': 'full',
+            'weather_impact': 'none',
+          }),
+          'detection_count': 5,
+          'detection_ids': list([
+            1,
+            2,
+            3,
+            4,
+            5,
+          ]),
+          'ended_at': '2025-12-23T12:02:30Z',
+          'enrichment_status': dict({
+            'errors': dict({
+            }),
+            'failed_models': list([
+            ]),
+            'status': 'full',
+            'success_rate': 1.0,
+            'successful_models': list([
+              'violence',
+              'weather',
+              'face',
+              'clothing',
+            ]),
+          }),
+          'entities': list([
+            dict({
+              'description': 'Individual in casual clothing',
+              'threat_level': 'low',
+              'type': 'person',
+            }),
+          ]),
+          'flags': list([
+          ]),
+          'id': 1,
+          'llm_prompt': '''
+            <|im_start|>system
+            You are a home security risk analyzer...
+          ''',
+          'notes': None,
+          'reasoning': 'Person approaching entrance during daytime, no suspicious behavior',
+          'recommended_action': None,
+          'reviewed': False,
+          'risk_factors': list([
+            dict({
+              'contribution': -10.0,
+              'description': 'Activity during normal hours',
+              'factor_name': 'daytime_activity',
+            }),
+            dict({
+              'contribution': 5.0,
+              'description': 'Activity at primary entrance',
+              'factor_name': 'front_entrance',
+            }),
+          ]),
+          'risk_level': 'medium',
+          'risk_score': 75,
+          'snooze_until': None,
+          'started_at': '2025-12-23T12:00:00Z',
+          'summary': 'Person detected near front entrance',
+          'thumbnail_url': '/api/detections/1/image',
+          'version': 1,
+        }),
+        'properties': dict({
+          'camera_id': dict({
+            'description': "Normalized camera ID (e.g., 'front_door')",
+            'title': 'Camera Id',
+            'type': 'string',
+          }),
+          'confidence_factors': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/ConfidenceFactors',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Factors affecting confidence in the analysis',
+          }),
+          'deleted_at': dict({
+            'anyOf': list([
+              dict({
+                'format': 'date-time',
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Timestamp when the event was soft-deleted (null if not deleted)',
+            'title': 'Deleted At',
+          }),
+          'detection_count': dict({
+            'default': 0,
+            'description': 'Number of detections in this event',
+            'title': 'Detection Count',
+            'type': 'integer',
+          }),
+          'detection_ids': dict({
+            'description': 'List of detection IDs associated with this event',
+            'items': dict({
+              'type': 'integer',
+            }),
+            'title': 'Detection Ids',
+            'type': 'array',
+          }),
+          'ended_at': dict({
+            'anyOf': list([
+              dict({
+                'format': 'date-time',
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Event end timestamp',
+            'title': 'Ended At',
+          }),
+          'enrichment_status': dict({
+            'anyOf': list([
+              dict({
+                '$ref': '#/$defs/EnrichmentStatusResponse',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed',
+          }),
+          'entities': dict({
+            'description': 'Entities identified in the analysis (people, vehicles, objects)',
+            'items': dict({
+              '$ref': '#/$defs/RiskEntity',
+            }),
+            'title': 'Entities',
+            'type': 'array',
+          }),
+          'flagged': dict({
+            'default': False,
+            'description': 'Whether event is flagged for follow-up (NEM-3839)',
+            'title': 'Flagged',
+            'type': 'boolean',
+          }),
+          'flags': dict({
+            'description': 'Risk flags raised during analysis',
+            'items': dict({
+              '$ref': '#/$defs/RiskFlag',
+            }),
+            'title': 'Flags',
+            'type': 'array',
+          }),
+          'id': dict({
+            'description': 'Event ID',
+            'title': 'Id',
+            'type': 'integer',
+          }),
+          'llm_prompt': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Full prompt sent to Nemotron LLM (for debugging/improvement)',
+            'title': 'Llm Prompt',
+          }),
+          'notes': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'User notes for the event',
+            'title': 'Notes',
+          }),
+          'reasoning': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'LLM reasoning for risk score',
+            'title': 'Reasoning',
+          }),
+          'recommended_action': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Suggested action based on the analysis',
+            'title': 'Recommended Action',
+          }),
+          'reviewed': dict({
+            'default': False,
+            'description': 'Whether event has been reviewed',
+            'title': 'Reviewed',
+            'type': 'boolean',
+          }),
+          'risk_factors': dict({
+            'anyOf': list([
+              dict({
+                'items': dict({
+                  '$ref': '#/$defs/RiskFactor',
+                }),
+                'type': 'array',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Individual factors contributing to the risk score (NEM-3603)',
+            'title': 'Risk Factors',
+          }),
+          'risk_score': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Risk score (0-100)',
+            'title': 'Risk Score',
+          }),
+          'snooze_until': dict({
+            'anyOf': list([
+              dict({
+                'format': 'date-time',
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Timestamp until which alerts for this event are snoozed (NEM-2359)',
+            'title': 'Snooze Until',
+          }),
+          'started_at': dict({
+            'description': 'Event start timestamp',
+            'format': 'date-time',
+            'title': 'Started At',
+            'type': 'string',
+          }),
+          'summary': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'LLM-generated event summary',
+            'title': 'Summary',
+          }),
+          'thumbnail_url': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': "URL to thumbnail image (first detection's media)",
+            'title': 'Thumbnail Url',
+          }),
+          'version': dict({
+            'default': 1,
+            'description': 'Optimistic locking version (NEM-3625). Include in updates to prevent conflicts.',
+            'title': 'Version',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'id',
+          'camera_id',
+          'started_at',
+        ]),
+        'title': 'EventResponse',
+        'type': 'object',
+      }),
+      'PaginationMeta': dict({
+        'description': '''
+          Pagination metadata for list responses.
+
+          Contains information about the current page and total results.
+          Supports both offset-based and cursor-based pagination.
+        ''',
+        'example': dict({
+          'cursor': None,
+          'has_more': True,
+          'limit': 50,
+          'next_cursor': 'eyJpZCI6IDUwfQ',
+          'offset': 0,
+          'total': 150,
+        }),
+        'properties': dict({
+          'cursor': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Current cursor position (cursor-based pagination)',
+            'title': 'Cursor',
+          }),
+          'has_more': dict({
+            'description': 'Whether more items are available beyond this page',
+            'title': 'Has More',
+            'type': 'boolean',
+          }),
+          'limit': dict({
+            'description': 'Maximum number of items returned per page',
+            'maximum': 10000,
+            'minimum': 1,
+            'title': 'Limit',
+            'type': 'integer',
+          }),
+          'next_cursor': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Cursor for the next page of results',
+            'title': 'Next Cursor',
+          }),
+          'offset': dict({
+            'anyOf': list([
+              dict({
+                'minimum': 0,
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Number of items skipped (offset-based pagination)',
+            'title': 'Offset',
+          }),
+          'total': dict({
+            'description': 'Total number of items matching the query',
+            'minimum': 0,
+            'title': 'Total',
+            'type': 'integer',
+          }),
+        }),
+        'required': list([
+          'total',
+          'limit',
+          'has_more',
+        ]),
+        'title': 'PaginationMeta',
+        'type': 'object',
+      }),
+      'RiskEntity': dict({
+        'description': '''
+          Entity identified during risk analysis.
+
+          Entities represent objects of interest detected in the scene that
+          contribute to the overall risk assessment (e.g., people, vehicles,
+          packages).
+
+          Attributes:
+              type: Category of entity (e.g., "person", "vehicle", "package")
+              description: Detailed description of the entity
+              threat_level: Risk level attributed to this entity
+        ''',
+        'example': dict({
+          'description': 'Unknown individual near front entrance',
+          'threat_level': 'medium',
+          'type': 'person',
+        }),
+        'properties': dict({
+          'description': dict({
+            'description': 'Detailed description of the entity',
+            'title': 'Description',
+            'type': 'string',
+          }),
+          'threat_level': dict({
+            'description': 'Risk level attributed to this entity',
+            'enum': list([
+              'low',
+              'medium',
+              'high',
+            ]),
+            'title': 'Threat Level',
+            'type': 'string',
+          }),
+          'type': dict({
+            'description': 'Category of entity (e.g., person, vehicle, package)',
+            'title': 'Type',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'type',
+          'description',
+          'threat_level',
+        ]),
+        'title': 'RiskEntity',
+        'type': 'object',
+      }),
+      'RiskFactor': dict({
+        'description': '''
+          Individual factor contributing to the overall risk score (NEM-3603).
+
+          Risk factors represent specific aspects of the analysis that contribute
+          positively or negatively to the overall risk score. Positive contributions
+          increase risk (e.g., nighttime activity, unknown person), while negative
+          contributions decrease risk (e.g., recognized face, routine timing).
+
+          Attributes:
+              factor_name: Name of the risk factor (e.g., "nighttime_activity", "recognized_face")
+              contribution: Contribution to risk score (positive increases risk, negative decreases)
+              description: Optional explanation of why this factor applies
+        ''',
+        'example': dict({
+          'contribution': 15.0,
+          'description': 'Activity detected outside normal hours (11 PM - 6 AM)',
+          'factor_name': 'nighttime_activity',
+        }),
+        'properties': dict({
+          'contribution': dict({
+            'description': 'Contribution to risk score (positive increases, negative decreases)',
+            'title': 'Contribution',
+            'type': 'number',
+          }),
+          'description': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Optional explanation of why this factor applies',
+            'title': 'Description',
+          }),
+          'factor_name': dict({
+            'description': 'Name of the risk factor',
+            'title': 'Factor Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'factor_name',
+          'contribution',
+        ]),
+        'title': 'RiskFactor',
+        'type': 'object',
+      }),
+      'RiskFlag': dict({
+        'description': '''
+          Risk flag indicating a specific concern or anomaly.
+
+          Flags represent specific behaviors, patterns, or conditions that
+          warrant attention (e.g., loitering, nighttime activity, weapon detected).
+
+          Attributes:
+              type: Category of flag (e.g., "loitering", "weapon_detected")
+              description: Explanation of the flag
+              severity: How severe this flag is (warning, alert, critical)
+        ''',
+        'example': dict({
+          'description': 'Person has been stationary for over 5 minutes',
+          'severity': 'warning',
+          'type': 'loitering',
+        }),
+        'properties': dict({
+          'description': dict({
+            'description': 'Explanation of the flag',
+            'title': 'Description',
+            'type': 'string',
+          }),
+          'severity': dict({
+            'description': 'Severity level of this flag',
+            'enum': list([
+              'warning',
+              'alert',
+              'critical',
+            ]),
+            'title': 'Severity',
+            'type': 'string',
+          }),
+          'type': dict({
+            'description': 'Category of flag (e.g., loitering, weapon_detected)',
+            'title': 'Type',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'type',
+          'description',
+          'severity',
+        ]),
+        'title': 'RiskFlag',
+        'type': 'object',
+      }),
+    }),
+    'description': '''
+      Schema for event list response with pagination.
+
+      NEM-2075: Standardized pagination envelope with items + pagination structure.
+      Supports both cursor-based pagination (recommended) and offset pagination (deprecated).
+      Use cursor-based pagination for better performance with large datasets.
+    ''',
+    'example': dict({
+      'deprecation_warning': None,
+      'items': list([
+        dict({
+          'camera_id': 'front_door',
+          'detection_count': 5,
+          'detection_ids': list([
+            1,
+            2,
+            3,
+            4,
+            5,
+          ]),
+          'ended_at': '2025-12-23T12:02:30Z',
+          'id': 1,
+          'notes': None,
+          'reasoning': 'Person approaching entrance during daytime',
+          'reviewed': False,
+          'risk_level': 'medium',
+          'risk_score': 75,
+          'started_at': '2025-12-23T12:00:00Z',
+          'summary': 'Person detected near front entrance',
+          'thumbnail_url': '/api/detections/1/image',
+        }),
+      ]),
+      'pagination': dict({
+        'cursor': None,
+        'has_more': False,
+        'limit': 50,
+        'next_cursor': 'eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=',
+        'offset': 0,
+        'total': 1,
+      }),
+    }),
+    'properties': dict({
+      'deprecation_warning': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Warning message when using deprecated offset pagination',
+        'title': 'Deprecation Warning',
+      }),
+      'items': dict({
+        'description': 'List of events',
+        'items': dict({
+          '$ref': '#/$defs/EventResponse',
+        }),
+        'title': 'Items',
+        'type': 'array',
+      }),
+      'pagination': dict({
+        '$ref': '#/$defs/PaginationMeta',
+        'description': 'Pagination metadata',
+      }),
+    }),
+    'required': list([
+      'items',
+      'pagination',
+    ]),
+    'title': 'EventListResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestEventResponseSnapshots.test_event_response_json_schema
+  dict({
+    '$defs': dict({
+      'ConfidenceFactors': dict({
+        'description': '''
+          Factors affecting confidence in the risk analysis.
+
+          These factors help explain the reliability of the risk assessment
+          and can be used to understand when additional review may be needed.
+
+          Attributes:
+              detection_quality: Quality of the detection data (good, fair, poor)
+              weather_impact: Impact of weather on detection accuracy
+              enrichment_coverage: Completeness of enrichment data used
+        ''',
+        'example': dict({
+          'detection_quality': 'good',
+          'enrichment_coverage': 'full',
+          'weather_impact': 'none',
+        }),
+        'properties': dict({
+          'detection_quality': dict({
+            'default': 'good',
+            'description': 'Quality of the detection data',
+            'enum': list([
+              'good',
+              'fair',
+              'poor',
+            ]),
+            'title': 'Detection Quality',
+            'type': 'string',
+          }),
+          'enrichment_coverage': dict({
+            'default': 'full',
+            'description': 'Completeness of enrichment data available',
+            'enum': list([
+              'full',
+              'partial',
+              'minimal',
+            ]),
+            'title': 'Enrichment Coverage',
+            'type': 'string',
+          }),
+          'weather_impact': dict({
+            'default': 'none',
+            'description': 'Impact of weather conditions on detection accuracy',
+            'enum': list([
+              'none',
+              'minor',
+              'significant',
+            ]),
+            'title': 'Weather Impact',
+            'type': 'string',
+          }),
+        }),
+        'title': 'ConfidenceFactors',
+        'type': 'object',
+      }),
+      'EnrichmentStatusEnum': dict({
+        'description': '''
+          Status of enrichment pipeline execution for an event.
+
+          Values:
+              full: All enrichment models succeeded
+              partial: Some models succeeded, some failed
+              failed: All models failed (no enrichment data)
+              skipped: Enrichment was not attempted
+        ''',
+        'enum': list([
+          'full',
+          'partial',
+          'failed',
+          'skipped',
+        ]),
+        'title': 'EnrichmentStatusEnum',
+        'type': 'string',
+      }),
+      'EnrichmentStatusResponse': dict({
+        'description': '''
+          Schema for enrichment status in event responses (NEM-1672).
+
+          Provides visibility into which enrichment models succeeded/failed
+          for a given event, instead of silently degrading.
+        ''',
+        'example': dict({
+          'errors': dict({
+            'clothing': 'Model not loaded',
+          }),
+          'failed_models': list([
+            'clothing',
+          ]),
+          'status': 'partial',
+          'success_rate': 0.75,
+          'successful_models': list([
+            'violence',
+            'weather',
+            'face',
+          ]),
+        }),
+        'properties': dict({
+          'errors': dict({
+            'additionalProperties': dict({
+              'type': 'string',
+            }),
+            'description': 'Model name to error message mapping',
+            'title': 'Errors',
+            'type': 'object',
+          }),
+          'failed_models': dict({
+            'description': 'List of enrichment models that failed',
+            'items': dict({
+              'type': 'string',
+            }),
+            'title': 'Failed Models',
+            'type': 'array',
+          }),
+          'status': dict({
+            '$ref': '#/$defs/EnrichmentStatusEnum',
+            'description': 'Overall enrichment status (full, partial, failed, skipped)',
+          }),
+          'success_rate': dict({
+            'description': 'Success rate (0.0 to 1.0)',
+            'maximum': 1.0,
+            'minimum': 0.0,
+            'title': 'Success Rate',
+            'type': 'number',
+          }),
+          'successful_models': dict({
+            'description': 'List of enrichment models that succeeded',
+            'items': dict({
+              'type': 'string',
+            }),
+            'title': 'Successful Models',
+            'type': 'array',
+          }),
+        }),
+        'required': list([
+          'status',
+          'success_rate',
+        ]),
+        'title': 'EnrichmentStatusResponse',
+        'type': 'object',
+      }),
+      'RiskEntity': dict({
+        'description': '''
+          Entity identified during risk analysis.
+
+          Entities represent objects of interest detected in the scene that
+          contribute to the overall risk assessment (e.g., people, vehicles,
+          packages).
+
+          Attributes:
+              type: Category of entity (e.g., "person", "vehicle", "package")
+              description: Detailed description of the entity
+              threat_level: Risk level attributed to this entity
+        ''',
+        'example': dict({
+          'description': 'Unknown individual near front entrance',
+          'threat_level': 'medium',
+          'type': 'person',
+        }),
+        'properties': dict({
+          'description': dict({
+            'description': 'Detailed description of the entity',
+            'title': 'Description',
+            'type': 'string',
+          }),
+          'threat_level': dict({
+            'description': 'Risk level attributed to this entity',
+            'enum': list([
+              'low',
+              'medium',
+              'high',
+            ]),
+            'title': 'Threat Level',
+            'type': 'string',
+          }),
+          'type': dict({
+            'description': 'Category of entity (e.g., person, vehicle, package)',
+            'title': 'Type',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'type',
+          'description',
+          'threat_level',
+        ]),
+        'title': 'RiskEntity',
+        'type': 'object',
+      }),
+      'RiskFactor': dict({
+        'description': '''
+          Individual factor contributing to the overall risk score (NEM-3603).
+
+          Risk factors represent specific aspects of the analysis that contribute
+          positively or negatively to the overall risk score. Positive contributions
+          increase risk (e.g., nighttime activity, unknown person), while negative
+          contributions decrease risk (e.g., recognized face, routine timing).
+
+          Attributes:
+              factor_name: Name of the risk factor (e.g., "nighttime_activity", "recognized_face")
+              contribution: Contribution to risk score (positive increases risk, negative decreases)
+              description: Optional explanation of why this factor applies
+        ''',
+        'example': dict({
+          'contribution': 15.0,
+          'description': 'Activity detected outside normal hours (11 PM - 6 AM)',
+          'factor_name': 'nighttime_activity',
+        }),
+        'properties': dict({
+          'contribution': dict({
+            'description': 'Contribution to risk score (positive increases, negative decreases)',
+            'title': 'Contribution',
+            'type': 'number',
+          }),
+          'description': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Optional explanation of why this factor applies',
+            'title': 'Description',
+          }),
+          'factor_name': dict({
+            'description': 'Name of the risk factor',
+            'title': 'Factor Name',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'factor_name',
+          'contribution',
+        ]),
+        'title': 'RiskFactor',
+        'type': 'object',
+      }),
+      'RiskFlag': dict({
+        'description': '''
+          Risk flag indicating a specific concern or anomaly.
+
+          Flags represent specific behaviors, patterns, or conditions that
+          warrant attention (e.g., loitering, nighttime activity, weapon detected).
+
+          Attributes:
+              type: Category of flag (e.g., "loitering", "weapon_detected")
+              description: Explanation of the flag
+              severity: How severe this flag is (warning, alert, critical)
+        ''',
+        'example': dict({
+          'description': 'Person has been stationary for over 5 minutes',
+          'severity': 'warning',
+          'type': 'loitering',
+        }),
+        'properties': dict({
+          'description': dict({
+            'description': 'Explanation of the flag',
+            'title': 'Description',
+            'type': 'string',
+          }),
+          'severity': dict({
+            'description': 'Severity level of this flag',
+            'enum': list([
+              'warning',
+              'alert',
+              'critical',
+            ]),
+            'title': 'Severity',
+            'type': 'string',
+          }),
+          'type': dict({
+            'description': 'Category of flag (e.g., loitering, weapon_detected)',
+            'title': 'Type',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'type',
+          'description',
+          'severity',
+        ]),
+        'title': 'RiskFlag',
+        'type': 'object',
+      }),
+    }),
+    'description': 'Schema for event response.',
+    'example': dict({
+      'camera_id': 'front_door',
+      'confidence_factors': dict({
+        'detection_quality': 'good',
+        'enrichment_coverage': 'full',
+        'weather_impact': 'none',
+      }),
+      'detection_count': 5,
+      'detection_ids': list([
+        1,
+        2,
+        3,
+        4,
+        5,
+      ]),
+      'ended_at': '2025-12-23T12:02:30Z',
+      'enrichment_status': dict({
+        'errors': dict({
+        }),
+        'failed_models': list([
+        ]),
+        'status': 'full',
+        'success_rate': 1.0,
+        'successful_models': list([
+          'violence',
+          'weather',
+          'face',
+          'clothing',
+        ]),
+      }),
+      'entities': list([
+        dict({
+          'description': 'Individual in casual clothing',
+          'threat_level': 'low',
+          'type': 'person',
+        }),
+      ]),
+      'flags': list([
+      ]),
+      'id': 1,
+      'llm_prompt': '''
+        <|im_start|>system
+        You are a home security risk analyzer...
+      ''',
+      'notes': None,
+      'reasoning': 'Person approaching entrance during daytime, no suspicious behavior',
+      'recommended_action': None,
+      'reviewed': False,
+      'risk_factors': list([
+        dict({
+          'contribution': -10.0,
+          'description': 'Activity during normal hours',
+          'factor_name': 'daytime_activity',
+        }),
+        dict({
+          'contribution': 5.0,
+          'description': 'Activity at primary entrance',
+          'factor_name': 'front_entrance',
+        }),
+      ]),
+      'risk_level': 'medium',
+      'risk_score': 75,
+      'snooze_until': None,
+      'started_at': '2025-12-23T12:00:00Z',
+      'summary': 'Person detected near front entrance',
+      'thumbnail_url': '/api/detections/1/image',
+      'version': 1,
+    }),
+    'properties': dict({
+      'camera_id': dict({
+        'description': "Normalized camera ID (e.g., 'front_door')",
+        'title': 'Camera Id',
+        'type': 'string',
+      }),
+      'confidence_factors': dict({
+        'anyOf': list([
+          dict({
+            '$ref': '#/$defs/ConfidenceFactors',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Factors affecting confidence in the analysis',
+      }),
+      'deleted_at': dict({
+        'anyOf': list([
+          dict({
+            'format': 'date-time',
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Timestamp when the event was soft-deleted (null if not deleted)',
+        'title': 'Deleted At',
+      }),
+      'detection_count': dict({
+        'default': 0,
+        'description': 'Number of detections in this event',
+        'title': 'Detection Count',
+        'type': 'integer',
+      }),
+      'detection_ids': dict({
+        'description': 'List of detection IDs associated with this event',
+        'items': dict({
+          'type': 'integer',
+        }),
+        'title': 'Detection Ids',
+        'type': 'array',
+      }),
+      'ended_at': dict({
+        'anyOf': list([
+          dict({
+            'format': 'date-time',
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Event end timestamp',
+        'title': 'Ended At',
+      }),
+      'enrichment_status': dict({
+        'anyOf': list([
+          dict({
+            '$ref': '#/$defs/EnrichmentStatusResponse',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed',
+      }),
+      'entities': dict({
+        'description': 'Entities identified in the analysis (people, vehicles, objects)',
+        'items': dict({
+          '$ref': '#/$defs/RiskEntity',
+        }),
+        'title': 'Entities',
+        'type': 'array',
+      }),
+      'flagged': dict({
+        'default': False,
+        'description': 'Whether event is flagged for follow-up (NEM-3839)',
+        'title': 'Flagged',
+        'type': 'boolean',
+      }),
+      'flags': dict({
+        'description': 'Risk flags raised during analysis',
+        'items': dict({
+          '$ref': '#/$defs/RiskFlag',
+        }),
+        'title': 'Flags',
+        'type': 'array',
+      }),
+      'id': dict({
+        'description': 'Event ID',
+        'title': 'Id',
+        'type': 'integer',
+      }),
+      'llm_prompt': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Full prompt sent to Nemotron LLM (for debugging/improvement)',
+        'title': 'Llm Prompt',
+      }),
+      'notes': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'User notes for the event',
+        'title': 'Notes',
+      }),
+      'reasoning': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'LLM reasoning for risk score',
+        'title': 'Reasoning',
+      }),
+      'recommended_action': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Suggested action based on the analysis',
+        'title': 'Recommended Action',
+      }),
+      'reviewed': dict({
+        'default': False,
+        'description': 'Whether event has been reviewed',
+        'title': 'Reviewed',
+        'type': 'boolean',
+      }),
+      'risk_factors': dict({
+        'anyOf': list([
+          dict({
+            'items': dict({
+              '$ref': '#/$defs/RiskFactor',
+            }),
+            'type': 'array',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Individual factors contributing to the risk score (NEM-3603)',
+        'title': 'Risk Factors',
+      }),
+      'risk_score': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Risk score (0-100)',
+        'title': 'Risk Score',
+      }),
+      'snooze_until': dict({
+        'anyOf': list([
+          dict({
+            'format': 'date-time',
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Timestamp until which alerts for this event are snoozed (NEM-2359)',
+        'title': 'Snooze Until',
+      }),
+      'started_at': dict({
+        'description': 'Event start timestamp',
+        'format': 'date-time',
+        'title': 'Started At',
+        'type': 'string',
+      }),
+      'summary': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'LLM-generated event summary',
+        'title': 'Summary',
+      }),
+      'thumbnail_url': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': "URL to thumbnail image (first detection's media)",
+        'title': 'Thumbnail Url',
+      }),
+      'version': dict({
+        'default': 1,
+        'description': 'Optimistic locking version (NEM-3625). Include in updates to prevent conflicts.',
+        'title': 'Version',
+        'type': 'integer',
+      }),
+    }),
+    'required': list([
+      'id',
+      'camera_id',
+      'started_at',
+    ]),
+    'title': 'EventResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestEventResponseSnapshots.test_event_response_serialization
+  dict({
+    'camera_id': 'front_door',
+    'confidence_factors': None,
+    'deleted_at': None,
+    'detection_count': 3,
+    'detection_ids': list([
+    ]),
+    'ended_at': '2025-01-15T12:00:00Z',
+    'enrichment_status': None,
+    'entities': list([
+    ]),
+    'flagged': False,
+    'flags': list([
+    ]),
+    'id': 1,
+    'llm_prompt': None,
+    'notes': None,
+    'reasoning': None,
+    'recommended_action': None,
+    'reviewed': False,
+    'risk_factors': None,
+    'risk_level': 'high',
+    'risk_score': 75,
+    'snooze_until': None,
+    'started_at': '2025-01-15T12:00:00Z',
+    'summary': None,
+    'thumbnail_url': None,
+    'version': 1,
+  })
+# ---
+# name: TestFeedbackResponseSnapshots.test_feedback_response_json_schema
+  dict({
+    '$defs': dict({
+      'ActualThreatLevel': dict({
+        'description': '''
+          User's assessment of the actual threat level.
+
+          Values:
+              NO_THREAT: No threat at all (e.g., household member, pet)
+              MINOR_CONCERN: Worth noting but not alarming
+              GENUINE_THREAT: Real security concern
+        ''',
+        'enum': list([
+          'no_threat',
+          'minor_concern',
+          'genuine_threat',
+        ]),
+        'title': 'ActualThreatLevel',
+        'type': 'string',
+      }),
+      'FeedbackType': dict({
+        'description': '''
+          Types of feedback users can provide on events.
+
+          Values:
+              ACCURATE: Event was correctly classified with appropriate severity
+              FALSE_POSITIVE: Event was incorrectly flagged as concerning
+              MISSED_THREAT: System failed to detect a concerning event
+              SEVERITY_WRONG: Event was flagged but with incorrect severity level
+        ''',
+        'enum': list([
+          'accurate',
+          'false_positive',
+          'missed_threat',
+          'severity_wrong',
+        ]),
+        'title': 'FeedbackType',
+        'type': 'string',
+      }),
+    }),
+    'description': '''
+      Schema for event feedback response.
+
+      Returned when retrieving feedback for an event.
+      Enhanced with calibration fields for Nemotron prompt improvement (NEM-3330).
+    ''',
+    'example': dict({
+      'actual_identity': 'Mike (neighbor)',
+      'actual_threat_level': 'no_threat',
+      'created_at': '2025-01-01T12:00:00Z',
+      'event_id': 123,
+      'feedback_type': 'false_positive',
+      'id': 1,
+      'model_failures': list([
+        'reid_model',
+      ]),
+      'notes': "This was my neighbor's car, not a threat.",
+      'suggested_score': 10,
+      'what_was_wrong': 'Re-ID should have matched this person',
+    }),
+    'properties': dict({
+      'actual_identity': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Identity correction for household member learning',
+        'title': 'Actual Identity',
+      }),
+      'actual_threat_level': dict({
+        'anyOf': list([
+          dict({
+            '$ref': '#/$defs/ActualThreatLevel',
+          }),
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': "User's assessment of true threat level",
+        'title': 'Actual Threat Level',
+      }),
+      'created_at': dict({
+        'description': 'When feedback was submitted',
+        'format': 'date-time',
+        'title': 'Created At',
+        'type': 'string',
+      }),
+      'event_id': dict({
+        'description': 'Event ID this feedback belongs to',
+        'title': 'Event Id',
+        'type': 'integer',
+      }),
+      'feedback_type': dict({
+        'anyOf': list([
+          dict({
+            '$ref': '#/$defs/FeedbackType',
+          }),
+          dict({
+            'type': 'string',
+          }),
+        ]),
+        'description': 'Type of feedback provided',
+        'title': 'Feedback Type',
+      }),
+      'id': dict({
+        'description': 'Feedback record ID',
+        'title': 'Id',
+        'type': 'integer',
+      }),
+      'model_failures': dict({
+        'anyOf': list([
+          dict({
+            'items': dict({
+              'type': 'string',
+            }),
+            'type': 'array',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'List of specific AI models that failed',
+        'title': 'Model Failures',
+      }),
+      'notes': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Optional notes from user',
+        'title': 'Notes',
+      }),
+      'suggested_score': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'What user thinks score should have been (0-100)',
+        'title': 'Suggested Score',
+      }),
+      'what_was_wrong': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Detailed explanation of what AI got wrong',
+        'title': 'What Was Wrong',
+      }),
+    }),
+    'required': list([
+      'id',
+      'event_id',
+      'feedback_type',
+      'created_at',
+    ]),
+    'title': 'EventFeedbackResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestFeedbackResponseSnapshots.test_feedback_response_serialization
+  dict({
+    'actual_identity': None,
+    'actual_threat_level': 'no_threat',
+    'created_at': '2025-01-15T12:00:00Z',
+    'event_id': 123,
+    'feedback_type': 'false_positive',
+    'id': 1,
+    'model_failures': None,
+    'notes': "This was my neighbor's car.",
+    'suggested_score': 10,
+    'what_was_wrong': None,
+  })
+# ---
+# name: TestFeedbackResponseSnapshots.test_feedback_stats_response_json_schema
+  dict({
+    'description': '''
+      Schema for aggregate feedback statistics.
+
+      Returns counts of feedback by type and by camera to help
+      calibrate the AI model's risk assessment.
+    ''',
+    'example': dict({
+      'by_camera': dict({
+        'back_yard': 30,
+        'front_door': 50,
+        'garage': 20,
+      }),
+      'by_type': dict({
+        'accurate': 10,
+        'false_positive': 40,
+        'missed_threat': 30,
+        'severity_wrong': 20,
+      }),
+      'total_feedback': 100,
+    }),
+    'properties': dict({
+      'by_camera': dict({
+        'additionalProperties': dict({
+          'type': 'integer',
+        }),
+        'description': 'Count of feedback entries grouped by camera ID',
+        'title': 'By Camera',
+        'type': 'object',
+      }),
+      'by_type': dict({
+        'additionalProperties': dict({
+          'type': 'integer',
+        }),
+        'description': 'Count of feedback entries grouped by feedback type',
+        'title': 'By Type',
+        'type': 'object',
+      }),
+      'total_feedback': dict({
+        'description': 'Total number of feedback entries',
+        'minimum': 0,
+        'title': 'Total Feedback',
+        'type': 'integer',
+      }),
+    }),
+    'required': list([
+      'total_feedback',
+      'by_type',
+      'by_camera',
+    ]),
+    'title': 'FeedbackStatsResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestFeedbackResponseSnapshots.test_feedback_stats_response_serialization
+  dict({
+    'by_camera': dict({
+      'back_yard': 30,
+      'front_door': 50,
+      'garage': 20,
+    }),
+    'by_type': dict({
+      'accurate': 10,
+      'false_positive': 40,
+      'missed_threat': 30,
+      'severity_wrong': 20,
+    }),
+    'total_feedback': 100,
+  })
+# ---
+# name: TestHealthResponseSnapshots.test_liveness_response_json_schema
+  dict({
+    'description': '''
+      Response schema for liveness probe endpoint.
+
+      Liveness probes indicate whether the process is running and able to
+      respond to HTTP requests. This is a minimal check that always returns
+      "alive" if the process is up.
+
+      Used by:
+      - GET /health (root level liveness probe)
+      - Docker HEALTHCHECK liveness checks
+      - Kubernetes liveness probes
+    ''',
+    'example': dict({
+      'status': 'alive',
+    }),
+    'properties': dict({
+      'status': dict({
+        'const': 'alive',
+        'default': 'alive',
+        'description': "Liveness status: always 'alive' if process is responding",
+        'title': 'Status',
+        'type': 'string',
+      }),
+    }),
+    'title': 'LivenessResponse',
+    'type': 'object',
+  })
+# ---
+# name: TestHealthResponseSnapshots.test_liveness_response_serialization
+  dict({
+    'status': 'alive',
+  })
+# ---
+# name: TestPaginationSnapshots.test_pagination_meta_json_schema
+  dict({
+    'description': '''
+      Pagination metadata for list responses.
+
+      Contains information about the current page and total results.
+      Supports both offset-based and cursor-based pagination.
+    ''',
+    'example': dict({
+      'cursor': None,
+      'has_more': True,
+      'limit': 50,
+      'next_cursor': 'eyJpZCI6IDUwfQ',
+      'offset': 0,
+      'total': 150,
+    }),
+    'properties': dict({
+      'cursor': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Current cursor position (cursor-based pagination)',
+        'title': 'Cursor',
+      }),
+      'has_more': dict({
+        'description': 'Whether more items are available beyond this page',
+        'title': 'Has More',
+        'type': 'boolean',
+      }),
+      'limit': dict({
+        'description': 'Maximum number of items returned per page',
+        'maximum': 10000,
+        'minimum': 1,
+        'title': 'Limit',
+        'type': 'integer',
+      }),
+      'next_cursor': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Cursor for the next page of results',
+        'title': 'Next Cursor',
+      }),
+      'offset': dict({
+        'anyOf': list([
+          dict({
+            'minimum': 0,
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Number of items skipped (offset-based pagination)',
+        'title': 'Offset',
+      }),
+      'total': dict({
+        'description': 'Total number of items matching the query',
+        'minimum': 0,
+        'title': 'Total',
+        'type': 'integer',
+      }),
+    }),
+    'required': list([
+      'total',
+      'limit',
+      'has_more',
+    ]),
+    'title': 'PaginationMeta',
+    'type': 'object',
+  })
+# ---
+# name: TestPaginationSnapshots.test_pagination_meta_serialization
+  dict({
+    'cursor': None,
+    'has_more': True,
+    'limit': 50,
+    'next_cursor': 'eyJpZCI6IDUwfQ==',
+    'offset': 0,
+    'total': 100,
+  })
+# ---
+# name: TestPaginationSnapshots.test_pagination_meta_without_cursor
+  dict({
+    'cursor': None,
+    'has_more': False,
+    'limit': 10,
+    'next_cursor': None,
+    'offset': 0,
+    'total': 10,
+  })
+# ---
