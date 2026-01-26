@@ -221,8 +221,9 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-25}
-      - CTX_SIZE=${CTX_SIZE:-131072}
+      - GPU_LAYERS=${GPU_LAYERS:-35}
+      # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
+      - CTX_SIZE=${CTX_SIZE:-32768}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -241,6 +242,7 @@ services:
               capabilities: [gpu]
 
   # Florence-2 vision-language model for dense captioning and visual understanding
+  # Assigned to GPU 1 (A400 4GB) - shares with CLIP for multi-GPU distribution
   ai-florence:
     tmpfs:
       - /tmp
@@ -279,8 +281,9 @@ services:
       resources:
         reservations:
           devices:
+            # GPU 1 (A400 4GB) - Florence uses ~2GB, shares with CLIP (~940MB)
             - driver: nvidia
-              count: 1
+              device_ids: ['1']
               capabilities: [gpu]
 
   # CLIP ViT-L model for entity re-identification embeddings
@@ -434,6 +437,8 @@ services:
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
       - YOLO26_URL=http://ai-yolo26:8095
+      # YOLO26 is 5.3x faster than RT-DETRv2 with TensorRT
+      - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
       - FOSCAM_BASE_PATH=/cameras
