@@ -52,7 +52,7 @@ record_pipeline_stage_latency("detect_to_batch", duration * 1000)
 - Queue dequeue (Redis BRPOP)
 - Payload validation
 - Semaphore acquisition
-- RT-DETRv2 HTTP request
+- YOLO26 HTTP request
 - Detection filtering
 - Database insert
 - Batch aggregator update
@@ -204,7 +204,7 @@ Prevents retry storms when services are unavailable:
 
 ```python
 self._circuit_breaker = CircuitBreaker(
-    name="rtdetr",
+    name="yolo26",
     config=CircuitBreakerConfig(
         failure_threshold=5,      # Opens after 5 failures
         recovery_timeout=60.0,    # 60s before retry
@@ -247,7 +247,7 @@ NEMOTRON_HEALTH_TIMEOUT = 5.0     # Health check
 
 ```python
 # Explicit asyncio.timeout() wrapper
-explicit_timeout = settings.rtdetr_read_timeout + settings.ai_connect_timeout
+explicit_timeout = settings.yolo26_read_timeout + settings.ai_connect_timeout
 async with asyncio.timeout(explicit_timeout):
     response = await self._http_client.post(...)
 ```
@@ -271,7 +271,7 @@ async def warmup(self) -> bool:
 
     if result:
         self._track_inference()
-        set_model_warmth_state("rtdetr", "warm")
+        set_model_warmth_state("yolo26", "warm")
 ```
 
 **Configuration:**

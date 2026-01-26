@@ -359,13 +359,13 @@ Hook for tracking AI service degradation status via WebSocket.
 |------|-------------|
 | `normal` | All AI services healthy |
 | `degraded` | Non-critical services (Florence-2, CLIP) unavailable |
-| `minimal` | Critical services (RT-DETRv2, Nemotron) partially available |
+| `minimal` | Critical services (YOLO26, Nemotron) partially available |
 | `offline` | All AI services unavailable |
 
 **Types:**
 
 ```typescript
-type AIServiceName = 'rtdetr' | 'nemotron' | 'florence' | 'clip';
+type AIServiceName = 'yolo26' | 'nemotron' | 'florence' | 'clip';
 type DegradationLevel = 'normal' | 'degraded' | 'minimal' | 'offline';
 type CircuitState = 'closed' | 'open' | 'half_open';
 
@@ -404,12 +404,12 @@ function AIStatusBanner() {
 
   if (!isDegraded) return null;
 
-  const rtdetr = getServiceState('rtdetr');
+  const yolo26 = getServiceState('yolo26');
 
   return (
     <Banner variant="warning">
       System in {degradationMode} mode.
-      {rtdetr?.status === 'unavailable' && ' Object detection unavailable.'}
+      {yolo26?.status === 'unavailable' && ' Object detection unavailable.'}
     </Banner>
   );
 }
@@ -440,7 +440,7 @@ Hook for tracking circuit breaker states via WebSocket. Circuit breakers protect
 type CircuitBreakerStateType = 'closed' | 'open' | 'half_open';
 
 interface CircuitBreakerState {
-  name: string;                      // e.g., 'rtdetr', 'nemotron'
+  name: string;                      // e.g., 'yolo26', 'nemotron'
   state: CircuitBreakerStateType;
   failure_count: number;
   success_count: number;
@@ -1317,7 +1317,7 @@ Hook for fetching AI performance metrics from multiple API endpoints and combini
 **Features:**
 
 - Fetches from `/api/metrics`, `/api/system/telemetry`, `/api/system/health`, `/api/system/pipeline-latency`
-- Combines RT-DETR and Nemotron model statuses
+- Combines YOLO26 and Nemotron model statuses
 - Tracks detection/analysis latency metrics with percentiles
 - Monitors queue depths, errors, and throughput
 - Configurable polling interval (default: 5000ms)
@@ -2093,8 +2093,8 @@ return (
 const { degradationMode, isDegraded, getServiceState } = useAIServiceStatus();
 
 if (isDegraded) {
-  const rtdetr = getServiceState('rtdetr');
-  console.log(`System degraded. RT-DETR status: ${rtdetr?.status}`);
+  const yolo26 = getServiceState('yolo26');
+  console.log(`System degraded. YOLO26 status: ${yolo26?.status}`);
 }
 ```
 

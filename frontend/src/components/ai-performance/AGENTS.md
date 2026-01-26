@@ -20,7 +20,7 @@ Displays 5 key indicators in a horizontal row at the top of the AI Performance p
 
 | Indicator   | Description                                    | Status Logic                                    |
 | ----------- | ---------------------------------------------- | ----------------------------------------------- |
-| RT-DETRv2   | Object detection model status and latency      | Green: <50ms, Yellow: 50-200ms, Red: >200ms/down |
+| YOLO26   | Object detection model status and latency      | Green: <50ms, Yellow: 50-200ms, Red: >200ms/down |
 | Nemotron    | LLM analysis model status and latency          | Green: <5s, Yellow: 5-15s, Red: >15s/down        |
 | Queues      | Combined queue depth (detection + analysis)    | Green: <5, Yellow: 5-20, Red: >20               |
 | Throughput  | Events processed per minute                    | Color based on processing rate                  |
@@ -30,7 +30,7 @@ Displays 5 key indicators in a horizontal row at the top of the AI Performance p
 
 ```typescript
 interface AIPerformanceSummaryRowProps {
-  rtdetr: AIModelStatus;
+  yolo26: AIModelStatus;
   nemotron: AIModelStatus;
   detectionLatency?: AILatencyMetrics | null;
   analysisLatency?: AILatencyMetrics | null;
@@ -57,7 +57,7 @@ interface AIPerformanceSummaryRowProps {
 **Exported Types:**
 
 ```typescript
-export type IndicatorType = 'rtdetr' | 'nemotron' | 'queues' | 'throughput' | 'errors';
+export type IndicatorType = 'yolo26' | 'nemotron' | 'queues' | 'throughput' | 'errors';
 export type StatusColor = 'green' | 'yellow' | 'red' | 'gray';
 export interface SectionRefs { ... }
 export interface AIPerformanceSummaryRowProps { ... }
@@ -71,7 +71,7 @@ import AIPerformanceSummaryRow from './AIPerformanceSummaryRow';
 import AIPerformanceSummaryRow from '../ai-performance/AIPerformanceSummaryRow';
 
 <AIPerformanceSummaryRow
-  rtdetr={rtdetrStatus}
+  yolo26={yolo26Status}
   nemotron={nemotronStatus}
   detectionLatency={detectionLatency}
   analysisLatency={analysisLatency}

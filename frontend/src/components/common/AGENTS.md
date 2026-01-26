@@ -358,7 +358,7 @@ interface ServiceStatusAlertProps {
   onDismiss?: () => void;
 }
 
-type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+type ServiceName = 'redis' | 'yolo26' | 'nemotron';
 type ServiceStatusValue = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
 
 interface ServiceStatus {

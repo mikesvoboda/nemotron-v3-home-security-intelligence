@@ -174,7 +174,7 @@ class AIServicesHealthResponse(BaseModel):
             "example": {
                 "overall_status": "healthy",
                 "services": {
-                    "rtdetr": {
+                    "yolo26": {
                         "status": "healthy",
                         "circuit_state": "closed",
                         "last_health_check": "2026-01-20T12:00:00Z",

@@ -328,7 +328,7 @@ def validate_config(settings: Settings) -> ConfigValidationResult:
     Performs comprehensive validation of all critical configuration settings:
     - Database URL format and structure
     - Redis URL format and structure
-    - AI service URLs (RT-DETR, Nemotron)
+    - AI service URLs (YOLO26, Nemotron)
     - Port numbers are in valid ranges
     - Required paths exist
 
@@ -353,7 +353,7 @@ def validate_config(settings: Settings) -> ConfigValidationResult:
 
     # Validate AI service URLs
     _collect_item(
-        _validate_ai_service_url("rtdetr_url", settings.rtdetr_url),
+        _validate_ai_service_url("yolo26_url", settings.yolo26_url),
         items,
         warnings,
         errors,

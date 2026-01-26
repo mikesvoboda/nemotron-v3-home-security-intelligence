@@ -265,7 +265,7 @@ interface WorkerStatusPanelProps {
 | cleanup_service      | Cleanup Service      | Removes old data based on retention      |
 | system_broadcaster   | System Broadcaster   | Broadcasts system status via WebSocket   |
 | file_watcher         | File Watcher         | Watches for new camera images            |
-| detection_worker     | Detection Worker     | Processes images through RT-DETRv2       |
+| detection_worker     | Detection Worker     | Processes images through YOLO26       |
 | analysis_worker      | Analysis Worker      | Analyzes detections with Nemotron LLM    |
 | batch_timeout_worker | Batch Timeout Worker | Handles batch processing timeouts        |
 | metrics_worker       | Metrics Worker       | Collects and reports pipeline metrics    |
@@ -360,7 +360,7 @@ interface DatabasesPanelProps {
 
 **Key Features:**
 
-- RT-DETRv2 model status and metrics:
+- YOLO26 model status and metrics:
   - Load status (loaded/unloaded/error)
   - GPU memory usage
   - Inference FPS

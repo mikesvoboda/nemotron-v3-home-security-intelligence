@@ -101,7 +101,7 @@ def sample_audit() -> EventAudit:
         event_id=1,
         audited_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
         # Model contributions
-        has_rtdetr=True,
+        has_yolo26=True,
         has_florence=True,
         has_clip=False,
         has_violence=False,
@@ -145,7 +145,7 @@ def unevaluated_audit() -> EventAudit:
         id=2,
         event_id=2,
         audited_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
-        has_rtdetr=True,
+        has_yolo26=True,
         has_florence=False,
         has_clip=False,
         has_violence=False,
@@ -198,7 +198,7 @@ class TestGetEventAudit:
         assert data["id"] == 1
         assert data["event_id"] == 1
         assert data["is_fully_evaluated"] is True
-        assert data["contributions"]["rtdetr"] is True
+        assert data["contributions"]["yolo26"] is True
         assert data["contributions"]["florence"] is True
         assert data["contributions"]["clip"] is False
         assert data["scores"]["context_usage"] == 4.2
@@ -279,7 +279,7 @@ class TestGetEventAudit:
             id=3,
             event_id=1,
             audited_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=False,
             has_clip=False,
             has_violence=False,
@@ -352,7 +352,7 @@ class TestEvaluateEvent:
             id=2,
             event_id=2,
             audited_at=datetime.now(UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=False,
             has_clip=False,
             has_violence=False,
@@ -494,7 +494,7 @@ class TestGetAuditStats:
             "avg_consistency_rate": 4.2,
             "avg_enrichment_utilization": 0.65,
             "model_contribution_rates": {
-                "rtdetr": 1.0,
+                "yolo26": 1.0,
                 "florence": 0.85,
                 "clip": 0.45,
                 "violence": 0.1,
@@ -526,7 +526,7 @@ class TestGetAuditStats:
         assert data["audited_events"] == 95
         assert data["fully_evaluated_events"] == 80
         assert data["avg_quality_score"] == 3.8
-        assert data["model_contribution_rates"]["rtdetr"] == 1.0
+        assert data["model_contribution_rates"]["yolo26"] == 1.0
 
     def test_get_audit_stats_with_days_param(self, client: TestClient) -> None:
         """Test stats with custom days parameter."""
@@ -625,7 +625,7 @@ class TestGetModelLeaderboard:
         """Test getting model leaderboard."""
         mock_entries = [
             {
-                "model_name": "rtdetr",
+                "model_name": "yolo26",
                 "contribution_rate": 1.0,
                 "quality_correlation": 0.85,
                 "event_count": 100,
@@ -654,7 +654,7 @@ class TestGetModelLeaderboard:
         assert response.status_code == 200
         data = response.json()
         assert len(data["entries"]) == 3
-        assert data["entries"][0]["model_name"] == "rtdetr"
+        assert data["entries"][0]["model_name"] == "yolo26"
         assert data["entries"][0]["contribution_rate"] == 1.0
         assert data["period_days"] == 7  # Default
 
@@ -840,7 +840,7 @@ class TestTriggerBatchAudit:
             id=1,
             event_id=1,
             audited_at=datetime.now(UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=False,
             has_clip=False,
             has_violence=False,
@@ -899,7 +899,7 @@ class TestTriggerBatchAudit:
             id=1,
             event_id=1,
             audited_at=datetime.now(UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=False,
             has_clip=False,
             has_violence=False,
@@ -1071,7 +1071,7 @@ class TestEdgeCases:
             id=1,
             event_id=1,
             audited_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=True,
             has_clip=True,
             has_violence=True,
@@ -1139,7 +1139,7 @@ class TestEdgeCases:
         """Test leaderboard with null quality correlation."""
         mock_entries = [
             {
-                "model_name": "rtdetr",
+                "model_name": "yolo26",
                 "contribution_rate": 1.0,
                 "quality_correlation": None,
                 "event_count": 100,

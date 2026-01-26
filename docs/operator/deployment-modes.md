@@ -4,7 +4,7 @@
 
 _AI-generated visualization comparing Development, Production, and Hybrid deployment modes._
 
-> A practical operator guide for choosing a deployment mode and setting `RTDETR_URL` / `NEMOTRON_URL` / `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL` correctly.
+> A practical operator guide for choosing a deployment mode and setting `YOLO26_URL` / `NEMOTRON_URL` / `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL` correctly.
 
 If you're seeing "AI services unreachable" in health checks, **it's almost always a networking mode mismatch**: the backend is trying to reach the AI services using the wrong hostname.
 
@@ -46,7 +46,7 @@ docker compose -f docker-compose.prod.yml up -d
 ### `.env` (backend → AI via compose DNS)
 
 ```bash
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -82,7 +82,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ### `.env`
 
 ```bash
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 FLORENCE_URL=http://localhost:8092
 CLIP_URL=http://localhost:8093
@@ -98,7 +98,7 @@ This is the most common “works on my machine” failure mode. The backend is i
 ### Docker Desktop (macOS/Windows)
 
 ```bash
-RTDETR_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 FLORENCE_URL=http://host.docker.internal:8092
 CLIP_URL=http://host.docker.internal:8093
@@ -108,7 +108,7 @@ ENRICHMENT_URL=http://host.docker.internal:8094
 ### Podman on macOS
 
 ```bash
-RTDETR_URL=http://host.containers.internal:8090
+YOLO26_URL=http://host.containers.internal:8090
 NEMOTRON_URL=http://host.containers.internal:8091
 FLORENCE_URL=http://host.containers.internal:8092
 CLIP_URL=http://host.containers.internal:8093
@@ -121,7 +121,7 @@ Use your host IP:
 
 ```bash
 export AI_HOST=$(ip route get 1 | awk '{print $7}')
-RTDETR_URL=http://${AI_HOST}:8090
+YOLO26_URL=http://${AI_HOST}:8090
 NEMOTRON_URL=http://${AI_HOST}:8091
 FLORENCE_URL=http://${AI_HOST}:8092
 CLIP_URL=http://${AI_HOST}:8093
@@ -134,7 +134,7 @@ ENRICHMENT_URL=http://${AI_HOST}:8094
 
 ```bash
 export GPU_HOST=10.0.0.50
-RTDETR_URL=http://${GPU_HOST}:8090
+YOLO26_URL=http://${GPU_HOST}:8090
 NEMOTRON_URL=http://${GPU_HOST}:8091
 FLORENCE_URL=http://${GPU_HOST}:8092
 CLIP_URL=http://${GPU_HOST}:8093

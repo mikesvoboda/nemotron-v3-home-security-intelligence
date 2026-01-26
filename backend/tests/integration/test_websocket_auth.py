@@ -81,7 +81,7 @@ def _get_common_lifespan_mocks():
 
     mock_ai_health = AsyncMock(
         return_value={
-            "rtdetr": False,
+            "yolo26": False,
             "nemotron": False,
             "any_healthy": False,
             "all_healthy": False,

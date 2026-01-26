@@ -210,7 +210,7 @@ Fields are checked against a known list (`backend/core/logging.py:152-168`):
 ```python
 SENSITIVE_FIELD_NAMES = frozenset({
     "password", "secret", "key", "token", "credential",
-    "api_key", "api_keys", "admin_api_key", "rtdetr_api_key",
+    "api_key", "api_keys", "admin_api_key", "yolo26_api_key",
     "nemotron_api_key", "smtp_password", "database_url", "redis_url",
 })
 ```

@@ -198,7 +198,7 @@ class TestBaggagePipelineScenarios:
 
         # Step 2: Detection worker processes image
         camera_id = get_camera_id_from_baggage()
-        # Would send to RT-DETR with baggage headers
+        # Would send to YOLO26 with baggage headers
 
         # Step 3: Batch processor aggregates detections
         set_pipeline_baggage(

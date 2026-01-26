@@ -53,7 +53,7 @@ Measuring baseline GPU memory...
 
 Benchmarking 6 enabled models...
 
-  Loading rtdetr_v2... OK (3.24s, 1,847 MB)
+  Loading yolo26_v2... OK (3.24s, 1,847 MB)
   Loading clip_vit_l14... OK (1.12s, 932 MB)
   Loading florence2_base... OK (2.87s, 1,203 MB)
   Loading depth_anything_v2... OK (0.94s, 445 MB)
@@ -75,7 +75,7 @@ BENCHMARK COMPLETE
 
 | Model | Category | Est. VRAM | Actual VRAM | Load Time | Status |
 |-------|----------|-----------|-------------|-----------|--------|
-| rtdetr_v2 | detection | 1,800 MB | 1,847 MB | 3.24s | OK |
+| yolo26_v2 | detection | 1,800 MB | 1,847 MB | 3.24s | OK |
 | clip_vit_l14 | embedding | 900 MB | 932 MB | 1.12s | OK |
 | florence2_base | caption | 1,200 MB | 1,203 MB | 2.87s | OK |
 | depth_anything_v2 | depth | 400 MB | 445 MB | 0.94s | OK |

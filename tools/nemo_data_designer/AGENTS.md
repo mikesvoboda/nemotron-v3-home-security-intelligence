@@ -33,13 +33,13 @@ Defines the schema for synthetic security scenarios with 24 columns across 7 cat
 
 **Core Models:**
 
-| Model               | Purpose                              |
-| ------------------- | ------------------------------------ |
-| `Detection`         | Single RT-DETRv2 detection with bbox |
-| `EnrichmentContext` | Zone info, baseline deviation        |
-| `GroundTruth`       | Expected risk range and reasoning    |
-| `JudgeScores`       | LLM-Judge rubric scores (6 dims)     |
-| `ScenarioBundle`    | Complete scenario combining all      |
+| Model               | Purpose                             |
+| ------------------- | ----------------------------------- |
+| `Detection`         | Single YOLO26v2 detection with bbox |
+| `EnrichmentContext` | Zone info, baseline deviation       |
+| `GroundTruth`       | Expected risk range and reasoning   |
+| `JudgeScores`       | LLM-Judge rubric scores (6 dims)    |
+| `ScenarioBundle`    | Complete scenario combining all     |
 
 **Column Types (24 total):**
 
@@ -143,7 +143,7 @@ export_enrichment_scenarios(Path("backend/tests/fixtures/synthetic/enrichment"))
 
 ### `multimodal_evaluation.py` (Pipeline Evaluation Runner)
 
-Orchestrates the full multimodal evaluation pipeline comparing local RT-DETRv2 + Nemotron against NVIDIA vision ground truth.
+Orchestrates the full multimodal evaluation pipeline comparing local YOLO26v2 + Nemotron against NVIDIA vision ground truth.
 
 **Usage:**
 

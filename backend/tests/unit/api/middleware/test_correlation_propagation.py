@@ -1,7 +1,7 @@
 """Unit tests for correlation ID propagation in AI service clients.
 
 NEM-1729: Test that correlation IDs are properly propagated through HTTP
-requests to AI services (RT-DETR detector, Nemotron analyzer).
+requests to AI services (YOLO26 detector, Nemotron analyzer).
 
 Tests follow TDD methodology - written before implementation.
 """
@@ -186,11 +186,11 @@ class TestDetectorClientCorrelation(TestCorrelationHeaderPropagation):
 
         # Create client with mocked API key setting
         with patch("backend.services.detector_client.get_settings") as mock_settings:
-            mock_settings.return_value.rtdetr_url = "http://test:9001"
+            mock_settings.return_value.yolo26_url = "http://test:9001"
             mock_settings.return_value.detection_confidence_threshold = 0.5
-            mock_settings.return_value.rtdetr_api_key = "test-api-key"  # pragma: allowlist secret
+            mock_settings.return_value.yolo26_api_key = "test-api-key"  # pragma: allowlist secret
             mock_settings.return_value.ai_connect_timeout = 10.0
-            mock_settings.return_value.rtdetr_read_timeout = 60.0
+            mock_settings.return_value.yolo26_read_timeout = 60.0
             mock_settings.return_value.ai_health_timeout = 5.0
             mock_settings.return_value.detector_max_retries = 1
             mock_settings.return_value.ai_max_concurrent_inferences = 4

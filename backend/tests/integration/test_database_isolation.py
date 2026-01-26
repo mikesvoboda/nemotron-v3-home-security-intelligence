@@ -704,7 +704,7 @@ class TestForeignKeyCascadeWithNestedRelationships:
             # The EventAudit model tracks AI pipeline performance metrics
             audit = EventAudit(
                 event_id=event_id,
-                has_rtdetr=True,
+                has_yolo26=True,
                 has_florence=True,
                 has_clip=False,
                 prompt_length=500,

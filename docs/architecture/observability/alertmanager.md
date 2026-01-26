@@ -309,7 +309,7 @@ Model health (`monitoring/alerting-rules.yml:285-400`):
 
 | Alert                  | Condition             | Severity | For |
 | ---------------------- | --------------------- | -------- | --- |
-| `RTDETRLatencyHigh`    | P95 > 5s              | warning  | 10m |
+| `YOLO26LatencyHigh`    | P95 > 5s              | warning  | 10m |
 | `NemotronLatencyHigh`  | P95 > 60s             | warning  | 10m |
 | `EnrichmentErrorRate`  | Error rate > 5%       | warning  | 5m  |
 | `LLMContextOverflow`   | Truncation rate > 10% | warning  | 15m |

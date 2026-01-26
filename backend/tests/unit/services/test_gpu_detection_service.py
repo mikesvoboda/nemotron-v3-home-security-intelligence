@@ -17,7 +17,7 @@ Acceptance Criteria:
     - Service detects GPUs via pynvml when available
     - Falls back to nvidia-smi subprocess when pynvml unavailable
     - Returns empty list gracefully when no GPUs present
-    - VRAM estimates defined for all AI services (RT-DETR, Nemotron, Age/Gender, ReID)
+    - VRAM estimates defined for all AI services (YOLO26, Nemotron, Age/Gender, ReID)
     - Works in containerized environment
 """
 
@@ -635,8 +635,8 @@ class TestVramRequirements:
         assert isinstance(requirements, dict)
         assert len(requirements) > 0
 
-    def test_rtdetr_vram_requirement(self, service_reset: None) -> None:
-        """Test RT-DETR detector VRAM requirement (~2GB)."""
+    def test_yolo26_vram_requirement(self, service_reset: None) -> None:
+        """Test YOLO26 detector VRAM requirement (~2GB)."""
         service = GpuDetectionService()
         requirements = service.get_service_vram_requirements()
 

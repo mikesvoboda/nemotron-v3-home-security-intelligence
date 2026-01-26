@@ -203,7 +203,7 @@ jobs:
                 environment:
                   - DATABASE_URL=postgresql+asyncpg://security:preview_password@postgres:5432/security  # pragma: allowlist secret
                   - REDIS_URL=redis://redis:6379
-                  - RTDETR_URL=http://localhost:8090
+                  - YOLO26_URL=http://localhost:8090
                   - NEMOTRON_URL=http://localhost:8091
                   - FLORENCE_URL=http://localhost:8092
                   - CLIP_URL=http://localhost:8093

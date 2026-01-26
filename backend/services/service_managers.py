@@ -1,7 +1,7 @@
 """Service manager abstraction for health checks and restarts.
 
 This module provides a strategy pattern for managing external services
-(Redis, RT-DETRv2, Nemotron) with support for both shell scripts (dev)
+(Redis, YOLO26v2, Nemotron) with support for both shell scripts (dev)
 and Docker containers (prod).
 
 Service Management Flow:
@@ -39,7 +39,7 @@ ALLOWED_RESTART_SCRIPTS = frozenset(
     {
         "ai/start_detector.sh",
         "ai/start_llm.sh",
-        "scripts/restart_rtdetr.sh",
+        "scripts/restart_yolo26.sh",
         "scripts/restart_nemotron.sh",
         "scripts/restart_redis.sh",
     }
@@ -104,7 +104,7 @@ class ServiceConfig:
     """Configuration for a managed service.
 
     Attributes:
-        name: Service identifier (e.g., "rtdetr", "nemotron", "redis")
+        name: Service identifier (e.g., "yolo26", "nemotron", "redis")
         health_url: HTTP endpoint for health checks (e.g., "http://localhost:8001/health")
         restart_cmd: Command to restart the service (script path or container name).
             Set to None to disable automatic restart (health monitoring still works).

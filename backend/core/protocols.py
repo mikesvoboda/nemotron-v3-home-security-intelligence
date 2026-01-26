@@ -81,7 +81,7 @@ class AIServiceProtocol(Protocol):
     monitoring.
 
     This protocol defines the common interface for:
-        - DetectorClient: RT-DETRv2 object detection
+        - DetectorClient: YOLO26 object detection
         - NemotronAnalyzer: LLM risk analysis
         - EnrichmentClient: Vehicle/pet/clothing classification
 

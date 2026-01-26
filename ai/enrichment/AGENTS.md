@@ -266,7 +266,7 @@ Optional secondary object detector using YOLO26 (Ultralytics).
 
 **Use Cases:**
 
-- Fine-grained object detection complementing RT-DETRv2
+- Fine-grained object detection complementing YOLO26v2
 - Domain-specific detection tasks with custom models
 - Detection validation and cross-checking
 

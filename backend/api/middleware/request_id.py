@@ -53,7 +53,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
     - **Correlation ID (X-Correlation-ID)**: Full UUID for distributed tracing.
       Propagated across service boundaries to correlate logs/traces across
-      the entire request flow (API -> RT-DETR -> Nemotron -> etc.).
+      the entire request flow (API -> YOLO26 -> Nemotron -> etc.).
       Generated as a full UUID if not provided.
 
     Both IDs are:

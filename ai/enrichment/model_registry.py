@@ -480,7 +480,7 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
 
     # YOLO26 Detector - Optional secondary object detector (~100MB)
     # Trigger conditions: Used for fine-grained object detection or validation
-    # Use case: Complement RT-DETRv2 with YOLO26 for specific tasks
+    # Use case: Complement YOLO26v2 with YOLO26 for specific tasks
     # Reference: https://docs.ultralytics.com/models/
     yolo26_path = os.environ.get("YOLO26_ENRICHMENT_MODEL_PATH", "/models/yolo26m.pt")
     registry["yolo26_detector"] = ModelConfig(
@@ -689,7 +689,7 @@ def get_models_for_detection_type(
 ) -> list[str]:
     """Get model names that should be loaded for a detection type.
 
-    This function maps detection types from RT-DETRv2 to the appropriate
+    This function maps detection types from YOLO26v2 to the appropriate
     enrichment models that should be loaded.
 
     Args:

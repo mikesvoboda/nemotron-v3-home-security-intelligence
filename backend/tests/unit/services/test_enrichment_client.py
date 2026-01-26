@@ -66,14 +66,18 @@ def mock_settings() -> MagicMock:
     """Create mock settings for testing."""
     settings = MagicMock()
     settings.enrichment_url = "http://test-enrichment:8094"
+    settings.enrichment_light_url = "http://test-enrichment-light:8096"
     settings.ai_connect_timeout = 10.0
     settings.ai_health_timeout = 5.0
+    settings.enrichment_read_timeout = 60.0
     # Circuit breaker configuration
     settings.enrichment_cb_failure_threshold = 5
     settings.enrichment_cb_recovery_timeout = 60.0
     settings.enrichment_cb_half_open_max_calls = 3
     # Retry configuration (NEM-1732)
     settings.enrichment_max_retries = 3
+    # Config-driven model routing - all models default to heavy service for tests
+    settings.get_enrichment_url_for_model = MagicMock(return_value="http://test-enrichment:8094")
     return settings
 
 
@@ -119,10 +123,15 @@ def client_custom_url() -> EnrichmentClient:
         mock_settings = MagicMock()
         mock_settings.ai_connect_timeout = 10.0
         mock_settings.ai_health_timeout = 5.0
+        mock_settings.enrichment_read_timeout = 60.0
         # Circuit breaker configuration
         mock_settings.enrichment_cb_failure_threshold = 5
         mock_settings.enrichment_cb_recovery_timeout = 60.0
         mock_settings.enrichment_cb_half_open_max_calls = 3
+        # Config-driven model routing
+        mock_settings.get_enrichment_url_for_model = MagicMock(
+            return_value="http://custom-enrichment:8888"
+        )
         mock_settings_fn.return_value = mock_settings
         return EnrichmentClient(base_url="http://custom-enrichment:8888/")
 

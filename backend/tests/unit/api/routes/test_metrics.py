@@ -329,7 +329,7 @@ class TestMetricsLabeledMetrics:
         from backend.core.metrics import observe_ai_request_duration
 
         # Record AI service durations
-        observe_ai_request_duration("rtdetr", 0.5)
+        observe_ai_request_duration("yolo26", 0.5)
         observe_ai_request_duration("nemotron", 5.0)
 
         async with AsyncClient(

@@ -1,7 +1,7 @@
 """Pydantic schemas for service management API (container orchestrator).
 
 This module provides schemas for the container orchestrator endpoints that manage
-the lifecycle of deployment containers including AI services (RT-DETR, Nemotron,
+the lifecycle of deployment containers including AI services (YOLO26, Nemotron,
 Florence, CLIP, Enrichment), infrastructure (PostgreSQL, Redis), and monitoring
 (Grafana, Prometheus, Redis Exporter, JSON Exporter).
 """
@@ -22,7 +22,7 @@ class ServiceCategory(StrEnum):
     """
 
     INFRASTRUCTURE = auto()  # PostgreSQL, Redis - critical
-    AI = auto()  # RT-DETR, Nemotron, Florence, CLIP, Enrichment
+    AI = auto()  # YOLO26, Nemotron, Florence, CLIP, Enrichment
     MONITORING = auto()  # Grafana, Prometheus - optional
 
 
@@ -59,7 +59,7 @@ class ServiceInfo(BaseModel):
     )
     display_name: str = Field(
         ...,
-        description="Human-readable display name (e.g., 'RT-DETRv2', 'PostgreSQL')",
+        description="Human-readable display name (e.g., 'YOLO26v2', 'PostgreSQL')",
     )
     category: ServiceCategory = Field(
         ...,
@@ -79,7 +79,7 @@ class ServiceInfo(BaseModel):
     )
     image: str | None = Field(
         None,
-        description="Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../rtdetr:latest')",
+        description="Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../yolo26:latest')",
     )
     port: int = Field(
         ...,
@@ -111,12 +111,12 @@ class ServiceInfo(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "ai-detector",
-                "display_name": "RT-DETRv2",
+                "display_name": "YOLO26v2",
                 "category": "ai",
                 "status": "running",
                 "enabled": True,
                 "container_id": "abc123def456",
-                "image": "ghcr.io/.../rtdetr:latest",
+                "image": "ghcr.io/.../yolo26:latest",
                 "port": 8090,
                 "failure_count": 0,
                 "restart_count": 2,
@@ -201,12 +201,12 @@ class ServicesResponse(BaseModel):
                     },
                     {
                         "name": "ai-detector",
-                        "display_name": "RT-DETRv2",
+                        "display_name": "YOLO26v2",
                         "category": "ai",
                         "status": "running",
                         "enabled": True,
                         "container_id": "abc123...",
-                        "image": "ghcr.io/.../rtdetr:latest",
+                        "image": "ghcr.io/.../yolo26:latest",
                         "port": 8090,
                         "failure_count": 0,
                         "restart_count": 2,
@@ -251,12 +251,12 @@ class ServiceActionResponse(BaseModel):
                 "message": "Service restarted successfully",
                 "service": {
                     "name": "ai-detector",
-                    "display_name": "RT-DETRv2",
+                    "display_name": "YOLO26v2",
                     "category": "ai",
                     "status": "starting",
                     "enabled": True,
                     "container_id": "abc123...",
-                    "image": "ghcr.io/.../rtdetr:latest",
+                    "image": "ghcr.io/.../yolo26:latest",
                     "port": 8090,
                     "failure_count": 0,
                     "restart_count": 3,

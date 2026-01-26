@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-25T15:43:28Z
+ * Generated at: 2026-01-26T22:39:50Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -139,7 +139,7 @@ export interface WebSocketEventData {
  * ServiceInfo schema used by container orchestrator.
  */
 export interface WebSocketServiceStatusData {
-  /** Name of the service (redis, rtdetr, nemotron) */
+  /** Name of the service (redis, yolo26, nemotron) */
   service: string;
   /** Current service status */
   status: 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';

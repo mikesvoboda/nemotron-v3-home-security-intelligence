@@ -332,7 +332,7 @@ Sample Images (from curated test set)
         ▼                  ▼                       ▼
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │ NVIDIA API      │  │ Your Pipeline   │  │                 │
-│ (Vision Model)  │  │ RT-DETRv2 +     │  │   Compare       │
+│ (Vision Model)  │  │ YOLO26 +     │  │   Compare       │
 │                 │  │ Florence-2 +    │  │   Outputs       │
 │ Ground Truth    │  │ Enrichment      │  │                 │
 └────────┬────────┘  └────────┬────────┘  └────────┬────────┘
@@ -340,7 +340,7 @@ Sample Images (from curated test set)
          ▼                    ▼                    ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ Comparison Metrics:                                         │
-│ • Detection accuracy (did RT-DETRv2 find what NVIDIA saw?) │
+│ • Detection accuracy (did YOLO26 find what NVIDIA saw?) │
 │ • Enrichment quality (Florence-2 vs NVIDIA vision desc)    │
 │ • End-to-end risk score alignment                          │
 └─────────────────────────────────────────────────────────────┘

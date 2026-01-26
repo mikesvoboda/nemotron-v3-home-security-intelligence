@@ -52,10 +52,10 @@ def ai_fallback_service(reset_fallback_service) -> AIFallbackService:
 
 
 @pytest.fixture
-def circuit_breaker_rtdetr() -> CircuitBreaker:
-    """Create a circuit breaker for RT-DETR testing."""
+def circuit_breaker_yolo26() -> CircuitBreaker:
+    """Create a circuit breaker for YOLO26 testing."""
     return CircuitBreaker(
-        name="rtdetr_test",
+        name="yolo26_test",
         config=CircuitBreakerConfig(
             failure_threshold=3,
             recovery_timeout=1.0,  # Short timeout for testing
@@ -100,14 +100,14 @@ class TestAIFallbackServiceBasics:
         self, ai_fallback_service: AIFallbackService
     ):
         """Test that healthy services are reported as available."""
-        assert ai_fallback_service.is_service_available(AIService.RTDETR) is True
+        assert ai_fallback_service.is_service_available(AIService.YOLO26) is True
         assert ai_fallback_service.is_service_available(AIService.NEMOTRON) is True
         assert ai_fallback_service.is_service_available(AIService.FLORENCE) is True
         assert ai_fallback_service.is_service_available(AIService.CLIP) is True
 
     def test_is_service_available_accepts_string(self, ai_fallback_service: AIFallbackService):
         """Test that service availability can be checked with string names."""
-        assert ai_fallback_service.is_service_available("rtdetr") is True
+        assert ai_fallback_service.is_service_available("yolo26") is True
         assert ai_fallback_service.is_service_available("nemotron") is True
 
 
@@ -117,38 +117,38 @@ class TestCircuitBreakerIntegration:
     def test_register_circuit_breaker(
         self,
         ai_fallback_service: AIFallbackService,
-        circuit_breaker_rtdetr: CircuitBreaker,
+        circuit_breaker_yolo26: CircuitBreaker,
     ):
         """Test registering a circuit breaker for a service."""
-        ai_fallback_service.register_circuit_breaker(AIService.RTDETR, circuit_breaker_rtdetr)
+        ai_fallback_service.register_circuit_breaker(AIService.YOLO26, circuit_breaker_yolo26)
 
         # Should be registered without error
-        state = ai_fallback_service.get_service_state(AIService.RTDETR)
+        state = ai_fallback_service.get_service_state(AIService.YOLO26)
         assert state is not None
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_open_marks_service_unavailable(
         self,
         ai_fallback_service: AIFallbackService,
-        circuit_breaker_rtdetr: CircuitBreaker,
+        circuit_breaker_yolo26: CircuitBreaker,
     ):
         """Test that an open circuit breaker marks the service as unavailable."""
-        ai_fallback_service.register_circuit_breaker(AIService.RTDETR, circuit_breaker_rtdetr)
+        ai_fallback_service.register_circuit_breaker(AIService.YOLO26, circuit_breaker_yolo26)
 
         # Simulate failures to open the circuit
         for _ in range(3):
             try:
-                async with circuit_breaker_rtdetr:
+                async with circuit_breaker_yolo26:
                     raise Exception("Simulated failure")
             except Exception:
                 pass
 
-        assert circuit_breaker_rtdetr.get_state() == CircuitState.OPEN
+        assert circuit_breaker_yolo26.get_state() == CircuitState.OPEN
 
         # Check service health (manually trigger since we didn't start background task)
-        await ai_fallback_service._check_service_health(AIService.RTDETR)
+        await ai_fallback_service._check_service_health(AIService.YOLO26)
 
-        state = ai_fallback_service.get_service_state(AIService.RTDETR)
+        state = ai_fallback_service.get_service_state(AIService.YOLO26)
         assert state.status == ServiceStatus.UNAVAILABLE
         assert state.circuit_state == CircuitState.OPEN
 
@@ -160,7 +160,7 @@ class TestCircuitBreakerIntegration:
         """Test that a half-open circuit breaker marks the service as degraded."""
         # Create circuit breaker with very short timeout
         cb = CircuitBreaker(
-            name="rtdetr_half_open_test",
+            name="yolo26_half_open_test",
             config=CircuitBreakerConfig(
                 failure_threshold=3,
                 recovery_timeout=0.1,  # Very short timeout
@@ -168,7 +168,7 @@ class TestCircuitBreakerIntegration:
                 success_threshold=2,
             ),
         )
-        ai_fallback_service.register_circuit_breaker(AIService.RTDETR, cb)
+        ai_fallback_service.register_circuit_breaker(AIService.YOLO26, cb)
 
         # Open the circuit
         for _ in range(3):
@@ -192,9 +192,9 @@ class TestCircuitBreakerIntegration:
         # Circuit should be half-open after timeout
         assert cb.get_state() == CircuitState.HALF_OPEN
 
-        await ai_fallback_service._check_service_health(AIService.RTDETR)
+        await ai_fallback_service._check_service_health(AIService.YOLO26)
 
-        state = ai_fallback_service.get_service_state(AIService.RTDETR)
+        state = ai_fallback_service.get_service_state(AIService.YOLO26)
         assert state.status == ServiceStatus.DEGRADED
         assert state.circuit_state == CircuitState.HALF_OPEN
 
@@ -220,8 +220,8 @@ class TestDegradationLevels:
         ai_fallback_service: AIFallbackService,
     ):
         """Test degradation level is MINIMAL when critical services are partially down."""
-        # Mark RT-DETR as unavailable (critical)
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        # Mark YOLO26 as unavailable (critical)
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
 
         level = ai_fallback_service.get_degradation_level()
         assert level == DegradationLevel.MINIMAL
@@ -233,7 +233,7 @@ class TestDegradationLevels:
     ):
         """Test degradation level is OFFLINE when all critical services are down."""
         # Mark both critical services as unavailable
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         ai_fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.UNAVAILABLE
 
         level = ai_fallback_service.get_degradation_level()
@@ -301,15 +301,15 @@ class TestFallbackBehavior:
 class TestServiceAvailabilityChecks:
     """Test convenience methods for checking service availability."""
 
-    def test_should_skip_detection_when_rtdetr_unavailable(
+    def test_should_skip_detection_when_yolo26_unavailable(
         self, ai_fallback_service: AIFallbackService
     ):
-        """Test detection skip flag when RT-DETR is unavailable."""
+        """Test detection skip flag when YOLO26 is unavailable."""
         # Initially should not skip
         assert ai_fallback_service.should_skip_detection() is False
 
         # Mark as unavailable
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
 
         assert ai_fallback_service.should_skip_detection() is True
 
@@ -410,7 +410,7 @@ class TestStatusBroadcasting:
         ai_fallback_service.register_status_callback(status_callback)
 
         # Trigger status change
-        ai_fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        ai_fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         await ai_fallback_service._notify_status_change()
 
         # Wait for callback
@@ -484,7 +484,7 @@ class TestServiceState:
         """Test ServiceState serializes correctly."""
         now = datetime.now(UTC)
         state = ServiceState(
-            service=AIService.RTDETR,
+            service=AIService.YOLO26,
             status=ServiceStatus.HEALTHY,
             circuit_state=CircuitState.CLOSED,
             last_success=now,
@@ -495,7 +495,7 @@ class TestServiceState:
 
         result = state.to_dict()
 
-        assert result["service"] == "rtdetr"
+        assert result["service"] == "yolo26"
         assert result["status"] == "healthy"
         assert result["circuit_state"] == "closed"
         assert result["failure_count"] == 0
@@ -571,7 +571,7 @@ class TestDegradationStatus:
         assert "available_features" in status
 
         # Check services structure
-        assert "rtdetr" in status["services"]
+        assert "yolo26" in status["services"]
         assert "nemotron" in status["services"]
         assert "florence" in status["services"]
         assert "clip" in status["services"]

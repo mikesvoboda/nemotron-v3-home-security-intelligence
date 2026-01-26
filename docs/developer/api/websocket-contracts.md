@@ -308,7 +308,7 @@ type ServiceStatus = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' |
 type ContainerStatus = 'running' | 'starting' | 'unhealthy' | 'stopped' | 'error' | 'unknown';
 
 interface ServiceStatusData {
-  service: string; // Service name (redis, rtdetr, nemotron)
+  service: string; // Service name (redis, yolo26, nemotron)
   status: ServiceStatus | ContainerStatus; // Status from either backend or container orchestrator
   message?: string; // Optional descriptive message
 }

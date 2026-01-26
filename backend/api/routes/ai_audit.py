@@ -86,7 +86,7 @@ def _audit_to_response(audit: EventAudit) -> EventAuditResponse:
     """
     # Build model contributions
     contributions = ModelContributions(
-        rtdetr=audit.has_rtdetr,
+        yolo26=audit.has_yolo26,
         florence=audit.has_florence,
         clip=audit.has_clip,
         violence=audit.has_violence,

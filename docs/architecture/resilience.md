@@ -27,7 +27,7 @@ source_refs:
 
 # Resilience Architecture
 
-This document details the resilience patterns implemented in the Home Security Intelligence system to ensure reliable operation even when external services (RT-DETRv2, Nemotron LLM, Redis) experience failures.
+This document details the resilience patterns implemented in the Home Security Intelligence system to ensure reliable operation even when external services (YOLO26, Nemotron LLM, Redis) experience failures.
 
 ---
 
@@ -206,7 +206,7 @@ from backend.services.circuit_breaker import get_circuit_breaker, CircuitBreaker
 
 # Get or create circuit breaker for a service
 breaker = get_circuit_breaker(
-    "rtdetr",
+    "yolo26",
     CircuitBreakerConfig(
         failure_threshold=5,
         recovery_timeout=30.0,
@@ -227,7 +227,7 @@ The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 
 
 ![Circuit Breaker Registry](../images/resilience/circuit-breaker-registry.svg)
 
-_Global registry managing circuit breakers for rtdetr, nemotron, and redis services._
+_Global registry managing circuit breakers for yolo26, nemotron, and redis services._
 
 <details>
 <summary>Mermaid source (click to expand)</summary>
@@ -239,13 +239,13 @@ flowchart TB
     end
 
     subgraph Breakers["Individual Circuit Breakers"]
-        B1[rtdetr<br/>breaker]
+        B1[yolo26<br/>breaker]
         B2[nemotron<br/>breaker]
         B3[redis<br/>breaker]
     end
 
     subgraph Services["Protected Services"]
-        S1[RT-DETRv2<br/>:8090]
+        S1[YOLO26<br/>:8090]
         S2[Nemotron LLM<br/>:8091]
         S3[Redis<br/>:6379]
     end
@@ -431,7 +431,7 @@ Jobs in the DLQ include failure metadata:
     "file_path": "/export/foscam/front_door/image_001.jpg",
     "timestamp": "2024-01-15T10:30:00.000000"
   },
-  "error": "Connection refused: RT-DETRv2 service unavailable",
+  "error": "Connection refused: YOLO26 service unavailable",
   "attempt_count": 3,
   "first_failed_at": "2024-01-15T10:30:01.000000",
   "last_failed_at": "2024-01-15T10:30:15.000000",
@@ -485,7 +485,7 @@ flowchart TB
     end
 
     subgraph Services["Monitored Services"]
-        S1[RT-DETRv2<br/>GET /health]
+        S1[YOLO26<br/>GET /health]
         S2[Nemotron<br/>GET /health]
         S3[Redis<br/>PING]
     end
@@ -599,7 +599,7 @@ flowchart TB
     end
 
     subgraph Failed["Failure Scenarios"]
-        F1[RT-DETRv2<br/>Unavailable]
+        F1[YOLO26<br/>Unavailable]
         F2[Nemotron<br/>Unavailable]
         F3[Redis<br/>Unavailable]
     end
@@ -623,7 +623,7 @@ flowchart TB
 
 | Component      | Failure Mode | Degradation Behavior                                 |
 | -------------- | ------------ | ---------------------------------------------------- |
-| **RT-DETRv2**  | Unreachable  | DetectorClient returns empty list, detection skipped |
+| **YOLO26**     | Unreachable  | DetectorClient returns empty list, detection skipped |
 | **Nemotron**   | Unreachable  | NemotronAnalyzer returns default risk (50, medium)   |
 | **Redis**      | Unreachable  | Deduplication fails open (allows processing)         |
 | **Redis**      | Pub/sub down | WebSocket updates unavailable                        |

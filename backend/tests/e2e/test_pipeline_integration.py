@@ -7,7 +7,7 @@ major components working together.
 Pipeline Steps Tested:
     1. Setup: Create test camera, mock image file
     2. File Detection: Simulate file appearing in camera folder
-    3. Detection Processing: Verify RT-DETRv2 detection (mock if unavailable)
+    3. Detection Processing: Verify YOLO26 detection (mock if unavailable)
     4. Batch Aggregation: Verify detections are batched
     5. AI Analysis: Verify Nemotron analysis (mock if unavailable)
     6. Event Creation: Verify event is created in database
@@ -257,7 +257,7 @@ async def mock_redis_client():
 
 @pytest.fixture
 def mock_detector_response():
-    """Create a mock RT-DETRv2 detection response.
+    """Create a mock YOLO26 detection response.
 
     Returns:
         dict: Mock detection response
@@ -328,13 +328,13 @@ async def test_complete_pipeline_flow_with_mocked_services(
 
     This test validates that all components work together correctly:
     - File detection and queuing
-    - RT-DETRv2 object detection (mocked)
+    - YOLO26 object detection (mocked)
     - Batch aggregation
     - Nemotron AI analysis (mocked)
     - Event creation
     - WebSocket broadcasting
 
-    The test uses mocked external services (RT-DETRv2, Nemotron, Redis)
+    The test uses mocked external services (YOLO26, Nemotron, Redis)
     so it can run without actual service dependencies.
 
     Timeout Handling (NEM-3155):

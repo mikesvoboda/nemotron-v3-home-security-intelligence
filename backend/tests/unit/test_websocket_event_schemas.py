@@ -378,7 +378,7 @@ class TestSystemPayloadSchemas:
             cameras={"active": 4, "total": 6},
             queue={"pending": 2, "processing": 1},
             health="healthy",
-            ai={"rtdetr": "healthy", "nemotron": "degraded"},
+            ai={"yolo26": "healthy", "nemotron": "degraded"},
             timestamp="2026-01-09T12:00:00Z",
         )
         assert payload.gpu["utilization"] == 45.5

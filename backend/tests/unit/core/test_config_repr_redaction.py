@@ -60,11 +60,11 @@ class TestSettingsReprRedaction:
         result = repr(mock_settings)
         assert "smtp-secret-password" not in result
 
-    def test_rtdetr_api_key_redacted(self, mock_settings):
-        """RT-DETR API key should be redacted."""
-        mock_settings.rtdetr_api_key = "rtdetr-secret-key"  # pragma: allowlist secret
+    def test_yolo26_api_key_redacted(self, mock_settings):
+        """YOLO26 API key should be redacted."""
+        mock_settings.yolo26_api_key = "yolo26-secret-key"  # pragma: allowlist secret
         result = repr(mock_settings)
-        assert "rtdetr-secret-key" not in result
+        assert "yolo26-secret-key" not in result
 
     def test_nemotron_api_key_redacted(self, mock_settings):
         """Nemotron API key should be redacted."""

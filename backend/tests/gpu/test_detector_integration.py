@@ -1,6 +1,6 @@
 """GPU Detector Integration Tests.
 
-These tests validate the RT-DETRv2 detector client connectivity and basic inference
+These tests validate the YOLO26 detector client connectivity and basic inference
 on the self-hosted GPU runner with NVIDIA RTX A5500.
 
 IMPORTANT: These tests are designed to run WITHOUT database dependencies.
@@ -16,7 +16,7 @@ Run with:
     pytest backend/tests/gpu/ -m gpu -v
 
 The tests will skip gracefully if:
-    - RT-DETRv2 service is not available
+    - YOLO26 service is not available
     - CUDA is not available
     - Required test images cannot be created
 """
@@ -81,16 +81,16 @@ def check_cuda_available() -> bool:
 
 
 def get_detector_url() -> str:
-    """Get the RT-DETRv2 detector URL from environment or default.
+    """Get the YOLO26 detector URL from environment or default.
 
-    The URL can be customized via the RTDETR_URL environment variable,
+    The URL can be customized via the YOLO26_URL environment variable,
     which is useful for CI environments where the detector might be
     running on a different host/port.
 
     Returns:
         The detector service URL.
     """
-    return os.environ.get("RTDETR_URL", "http://localhost:8090")
+    return os.environ.get("YOLO26_URL", "http://localhost:8090")
 
 
 def get_nemotron_url() -> str:
@@ -103,7 +103,7 @@ def get_nemotron_url() -> str:
 
 
 async def check_detector_health(timeout: float = 5.0) -> bool:
-    """Check if the RT-DETRv2 detector service is healthy.
+    """Check if the YOLO26 detector service is healthy.
 
     Args:
         timeout: Maximum time to wait for health check response.
@@ -202,7 +202,7 @@ async def send_detection_request(
 @pytest.mark.gpu
 @pytest.mark.asyncio
 async def test_detector_service_health_check() -> None:
-    """Test that the RT-DETRv2 detector service responds to health checks.
+    """Test that the YOLO26 detector service responds to health checks.
 
     This is the most basic test - it verifies that the detector service
     is running and responding on the GPU runner.
@@ -214,7 +214,7 @@ async def test_detector_service_health_check() -> None:
 
     if not is_healthy:
         pytest.skip(
-            f"RT-DETRv2 detector service not available at {get_detector_url()}. "
+            f"YOLO26 detector service not available at {get_detector_url()}. "
             "Ensure the detector is running on the GPU runner."
         )
 
@@ -237,7 +237,7 @@ async def test_detector_inference_basic() -> None:
     """
     # Skip if detector not available
     if not await check_detector_health():
-        pytest.skip(f"RT-DETRv2 detector not available at {get_detector_url()}")
+        pytest.skip(f"YOLO26 detector not available at {get_detector_url()}")
 
     # Create a temporary test image
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -273,7 +273,7 @@ async def test_detector_inference_performance() -> None:
     """
     # Skip if detector not available
     if not await check_detector_health():
-        pytest.skip(f"RT-DETRv2 detector not available at {get_detector_url()}")
+        pytest.skip(f"YOLO26 detector not available at {get_detector_url()}")
 
     # Create a temporary test image
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -285,7 +285,7 @@ async def test_detector_inference_performance() -> None:
         await send_detection_request(str(image_path))
         inference_time_ms = (time.time() - start_time) * 1000
 
-        print(f"\nRT-DETRv2 Inference Time: {inference_time_ms:.2f}ms")
+        print(f"\nYOLO26 Inference Time: {inference_time_ms:.2f}ms")
 
         # Allow up to 5000ms for first inference (includes model loading)
         assert inference_time_ms < 5000, f"Inference too slow: {inference_time_ms:.2f}ms"
@@ -301,7 +301,7 @@ async def test_detector_multiple_images() -> None:
     """
     # Skip if detector not available
     if not await check_detector_health():
-        pytest.skip(f"RT-DETRv2 detector not available at {get_detector_url()}")
+        pytest.skip(f"YOLO26 detector not available at {get_detector_url()}")
 
     # Create multiple test images with different sizes
     image_sizes = [
@@ -416,7 +416,7 @@ def test_gpu_memory_available() -> None:
             print(f"GPU Memory Used: {used}MB ({used_percent:.1f}%)")
 
             # Critical threshold: less than 2% free (GPU severely memory-starved)
-            # On 24GB GPU, 2% = ~490MB which is below RT-DETRv2's ~650MB requirement
+            # On 24GB GPU, 2% = ~490MB which is below YOLO26's ~650MB requirement
             critical_threshold_percent = 2.0
             warning_threshold_percent = 5.0
 
@@ -460,7 +460,7 @@ async def test_detector_handles_invalid_image() -> None:
     """
     # Skip if detector not available
     if not await check_detector_health():
-        pytest.skip(f"RT-DETRv2 detector not available at {get_detector_url()}")
+        pytest.skip(f"YOLO26 detector not available at {get_detector_url()}")
 
     url = get_detector_url()
 
@@ -494,7 +494,7 @@ async def test_detector_concurrent_requests() -> None:
 
     # Skip if detector not available
     if not await check_detector_health():
-        pytest.skip(f"RT-DETRv2 detector not available at {get_detector_url()}")
+        pytest.skip(f"YOLO26 detector not available at {get_detector_url()}")
 
     # Number of concurrent requests
     num_concurrent = 3

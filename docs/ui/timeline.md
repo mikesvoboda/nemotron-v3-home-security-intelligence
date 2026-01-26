@@ -408,7 +408,7 @@ Risk Levels:
 
 ## Understanding Detection Confidence
 
-Detection confidence indicates how certain RT-DETRv2 is about its detection:
+Detection confidence indicates how certain YOLO26 is about its detection:
 
 | Confidence | Level  | Indicator | Meaning                             |
 | ---------- | ------ | --------- | ----------------------------------- |
@@ -712,7 +712,7 @@ flowchart TD
 
     subgraph Detection["AI Detection"]
         B --> C[File Watcher Detects Image]
-        C --> D[RT-DETRv2 Object Detection]
+        C --> D[YOLO26 Object Detection]
         D --> E{Objects Found?}
         E -->|No| F[Discard]
         E -->|Yes| G[Create Detection Record]

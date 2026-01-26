@@ -17,7 +17,7 @@
 
 ### Unified Startup (Recommended)
 
-Use the unified startup script to manage the **core host-run** AI services (RT-DETRv2 + Nemotron):
+Use the unified startup script to manage the **core host-run** AI services (YOLO26 + Nemotron):
 
 ```bash
 ./scripts/start-ai.sh start
@@ -36,14 +36,14 @@ Starting AI Services
 [OK] llama-server found: /usr/bin/llama-server
 [OK] Python found: /usr/bin/python3
 [OK] Nemotron model found (2.5G)
-[WARN] RT-DETRv2 model not found (will auto-download)
+[WARN] YOLO26 model not found (will auto-download)
 [OK] All prerequisites satisfied
 
-[INFO] Starting RT-DETRv2 detection server...
-[OK] RT-DETRv2 detection server started successfully
+[INFO] Starting YOLO26 detection server...
+[OK] YOLO26 detection server started successfully
   Port: 8090
   PID: 12345
-  Log: /tmp/rtdetr-detector.log
+  Log: /tmp/yolo26-detector.log
   Expected VRAM: ~4GB
 
 [INFO] Starting Nemotron LLM server...
@@ -65,7 +65,7 @@ First startup takes longer (~2-3 minutes) due to:
 Start services separately for debugging:
 
 ```bash
-# RT-DETRv2 detection server
+# YOLO26 detection server
 ./ai/start_detector.sh
 
 # Nemotron LLM server (in separate terminal)
@@ -154,7 +154,7 @@ Returns:
 
 ## Verification
 
-### Test RT-DETRv2 Detection
+### Test YOLO26 Detection
 
 ```bash
 # Health check
@@ -176,7 +176,7 @@ curl http://localhost:8090/health
 **Test detection (requires test image):**
 
 ```bash
-cd ai/rtdetr
+cd ai/yolo26
 python example_client.py path/to/test/image.jpg
 ```
 
@@ -225,14 +225,14 @@ pytest tests/ -v
 ### View Logs
 
 ```bash
-# RT-DETRv2 logs
-tail -f /tmp/rtdetr-detector.log
+# YOLO26 logs
+tail -f /tmp/yolo26-detector.log
 
 # Nemotron LLM logs
 tail -f /tmp/nemotron-llm.log
 
 # Both logs (parallel)
-tail -f /tmp/rtdetr-detector.log -f /tmp/nemotron-llm.log
+tail -f /tmp/yolo26-detector.log -f /tmp/nemotron-llm.log
 ```
 
 ### Backend Integration Logging
@@ -242,7 +242,7 @@ The backend automatically monitors AI service health:
 ```bash
 # Check backend logs for AI service status
 cd backend
-tail -f logs/app.log | grep -E "rtdetr|nemotron"
+tail -f logs/app.log | grep -E "yolo26|nemotron"
 ```
 
 Backend logs include:
@@ -260,18 +260,18 @@ Backend logs include:
 
 Create systemd services for production. Replace placeholders with actual values.
 
-**RT-DETRv2 Service:**
+**YOLO26 Service:**
 
 ```bash
 sudo tee /etc/systemd/system/ai-detector.service > /dev/null << EOF
 [Unit]
-Description=RT-DETRv2 Object Detection Service
+Description=YOLO26 Object Detection Service
 After=network.target
 
 [Service]
 Type=simple
 User=$(whoami)
-WorkingDirectory=${PROJECT_ROOT}/ai/rtdetr
+WorkingDirectory=${PROJECT_ROOT}/ai/yolo26
 ExecStart=/usr/bin/python3 model.py
 Restart=always
 RestartSec=10
@@ -352,21 +352,21 @@ _Context enrichment pipeline showing how detection data flows through zone analy
 
 ### Service Endpoints
 
-| Service   | Endpoint                  | Purpose          |
-| --------- | ------------------------- | ---------------- |
-| RT-DETRv2 | GET /health               | Health check     |
-| RT-DETRv2 | POST /detect              | Object detection |
-| RT-DETRv2 | POST /detect/batch        | Batch detection  |
-| Nemotron  | GET /health               | Health check     |
-| Nemotron  | POST /completion          | Text completion  |
-| Nemotron  | POST /v1/chat/completions | Chat API         |
+| Service  | Endpoint                  | Purpose          |
+| -------- | ------------------------- | ---------------- |
+| YOLO26   | GET /health               | Health check     |
+| YOLO26   | POST /detect              | Object detection |
+| YOLO26   | POST /detect/batch        | Batch detection  |
+| Nemotron | GET /health               | Health check     |
+| Nemotron | POST /completion          | Text completion  |
+| Nemotron | POST /v1/chat/completions | Chat API         |
 
 ### Expected Resource Usage
 
-| Service   | VRAM | CPU    | Latency | Throughput    |
-| --------- | ---- | ------ | ------- | ------------- |
-| RT-DETRv2 | ~4GB | 10-20% | 30-50ms | 20-30 img/s   |
-| Nemotron  | ~3GB | 5-10%  | 2-5s    | 0.2-0.5 req/s |
+| Service  | VRAM | CPU    | Latency | Throughput    |
+| -------- | ---- | ------ | ------- | ------------- |
+| YOLO26   | ~4GB | 10-20% | 30-50ms | 20-30 img/s   |
+| Nemotron | ~3GB | 5-10%  | 2-5s    | 0.2-0.5 req/s |
 
 ---
 

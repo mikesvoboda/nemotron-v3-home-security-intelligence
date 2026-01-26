@@ -1053,9 +1053,9 @@ class TestRedactSensitiveValue:
         result = redact_sensitive_value("admin_api_key", "admin-secret-key")
         assert result == "[REDACTED]"
 
-    def test_rtdetr_api_key_redacted(self):
-        """Test that rtdetr_api_key is fully redacted."""
-        result = redact_sensitive_value("rtdetr_api_key", "rtdetr-key-123")
+    def test_yolo26_api_key_redacted(self):
+        """Test that yolo26_api_key is fully redacted."""
+        result = redact_sensitive_value("yolo26_api_key", "yolo26-key-123")
         assert result == "[REDACTED]"
 
     def test_nemotron_api_key_redacted(self):
@@ -1078,7 +1078,7 @@ class TestSensitiveFieldNames:
             "api_key",
             "api_keys",
             "admin_api_key",
-            "rtdetr_api_key",
+            "yolo26_api_key",
             "nemotron_api_key",
             "smtp_password",
             "database_url",

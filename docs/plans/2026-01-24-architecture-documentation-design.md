@@ -254,7 +254,7 @@ python -m validate_docs docs/architecture/ --watch
 | ---------------------- | ------------------------------------------------------- |
 | README.md              | Hub: model inventory, VRAM budget, service architecture |
 | model-zoo.md           | Lazy loading, LRU eviction, priority-based management   |
-| rt-detr-client.md      | Detection client, image preprocessing, response parsing |
+| yolo26-client.md       | Detection client, image preprocessing, response parsing |
 | nemotron-analyzer.md   | LLM inference, prompt building, response parsing        |
 | enrichment-pipeline.md | Multi-model routing, parallel inference                 |
 | fallback-strategies.md | Degradation levels, rule-based scoring, recovery        |

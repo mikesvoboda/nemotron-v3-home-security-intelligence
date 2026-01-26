@@ -913,17 +913,17 @@ groups:
           summary: 'LLM context utilization approaching limits'
           description: 'P95 context utilization is {{ $value | humanizePercentage }}. Risk of truncation.'
 
-      # Critical: RT-DETR model not loaded
-      - alert: RTDETRModelNotLoaded
-        expr: rtdetr_model_loaded == 0
+      # Critical: YOLO26 model not loaded
+      - alert: YOLO26ModelNotLoaded
+        expr: yolo26_model_loaded == 0
         for: 1m
         labels:
           severity: critical
           component: detection
-          service: rtdetr
+          service: yolo26
         annotations:
-          summary: 'RT-DETR detection model not loaded'
-          description: 'RT-DETR model is not loaded. Object detection will fail.'
+          summary: 'YOLO26 detection model not loaded'
+          description: 'YOLO26 model is not loaded. Object detection will fail.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-not-loaded'
 
       # Critical: Florence model not loaded

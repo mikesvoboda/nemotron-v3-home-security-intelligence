@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions
 
 This is an AI-powered home security monitoring system that processes camera footage,
-detects objects using RT-DETRv2, and analyzes security risks using Nemotron LLM.
+detects objects using YOLO26, and analyzes security risks using Nemotron LLM.
 
 ## Tech Stack
 
@@ -21,7 +21,7 @@ detects objects using RT-DETRv2, and analyzes security risks using Nemotron LLM.
 
 ### AI Pipeline
 
-- **Object Detection**: RT-DETRv2 running as HTTP service on GPU
+- **Object Detection**: YOLO26 running as HTTP service on GPU
 - **Risk Analysis**: Nemotron LLM via llama.cpp for security reasoning
 - **Hardware**: NVIDIA RTX A5500 (24GB VRAM)
 
@@ -78,7 +78,7 @@ export function EventCard({ event, onSelect }: EventCardProps) {
 ### Security Monitoring Concepts
 
 - **Camera**: Foscam IP cameras uploading via FTP
-- **Detection**: RT-DETRv2 identifies objects (person, vehicle, animal)
+- **Detection**: YOLO26 identifies objects (person, vehicle, animal)
 - **Event**: Aggregated detections within a time window
 - **Risk Score**: 0-100 rating from Nemotron analysis
 - **Batch Window**: 90-second aggregation with 30-second idle timeout
@@ -95,11 +95,11 @@ export function EventCard({ event, onSelect }: EventCardProps) {
 - Camera images: `/export/foscam/{camera_name}/`
 - Backend code: `backend/`
 - Frontend code: `frontend/src/`
-- AI services: `ai/rtdetr/`, `ai/nemotron/`
+- AI services: `ai/yolo26/`, `ai/nemotron/`
 
 ## What NOT to Suggest
 
 - Authentication/authorization code (single-user local deployment)
 - Cloud service integrations (fully self-hosted)
-- Alternative ML frameworks (committed to RT-DETRv2 + Nemotron)
+- Alternative ML frameworks (committed to YOLO26 + Nemotron)
 - Manual database migrations (use Alembic for schema changes)

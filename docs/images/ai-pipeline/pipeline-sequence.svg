@@ -47,9 +47,9 @@
     <rect x="420" y="75" width="90" height="36" rx="4" fill="#DBEAFE" stroke="#3B82F6" stroke-width="1.5"/>
     <text x="465" y="97" text-anchor="middle" fill="#1E40AF">DetectWorker</text>
 
-    <!-- RT-DETRv2 -->
+    <!-- YOLO26 -->
     <rect x="530" y="75" width="90" height="36" rx="4" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="2"/>
-    <text x="575" y="93" text-anchor="middle" fill="#4D7600" font-weight="600">RT-DETRv2</text>
+    <text x="575" y="93" text-anchor="middle" fill="#4D7600" font-weight="600">YOLO26</text>
     <text x="575" y="105" text-anchor="middle" fill="#6B7280" font-size="9">:8090</text>
 
     <!-- PostgreSQL -->
@@ -128,15 +128,15 @@
   <line x1="355" y1="325" x2="460" y2="325" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead)"/>
   <text x="407" y="320" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#6B7280" text-anchor="middle">Detection job</text>
 
-  <!-- Message 6: Worker to RT-DETRv2 -->
+  <!-- Message 6: Worker to YOLO26 -->
   <line x1="465" y1="355" x2="570" y2="355" stroke="#76B900" stroke-width="1.5" marker-end="url(#arrowhead-green)"/>
   <text x="517" y="350" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">POST /detect</text>
 
-  <!-- RT-DETRv2 processing box -->
+  <!-- YOLO26 processing box -->
   <rect x="560" y="365" width="30" height="30" fill="url(#gpu-gradient)" stroke="#76B900" stroke-width="1"/>
   <text x="605" y="385" font-family="Inter, system-ui, sans-serif" font-size="9" fill="#4D7600">~30-50ms inference</text>
 
-  <!-- Message 7: RT-DETRv2 response -->
+  <!-- Message 7: YOLO26 response -->
   <line x1="575" y1="410" x2="470" y2="410" stroke="#76B900" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowhead-green)"/>
   <text x="522" y="405" font-family="Inter, system-ui, sans-serif" font-size="10" fill="#4D7600" text-anchor="middle">JSON detections</text>
 

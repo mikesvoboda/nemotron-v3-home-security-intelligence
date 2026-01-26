@@ -30,7 +30,7 @@ def test_image(image_path: Path, client: httpx.Client) -> dict:
     image_b64 = encode_image(str(image_path))
     detections_data = []  # Store raw detections for enrichment
 
-    # 1. RT-DETRv2 Detection
+    # 1. YOLO26 Detection
     try:
         with open(image_path, "rb") as f:
             r = client.post(

@@ -563,7 +563,7 @@ def main() -> int:
     parser.add_argument(
         "--output",
         default=None,
-        help="Output report path (default: docs/benchmarks/yolo26-vs-rtdetr.md)",
+        help="Output report path (default: docs/benchmarks/yolo26-vs-yolo26.md)",
     )
 
     args = parser.parse_args()
@@ -736,7 +736,7 @@ def main() -> int:
     # Determine output path
     output_path = args.output
     if output_path is None:
-        output_path = Path(__file__).parent.parent / "docs/benchmarks/yolo26-vs-rtdetr.md"
+        output_path = Path(__file__).parent.parent / "docs/benchmarks/yolo26-vs-yolo26.md"
     else:
         output_path = Path(output_path)
 

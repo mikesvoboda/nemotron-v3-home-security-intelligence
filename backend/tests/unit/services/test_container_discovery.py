@@ -137,7 +137,7 @@ class TestPreConfiguredServices:
     def test_ai_configs_contains_all_ai_services(self) -> None:
         """Test that AI_CONFIGS contains all expected AI services."""
         expected_services = {
-            "ai-detector": ("RT-DETRv2", 8090, 60),
+            "ai-detector": ("YOLO26", 8090, 60),
             "ai-llm": ("Nemotron", 8091, 120),
             "ai-florence": ("Florence-2", 8092, 60),
             "ai-clip": ("CLIP", 8093, 60),
@@ -207,18 +207,18 @@ class TestManagedService:
         """Test ManagedService can be created with required fields."""
         service = ManagedService(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             container_id="abc123",
-            image="ghcr.io/test/rtdetr:latest",
+            image="ghcr.io/test/yolo26:latest",
             port=8090,
             health_endpoint="/health",
             category=ServiceCategory.AI,
         )
 
         assert service.name == "ai-detector"
-        assert service.display_name == "RT-DETRv2"
+        assert service.display_name == "YOLO26"
         assert service.container_id == "abc123"
-        assert service.image == "ghcr.io/test/rtdetr:latest"
+        assert service.image == "ghcr.io/test/yolo26:latest"
         assert service.port == 8090
         assert service.health_endpoint == "/health"
         assert service.health_cmd is None
@@ -292,7 +292,7 @@ class TestContainerDiscoveryService:
         mock_detector = create_mock_container(
             name="security-ai-detector-1",
             container_id="det123",
-            image_tags=["ghcr.io/test/rtdetr:latest"],
+            image_tags=["ghcr.io/test/yolo26:latest"],
         )
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_detector])
 
@@ -301,7 +301,7 @@ class TestContainerDiscoveryService:
 
         assert len(discovered) == 1
         assert discovered[0].name == "ai-detector"
-        assert discovered[0].display_name == "RT-DETRv2"
+        assert discovered[0].display_name == "YOLO26"
         assert discovered[0].container_id == "det123"
         assert discovered[0].port == 8090
         assert discovered[0].health_endpoint == "/health"
@@ -430,7 +430,7 @@ class TestContainerDiscoveryService:
 
         config = service.get_config("ai-detector")
         assert config is not None
-        assert config.display_name == "RT-DETRv2"
+        assert config.display_name == "YOLO26"
         assert config.port == 8090
 
     def test_get_config_returns_none_for_unknown_service(

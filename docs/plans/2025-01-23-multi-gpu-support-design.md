@@ -290,7 +290,7 @@ src/components/settings/
 │  │  Service          Model              VRAM Est.   GPU            │   │
 │  │  ────────────────────────────────────────────────────────────── │   │
 │  │  ai-llm           Nemotron-30B       ~21.7 GB    [ GPU 0 ▼ ]    │   │
-│  │  ai-detector      RT-DETRv2          ~650 MB     [ GPU 0 ▼ ]    │   │
+│  │  ai-detector      YOLO26          ~650 MB     [ GPU 0 ▼ ]    │   │
 │  │  ai-florence      Florence-2-L       ~1.5 GB     [ GPU 0 ▼ ]    │   │
 │  │  ai-clip          CLIP ViT-L         ~1.2 GB     [ GPU 0 ▼ ]    │   │
 │  │  ai-enrichment    Model Zoo          ~6.8 GB     [ GPU 1 ▼ ]    │   │
@@ -411,7 +411,7 @@ def get_target_gpu() -> int:
 | Service       | Model                        | VRAM Estimate  |
 | ------------- | ---------------------------- | -------------- |
 | ai-llm        | Nemotron-3-Nano-30B (Q4_K_M) | ~21.7 GB       |
-| ai-detector   | RT-DETRv2                    | ~650 MB        |
+| ai-detector   | YOLO26                       | ~650 MB        |
 | ai-florence   | Florence-2-Large             | ~1.5 GB        |
 | ai-clip       | CLIP ViT-L                   | ~1.2 GB        |
 | ai-enrichment | Model Zoo (9 models)         | ~6.8 GB budget |

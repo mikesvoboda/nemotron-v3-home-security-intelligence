@@ -29,7 +29,7 @@ def clean_env(monkeypatch):
         "RETENTION_DAYS",
         "BATCH_WINDOW_SECONDS",
         "BATCH_IDLE_TIMEOUT_SECONDS",
-        "RTDETR_URL",
+        "YOLO26_URL",
         "NEMOTRON_URL",
         "ENVIRONMENT",
     ]
@@ -53,7 +53,7 @@ def clean_env(monkeypatch):
     monkeypatch.setenv("FOSCAM_BASE_PATH", "/export/foscam")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("DEBUG", "false")
-    monkeypatch.setenv("RTDETR_URL", "http://localhost:8090")
+    monkeypatch.setenv("YOLO26_URL", "http://localhost:8090")
     monkeypatch.setenv("NEMOTRON_URL", "http://localhost:8091")
     monkeypatch.setenv("CORS_ORIGINS", '["http://localhost:5173"]')
     monkeypatch.setenv("API_HOST", "0.0.0.0")  # noqa: S104
@@ -144,7 +144,7 @@ class TestSettingsDefaults:
         """
         settings = Settings()
         # URLs should NOT have trailing slashes to avoid //health issues
-        assert settings.rtdetr_url == "http://localhost:8090"
+        assert settings.yolo26_url == "http://localhost:8090"
         assert settings.nemotron_url == "http://localhost:8091"
 
 
@@ -385,13 +385,13 @@ class TestSettingsConfiguration:
 class TestAIServiceConfiguration:
     """Test AI service endpoint configuration and URL normalization."""
 
-    def test_rtdetr_url_removes_trailing_slash(self, clean_env):
-        """Test RT-DETR URL strips trailing slash to prevent double slashes."""
-        clean_env.setenv("RTDETR_URL", "http://localhost:8090/")
+    def test_yolo26_url_removes_trailing_slash(self, clean_env):
+        """Test YOLO26 URL strips trailing slash to prevent double slashes."""
+        clean_env.setenv("YOLO26_URL", "http://localhost:8090/")
         settings = Settings()
         # Validator should strip trailing slash
-        assert settings.rtdetr_url == "http://localhost:8090"
-        assert not settings.rtdetr_url.endswith("/")
+        assert settings.yolo26_url == "http://localhost:8090"
+        assert not settings.yolo26_url.endswith("/")
 
     def test_nemotron_url_removes_trailing_slash(self, clean_env):
         """Test Nemotron URL strips trailing slash."""
@@ -402,10 +402,10 @@ class TestAIServiceConfiguration:
 
     def test_ai_service_urls_accept_custom_ports(self, clean_env):
         """Test AI service URLs work with non-standard ports."""
-        clean_env.setenv("RTDETR_URL", "http://ai-server:9000")
+        clean_env.setenv("YOLO26_URL", "http://ai-server:9000")
         clean_env.setenv("NEMOTRON_URL", "http://ai-server:9001")
         settings = Settings()
-        assert settings.rtdetr_url == "http://ai-server:9000"
+        assert settings.yolo26_url == "http://ai-server:9000"
         assert settings.nemotron_url == "http://ai-server:9001"
 
 

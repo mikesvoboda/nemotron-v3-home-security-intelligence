@@ -10,9 +10,9 @@ import pytest
 from backend.services.vehicle_classifier_loader import (
     COMMERCIAL_VEHICLE_CLASSES,
     NON_VEHICLE_CLASSES,
-    RTDETR_VEHICLE_CLASSES,
     VEHICLE_DISPLAY_NAMES,
     VEHICLE_SEGMENT_CLASSES,
+    YOLO26_VEHICLE_CLASSES,
     VehicleClassificationResult,
     classify_vehicle,
     classify_vehicles_batch,
@@ -51,15 +51,15 @@ def test_vehicle_segment_classes_sorted():
     assert sorted(VEHICLE_SEGMENT_CLASSES) == VEHICLE_SEGMENT_CLASSES
 
 
-def test_rtdetr_vehicle_classes():
-    """Test RT-DETRv2 vehicle classes are defined."""
+def test_yolo26_vehicle_classes():
+    """Test YOLO26 vehicle classes are defined."""
     expected = {"car", "truck", "bus", "motorcycle", "bicycle"}
-    assert expected == RTDETR_VEHICLE_CLASSES
+    assert expected == YOLO26_VEHICLE_CLASSES
 
 
-def test_rtdetr_classes_is_frozenset():
-    """Test RT-DETRv2 classes is a frozenset."""
-    assert isinstance(RTDETR_VEHICLE_CLASSES, frozenset)
+def test_yolo26_classes_is_frozenset():
+    """Test YOLO26 classes is a frozenset."""
+    assert isinstance(YOLO26_VEHICLE_CLASSES, frozenset)
 
 
 def test_non_vehicle_classes():

@@ -6,7 +6,7 @@ Contains GPU-accelerated ML services for the home security monitoring system:
 - enrichment: Detection enrichment classifiers (vehicle, pet, clothing, depth, pose)
 - florence: Florence-2 vision-language model service
 - nemotron: Nemotron LLM risk analysis service
-- rtdetr: RT-DETRv2 object detection service
+- yolo26: YOLO26v2 object detection service
 
 TensorRT Optimization:
     The common package provides reusable TensorRT infrastructure for accelerating

@@ -36,7 +36,7 @@ def transient_error() -> ExternalServiceError:
 @pytest.fixture
 def detector_error() -> DetectorUnavailableError:
     """Create a detector unavailable error."""
-    return DetectorUnavailableError("RT-DETR timeout")
+    return DetectorUnavailableError("YOLO26 timeout")
 
 
 # =============================================================================

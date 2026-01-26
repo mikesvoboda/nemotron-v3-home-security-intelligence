@@ -6,7 +6,7 @@ This hub documents the AI model infrastructure that powers the home security int
 
 | Model              | Port | Container       | VRAM            | Purpose                     |
 | ------------------ | ---- | --------------- | --------------- | --------------------------- |
-| RT-DETRv2          | 8090 | `ai-rtdetr`     | ~650MB          | Primary object detection    |
+| YOLO26             | 8090 | `ai-yolo26`     | ~650MB          | Primary object detection    |
 | Nemotron 70B       | 8091 | `ai-nemotron`   | ~21.7GB         | Risk analysis and reasoning |
 | Florence-2         | 8092 | `ai-florence`   | ~1.2GB          | Vision-language captioning  |
 | Enrichment Service | 8094 | `ai-enrichment` | ~6.8GB (budget) | Multi-model enrichment      |
@@ -15,7 +15,7 @@ This hub documents the AI model infrastructure that powers the home security int
 
 ```
                                     +------------------+
-                                    |   RT-DETRv2     |
+                                    |   YOLO26     |
                                     |   Port 8090     |
         +-------------------+       | Object Detection |
         |                   |       +--------+---------+
@@ -46,7 +46,7 @@ Total GPU VRAM: ~24GB (RTX 3090/4090)
 | Component                      | VRAM      | Notes                               |
 | ------------------------------ | --------- | ----------------------------------- |
 | Nemotron 70B (4-bit quantized) | 21,700 MB | Always loaded via llama.cpp         |
-| RT-DETRv2                      | 650 MB    | Always loaded                       |
+| YOLO26                         | 650 MB    | Always loaded                       |
 | Enrichment Model Zoo           | 1,650 MB  | On-demand loading with LRU eviction |
 
 The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction for its internal models. See [model-zoo.md](./model-zoo.md) for details.
@@ -56,7 +56,7 @@ The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction f
 | Document                                           | Purpose                                       |
 | -------------------------------------------------- | --------------------------------------------- |
 | [model-zoo.md](./model-zoo.md)                     | Model registry, VRAM management, LRU eviction |
-| [rt-detr-client.md](./rt-detr-client.md)           | RT-DETRv2 detector client implementation      |
+| [yolo26-client.md](./yolo26-client.md)             | YOLO26 detector client implementation         |
 | [nemotron-analyzer.md](./nemotron-analyzer.md)     | LLM-based risk analysis service               |
 | [enrichment-pipeline.md](./enrichment-pipeline.md) | Multi-model enrichment flow                   |
 | [fallback-strategies.md](./fallback-strategies.md) | Graceful degradation patterns                 |
@@ -66,7 +66,7 @@ The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction f
 | File                                    | Purpose                             |
 | --------------------------------------- | ----------------------------------- |
 | `backend/services/model_zoo.py`         | Backend-side model zoo registry     |
-| `backend/services/detector_client.py`   | RT-DETRv2 HTTP client               |
+| `backend/services/detector_client.py`   | YOLO26 HTTP client                  |
 | `backend/services/nemotron_analyzer.py` | Nemotron LLM analyzer               |
 | `backend/services/enrichment_client.py` | Enrichment service client           |
 | `backend/services/ai_fallback.py`       | Fallback and degradation management |
@@ -75,7 +75,7 @@ The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction f
 
 ## Processing Pipeline
 
-1. **Detection Phase**: Images sent to RT-DETRv2 for object detection
+1. **Detection Phase**: Images sent to YOLO26 for object detection
 2. **Enrichment Phase**: Detections enriched with additional context (pose, clothing, vehicle type, etc.)
 3. **Analysis Phase**: Nemotron LLM analyzes enriched detections and assigns risk scores
 4. **Fallback Phase**: If any service fails, graceful degradation provides default values
@@ -98,7 +98,7 @@ Key Prometheus metrics:
 # Detection pipeline
 hsi_detection_processed_total
 hsi_detection_filtered_total
-hsi_ai_request_duration_seconds{service="rtdetr|nemotron|enrichment"}
+hsi_ai_request_duration_seconds{service="yolo26|nemotron|enrichment"}
 
 # Model management
 enrichment_vram_usage_bytes

@@ -26,11 +26,11 @@ System design, data flow, and technology decisions.
 | -------------------------------------------- | ---------------------------------------------- |
 | [Architecture Overview](architecture/)       | High-level system design and component diagram |
 | [Data Model](data-model.md)                  | PostgreSQL schemas and entity relationships    |
-| [AI Pipeline Overview](pipeline-overview.md) | FileWatcher -> RT-DETRv2 -> Nemotron flow      |
+| [AI Pipeline Overview](pipeline-overview.md) | FileWatcher -> YOLO26 -> Nemotron flow         |
 
 **AI Pipeline Deep Dives:**
 
-- [Detection Service](detection-service.md) - RT-DETRv2 API and bounding boxes
+- [Detection Service](detection-service.md) - YOLO26 API and bounding boxes
 - [Batching Logic](batching-logic.md) - Time-windowed batch aggregation
 - [Risk Analysis](risk-analysis.md) - Nemotron prompts and scoring
 - [Prompt Management](prompt-management.md) - A/B testing and versioning
@@ -110,7 +110,7 @@ gh pr create --title "feat: my feature"
 | Backend API | 8000 | HTTP/WS  |
 | PostgreSQL  | 5432 | TCP      |
 | Redis       | 6379 | TCP      |
-| RT-DETRv2   | 8090 | HTTP     |
+| YOLO26      | 8090 | HTTP     |
 | Nemotron    | 8091 | HTTP     |
 
 ### AGENTS.md Navigation

@@ -85,7 +85,7 @@
     },
     {
       "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
-      "description": "Object detection traces from RT-DETRv2",
+      "description": "Object detection traces from YOLO26",
       "fieldConfig": {
         "defaults": {
           "custom": {

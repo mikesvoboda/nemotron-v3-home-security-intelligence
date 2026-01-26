@@ -6,27 +6,27 @@ This directory contains chaos engineering tests that validate system resilience 
 
 Chaos tests inject faults into system components to ensure graceful degradation and proper error handling. These tests simulate real-world failure scenarios including:
 
-- **Service failures**: AI services (RT-DETR, Nemotron), database, Redis
+- **Service failures**: AI services (YOLO26, Nemotron), database, Redis
 - **Network issues**: Latency, packet loss, timeouts
 - **Resource exhaustion**: Connection pool exhaustion, VRAM exhaustion, disk full
 - **Runtime errors**: GPU failures, file corruption, permission errors
 
 ## Test Organization
 
-| Test File                          | Tests    | Focus Area                         |
-| ---------------------------------- | -------- | ---------------------------------- |
-| `test_rtdetr_failures.py`          | 14       | RT-DETR detection service failures |
-| `test_redis_failures.py`           | ~15      | Redis cache/queue failures         |
-| `test_database_failures.py`        | 20+      | PostgreSQL database failures       |
-| `test_nemotron_failures.py`        | 15+      | Nemotron LLM service failures      |
-| `test_network_conditions.py`       | 10+      | Network latency and reliability    |
-| `test_ftp_failures.py`             | 18       | FTP upload and file system issues  |
-| `test_gpu_runtime_failures.py`     | 18       | GPU and CUDA runtime errors        |
-| `test_database_pool_exhaustion.py` | 20       | Connection pool exhaustion         |
-| `test_timeout_cascade.py`          | 19       | Cascading timeout scenarios        |
-| `test_pubsub_failures.py`          | 17       | Redis pub/sub failures             |
-| `test_worker_chaos.py`             | 30+      | Worker crash and queue scenarios   |
-| **Total**                          | **189+** | **Comprehensive chaos coverage**   |
+| Test File                          | Tests    | Focus Area                        |
+| ---------------------------------- | -------- | --------------------------------- |
+| `test_yolo26_failures.py`          | 14       | YOLO26 detection service failures |
+| `test_redis_failures.py`           | ~15      | Redis cache/queue failures        |
+| `test_database_failures.py`        | 20+      | PostgreSQL database failures      |
+| `test_nemotron_failures.py`        | 15+      | Nemotron LLM service failures     |
+| `test_network_conditions.py`       | 10+      | Network latency and reliability   |
+| `test_ftp_failures.py`             | 18       | FTP upload and file system issues |
+| `test_gpu_runtime_failures.py`     | 18       | GPU and CUDA runtime errors       |
+| `test_database_pool_exhaustion.py` | 20       | Connection pool exhaustion        |
+| `test_timeout_cascade.py`          | 19       | Cascading timeout scenarios       |
+| `test_pubsub_failures.py`          | 17       | Redis pub/sub failures            |
+| `test_worker_chaos.py`             | 30+      | Worker crash and queue scenarios  |
+| **Total**                          | **189+** | **Comprehensive chaos coverage**  |
 
 ## Running Chaos Tests
 
@@ -39,7 +39,7 @@ Chaos tests inject faults into system components to ensure graceful degradation 
 uv run pytest backend/tests/chaos/ -v -m chaos
 
 # Run specific service failure tests
-uv run pytest backend/tests/chaos/test_rtdetr_failures.py -v
+uv run pytest backend/tests/chaos/test_yolo26_failures.py -v
 uv run pytest backend/tests/chaos/test_redis_failures.py -v
 uv run pytest backend/tests/chaos/test_database_failures.py -v
 
@@ -76,51 +76,51 @@ from backend.tests.chaos.conftest import FaultInjector, FaultConfig, FaultType
 injector = FaultInjector()
 
 # Inject a fault
-injector.inject("rtdetr", FaultConfig(
+injector.inject("yolo26", FaultConfig(
     fault_type=FaultType.TIMEOUT,
     delay_seconds=30.0
 ))
 
 # Check statistics
-stats = injector.get_stats("rtdetr")
+stats = injector.get_stats("yolo26")
 print(f"Total calls: {stats.total_calls}")
 print(f"Faults injected: {stats.faults_injected}")
 ```
 
 ### Fault Types
 
-| Fault Type         | Description                                  | Example Use Case        |
-| ------------------ | -------------------------------------------- | ----------------------- |
-| `TIMEOUT`          | Service doesn't respond within expected time | RT-DETR inference hangs |
-| `CONNECTION_ERROR` | Cannot establish connection                  | Service unreachable     |
-| `SERVER_ERROR`     | Service returns 5xx errors                   | Internal server error   |
-| `INTERMITTENT`     | Random failures with configurable rate       | Flaky network           |
-| `LATENCY`          | Artificial delay added                       | High network latency    |
-| `UNAVAILABLE`      | Service completely down                      | Complete outage         |
+| Fault Type         | Description                                  | Example Use Case       |
+| ------------------ | -------------------------------------------- | ---------------------- |
+| `TIMEOUT`          | Service doesn't respond within expected time | YOLO26 inference hangs |
+| `CONNECTION_ERROR` | Cannot establish connection                  | Service unreachable    |
+| `SERVER_ERROR`     | Service returns 5xx errors                   | Internal server error  |
+| `INTERMITTENT`     | Random failures with configurable rate       | Flaky network          |
+| `LATENCY`          | Artificial delay added                       | High network latency   |
+| `UNAVAILABLE`      | Service completely down                      | Complete outage        |
 
 ### Pre-configured Fixtures
 
-#### RT-DETR Service Faults
+#### YOLO26 Service Faults
 
 ```python
 @pytest.mark.chaos
-async def test_detection_timeout(rtdetr_timeout):
-    """Test with RT-DETR timing out (30s delay)."""
-    # rtdetr_timeout fixture automatically injects fault
+async def test_detection_timeout(yolo26_timeout):
+    """Test with YOLO26 timing out (30s delay)."""
+    # yolo26_timeout fixture automatically injects fault
     ...
 
 @pytest.mark.chaos
-async def test_detection_unavailable(rtdetr_connection_error):
-    """Test with RT-DETR unreachable."""
+async def test_detection_unavailable(yolo26_connection_error):
+    """Test with YOLO26 unreachable."""
     ...
 ```
 
-Available RT-DETR fixtures:
+Available YOLO26 fixtures:
 
-- `rtdetr_timeout` - Service times out after 30s
-- `rtdetr_connection_error` - Connection refused
-- `rtdetr_server_error` - Returns HTTP 500
-- `rtdetr_intermittent` - 50% random failure rate
+- `yolo26_timeout` - Service times out after 30s
+- `yolo26_connection_error` - Connection refused
+- `yolo26_server_error` - Returns HTTP 500
+- `yolo26_intermittent` - 50% random failure rate
 
 #### Redis Faults
 
@@ -186,14 +186,14 @@ Available network fixtures:
 ```python
 @pytest.mark.chaos
 async def test_complete_ai_outage(all_ai_services_down):
-    """Test with both RT-DETR and Nemotron down."""
+    """Test with both YOLO26 and Nemotron down."""
     ...
 ```
 
 Available compound fixtures:
 
-- `all_ai_services_down` - RT-DETR + Nemotron unavailable
-- `cache_and_ai_down` - Redis + RT-DETR unavailable
+- `all_ai_services_down` - YOLO26 + Nemotron unavailable
+- `cache_and_ai_down` - Redis + YOLO26 unavailable
 
 ## Expected Behaviors
 

@@ -92,7 +92,7 @@ Press **Escape** or click outside to close the modal.
 For events processed by the AI pipeline, a specialized audit detail component is available that shows:
 
 - **Quality Scores** - Visual bars (1-5 scale) showing context usage, reasoning coherence, risk justification, consistency, and overall score
-- **Model Contributions** - Checklist showing which AI models contributed to the analysis (RT-DETR, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-camera)
+- **Model Contributions** - Checklist showing which AI models contributed to the analysis (YOLO26, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-camera)
 - **Self-Critique** - The AI's self-evaluation text explaining its reasoning
 - **Improvement Suggestions** - Lists of missing context, confusing sections, unused data, format suggestions, and model gaps
 - **Actions** - "Run Evaluation" or "Re-run Evaluation" button to trigger AI analysis

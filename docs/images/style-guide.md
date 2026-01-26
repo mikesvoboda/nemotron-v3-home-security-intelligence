@@ -185,7 +185,7 @@ node [shape=octagon, style="filled", fillcolor="#A855F7",
 **Specific Models:**
 | Model | Additional Styling | Label Format |
 | ------------------ | --------------------------- | --------------------------------- |
-| RT-DETRv2 | Green accent glow | `RT-DETRv2\nObject Detection` |
+| YOLO26 | Green accent glow | `YOLO26\nObject Detection` |
 | Florence-2 | Blue accent glow | `Florence-2\nImage Captioning` |
 | Nemotron | Purple accent glow | `Nemotron\nRisk Reasoning` |
 
@@ -704,7 +704,7 @@ digraph SystemArchitecture {
         fillcolor="#1f1a2e";
         fontcolor="#A855F7";
 
-        RTDETR [label="RT-DETRv2\nDetection", fillcolor="#A855F7", shape=octagon];
+        YOLO26 [label="YOLO26\nDetection", fillcolor="#A855F7", shape=octagon];
         NEMOTRON [label="Nemotron\nReasoning", fillcolor="#A855F7", shape=octagon];
     }
 
@@ -716,8 +716,8 @@ digraph SystemArchitecture {
     REACT -> FASTAPI [label="REST/WS", color="#76B900"];
     FASTAPI -> POSTGRES [label="SQL"];
     FASTAPI -> REDIS [label="Cache"];
-    FASTAPI -> RTDETR [label="Inference", style="dashed", color="#A855F7"];
-    RTDETR -> NEMOTRON [label="Detections", style="dashed", color="#A855F7"];
+    FASTAPI -> YOLO26 [label="Inference", style="dashed", color="#A855F7"];
+    YOLO26 -> NEMOTRON [label="Detections", style="dashed", color="#A855F7"];
 }
 ```
 
@@ -728,7 +728,7 @@ digraph SystemArchitecture {
 sequenceDiagram
     participant C as Camera
     participant B as Backend
-    participant D as RT-DETRv2
+    participant D as YOLO26
     participant N as Nemotron
     participant W as WebSocket
 

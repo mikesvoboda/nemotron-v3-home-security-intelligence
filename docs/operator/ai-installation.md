@@ -11,11 +11,11 @@
 
 ### VRAM Requirements by Deployment Scenario
 
-| Scenario                       | Models Used                                         | VRAM Required     | Recommended GPU |
-| ------------------------------ | --------------------------------------------------- | ----------------- | --------------- |
-| **Dev (host-run)**             | Nemotron Mini 4B + RT-DETRv2                        | 8GB minimum       | RTX 3060/4060   |
-| **Prod (containerized, core)** | Nemotron-3-Nano-30B + RT-DETRv2                     | 16GB minimum      | RTX 4080/A4000  |
-| **Prod (all services)**        | Nano 30B + RT-DETRv2 + Florence + CLIP + Enrichment | 24GB+ recommended | RTX A5500/4090  |
+| Scenario                       | Models Used                                      | VRAM Required     | Recommended GPU |
+| ------------------------------ | ------------------------------------------------ | ----------------- | --------------- |
+| **Dev (host-run)**             | Nemotron Mini 4B + YOLO26                        | 8GB minimum       | RTX 3060/4060   |
+| **Prod (containerized, core)** | Nemotron-3-Nano-30B + YOLO26                     | 16GB minimum      | RTX 4080/A4000  |
+| **Prod (all services)**        | Nano 30B + YOLO26 + Florence + CLIP + Enrichment | 24GB+ recommended | RTX A5500/4090  |
 
 ### Minimum
 
@@ -76,7 +76,7 @@ flowchart TD
     end
 
     subgraph "Model Layer"
-        RTDETR[RT-DETRv2<br/>~160MB]
+        YOLO26[YOLO26<br/>~160MB]
         Nemotron[Nemotron<br/>2.5GB-18GB]
         Optional[Optional Models<br/>Florence/CLIP/Enrichment]
     end
@@ -96,11 +96,11 @@ flowchart TD
     Runtime --> Llama
     Python --> PyDeps
 
-    PyDeps --> RTDETR
+    PyDeps --> YOLO26
     Llama --> Nemotron
     PyDeps --> Optional
 
-    RTDETR --> Detector
+    YOLO26 --> Detector
     Nemotron --> LLM
     Optional --> OptServices
 
@@ -194,7 +194,7 @@ llama-server --version
 
 Build time: ~5-10 minutes depending on CPU.
 
-### 4. Python Dependencies (RT-DETRv2)
+### 4. Python Dependencies (YOLO26)
 
 ```bash
 cd $PROJECT_ROOT
@@ -204,13 +204,13 @@ cd $PROJECT_ROOT
 uv sync --extra dev
 
 # This creates .venv and installs all dependencies from pyproject.toml
-# The RT-DETRv2 dependencies are included in the main project
+# The YOLO26 dependencies are included in the main project
 ```
 
 Key dependencies (defined in `pyproject.toml`):
 
 - `torch` + `torchvision` - PyTorch for deep learning
-- `transformers` - HuggingFace model loading/inference (RT-DETRv2)
+- `transformers` - HuggingFace model loading/inference (YOLO26)
 - `fastapi` + `uvicorn` - Web server
 - `pillow` + `opencv-python` - Image processing
 - `pynvml` - NVIDIA GPU monitoring
@@ -250,7 +250,7 @@ cd $PROJECT_ROOT
    - Location: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
    - Download time: ~5-10 minutes
 
-2. **RT-DETRv2** - ~160MB
+2. **YOLO26** - ~160MB
    - Auto-downloaded on first use via HuggingFace transformers
    - Location: `~/.cache/huggingface/`
 
@@ -289,7 +289,7 @@ ls -lh ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
 # Expected: ~18GB file
 
-# RT-DETRv2 downloads automatically on first inference
+# YOLO26 downloads automatically on first inference
 ```
 
 ---
@@ -308,7 +308,7 @@ This identifies any missing prerequisites.
 
 ## Optional AI Services Setup
 
-Beyond the core RT-DETRv2 and Nemotron services, three optional AI services provide enhanced detection capabilities. These are only needed for production deployments requiring advanced features.
+Beyond the core YOLO26 and Nemotron services, three optional AI services provide enhanced detection capabilities. These are only needed for production deployments requiring advanced features.
 
 ### Optional AI Services Startup Sequence
 

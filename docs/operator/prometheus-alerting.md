@@ -60,14 +60,14 @@ curl http://localhost:9093/api/v2/alerts | jq
 
 ### AI Pipeline Alerts
 
-| Alert                   | Condition                  | Duration | Severity |
-| ----------------------- | -------------------------- | -------- | -------- |
-| `AIDetectorUnavailable` | RT-DETR health check fails | 2 min    | critical |
-| `AIBackendDown`         | Backend API unreachable    | 1 min    | critical |
-| `AINemotronTimeout`     | P95 inference > 120s       | 5 min    | warning  |
-| `AIDetectorSlow`        | P95 detection > 5s         | 5 min    | warning  |
-| `AIHighErrorRate`       | Error rate > 10%           | 5 min    | warning  |
-| `AIPipelineErrorSpike`  | > 50 errors in 5 min       | 2 min    | warning  |
+| Alert                   | Condition                 | Duration | Severity |
+| ----------------------- | ------------------------- | -------- | -------- |
+| `AIDetectorUnavailable` | YOLO26 health check fails | 2 min    | critical |
+| `AIBackendDown`         | Backend API unreachable   | 1 min    | critical |
+| `AINemotronTimeout`     | P95 inference > 120s      | 5 min    | warning  |
+| `AIDetectorSlow`        | P95 detection > 5s        | 5 min    | warning  |
+| `AIHighErrorRate`       | Error rate > 10%          | 5 min    | warning  |
+| `AIPipelineErrorSpike`  | > 50 errors in 5 min      | 2 min    | warning  |
 
 **Example alert definition:**
 
@@ -78,10 +78,10 @@ curl http://localhost:9093/api/v2/alerts | jq
   labels:
     severity: critical
     component: ai
-    service: rtdetr
+    service: yolo26
   annotations:
     summary: 'AI detector service is unavailable'
-    description: 'RT-DETR object detection service has been unhealthy for > 2 minutes.'
+    description: 'YOLO26 object detection service has been unhealthy for > 2 minutes.'
     runbook_url: 'https://github.com/.../wiki/Runbooks#aidetectorunavailable'
 ```
 
@@ -431,7 +431,7 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 **Symptoms:**
 
-- RT-DETR health check fails
+- YOLO26 health check fails
 - No new detections processing
 
 **Diagnosis:**

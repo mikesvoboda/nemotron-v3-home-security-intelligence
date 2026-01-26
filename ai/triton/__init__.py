@@ -17,7 +17,7 @@ Components:
 
 Model Repository Structure:
     ai/triton/model_repository/
-      rtdetr/
+      yolo26/
         config.pbtxt
         1/
           model.plan  # TensorRT engine
@@ -34,13 +34,13 @@ Usage:
     client = TritonClient(config)
 
     # Run inference
-    detections = await client.detect(image_data, model="rtdetr")
+    detections = await client.detect(image_data, model="yolo26")
 
 Environment Variables:
     TRITON_URL: Triton server URL (default: localhost:8001 for gRPC)
     TRITON_HTTP_URL: Triton HTTP URL (default: localhost:8000)
     TRITON_TIMEOUT: Request timeout in seconds (default: 60)
-    TRITON_MODEL: Default model name (default: rtdetr)
+    TRITON_MODEL: Default model name (default: yolo26)
     TRITON_ENABLED: Enable Triton inference (default: false)
 
 References:

@@ -53,7 +53,7 @@ Add a dedicated Profiling page to the frontend that embeds Grafana with the Pyro
 │  │  ───────────────────────────────────────────────────────────││
 │  │  Service Flame Graphs:                                      ││
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       ││
-│  │  │ Backend  │ │ RT-DETR  │ │ Nemotron │ │ Florence │       ││
+│  │  │ Backend  │ │ YOLO26  │ │ Nemotron │ │ Florence │       ││
 │  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       ││
 │  │                                                             ││
 │  │  Model Zoo (when Backend selected):                         ││
@@ -75,7 +75,7 @@ Add a dedicated Profiling page to the frontend that embeds Grafana with the Pyro
 **Panel B: Service Flame Graphs**
 
 - Filters: Service dropdown, Model dropdown, Profile type (CPU/Memory)
-- Services: Backend, RT-DETR, Nemotron, Florence
+- Services: Backend, YOLO26, Nemotron, Florence
 - Model Zoo filter: When "Backend" selected, shows per-model breakdown via Pyroscope labels
 
 **Model Zoo Models (17 total):**
@@ -384,12 +384,12 @@ Create dashboard with:
 - Title: "HSI Profiling"
 - Panels:
   1. Profile Timeline (time-series)
-  2. Service Flame Graphs (4x grid: Backend, RT-DETR, Nemotron, Florence)
+  2. Service Flame Graphs (4x grid: Backend, YOLO26, Nemotron, Florence)
   3. Model Zoo Flame Graphs (variable-driven, shows when Backend selected)
 
 Dashboard variables:
 
-- `$service`: Backend, RT-DETR, Nemotron, Florence
+- `$service`: Backend, YOLO26, Nemotron, Florence
 - `$model`: Populated from Pyroscope labels when service=Backend
 - `$profile_type`: CPU, Memory
 
@@ -411,7 +411,7 @@ Dashboard variables:
 
 1. PyroscopePage renders with dark theme matching existing pages
 2. Grafana dashboard iframe loads with profile timeline and flame graphs
-3. Service filter shows Backend, RT-DETR, Nemotron, Florence
+3. Service filter shows Backend, YOLO26, Nemotron, Florence
 4. Model filter (when Backend selected) shows active model zoo models
 5. All four header buttons work correctly (Open in Grafana, Explore, Open Pyroscope, Refresh)
 6. Unit tests pass with >80% coverage

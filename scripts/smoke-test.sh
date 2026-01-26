@@ -507,7 +507,7 @@ wait_for_detection() {
         echo ""
         echo -e "  ${YELLOW}Troubleshooting:${NC}"
         echo "    1. Is file watcher running? Check backend logs"
-        echo "    2. Is RT-DETRv2 service running? ./scripts/start-ai.sh status"
+        echo "    2. Is YOLO26 service running? ./scripts/start-ai.sh status"
         echo "    3. Check file permissions on camera folder"
         echo "    4. Try: curl -s $API_URL/api/detections?camera_id=$CREATED_CAMERA_ID | jq ."
         return 1

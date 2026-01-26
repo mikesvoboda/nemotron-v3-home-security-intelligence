@@ -13,8 +13,8 @@ Fault Types:
 
 Usage:
     @pytest.mark.chaos
-    async def test_detector_timeout(fault_injector, rtdetr_timeout):
-        # The rtdetr_timeout fixture injects a timeout fault
+    async def test_detector_timeout(fault_injector, yolo26_timeout):
+        # The yolo26_timeout fixture injects a timeout fault
         # Test that the system handles this gracefully
         ...
 """
@@ -95,10 +95,10 @@ class FaultInjector:
         injector = FaultInjector()
 
         # Add a fault
-        injector.inject("rtdetr", FaultConfig(FaultType.TIMEOUT))
+        injector.inject("yolo26", FaultConfig(FaultType.TIMEOUT))
 
         # Check if fault is active
-        if injector.is_active("rtdetr"):
+        if injector.is_active("yolo26"):
             # Handle degraded path
 
         # Clear all faults
@@ -115,7 +115,7 @@ class FaultInjector:
         """Inject a fault for a service.
 
         Args:
-            service: Name of the service (e.g., "rtdetr", "redis", "database")
+            service: Name of the service (e.g., "yolo26", "redis", "database")
             config: Fault configuration
 
         Returns:
@@ -202,6 +202,7 @@ class FaultInjector:
 
         if config.fault_type == FaultType.INTERMITTENT:
             # Random failure based on rate - not cryptographic, just for testing
+            # nosemgrep: insecure-random
             return random.random() < config.failure_rate  # noqa: S311
 
         return True
@@ -244,42 +245,42 @@ def fault_injector() -> Generator[FaultInjector]:
 
 
 # =============================================================================
-# RT-DETR Service Fault Fixtures
+# YOLO26 Service Fault Fixtures
 # =============================================================================
 
 
 @pytest.fixture
-def rtdetr_timeout(fault_injector: FaultInjector) -> Generator[FaultInjector]:
-    """Simulate RT-DETR detection service timeout.
+def yolo26_timeout(fault_injector: FaultInjector) -> Generator[FaultInjector]:
+    """Simulate YOLO26 detection service timeout.
 
     The detector will hang for 30 seconds then raise TimeoutError.
     """
-    fault_injector.inject("rtdetr", FaultConfig(FaultType.TIMEOUT, delay_seconds=30.0))
+    fault_injector.inject("yolo26", FaultConfig(FaultType.TIMEOUT, delay_seconds=30.0))
 
     async def slow_detect(*args: Any, **kwargs: Any) -> None:
-        fault_injector.record_call("rtdetr", True)
+        fault_injector.record_call("yolo26", True)
         await asyncio.sleep(0.1)  # Short delay for tests, actual timeout from httpx
-        raise httpx.TimeoutException("RT-DETR timeout")
+        raise httpx.TimeoutException("YOLO26 timeout")
 
     with patch("httpx.AsyncClient.post", side_effect=slow_detect):
         yield fault_injector
 
 
 @pytest.fixture
-def rtdetr_connection_error(fault_injector: FaultInjector) -> Generator[FaultInjector]:
-    """Simulate RT-DETR connection failure.
+def yolo26_connection_error(fault_injector: FaultInjector) -> Generator[FaultInjector]:
+    """Simulate YOLO26 connection failure.
 
     The detector service is unreachable (connection refused).
     """
     fault_injector.inject(
-        "rtdetr",
+        "yolo26",
         FaultConfig(
-            FaultType.CONNECTION_ERROR, error_message="Connection refused: RT-DETR unreachable"
+            FaultType.CONNECTION_ERROR, error_message="Connection refused: YOLO26 unreachable"
         ),
     )
 
     async def connection_refused(*args: Any, **kwargs: Any) -> None:
-        fault_injector.record_call("rtdetr", True)
+        fault_injector.record_call("yolo26", True)
         raise httpx.ConnectError("Connection refused")
 
     with patch("httpx.AsyncClient.post", side_effect=connection_refused):
@@ -287,18 +288,18 @@ def rtdetr_connection_error(fault_injector: FaultInjector) -> Generator[FaultInj
 
 
 @pytest.fixture
-def rtdetr_server_error(fault_injector: FaultInjector) -> Generator[FaultInjector]:
-    """Simulate RT-DETR server error (500).
+def yolo26_server_error(fault_injector: FaultInjector) -> Generator[FaultInjector]:
+    """Simulate YOLO26 server error (500).
 
     The detector service returns HTTP 500 errors.
     """
     fault_injector.inject(
-        "rtdetr",
+        "yolo26",
         FaultConfig(FaultType.SERVER_ERROR, error_code=500, error_message="Internal error"),
     )
 
     async def server_error(*args: Any, **kwargs: Any) -> None:
-        fault_injector.record_call("rtdetr", True)
+        fault_injector.record_call("yolo26", True)
         response = httpx.Response(500, json={"error": "Internal server error"})
         raise httpx.HTTPStatusError("Server error", request=MagicMock(), response=response)
 
@@ -307,20 +308,20 @@ def rtdetr_server_error(fault_injector: FaultInjector) -> Generator[FaultInjecto
 
 
 @pytest.fixture
-def rtdetr_intermittent(fault_injector: FaultInjector) -> Generator[FaultInjector]:
-    """Simulate intermittent RT-DETR failures (50% failure rate).
+def yolo26_intermittent(fault_injector: FaultInjector) -> Generator[FaultInjector]:
+    """Simulate intermittent YOLO26 failures (50% failure rate).
 
     Half of the requests will fail randomly.
     """
-    fault_injector.inject("rtdetr", FaultConfig(FaultType.INTERMITTENT, failure_rate=0.5))
+    fault_injector.inject("yolo26", FaultConfig(FaultType.INTERMITTENT, failure_rate=0.5))
 
     original_post = httpx.AsyncClient.post
 
     async def maybe_fail(self: Any, *args: Any, **kwargs: Any) -> Any:
-        if fault_injector.should_inject("rtdetr"):
-            fault_injector.record_call("rtdetr", True)
+        if fault_injector.should_inject("yolo26"):
+            fault_injector.record_call("yolo26", True)
             raise httpx.TimeoutException("Intermittent timeout")
-        fault_injector.record_call("rtdetr", False)
+        fault_injector.record_call("yolo26", False)
         return await original_post(self, *args, **kwargs)
 
     with patch.object(httpx.AsyncClient, "post", maybe_fail):
@@ -618,10 +619,10 @@ def all_ai_services_down(
 ) -> Generator[FaultInjector]:
     """Simulate all AI services being unavailable.
 
-    Both RT-DETR and Nemotron services are unreachable.
+    Both YOLO26 and Nemotron services are unreachable.
     """
     fault_injector.inject(
-        "rtdetr", FaultConfig(FaultType.UNAVAILABLE, error_message="RT-DETR unavailable")
+        "yolo26", FaultConfig(FaultType.UNAVAILABLE, error_message="YOLO26 unavailable")
     )
     fault_injector.inject(
         "nemotron", FaultConfig(FaultType.UNAVAILABLE, error_message="Nemotron unavailable")
@@ -630,8 +631,8 @@ def all_ai_services_down(
     async def ai_error(*args: Any, **kwargs: Any) -> None:
         # Determine which service based on URL
         url = args[0] if args else kwargs.get("url", "")
-        if "detect" in str(url) or "rtdetr" in str(url).lower():
-            fault_injector.record_call("rtdetr", True)
+        if "detect" in str(url) or "yolo26" in str(url).lower():
+            fault_injector.record_call("yolo26", True)
         else:
             fault_injector.record_call("nemotron", True)
         raise httpx.ConnectError("AI service unavailable")
@@ -652,7 +653,7 @@ def cache_and_ai_down(
         "redis", FaultConfig(FaultType.UNAVAILABLE, error_message="Redis unavailable")
     )
     fault_injector.inject(
-        "rtdetr", FaultConfig(FaultType.UNAVAILABLE, error_message="RT-DETR unavailable")
+        "yolo26", FaultConfig(FaultType.UNAVAILABLE, error_message="YOLO26 unavailable")
     )
 
     async def redis_error(*args: Any, **kwargs: Any) -> None:
@@ -660,8 +661,8 @@ def cache_and_ai_down(
         raise RedisConnectionError("Redis unavailable")
 
     async def ai_error(*args: Any, **kwargs: Any) -> None:
-        fault_injector.record_call("rtdetr", True)
-        raise httpx.ConnectError("RT-DETR unavailable")
+        fault_injector.record_call("yolo26", True)
+        raise httpx.ConnectError("YOLO26 unavailable")
 
     with (
         patch("backend.core.redis.RedisClient.get", side_effect=redis_error),

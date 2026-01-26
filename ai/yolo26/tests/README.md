@@ -105,7 +105,7 @@ This allows tests to run in CI environments without GPU access.
 
 ## Test Pattern
 
-Tests follow the pattern used in `ai/rtdetr/test_model.py`:
+Tests follow the pattern used in `ai/yolo26/test_model.py`:
 
 1. **Unit tests for Pydantic models** - Validate request/response schemas
 2. **Model class tests** - Test core detection logic with mocked YOLO

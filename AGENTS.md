@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through RT-DETRv2 for object detection and Nemotron for contextual risk assessment.
+This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and Nemotron for contextual risk assessment.
 
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Tailwind + Tremor
 - **Backend:** Python FastAPI + PostgreSQL + Redis
-- **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
+- **AI:** YOLO26 (object detection) + Nemotron via llama.cpp (risk reasoning)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
 
@@ -84,7 +84,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ```
 /
 ├── ai/                   # AI model scripts and configs
-│   ├── rtdetr/           # RT-DETRv2 detection server
+│   ├── yolo26/           # YOLO26 detection server
 │   ├── nemotron/         # Nemotron model files
 │   ├── florence/         # Florence-2 dense captioning
 │   ├── clip/             # CLIP embedding service
@@ -249,7 +249,7 @@ cd frontend && npm test
 ## Data Flow
 
 1. Cameras FTP upload images/videos to `/export/foscam/{camera_name}/`
-2. File watcher detects new files, sends to RT-DETRv2
+2. File watcher detects new files, sends to YOLO26
 3. Detections accumulate in Redis queue
 4. Every 90 seconds (or 30s idle), batch sent to Nemotron for risk assessment
 5. Results stored in PostgreSQL, pushed to dashboard via WebSocket
@@ -331,7 +331,7 @@ cd frontend && npm test
 | ----------- | ---- | -------------------------------------- |
 | Frontend    | 5173 | Vite dev server                        |
 | Backend API | 8000 | FastAPI REST + WebSocket               |
-| RT-DETRv2   | 8090 | Object detection (container with GPU)  |
+| YOLO26      | 8090 | Object detection (container with GPU)  |
 | Nemotron    | 8091 | LLM risk analysis (container with GPU) |
 | Redis       | 6379 | Cache and queues                       |
 

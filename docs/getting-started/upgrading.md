@@ -159,7 +159,7 @@ When new model versions are released:
 ```bash
 # View current models
 ls -la ai/nemotron/*.gguf
-# RT-DETRv2 weights are cached by HuggingFace; verify detector health instead:
+# YOLO26 weights are cached by HuggingFace; verify detector health instead:
 # curl http://localhost:8090/health
 ```
 
@@ -191,7 +191,7 @@ Major changes in v1.0:
 
 1. **Database schema changes** - Full migration required
 2. **New configuration format** - Check `.env.example` for new variables
-3. **Model runtime change** - RT-DETRv2 runs via PyTorch + HuggingFace Transformers (no separate ONNX artifact required)
+3. **Model runtime change** - YOLO26 runs via PyTorch + HuggingFace Transformers (no separate ONNX artifact required)
 
 ```bash
 # Full upgrade process for 0.x -> 1.0
@@ -205,7 +205,7 @@ cp .env.example .env
 ./ai/download_models.sh
 
 # If you previously had local ONNX/PT artifacts checked in or copied, you can remove them:
-rm -f ai/rtdetr/*.onnx ai/rtdetr/*.pt
+rm -f ai/yolo26/*.onnx ai/yolo26/*.pt
 
 # Database migration
 podman-compose -f docker-compose.prod.yml up -d postgres

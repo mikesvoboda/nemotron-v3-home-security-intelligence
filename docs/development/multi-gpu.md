@@ -51,7 +51,7 @@ The system is optimized for configurations like:
 | Service       | Model                        | VRAM Estimate  |
 | ------------- | ---------------------------- | -------------- |
 | ai-llm        | Nemotron-3-Nano-30B (Q4_K_M) | ~21.7 GB       |
-| ai-detector   | RT-DETRv2                    | ~650 MB        |
+| ai-detector   | YOLO26                       | ~650 MB        |
 | ai-florence   | Florence-2-Large             | ~1.5 GB        |
 | ai-clip       | CLIP ViT-L                   | ~1.2 GB        |
 | ai-enrichment | Model Zoo (9 models)         | ~6.8 GB budget |

@@ -28,9 +28,9 @@ Usage:
     # Create a managed service
     service = ManagedService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26v2",
         container_id="abc123",
-        image="ghcr.io/.../rtdetr:latest",
+        image="ghcr.io/.../yolo26:latest",
         port=8090,
         health_endpoint="/health",
         category=ServiceCategory.AI,
@@ -107,7 +107,7 @@ class ManagedService:
 
     Attributes:
         name: Service identifier (e.g., "postgres", "ai-detector", "grafana")
-        display_name: Human-readable name (e.g., "PostgreSQL", "RT-DETRv2")
+        display_name: Human-readable name (e.g., "PostgreSQL", "YOLO26v2")
         container_id: Docker container ID or None if not yet discovered
         image: Container image (e.g., "postgres:16-alpine") or None
         port: Primary service port

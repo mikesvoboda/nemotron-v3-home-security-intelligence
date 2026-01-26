@@ -163,8 +163,8 @@ curl http://localhost:8000/api/system/health/full
   },
   "ai_services": [
     {
-      "name": "rtdetr",
-      "display_name": "RT-DETRv2 Object Detection",
+      "name": "yolo26",
+      "display_name": "YOLO26 Object Detection",
       "status": "healthy",
       "url": "http://ai-detector:8090",
       "response_time_ms": 45.2,
@@ -178,7 +178,7 @@ curl http://localhost:8000/api/system/health/full
     "half_open": 0,
     "closed": 5,
     "breakers": {
-      "rtdetr": "closed",
+      "yolo26": "closed",
       "nemotron": "closed"
     }
   },
@@ -214,7 +214,7 @@ Critical services must be healthy for the system to be considered ready.
 | ---------- | ------------------- | ----------------- | ------------- |
 | PostgreSQL | 99.9%               | 100ms             | 60s           |
 | Redis      | 99.9%               | 50ms              | 30s           |
-| RT-DETR    | 99.5%               | 5000ms            | 60s           |
+| YOLO26     | 99.5%               | 5000ms            | 60s           |
 | Nemotron   | 99.5%               | 10000ms           | 120s          |
 
 ### Non-Critical Services
@@ -233,7 +233,7 @@ Non-critical services can fail without blocking system readiness.
 | ---------------------- | --------- | --------------------------- | ------------------ |
 | API Availability       | 99.5%     | Non-5xx response ratio      | 30-day rolling     |
 | Event Processing       | P95 < 5s  | Event processing duration   | 30-day rolling     |
-| Detection Latency      | P95 < 2s  | RT-DETR inference time      | 30-day rolling     |
+| Detection Latency      | P95 < 2s  | YOLO26 inference time       | 30-day rolling     |
 | Analysis Latency       | P95 < 30s | Nemotron analysis time      | 30-day rolling     |
 | WebSocket Availability | 99%       | Successful connection ratio | 30-day rolling     |
 
@@ -316,7 +316,7 @@ GPU stats are delivered via `/ws/system` stream:
 
 | Service    | Health Endpoint | Recovery                    |
 | ---------- | --------------- | --------------------------- |
-| RT-DETRv2  | `GET /health`   | Restart via service manager |
+| YOLO26     | `GET /health`   | Restart via service manager |
 | Nemotron   | `GET /health`   | Restart via service manager |
 | Redis      | `PING` command  | Alert only                  |
 | PostgreSQL | Connection test | Alert only                  |
@@ -348,7 +348,7 @@ Recovery attempts use exponential backoff:
 {
   "type": "service_status",
   "data": {
-    "service": "rtdetr",
+    "service": "yolo26",
     "status": "unhealthy",
     "message": "Health check failed"
   },
@@ -428,7 +428,7 @@ CircuitBreakerConfig(
       "closed": 4
     },
     "breakers": {
-      "rtdetr": "open",
+      "yolo26": "open",
       "nemotron": "closed"
     }
   }
@@ -480,7 +480,7 @@ curl -X DELETE "http://localhost:8000/api/dlq/dlq:detection_queue"
     "file_path": "/export/foscam/front_door/image001.jpg",
     "camera_id": "front_door"
   },
-  "error": "Connection timeout to RT-DETRv2",
+  "error": "Connection timeout to YOLO26",
   "attempt_count": 3,
   "first_failed_at": "2025-12-30T10:00:00Z",
   "last_failed_at": "2025-12-30T10:01:30Z",
@@ -515,13 +515,13 @@ open http://localhost:9093
 
 ```
 # Circuit breaker state (0=closed, 1=open, 2=half_open)
-circuit_breaker_state{service="rtdetr"} 0
+circuit_breaker_state{service="yolo26"} 0
 
 # Health check latency
 health_check_latency_seconds{service="postgres"} 0.002
 
 # Service availability
-service_available{service="rtdetr"} 1
+service_available{service="yolo26"} 1
 ```
 
 ### Pre-Configured Alerts
@@ -628,7 +628,7 @@ open http://localhost:3002
 1. Test service endpoints directly:
 
    ```bash
-   curl http://localhost:8090/health  # RT-DETRv2
+   curl http://localhost:8090/health  # YOLO26
    curl http://localhost:8091/health  # Nemotron
    ```
 

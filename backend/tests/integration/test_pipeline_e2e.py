@@ -2,11 +2,11 @@
 
 Tests the full pipeline flow:
 1. FileWatcher detects new image in camera folder
-2. DetectorClient sends image to RT-DETRv2 and stores detections
+2. DetectorClient sends image to YOLO26 and stores detections
 3. BatchAggregator groups detections into batches
 4. NemotronAnalyzer analyzes batch and creates Event
 
-External services (RT-DETRv2, Nemotron) are mocked to avoid real HTTP calls.
+External services (YOLO26, Nemotron) are mocked to avoid real HTTP calls.
 
 NOTE: These tests are marked as slow because they test complex multi-step
 pipelines that require database setup and multiple service interactions.
@@ -413,7 +413,7 @@ async def test_camera(integration_db: str, clean_pipeline, tmp_path: Path) -> tu
 
 
 def create_mock_detector_response(detections: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Create a mock RT-DETRv2 detector response."""
+    """Create a mock YOLO26 detector response."""
     if detections is None:
         detections = [
             {

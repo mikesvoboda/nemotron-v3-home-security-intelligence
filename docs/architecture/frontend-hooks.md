@@ -61,7 +61,7 @@ flowchart TB
         useEventStream["useEventStream<br/>Security events<br/>/ws/events"]
         useSystemStatus["useSystemStatus<br/>System health updates<br/>/ws/system"]
         useConnectionStatus["useConnectionStatus<br/>Multi-channel manager<br/>Events + System channels"]
-        useServiceStatus["useServiceStatus<br/>Service health tracking<br/>rtdetr, nemotron, redis"]
+        useServiceStatus["useServiceStatus<br/>Service health tracking<br/>yolo26, nemotron, redis"]
         usePerformanceMetrics["usePerformanceMetrics<br/>Real-time performance<br/>Multi-resolution history"]
     end
 
@@ -1218,7 +1218,7 @@ const historicalData = history[timeRange];
 - Polls multiple endpoints: `/api/metrics`, `/api/system/telemetry`, `/api/system/health`, `/api/system/pipeline-latency`
 - Combines data from Prometheus metrics, health checks, and pipeline latency API
 - Configurable polling interval (default: 5000ms)
-- Provides RT-DETR and Nemotron model status
+- Provides YOLO26 and Nemotron model status
 - Tracks detection/analysis latency percentiles
 - Mount-safe state updates
 
@@ -1226,7 +1226,7 @@ const historicalData = history[timeRange];
 
 ```typescript
 interface AIPerformanceState {
-  rtdetr: AIModelStatus;
+  yolo26: AIModelStatus;
   nemotron: AIModelStatus;
   detectionLatency: AILatencyMetrics | null;
   analysisLatency: AILatencyMetrics | null;
@@ -1256,8 +1256,8 @@ const { data, isLoading, error, refresh } = useAIMetrics({
   pollingInterval: 5000,
 });
 
-if (data.rtdetr.status === 'healthy') {
-  console.log(`RT-DETR latency P95: ${data.detectionLatency?.p95}ms`);
+if (data.yolo26.status === 'healthy') {
+  console.log(`YOLO26 latency P95: ${data.detectionLatency?.p95}ms`);
 }
 ```
 
@@ -1272,7 +1272,7 @@ if (data.rtdetr.status === 'healthy') {
 **Features**:
 
 - Subscribes to `/ws/events` and filters for `service_status` messages
-- Tracks status for each monitored service (rtdetr, nemotron, redis)
+- Tracks status for each monitored service (yolo26, nemotron, redis)
 - Provides derived flags: `hasUnhealthy`, `isAnyRestarting`
 - Service status types: healthy, unhealthy, restarting, restart_failed, failed
 - Uses `buildWebSocketOptions()` for URL construction
@@ -1280,7 +1280,7 @@ if (data.rtdetr.status === 'healthy') {
 **Type Definitions**:
 
 ```typescript
-type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+type ServiceName = 'redis' | 'yolo26' | 'nemotron';
 type ServiceStatusType = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
 
 interface ServiceStatus {
@@ -1307,9 +1307,9 @@ if (hasUnhealthy) {
   console.log('Warning: One or more services are unhealthy');
 }
 
-const rtdetrStatus = getServiceStatus('rtdetr');
-if (rtdetrStatus?.status === 'restarting') {
-  console.log(`RT-DETR is restarting: ${rtdetrStatus.message}`);
+const yolo26Status = getServiceStatus('yolo26');
+if (yolo26Status?.status === 'restarting') {
+  console.log(`YOLO26 is restarting: ${yolo26Status.message}`);
 }
 ```
 

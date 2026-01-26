@@ -617,9 +617,9 @@ class TestServiceStatusBroadcasts:
         recovery_status = {
             "type": "service_status",
             "data": {
-                "service": "rtdetr",
+                "service": "yolo26",
                 "status": "healthy",
-                "message": "RT-DETR service recovered successfully",
+                "message": "YOLO26 service recovered successfully",
             },
             "timestamp": datetime.now(UTC).isoformat(),
         }
@@ -632,18 +632,18 @@ class TestServiceStatusBroadcasts:
         # THEN: Clients should receive the recovery notification
         assert len(received_messages) > 0
 
-        # Find the rtdetr recovery message (may have received other messages from previous tests)
+        # Find the yolo26 recovery message (may have received other messages from previous tests)
         received = next(
             (
                 m
                 for m in reversed(received_messages)
-                if m.get("data", {}).get("service") == "rtdetr"
+                if m.get("data", {}).get("service") == "yolo26"
             ),
             None,
         )
-        assert received is not None, "Should receive rtdetr recovery message"
+        assert received is not None, "Should receive yolo26 recovery message"
         assert received["type"] == "service_status"
-        assert received["data"]["service"] == "rtdetr"
+        assert received["data"]["service"] == "yolo26"
         assert received["data"]["status"] == "healthy"
 
 

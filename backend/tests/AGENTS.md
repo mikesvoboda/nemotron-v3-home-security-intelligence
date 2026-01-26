@@ -490,7 +490,7 @@ async def test_external_api_call():
     ...
 
 @pytest.mark.gpu
-async def test_rtdetr_inference():
+async def test_yolo26_inference():
     """Test that requires GPU for object detection."""
     ...
 
@@ -563,7 +563,7 @@ Complete pipeline tests from file detection to event creation.
 
 ### GPU Tests (`gpu/`) - 1 test file
 
-Tests for RT-DETRv2 and Nemotron service integration.
+Tests for YOLO26 and Nemotron service integration.
 
 - `test_detector_integration.py`: GPU service health, inference, performance
 
@@ -590,7 +590,7 @@ Chaos engineering tests that inject faults into services to ensure graceful degr
 - `test_network_conditions.py`: Network latency and reliability issues
 - `test_pubsub_failures.py`: Redis pub/sub failures
 - `test_redis_failures.py`: Redis cache/queue service failures
-- `test_rtdetr_failures.py`: RT-DETR object detection service failures
+- `test_yolo26_failures.py`: YOLO26 object detection service failures
 - `test_timeout_cascade.py`: Cascading timeout scenarios
 
 ### Contract Tests (`contracts/`) - 4 test files

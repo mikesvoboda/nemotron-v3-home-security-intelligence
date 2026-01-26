@@ -101,18 +101,18 @@ The regenerated image is titled "Detection Queue" and shows:
 
 - Left side: FIFO Queue Head with stacked items (ITEM_ID_001 through ITEM_ID_007) with FIFO Queue Tail at bottom
 - Center: BLPOP Operation label, DetectionQueueWorker box with Retry Handler and DLQ Router
-- Right side: RT-DETRv2 Detector showing "Real-Time Object Detection" with Inference Engine
+- Right side: YOLO26 Detector showing "Real-Time Object Detection" with Inference Engine
 - Clear paths for Retry Path (Backoff), Successful Processing, and DLQ Routing (Max Retries Exceeded)
 - Bottom right: DLQ (Dead Letter Queue) with "Failed Items Storage" and "Manual Review"
 
 **Scoring:**
 
-| Criterion            | Score | Rationale                                                                                                                                                            |
-| -------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Relevance            | 5/5   | Accurately represents detection-queue.md: FIFO queue structure, BLPOP operation, worker processing, RT-DETRv2 connection, DLQ routing                                |
-| Clarity              | 5/5   | Conventional queue visualization with clear item stacking; labeled operations; distinct flow paths for success vs failure                                            |
-| Technical Accuracy   | 5/5   | Correctly shows: BLPOP semantics, DetectionQueueWorker, Retry Handler with backoff, DLQ Router, RT-DETRv2 Detector endpoint, Failed Items Storage with Manual Review |
-| Professional Quality | 5/5   | Clean layout with consistent styling; appropriate use of color (green for success, orange for retry, red for DLQ); labels are clear and informative                  |
+| Criterion            | Score | Rationale                                                                                                                                                         |
+| -------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Relevance            | 5/5   | Accurately represents detection-queue.md: FIFO queue structure, BLPOP operation, worker processing, YOLO26 connection, DLQ routing                                |
+| Clarity              | 5/5   | Conventional queue visualization with clear item stacking; labeled operations; distinct flow paths for success vs failure                                         |
+| Technical Accuracy   | 5/5   | Correctly shows: BLPOP semantics, DetectionQueueWorker, Retry Handler with backoff, DLQ Router, YOLO26 Detector endpoint, Failed Items Storage with Manual Review |
+| Professional Quality | 5/5   | Clean layout with consistent styling; appropriate use of color (green for success, orange for retry, red for DLQ); labels are clear and informative               |
 
 **New Average:** 5.00 (+1.25 improvement)
 
@@ -124,7 +124,7 @@ The regenerated image is titled "Detection Queue" and shows:
 2. Added explicit BLPOP operation label
 3. Added Retry Handler with backoff path
 4. Added DLQ Router showing Max Retries Exceeded path
-5. Shows connection to RT-DETRv2 detector service
+5. Shows connection to YOLO26 detector service
 6. Includes DLQ storage with Manual Review indication
 
 ---
@@ -255,7 +255,7 @@ The regenerated image is titled "DETECTION PIPELINE HERO IMAGE: MULTI-STAGE PROC
 
 **Center - Three distinct stages in boxes:**
 
-- STAGE 1: DETECTION - RT-DETRv2 with GPU Processing icon
+- STAGE 1: DETECTION - YOLO26 with GPU Processing icon
 - STAGE 2: BATCHING - Aggregator / Queue Management with batch icon
 - STAGE 3: ANALYSIS - Advanced Inference / Insight Generation with Nemotron Brain icon
 
@@ -266,12 +266,12 @@ The regenerated image is titled "DETECTION PIPELINE HERO IMAGE: MULTI-STAGE PROC
 
 **Scoring:**
 
-| Criterion            | Score | Rationale                                                                                                                                                                                                                                                                                            |
-| -------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Relevance            | 5/5   | Now explicitly shows the multi-stage pipeline: File Watcher -> Detection (RT-DETRv2) -> Batching (Aggregator/Queue) -> Analysis (Nemotron) -> Outputs (Events + WebSocket)                                                                                                                           |
-| Clarity              | 5/5   | Clear left-to-right flow with labeled stages; each stage in distinct box with appropriate icon; inputs and outputs clearly marked                                                                                                                                                                    |
-| Technical Accuracy   | 4/5   | Correctly shows key components: RT-DETRv2 for detection, GPU Processing, Aggregator/Queue Management for batching, Nemotron Brain for analysis, WebSocket broadcast. Minor: could show the two separate queues (detection_queue and analysis_queue) but simplification is appropriate for hero image |
-| Professional Quality | 5/5   | Modern dark theme with neon accents; clear visual hierarchy; excellent for executive presentations; title clearly states purpose                                                                                                                                                                     |
+| Criterion            | Score | Rationale                                                                                                                                                                                                                                                                                         |
+| -------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Relevance            | 5/5   | Now explicitly shows the multi-stage pipeline: File Watcher -> Detection (YOLO26) -> Batching (Aggregator/Queue) -> Analysis (Nemotron) -> Outputs (Events + WebSocket)                                                                                                                           |
+| Clarity              | 5/5   | Clear left-to-right flow with labeled stages; each stage in distinct box with appropriate icon; inputs and outputs clearly marked                                                                                                                                                                 |
+| Technical Accuracy   | 4/5   | Correctly shows key components: YOLO26 for detection, GPU Processing, Aggregator/Queue Management for batching, Nemotron Brain for analysis, WebSocket broadcast. Minor: could show the two separate queues (detection_queue and analysis_queue) but simplification is appropriate for hero image |
+| Professional Quality | 5/5   | Modern dark theme with neon accents; clear visual hierarchy; excellent for executive presentations; title clearly states purpose                                                                                                                                                                  |
 
 **New Average:** 4.75 (+1.00 improvement)
 
@@ -281,7 +281,7 @@ The regenerated image is titled "DETECTION PIPELINE HERO IMAGE: MULTI-STAGE PROC
 
 1. Added explicit stage labels (Stage 1: Detection, Stage 2: Batching, Stage 3: Analysis)
 2. Shows queue-based architecture with Aggregator/Queue Management
-3. Includes specific technology references (RT-DETRv2, Nemotron)
+3. Includes specific technology references (YOLO26, Nemotron)
 4. Clear input (Camera Sources) and output (Events, WebSocket) representation
 5. Title explicitly states "MULTI-STAGE PROCESSING"
 

@@ -260,30 +260,49 @@ if result.anomaly_score > 0.5:
 
 ## Environment Variables
 
-| Variable            | Default              | Description                          |
-| ------------------- | -------------------- | ------------------------------------ |
-| `CLIP_MODEL_PATH`   | `/models/clip-vit-l` | HuggingFace model path               |
-| `HOST`              | `0.0.0.0`            | Bind address                         |
-| `PORT`              | `8093`               | Server port                          |
-| `HF_HOME`           | `/cache/huggingface` | HuggingFace cache dir                |
-| `CLIP_USE_TENSORRT` | `false`              | Enable TensorRT backend (true/false) |
-| `CLIP_ENGINE_PATH`  | (none)               | Path to TensorRT engine file         |
+| Variable            | Default                                         | Description                             |
+| ------------------- | ----------------------------------------------- | --------------------------------------- |
+| `CLIP_MODEL_PATH`   | `/models/clip-vit-l`                            | HuggingFace model path                  |
+| `HOST`              | `0.0.0.0`                                       | Bind address                            |
+| `PORT`              | `8093`                                          | Server port                             |
+| `HF_HOME`           | `/cache/huggingface`                            | HuggingFace cache dir                   |
+| `CLIP_USE_TENSORRT` | `true`                                          | Enable TensorRT backend (true/false)    |
+| `CLIP_ENGINE_PATH`  | `/models/clip-vit-l/vision_encoder_fp16.engine` | Path to TensorRT engine (auto-exported) |
 
 ## TensorRT Acceleration (NEM-3838)
 
-TensorRT provides 1.5-2x faster inference for embedding extraction. To enable:
+TensorRT provides 1.5-2x faster inference for embedding extraction.
 
-### 1. Export ONNX Model
+### Auto-Export (Default)
+
+TensorRT is **enabled by default** and **auto-exports** the engine on first startup:
+
+- If `CLIP_USE_TENSORRT=true` and engine doesn't exist, it will be auto-exported
+- Export takes ~2-5 minutes on first run (ONNX export + TensorRT build)
+- Subsequent startups use the cached engine (~60s startup)
+- Falls back to PyTorch automatically if TensorRT export fails
+
+### Manual Export (Optional)
+
+For pre-building engines before deployment:
 
 ```bash
+# Full pipeline: export + validate + convert
+python export_onnx.py pipeline \
+    --model-path /models/clip-vit-l \
+    --output-dir /models/clip-vit-l \
+    --precision fp16
+```
+
+Or step-by-step:
+
+```bash
+# 1. Export ONNX Model
 python export_onnx.py export \
     --model-path /models/clip-vit-l \
     --output /models/clip-vit-l/vision_encoder.onnx
-```
 
-### 2. Convert to TensorRT
-
-```bash
+# 2. Convert to TensorRT
 python export_onnx.py tensorrt \
     --onnx /models/clip-vit-l/vision_encoder.onnx \
     --output /models/clip-vit-l/vision_encoder_fp16.engine \
@@ -291,20 +310,12 @@ python export_onnx.py tensorrt \
     --max-batch 8
 ```
 
-### 3. Enable TensorRT in Environment
+### Disabling TensorRT
+
+To use PyTorch backend instead:
 
 ```bash
-export CLIP_USE_TENSORRT=true
-export CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
-```
-
-### Full Pipeline (export + validate + convert)
-
-```bash
-python export_onnx.py pipeline \
-    --model-path /models/clip-vit-l \
-    --output-dir /models/clip-vit-l \
-    --precision fp16
+export CLIP_USE_TENSORRT=false
 ```
 
 ### Validation

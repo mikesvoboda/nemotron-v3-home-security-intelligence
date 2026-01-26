@@ -311,14 +311,14 @@ class ServiceUnavailableError(AppException):
     """Exception for external service errors (HTTP 503).
 
     Raised when an external dependency is unavailable:
-    - AI service (RT-DETRv2, Nemotron) unavailable
+    - AI service (YOLO26v2, Nemotron) unavailable
     - Database connection failure
     - Redis unavailable
 
     Example:
         raise ServiceUnavailableError(
             message="Object detection service temporarily unavailable",
-            details={"service": "rtdetr", "retry_after": 30},
+            details={"service": "yolo26", "retry_after": 30},
         )
     """
 

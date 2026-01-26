@@ -1,7 +1,7 @@
 """Combined Enrichment Service for Detection Classification.
 
 HTTP server hosting multiple smaller classification models for enriching
-RT-DETRv2 detections with additional attributes.
+YOLO26v2 detections with additional attributes.
 
 Models hosted:
 1. Vehicle Segment Classification (~1.5GB) - ResNet-50 for vehicle type/color
@@ -435,8 +435,10 @@ class PetClassifier:
 
         logger.info("Loading Pet Classifier model...")
 
-        self.processor = AutoImageProcessor.from_pretrained(self.model_path)
-        self.model = AutoModelForImageClassification.from_pretrained(self.model_path)
+        self.processor = AutoImageProcessor.from_pretrained(self.model_path, local_files_only=True)
+        self.model = AutoModelForImageClassification.from_pretrained(
+            self.model_path, local_files_only=True
+        )
 
         # Move to device
         if "cuda" in self.device and torch.cuda.is_available():
@@ -1004,8 +1006,10 @@ class DepthEstimator:
 
         logger.info("Loading Depth Anything V2 model...")
 
-        self.processor = AutoImageProcessor.from_pretrained(self.model_path)
-        self.model = AutoModelForDepthEstimation.from_pretrained(self.model_path)
+        self.processor = AutoImageProcessor.from_pretrained(self.model_path, local_files_only=True)
+        self.model = AutoModelForDepthEstimation.from_pretrained(
+            self.model_path, local_files_only=True
+        )
 
         # Move to device
         if "cuda" in self.device and torch.cuda.is_available():
@@ -1799,6 +1803,27 @@ async def lifespan(_app: FastAPI):
         f"OnDemandModelManager initialized with {vram_budget_gb}GB VRAM budget. "
         f"Registered {len(model_manager.model_registry)} models for on-demand loading."
     )
+
+    # Preload specified models at startup (optional, for keeping models resident)
+    # Set ENRICHMENT_PRELOAD_MODELS=vehicle_classifier,fashion_clip to preload
+    preload_models = os.environ.get("ENRICHMENT_PRELOAD_MODELS", "").strip()
+    if preload_models:
+        model_names = [m.strip() for m in preload_models.split(",") if m.strip()]
+        logger.info(f"Preloading {len(model_names)} models: {model_names}")
+        for model_name in model_names:
+            if model_name in model_manager.model_registry:
+                try:
+                    await model_manager.get_model(model_name)
+                    logger.info(f"Preloaded model: {model_name}")
+                except Exception as e:
+                    logger.error(f"Failed to preload {model_name}: {e}")
+            else:
+                logger.warning(f"Unknown model for preload: {model_name}")
+
+        # Log memory usage after preload
+        if torch.cuda.is_available():
+            mem_used = torch.cuda.memory_allocated() / 1e9
+            logger.info(f"GPU memory after preload: {mem_used:.2f} GB")
 
     yield
 

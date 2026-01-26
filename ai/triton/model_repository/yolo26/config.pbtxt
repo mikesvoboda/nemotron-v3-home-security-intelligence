@@ -1,28 +1,27 @@
 # YOLO26 Object Detection Model Configuration for Triton Inference Server
 #
-# This configuration defines the YOLO26m model for object detection in home security
-# monitoring. YOLO26 is a modern YOLO variant optimized for real-time detection.
+# This configuration defines the YOLO26 model for object detection in home security
+# monitoring. The model detects security-relevant objects: person, car, truck, dog,
+# cat, bird, bicycle, motorcycle, bus.
 #
 # TensorRT Plan Format: Uses pre-converted TensorRT engine for optimal inference
 # Dynamic Batching: Enables automatic request batching for throughput optimization
 #
 # Usage:
-#   1. Export YOLO26 to TensorRT: python ai/yolo26/export_tensorrt.py
-#   2. Place yolo26m_fp16.engine as ai/triton/model_repository/yolo26/1/model.plan
-#   3. Start Triton server with this model repository
-#
-# Note: YOLO26 is an alternative to RT-DETR. Use one or the other based on
-# the DETECTOR_TYPE setting in the backend configuration.
+#   1. Export YOLO26 to ONNX: python ai/yolo26/export_onnx.py
+#   2. Convert ONNX to TensorRT plan: trtexec --onnx=yolo26.onnx --saveEngine=model.plan --fp16
+#   3. Place model.plan in ai/triton/model_repository/yolo26/1/
+#   4. Start Triton server with this model repository
 
 name: "yolo26"
 platform: "tensorrt_plan"
 
 # Maximum batch size for dynamic batching
-# YOLO models typically handle larger batches efficiently
+# Higher values increase throughput but also increase latency for individual requests
 max_batch_size: 8
 
 # Input tensor specification
-# YOLO expects NCHW format RGB images (typically 640x640)
+# YOLO26 expects NCHW format RGB images
 input [
   {
     name: "images"
@@ -33,36 +32,48 @@ input [
 ]
 
 # Output tensor specifications
-# YOLO26 outputs combined detection tensor with boxes, scores, and classes
+# YOLO26 outputs bounding boxes, scores, and labels
 output [
   {
-    # YOLO outputs all detections in a single tensor
-    # Format: [batch, num_detections, 6] where 6 = [x1, y1, x2, y2, confidence, class_id]
-    name: "output0"
+    name: "labels"
+    data_type: TYPE_INT64
+    dims: [ 300 ]  # Max 300 detections per image
+  },
+  {
+    name: "boxes"
     data_type: TYPE_FP32
-    dims: [ -1, 6 ]  # -1 indicates variable number of detections
+    dims: [ 300, 4 ]  # [x1, y1, x2, y2] format
+  },
+  {
+    name: "scores"
+    data_type: TYPE_FP32
+    dims: [ 300 ]  # Confidence scores
   }
 ]
 
 # Dynamic batching configuration for automatic request coalescing
+# This significantly improves GPU utilization under load
 dynamic_batching {
   # Preferred batch sizes for scheduling
-  # YOLO models are efficient with larger batches
+  # Triton will wait briefly to accumulate requests to these batch sizes
   preferred_batch_size: [ 2, 4, 8 ]
 
   # Maximum time to wait for more requests to batch (in microseconds)
-  # YOLO is faster than RT-DETR, so we can use a shorter delay
-  max_queue_delay_microseconds: 50000
+  # 100ms is a good trade-off between latency and throughput for object detection
+  max_queue_delay_microseconds: 100000
 
-  # Preserve input ordering
+  # Preserve input ordering - detections returned in request order
   preserve_ordering: true
 
-  # Priority configuration
+  # Default priority level for requests (optional, enables priority scheduling)
   default_priority_level: 1
+
+  # Priority levels configuration (1=high, 2=medium, 3=low)
   priority_levels: 3
 }
 
 # Instance group configuration
+# Specifies GPU allocation and model instances
 instance_group [
   {
     count: 1
@@ -71,7 +82,7 @@ instance_group [
   }
 ]
 
-# Version policy
+# Version policy - always use the latest model version
 version_policy: { latest: { num_versions: 1 }}
 
 # Model parameters
@@ -80,22 +91,24 @@ parameters: {
   value: { string_value: "0.5" }
 }
 
-parameters: {
-  key: "iou_threshold"
-  value: { string_value: "0.45" }
-}
-
-# Optimization settings
+# Optimization settings for TensorRT
 optimization {
+  # Enable CUDA graph optimization for reduced kernel launch overhead
+  # Provides 10-30% latency improvement for small batch sizes
   cuda {
     graphs: true
     busy_wait_events: true
   }
+
+  # Input cache optimization
   input_pinned_memory { enable: true }
+
+  # Output cache optimization
   output_pinned_memory { enable: true }
 }
 
 # Model warmup configuration
+# Pre-runs inference to load model weights into GPU memory
 model_warmup [
   {
     name: "warmup_yolo26"
@@ -107,6 +120,24 @@ model_warmup [
         dims: [ 3, 640, 640 ]
         zero_data: true
       }
+    }
+  }
+]
+
+# Response cache configuration (optional, disabled by default)
+# Uncomment to enable caching of inference results
+# response_cache {
+#   enable: true
+# }
+
+# Metrics configuration
+# Enables per-model metrics for monitoring
+metrics [
+  {
+    name: "yolo26_inference_count"
+    labels {
+      key: "model"
+      value: "yolo26"
     }
   }
 ]

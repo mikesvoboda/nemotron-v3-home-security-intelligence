@@ -27,11 +27,11 @@ class TestSecretStrFields:
         assert field_info is not None
         assert "SecretStr" in str(field_info.annotation)
 
-    def test_rtdetr_api_key_is_secretstr(self):
-        """Test that rtdetr_api_key field is SecretStr type."""
+    def test_yolo26_api_key_is_secretstr(self):
+        """Test that yolo26_api_key field is SecretStr type."""
         from backend.core.config import Settings
 
-        field_info = Settings.model_fields.get("rtdetr_api_key")
+        field_info = Settings.model_fields.get("yolo26_api_key")
         assert field_info is not None
         assert "SecretStr" in str(field_info.annotation)
 

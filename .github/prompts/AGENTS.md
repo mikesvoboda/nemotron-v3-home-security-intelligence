@@ -72,7 +72,7 @@ The prompt provides context about the project tech stack:
 
 - **Backend**: Python 3.14, FastAPI, SQLAlchemy, Redis, PostgreSQL
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Tremor, Vite
-- **AI Pipeline**: RT-DETRv2 (object detection), Nemotron via llama.cpp
+- **AI Pipeline**: YOLO26 (object detection), Nemotron via llama.cpp
 - **Infrastructure**: Docker/Podman, NVIDIA RTX A5500 GPU
 
 ## Usage

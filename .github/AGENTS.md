@@ -104,7 +104,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Contents:**
 
-- Tech stack overview (FastAPI, React, RT-DETRv2, Nemotron)
+- Tech stack overview (FastAPI, React, YOLO26, Nemotron)
 - Coding conventions for Python and TypeScript
 - Domain context (security monitoring concepts)
 - What NOT to suggest (auth, cloud services, alternative frameworks)

@@ -267,7 +267,7 @@ export interface paths {
          *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
          *
          *     Typical latency ranges (ms):
-         *     - watch_to_detect: 50-200ms (file processing + RT-DETR inference)
+         *     - watch_to_detect: 50-200ms (file processing + YOLO26 inference)
          *     - detect_to_batch: 10-50ms (detection aggregation)
          *     - batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)
          *     - total_pipeline: 5100-15300ms (end-to-end)
@@ -4152,12 +4152,12 @@ export interface paths {
          *
          *     The response includes:
          *     - **overall_status**: healthy/degraded/critical based on service availability
-         *     - **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)
+         *     - **services**: Individual health status for each AI service (yolo26, nemotron, florence, clip, enrichment)
          *     - **queues**: Current depth of detection and analysis queues with DLQ counts
          *
          *     HTTP Status Codes:
          *     - **200**: All services operational or system is degraded but functional
-         *     - **503**: Critical services (rtdetr, nemotron) are unhealthy
+         *     - **503**: Critical services (yolo26, nemotron) are unhealthy
          */
         get: operations["health_get_ai_services_health"];
         put?: never;
@@ -6536,7 +6536,7 @@ export interface paths {
          *     including their VRAM requirements, loading status, and configuration.
          *
          *     **VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,
-         *     separate from the RT-DETRv2 detector and Nemotron LLM allocations.
+         *     separate from the YOLO26v2 detector and Nemotron LLM allocations.
          *
          *     **Loading Strategy**: Models are loaded sequentially (one at a time) to
          *     prevent VRAM fragmentation and ensure stable operation.
@@ -6674,7 +6674,7 @@ export interface paths {
          *
          *     Collects and returns real-time metrics from all system components:
          *     - GPU: Utilization, VRAM usage, temperature, power consumption
-         *     - AI Models: RT-DETRv2 and Nemotron status and resource usage
+         *     - AI Models: YOLO26v2 and Nemotron status and resource usage
          *     - Inference: Latency percentiles and throughput metrics
          *     - Databases: PostgreSQL and Redis connection status and performance
          *     - Host: CPU, RAM, and disk usage
@@ -6796,7 +6796,7 @@ export interface paths {
          * @description Get pipeline latency metrics with percentiles.
          *
          *     Returns latency statistics for each stage transition in the AI pipeline:
-         *     - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+         *     - watch_to_detect: Time from file watcher detecting image to YOLO26 processing start
          *     - detect_to_batch: Time from detection completion to batch aggregation
          *     - batch_to_analyze: Time from batch completion to Nemotron analysis start
          *     - total_pipeline: Total end-to-end processing time
@@ -8472,9 +8472,9 @@ export interface components {
          *     and response time metrics.
          * @example {
          *       "circuit_state": "closed",
-         *       "display_name": "RT-DETRv2 Object Detection",
+         *       "display_name": "YOLO26 Object Detection",
          *       "last_check": "2026-01-08T10:30:00Z",
-         *       "name": "rtdetr",
+         *       "name": "yolo26",
          *       "response_time_ms": 45.2,
          *       "status": "healthy",
          *       "url": "http://ai-detector:8090"
@@ -8503,7 +8503,7 @@ export interface components {
             last_check?: string | null;
             /**
              * Name
-             * @description Service identifier (e.g., 'rtdetr', 'nemotron')
+             * @description Service identifier (e.g., 'yolo26', 'nemotron')
              */
             name: string;
             /**
@@ -8600,7 +8600,7 @@ export interface components {
          *           "status": "healthy",
          *           "url": "http://llm-analyzer:8080"
          *         },
-         *         "rtdetr": {
+         *         "yolo26": {
          *           "circuit_state": "closed",
          *           "error_rate_1h": 0.02,
          *           "last_health_check": "2026-01-20T12:00:00Z",
@@ -8820,10 +8820,10 @@ export interface components {
         };
         /**
          * AiModelMetrics
-         * @description Metrics for RT-DETRv2 model.
+         * @description Metrics for YOLO26v2 model.
          * @example {
          *       "device": "cuda:0",
-         *       "model": "rtdetr_r50vd_coco_o365",
+         *       "model": "yolo26_r50vd_coco_o365",
          *       "status": "healthy",
          *       "vram_gb": 0.17
          *     }
@@ -8906,7 +8906,7 @@ export interface components {
          *           "vram_required_mb": 8192
          *         },
          *         {
-         *           "description": "RT-DETR real-time object detection",
+         *           "description": "YOLO26 real-time object detection",
          *           "display_name": "Object Detector",
          *           "name": "ai-detector",
          *           "vram_required_gb": 2,
@@ -10342,7 +10342,7 @@ export interface components {
          *           "day_of_week": "Wednesday",
          *           "model_contributions": {
          *             "florence": 38,
-         *             "rtdetr": 45
+         *             "yolo26": 45
          *           }
          *         },
          *         {
@@ -10353,7 +10353,7 @@ export interface components {
          *           "day_of_week": "Thursday",
          *           "model_contributions": {
          *             "florence": 45,
-         *             "rtdetr": 52
+         *             "yolo26": 52
          *           }
          *         },
          *         {
@@ -10364,7 +10364,7 @@ export interface components {
          *           "day_of_week": "Friday",
          *           "model_contributions": {
          *             "florence": 30,
-         *             "rtdetr": 38
+         *             "yolo26": 38
          *           }
          *         }
          *       ],
@@ -10375,8 +10375,8 @@ export interface components {
          *       "model_contribution_rates": {
          *         "clothing": 0.72,
          *         "florence": 0.85,
-         *         "rtdetr": 0.98,
-         *         "weather": 0.95
+         *         "weather": 0.95,
+         *         "yolo26": 0.98
          *       },
          *       "total_events": 1250
          *     }
@@ -11629,7 +11629,7 @@ export interface components {
          *         "enrichment": "closed",
          *         "florence": "open",
          *         "nemotron": "closed",
-         *         "rtdetr": "closed"
+         *         "yolo26": "closed"
          *       },
          *       "closed": 4,
          *       "half_open": 0,
@@ -11671,7 +11671,7 @@ export interface components {
          * @description Response schema for circuit breakers status endpoint.
          * @example {
          *       "circuit_breakers": {
-         *         "rtdetr": {
+         *         "yolo26": {
          *           "config": {
          *             "failure_threshold": 5,
          *             "half_open_max_calls": 3,
@@ -11679,7 +11679,7 @@ export interface components {
          *             "success_threshold": 2
          *           },
          *           "failure_count": 0,
-         *           "name": "rtdetr",
+         *           "name": "yolo26",
          *           "rejected_calls": 0,
          *           "state": "closed",
          *           "success_count": 0,
@@ -12809,10 +12809,10 @@ export interface components {
          *         "florence": 38,
          *         "image_quality": 40,
          *         "pet": 3,
-         *         "rtdetr": 45,
          *         "vehicle": 8,
          *         "violence": 5,
          *         "weather": 42,
+         *         "yolo26": 45,
          *         "zones": 30
          *       }
          *     }
@@ -13009,7 +13009,7 @@ export interface components {
          *         {
          *           "consecutive_failures": 0,
          *           "last_check": 1735500000,
-         *           "name": "rtdetr",
+         *           "name": "yolo26",
          *           "status": "healthy"
          *         }
          *       ]
@@ -13630,7 +13630,7 @@ export interface components {
          * DetectionSettings
          * @description Detection-related settings for object detection thresholds.
          *
-         *     Controls the confidence thresholds used by RT-DETRv2 for object detection
+         *     Controls the confidence thresholds used by YOLO26 for object detection
          *     and fast-path processing for high-priority alerts.
          * @example {
          *       "confidence_threshold": 0.5,
@@ -14786,10 +14786,10 @@ export interface components {
          *         "florence": true,
          *         "image_quality": true,
          *         "pet": false,
-         *         "rtdetr": true,
          *         "vehicle": false,
          *         "violence": false,
          *         "weather": true,
+         *         "yolo26": true,
          *         "zones": true
          *       },
          *       "enrichment_utilization": 0.85,
@@ -16737,7 +16737,7 @@ export interface components {
          *
          *     Aggregates health status from all services:
          *     - Infrastructure (postgres, redis)
-         *     - AI services (rtdetr, nemotron, florence, clip, enrichment)
+         *     - AI services (yolo26, nemotron, florence, clip, enrichment)
          *     - Circuit breakers
          *     - Background workers
          *
@@ -16748,9 +16748,9 @@ export interface components {
          *       "ai_services": [
          *         {
          *           "circuit_state": "closed",
-         *           "display_name": "RT-DETRv2 Object Detection",
+         *           "display_name": "YOLO26 Object Detection",
          *           "last_check": "2026-01-08T10:30:00Z",
-         *           "name": "rtdetr",
+         *           "name": "yolo26",
          *           "response_time_ms": 45.2,
          *           "status": "healthy",
          *           "url": "http://ai-detector:8090"
@@ -16759,7 +16759,7 @@ export interface components {
          *       "circuit_breakers": {
          *         "breakers": {
          *           "nemotron": "closed",
-         *           "rtdetr": "closed"
+         *           "yolo26": "closed"
          *         },
          *         "closed": 5,
          *         "half_open": 0,
@@ -18035,14 +18035,14 @@ export interface components {
          *         "analysis": 0,
          *         "detection": 0
          *       },
-         *       "rtdetr_latency_ms": {
-         *         "avg": 45,
-         *         "p95": 82,
-         *         "p99": 120
-         *       },
          *       "throughput": {
          *         "events_per_min": 2.1,
          *         "images_per_min": 12.4
+         *       },
+         *       "yolo26_latency_ms": {
+         *         "avg": 45,
+         *         "p95": 82,
+         *         "p99": 120
          *       }
          *     }
          */
@@ -18069,17 +18069,17 @@ export interface components {
                 [key: string]: number;
             };
             /**
-             * Rtdetr Latency Ms
-             * @description RT-DETRv2 latency stats (avg, p95, p99)
-             */
-            rtdetr_latency_ms: {
-                [key: string]: number;
-            };
-            /**
              * Throughput
              * @description Throughput metrics (images_per_min, events_per_min)
              */
             throughput: {
+                [key: string]: number;
+            };
+            /**
+             * Yolo26 Latency Ms
+             * @description YOLO26v2 latency stats (avg, p95, p99)
+             */
+            yolo26_latency_ms: {
                 [key: string]: number;
             };
         };
@@ -19155,7 +19155,7 @@ export interface components {
          *         {
          *           "contribution_rate": 0.98,
          *           "event_count": 1200,
-         *           "model_name": "rtdetr",
+         *           "model_name": "yolo26",
          *           "quality_correlation": 0.85
          *         },
          *         {
@@ -19615,10 +19615,10 @@ export interface components {
          *       "florence": true,
          *       "image_quality": true,
          *       "pet": false,
-         *       "rtdetr": true,
          *       "vehicle": false,
          *       "violence": false,
          *       "weather": true,
+         *       "yolo26": true,
          *       "zones": true
          *     }
          */
@@ -19666,12 +19666,6 @@ export interface components {
              */
             pet: boolean;
             /**
-             * Rtdetr
-             * @description RT-DETR object detection
-             * @default false
-             */
-            rtdetr: boolean;
-            /**
              * Vehicle
              * @description Vehicle classification
              * @default false
@@ -19689,6 +19683,12 @@ export interface components {
              * @default false
              */
             weather: boolean;
+            /**
+             * Yolo26
+             * @description YOLO26 object detection
+             * @default false
+             */
+            yolo26: boolean;
             /**
              * Zones
              * @description Zone analysis
@@ -19905,7 +19905,7 @@ export interface components {
             vram_available_mb: number;
             /**
              * Vram Budget Mb
-             * @description Total VRAM budget available for Model Zoo models (excludes Nemotron and RT-DETRv2)
+             * @description Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26)
              */
             vram_budget_mb: number;
             /**
@@ -21058,9 +21058,9 @@ export interface components {
          *     All fields are optional to allow partial updates.
          * @example {
          *       "ai_models": {
-         *         "rtdetr": {
+         *         "yolo26": {
          *           "device": "cuda:0",
-         *           "model": "rtdetr",
+         *           "model": "yolo26",
          *           "status": "healthy",
          *           "vram_gb": 0.17
          *         }
@@ -21230,7 +21230,7 @@ export interface components {
          *
          *     Pipeline stages:
          *     - watch: File watcher detecting new images (file event -> queue)
-         *     - detect: RT-DETRv2 object detection (image -> detections)
+         *     - detect: YOLO26 object detection (image -> detections)
          *     - batch: Batch aggregation window (detections -> batch)
          *     - analyze: Nemotron LLM risk analysis (batch -> event)
          * @example {
@@ -21277,7 +21277,7 @@ export interface components {
             analyze?: components["schemas"]["StageLatency"] | null;
             /** @description Batch aggregation window time */
             batch?: components["schemas"]["StageLatency"] | null;
-            /** @description Object detection stage latency (RT-DETRv2 inference) */
+            /** @description Object detection stage latency (YOLO26 inference) */
             detect?: components["schemas"]["StageLatency"] | null;
             /** @description File watcher stage latency (file event to queue) */
             watch?: components["schemas"]["StageLatency"] | null;
@@ -21336,7 +21336,7 @@ export interface components {
          * @description Response schema for pipeline latency endpoint.
          *
          *     Provides latency metrics for each stage transition in the AI pipeline:
-         *     - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+         *     - watch_to_detect: Time from file watcher detecting image to YOLO26 processing start
          *     - detect_to_batch: Time from detection completion to batch aggregation
          *     - batch_to_analyze: Time from batch completion to Nemotron analysis start
          *     - total_pipeline: Total end-to-end processing time
@@ -21394,7 +21394,7 @@ export interface components {
             timestamp: string;
             /** @description Total end-to-end pipeline latency */
             total_pipeline?: components["schemas"]["PipelineStageLatency"] | null;
-            /** @description Latency from file detection to RT-DETR processing */
+            /** @description Latency from file detection to YOLO26 processing */
             watch_to_detect?: components["schemas"]["PipelineStageLatency"] | null;
             /**
              * Window Minutes
@@ -21407,7 +21407,7 @@ export interface components {
          * @description Latency statistics for a single pipeline transition stage.
          *
          *     Tracks time between pipeline stages:
-         *     - watch_to_detect: File detection to RT-DETR processing
+         *     - watch_to_detect: File detection to YOLO26 processing
          *     - detect_to_batch: Detection to batch aggregation
          *     - batch_to_analyze: Batch to Nemotron analysis
          *     - total_pipeline: End-to-end latency
@@ -22431,7 +22431,7 @@ export interface components {
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             * @description Number of items in detection queue waiting for YOLO26 processing
              */
             detection_queue: number;
         };
@@ -22921,7 +22921,7 @@ export interface components {
         ReadinessResponse: {
             /**
              * Ai Warmth Status
-             * @description Warmth status of AI models (NEM-1670). Keys are model names (e.g., 'rtdetr', 'nemotron'), values are states: 'cold', 'warming', 'warm'
+             * @description Warmth status of AI models (NEM-1670). Keys are model names (e.g., 'yolo26', 'nemotron'), values are states: 'cold', 'warming', 'warm'
              */
             ai_warmth_status?: {
                 [key: string]: string;
@@ -24782,10 +24782,10 @@ export interface components {
          *       "service": {
          *         "category": "ai",
          *         "container_id": "abc123...",
-         *         "display_name": "RT-DETRv2",
+         *         "display_name": "YOLO26v2",
          *         "enabled": true,
          *         "failure_count": 0,
-         *         "image": "ghcr.io/.../rtdetr:latest",
+         *         "image": "ghcr.io/.../yolo26:latest",
          *         "last_restart_at": "2026-01-05T15:50:00Z",
          *         "name": "ai-detector",
          *         "port": 8090,
@@ -24941,10 +24941,10 @@ export interface components {
          * @example {
          *       "category": "ai",
          *       "container_id": "abc123def456",
-         *       "display_name": "RT-DETRv2",
+         *       "display_name": "YOLO26v2",
          *       "enabled": true,
          *       "failure_count": 0,
-         *       "image": "ghcr.io/.../rtdetr:latest",
+         *       "image": "ghcr.io/.../yolo26:latest",
          *       "last_restart_at": "2026-01-05T10:30:00Z",
          *       "name": "ai-detector",
          *       "port": 8090,
@@ -24963,7 +24963,7 @@ export interface components {
             container_id?: string | null;
             /**
              * Display Name
-             * @description Human-readable display name (e.g., 'RT-DETRv2', 'PostgreSQL')
+             * @description Human-readable display name (e.g., 'YOLO26v2', 'PostgreSQL')
              */
             display_name: string;
             /**
@@ -24980,7 +24980,7 @@ export interface components {
             failure_count: number;
             /**
              * Image
-             * @description Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../rtdetr:latest')
+             * @description Container image (e.g., 'postgres:16-alpine', 'ghcr.io/.../yolo26:latest')
              */
             image?: string | null;
             /**
@@ -25080,10 +25080,10 @@ export interface components {
          *         {
          *           "category": "ai",
          *           "container_id": "abc123...",
-         *           "display_name": "RT-DETRv2",
+         *           "display_name": "YOLO26v2",
          *           "enabled": true,
          *           "failure_count": 0,
-         *           "image": "ghcr.io/.../rtdetr:latest",
+         *           "image": "ghcr.io/.../yolo26:latest",
          *           "last_restart_at": "2026-01-05T10:30:00Z",
          *           "name": "ai-detector",
          *           "port": 8090,

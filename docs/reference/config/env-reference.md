@@ -99,7 +99,7 @@ REDIS_URL=rediss://redis-host:6379/0
 
 | Variable         | Required | Default                 | Description                             |
 | ---------------- | -------- | ----------------------- | --------------------------------------- |
-| `RTDETR_URL`     | No       | `http://localhost:8090` | RT-DETRv2 detection service URL         |
+| `YOLO26_URL`     | No       | `http://localhost:8090` | YOLO26 detection service URL            |
 | `NEMOTRON_URL`   | No       | `http://localhost:8091` | Nemotron LLM service URL                |
 | `FLORENCE_URL`   | No       | `http://localhost:8092` | Florence-2 vision-language service URL  |
 | `CLIP_URL`       | No       | `http://localhost:8093` | CLIP embedding service URL              |
@@ -109,10 +109,10 @@ REDIS_URL=rediss://redis-host:6379/0
 
 ### Service Authentication
 
-| Variable           | Required | Default | Description                   |
-| ------------------ | -------- | ------- | ----------------------------- |
-| `RTDETR_API_KEY`   | No       | -       | API key for RT-DETRv2 service |
-| `NEMOTRON_API_KEY` | No       | -       | API key for Nemotron service  |
+| Variable           | Required | Default | Description                  |
+| ------------------ | -------- | ------- | ---------------------------- |
+| `YOLO26_API_KEY`   | No       | -       | API key for YOLO26 service   |
+| `NEMOTRON_API_KEY` | No       | -       | API key for Nemotron service |
 
 ### Service Timeouts
 
@@ -182,7 +182,7 @@ disable them if you’re resource constrained or running without those services.
 | ------------------------- | -------- | ------- | ------- | ----------------------------------- |
 | `AI_CONNECT_TIMEOUT`      | No       | `10.0`  | 1-60s   | Connection timeout                  |
 | `AI_HEALTH_TIMEOUT`       | No       | `5.0`   | 1-30s   | Health check timeout                |
-| `RTDETR_READ_TIMEOUT`     | No       | `60.0`  | 10-300s | Detection response timeout          |
+| `YOLO26_READ_TIMEOUT`     | No       | `30.0`  | 5-120s  | Detection response timeout          |
 | `NEMOTRON_READ_TIMEOUT`   | No       | `120.0` | 30-600s | LLM response timeout                |
 | `FLORENCE_READ_TIMEOUT`   | No       | `30.0`  | 5-120s  | Florence-2 response timeout         |
 | `CLIP_READ_TIMEOUT`       | No       | `15.0`  | 5-60s   | CLIP embedding generation timeout   |
@@ -192,7 +192,7 @@ disable them if you’re resource constrained or running without those services.
 
 | Variable                 | Required | Default | Range | Description                           |
 | ------------------------ | -------- | ------- | ----- | ------------------------------------- |
-| `DETECTOR_MAX_RETRIES`   | No       | `3`     | 1-10  | Retry attempts for RT-DETR detector   |
+| `DETECTOR_MAX_RETRIES`   | No       | `3`     | 1-10  | Retry attempts for YOLO26 detector    |
 | `NEMOTRON_MAX_RETRIES`   | No       | `3`     | 1-10  | Retry attempts for Nemotron LLM       |
 | `ENRICHMENT_MAX_RETRIES` | No       | `3`     | 1-10  | Retry attempts for enrichment service |
 
@@ -713,7 +713,7 @@ The Model Zoo contains supplementary AI models loaded on-demand during batch pro
 - Weather classification
 - And more
 
-> **Note:** Models are loaded sequentially within a ~1,650 MB VRAM budget (shared with the primary Nemotron and RT-DETRv2 models).
+> **Note:** Models are loaded sequentially within a ~1,650 MB VRAM budget (shared with the primary Nemotron and YOLO26 models).
 
 ---
 

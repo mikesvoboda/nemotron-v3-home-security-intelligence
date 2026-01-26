@@ -23,7 +23,7 @@ def triton_config() -> TritonConfig:
         http_url="localhost:8000",
         protocol=TritonProtocol.GRPC,
         timeout=60.0,
-        default_model="rtdetr",
+        default_model="yolo26",
         max_retries=3,
         retry_delay=0.1,  # Fast retries for tests
         verbose=False,
@@ -62,8 +62,8 @@ def sample_image_array() -> np.ndarray:
 
 
 @pytest.fixture
-def mock_rtdetr_outputs() -> dict[str, np.ndarray]:
-    """Create mock RT-DETR model outputs."""
+def mock_yolo26_outputs() -> dict[str, np.ndarray]:
+    """Create mock YOLO26 model outputs."""
     num_detections = 300
 
     return {
@@ -134,7 +134,7 @@ def mock_grpc_client() -> Generator[MagicMock]:
 
     # Mock model metadata
     mock_metadata = MagicMock()
-    mock_metadata.name = "rtdetr"
+    mock_metadata.name = "yolo26"
     mock_metadata.versions = ["1"]
     mock_metadata.inputs = []
     mock_metadata.outputs = []

@@ -226,7 +226,7 @@ event_data = {
 {
   "type": "service_status",
   "data": {
-    "service": "rtdetr",
+    "service": "yolo26",
     "status": "restarting",
     "message": "Attempting restart (attempt 2/5)"
   },
@@ -367,9 +367,9 @@ from backend.services.event_broadcaster import get_event_broadcaster
 # Define services to monitor
 services = [
     ServiceConfig(
-        name="rtdetr",
+        name="yolo26",
         health_url="http://localhost:8090/health",
-        restart_cmd="docker restart rtdetr",
+        restart_cmd="docker restart yolo26",
         max_retries=5,
         backoff_base=5.0,
     ),

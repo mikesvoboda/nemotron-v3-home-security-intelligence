@@ -75,7 +75,7 @@ def create_mock_audit(
     audit.audited_at = datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC)
 
     # Model contributions
-    audit.has_rtdetr = True
+    audit.has_yolo26 = True
     audit.has_florence = False
     audit.has_clip = False
     audit.has_violence = False
@@ -264,7 +264,7 @@ class TestGetEventAuditEndpoint:
         assert data["id"] == 1
         assert data["event_id"] == 1
         assert data["is_fully_evaluated"] is True
-        assert data["contributions"]["rtdetr"] is True
+        assert data["contributions"]["yolo26"] is True
         assert data["contributions"]["florence"] is False
         assert data["scores"]["context_usage"] == 4.0
         assert data["scores"]["overall"] == 4.0
@@ -582,7 +582,7 @@ class TestGetAuditStatsEndpoint:
             "avg_consistency_rate": 4.5,
             "avg_enrichment_utilization": 0.35,
             "model_contribution_rates": {
-                "rtdetr": 1.0,
+                "yolo26": 1.0,
                 "florence": 0.5,
                 "clip": 0.3,
                 "violence": 0.1,
@@ -601,7 +601,7 @@ class TestGetAuditStatsEndpoint:
         assert data["audited_events"] == 100
         assert data["fully_evaluated_events"] == 75
         assert data["avg_quality_score"] == 4.2
-        assert data["model_contribution_rates"]["rtdetr"] == 1.0
+        assert data["model_contribution_rates"]["yolo26"] == 1.0
         assert len(data["audits_by_day"]) == 2
 
     def test_get_stats_with_days_param(
@@ -700,7 +700,7 @@ class TestGetLeaderboardEndpoint:
         """Test successful retrieval of model leaderboard."""
         mock_audit_service.get_leaderboard.return_value = [
             {
-                "model_name": "rtdetr",
+                "model_name": "yolo26",
                 "contribution_rate": 1.0,
                 "quality_correlation": 0.85,
                 "event_count": 100,
@@ -725,7 +725,7 @@ class TestGetLeaderboardEndpoint:
         data = response.json()
         assert len(data["entries"]) == 3
         assert data["period_days"] == 7  # Default
-        assert data["entries"][0]["model_name"] == "rtdetr"
+        assert data["entries"][0]["model_name"] == "yolo26"
         assert data["entries"][0]["contribution_rate"] == 1.0
         assert data["entries"][2]["quality_correlation"] is None
 
@@ -1132,7 +1132,7 @@ class TestAuditSchemas:
     def test_model_contributions_defaults(self) -> None:
         """Test ModelContributions has correct defaults."""
         contributions = ModelContributions()
-        assert contributions.rtdetr is False
+        assert contributions.yolo26 is False
         assert contributions.florence is False
         assert contributions.clip is False
         assert contributions.violence is False
@@ -1169,7 +1169,7 @@ class TestAuditSchemas:
             event_id=1,
             audited_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
             is_fully_evaluated=True,
-            contributions=ModelContributions(rtdetr=True, florence=True),
+            contributions=ModelContributions(yolo26=True, florence=True),
             prompt_length=1000,
             prompt_token_estimate=250,
             enrichment_utilization=0.5,
@@ -1180,7 +1180,7 @@ class TestAuditSchemas:
             improvements=PromptImprovements(missing_context=["time_of_day"]),
         )
         assert response.id == 1
-        assert response.contributions.rtdetr is True
+        assert response.contributions.yolo26 is True
         assert response.scores.overall == 4.0
 
     def test_audit_stats_response(self) -> None:
@@ -1192,21 +1192,21 @@ class TestAuditSchemas:
             avg_quality_score=4.2,
             avg_consistency_rate=4.5,
             avg_enrichment_utilization=0.35,
-            model_contribution_rates={"rtdetr": 1.0},
+            model_contribution_rates={"yolo26": 1.0},
             audits_by_day=[],
         )
         assert response.total_events == 100
-        assert response.model_contribution_rates["rtdetr"] == 1.0
+        assert response.model_contribution_rates["yolo26"] == 1.0
 
     def test_model_leaderboard_entry(self) -> None:
         """Test ModelLeaderboardEntry creation."""
         entry = ModelLeaderboardEntry(
-            model_name="rtdetr",
+            model_name="yolo26",
             contribution_rate=0.95,
             quality_correlation=0.82,
             event_count=100,
         )
-        assert entry.model_name == "rtdetr"
+        assert entry.model_name == "yolo26"
         assert entry.contribution_rate == 0.95
 
     def test_leaderboard_response(self) -> None:
@@ -1214,7 +1214,7 @@ class TestAuditSchemas:
         response = LeaderboardResponse(
             entries=[
                 ModelLeaderboardEntry(
-                    model_name="rtdetr",
+                    model_name="yolo26",
                     contribution_rate=1.0,
                     quality_correlation=None,
                     event_count=100,
@@ -1372,7 +1372,7 @@ class TestAuditToResponseConversion:
         from backend.api.routes.ai_audit import _audit_to_response
 
         audit = create_mock_audit(audit_id=1, event_id=1)
-        audit.has_rtdetr = True
+        audit.has_yolo26 = True
         audit.has_florence = True
         audit.has_clip = False
         audit.has_violence = True
@@ -1387,7 +1387,7 @@ class TestAuditToResponseConversion:
 
         response = _audit_to_response(audit)
 
-        assert response.contributions.rtdetr is True
+        assert response.contributions.yolo26 is True
         assert response.contributions.florence is True
         assert response.contributions.clip is False
         assert response.contributions.violence is True

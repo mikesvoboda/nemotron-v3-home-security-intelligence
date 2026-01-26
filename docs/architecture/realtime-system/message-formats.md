@@ -497,7 +497,7 @@ Pipeline worker state changes.
 
 **Worker Types**:
 
-- `detection` - RT-DETR detection worker
+- `detection` - YOLO26 detection worker
 - `analysis` - Nemotron analysis worker
 - `timeout` - Batch timeout worker
 - `metrics` - Metrics collection worker
@@ -571,7 +571,7 @@ Sent on `/ws/system` channel every 5 seconds.
       "temperature": 62
     },
     "services": {
-      "rtdetr": "healthy",
+      "yolo26": "healthy",
       "nemotron": "healthy",
       "redis": "healthy",
       "postgres": "healthy"

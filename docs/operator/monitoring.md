@@ -12,7 +12,7 @@ This guide covers the three core observability pillars:
 
 ## GPU Monitoring
 
-The GPU monitoring service (`GPUMonitor`) provides real-time metrics for NVIDIA GPUs used by AI services (RT-DETRv2 and Nemotron).
+The GPU monitoring service (`GPUMonitor`) provides real-time metrics for NVIDIA GPUs used by AI services (YOLO26 and Nemotron).
 
 ### How It Works
 
@@ -20,7 +20,7 @@ The GPU monitor uses a fallback strategy to collect metrics:
 
 1. **pynvml** (preferred) - Direct NVIDIA Management Library bindings for lowest latency
 2. **nvidia-smi** - Subprocess fallback when pynvml is unavailable (containerized environments)
-3. **AI Container Endpoints** - Queries RT-DETRv2 `/health` endpoint for GPU stats
+3. **AI Container Endpoints** - Queries YOLO26 `/health` endpoint for GPU stats
 4. **Mock Data** - Development mode when no GPU is available
 
 ### Metrics Tracked
@@ -128,7 +128,7 @@ nvidia-smi
 docker compose -f docker-compose.prod.yml logs backend | grep -i gpu
 
 # Test AI container health endpoint
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 ```
 
 **High memory pressure alerts:**
@@ -1092,7 +1092,7 @@ labels:
 **Supported Services:**
 
 - `backend` - FastAPI backend
-- `ai-detector` - RT-DETRv2 object detection
+- `ai-detector` - YOLO26 object detection
 - `ai-florence` - Florence-2 vision-language
 - `ai-enrichment` - Entity enrichment
 

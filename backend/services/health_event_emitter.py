@@ -8,7 +8,7 @@ status changes happen.
 Health Components Monitored:
 - database: PostgreSQL connection pool and query latency
 - redis: Redis connection status and memory usage
-- ai_service: llama.cpp server (Nemotron) and RT-DETRv2 health
+- ai_service: llama.cpp server (Nemotron) and YOLO26v2 health
 - gpu: CUDA availability and memory usage
 - storage: Disk space for /export/foscam/
 

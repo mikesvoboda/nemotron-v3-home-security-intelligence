@@ -104,12 +104,12 @@ class TestToServiceInfo:
         """Test conversion of ManagedService to ServiceInfo."""
         service = MockManagedService(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             enabled=True,
             container_id="abc123def456789",
-            image="ghcr.io/test/rtdetr:latest",
+            image="ghcr.io/test/yolo26:latest",
             port=8090,
             failure_count=2,
             restart_count=5,
@@ -119,12 +119,12 @@ class TestToServiceInfo:
         info = _to_service_info(service)
 
         assert info.name == "ai-detector"
-        assert info.display_name == "RT-DETRv2"
+        assert info.display_name == "YOLO26"
         assert info.category == ServiceCategory.AI
         assert info.status == ContainerServiceStatus.RUNNING
         assert info.enabled is True
         assert info.container_id == "abc123def456"  # Truncated to 12 chars
-        assert info.image == "ghcr.io/test/rtdetr:latest"
+        assert info.image == "ghcr.io/test/yolo26:latest"
         assert info.port == 8090
         assert info.failure_count == 2
         assert info.restart_count == 5
@@ -219,7 +219,7 @@ class TestListServicesEndpoint:
             ),
             MockManagedService(
                 name="ai-detector",
-                display_name="RT-DETRv2",
+                display_name="YOLO26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
                 port=8090,

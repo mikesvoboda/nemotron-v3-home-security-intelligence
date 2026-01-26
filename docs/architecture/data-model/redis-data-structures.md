@@ -30,7 +30,7 @@ The Redis client supports dedicated connection pools for different workload type
 
 **Type:** Redis List (FIFO)
 
-**Purpose:** Holds image paths waiting for RT-DETRv2 object detection.
+**Purpose:** Holds image paths waiting for YOLO26 object detection.
 
 **Operations:**
 

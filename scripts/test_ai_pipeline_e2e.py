@@ -2,7 +2,7 @@
 """End-to-end test for the AI model zoo pipeline.
 
 Tests all AI services in sequence:
-1. RT-DETRv2 (object detection) - port 8090
+1. YOLO26 (object detection) - port 8090
 2. Florence-2 (dense captioning) - port 8092
 3. CLIP (entity embeddings) - port 8093
 4. Enrichment (vehicle/pet/clothing) - port 8094
@@ -25,13 +25,13 @@ import httpx
 
 # Default service URLs for local development
 # These can be overridden via environment variables:
-#   RTDETR_URL     - RT-DETRv2 object detection (default: http://localhost:8090)
+#   YOLO26_URL     - YOLO26 object detection (default: http://localhost:8090)
 #   NEMOTRON_URL   - Nemotron LLM risk analysis (default: http://localhost:8091)
 #   FLORENCE_URL   - Florence-2 dense captioning (default: http://localhost:8092)
 #   CLIP_URL       - CLIP entity embeddings (default: http://localhost:8093)
 #   ENRICHMENT_URL - Enrichment service (default: http://localhost:8094)
 SERVICES = {
-    "detector": os.environ.get("RTDETR_URL", "http://localhost:8090"),
+    "detector": os.environ.get("YOLO26_URL", "http://localhost:8090"),
     "llm": os.environ.get("NEMOTRON_URL", "http://localhost:8091"),
     "florence": os.environ.get("FLORENCE_URL", "http://localhost:8092"),
     "clip": os.environ.get("CLIP_URL", "http://localhost:8093"),
@@ -72,7 +72,7 @@ def encode_image(image_path: str) -> str:
 
 
 def detect_objects(image_path: str, client: httpx.Client) -> tuple[list, float]:
-    """Run RT-DETRv2 object detection."""
+    """Run YOLO26 object detection."""
     start = time.time()
     with open(image_path, "rb") as f:
         files = {"file": (Path(image_path).name, f, "image/jpeg")}

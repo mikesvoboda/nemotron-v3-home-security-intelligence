@@ -60,7 +60,7 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 | Guide                                     | Covers                                             |
 | ----------------------------------------- | -------------------------------------------------- |
-| [AI Issues](ai-issues.md)                 | RT-DETRv2, Nemotron, pipeline, batch processing    |
+| [AI Issues](ai-issues.md)                 | YOLO26, Nemotron, pipeline, batch processing       |
 | [Connection Issues](connection-issues.md) | Network, containers, WebSocket, CORS, file watcher |
 | [Database Issues](database-issues.md)     | PostgreSQL connection, migrations, disk space      |
 | [GPU Issues](gpu-issues.md)               | CUDA, VRAM, temperature, container GPU access      |
@@ -125,7 +125,7 @@ curl -s http://localhost:8000/api/system/pipeline | jq .
 3. Check AI service health:
 
    ```bash
-   curl http://localhost:8090/health  # RT-DETRv2
+   curl http://localhost:8090/health  # YOLO26
    curl http://localhost:8091/health  # Nemotron
    ```
 
@@ -184,7 +184,7 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 **What You See:**
 
 - Health check shows AI services as unhealthy
-- Error: "RT-DETR service connection refused"
+- Error: "YOLO26 service connection refused"
 - Error: "Nemotron service connection refused"
 - No detections being created
 
@@ -206,14 +206,14 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
    ```bash
    ./scripts/start-ai.sh start
    # Or individually:
-   ./ai/start_detector.sh  # RT-DETRv2
+   ./ai/start_detector.sh  # YOLO26
    ./ai/start_llm.sh       # Nemotron
    ```
 
 2. Check for port conflicts:
 
    ```bash
-   lsof -i :8090  # RT-DETRv2 port
+   lsof -i :8090  # YOLO26 port
    lsof -i :8091  # Nemotron port
    ```
 
@@ -225,7 +225,7 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
 
 4. Check AI service logs:
    ```bash
-   cat /tmp/rtdetr-detector.log
+   cat /tmp/yolo26-detector.log
    cat /tmp/nemotron-llm.log
    ```
 

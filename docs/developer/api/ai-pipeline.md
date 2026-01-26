@@ -9,7 +9,7 @@ This guide covers the AI processing pipeline including enrichment, batch aggrega
 The AI pipeline processes camera images through these stages:
 
 1. **File Watch** - Monitor camera folders for new images
-2. **Detection** - RT-DETRv2 identifies objects in images
+2. **Detection** - YOLO26 identifies objects in images
 3. **Batching** - Group detections within 90-second time windows
 4. **Enrichment** - Vision model extracts attributes (clothing, carrying items)
 5. **Analysis** - Nemotron LLM generates risk assessments
@@ -26,7 +26,7 @@ flowchart LR
 
     subgraph Detection["Object Detection"]
         DQ[detection_queue]
-        RT[RT-DETRv2<br/>30-50ms]
+        RT[YOLO26<br/>30-50ms]
     end
 
     subgraph Processing["Batch Processing"]
@@ -901,7 +901,7 @@ flowchart TB
     subgraph Processing["Normal Processing"]
         DQ[detection_queue]
         AQ[analysis_queue]
-        RT[RT-DETRv2]
+        RT[YOLO26]
         NEM[Nemotron LLM]
     end
 
@@ -945,10 +945,10 @@ _Queue architecture showing normal processing flow and failure paths to dead let
 
 ### Queue Names
 
-| Queue Name            | Description                     |
-| --------------------- | ------------------------------- |
-| `dlq:detection_queue` | Failed RT-DETRv2 detection jobs |
-| `dlq:analysis_queue`  | Failed Nemotron analysis jobs   |
+| Queue Name            | Description                   |
+| --------------------- | ----------------------------- |
+| `dlq:detection_queue` | Failed YOLO26 detection jobs  |
+| `dlq:analysis_queue`  | Failed Nemotron analysis jobs |
 
 ### Get DLQ Statistics
 
@@ -1045,8 +1045,8 @@ Before jobs reach the DLQ, the system retries with exponential backoff:
 
 | Error                | Cause                           | Resolution                |
 | -------------------- | ------------------------------- | ------------------------- |
-| Connection refused   | RT-DETR service down            | Check AI container health |
-| Timeout              | RT-DETR overloaded              | Check GPU utilization     |
+| Connection refused   | YOLO26 service down             | Check AI container health |
+| Timeout              | YOLO26 overloaded               | Check GPU utilization     |
 | File not found       | Image deleted before processing | Check retention settings  |
 | Invalid image format | Corrupted image                 | Manual review             |
 
@@ -1166,8 +1166,8 @@ GET /api/system/circuit-breakers
 ```json
 {
   "circuit_breakers": {
-    "rtdetr": {
-      "name": "rtdetr",
+    "yolo26": {
+      "name": "yolo26",
       "state": "closed",
       "failure_count": 0,
       "total_calls": 100
@@ -1187,7 +1187,7 @@ GET /api/system/circuit-breakers
 ### Reset Circuit Breaker
 
 ```bash
-POST /api/system/circuit-breakers/rtdetr/reset
+POST /api/system/circuit-breakers/yolo26/reset
 X-API-Key: your-api-key
 ```
 

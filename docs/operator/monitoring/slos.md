@@ -36,7 +36,7 @@ The SLI/SLO framework provides quantifiable measures of service reliability and 
 | --------------- | --------------------------------------------------------------------------- |
 | **Target**      | P95 < 2 seconds                                                             |
 | **Window**      | 30-day rolling                                                              |
-| **SLI**         | 95th percentile of RT-DETR detection inference time                         |
+| **SLI**         | 95th percentile of YOLO26 detection inference time                          |
 | **Measurement** | `histogram_quantile(0.95, rate(hsi_detection_duration_seconds_bucket[5m]))` |
 
 **Error Budget:** 5% of detections may exceed 2s latency
@@ -220,7 +220,7 @@ The SLO dashboard (`monitoring/grafana/dashboards/slo.json`) provides:
 ### Metric Sources
 
 - **API metrics**: FastAPI middleware via Prometheus client
-- **Detection metrics**: RT-DETR service instrumentation
+- **Detection metrics**: YOLO26 service instrumentation
 - **Analysis metrics**: Nemotron service instrumentation
 - **WebSocket metrics**: WebSocket handler instrumentation
 - **Infrastructure metrics**: Redis exporter, PostgreSQL exporter

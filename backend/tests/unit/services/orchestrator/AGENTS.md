@@ -90,7 +90,7 @@ def test_model_status_from_string():
 ```python
 def test_model_config_validation():
     config = ModelConfig(
-        name="rtdetr",
+        name="yolo26",
         model_type="detection",
         priority=ModelPriority.CRITICAL,
         memory_mb=4096
@@ -114,20 +114,20 @@ async def test_register_service():
     registry = ServiceRegistry()
 
     await registry.register(
-        name="rtdetr-1",
+        name="yolo26-1",
         service_type="detection",
         endpoint="http://localhost:8090"
     )
 
     services = await registry.find_by_type("detection")
     assert len(services) == 1
-    assert services[0].name == "rtdetr-1"
+    assert services[0].name == "yolo26-1"
 
 @pytest.mark.asyncio
 async def test_load_balancing():
     registry = ServiceRegistry()
-    await registry.register("rtdetr-1", "detection", "http://host1:8090")
-    await registry.register("rtdetr-2", "detection", "http://host2:8090")
+    await registry.register("yolo26-1", "detection", "http://host1:8090")
+    await registry.register("yolo26-2", "detection", "http://host2:8090")
 
     # Should round-robin between instances
     endpoints = [await registry.get_endpoint("detection") for _ in range(4)]

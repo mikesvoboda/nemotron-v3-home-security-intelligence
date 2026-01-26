@@ -1,6 +1,6 @@
 # Resilience Patterns Hub
 
-This directory contains comprehensive documentation for the resilience patterns implemented in the Home Security Intelligence system. These patterns ensure reliable operation even when external services (RT-DETRv2, Nemotron LLM, Redis) experience failures.
+This directory contains comprehensive documentation for the resilience patterns implemented in the Home Security Intelligence system. These patterns ensure reliable operation even when external services (YOLO26, Nemotron LLM, Redis) experience failures.
 
 ## Pattern Overview
 
@@ -96,7 +96,7 @@ This directory contains comprehensive documentation for the resilience patterns 
 File Watcher
     |
     v
-Detection Queue --> DetectionQueueWorker --> RT-DETRv2
+Detection Queue --> DetectionQueueWorker --> YOLO26
     |                     |                     |
     |              CircuitBreaker          [Protected]
     |              RetryHandler
@@ -114,7 +114,7 @@ Analysis Queue --> AnalysisQueueWorker --> Nemotron LLM
 from backend.services.circuit_breaker import get_circuit_breaker
 
 # Get or create a named circuit breaker
-breaker = get_circuit_breaker("rtdetr")
+breaker = get_circuit_breaker("yolo26")
 
 # Check all circuit breaker states
 from backend.services.circuit_breaker import _get_registry

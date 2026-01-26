@@ -2,7 +2,7 @@
 
 This service aggregates metrics from:
 - GPU (via pynvml or AI container health endpoints)
-- AI models (RT-DETRv2 and Nemotron)
+- AI models (YOLO26v2 and Nemotron)
 - PostgreSQL database
 - Redis cache
 - Host system (via psutil)
@@ -40,7 +40,7 @@ THRESHOLDS: dict[str, dict[str, float]] = {
     "gpu_utilization": {"warning": 90, "critical": 98},
     "gpu_vram": {"warning": 90, "critical": 95},
     "gpu_power": {"warning": 300, "critical": 350},
-    "rtdetr_latency_p95": {"warning": 200, "critical": 500},
+    "yolo26_latency_p95": {"warning": 200, "critical": 500},
     "nemotron_latency_p95": {"warning": 10000, "critical": 30000},
     "pg_connections": {"warning": 0.8, "critical": 0.95},  # ratio
     "pg_cache_hit": {"warning": 90, "critical": 80},  # below these = alert
@@ -83,7 +83,7 @@ class PerformanceCollector:
     async def collect_all(self) -> PerformanceUpdate:
         """Collect all performance metrics."""
         gpu = await self.collect_gpu_metrics()
-        rtdetr = await self.collect_rtdetr_metrics()
+        yolo26 = await self.collect_yolo26_metrics()
         nemotron = await self.collect_nemotron_metrics()
         host = await self.collect_host_metrics()
         postgresql = await self.collect_postgresql_metrics()
@@ -93,8 +93,8 @@ class PerformanceCollector:
 
         # Build AI models dict
         ai_models: dict[str, AiModelMetrics | NemotronMetrics] = {}
-        if rtdetr:
-            ai_models["rtdetr"] = rtdetr
+        if yolo26:
+            ai_models["yolo26"] = yolo26
         if nemotron:
             ai_models["nemotron"] = nemotron
 
@@ -174,8 +174,8 @@ class PerformanceCollector:
         """
         try:
             client = await self._get_http_client()
-            # Try RT-DETRv2 health endpoint
-            resp = await client.get(f"{self._settings.rtdetr_url}/health")
+            # Try YOLO26 health endpoint
+            resp = await client.get(f"{self._settings.yolo26_url}/health")
             if resp.status_code == 200:
                 data = resp.json()
                 return {
@@ -190,22 +190,22 @@ class PerformanceCollector:
             logger.warning(f"GPU fallback failed: {e}")
         return None
 
-    async def collect_rtdetr_metrics(self) -> AiModelMetrics | None:
-        """Collect RT-DETRv2 model metrics."""
+    async def collect_yolo26_metrics(self) -> AiModelMetrics | None:
+        """Collect YOLO26 model metrics."""
         try:
             client = await self._get_http_client()
-            resp = await client.get(f"{self._settings.rtdetr_url}/health")
+            resp = await client.get(f"{self._settings.yolo26_url}/health")
             if resp.status_code == 200:
                 data = resp.json()
                 return AiModelMetrics(
                     status="healthy" if data.get("status") == "healthy" else "unhealthy",
                     vram_gb=data.get("vram_used_gb", 0),
-                    model=data.get("model_name", "rtdetr"),
+                    model=data.get("model_name", "yolo26"),
                     device=data.get("device", "unknown"),
                 )
         except Exception as e:
-            logger.warning(f"RT-DETRv2 metrics failed: {e}")
-        return AiModelMetrics(status="unreachable", vram_gb=0, model="rtdetr", device="unknown")
+            logger.warning(f"YOLO26 metrics failed: {e}")
+        return AiModelMetrics(status="unreachable", vram_gb=0, model="yolo26", device="unknown")
 
     async def collect_nemotron_metrics(self) -> NemotronMetrics | None:
         """Collect Nemotron LLM metrics."""
@@ -437,7 +437,7 @@ class PerformanceCollector:
         - frontend: GET /health (nginx health endpoint, configurable via FRONTEND_URL)
         - postgres: Checked via database metrics (status from collect_postgresql_metrics)
         - redis: Checked via redis ping (status from collect_redis_metrics)
-        - ai-detector: GET /health (RT-DETRv2 health endpoint)
+        - ai-detector: GET /health (YOLO26v2 health endpoint)
         - ai-llm: GET /health (Nemotron/llama.cpp health endpoint)
 
         Note: Backend is checked locally since we ARE the backend - if this code is
@@ -464,9 +464,9 @@ class PerformanceCollector:
         redis_health = await self._check_redis_health()
         results.append(redis_health)
 
-        # AI Detector (RT-DETRv2): Use configurable rtdetr_url
+        # AI Detector (YOLO26): Use configurable yolo26_url
         detector_health = await self._check_service_health(
-            client, "ai-detector", f"{self._settings.rtdetr_url}/health"
+            client, "ai-detector", f"{self._settings.yolo26_url}/health"
         )
         results.append(detector_health)
 
@@ -622,7 +622,7 @@ class PerformanceCollector:
             tracker = get_pipeline_latency_tracker()
 
             # Get stats for each pipeline stage (returns dict with avg_ms, p95_ms, p99_ms, etc.)
-            rtdetr_stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
+            yolo26_stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
             nemotron_stats = tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
             pipeline_stats = tracker.get_stage_stats("total_pipeline", window_minutes=5)
 
@@ -637,10 +637,10 @@ class PerformanceCollector:
                 logger.warning(f"Failed to get throughput metrics: {e}")
 
             return InferenceMetrics(
-                rtdetr_latency_ms={
-                    "avg": rtdetr_stats.get("avg_ms") or 0,
-                    "p95": rtdetr_stats.get("p95_ms") or 0,
-                    "p99": rtdetr_stats.get("p99_ms") or 0,
+                yolo26_latency_ms={
+                    "avg": yolo26_stats.get("avg_ms") or 0,
+                    "p95": yolo26_stats.get("p95_ms") or 0,
+                    "p99": yolo26_stats.get("p99_ms") or 0,
                 },
                 nemotron_latency_ms={
                     "avg": nemotron_stats.get("avg_ms") or 0,

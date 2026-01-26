@@ -55,7 +55,7 @@ Images containing people in various home security scenarios:
 
 **Used for:**
 
-- RT-DETRv2 person detection accuracy
+- YOLO26 person detection accuracy
 - Risk scoring for human presence
 - Nemotron risk analysis reasoning
 
@@ -69,7 +69,7 @@ Images containing animals without people:
 
 **Used for:**
 
-- RT-DETRv2 animal detection (cat, dog classes)
+- YOLO26 animal detection (cat, dog classes)
 - Low-risk event classification
 - False alarm reduction testing
 
@@ -83,7 +83,7 @@ Images containing vehicles in residential settings:
 
 **Used for:**
 
-- RT-DETRv2 vehicle detection (car, truck classes)
+- YOLO26 vehicle detection (car, truck classes)
 - Driveway monitoring scenarios
 - Risk scoring for unfamiliar vehicles
 
@@ -165,4 +165,4 @@ for image_path in IMAGES_DIR.glob("*.jpg"):
 - `/backend/tests/AGENTS.md` - Overview of test infrastructure
 - `/backend/tests/fixtures/AGENTS.md` - Parent fixtures directory
 - `/backend/tests/e2e/test_gpu_pipeline.py` - E2E tests using these images
-- `/ai/rtdetr/AGENTS.md` - RT-DETRv2 detection model documentation
+- `/ai/yolo26/AGENTS.md` - YOLO26 detection model documentation

@@ -50,7 +50,7 @@ curl http://localhost:8000/api/system/health/ready
 
 **AI VRAM Usage (Production):**
 
-- RT-DETRv2 (object detection): ~4GB
+- YOLO26 (object detection): ~4GB
 - Nemotron-3-Nano-30B (risk analysis): ~14.7GB
 - **Total required:** ~19GB concurrent (dev: ~7GB with Mini 4B)
 
@@ -62,7 +62,7 @@ curl http://localhost:8000/api/system/health/ready
 
 ```
 Camera uploads --> backend FileWatcher --> detection_queue
-  --> RT-DETRv2 (8090) --> detections (DB)
+  --> YOLO26 (8090) --> detections (DB)
   --> batching + enrichment
   --> Nemotron (8091) --> events (DB)
   --> WebSocket dashboard
@@ -75,7 +75,7 @@ Camera uploads --> backend FileWatcher --> detection_queue
 | Frontend   | 80   | Web dashboard (production)            |
 | Frontend   | 5173 | Web dashboard (development)           |
 | Backend    | 8000 | REST API + WebSocket                  |
-| RT-DETRv2  | 8090 | Object detection service              |
+| YOLO26     | 8090 | Object detection service              |
 | Nemotron   | 8091 | LLM risk analysis service             |
 | Florence-2 | 8092 | Vision extraction (optional)          |
 | CLIP       | 8093 | Re-identification (optional)          |
@@ -114,7 +114,7 @@ curl http://localhost:8000/api/system/health
 curl http://localhost:8000/api/system/health/full
 
 # AI services
-curl http://localhost:8090/health   # RT-DETRv2
+curl http://localhost:8090/health   # YOLO26
 curl http://localhost:8091/health   # Nemotron
 
 # Database
@@ -145,7 +145,7 @@ fuser -k /dev/nvidia*
 
 - [Complete Deployment Guide](deployment/) - Docker/Podman setup, compose files, GHCR images
 - [GPU Setup Guide](gpu-setup.md) - NVIDIA drivers, container toolkit, CDI
-- [AI Services Guide](ai-overview.md) - RT-DETRv2, Nemotron, optional services
+- [AI Services Guide](ai-overview.md) - YOLO26, Nemotron, optional services
 - [Deployment Modes](deployment-modes.md) - AI networking for different setups
 
 ### Monitoring

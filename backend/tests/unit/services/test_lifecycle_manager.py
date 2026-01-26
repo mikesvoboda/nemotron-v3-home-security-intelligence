@@ -83,12 +83,12 @@ def infrastructure_service() -> ManagedService:
 
 @pytest.fixture
 def ai_service() -> ManagedService:
-    """Create an AI service (RT-DETRv2-like)."""
+    """Create an AI service (YOLO26-like)."""
     return ManagedService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="def456",
-        image="ghcr.io/.../rtdetr:latest",
+        image="ghcr.io/.../yolo26:latest",
         port=8090,
         health_endpoint="/health",
         health_cmd=None,

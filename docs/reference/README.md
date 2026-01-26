@@ -26,7 +26,7 @@
 | Frontend    | 5173 | HTTP     | Vite dev server (development) or host port in production (default) |
 | Frontend    | 80   | HTTP     | Nginx inside production container (mapped via FRONTEND_PORT)       |
 | Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                           |
-| RT-DETRv2   | 8090 | HTTP     | Object detection service                                           |
+| YOLO26      | 8090 | HTTP     | Object detection service                                           |
 | Nemotron    | 8091 | HTTP     | LLM risk analysis service                                          |
 | Florence-2  | 8092 | HTTP     | Vision extraction service (optional)                               |
 | CLIP        | 8093 | HTTP     | Re-identification service (optional)                               |
@@ -46,7 +46,7 @@ Complete reference: [Environment Variable Reference](config/env-reference.md)
 | -------------- | -------- | -------------------------- | ------------------------- |
 | `DATABASE_URL` | **Yes**  | -                          | PostgreSQL connection URL |
 | `REDIS_URL`    | No       | `redis://localhost:6379/0` | Redis connection URL      |
-| `RTDETR_URL`   | No       | `http://localhost:8090`    | RT-DETRv2 service URL     |
+| `YOLO26_URL`   | No       | `http://localhost:8090`    | YOLO26 service URL        |
 | `NEMOTRON_URL` | No       | `http://localhost:8091`    | Nemotron LLM service URL  |
 
 ### Database Configuration
@@ -81,7 +81,7 @@ REDIS_URL=redis://redis:6379/0
 
 | Variable         | Default                 | Description                           |
 | ---------------- | ----------------------- | ------------------------------------- |
-| `RTDETR_URL`     | `http://localhost:8090` | RT-DETRv2 object detection service    |
+| `YOLO26_URL`     | `http://localhost:8090` | YOLO26 object detection service       |
 | `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service                  |
 | `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision-language (optional) |
 | `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service (optional)     |
@@ -95,7 +95,7 @@ REDIS_URL=redis://redis:6379/0
 | ----------------------- | ------- | ------- | -------------------------- |
 | `AI_CONNECT_TIMEOUT`    | `10.0`  | 1-60s   | Connection timeout         |
 | `AI_HEALTH_TIMEOUT`     | `5.0`   | 1-30s   | Health check timeout       |
-| `RTDETR_READ_TIMEOUT`   | `60.0`  | 10-300s | Detection response timeout |
+| `YOLO26_READ_TIMEOUT`   | `60.0`  | 10-300s | Detection response timeout |
 | `NEMOTRON_READ_TIMEOUT` | `120.0` | 30-600s | LLM response timeout       |
 
 ### Batch Processing
@@ -140,7 +140,7 @@ AI services run directly on the host while the backend runs in a container:
 
 ```bash
 # macOS with Docker Desktop (default)
-RTDETR_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 
 # macOS with Podman
@@ -157,7 +157,7 @@ All services including AI run in containers:
 
 ```bash
 # Uses container network names (set in docker-compose.prod.yml)
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 ```
 
@@ -179,19 +179,19 @@ Key terms used throughout the documentation. Full glossary: [Glossary](glossary.
 
 ### Core Concepts
 
-| Term           | Definition                                                                                                                         |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Detection**  | A single object instance identified by RT-DETRv2 in an image. Contains object type, confidence score, bounding box, and timestamp. |
-| **Event**      | A security incident containing one or more detections, analyzed by Nemotron for risk assessment.                                   |
-| **Batch**      | A collection of detections from a single camera grouped within a time window for analysis.                                         |
-| **Risk Score** | A numeric value from 0-100 assigned by Nemotron indicating the threat level of an event.                                           |
-| **Risk Level** | Categorical classification: Low (0-29), Medium (30-59), High (60-84), Critical (85-100).                                           |
+| Term           | Definition                                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Detection**  | A single object instance identified by YOLO26 in an image. Contains object type, confidence score, bounding box, and timestamp. |
+| **Event**      | A security incident containing one or more detections, analyzed by Nemotron for risk assessment.                                |
+| **Batch**      | A collection of detections from a single camera grouped within a time window for analysis.                                      |
+| **Risk Score** | A numeric value from 0-100 assigned by Nemotron indicating the threat level of an event.                                        |
+| **Risk Level** | Categorical classification: Low (0-29), Medium (30-59), High (60-84), Critical (85-100).                                        |
 
 ### AI Components
 
 | Term           | Definition                                                                              |
 | -------------- | --------------------------------------------------------------------------------------- |
-| **RT-DETRv2**  | Real-time object detection model using transformer architecture for accurate detection. |
+| **YOLO26**     | Real-time object detection model using transformer architecture for accurate detection. |
 | **Nemotron**   | NVIDIA's LLM family. Production uses Nemotron-3-Nano-30B-A3B; development uses Mini 4B. |
 | **Florence-2** | Vision-language model for extracting visual attributes (optional enrichment).           |
 | **CLIP**       | Model for generating image embeddings enabling re-identification across camera frames.  |
@@ -244,7 +244,7 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 ### Detailed Troubleshooting Guides
 
 - [Troubleshooting Index](troubleshooting/) - Start here for any issue
-- [AI Issues](troubleshooting/ai-issues.md) - RT-DETRv2, Nemotron, pipeline problems
+- [AI Issues](troubleshooting/ai-issues.md) - YOLO26, Nemotron, pipeline problems
 - [Connection Issues](troubleshooting/connection-issues.md) - Network, containers, WebSocket
 - [Database Issues](troubleshooting/database-issues.md) - PostgreSQL connection, migrations
 - [GPU Issues](troubleshooting/gpu-issues.md) - CUDA, VRAM, thermal issues
@@ -281,7 +281,7 @@ python -c "from core.config import get_settings; s = get_settings(); print(s.mod
 
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
-curl http://localhost:8090/health                # RT-DETRv2
+curl http://localhost:8090/health                # YOLO26
 curl http://localhost:8091/health                # Nemotron
 redis-cli ping                                   # Redis
 ```

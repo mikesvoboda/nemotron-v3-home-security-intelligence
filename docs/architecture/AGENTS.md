@@ -62,7 +62,7 @@ architecture/
 **Topics Covered:**
 
 - FileWatcher service and debouncing
-- RT-DETRv2 object detection integration
+- YOLO26 object detection integration
 - Batch aggregator timing and logic
 - Nemotron LLM risk analysis
 - Fast path vs normal path processing
@@ -145,7 +145,7 @@ architecture/
 - ADR-003: Detection Batching Strategy (90s window + 30s idle)
 - ADR-004: Fully Containerized Deployment (Podman + GPU passthrough)
 - ADR-005: No Authentication (single-user MVP)
-- ADR-006: RT-DETRv2 for Object Detection
+- ADR-006: YOLO26 for Object Detection
 - ADR-007: Nemotron for Risk Analysis
 - ADR-008: FastAPI + React Stack
 - ADR-009: WebSocket for Real-time Updates
@@ -213,7 +213,7 @@ Podman Containers (all services):
 - Backend (FastAPI)
 - Redis
 - PostgreSQL
-- RT-DETRv2 (GPU via CDI)
+- YOLO26 (GPU via CDI)
 - Nemotron LLM (GPU via CDI)
 ```
 
@@ -228,7 +228,7 @@ All services run in OCI containers (Docker or Podman). GPU access is provided vi
 ### Queue-Based Architecture
 
 ```
-FileWatcher --> detection_queue --> DetectionWorker --> RT-DETRv2
+FileWatcher --> detection_queue --> DetectionWorker --> YOLO26
                                          |
                                          v
                                BatchAggregator
@@ -256,7 +256,7 @@ FileWatcher --> detection_queue --> DetectionWorker --> RT-DETRv2
 
 1. Read `ai-orchestration/` hub for comprehensive AI documentation:
    - `model-zoo.md` - Model registry, VRAM management, LRU eviction
-   - `rt-detr-client.md` - RT-DETRv2 detector client implementation
+   - `yolo26-client.md` - YOLO26 detector client implementation
    - `nemotron-analyzer.md` - LLM-based risk analysis service
    - `enrichment-pipeline.md` - Multi-model enrichment flow
    - `fallback-strategies.md` - Graceful degradation patterns

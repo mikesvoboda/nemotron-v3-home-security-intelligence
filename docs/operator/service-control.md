@@ -18,7 +18,7 @@ Services are organized into three categories:
 | Category       | Services                                | Purpose                       |
 | -------------- | --------------------------------------- | ----------------------------- |
 | Infrastructure | PostgreSQL, Redis                       | Data storage and messaging    |
-| AI             | RT-DETRv2, Nemotron                     | Object detection and analysis |
+| AI             | YOLO26, Nemotron                        | Object detection and analysis |
 | Monitoring     | File Watcher, Batch Aggregator, Cleanup | Pipeline orchestration        |
 
 ---
@@ -95,10 +95,10 @@ curl -X POST "http://localhost:8000/api/system/services/{name}/start"
 ```json
 {
   "success": true,
-  "message": "Service 'rtdetr' start initiated",
+  "message": "Service 'yolo26' start initiated",
   "service": {
-    "name": "rtdetr",
-    "display_name": "RT-DETRv2",
+    "name": "yolo26",
+    "display_name": "YOLO26",
     "status": "starting",
     ...
   }
@@ -286,10 +286,10 @@ GET /api/system/services?category=monitoring
 
 ### AI Services
 
-| Service   | Port | Description                              |
-| --------- | ---- | ---------------------------------------- |
-| RT-DETRv2 | 8090 | Real-time object detection model         |
-| Nemotron  | 8091 | Risk analysis LLM for security reasoning |
+| Service  | Port | Description                              |
+| -------- | ---- | ---------------------------------------- |
+| YOLO26   | 8090 | Real-time object detection model         |
+| Nemotron | 8091 | Risk analysis LLM for security reasoning |
 
 ### Monitoring Services
 
@@ -311,8 +311,8 @@ Service status changes are broadcast via the `/ws/system` channel:
 {
   "type": "service_status",
   "data": {
-    "name": "rtdetr",
-    "display_name": "RT-DETRv2",
+    "name": "yolo26",
+    "display_name": "YOLO26",
     "category": "ai",
     "status": "running",
     "enabled": true,

@@ -84,7 +84,7 @@ backend/tests/conftest.py (ROOT - SHARED FIXTURES)
 │   ├── mock_redis: Simplified Redis mock
 │   ├── mock_http_client: HTTP client mock
 │   ├── mock_http_response: HTTP response mock
-│   ├── mock_detector_client: RT-DETR detector service mock
+│   ├── mock_detector_client: YOLO26 detector service mock
 │   ├── mock_nemotron_client: Nemotron LLM service mock
 │   ├── mock_baseline_service: Baseline service mock
 │   └── mock_settings: Application settings mock
@@ -110,7 +110,7 @@ backend/tests/integration/conftest.py (INTEGRATION-SPECIFIC)
 
 backend/tests/chaos/conftest.py (CHAOS-SPECIFIC)
 ├── fault_injector: Core fault injection framework
-├── rtdetr_*: RT-DETR service fault fixtures
+├── yolo26_*: YOLO26 service fault fixtures
 ├── redis_*: Redis service fault fixtures
 ├── database_*: Database fault fixtures
 ├── nemotron_*: Nemotron service fault fixtures

@@ -124,7 +124,7 @@ backend/models/
 
 **Model:** `Detection`
 **Table:** `detections`
-**Purpose:** Stores individual object detection results from RT-DETRv2 AI inference
+**Purpose:** Stores individual object detection results from YOLO26v2 AI inference
 
 **Fields:**
 
@@ -674,20 +674,20 @@ The legacy `detection_ids` column is retained for backward compatibility during 
 
 **Model Contribution Flags:**
 
-| Field               | Type | Description                          |
-| ------------------- | ---- | ------------------------------------ |
-| `has_rtdetr`        | bool | RT-DETR object detection contributed |
-| `has_florence`      | bool | Florence-2 vision attributes used    |
-| `has_clip`          | bool | CLIP embeddings used                 |
-| `has_violence`      | bool | Violence detection ran               |
-| `has_clothing`      | bool | Clothing analysis ran                |
-| `has_vehicle`       | bool | Vehicle classification ran           |
-| `has_pet`           | bool | Pet classification ran               |
-| `has_weather`       | bool | Weather classification ran           |
-| `has_image_quality` | bool | Image quality assessment ran         |
-| `has_zones`         | bool | Zone analysis contributed            |
-| `has_baseline`      | bool | Baseline comparison ran              |
-| `has_cross_camera`  | bool | Cross-camera correlation ran         |
+| Field               | Type | Description                         |
+| ------------------- | ---- | ----------------------------------- |
+| `has_yolo26`        | bool | YOLO26 object detection contributed |
+| `has_florence`      | bool | Florence-2 vision attributes used   |
+| `has_clip`          | bool | CLIP embeddings used                |
+| `has_violence`      | bool | Violence detection ran              |
+| `has_clothing`      | bool | Clothing analysis ran               |
+| `has_vehicle`       | bool | Vehicle classification ran          |
+| `has_pet`           | bool | Pet classification ran              |
+| `has_weather`       | bool | Weather classification ran          |
+| `has_image_quality` | bool | Image quality assessment ran        |
+| `has_zones`         | bool | Zone analysis contributed           |
+| `has_baseline`      | bool | Baseline comparison ran             |
+| `has_cross_camera`  | bool | Cross-camera correlation ran        |
 
 **Prompt Metrics:**
 

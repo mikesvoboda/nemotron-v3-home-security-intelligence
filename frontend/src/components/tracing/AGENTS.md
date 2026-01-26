@@ -67,7 +67,7 @@ The tracing page follows an iframe embedding pattern similar to the AI Performan
 ### Metrics Correlation
 The tracing page correlates traces with 50+ Prometheus metrics including:
 - Pipeline health (errors, queue depth, circuit breaker state)
-- AI service latencies (RT-DETR, Nemotron, Florence, CLIP, Enrichment)
+- AI service latencies (YOLO26, Nemotron, Florence, CLIP, Enrichment)
 - Batch processing metrics
 - Database performance
 - Redis/Cache metrics

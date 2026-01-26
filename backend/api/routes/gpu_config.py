@@ -1069,8 +1069,8 @@ AI_SERVICE_METADATA: dict[str, dict[str, str]] = {
         "description": "Nemotron LLM for risk analysis and enrichment",
     },
     "ai-detector": {
-        "display_name": "Object Detector",
-        "description": "RT-DETR real-time object detection",
+        "display_name": "Object Detector (YOLO26)",
+        "description": "YOLO26m TensorRT real-time object detection",
     },
     "ai-enrichment": {
         "display_name": "Enrichment Models",
@@ -1083,10 +1083,6 @@ AI_SERVICE_METADATA: dict[str, dict[str, str]] = {
     "ai-clip": {
         "display_name": "CLIP",
         "description": "CLIP image-text embedding model",
-    },
-    "ai-yolo26": {
-        "display_name": "YOLO26 Detector",
-        "description": "YOLO26m TensorRT object detection (alternative detector)",
     },
 }
 

@@ -32,7 +32,7 @@ class EventAudit(Base):
     )
 
     # Model contribution flags (captured real-time)
-    has_rtdetr: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    has_yolo26: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     has_florence: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     has_clip: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     has_violence: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

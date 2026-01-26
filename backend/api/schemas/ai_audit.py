@@ -11,7 +11,7 @@ class ModelContributions(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "rtdetr": True,
+                "yolo26": True,
                 "florence": True,
                 "clip": False,
                 "violence": False,
@@ -27,7 +27,7 @@ class ModelContributions(BaseModel):
         }
     )
 
-    rtdetr: bool = Field(False, description="RT-DETR object detection")
+    yolo26: bool = Field(False, description="YOLO26 object detection")
     florence: bool = Field(False, description="Florence-2 vision attributes")
     clip: bool = Field(False, description="CLIP embeddings")
     violence: bool = Field(False, description="Violence detection")
@@ -97,7 +97,7 @@ class EventAuditResponse(BaseModel):
                 "audited_at": "2026-01-03T10:30:00Z",
                 "is_fully_evaluated": True,
                 "contributions": {
-                    "rtdetr": True,
+                    "yolo26": True,
                     "florence": True,
                     "clip": False,
                     "violence": False,
@@ -177,7 +177,7 @@ class DailyAuditStats(BaseModel):
                 "avg_quality_score": 4.2,
                 "avg_enrichment_utilization": 0.78,
                 "model_contributions": {
-                    "rtdetr": 45,
+                    "yolo26": 45,
                     "florence": 38,
                     "clip": 12,
                     "violence": 5,
@@ -222,7 +222,7 @@ class AuditStatsResponse(BaseModel):
                 "avg_consistency_rate": 0.92,
                 "avg_enrichment_utilization": 0.78,
                 "model_contribution_rates": {
-                    "rtdetr": 0.98,
+                    "yolo26": 0.98,
                     "florence": 0.85,
                     "clothing": 0.72,
                     "weather": 0.95,
@@ -234,7 +234,7 @@ class AuditStatsResponse(BaseModel):
                         "count": 45,
                         "avg_quality_score": 4.2,
                         "avg_enrichment_utilization": 0.78,
-                        "model_contributions": {"rtdetr": 45, "florence": 38},
+                        "model_contributions": {"yolo26": 45, "florence": 38},
                     },
                     {
                         "date": "2026-01-02",
@@ -242,7 +242,7 @@ class AuditStatsResponse(BaseModel):
                         "count": 52,
                         "avg_quality_score": 4.0,
                         "avg_enrichment_utilization": 0.80,
-                        "model_contributions": {"rtdetr": 52, "florence": 45},
+                        "model_contributions": {"yolo26": 52, "florence": 45},
                     },
                     {
                         "date": "2026-01-03",
@@ -250,7 +250,7 @@ class AuditStatsResponse(BaseModel):
                         "count": 38,
                         "avg_quality_score": 4.3,
                         "avg_enrichment_utilization": 0.75,
-                        "model_contributions": {"rtdetr": 38, "florence": 30},
+                        "model_contributions": {"yolo26": 38, "florence": 30},
                     },
                 ],
             }
@@ -300,7 +300,7 @@ class LeaderboardResponse(BaseModel):
             "example": {
                 "entries": [
                     {
-                        "model_name": "rtdetr",
+                        "model_name": "yolo26",
                         "contribution_rate": 0.98,
                         "quality_correlation": 0.85,
                         "event_count": 1200,

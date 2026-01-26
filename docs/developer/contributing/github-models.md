@@ -343,7 +343,7 @@ jobs:
           # Review prompt with tech stack context
           cat << 'PROMPT_END' > review_prompt.txt
           You are an expert code reviewer for a home security application.
-          Tech stack: Python FastAPI, React TypeScript, RT-DETRv2, Nemotron.
+          Tech stack: Python FastAPI, React TypeScript, YOLO26, Nemotron.
 
           Review for:
           1. Security Issues
@@ -495,7 +495,7 @@ cat truncated.txt | gh models run openai/gpt-4o "..."
 gh models run openai/gpt-4o \
   --system "You are reviewing code for a home security system. \
             The stack is Python FastAPI, React TypeScript, PostgreSQL, Redis. \
-            AI models are RT-DETRv2 (detection) and Nemotron (reasoning)." \
+            AI models are YOLO26 (detection) and Nemotron (reasoning)." \
   "Review this code"
 ```
 

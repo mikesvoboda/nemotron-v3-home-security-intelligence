@@ -7,7 +7,7 @@
 The three core entities represent the primary data flow:
 
 1. **Camera** - The source of all security footage
-2. **Detection** - Individual object detections from RT-DETRv2
+2. **Detection** - Individual object detections from YOLO26
 3. **Event** - Aggregated security events analyzed by Nemotron LLM
 
 ```mermaid

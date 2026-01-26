@@ -12,7 +12,7 @@
 The AI pipeline transforms raw camera images into risk-scored security events using **core AI services** plus
 an **enrichment layer** that adds context (attributes, captions, re-ID, and other signals).
 
-### RT-DETRv2 Detection Server (Port 8090)
+### YOLO26 Detection Server (Port 8090)
 
 **Purpose:** Real-time object detection from camera images
 
@@ -72,7 +72,7 @@ These services feed into the backend’s enrichment pipeline and ultimately impr
 +----------------------------------------------+
 |                                              |
 |  +------------------+   +------------------+ |
-|  |  RT-DETRv2       |   |  NVIDIA Nemotron | |
+|  |  YOLO26       |   |  NVIDIA Nemotron | |
 |  |  Detection       |   |  Risk Analysis   | |
 |  |                  |   |                  | |
 |  |  Port: 8090      |   |  Port: 8091      | |
@@ -98,14 +98,14 @@ These services feed into the backend’s enrichment pipeline and ultimately impr
 
 VRAM depends heavily on which services/models are enabled.
 
-| Profile                  | Typical VRAM | Notes                                                    |
-| ------------------------ | ------------ | -------------------------------------------------------- |
-| **Minimal (dev)**        | ~8-12GB      | RT-DETRv2 (~4GB) + Nemotron Mini 4B (~3GB)               |
-| **Full AI stack (prod)** | ~22-24GB     | RT-DETRv2 + Nemotron 30B (~14.7GB) + Enrichment services |
+| Profile                  | Typical VRAM | Notes                                                 |
+| ------------------------ | ------------ | ----------------------------------------------------- |
+| **Minimal (dev)**        | ~8-12GB      | YOLO26 (~4GB) + Nemotron Mini 4B (~3GB)               |
+| **Full AI stack (prod)** | ~22-24GB     | YOLO26 + Nemotron 30B (~14.7GB) + Enrichment services |
 
 **Production Breakdown (24GB GPU):**
 
-- RT-DETRv2: ~4GB
+- YOLO26: ~4GB
 - NVIDIA Nemotron-3-Nano-30B-A3B (Q4_K_M): ~14.7GB
 - Florence-2 / CLIP / Enrichment: ~4-5GB shared
 
@@ -123,8 +123,8 @@ AI services can run either:
 
 | Service         | Endpoint      | Method | Purpose                              |
 | --------------- | ------------- | ------ | ------------------------------------ |
-| RT-DETRv2       | `/health`     | GET    | Health check                         |
-| RT-DETRv2       | `/detect`     | POST   | Object detection (image)             |
+| YOLO26          | `/health`     | GET    | Health check                         |
+| YOLO26          | `/detect`     | POST   | Object detection (image)             |
 | NVIDIA Nemotron | `/health`     | GET    | Health check                         |
 | NVIDIA Nemotron | `/completion` | POST   | Risk analysis (ChatML prompt + JSON) |
 | Florence-2      | `/health`     | GET    | Health check                         |

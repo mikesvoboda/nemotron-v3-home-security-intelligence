@@ -349,7 +349,7 @@ List endpoints support pagination with consistent query parameters:
 The API interacts with these SQLAlchemy models:
 
 - **Camera** - Camera configuration and status
-- **Detection** - Object detections from RT-DETRv2
+- **Detection** - Object detections from YOLO26v2
 - **Event** - Security events with risk scores
 - **GPUStats** - GPU performance metrics
 - **Log** - System and frontend logs

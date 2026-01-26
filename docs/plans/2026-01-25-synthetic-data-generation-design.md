@@ -159,7 +159,7 @@ Applied as modifiers to any base scenario:
 
 | Model        | Purpose                  | VRAM    |
 | ------------ | ------------------------ | ------- |
-| RT-DETRv2    | Primary object detection | 650 MB  |
+| YOLO26       | Primary object detection | 650 MB  |
 | Nemotron 30B | LLM risk analysis        | 14.7 GB |
 
 ### Model Zoo (On-Demand)

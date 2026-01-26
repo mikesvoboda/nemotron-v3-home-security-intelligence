@@ -38,7 +38,7 @@ flowchart TB
     end
 
     subgraph AIServices["AI Services Network"]
-        RTDETR[RT-DETR<br/>:8090]
+        YOLO26[YOLO26<br/>:8090]
         NEMOTRON[Nemotron<br/>:8091]
         FLORENCE[Florence-2<br/>:8092]
     end
@@ -55,7 +55,7 @@ flowchart TB
     FRONTEND -->|Proxy| BACKEND
     BACKEND --> DB
     BACKEND --> REDIS
-    BACKEND -->|HTTP| RTDETR
+    BACKEND -->|HTTP| YOLO26
     BACKEND -->|HTTP| NEMOTRON
     BACKEND -->|HTTP| FLORENCE
     BACKEND -.->|SSRF Protected| WEBHOOK
@@ -323,9 +323,9 @@ AI services use internal Docker network URLs:
 
 ```python
 # From backend/core/config.py:655-664
-rtdetr_url: str = Field(
+yolo26_url: str = Field(
     default="http://localhost:8090",
-    description="RT-DETRv2 detection service URL. Docker: http://ai-detector:8090",
+    description="YOLO26 detection service URL. Docker: http://ai-detector:8090",
 )
 nemotron_url: str = Field(
     default="http://localhost:8091",
@@ -339,9 +339,9 @@ AI services can require API key authentication:
 
 ```python
 # From backend/core/config.py:667-675
-rtdetr_api_key: str | None = Field(
+yolo26_api_key: str | None = Field(
     default=None,
-    description="API key for RT-DETRv2 service authentication (X-API-Key header)",
+    description="API key for YOLO26 service authentication (X-API-Key header)",
 )
 nemotron_api_key: str | None = Field(
     default=None,

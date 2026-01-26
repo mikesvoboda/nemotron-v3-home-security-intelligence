@@ -13,7 +13,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as Detection Queue
     participant DW as Detection Worker
-    participant RT as RT-DETRv2
+    participant RT as YOLO26
     participant BA as BatchAggregator
     participant AQ as Analysis Queue
     participant AW as Analysis Worker
@@ -142,7 +142,7 @@ Files are deduplicated using SHA256 content hashes stored in Redis:
 
 ### 2.1 Detection Queue Processing
 
-The detection worker dequeues image paths and sends them to RT-DETRv2:
+The detection worker dequeues image paths and sends them to YOLO26:
 
 ```python
 # backend/services/detector_client.py:1-35
@@ -158,7 +158,7 @@ The detection worker dequeues image paths and sends them to RT-DETRv2:
 #     9. Return Detection model instances
 ```
 
-### 2.2 RT-DETRv2 HTTP Request
+### 2.2 YOLO26 HTTP Request
 
 ```python
 # backend/services/detector_client.py:541-600
@@ -189,7 +189,7 @@ async def _send_detection_request(
 ```python
 # backend/services/detector_client.py:295-309
 self._circuit_breaker = CircuitBreaker(
-    name="rtdetr",
+    name="yolo26",
     config=CircuitBreakerConfig(
         failure_threshold=5,        # Opens after 5 consecutive failures
         recovery_timeout=60.0,      # Wait 60s before attempting recovery
@@ -362,7 +362,7 @@ After successful LLM analysis, an Event record is created in PostgreSQL with:
 | File stability wait  | 2s               | 2s              |
 | Image validation     | <100ms           | 500ms           |
 | Detection queue wait | Variable         | Depends on load |
-| RT-DETRv2 inference  | 200-500ms        | 60s (timeout)   |
+| YOLO26 inference     | 200-500ms        | 60s (timeout)   |
 | Batch aggregation    | 30-90s           | 90s (window)    |
 | Analysis queue wait  | Variable         | Depends on load |
 | Enrichment pipeline  | 500ms-5s         | 30s (timeout)   |

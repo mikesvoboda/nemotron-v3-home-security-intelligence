@@ -1,15 +1,15 @@
 # Detection Service
 
-> RT-DETRv2 integration for object detection.
+> YOLO26 integration for object detection.
 
 **Time to read:** ~8 min
 **Prerequisites:** [Pipeline Overview](pipeline-overview.md)
 
 ---
 
-## What RT-DETRv2 Does
+## What YOLO26 Does
 
-RT-DETRv2 (Real-Time Detection Transformer v2) performs object detection on camera images:
+YOLO26 (Real-Time Detection Transformer v2) performs object detection on camera images:
 
 1. Receives camera images via HTTP POST
 2. Preprocesses (RGB conversion, normalization)
@@ -22,7 +22,7 @@ RT-DETRv2 (Real-Time Detection Transformer v2) performs object detection on came
 
 ## Source Files
 
-- `/ai/rtdetr/model.py` - FastAPI inference server
+- `/ai/yolo26/model.py` - FastAPI inference server
 - `/backend/services/detector_client.py` - HTTP client
 
 ---
@@ -124,7 +124,7 @@ Only these 9 COCO classes are returned (all others filtered):
 
 | Parameter                        | Default | Description         |
 | -------------------------------- | ------- | ------------------- |
-| `RTDETR_CONFIDENCE`              | 0.5     | Server-side minimum |
+| `YOLO26_CONFIDENCE`              | 0.5     | Server-side minimum |
 | `DETECTION_CONFIDENCE_THRESHOLD` | 0.5     | Backend filtering   |
 
 Detections below threshold are discarded.
@@ -167,7 +167,7 @@ curl http://localhost:8090/health
 
 ## Detection Client Implementation
 
-The backend uses `DetectorClient` to communicate with RT-DETRv2:
+The backend uses `DetectorClient` to communicate with YOLO26:
 
 ```python
 # backend/services/detector_client.py
@@ -178,7 +178,7 @@ class DetectorClient:
         self.timeout = httpx.Timeout(30.0)
 
     async def detect_objects(self, image_path: str) -> list[Detection]:
-        """Send image to RT-DETRv2 and return detections."""
+        """Send image to YOLO26 and return detections."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             with open(image_path, "rb") as f:
                 response = await client.post(
@@ -236,7 +236,7 @@ CREATE TABLE detections (
 ## See Also
 
 - [Pipeline Overview](pipeline-overview.md) - Full pipeline context
-- [AI Overview](../operator/ai-overview.md) - RT-DETRv2 deployment and architecture
+- [AI Overview](../operator/ai-overview.md) - YOLO26 deployment and architecture
 - [GPU Setup](../operator/gpu-setup.md) - Hardware requirements
 - [Data Model](data-model.md) - Detection database schema
 

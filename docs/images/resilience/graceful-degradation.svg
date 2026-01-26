@@ -50,7 +50,7 @@
     <text x="110" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#EF4444">Failure Scenarios</text>
 
     <rect x="20" y="38" width="180" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
-    <text x="110" y="53" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">RT-DETRv2</text>
+    <text x="110" y="53" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">YOLO26</text>
     <text x="110" y="64" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#FEE2E2">Unavailable</text>
 
     <rect x="20" y="76" width="180" height="30" rx="6" fill="url(#redGradient)" filter="url(#shadow)"/>
@@ -113,9 +113,9 @@
     <rect x="280" y="35" width="440" height="25" rx="4" fill="#374151"/>
     <text x="500" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#D1D5DB">Degradation Behavior</text>
 
-    <!-- Row 1: RT-DETRv2 -->
+    <!-- Row 1: YOLO26 -->
     <rect x="20" y="68" width="130" height="25" rx="4" fill="#3B82F620"/>
-    <text x="85" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#3B82F6">RT-DETRv2</text>
+    <text x="85" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" fill="#3B82F6">YOLO26</text>
 
     <rect x="160" y="68" width="110" height="25" rx="4" fill="#EF444420"/>
     <text x="215" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#EF4444">Unreachable</text>

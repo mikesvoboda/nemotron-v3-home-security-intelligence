@@ -74,7 +74,7 @@ erDiagram
 **Data Flow:**
 
 1. **Camera** uploads images via FTP to its configured `folder_path`
-2. **Detection** records are created when RT-DETRv2 identifies objects in images
+2. **Detection** records are created when YOLO26 identifies objects in images
 3. **Events** aggregate multiple detections within time windows (90s) and include LLM-generated risk assessments
 4. **Zones** define regions of interest within camera views for targeted detection
 5. **Entities** track persons/vehicles across cameras using CLIP-based re-identification
@@ -640,7 +640,7 @@ Returns job ID for tracking via `GET /api/jobs/{job_id}`.
 
 ## Detections
 
-Detections represent individual objects identified by RT-DETRv2 in camera images.
+Detections represent individual objects identified by YOLO26 in camera images.
 
 ### Endpoints
 
@@ -709,7 +709,7 @@ GET /api/detections?camera_id=front_door&object_type=person&min_confidence=0.8
 
 ### Object Types
 
-Common objects detected by RT-DETRv2:
+Common objects detected by YOLO26:
 
 | Type         | Description  |
 | ------------ | ------------ |

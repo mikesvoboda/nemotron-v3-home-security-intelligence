@@ -82,10 +82,10 @@
       <line x1="40" y1="40" x2="40" y2="720" stroke="#3B82F6" stroke-width="1" stroke-dasharray="4,4"/>
     </g>
 
-    <!-- RT-DETRv2 -->
+    <!-- YOLO26 -->
     <g transform="translate(520, 0)">
       <rect x="0" y="0" width="80" height="40" rx="6" fill="url(#amberGrad)" filter="url(#shadow)"/>
-      <text x="40" y="25" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="white" text-anchor="middle">RT-DETRv2</text>
+      <text x="40" y="25" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="white" text-anchor="middle">YOLO26</text>
       <line x1="40" y1="40" x2="40" y2="720" stroke="#F59E0B" stroke-width="1" stroke-dasharray="4,4"/>
     </g>
 
@@ -183,17 +183,17 @@
     <rect x="347" y="125" width="16" height="16" rx="8" fill="#3B82F6"/>
     <text x="355" y="137" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="white" text-anchor="middle">4</text>
 
-    <!-- Step 6: DetectionWorker to RT-DETRv2 -->
+    <!-- Step 6: DetectionWorker to YOLO26 -->
     <line x1="460" y1="175" x2="550" y2="175" stroke="#374151" stroke-width="1.5" marker-end="url(#arrowBlack)"/>
     <text x="505" y="170" font-family="system-ui, sans-serif" font-size="9" fill="#374151" text-anchor="middle">POST /detect</text>
     <rect x="447" y="160" width="16" height="16" rx="8" fill="#3B82F6"/>
     <text x="455" y="172" font-family="system-ui, sans-serif" font-size="9" font-weight="600" fill="white" text-anchor="middle">5</text>
 
-    <!-- RT-DETRv2 self-loop (inference) -->
+    <!-- YOLO26 self-loop (inference) -->
     <path d="M560,205 Q580,190 580,205 Q580,220 560,205" stroke="#F59E0B" stroke-width="1.5" fill="none"/>
     <text x="600" y="207" font-family="system-ui, sans-serif" font-size="8" fill="#B45309">inference 30-50ms</text>
 
-    <!-- Step 7: RT-DETRv2 response -->
+    <!-- Step 7: YOLO26 response -->
     <line x1="550" y1="240" x2="460" y2="240" stroke="#9CA3AF" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowDashed)"/>
     <text x="505" y="235" font-family="system-ui, sans-serif" font-size="9" fill="#6B7280" text-anchor="middle">{detections}</text>
 

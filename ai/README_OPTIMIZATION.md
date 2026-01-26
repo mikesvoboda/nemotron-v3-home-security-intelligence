@@ -81,7 +81,7 @@ padded_images, original_sizes = pad_images_to_batch(images)
 
 ## Integration Pattern
 
-To integrate these optimizations into existing models (RT-DETRv2, CLIP, Florence):
+To integrate these optimizations into existing models (YOLO26v2, CLIP, Florence):
 
 ### Step 1: Add Constructor Parameters
 
@@ -216,7 +216,7 @@ print(f'Processed {result.total_items} items in {result.batch_count} batches')
 
 ### Completed Integrations
 
-- `ai/rtdetr/model.py` - torch.compile integration with:
+- `ai/yolo26/model.py` - torch.compile integration with:
 
   - `enable_torch_compile` parameter (default: from env)
   - `torch_compile_mode` parameter (default: from env)

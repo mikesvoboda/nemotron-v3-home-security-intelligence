@@ -1,7 +1,7 @@
 """Unit tests for AI inference concurrency limits (NEM-1463).
 
 These tests verify that asyncio.Semaphore properly limits concurrent
-AI inference operations for both RT-DETR detection and Nemotron analysis.
+AI inference operations for both YOLO26 detection and Nemotron analysis.
 """
 
 import asyncio
@@ -69,11 +69,11 @@ class TestDetectorClientConcurrencyLimits:
     def mock_settings(self):
         """Create mock settings with semaphore config."""
         mock = MagicMock()
-        mock.rtdetr_url = "http://localhost:8090"
+        mock.yolo26_url = "http://localhost:8090"
         mock.detection_confidence_threshold = 0.5
-        mock.rtdetr_api_key = None
+        mock.yolo26_api_key = None
         mock.ai_connect_timeout = 10.0
-        mock.rtdetr_read_timeout = 60.0
+        mock.yolo26_read_timeout = 60.0
         mock.ai_health_timeout = 5.0
         mock.detector_max_retries = 1
         mock.ai_max_concurrent_inferences = 2  # Limit to 2 concurrent

@@ -67,9 +67,9 @@ def sample_service() -> ManagedService:
     """Create a sample ManagedService for testing."""
     return ManagedService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abc123",
-        image="ghcr.io/example/rtdetr:latest",
+        image="ghcr.io/example/yolo26:latest",
         port=8090,
         health_endpoint="/health",
         health_cmd=None,
@@ -1221,9 +1221,9 @@ class TestGracePeriodStartingStatus:
         """Test that AI services have longer grace periods (60s)."""
         service = ManagedService(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             container_id="det123",
-            image="rtdetr:latest",
+            image="yolo26:latest",
             port=8090,
             health_endpoint="/health",
             category=ServiceCategory.AI,

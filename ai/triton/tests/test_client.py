@@ -34,7 +34,7 @@ class TestTritonConfig:
         assert config.http_url == "localhost:8000"
         assert config.protocol == TritonProtocol.GRPC
         assert config.timeout == 60.0
-        assert config.default_model == "rtdetr"
+        assert config.default_model == "yolo26"
         assert config.max_retries == 3
         assert config.confidence_threshold == 0.5
 
@@ -126,7 +126,7 @@ class TestTritonClientHealth:
     async def test_is_model_ready_when_disabled(self, triton_config_disabled: TritonConfig) -> None:
         """Test model ready check returns False when disabled."""
         client = TritonClient(triton_config_disabled)
-        result = await client.is_model_ready("rtdetr")
+        result = await client.is_model_ready("yolo26")
         assert result is False
 
 
@@ -166,16 +166,16 @@ class TestTritonClientPreprocess:
 class TestTritonClientPostprocess:
     """Tests for detection postprocessing."""
 
-    def test_postprocess_rtdetr(
+    def test_postprocess_yolo26(
         self,
         triton_config: TritonConfig,
-        mock_rtdetr_outputs: dict[str, np.ndarray],
+        mock_yolo26_outputs: dict[str, np.ndarray],
     ) -> None:
-        """Test RT-DETR output postprocessing."""
+        """Test YOLO26 output postprocessing."""
         client = TritonClient(triton_config)
         original_size = (1280, 720)  # width, height
 
-        detections = client._postprocess_rtdetr(mock_rtdetr_outputs, original_size, threshold=0.5)
+        detections = client._postprocess_yolo26(mock_yolo26_outputs, original_size, threshold=0.5)
 
         # Should have 3 detections above threshold (person, car, dog)
         assert len(detections) == 3
@@ -193,7 +193,7 @@ class TestTritonClientPostprocess:
         assert detections[2].class_name == "dog"
         assert detections[2].confidence == pytest.approx(0.72)
 
-    def test_postprocess_rtdetr_filters_low_confidence(
+    def test_postprocess_yolo26_filters_low_confidence(
         self,
         triton_config: TritonConfig,
     ) -> None:
@@ -207,10 +207,10 @@ class TestTritonClientPostprocess:
             "scores": np.array([[0.3]], dtype=np.float32),  # Below 0.5 threshold
         }
 
-        detections = client._postprocess_rtdetr(outputs, (640, 480), threshold=0.5)
+        detections = client._postprocess_yolo26(outputs, (640, 480), threshold=0.5)
         assert len(detections) == 0
 
-    def test_postprocess_rtdetr_filters_non_security_classes(
+    def test_postprocess_yolo26_filters_non_security_classes(
         self,
         triton_config: TritonConfig,
     ) -> None:
@@ -224,7 +224,7 @@ class TestTritonClientPostprocess:
             "scores": np.array([[0.95]], dtype=np.float32),
         }
 
-        detections = client._postprocess_rtdetr(outputs, (640, 480), threshold=0.5)
+        detections = client._postprocess_yolo26(outputs, (640, 480), threshold=0.5)
         assert len(detections) == 0
 
     def test_postprocess_yolo(
@@ -292,7 +292,7 @@ class TestTritonClientDetection:
         result = await client.detect(sample_image_bytes)
 
         assert isinstance(result, DetectionResult)
-        assert result.model_name == "rtdetr"
+        assert result.model_name == "yolo26"
 
     @pytest.mark.asyncio
     async def test_detect_retry_on_failure(
@@ -487,13 +487,13 @@ class TestDetectionDataClasses:
             inference_time_ms=25.5,
             image_width=1920,
             image_height=1080,
-            model_name="rtdetr",
+            model_name="yolo26",
             model_version="1",
         )
         assert result.inference_time_ms == 25.5
         assert result.image_width == 1920
         assert result.image_height == 1080
-        assert result.model_name == "rtdetr"
+        assert result.model_name == "yolo26"
         assert result.model_version == "1"
 
     def test_detection_result_defaults(self) -> None:

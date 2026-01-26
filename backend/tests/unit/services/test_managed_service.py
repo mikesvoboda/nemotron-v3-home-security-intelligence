@@ -50,7 +50,7 @@ class TestServiceConfig:
     def test_create_full_config(self) -> None:
         """Test creating a ServiceConfig with all fields."""
         config = ServiceConfig(
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             port=8090,
             health_endpoint="/health",
@@ -61,7 +61,7 @@ class TestServiceConfig:
             restart_backoff_max=600.0,
         )
 
-        assert config.display_name == "RT-DETRv2"
+        assert config.display_name == "YOLO26"
         assert config.category == ServiceCategory.AI
         assert config.port == 8090
         assert config.health_endpoint == "/health"
@@ -113,9 +113,9 @@ class TestManagedService:
         now = datetime.now(UTC)
         service = ManagedService(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             container_id="def456",
-            image="ghcr.io/ai/rtdetr:latest",
+            image="ghcr.io/ai/yolo26:latest",
             port=8090,
             category=ServiceCategory.AI,
             health_endpoint="/health",
@@ -231,7 +231,7 @@ class TestManagedService:
     def test_from_config(self) -> None:
         """Test creating ManagedService from ServiceConfig."""
         config = ServiceConfig(
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             port=8090,
             health_endpoint="/health",
@@ -243,13 +243,13 @@ class TestManagedService:
             config_key="ai-detector",
             config=config,
             container_id="abc123",
-            image="ghcr.io/ai/rtdetr:v1.0",
+            image="ghcr.io/ai/yolo26:v1.0",
         )
 
         assert service.name == "ai-detector"
-        assert service.display_name == "RT-DETRv2"
+        assert service.display_name == "YOLO26"
         assert service.container_id == "abc123"
-        assert service.image == "ghcr.io/ai/rtdetr:v1.0"
+        assert service.image == "ghcr.io/ai/yolo26:v1.0"
         assert service.port == 8090
         assert service.category == ServiceCategory.AI
         assert service.health_endpoint == "/health"
@@ -425,9 +425,9 @@ class TestServiceRegistry:
         registry.register(
             ManagedService(
                 name="ai-detector",
-                display_name="RT-DETRv2",
+                display_name="YOLO26",
                 container_id="ai",
-                image="rtdetr:latest",
+                image="yolo26:latest",
                 port=8090,
                 category=ServiceCategory.AI,
             )
@@ -907,14 +907,24 @@ class TestGlobalRegistry:
     @pytest.mark.asyncio
     async def test_get_service_registry_creates_singleton(self) -> None:
         """Test that get_service_registry creates a singleton."""
+        from unittest.mock import patch
+
         # Reset first
         reset_service_registry()
 
-        # This will attempt to initialize Redis, which may fail in tests
-        # So we just verify the function is callable
-        # In production, this would return a ServiceRegistry
-        try:
+        # Mock Redis initialization to avoid actual connection attempts
+        # which can crash test workers in parallel mode
+        mock_redis = AsyncMock()
+        with patch(
+            "backend.core.redis.init_redis",
+            return_value=mock_redis,
+        ):
             registry = await get_service_registry()
             assert isinstance(registry, ServiceRegistry)
-        except Exception:  # Expected in test environment without Redis
-            pass
+
+            # Calling again should return the same singleton
+            registry2 = await get_service_registry()
+            assert registry is registry2
+
+        # Clean up
+        reset_service_registry()

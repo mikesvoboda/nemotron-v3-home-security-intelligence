@@ -95,7 +95,7 @@ These will be added as new Grafana panels using the existing JSON datasource.
 - **Type:** Heatmap (fallback: table with colored cells)
 - **Query:** `/api/ai-audit/stats?days=14`
 - **Field:** `audits_by_day[].model_contributions`
-- **Rows:** 12 models (rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality, zones, baseline, cross_camera)
+- **Rows:** 12 models (yolo26, florence, clip, violence, clothing, vehicle, pet, weather, image_quality, zones, baseline, cross_camera)
 - **Columns:** Days
 - **Color:** Intensity by contribution count
 

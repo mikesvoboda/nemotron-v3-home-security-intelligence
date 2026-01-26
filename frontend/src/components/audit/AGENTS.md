@@ -246,7 +246,7 @@ Same as LogsDashboard:
 **Key Features:**
 
 - Displays quality scores (1-5 scale) with visual bar indicators
-- Shows model contributions checklist (RT-DETR, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-cam)
+- Shows model contributions checklist (YOLO26, Florence, CLIP, Violence, Clothing, Vehicle, Pet, Weather, Quality, Zones, Baseline, Cross-cam)
 - Self-critique section from LLM evaluation
 - Improvement suggestions categorized by type
 - "Run Evaluation" / "Re-run Evaluation" action button

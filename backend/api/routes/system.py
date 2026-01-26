@@ -773,11 +773,11 @@ async def check_redis_health(redis: RedisClient | None) -> HealthCheckServiceSta
         )
 
 
-async def _check_rtdetr_health(rtdetr_url: str, timeout: float) -> tuple[bool, str | None]:
-    """Check RT-DETR object detection service health.
+async def _check_yolo26_health(yolo26_url: str, timeout: float) -> tuple[bool, str | None]:
+    """Check YOLO26 object detection service health.
 
     Args:
-        rtdetr_url: Base URL for RT-DETR service
+        yolo26_url: Base URL for YOLO26 service
         timeout: Request timeout in seconds
 
     Returns:
@@ -785,18 +785,18 @@ async def _check_rtdetr_health(rtdetr_url: str, timeout: float) -> tuple[bool, s
     """
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(f"{rtdetr_url}/health")
+            response = await client.get(f"{yolo26_url}/health")
             response.raise_for_status()
             return True, None
     except httpx.ConnectError:
-        return False, "RT-DETR service connection refused"
+        return False, "YOLO26 service connection refused"
     except httpx.TimeoutException:
-        return False, "RT-DETR service request timed out"
+        return False, "YOLO26 service request timed out"
     except httpx.HTTPStatusError as e:
-        return False, f"RT-DETR service returned HTTP {e.response.status_code}"
+        return False, f"YOLO26 service returned HTTP {e.response.status_code}"
     except (OSError, RuntimeError) as e:
         # Network-level failures
-        return False, f"RT-DETR service error: {e!s}"
+        return False, f"YOLO26 service error: {e!s}"
 
 
 async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[bool, str | None]:
@@ -834,31 +834,31 @@ MAX_CONCURRENT_HEALTH_CHECKS = 10
 _health_check_semaphore = asyncio.Semaphore(MAX_CONCURRENT_HEALTH_CHECKS)
 
 
-async def _check_rtdetr_health_with_circuit_breaker(
-    rtdetr_url: str, timeout: float
+async def _check_yolo26_health_with_circuit_breaker(
+    yolo26_url: str, timeout: float
 ) -> tuple[bool, str | None]:
-    """Check RT-DETR health with circuit breaker protection.
+    """Check YOLO26 health with circuit breaker protection.
 
     If the circuit is open (service repeatedly failing), returns cached error
     immediately without making network call. Otherwise performs health check
     and records result in circuit breaker.
 
     Args:
-        rtdetr_url: Base URL for RT-DETR service
+        yolo26_url: Base URL for YOLO26 service
         timeout: Request timeout in seconds
 
     Returns:
         Tuple of (is_healthy, error_message)
     """
-    service_name = "rtdetr"
+    service_name = "yolo26"
 
     # Check if circuit is open (service is down, skip the check)
     if _health_circuit_breaker.is_open(service_name):
         cached_error = _health_circuit_breaker.get_cached_error(service_name)
-        return False, cached_error or "RT-DETR service unavailable (circuit open)"
+        return False, cached_error or "YOLO26 service unavailable (circuit open)"
 
     # Circuit is closed, perform actual health check
-    is_healthy, error_msg = await _check_rtdetr_health(rtdetr_url, timeout)
+    is_healthy, error_msg = await _check_yolo26_health(yolo26_url, timeout)
 
     # Record result in circuit breaker
     if is_healthy:
@@ -934,10 +934,10 @@ async def _bounded_health_check(
 
 
 async def check_ai_services_health() -> HealthCheckServiceStatus:
-    """Check AI services health by pinging RT-DETR and Nemotron endpoints.
+    """Check AI services health by pinging YOLO26 and Nemotron endpoints.
 
     Performs concurrent health checks on both AI services:
-    - RT-DETR (object detection): GET {rtdetr_url}/health
+    - YOLO26 (object detection): GET {yolo26_url}/health
     - Nemotron (LLM reasoning): GET {nemotron_url}/health
 
     Health checks are bounded by MAX_CONCURRENT_HEALTH_CHECKS semaphore
@@ -950,14 +950,14 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
         - unhealthy: Both services are down (no AI capability)
     """
     settings = get_settings()
-    rtdetr_url = settings.rtdetr_url
+    yolo26_url = settings.yolo26_url
     nemotron_url = settings.nemotron_url
 
     # Check both services concurrently with circuit breaker protection
     # Each check is bounded by the semaphore to limit total concurrent checks
-    rtdetr_result, nemotron_result = await asyncio.gather(
+    yolo26_result, nemotron_result = await asyncio.gather(
         _bounded_health_check(
-            _check_rtdetr_health_with_circuit_breaker, rtdetr_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS
+            _check_yolo26_health_with_circuit_breaker, yolo26_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS
         ),
         _bounded_health_check(
             _check_nemotron_health_with_circuit_breaker,
@@ -966,26 +966,26 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
         ),
     )
 
-    rtdetr_healthy, rtdetr_error = rtdetr_result
+    yolo26_healthy, yolo26_error = yolo26_result
     nemotron_healthy, nemotron_error = nemotron_result
 
     # Build details dict with individual service status
     details: dict[str, str] = {
-        "rtdetr": "healthy" if rtdetr_healthy else (rtdetr_error or "unknown error"),
+        "yolo26": "healthy" if yolo26_healthy else (yolo26_error or "unknown error"),
         "nemotron": "healthy" if nemotron_healthy else (nemotron_error or "unknown error"),
     }
 
     # Determine overall AI status
-    if rtdetr_healthy and nemotron_healthy:
+    if yolo26_healthy and nemotron_healthy:
         return HealthCheckServiceStatus(
             status="healthy",
             message="AI services operational",
             details=details,
         )
-    elif rtdetr_healthy or nemotron_healthy:
+    elif yolo26_healthy or nemotron_healthy:
         # At least one service is up - degraded but partially functional
-        working_service = "RT-DETR" if rtdetr_healthy else "Nemotron"
-        failed_service = "Nemotron" if rtdetr_healthy else "RT-DETR"
+        working_service = "YOLO26" if yolo26_healthy else "Nemotron"
+        failed_service = "Nemotron" if yolo26_healthy else "YOLO26"
         return HealthCheckServiceStatus(
             status="degraded",
             message=f"{failed_service} service unavailable, {working_service} operational",
@@ -1857,7 +1857,7 @@ async def get_performance_metrics(
 
     Collects and returns real-time metrics from all system components:
     - GPU: Utilization, VRAM usage, temperature, power consumption
-    - AI Models: RT-DETRv2 and Nemotron status and resource usage
+    - AI Models: YOLO26v2 and Nemotron status and resource usage
     - Inference: Latency percentiles and throughput metrics
     - Databases: PostgreSQL and Redis connection status and performance
     - Host: CPU, RAM, and disk usage
@@ -2794,7 +2794,7 @@ async def get_pipeline_latency(
     """Get pipeline latency metrics with percentiles.
 
     Returns latency statistics for each stage transition in the AI pipeline:
-    - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+    - watch_to_detect: Time from file watcher detecting image to YOLO26 processing start
     - detect_to_batch: Time from detection completion to batch aggregation
     - batch_to_analyze: Time from batch completion to Nemotron analysis start
     - total_pipeline: Total end-to-end processing time
@@ -4233,7 +4233,7 @@ async def get_restart_history(
 # Model Zoo Endpoints
 # =============================================================================
 
-# VRAM budget for Model Zoo (excludes RT-DETRv2 and Nemotron allocations)
+# VRAM budget for Model Zoo (excludes YOLO26v2 and Nemotron allocations)
 MODEL_ZOO_VRAM_BUDGET_MB = 1650
 
 
@@ -4318,7 +4318,7 @@ async def get_models() -> ModelRegistryResponse:
     including their VRAM requirements, loading status, and configuration.
 
     **VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,
-    separate from the RT-DETRv2 detector and Nemotron LLM allocations.
+    separate from the YOLO26v2 detector and Nemotron LLM allocations.
 
     **Loading Strategy**: Models are loaded sequentially (one at a time) to
     prevent VRAM fragmentation and ensure stable operation.
@@ -4438,7 +4438,7 @@ MODEL_ZOO_LATENCY_TTL_SECONDS = 86400  # Keep data for 24 hours
 # EventAudit tracks which models contributed to each event analysis
 # This mapping allows us to derive "last used" timestamps from audit data
 AUDIT_MODEL_TO_ZOO_MODELS: dict[str, list[str]] = {
-    "rtdetr": [],  # RT-DETRv2 is not in Model Zoo (always loaded separately)
+    "yolo26": [],  # YOLO26v2 is not in Model Zoo (always loaded separately)
     "florence": ["florence-2-large"],
     "clip": ["clip-vit-l", "osnet-x0-25"],  # CLIP embeddings and OSNet re-id
     "violence": ["violence-detection"],
@@ -4732,10 +4732,10 @@ async def get_model_zoo_latency_history(
 # AI Service definitions with display names and criticality
 AI_SERVICES_CONFIG = [
     {
-        "name": "rtdetr",
-        "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "name": "yolo26",
+        "display_name": "YOLO26 Object Detection",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     },
     {

@@ -52,7 +52,7 @@ This report evaluates 11 generated images for the System Overview architecture d
 
 - **Relevance (4/5):** Shows a dashboard connected to a central server with AI services and database - aligns with system overview concept
 - **Clarity (4/5):** Clear visual hierarchy with dashboard at top, server in center, data layer at left, AI services at right
-- **Technical Accuracy (3/5):** Abstract representation - does not show specific services (RT-DETRv2, Nemotron, Florence-2) or correct port assignments
+- **Technical Accuracy (3/5):** Abstract representation - does not show specific services (YOLO26, Nemotron, Florence-2) or correct port assignments
 - **Professional Quality (5/5):** Excellent dark theme, consistent color scheme, polished 3D isometric style
 
 **Verdict:** PASS - Good conceptual overview, suitable for executive documentation
@@ -84,7 +84,7 @@ This report evaluates 11 generated images for the System Overview architecture d
 - **Clarity (4/5):** Clean horizontal layers, easy to scan
 - **Technical Accuracy (2/5):** Missing many documented technologies:
   - Shows: TypeScript icon, Python icon, Redis icon, database icon
-  - Missing: React, Vite, Tailwind, Tremor, FastAPI, SQLAlchemy, Pydantic, PyTorch, RT-DETRv2, Nemotron, llama.cpp, Docker/Podman, Prometheus, Grafana
+  - Missing: React, Vite, Tailwind, Tremor, FastAPI, SQLAlchemy, Pydantic, PyTorch, YOLO26, Nemotron, llama.cpp, Docker/Podman, Prometheus, Grafana
 - **Professional Quality (4/5):** Good visual style but feels incomplete
 
 **Verdict:** NEEDS IMPROVEMENT - Missing majority of documented technologies
@@ -94,7 +94,7 @@ This report evaluates 11 generated images for the System Overview architecture d
 1. Add icons or labels for all technology categories from documentation
 2. Show Frontend stack: React 18.2, TypeScript 5.3, Tailwind CSS 3.4, Tremor 3.17, Vite 5.0
 3. Show Backend stack: Python 3.14+, FastAPI 0.104+, SQLAlchemy 2.0, Pydantic 2.0
-4. Show AI/ML stack: PyTorch 2.x, RT-DETRv2, Nemotron-3-Nano-30B, llama.cpp
+4. Show AI/ML stack: PyTorch 2.x, YOLO26, Nemotron-3-Nano-30B, llama.cpp
 5. Show Infrastructure: Docker/Podman, NVIDIA Container Toolkit, Prometheus, Grafana
 
 ---

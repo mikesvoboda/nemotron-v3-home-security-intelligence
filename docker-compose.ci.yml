@@ -24,8 +24,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # Security: Read-only root filesystem
-    read_only: true
     ports:
       - '5432:5432'
     environment:
@@ -57,8 +55,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # Security: Read-only root filesystem
-    read_only: true
     tmpfs:
       - /tmp
     ports:
@@ -96,7 +92,6 @@ services:
       - DATABASE_URL=postgresql+asyncpg://security:ci_test_password@postgres:5432/security
       - REDIS_URL=redis://redis:6379
       # AI services are optional for smoke tests - they will show as degraded
-      - RTDETR_URL=http://localhost:8090
       - NEMOTRON_URL=http://localhost:8091
       - FLORENCE_URL=http://localhost:8092
       - CLIP_URL=http://localhost:8093

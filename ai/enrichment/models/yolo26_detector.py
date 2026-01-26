@@ -4,7 +4,7 @@ This module provides the YOLO26Detector class for general object detection
 using YOLO26 models from Ultralytics. YOLO26 is the latest generation of
 YOLO models offering improved accuracy and speed.
 
-This is an optional secondary detector that can complement RT-DETRv2 for
+This is an optional secondary detector that can complement YOLO26v2 for
 specific use cases like:
 - Fine-grained object detection
 - Domain-specific detection tasks
@@ -261,7 +261,7 @@ class YOLO26Detector:
 
     This class wraps a YOLO26 model from Ultralytics for general object
     detection in the enrichment pipeline. It can be used as a secondary
-    detector to complement RT-DETRv2 or for domain-specific detection tasks.
+    detector to complement YOLO26v2 or for domain-specific detection tasks.
 
     Supports:
     - True batch inference with optimal batching (NEM-3377)
