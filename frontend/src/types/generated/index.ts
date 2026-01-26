@@ -88,6 +88,12 @@ export type EventsByRiskLevel = components['schemas']['EventsByRiskLevel'];
 export type EventsByCamera = components['schemas']['EventsByCamera'];
 export type RiskDistributionItem = components['schemas']['RiskDistributionItem'];
 
+// Event Clustering types (NEM-3676)
+export type EventClustersResponse = components['schemas']['EventClustersResponse'];
+export type EventCluster = components['schemas']['EventCluster'];
+export type ClusterEventSummary = components['schemas']['ClusterEventSummary'];
+export type ClusterRiskLevels = components['schemas']['ClusterRiskLevels'];
+
 // Detection types
 export type Detection = components['schemas']['DetectionResponse'];
 export type DetectionListResponse = components['schemas']['DetectionListResponse'];

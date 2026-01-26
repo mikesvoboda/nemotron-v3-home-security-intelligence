@@ -5,6 +5,7 @@ import App from './App';
 import { initializeErrorReporting } from './services/errorReporting';
 import { initRUM } from './services/rum';
 import { initSentry } from './services/sentry';
+import { registerServiceWorker } from './services/serviceWorkerRegistration';
 import './styles/index.css';
 import { isSecureContext, logWebCodecsStatus } from './utils/webcodecs';
 
@@ -35,3 +36,11 @@ ReactDOM.createRoot(rootElement).render(
     <App />
   </React.StrictMode>
 );
+
+// Register PWA service worker for offline caching (NEM-3675)
+// Uses Workbox under the hood via vite-plugin-pwa
+void registerServiceWorker({
+  onError: (error) => {
+    console.warn('Service worker registration failed:', error.message);
+  },
+});
