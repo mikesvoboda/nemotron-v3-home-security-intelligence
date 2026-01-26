@@ -1,322 +1,219 @@
 /**
- * RiskFactorsBreakdown - Collapsible risk analysis breakdown component (NEM-3671)
+ * RiskFactorsBreakdown - Display risk score contribution factors (NEM-3603)
  *
- * Displays a comprehensive breakdown of risk factors that contributed to the
- * risk score calculation. Shows entities, flags, confidence factors, and
- * recommended actions in a collapsible accordion view.
+ * Shows individual factors that contribute to the overall risk score.
+ * Factors can have positive contributions (increase risk, shown in red/orange)
+ * or negative contributions (decrease risk, shown in green).
+ * Factors are sorted by contribution magnitude (largest impact first).
  */
 
 import { clsx } from 'clsx';
-import { ChevronDown, ChevronUp, Scale, TrendingUp } from 'lucide-react';
-import { useState } from 'react';
+import { TrendingDown, TrendingUp, Scale } from 'lucide-react';
 
-import ConfidenceIndicators from './ConfidenceIndicators';
-import EntityThreatCards from './EntityThreatCards';
-import RecommendedActionCard from './RecommendedActionCard';
-import RiskFlagsPanel from './RiskFlagsPanel';
-import { getRiskLevel, getRiskTextClass, getRiskBgClass } from '../../utils/risk';
-
-import type { RiskEntity, RiskFlag, ConfidenceFactors } from '../../types/risk-analysis';
-
-/**
- * Contribution factor representing how much each category affects the risk score
- */
-interface ContributionFactor {
-  /** Category label */
-  label: string;
-  /** Weight/contribution percentage (0-100) */
-  weight: number;
-  /** Color class for the factor */
-  colorClass: string;
-  /** Background color class */
-  bgColorClass: string;
-}
+import type { RiskFactor } from '../../types/risk-analysis';
+import type { ReactNode } from 'react';
 
 export interface RiskFactorsBreakdownProps {
-  /** Risk score (0-100) */
-  riskScore: number;
-  /** AI reasoning text */
-  reasoning?: string | null;
-  /** Entities identified in analysis */
-  entities?: RiskEntity[] | null;
-  /** Risk flags raised during analysis */
-  flags?: RiskFlag[] | null;
-  /** Recommended action from analysis */
-  recommendedAction?: string | null;
-  /** Confidence factors affecting analysis reliability */
-  confidenceFactors?: ConfidenceFactors | null;
-  /** Whether the event has been reviewed */
-  isReviewed?: boolean;
+  /** List of risk factors from analysis */
+  riskFactors: RiskFactor[] | null | undefined;
   /** Additional CSS classes */
   className?: string;
-  /** Default expanded state */
-  defaultExpanded?: boolean;
 }
 
 /**
- * Calculate contribution weights based on available data
+ * Get icon for factor contribution type
  */
-function calculateContributions(
-  entities: RiskEntity[] | null | undefined,
-  flags: RiskFlag[] | null | undefined,
-  confidenceFactors: ConfidenceFactors | null | undefined
-): ContributionFactor[] {
-  const contributions: ContributionFactor[] = [];
+function getContributionIcon(contribution: number): ReactNode {
+  const iconClass = 'h-4 w-4';
 
-  // Entities contribution (based on count and threat levels)
-  if (entities && entities.length > 0) {
-    const hasHighThreat = entities.some((e) => e.threat_level === 'high');
-    const hasMediumThreat = entities.some((e) => e.threat_level === 'medium');
-
-    let entityWeight = 20 + entities.length * 5; // Base 20 + 5 per entity
-    if (hasHighThreat) entityWeight += 15;
-    if (hasMediumThreat) entityWeight += 10;
-    entityWeight = Math.min(entityWeight, 40); // Cap at 40
-
-    contributions.push({
-      label: 'Entities',
-      weight: entityWeight,
-      colorClass: hasHighThreat ? 'text-red-400' : hasMediumThreat ? 'text-yellow-400' : 'text-green-400',
-      bgColorClass: hasHighThreat ? 'bg-red-500' : hasMediumThreat ? 'bg-yellow-500' : 'bg-green-500',
-    });
+  if (contribution > 0) {
+    return <TrendingUp className={iconClass} aria-hidden="true" />;
+  } else if (contribution < 0) {
+    return <TrendingDown className={iconClass} aria-hidden="true" />;
   }
+  return <Scale className={iconClass} aria-hidden="true" />;
+}
 
-  // Flags contribution (based on count and severities)
-  if (flags && flags.length > 0) {
-    const hasCritical = flags.some((f) => f.severity === 'critical');
-    const hasAlert = flags.some((f) => f.severity === 'alert');
-
-    let flagWeight = 15 + flags.length * 10; // Base 15 + 10 per flag
-    if (hasCritical) flagWeight += 20;
-    if (hasAlert) flagWeight += 10;
-    flagWeight = Math.min(flagWeight, 50); // Cap at 50
-
-    contributions.push({
-      label: 'Risk Flags',
-      weight: flagWeight,
-      colorClass: hasCritical ? 'text-red-400' : hasAlert ? 'text-orange-400' : 'text-yellow-400',
-      bgColorClass: hasCritical ? 'bg-red-500' : hasAlert ? 'bg-orange-500' : 'bg-yellow-500',
-    });
+/**
+ * Get color classes for factor contribution
+ */
+function getContributionColors(contribution: number): {
+  text: string;
+  bg: string;
+  border: string;
+} {
+  if (contribution > 10) {
+    // High positive (increases risk significantly)
+    return {
+      text: 'text-red-400',
+      bg: 'bg-red-500/20',
+      border: 'border-red-500/40',
+    };
+  } else if (contribution > 0) {
+    // Low positive (increases risk slightly)
+    return {
+      text: 'text-orange-400',
+      bg: 'bg-orange-500/20',
+      border: 'border-orange-500/40',
+    };
+  } else if (contribution < -10) {
+    // High negative (decreases risk significantly)
+    return {
+      text: 'text-green-400',
+      bg: 'bg-green-500/20',
+      border: 'border-green-500/40',
+    };
+  } else if (contribution < 0) {
+    // Low negative (decreases risk slightly)
+    return {
+      text: 'text-emerald-400',
+      bg: 'bg-emerald-500/20',
+      border: 'border-emerald-500/40',
+    };
   }
+  // Neutral
+  return {
+    text: 'text-gray-400',
+    bg: 'bg-gray-500/20',
+    border: 'border-gray-500/40',
+  };
+}
 
-  // Confidence factors contribution (inverse - poor quality increases perceived risk)
-  if (confidenceFactors) {
-    let qualityWeight = 10; // Base contribution
+/**
+ * Format factor name for display
+ * Converts snake_case to Title Case
+ */
+function formatFactorName(factorName: string): string {
+  return factorName
+    .replace(/_/g, ' ')
+    .replace(/-/g, ' ')
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
-    if (confidenceFactors.detection_quality === 'poor') qualityWeight += 10;
-    else if (confidenceFactors.detection_quality === 'fair') qualityWeight += 5;
+/**
+ * Format contribution value for display
+ */
+function formatContribution(contribution: number): string {
+  const sign = contribution > 0 ? '+' : '';
+  return `${sign}${contribution.toFixed(1)}`;
+}
 
-    if (confidenceFactors.weather_impact === 'significant') qualityWeight += 8;
-    else if (confidenceFactors.weather_impact === 'minor') qualityWeight += 4;
+/**
+ * Sort factors by absolute contribution magnitude (largest impact first)
+ */
+function sortByMagnitude(factors: RiskFactor[]): RiskFactor[] {
+  return [...factors].sort((a, b) => {
+    return Math.abs(b.contribution) - Math.abs(a.contribution);
+  });
+}
 
-    if (confidenceFactors.enrichment_coverage === 'minimal') qualityWeight += 7;
-    else if (confidenceFactors.enrichment_coverage === 'partial') qualityWeight += 3;
+/**
+ * Single factor item component
+ */
+function FactorItem({ factor }: { factor: RiskFactor }) {
+  const colors = getContributionColors(factor.contribution);
 
-    const isGood =
-      confidenceFactors.detection_quality === 'good' &&
-      confidenceFactors.weather_impact === 'none' &&
-      confidenceFactors.enrichment_coverage === 'full';
+  return (
+    <div
+      data-testid="risk-factor-item"
+      className={clsx(
+        'flex items-start gap-3 rounded-lg border p-3',
+        colors.bg,
+        colors.border
+      )}
+    >
+      <div className={clsx('flex-shrink-0 mt-0.5', colors.text)}>
+        {getContributionIcon(factor.contribution)}
+      </div>
 
-    contributions.push({
-      label: 'Analysis Quality',
-      weight: qualityWeight,
-      colorClass: isGood ? 'text-green-400' : 'text-yellow-400',
-      bgColorClass: isGood ? 'bg-green-500' : 'bg-yellow-500',
-    });
-  }
-
-  // Normalize weights to sum to 100
-  const totalWeight = contributions.reduce((sum, c) => sum + c.weight, 0);
-  if (totalWeight > 0) {
-    contributions.forEach((c) => {
-      c.weight = Math.round((c.weight / totalWeight) * 100);
-    });
-  }
-
-  return contributions;
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <h5 className={clsx('text-sm font-medium', colors.text)}>
+            {formatFactorName(factor.factor_name)}
+          </h5>
+          <span
+            className={clsx(
+              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold tabular-nums',
+              colors.bg,
+              colors.text
+            )}
+          >
+            {formatContribution(factor.contribution)}
+          </span>
+        </div>
+        {factor.description && (
+          <p className="text-xs text-gray-300">{factor.description}</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /**
  * RiskFactorsBreakdown component
  *
- * Renders a collapsible breakdown of all risk factors contributing to the
- * event's risk score. Includes entities, flags, confidence indicators,
- * and recommended actions.
+ * Renders a list of risk factors contributing to the overall score,
+ * sorted by magnitude (largest impact first).
+ * Returns null if no factors are provided.
  */
 export default function RiskFactorsBreakdown({
-  riskScore,
-  reasoning,
-  entities,
-  flags,
-  recommendedAction,
-  confidenceFactors,
-  isReviewed = false,
+  riskFactors,
   className,
-  defaultExpanded = false,
 }: RiskFactorsBreakdownProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
-  // Check if there's any data to display
-  const hasEntities = entities && entities.length > 0;
-  const hasFlags = flags && flags.length > 0;
-  const hasConfidenceFactors = confidenceFactors !== null && confidenceFactors !== undefined;
-  const hasRecommendedAction = recommendedAction !== null && recommendedAction !== undefined;
-  const hasReasoning = reasoning !== null && reasoning !== undefined && reasoning.trim() !== '';
-
-  // If no data to display, render nothing
-  if (!hasEntities && !hasFlags && !hasConfidenceFactors && !hasRecommendedAction && !hasReasoning) {
+  // Don't render if no factors
+  if (!riskFactors || riskFactors.length === 0) {
     return null;
   }
 
-  const riskLevel = getRiskLevel(riskScore);
-  const contributions = calculateContributions(entities, flags, confidenceFactors);
+  const sortedFactors = sortByMagnitude(riskFactors);
 
-  // Count total contributing factors
-  const totalFactors = (hasEntities ? (entities?.length ?? 0) : 0) + (hasFlags ? (flags?.length ?? 0) : 0);
+  // Calculate totals for summary
+  const positiveTotal = riskFactors
+    .filter((f) => f.contribution > 0)
+    .reduce((sum, f) => sum + f.contribution, 0);
+  const negativeTotal = riskFactors
+    .filter((f) => f.contribution < 0)
+    .reduce((sum, f) => sum + f.contribution, 0);
 
   return (
     <div
       data-testid="risk-factors-breakdown"
-      className={clsx('rounded-lg border border-gray-800 bg-black/30', className)}
+      className={clsx('space-y-3', className)}
     >
-      {/* Collapsible Header */}
-      <button
-        type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-white/5"
-        aria-expanded={isExpanded}
-        aria-controls="risk-factors-content"
-        data-testid="risk-factors-toggle"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className={clsx(
-              'flex h-8 w-8 items-center justify-center rounded-lg',
-              getRiskBgClass(riskLevel) + '/20'
-            )}
-          >
-            <Scale className={clsx('h-4 w-4', getRiskTextClass(riskLevel))} />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              Risk Factors Breakdown
-            </h3>
-            <p className="text-xs text-gray-400">
-              {totalFactors > 0
-                ? `${totalFactors} factor${totalFactors !== 1 ? 's' : ''} contributing to risk score`
-                : 'Analysis details and confidence factors'}
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            Risk Factors
+          </h4>
+          <span className="inline-flex items-center justify-center rounded-full bg-gray-600 px-2 py-0.5 text-xs font-bold text-gray-200">
+            {riskFactors.length}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Quick contribution summary when collapsed */}
-          {!isExpanded && contributions.length > 0 && (
-            <div className="hidden items-center gap-1 sm:flex" data-testid="contribution-pills">
-              {contributions.slice(0, 3).map((c) => (
-                <span
-                  key={c.label}
-                  className={clsx(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                    c.bgColorClass + '/20',
-                    c.colorClass
-                  )}
-                >
-                  {c.label}: {c.weight}%
-                </span>
-              ))}
-            </div>
+        {/* Net contribution summary */}
+        <div className="flex items-center gap-3 text-xs">
+          {positiveTotal > 0 && (
+            <span className="flex items-center gap-1 text-red-400">
+              <TrendingUp className="h-3 w-3" aria-hidden="true" />
+              +{positiveTotal.toFixed(1)}
+            </span>
           )}
-
-          {isExpanded ? (
-            <ChevronUp className="h-5 w-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
+          {negativeTotal < 0 && (
+            <span className="flex items-center gap-1 text-green-400">
+              <TrendingDown className="h-3 w-3" aria-hidden="true" />
+              {negativeTotal.toFixed(1)}
+            </span>
           )}
         </div>
-      </button>
+      </div>
 
-      {/* Expandable Content */}
-      {isExpanded && (
-        <div
-          id="risk-factors-content"
-          className="border-t border-gray-800 p-4"
-          data-testid="risk-factors-content"
-        >
-          {/* Contribution Bars */}
-          {contributions.length > 0 && (
-            <div className="mb-6">
-              <div className="mb-2 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-gray-400" />
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Risk Contribution
-                </h4>
-              </div>
-
-              <div className="space-y-2" data-testid="contribution-bars">
-                {contributions.map((contribution) => (
-                  <div key={contribution.label} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-300">{contribution.label}</span>
-                      <span className={contribution.colorClass}>{contribution.weight}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-gray-800">
-                      <div
-                        className={clsx('h-full rounded-full transition-all duration-300', contribution.bgColorClass)}
-                        style={{ width: `${contribution.weight}%` }}
-                        data-testid={`contribution-bar-${contribution.label.toLowerCase().replace(/\s/g, '-')}`}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recommended Action (most prominent) */}
-          {hasRecommendedAction && (
-            <div className="mb-4">
-              <RecommendedActionCard
-                recommendedAction={recommendedAction}
-                isReviewed={isReviewed}
-              />
-            </div>
-          )}
-
-          {/* AI Reasoning */}
-          {hasReasoning && (
-            <div className="mb-4" data-testid="reasoning-section">
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                AI Reasoning
-              </h4>
-              <div className="rounded-lg bg-[#76B900]/10 p-3">
-                <p className="text-sm leading-relaxed text-gray-300">{reasoning}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Risk Flags */}
-          {hasFlags && (
-            <div className="mb-4">
-              <RiskFlagsPanel flags={flags} />
-            </div>
-          )}
-
-          {/* Identified Entities */}
-          {hasEntities && (
-            <div className="mb-4">
-              <EntityThreatCards entities={entities} />
-            </div>
-          )}
-
-          {/* Confidence Indicators */}
-          {hasConfidenceFactors && (
-            <div>
-              <ConfidenceIndicators confidenceFactors={confidenceFactors} mode="detailed" />
-            </div>
-          )}
-        </div>
-      )}
+      <div className="space-y-2">
+        {sortedFactors.map((factor, index) => (
+          <FactorItem key={`${factor.factor_name}-${index}`} factor={factor} />
+        ))}
+      </div>
     </div>
   );
 }
