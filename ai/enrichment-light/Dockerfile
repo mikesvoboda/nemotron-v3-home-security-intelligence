@@ -45,6 +45,8 @@ RUN groupadd -g 1000 enrichment && \
 # Copy application files
 COPY ai/enrichment-light/*.py ./
 COPY ai/enrichment-light/models/*.py ./models/
+# Copy shared utilities from ai/ directory
+COPY ai/torch_optimizations.py ./
 
 # Environment variables
 ENV HOST=0.0.0.0
