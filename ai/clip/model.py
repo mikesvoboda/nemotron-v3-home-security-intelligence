@@ -9,12 +9,13 @@ Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
 TensorRT Support:
     Set CLIP_USE_TENSORRT=true and CLIP_ENGINE_PATH=/path/to/engine.engine
     to use TensorRT acceleration (1.5-2x faster inference).
-    Falls back to PyTorch automatically if TensorRT is unavailable.
+    TensorRT engine is auto-exported on first run if not found.
+    Falls back to PyTorch automatically if TensorRT export fails or is unavailable.
 
 Environment Variables:
     CLIP_MODEL_PATH: HuggingFace model path (default: /models/clip-vit-l)
-    CLIP_USE_TENSORRT: Enable TensorRT backend (true/false, default: false)
-    CLIP_ENGINE_PATH: Path to TensorRT engine (required if TensorRT enabled)
+    CLIP_USE_TENSORRT: Enable TensorRT backend (true/false, default: true)
+    CLIP_ENGINE_PATH: Path to TensorRT engine (auto-generated if not exists)
     HOST: Bind address (default: 0.0.0.0)
     PORT: Server port (default: 8093)
 """
@@ -454,20 +455,84 @@ class CLIPEmbeddingModel:
         # Fall back to PyTorch
         self._load_pytorch()
 
+    def _auto_export_tensorrt(self) -> str | None:
+        """Auto-export TensorRT engine if it doesn't exist.
+
+        Exports the CLIP vision encoder to ONNX and converts to TensorRT.
+        This is a one-time operation on first startup.
+
+        Returns:
+            Path to the TensorRT engine if successful, None otherwise.
+        """
+        try:
+            from export_onnx import CLIPVisionONNXExporter, convert_to_tensorrt
+
+            logger.info("TensorRT engine not found, attempting auto-export...")
+            logger.info(f"  Model path: {self.model_path}")
+            logger.info(f"  Target engine: {self.tensorrt_engine_path}")
+
+            # Determine output directory from engine path
+            from pathlib import Path
+
+            engine_path = Path(self.tensorrt_engine_path)  # type: ignore[arg-type]
+            output_dir = engine_path.parent
+            onnx_path = output_dir / "vision_encoder.onnx"
+
+            # Step 1: Export to ONNX if needed
+            if not onnx_path.exists():
+                logger.info("Step 1/2: Exporting CLIP vision encoder to ONNX...")
+                exporter = CLIPVisionONNXExporter(model_path=self.model_path)
+                exporter.load_model()
+                exporter.export(
+                    output_path=str(onnx_path),
+                    dynamic_batch=True,
+                    max_batch_size=8,
+                )
+                logger.info(f"ONNX export complete: {onnx_path}")
+            else:
+                logger.info(f"Step 1/2: ONNX model already exists: {onnx_path}")
+
+            # Step 2: Convert to TensorRT
+            logger.info("Step 2/2: Converting ONNX to TensorRT FP16...")
+            result_path = convert_to_tensorrt(
+                onnx_path=str(onnx_path),
+                output_path=str(engine_path),
+                precision="fp16",
+                max_batch_size=8,
+                workspace_gb=2,
+            )
+
+            logger.info(f"TensorRT engine exported successfully: {result_path}")
+            return result_path
+
+        except ImportError as e:
+            logger.warning(f"TensorRT export dependencies not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"TensorRT auto-export failed: {e}")
+            logger.info("Falling back to PyTorch inference")
+            return None
+
     def _try_load_tensorrt(self) -> bool:
         """Attempt to load TensorRT backend.
+
+        If TensorRT engine doesn't exist, attempts to auto-export it.
+        Falls back to PyTorch if export fails or TensorRT is unavailable.
 
         Returns:
             True if TensorRT loaded successfully, False otherwise.
         """
         try:
-            # Check if engine file exists
+            # Check if engine file exists, auto-export if not
             if not os.path.exists(self.tensorrt_engine_path):  # type: ignore[arg-type]
-                logger.warning(
-                    f"TensorRT engine not found: {self.tensorrt_engine_path}, "
-                    "falling back to PyTorch"
-                )
-                return False
+                logger.info(f"TensorRT engine not found: {self.tensorrt_engine_path}")
+                # Attempt auto-export
+                exported_path = self._auto_export_tensorrt()
+                if exported_path is None:
+                    logger.warning("TensorRT auto-export failed, falling back to PyTorch")
+                    return False
+                # Update engine path if export returned a different path
+                self.tensorrt_engine_path = exported_path
 
             # Import TensorRT backend
             from tensorrt_inference import CLIPTensorRTInference
