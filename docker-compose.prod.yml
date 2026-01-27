@@ -224,12 +224,6 @@ services:
       - GPU_LAYERS=${GPU_LAYERS:-45}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 120s
     restart: unless-stopped
     networks:
       - security-net
@@ -268,12 +262,6 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
     networks:
       - security-net
@@ -313,12 +301,6 @@ services:
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
       - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
     networks:
       - security-net
@@ -375,12 +357,6 @@ services:
       # TensorRT acceleration for YOLO models
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
     restart: unless-stopped
     networks:
       - security-net
@@ -437,12 +413,6 @@ services:
       # Available: vehicle_classifier, fashion_clip, depth_estimator, pose_analyzer, pet_classifier
       # Only vehicle and clothing models are on heavy service (others on light)
       - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-vehicle_classifier,fashion_clip}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 120s
     restart: unless-stopped
     networks:
       - security-net
