@@ -268,7 +268,7 @@ stop_ai_containers_podman() {
 }
 
 build_ai_images_podman() {
-    print_header "Building AI Images (podman build)"
+    print_header "Building AI Images (podman build - parallel)"
 
     cd "$PROJECT_ROOT"
 
@@ -282,19 +282,58 @@ build_ai_images_podman() {
         "ai-enrichment:ai/enrichment/Dockerfile"
     )
 
+    if [ "$DRY_RUN" = "true" ]; then
+        # In dry-run mode, just show what would be built
+        for svc in "${ai_services[@]}"; do
+            local name="${svc%%:*}"
+            local dockerfile="${svc#*:}"
+            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $name -f $dockerfile ."
+        done
+        return 0
+    fi
+
+    # Build all AI images in parallel
+    local -a pids=()
+    local -a names=()
+    local log_dir="/tmp/ai-build-logs-$$"
+    mkdir -p "$log_dir"
+
+    print_step "Starting parallel builds for ${#ai_services[@]} AI services..."
+    print_info "Build logs: $log_dir/"
+
     for svc in "${ai_services[@]}"; do
         local name="${svc%%:*}"
         local dockerfile="${svc#*:}"
+        local log_file="$log_dir/${name}.log"
 
-        print_step "Building $name from $dockerfile..."
-        if run_cmd $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" .; then
+        print_info "  Starting $name build..."
+        $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" . > "$log_file" 2>&1 &
+        pids+=($!)
+        names+=("$name")
+    done
+
+    # Wait for all builds to complete and check results
+    local failed=0
+    for i in "${!pids[@]}"; do
+        local pid="${pids[$i]}"
+        local name="${names[$i]}"
+
+        if wait "$pid"; then
             print_success "$name image built"
         else
-            print_fail "Failed to build $name"
-            return 1
+            print_fail "Failed to build $name (see $log_dir/${name}.log)"
+            failed=1
         fi
     done
 
+    if [ "$failed" -eq 1 ]; then
+        print_fail "One or more AI image builds failed"
+        print_info "Check logs in $log_dir/ for details"
+        return 1
+    fi
+
+    print_success "All AI images built in parallel"
+    rm -rf "$log_dir"
     return 0
 }
 
@@ -823,12 +862,45 @@ pull_images() {
 # Build/Start Functions
 # =============================================================================
 
+build_base_image() {
+    # Build the shared base image locally for truly local builds
+    # This image is used by backend and other services
+    print_header "Building Base Image"
+
+    cd "$PROJECT_ROOT"
+
+    local base_image="ghcr.io/${GHCR_OWNER}/${GHCR_REPO}/nemotron-base:latest"
+    local base_dockerfile="docker/base.Dockerfile"
+
+    if [ ! -f "$base_dockerfile" ]; then
+        print_fail "Base Dockerfile not found: $base_dockerfile"
+        return 1
+    fi
+
+    print_step "Building base image from $base_dockerfile..."
+    print_info "Image: $base_image"
+
+    if run_cmd $CONTAINER_CMD build --no-cache -f "$base_dockerfile" -t "$base_image" .; then
+        print_success "Base image built: $base_image"
+    else
+        print_fail "Failed to build base image"
+        return 1
+    fi
+
+    return 0
+}
+
 build_images() {
     print_header "Building Images"
 
     cd "$PROJECT_ROOT"
 
     if [ "$DEPLOY_MODE" = "local" ]; then
+        # Build base image first (required for backend and other services)
+        if ! build_base_image; then
+            return 1
+        fi
+
         # Build all 9 services locally
         if [ "$CONTAINER_CMD" = "podman" ]; then
             # Podman: Build core services with compose, AI services directly
