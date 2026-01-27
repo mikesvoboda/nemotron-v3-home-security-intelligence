@@ -41,12 +41,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY requirements-base.txt .
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
-    uv pip install --system --no-cache -r requirements-base.txt
+    uv pip install --system --break-system-packages --no-cache -r requirements-base.txt
 
 # Copy and install service-specific Python dependencies
 COPY ai/florence/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
-    uv pip install --system --no-cache -r requirements.txt
+    uv pip install --system --break-system-packages --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \

@@ -27,7 +27,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY ai/enrichment-light/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements.txt
+    uv pip install --system --break-system-packages --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \
