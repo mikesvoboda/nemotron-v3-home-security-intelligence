@@ -71,17 +71,17 @@ class TestServiceInfo:
     def test_minimal_service_info(self):
         """Test creating ServiceInfo with required fields only."""
         service = ServiceInfo(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
         )
-        assert service.name == "ai-detector"
+        assert service.name == "ai-yolo26"
         assert service.display_name == "YOLO26"
         assert service.category == ServiceCategory.AI
         assert service.status == ContainerServiceStatus.RUNNING
-        assert service.port == 8090
+        assert service.port == 8095
         assert service.enabled is True  # Default
         assert service.failure_count == 0  # Default
         assert service.restart_count == 0  # Default
@@ -165,32 +165,32 @@ class TestServiceInfo:
         """Test ServiceInfo serializes correctly."""
         now = datetime.now(UTC)
         service = ServiceInfo(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
             last_restart_at=now,
         )
         data = service.model_dump()
-        assert data["name"] == "ai-detector"
+        assert data["name"] == "ai-yolo26"
         assert data["display_name"] == "YOLO26"
         assert data["category"] == "ai"
         assert data["status"] == "running"
-        assert data["port"] == 8090
+        assert data["port"] == 8095
         assert data["last_restart_at"] == now
 
     def test_service_info_json_serialization(self):
         """Test ServiceInfo serializes to JSON correctly."""
         service = ServiceInfo(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
         )
         json_str = service.model_dump_json()
-        assert "ai-detector" in json_str
+        assert "ai-yolo26" in json_str
         assert "running" in json_str
 
 
@@ -240,11 +240,11 @@ class TestServicesResponse:
                 port=5432,
             ),
             ServiceInfo(
-                name="ai-detector",
+                name="ai-yolo26",
                 display_name="YOLO26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
-                port=8090,
+                port=8095,
             ),
             ServiceInfo(
                 name="ai-llm",
@@ -293,11 +293,11 @@ class TestServiceActionResponse:
     def test_successful_restart(self):
         """Test successful restart action response."""
         service = ServiceInfo(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.STARTING,
-            port=8090,
+            port=8095,
             restart_count=1,
         )
         response = ServiceActionResponse(
@@ -305,7 +305,7 @@ class TestServiceActionResponse:
         )
         assert response.success is True
         assert response.message == "Service restarted successfully"
-        assert response.service.name == "ai-detector"
+        assert response.service.name == "ai-yolo26"
         assert response.service.status == ContainerServiceStatus.STARTING
 
     def test_failed_enable(self):
@@ -347,15 +347,15 @@ class TestServiceStatusEvent:
     def test_status_event_default_type(self):
         """Test ServiceStatusEvent has correct default type."""
         service = ServiceInfo(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
         )
         event = ServiceStatusEvent(data=service)
         assert event.type == "service_status"
-        assert event.data.name == "ai-detector"
+        assert event.data.name == "ai-yolo26"
         assert event.message is None
 
     def test_status_event_with_message(self):
@@ -426,7 +426,7 @@ class TestServiceInfoValidation:
             display_name="Test",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
         )
         assert service.failure_count == 0
 
@@ -437,7 +437,7 @@ class TestServiceInfoValidation:
             display_name="Test",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
         )
         assert service.restart_count == 0
 
@@ -448,7 +448,7 @@ class TestServiceInfoValidation:
             display_name="Test",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
-            port=8090,
+            port=8095,
         )
         assert service.enabled is True
 
@@ -474,11 +474,11 @@ class TestCategoryUseCase:
                 port=6379,
             ),
             ServiceInfo(
-                name="ai-detector",
+                name="ai-yolo26",
                 display_name="YOLO26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
-                port=8090,
+                port=8095,
             ),
             ServiceInfo(
                 name="grafana",
@@ -501,7 +501,7 @@ class TestCategoryUseCase:
                 display_name="S1",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
-                port=8090,
+                port=8095,
             ),
             ServiceInfo(
                 name="s2",
