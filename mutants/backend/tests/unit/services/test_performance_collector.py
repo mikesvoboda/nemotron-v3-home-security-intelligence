@@ -389,7 +389,7 @@ class TestCollectContainerHealth:
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
                 frontend_url="http://frontend:80",
-                rtdetr_url="http://ai-detector:8090",
+                yolo26_url="http://ai-yolo26:8095",
                 nemotron_url="http://ai-llm:8091",
             )
 

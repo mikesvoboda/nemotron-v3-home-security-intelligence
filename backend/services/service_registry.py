@@ -30,11 +30,11 @@ Example usage:
 
     # Register a service
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26v2",
         container_id="abc123",
         image="ghcr.io/.../yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
@@ -43,10 +43,10 @@ Example usage:
     registry.register(service)
 
     # Update status
-    registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
+    registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
 
     # Persist to Redis
-    await registry.persist_state("ai-detector")
+    await registry.persist_state("ai-yolo26")
 
     # Load from Redis on restart
     await registry.load_all_state()

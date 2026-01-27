@@ -50,7 +50,7 @@ export interface GpuListResponse {
  * GPU assignment for a single AI service.
  */
 export interface GpuAssignment {
-  /** Service name (e.g., "ai-llm", "ai-detector") */
+  /** Service name (e.g., "ai-llm", "ai-yolo26") */
   service: string;
   /** Assigned GPU index, or null for auto-assignment */
   gpu_index: number | null;

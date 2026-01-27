@@ -281,7 +281,7 @@ open http://localhost:5173                     # Dashboard
 ```
 
 > [!TIP]
-> Run **just core services**: `docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-detector ai-llm`
+> Run **just core services**: `docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-yolo26 ai-llm`
 
 <details>
 <summary><strong>Development Setup (host-run AI)</strong></summary>

@@ -66,7 +66,7 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
 
 
 def create_mock_settings(
-    yolo26_url: str = "http://ai-detector:8090",
+    yolo26_url: str = "http://ai-yolo26:8095",
     nemotron_url: str = "http://llm-analyzer:8080",
     florence_url: str = "http://florence-service:8091",
     clip_url: str = "http://clip-service:8092",

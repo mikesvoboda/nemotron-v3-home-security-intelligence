@@ -60,7 +60,7 @@ const mockGpuAssignment: GpuAssignment = {
 };
 
 const mockGpuAssignment2: GpuAssignment = {
-  service: 'ai-detector',
+  service: 'ai-yolo26',
   gpu_index: 1,
   vram_budget_override: 3.5,
 };
@@ -84,20 +84,20 @@ const mockGpuConfigUpdateResponseWithWarnings: GpuConfigUpdateResponse = {
 const mockGpuApplyResult: GpuApplyResult = {
   success: true,
   warnings: [],
-  restarted_services: ['ai-llm', 'ai-detector'],
+  restarted_services: ['ai-llm', 'ai-yolo26'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-yolo26', status: 'running', message: null },
   ],
 };
 
 const mockGpuApplyResultWithFailures: GpuApplyResult = {
   success: false,
-  warnings: ['Container restart timed out for ai-detector'],
+  warnings: ['Container restart timed out for ai-yolo26'],
   restarted_services: ['ai-llm'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'error', message: 'Container restart timed out' },
+    { service: 'ai-yolo26', status: 'error', message: 'Container restart timed out' },
   ],
 };
 
@@ -108,7 +108,7 @@ const mockServiceStatus: ServiceStatus = {
 };
 
 const mockServiceStatus2: ServiceStatus = {
-  service: 'ai-detector',
+  service: 'ai-yolo26',
   status: 'running',
   message: null,
 };
@@ -122,7 +122,7 @@ const mockServiceStatusRestarting: ServiceStatus = {
 const mockGpuStatusResponse: GpuStatusResponse = {
   in_progress: false,
   services_pending: [],
-  services_completed: ['ai-llm', 'ai-detector'],
+  services_completed: ['ai-llm', 'ai-yolo26'],
   service_statuses: [mockServiceStatus, mockServiceStatus2],
 };
 
@@ -130,7 +130,7 @@ const mockStrategyPreviewResponse: StrategyPreviewResponse = {
   strategy: 'balanced',
   proposed_assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-    { service: 'ai-detector', gpu_index: 1, vram_budget_override: null },
+    { service: 'ai-yolo26', gpu_index: 1, vram_budget_override: null },
     { service: 'ai-enrichment', gpu_index: 0, vram_budget_override: 2.5 },
   ],
   warnings: [],
@@ -307,7 +307,7 @@ describe('getGpuConfig', () => {
     expect(llmAssignment?.gpu_index).toBe(0);
     expect(llmAssignment?.vram_budget_override).toBeNull();
 
-    const detectorAssignment = result.assignments.find((a) => a.service === 'ai-detector');
+    const detectorAssignment = result.assignments.find((a) => a.service === 'ai-yolo26');
     expect(detectorAssignment?.vram_budget_override).toBe(3.5);
   });
 
@@ -366,7 +366,7 @@ describe('updateGpuConfig', () => {
 
     const assignments = [
       { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-      { service: 'ai-detector', gpu_index: 1, vram_budget_override: 4.0 },
+      { service: 'ai-yolo26', gpu_index: 1, vram_budget_override: 4.0 },
     ];
     const result = await updateGpuConfig({ assignments });
 
@@ -472,7 +472,7 @@ describe('applyGpuConfig', () => {
     });
     expect(result.success).toBe(true);
     expect(result.restarted_services).toContain('ai-llm');
-    expect(result.restarted_services).toContain('ai-detector');
+    expect(result.restarted_services).toContain('ai-yolo26');
     expect(result.service_statuses).toHaveLength(2);
   });
 
@@ -484,8 +484,8 @@ describe('applyGpuConfig', () => {
     expect(result.success).toBe(false);
     expect(result.restarted_services).toContain('ai-llm');
     const failedService = result.service_statuses.find((s) => s.status === 'error');
-    expect(failedService?.service).toBe('ai-detector');
-    expect(result.warnings).toContain('Container restart timed out for ai-detector');
+    expect(failedService?.service).toBe('ai-yolo26');
+    expect(result.warnings).toContain('Container restart timed out for ai-yolo26');
   });
 
   it('handles no services to restart', async () => {

@@ -109,7 +109,7 @@ This report evaluates 11 generated images for the System Overview architecture d
 - **Clarity (3/5):** Container relationships visible but not clearly labeled
 - **Technical Accuracy (2/5):** Missing critical documented elements:
   - Does not show GPU device connection
-  - Does not identify specific services (frontend:8080, backend:8000, ai-detector:8090, etc.)
+  - Does not identify specific services (frontend:8080, backend:8000, ai-yolo26:8095, etc.)
   - Does not show the security-net bridge network
   - Does not distinguish Core Services vs AI Services vs Monitoring stack
 - **Professional Quality (4/5):** Good visual style, consistent with other images
@@ -128,16 +128,16 @@ This report evaluates 11 generated images for the System Overview architecture d
 
 ### 5. flow-container-startup.png
 
-**Purpose:** Show service dependency order (postgres -> redis -> ai-detector -> ai-llm -> backend -> frontend)
+**Purpose:** Show service dependency order (postgres -> redis -> ai-yolo26 -> ai-llm -> backend -> frontend)
 
 **Assessment:**
 
 - **Relevance (3/5):** Shows a sequential flow with 5 stages, aligns conceptually with startup order
 - **Clarity (3/5):** Flow direction clear but stages not labeled with service names
 - **Technical Accuracy (2/5):** Missing critical documented details:
-  - Does not label services: postgres, redis, ai-detector, ai-llm, backend, frontend
+  - Does not label services: postgres, redis, ai-yolo26, ai-llm, backend, frontend
   - Does not show health check conditions between stages
-  - Does not indicate start periods (postgres: 10s, ai-detector: 60s, ai-llm: 120s, ai-enrichment: 180s)
+  - Does not indicate start periods (postgres: 10s, ai-yolo26: 60s, ai-llm: 120s, ai-enrichment: 180s)
 - **Professional Quality (4/5):** Clean flow visualization, good color differentiation
 
 **Verdict:** NEEDS IMPROVEMENT - Generic flow without service-specific labeling

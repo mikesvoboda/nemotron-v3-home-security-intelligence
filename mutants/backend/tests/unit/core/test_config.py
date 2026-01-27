@@ -564,7 +564,7 @@ class TestEnvFileAlignment:
             "postgres_db",  # PostgreSQL container database name
             "gpu_layers",  # ai-llm container GPU config
             "ctx_size",  # ai-llm container context size
-            "rtdetr_model_path",  # ai-detector container model path
+            "yolo26_model_path",  # ai-yolo26 container model path
             "hf_cache",  # HuggingFace cache directory mount
         }
 

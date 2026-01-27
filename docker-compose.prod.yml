@@ -113,58 +113,8 @@ services:
           cpus: '2'
           memory: 1G
 
-  ai-detector:
-    tmpfs:
-      - /tmp
-      - /home/yolo26/.cache # PyTorch compile cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-detector'
-    build:
-      context: .
-      dockerfile: ai/yolo26/Dockerfile
-    ports:
-      - '8090:8090'
-    volumes:
-      # Persistent HuggingFace cache volume (NEM-3812)
-      # :U tells Podman to recursively chown the volume to match container user (yolo26)
-      # Docker ignores the :U flag, making this backward compatible
-      - hf_cache:/cache/huggingface:U
-    environment:
-      - SERVICE_NAME=ai-detector
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
-      - YOLO26_MODEL_PATH=${YOLO26_MODEL_PATH:-PekingU/yolo26_r50vd_coco_o365}
-      # HuggingFace cache configuration (NEM-3812)
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  # YOLO26 TensorRT-optimized object detection (alternative to YOLO26)
-  # Enable by setting DETECTOR_TYPE=yolo26 in backend environment
+  # YOLO26 TensorRT-optimized object detection
+  # Uses pre-exported TensorRT engine for fast inference
   ai-yolo26:
     labels:
       pyroscope.profile: 'true'
@@ -224,12 +174,6 @@ services:
       - GPU_LAYERS=${GPU_LAYERS:-45}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 120s
     restart: unless-stopped
     networks:
       - security-net
@@ -268,12 +212,6 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
     networks:
       - security-net
@@ -313,12 +251,6 @@ services:
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
       - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
     restart: unless-stopped
     networks:
       - security-net
@@ -375,12 +307,6 @@ services:
       # TensorRT acceleration for YOLO models
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
     restart: unless-stopped
     networks:
       - security-net
@@ -437,12 +363,6 @@ services:
       # Available: vehicle_classifier, fashion_clip, depth_estimator, pose_analyzer, pet_classifier
       # Only vehicle and clothing models are on heavy service (others on light)
       - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-vehicle_classifier,fashion_clip}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 120s
     restart: unless-stopped
     networks:
       - security-net

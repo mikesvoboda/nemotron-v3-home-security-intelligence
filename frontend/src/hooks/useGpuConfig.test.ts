@@ -81,7 +81,7 @@ const mockGpuAssignment: GpuAssignment = {
 };
 
 const mockGpuAssignment2: GpuAssignment = {
-  service: 'ai-detector',
+  service: 'ai-yolo26',
   gpu_index: 1,
   vram_budget_override: 3.5,
 };
@@ -105,10 +105,10 @@ const mockGpuConfigUpdateResponseWithWarnings: GpuConfigUpdateResponse = {
 const mockGpuApplyResult: GpuApplyResult = {
   success: true,
   warnings: [],
-  restarted_services: ['ai-llm', 'ai-detector'],
+  restarted_services: ['ai-llm', 'ai-yolo26'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-yolo26', status: 'running', message: null },
   ],
 };
 
@@ -119,7 +119,7 @@ const mockServiceStatus: ServiceStatus = {
 };
 
 const mockServiceStatus2: ServiceStatus = {
-  service: 'ai-detector',
+  service: 'ai-yolo26',
   status: 'running',
   message: null,
 };
@@ -127,7 +127,7 @@ const mockServiceStatus2: ServiceStatus = {
 const mockGpuStatusResponse: GpuStatusResponse = {
   in_progress: false,
   services_pending: [],
-  services_completed: ['ai-llm', 'ai-detector'],
+  services_completed: ['ai-llm', 'ai-yolo26'],
   service_statuses: [mockServiceStatus, mockServiceStatus2],
 };
 
@@ -135,7 +135,7 @@ const mockStrategyPreviewResponse: StrategyPreviewResponse = {
   strategy: 'balanced',
   proposed_assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-    { service: 'ai-detector', gpu_index: 1, vram_budget_override: null },
+    { service: 'ai-yolo26', gpu_index: 1, vram_budget_override: null },
   ],
   warnings: [],
 };
@@ -660,7 +660,7 @@ describe('useApplyGpuConfig', () => {
 
     expect(applyResult?.success).toBe(true);
     expect(applyResult?.restarted_services).toContain('ai-llm');
-    expect(applyResult?.restarted_services).toContain('ai-detector');
+    expect(applyResult?.restarted_services).toContain('ai-yolo26');
   });
 
   it('handles apply with failed services', async () => {
@@ -670,7 +670,7 @@ describe('useApplyGpuConfig', () => {
       restarted_services: ['ai-llm'],
       service_statuses: [
         { service: 'ai-llm', status: 'running', message: null },
-        { service: 'ai-detector', status: 'error', message: 'Restart failed' },
+        { service: 'ai-yolo26', status: 'error', message: 'Restart failed' },
       ],
     };
     vi.mocked(gpuConfigApi.applyGpuConfig).mockResolvedValueOnce(failedResult);
@@ -686,7 +686,7 @@ describe('useApplyGpuConfig', () => {
 
     expect(applyResult?.success).toBe(false);
     const failedService = applyResult?.service_statuses.find((s) => s.status === 'error');
-    expect(failedService?.service).toBe('ai-detector');
+    expect(failedService?.service).toBe('ai-yolo26');
   });
 
   it('handles apply errors', async () => {

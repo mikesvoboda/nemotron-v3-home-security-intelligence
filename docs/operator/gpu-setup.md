@@ -286,7 +286,7 @@ The project's production compose file already includes GPU configuration:
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     build:
       context: ./ai/yolo26
       dockerfile: Dockerfile
@@ -325,7 +325,7 @@ For Podman with CDI, modify the compose file:
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     build:
       context: ./ai/yolo26
       dockerfile: Dockerfile
@@ -422,7 +422,7 @@ nvidia-smi dmon -s m -d 1
 3. **Restart AI services:**
 
    ```bash
-   docker compose -f docker-compose.prod.yml restart ai-detector ai-llm
+   docker compose -f docker-compose.prod.yml restart ai-yolo26 ai-llm
    ```
 
 4. **Use smaller model quantization:**
@@ -460,7 +460,7 @@ GPU 1: NVIDIA RTX 3090 (UUID: GPU-def456...)
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     deploy:
       resources:
         reservations:
@@ -483,7 +483,7 @@ services:
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     environment:
       - CUDA_VISIBLE_DEVICES=0
 
@@ -659,7 +659,7 @@ nvcc --version
 
 ```bash
 # Check YOLO26 device
-curl http://localhost:8090/health | jq .device
+curl http://localhost:8095/health | jq .device
 # Should return "cuda:0", not "cpu"
 
 # Check GPU utilization during inference
@@ -704,7 +704,7 @@ docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 
 # AI services healthy?
-curl http://localhost:8090/health | jq .  # YOLO26
+curl http://localhost:8095/health | jq .  # YOLO26
 curl http://localhost:8091/health         # Nemotron
 
 # VRAM usage?

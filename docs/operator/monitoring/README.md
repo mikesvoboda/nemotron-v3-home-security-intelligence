@@ -166,7 +166,7 @@ curl http://localhost:8000/api/system/health/full
       "name": "yolo26",
       "display_name": "YOLO26 Object Detection",
       "status": "healthy",
-      "url": "http://ai-detector:8090",
+      "url": "http://ai-yolo26:8095",
       "response_time_ms": 45.2,
       "circuit_state": "closed",
       "last_check": "2026-01-08T10:30:00Z"
@@ -628,7 +628,7 @@ open http://localhost:3002
 1. Test service endpoints directly:
 
    ```bash
-   curl http://localhost:8090/health  # YOLO26
+   curl http://localhost:8095/health  # YOLO26
    curl http://localhost:8091/health  # Nemotron
    ```
 

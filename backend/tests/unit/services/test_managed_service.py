@@ -52,9 +52,9 @@ class TestServiceConfig:
         config = ServiceConfig(
             display_name="YOLO26",
             category=ServiceCategory.AI,
-            port=8090,
+            port=8095,
             health_endpoint="/health",
-            health_cmd="curl localhost:8090/health",
+            health_cmd="curl localhost:8095/health",
             startup_grace_period=120,
             max_failures=10,
             restart_backoff_base=2.0,
@@ -63,9 +63,9 @@ class TestServiceConfig:
 
         assert config.display_name == "YOLO26"
         assert config.category == ServiceCategory.AI
-        assert config.port == 8090
+        assert config.port == 8095
         assert config.health_endpoint == "/health"
-        assert config.health_cmd == "curl localhost:8090/health"
+        assert config.health_cmd == "curl localhost:8095/health"
         assert config.startup_grace_period == 120
         assert config.max_failures == 10
         assert config.restart_backoff_base == 2.0
@@ -112,11 +112,11 @@ class TestManagedService:
         """Test creating a ManagedService with all fields."""
         now = datetime.now(UTC)
         service = ManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             container_id="def456",
             image="ghcr.io/ai/yolo26:latest",
-            port=8090,
+            port=8095,
             category=ServiceCategory.AI,
             health_endpoint="/health",
             health_cmd=None,
@@ -132,7 +132,7 @@ class TestManagedService:
             startup_grace_period=120,
         )
 
-        assert service.name == "ai-detector"
+        assert service.name == "ai-yolo26"
         assert service.health_endpoint == "/health"
         assert service.status == ContainerServiceStatus.RUNNING
         assert service.failure_count == 2
@@ -233,24 +233,24 @@ class TestManagedService:
         config = ServiceConfig(
             display_name="YOLO26",
             category=ServiceCategory.AI,
-            port=8090,
+            port=8095,
             health_endpoint="/health",
             startup_grace_period=120,
             max_failures=10,
         )
 
         service = ManagedService.from_config(
-            config_key="ai-detector",
+            config_key="ai-yolo26",
             config=config,
             container_id="abc123",
             image="ghcr.io/ai/yolo26:v1.0",
         )
 
-        assert service.name == "ai-detector"
+        assert service.name == "ai-yolo26"
         assert service.display_name == "YOLO26"
         assert service.container_id == "abc123"
         assert service.image == "ghcr.io/ai/yolo26:v1.0"
-        assert service.port == 8090
+        assert service.port == 8095
         assert service.category == ServiceCategory.AI
         assert service.health_endpoint == "/health"
         assert service.startup_grace_period == 120
@@ -424,11 +424,11 @@ class TestServiceRegistry:
         )
         registry.register(
             ManagedService(
-                name="ai-detector",
+                name="ai-yolo26",
                 display_name="YOLO26",
                 container_id="ai",
                 image="yolo26:latest",
-                port=8090,
+                port=8095,
                 category=ServiceCategory.AI,
             )
         )
@@ -445,7 +445,7 @@ class TestServiceRegistry:
 
         ai_services = registry.get_by_category(ServiceCategory.AI)
         assert len(ai_services) == 1
-        assert ai_services[0].name == "ai-detector"
+        assert ai_services[0].name == "ai-yolo26"
 
         infra_services = registry.get_by_category(ServiceCategory.INFRASTRUCTURE)
         assert len(infra_services) == 1

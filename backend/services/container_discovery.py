@@ -58,7 +58,7 @@ def build_service_configs(
     # Default ports (used when settings is None)
     postgres_port = settings.postgres_port if settings else 5432
     redis_port = settings.redis_port if settings else 6379
-    yolo26_port = settings.yolo26_port if settings else 8090
+    yolo26_port = settings.yolo26_port if settings else 8095
     nemotron_port = settings.nemotron_port if settings else 8091
     florence_port = settings.florence_port if settings else 8092
     clip_port = settings.clip_port if settings else 8093

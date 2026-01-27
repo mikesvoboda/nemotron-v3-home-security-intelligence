@@ -69,7 +69,7 @@ flowchart TB
     subgraph Containers["Managed Containers"]
         PG[PostgreSQL]
         RS[Redis]
-        AI1[ai-detector]
+        AI1[ai-yolo26]
         AI2[ai-llm]
         AI3[ai-florence]
         AI4[ai-clip]
@@ -173,21 +173,21 @@ Services with no dependencies start immediately:
 
 AI services start in parallel after infrastructure is healthy:
 
-| Service              | Startup Time | Health Check  | Grace Period | Notes           |
-| -------------------- | ------------ | ------------- | ------------ | --------------- |
-| ai-detector (YOLO26) | 60-90s       | GET `/health` | 60s          | Model loading   |
-| ai-llm (Nemotron)    | 90-120s      | GET `/health` | 120s         | VRAM allocation |
-| ai-florence          | 60s          | GET `/health` | 60s          | Optional        |
-| ai-clip              | 60s          | GET `/health` | 60s          | Optional        |
-| ai-enrichment        | 180s         | GET `/health` | 180s         | Multiple models |
+| Service            | Startup Time | Health Check  | Grace Period | Notes           |
+| ------------------ | ------------ | ------------- | ------------ | --------------- |
+| ai-yolo26 (YOLO26) | 60-90s       | GET `/health` | 60s          | Model loading   |
+| ai-llm (Nemotron)  | 90-120s      | GET `/health` | 120s         | VRAM allocation |
+| ai-florence        | 60s          | GET `/health` | 60s          | Optional        |
+| ai-clip            | 60s          | GET `/health` | 60s          | Optional        |
+| ai-enrichment      | 180s         | GET `/health` | 180s         | Multiple models |
 
 ### Phase 3: Application (30-60 seconds)
 
 Backend starts after PostgreSQL, Redis, and critical AI services are healthy:
 
-| Service | Dependencies                           | Health Check                   | Grace Period |
-| ------- | -------------------------------------- | ------------------------------ | ------------ |
-| Backend | PostgreSQL, Redis, ai-detector, ai-llm | GET `/api/system/health/ready` | 30s          |
+| Service | Dependencies                         | Health Check                   | Grace Period |
+| ------- | ------------------------------------ | ------------------------------ | ------------ |
+| Backend | PostgreSQL, Redis, ai-yolo26, ai-llm | GET `/api/system/health/ready` | 30s          |
 
 ### Phase 4: Frontend (10-20 seconds)
 
@@ -258,7 +258,7 @@ return status == "running"
 | ------------- | ------- | ------------------------ | ------- | -------- |
 | PostgreSQL    | Command | `pg_isready -U security` | 5s      | 30s      |
 | Redis         | Command | `redis-cli ping`         | 5s      | 30s      |
-| ai-detector   | HTTP    | `/health`                | 5s      | 30s      |
+| ai-yolo26     | HTTP    | `/health`                | 5s      | 30s      |
 | ai-llm        | HTTP    | `/health`                | 5s      | 30s      |
 | ai-florence   | HTTP    | `/health`                | 5s      | 30s      |
 | ai-clip       | HTTP    | `/health`                | 5s      | 30s      |
@@ -313,7 +313,7 @@ graph TD
     end
 
     subgraph AI["AI Services"]
-        RT[ai-detector<br/>port:8090]
+        RT[ai-yolo26<br/>port:8095]
         NM[ai-llm<br/>port:8091]
         FL[ai-florence<br/>port:8092]
         CL[ai-clip<br/>port:8093]
@@ -360,19 +360,19 @@ graph TD
 
 ### Dependency Matrix
 
-| Service       | Hard Dependencies | Soft Dependencies   | Auto-Recovers |
-| ------------- | ----------------- | ------------------- | ------------- |
-| PostgreSQL    | None              | None                | Yes           |
-| Redis         | None              | None                | Yes           |
-| ai-detector   | GPU               | None                | Yes           |
-| ai-llm        | GPU               | None                | Yes           |
-| ai-florence   | GPU               | None                | Yes           |
-| ai-clip       | GPU               | None                | Yes           |
-| ai-enrichment | GPU               | None                | Yes           |
-| Backend       | PostgreSQL, Redis | ai-detector, ai-llm | Yes           |
-| Frontend      | Backend           | None                | Yes           |
-| Prometheus    | None              | None                | Yes           |
-| Grafana       | Prometheus        | None                | Yes           |
+| Service       | Hard Dependencies | Soft Dependencies | Auto-Recovers |
+| ------------- | ----------------- | ----------------- | ------------- |
+| PostgreSQL    | None              | None              | Yes           |
+| Redis         | None              | None              | Yes           |
+| ai-yolo26     | GPU               | None              | Yes           |
+| ai-llm        | GPU               | None              | Yes           |
+| ai-florence   | GPU               | None              | Yes           |
+| ai-clip       | GPU               | None              | Yes           |
+| ai-enrichment | GPU               | None              | Yes           |
+| Backend       | PostgreSQL, Redis | ai-yolo26, ai-llm | Yes           |
+| Frontend      | Backend           | None              | Yes           |
+| Prometheus    | None              | None              | Yes           |
+| Grafana       | Prometheus        | None              | Yes           |
 
 ---
 
@@ -455,7 +455,7 @@ GPU-accelerated AI inference services:
 
 | Service       | Display Name | Port | Grace Period | VRAM                                |
 | ------------- | ------------ | ---- | ------------ | ----------------------------------- |
-| ai-detector   | YOLO26       | 8090 | 60s          | ~4GB                                |
+| ai-yolo26     | YOLO26       | 8090 | 60s          | ~4GB                                |
 | ai-llm        | Nemotron     | 8091 | 120s         | ~3GB (Mini 4B) / ~14.7GB (30B prod) |
 | ai-florence   | Florence-2   | 8092 | 60s          | ~2GB                                |
 | ai-clip       | CLIP         | 8093 | 60s          | ~2GB                                |
@@ -524,7 +524,7 @@ All service ports are configurable via OrchestratorSettings:
 class OrchestratorSettings(BaseSettings):
     postgres_port: int = 5432
     redis_port: int = 6379
-    yolo26_port: int = 8090
+    yolo26_port: int = 8095
     nemotron_port: int = 8091
     florence_port: int = 8092
     clip_port: int = 8093
@@ -566,13 +566,13 @@ Service status changes are broadcast via WebSocket:
 {
   "type": "service_status",
   "data": {
-    "name": "ai-detector",
+    "name": "ai-yolo26",
     "display_name": "YOLO26",
     "category": "ai",
     "status": "running",
     "enabled": true,
     "container_id": "abc123def456",
-    "image": "security-ai-detector:latest",
+    "image": "security-ai-yolo26:latest",
     "port": 8090,
     "failure_count": 0,
     "restart_count": 2,
@@ -701,17 +701,17 @@ podman-compose -f docker-compose.prod.yml restart backend
 
 ```bash
 # Via API
-curl -X POST http://localhost:8000/api/system/services/ai-detector/enable
+curl -X POST http://localhost:8000/api/system/services/ai-yolo26/enable
 
 # Verify status
-curl http://localhost:8000/api/system/services/ai-detector
+curl http://localhost:8000/api/system/services/ai-yolo26
 ```
 
 #### Force Restart with Failure Reset
 
 ```bash
 # Via API (resets failure count)
-curl -X POST http://localhost:8000/api/system/services/ai-detector/restart?reset_failures=true
+curl -X POST http://localhost:8000/api/system/services/ai-yolo26/restart?reset_failures=true
 ```
 
 #### Check Service Health Events
@@ -732,13 +732,13 @@ curl http://localhost:8000/api/system/health/events?limit=50
 podman-compose -f docker-compose.prod.yml ps
 
 # View logs for specific service
-podman-compose -f docker-compose.prod.yml logs -f ai-detector
+podman-compose -f docker-compose.prod.yml logs -f ai-yolo26
 
 # Check orchestrator logs
 podman-compose -f docker-compose.prod.yml logs backend | grep -E "orchestrator|health"
 
 # Test individual health endpoint
-curl http://localhost:8090/health  # ai-detector
+curl http://localhost:8095/health  # ai-yolo26
 curl http://localhost:8091/health  # ai-llm
 curl http://localhost:8000/api/system/health/ready  # backend
 
@@ -809,20 +809,20 @@ backend:
       condition: service_healthy
     redis:
       condition: service_healthy
-    ai-detector:
+    ai-yolo26:
       condition: service_healthy
     ai-llm:
       condition: service_healthy
 
 # AI service health check example
-ai-detector:
+ai-yolo26:
   healthcheck:
     test:
       [
         'CMD',
         'python',
         '-c',
-        "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+        "import httpx; r = httpx.get('http://localhost:8095/health'); exit(0 if r.status_code == 200 else 1)",
       ]
     interval: 10s
     timeout: 5s

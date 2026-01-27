@@ -71,7 +71,7 @@ All GPU-enabled services have memory limits configured. Here are the recommended
 | Service               | Model(s)                                | Memory Limit | GPU | Notes                                      |
 | --------------------- | --------------------------------------- | ------------ | --- | ------------------------------------------ |
 | `ai-llm`              | Nemotron-3-Nano-30B (Q4_K_M)            | 24G          | 0   | Large LLM requires dedicated high-VRAM GPU |
-| `ai-detector`         | YOLO26                                  | 2G           | Any | Object detection, runs frequently          |
+| `ai-yolo26`           | YOLO26                                  | 2G           | Any | Object detection, runs frequently          |
 | `ai-yolo26`           | YOLO26 TensorRT                         | 1.5G         | 1   | Optional TensorRT-optimized variant        |
 | `ai-florence`         | Florence-2-Large                        | 2G           | 1   | Vision-language dense captioning           |
 | `ai-clip`             | CLIP ViT-L                              | 1.5G         | 1   | Entity re-identification embeddings        |

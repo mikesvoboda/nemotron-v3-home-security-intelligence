@@ -30,7 +30,7 @@ The system runs 5 GPU-enabled AI containers:
 
 | Service           | Port | Models                           | VRAM          | Loading                                   |
 | ----------------- | ---- | -------------------------------- | ------------- | ----------------------------------------- |
-| **ai-detector**   | 8090 | YOLO26                           | ~650MB        | Always                                    |
+| **ai-yolo26**     | 8090 | YOLO26                           | ~650MB        | Always                                    |
 | **ai-llm**        | 8091 | Nemotron 30B                     | CPU-offloaded | Always                                    |
 | **ai-florence**   | 8092 | Florence-2-large                 | ~1.2GB        | Always                                    |
 | **ai-clip**       | 8093 | CLIP ViT-L/14                    | ~800MB        | Always                                    |

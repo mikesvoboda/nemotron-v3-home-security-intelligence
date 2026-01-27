@@ -38,7 +38,7 @@ The architecture separates models into two categories:
 
 | Service    | Container     | Port | Model                | VRAM    | Purpose                       |
 | ---------- | ------------- | ---- | -------------------- | ------- | ----------------------------- |
-| YOLO26     | ai-detector   | 8090 | YOLO26 R101vd        | ~650MB  | Primary object detection      |
+| YOLO26     | ai-yolo26     | 8095 | YOLO26 R101vd        | ~650MB  | Primary object detection      |
 | Nemotron   | ai-nemotron   | 8091 | Nemotron-3-Nano-30B  | ~18GB   | Risk reasoning and analysis   |
 | Florence-2 | ai-florence   | 8092 | Florence-2-Large     | ~1.2GB  | Scene understanding, OCR      |
 | CLIP       | ai-clip       | 8093 | CLIP ViT-L/14        | ~800MB  | Embeddings, anomaly detection |
@@ -52,7 +52,7 @@ Camera Images
       v
 +-------------+      +-------------+
 |  YOLO26  |----->|  Enrichment |
-|   (8090)    |      |   (8094)    |
+|   (8095)    |      |   (8094)    |
 +-------------+      +-------------+
       |                    |
       |   Detections       |  Classified Detections
@@ -70,7 +70,7 @@ Camera Images
 
 ### Always-Loaded Models
 
-#### YOLO26 (ai-detector:8090)
+#### YOLO26 (ai-yolo26:8095)
 
 - **Model**: PekingU/yolo26_r50vd_coco_o365
 - **Architecture**: Real-Time Detection Transformer v2
@@ -708,7 +708,7 @@ The backend stores enrichment results in the detection record and passes the com
 | ------------------- | --------------------------------------------- | ------------------------ |
 | `YOLO26_MODEL_PATH` | `/export/ai_models/yolo26v2/yolo26_v2_r101vd` | Model path               |
 | `YOLO26_CONFIDENCE` | `0.5`                                         | Min confidence threshold |
-| `PORT`              | `8090`                                        | Server port              |
+| `PORT`              | `8095`                                        | Server port              |
 
 ### Nemotron
 

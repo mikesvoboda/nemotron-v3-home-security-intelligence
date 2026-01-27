@@ -33,7 +33,7 @@ const mockPreviewResponse: StrategyPreviewResponse = {
   strategy: 'balanced',
   proposed_assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-    { service: 'ai-detector', gpu_index: 1, vram_budget_override: null },
+    { service: 'ai-yolo26', gpu_index: 1, vram_budget_override: null },
   ],
   warnings: [],
 };
@@ -177,7 +177,7 @@ describe('GpuStrategySelector', () => {
 
       expect(screen.getByText('Proposed Assignments')).toBeInTheDocument();
       expect(screen.getByText('ai-llm')).toBeInTheDocument();
-      expect(screen.getByText('ai-detector')).toBeInTheDocument();
+      expect(screen.getByText('ai-yolo26')).toBeInTheDocument();
     });
 
     it('should show loading state during preview', () => {

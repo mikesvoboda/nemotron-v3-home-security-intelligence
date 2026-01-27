@@ -178,7 +178,7 @@ Given the NVIDIA RTX A5500 in the production environment:
 
 ```yaml
 # docker-compose GPU configuration
-ai-detector:
+ai-yolo26:
   environment:
     DETECTOR_MODEL: /models/yolo26/exports/yolo26n.engine
     DETECTOR_DEVICE: cuda:0

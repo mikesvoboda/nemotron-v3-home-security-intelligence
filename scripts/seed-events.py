@@ -3397,7 +3397,7 @@ async def seed_prometheus_alerts(num_alerts: int = 25) -> int:
         },
     ]
 
-    instances = ["ai-detector:8090", "ai-llm:8091", "ai-florence:8092", "backend:8000"]
+    instances = ["ai-yolo26:8095", "ai-llm:8091", "ai-florence:8092", "backend:8000"]
     services = ["yolo26", "nemotron", "florence", "clip", "backend"]
     cameras = ["front_door", "backyard", "garage", "driveway"]
 

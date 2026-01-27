@@ -974,7 +974,7 @@ Array of container health statuses:
   { "name": "frontend", "status": "running", "health": "healthy" },
   { "name": "postgres", "status": "running", "health": "healthy" },
   { "name": "redis", "status": "running", "health": "healthy" },
-  { "name": "ai-detector", "status": "running", "health": "healthy" },
+  { "name": "ai-yolo26", "status": "running", "health": "healthy" },
   { "name": "ai-llm", "status": "running", "health": "healthy" }
 ]
 ```
@@ -1092,7 +1092,7 @@ Array of alerts when metrics exceed configured thresholds:
       { "name": "frontend", "status": "running", "health": "healthy" },
       { "name": "postgres", "status": "running", "health": "healthy" },
       { "name": "redis", "status": "running", "health": "healthy" },
-      { "name": "ai-detector", "status": "running", "health": "healthy" },
+      { "name": "ai-yolo26", "status": "running", "health": "healthy" },
       { "name": "ai-llm", "status": "running", "health": "healthy" }
     ],
     "alerts": []

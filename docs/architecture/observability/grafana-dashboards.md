@@ -359,9 +359,9 @@ Real-time log viewing (`monitoring/grafana/dashboards/logs.json`):
 
 Filter by container/service (`monitoring/grafana/dashboards/logs.json`):
 
-| Variable   | Type   | Values                                                       |
-| ---------- | ------ | ------------------------------------------------------------ |
-| `$service` | Custom | `backend\|ai-detector\|ai-llm\|ai-florence\|redis\|postgres` |
+| Variable   | Type   | Values                                                     |
+| ---------- | ------ | ---------------------------------------------------------- |
+| `$service` | Custom | `backend\|ai-yolo26\|ai-llm\|ai-florence\|redis\|postgres` |
 
 ### Level Variable
 

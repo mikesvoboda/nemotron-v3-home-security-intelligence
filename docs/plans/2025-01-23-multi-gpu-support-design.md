@@ -43,7 +43,7 @@ Enable multi-GPU support for AI services, allowing users to pin specific models 
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                         UI: GPU Configuration                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐  │
-│  │ ai-llm: GPU 0   │  │ ai-detector: 0  │  │ ai-enrichment: GPU 1   │  │
+│  │ ai-llm: GPU 0   │  │ ai-yolo26: 0  │  │ ai-enrichment: GPU 1   │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────────────┘  │
 │                                                                         │
 │  ⚠️ Warning: ai-enrichment VRAM budget (6.8GB) exceeds GPU 1 (4GB)     │
@@ -93,7 +93,7 @@ Enable multi-GPU support for AI services, allowing users to pin specific models 
 ```sql
 CREATE TABLE gpu_configurations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    service_name VARCHAR(64) NOT NULL UNIQUE,  -- 'ai-llm', 'ai-detector', etc.
+    service_name VARCHAR(64) NOT NULL UNIQUE,  -- 'ai-llm', 'ai-yolo26', etc.
     gpu_index INTEGER,                          -- NULL = auto-assign
     strategy VARCHAR(32) DEFAULT 'manual',      -- 'manual', 'vram_based', 'latency_optimized', 'isolation_first', 'balanced'
     vram_budget_override FLOAT,                 -- Override VRAM budget (for enrichment)
@@ -128,7 +128,7 @@ generated_at: '2025-01-23T10:30:00Z'
 strategy: vram_based
 assignments:
   ai-llm: { gpu: 0, vram_budget: null }
-  ai-detector: { gpu: 0, vram_budget: null }
+  ai-yolo26: { gpu: 0, vram_budget: null }
   ai-enrichment: { gpu: 1, vram_budget: 3.5 }
 ```
 
@@ -176,7 +176,7 @@ assignments:
   "strategy": "manual",
   "assignments": [
     { "service": "ai-llm", "gpu_index": 0 },
-    { "service": "ai-detector", "gpu_index": 0 },
+    { "service": "ai-yolo26", "gpu_index": 0 },
     { "service": "ai-enrichment", "gpu_index": 1, "vram_budget_override": 3.5 }
   ]
 }
@@ -290,7 +290,7 @@ src/components/settings/
 │  │  Service          Model              VRAM Est.   GPU            │   │
 │  │  ────────────────────────────────────────────────────────────── │   │
 │  │  ai-llm           Nemotron-30B       ~21.7 GB    [ GPU 0 ▼ ]    │   │
-│  │  ai-detector      YOLO26          ~650 MB     [ GPU 0 ▼ ]    │   │
+│  │  ai-yolo26      YOLO26          ~650 MB     [ GPU 0 ▼ ]    │   │
 │  │  ai-florence      Florence-2-L       ~1.5 GB     [ GPU 0 ▼ ]    │   │
 │  │  ai-clip          CLIP ViT-L         ~1.2 GB     [ GPU 0 ▼ ]    │   │
 │  │  ai-enrichment    Model Zoo          ~6.8 GB     [ GPU 1 ▼ ]    │   │
@@ -312,7 +312,7 @@ src/components/settings/
 | --------------------- | ----------------------------- | ------------------------------------------------------------- |
 | **Manual**            | User controls each assignment | No auto-assignment                                            |
 | **VRAM-based**        | Largest models on largest GPU | Sort models by VRAM desc, assign to GPU with most free space  |
-| **Latency-optimized** | Critical path on fastest GPU  | ai-detector + ai-llm on GPU 0, others distributed             |
+| **Latency-optimized** | Critical path on fastest GPU  | ai-yolo26 + ai-llm on GPU 0, others distributed               |
 | **Isolation-first**   | LLM gets dedicated GPU        | ai-llm alone on largest GPU, everything else shares remaining |
 | **Balanced**          | Distribute VRAM evenly        | Bin-packing to minimize VRAM variance across GPUs             |
 
@@ -411,7 +411,7 @@ def get_target_gpu() -> int:
 | Service       | Model                        | VRAM Estimate  |
 | ------------- | ---------------------------- | -------------- |
 | ai-llm        | Nemotron-3-Nano-30B (Q4_K_M) | ~21.7 GB       |
-| ai-detector   | YOLO26                       | ~650 MB        |
+| ai-yolo26     | YOLO26                       | ~650 MB        |
 | ai-florence   | Florence-2-Large             | ~1.5 GB        |
 | ai-clip       | CLIP ViT-L                   | ~1.2 GB        |
 | ai-enrichment | Model Zoo (9 models)         | ~6.8 GB budget |

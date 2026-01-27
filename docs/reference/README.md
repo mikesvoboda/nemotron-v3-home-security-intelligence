@@ -46,7 +46,7 @@ Complete reference: [Environment Variable Reference](config/env-reference.md)
 | -------------- | -------- | -------------------------- | ------------------------- |
 | `DATABASE_URL` | **Yes**  | -                          | PostgreSQL connection URL |
 | `REDIS_URL`    | No       | `redis://localhost:6379/0` | Redis connection URL      |
-| `YOLO26_URL`   | No       | `http://localhost:8090`    | YOLO26 service URL        |
+| `YOLO26_URL`   | No       | `http://localhost:8095`    | YOLO26 service URL        |
 | `NEMOTRON_URL` | No       | `http://localhost:8091`    | Nemotron LLM service URL  |
 
 ### Database Configuration
@@ -81,7 +81,7 @@ REDIS_URL=redis://redis:6379/0
 
 | Variable         | Default                 | Description                           |
 | ---------------- | ----------------------- | ------------------------------------- |
-| `YOLO26_URL`     | `http://localhost:8090` | YOLO26 object detection service       |
+| `YOLO26_URL`     | `http://localhost:8095` | YOLO26 object detection service       |
 | `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service                  |
 | `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision-language (optional) |
 | `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service (optional)     |
@@ -140,7 +140,7 @@ AI services run directly on the host while the backend runs in a container:
 
 ```bash
 # macOS with Docker Desktop (default)
-YOLO26_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8095
 NEMOTRON_URL=http://host.docker.internal:8091
 
 # macOS with Podman
@@ -157,19 +157,19 @@ All services including AI run in containers:
 
 ```bash
 # Uses container network names (set in docker-compose.prod.yml)
-YOLO26_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-yolo26:8095
 NEMOTRON_URL=http://ai-llm:8091
 ```
 
 ### Quick Reference: AI_HOST by Platform
 
-| Platform | Runtime | Development (host AI)            | Production (container AI)     |
-| -------- | ------- | -------------------------------- | ----------------------------- |
-| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)       |
-| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)       |
-| Linux    | Docker  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`, etc. |
-| Linux    | Podman  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`, etc. |
-| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)       |
+| Platform | Runtime | Development (host AI)            | Production (container AI)   |
+| -------- | ------- | -------------------------------- | --------------------------- |
+| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)     |
+| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)     |
+| Linux    | Docker  | Host IP or `host-gateway`        | `ai-yolo26`, `ai-llm`, etc. |
+| Linux    | Podman  | Host IP or `host-gateway`        | `ai-yolo26`, `ai-llm`, etc. |
+| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)     |
 
 ---
 
@@ -281,7 +281,7 @@ python -c "from core.config import get_settings; s = get_settings(); print(s.mod
 
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
-curl http://localhost:8090/health                # YOLO26
+curl http://localhost:8095/health                # YOLO26
 curl http://localhost:8091/health                # Nemotron
 redis-cli ping                                   # Redis
 ```

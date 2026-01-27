@@ -115,7 +115,7 @@ def sample_assignments() -> list[GpuAssignment]:
     """Create sample GPU assignments for testing."""
     return [
         GpuAssignment(service="ai-llm", gpu_index=0, vram_budget_override=None),
-        GpuAssignment(service="ai-detector", gpu_index=0, vram_budget_override=None),
+        GpuAssignment(service="ai-yolo26", gpu_index=0, vram_budget_override=None),
         GpuAssignment(service="ai-enrichment", gpu_index=1, vram_budget_override=3.5),
     ]
 
@@ -260,7 +260,7 @@ class TestGetGpuConfig:
         assert "assignments" in data
         assert isinstance(data["assignments"], list)
         # Should have default assignments for all services
-        assert len(data["assignments"]) >= 3  # ai-llm, ai-detector, ai-enrichment
+        assert len(data["assignments"]) >= 3  # ai-llm, ai-yolo26, ai-enrichment
         assert data["updated_at"] is None
 
     def test_get_gpu_config_returns_saved_config(
@@ -283,7 +283,7 @@ class TestGetGpuConfig:
             enabled=True,
         )
         mock_config2 = GpuConfiguration(
-            service_name="ai-detector",
+            service_name="ai-yolo26",
             gpu_index=1,
             strategy="vram_based",
             enabled=True,
@@ -314,7 +314,7 @@ class TestGetGpuConfig:
         assert len(data["assignments"]) == 2
         assert data["assignments"][0]["service"] == "ai-llm"
         assert data["assignments"][0]["gpu_index"] == 0
-        assert data["assignments"][1]["service"] == "ai-detector"
+        assert data["assignments"][1]["service"] == "ai-yolo26"
         assert data["assignments"][1]["gpu_index"] == 1
         assert data["assignments"][1]["vram_budget_override"] == 4.5
         assert data["updated_at"] is not None
@@ -698,11 +698,11 @@ class TestGetGpuConfigStatus:
         gpu_config._apply_state_fallback = {
             "in_progress": True,
             "operation_id": None,  # No Redis operation, so this uses fallback state
-            "services_pending": ["ai-llm", "ai-detector"],
+            "services_pending": ["ai-llm", "ai-yolo26"],
             "services_completed": ["ai-enrichment"],
             "service_statuses": [
                 ServiceStatus(service="ai-llm", status="starting", message=None),
-                ServiceStatus(service="ai-detector", status="pending", message=None),
+                ServiceStatus(service="ai-yolo26", status="pending", message=None),
                 ServiceStatus(service="ai-enrichment", status="running", message=None),
             ],
             "last_updated": datetime.now(UTC),

@@ -275,7 +275,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 **Services Managed:**
 
 - Core: postgres, redis, backend, frontend
-- AI: ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+- AI: ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 - Monitoring: prometheus, grafana, redis-exporter, json-exporter
 
 #### redeploy.sh

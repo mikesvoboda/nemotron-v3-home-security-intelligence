@@ -127,7 +127,7 @@ model.export(format="engine", int8=True, data="config/yolo26_calibration.yaml")
 ### Using Docker/Podman:
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-detector-yolo26
+docker compose -f docker-compose.prod.yml up ai-yolo26
 ```
 
 ### Direct execution:

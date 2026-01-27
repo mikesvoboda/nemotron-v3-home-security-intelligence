@@ -10011,7 +10011,7 @@ export interface components {
          *       "last_health_check": "2026-01-20T12:00:00Z",
          *       "latency_p99_ms": 450,
          *       "status": "healthy",
-         *       "url": "http://ai-detector:8090"
+         *       "url": "http://ai-yolo26:8095"
          *     }
          */
         AIServiceHealthDetail: {
@@ -10061,7 +10061,7 @@ export interface components {
          *       "name": "yolo26",
          *       "response_time_ms": 45.2,
          *       "status": "healthy",
-         *       "url": "http://ai-detector:8090"
+         *       "url": "http://ai-yolo26:8095"
          *     }
          */
         AIServiceHealthStatus: {
@@ -10190,7 +10190,7 @@ export interface components {
          *           "last_health_check": "2026-01-20T12:00:00Z",
          *           "latency_p99_ms": 450,
          *           "status": "healthy",
-         *           "url": "http://ai-detector:8090"
+         *           "url": "http://ai-yolo26:8095"
          *         }
          *       },
          *       "timestamp": "2026-01-20T12:00:00Z"
@@ -10867,7 +10867,7 @@ export interface components {
          *         {
          *           "description": "YOLO26 real-time object detection",
          *           "display_name": "Object Detector",
-         *           "name": "ai-detector",
+         *           "name": "ai-yolo26",
          *           "vram_required_gb": 2,
          *           "vram_required_mb": 2048
          *         }
@@ -20297,7 +20297,7 @@ export interface components {
          *           "name": "yolo26",
          *           "response_time_ms": 45.2,
          *           "status": "healthy",
-         *           "url": "http://ai-detector:8090"
+         *           "url": "http://ai-yolo26:8095"
          *         }
          *       ],
          *       "circuit_breakers": {
@@ -20781,7 +20781,7 @@ export interface components {
             gpu_index?: number | null;
             /**
              * Service
-             * @description Service name (e.g., 'ai-llm', 'ai-detector')
+             * @description Service name (e.g., 'ai-llm', 'ai-yolo26')
              */
             service: string;
             /**
@@ -20816,7 +20816,7 @@ export interface components {
          *         },
          *         {
          *           "gpu_index": 0,
-         *           "service": "ai-detector"
+         *           "service": "ai-yolo26"
          *         },
          *         {
          *           "gpu_index": 1,
@@ -20857,7 +20857,7 @@ export interface components {
          *         },
          *         {
          *           "gpu_index": 0,
-         *           "service": "ai-detector"
+         *           "service": "ai-yolo26"
          *         },
          *         {
          *           "gpu_index": 1,
@@ -20937,7 +20937,7 @@ export interface components {
          *         },
          *         {
          *           "gpu_index": 0,
-         *           "service": "ai-detector"
+         *           "service": "ai-yolo26"
          *         },
          *         {
          *           "gpu_index": 1,
@@ -29759,8 +29759,8 @@ export interface components {
          *         "failure_count": 0,
          *         "image": "ghcr.io/.../yolo26:latest",
          *         "last_restart_at": "2026-01-05T15:50:00Z",
-         *         "name": "ai-detector",
-         *         "port": 8090,
+         *         "name": "ai-yolo26",
+         *         "port": 8095,
          *         "restart_count": 3,
          *         "status": "starting"
          *       },
@@ -29808,7 +29808,7 @@ export interface components {
          *         {
          *           "gpu_index": 1,
          *           "health": "healthy",
-         *           "name": "ai-detector",
+         *           "name": "ai-yolo26",
          *           "status": "running"
          *         }
          *       ]
@@ -29918,8 +29918,8 @@ export interface components {
          *       "failure_count": 0,
          *       "image": "ghcr.io/.../yolo26:latest",
          *       "last_restart_at": "2026-01-05T10:30:00Z",
-         *       "name": "ai-detector",
-         *       "port": 8090,
+         *       "name": "ai-yolo26",
+         *       "port": 8095,
          *       "restart_count": 2,
          *       "status": "running",
          *       "uptime_seconds": 3600
@@ -29962,7 +29962,7 @@ export interface components {
             last_restart_at?: string | null;
             /**
              * Name
-             * @description Service identifier (e.g., 'ai-detector', 'postgres', 'grafana')
+             * @description Service identifier (e.g., 'ai-yolo26', 'postgres', 'grafana')
              */
             name: string;
             /**
@@ -30057,8 +30057,8 @@ export interface components {
          *           "failure_count": 0,
          *           "image": "ghcr.io/.../yolo26:latest",
          *           "last_restart_at": "2026-01-05T10:30:00Z",
-         *           "name": "ai-detector",
-         *           "port": 8090,
+         *           "name": "ai-yolo26",
+         *           "port": 8095,
          *           "restart_count": 2,
          *           "status": "running",
          *           "uptime_seconds": 3600

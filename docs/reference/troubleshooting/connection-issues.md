@@ -64,7 +64,7 @@ For Docker:
 
 For production compose, AI services are reachable from the backend by compose DNS:
 
-- `ai-detector:8090`
+- `ai-yolo26:8095`
 - `ai-llm:8091`
 - `ai-florence:8092` (optional)
 - `ai-clip:8093` (optional)
@@ -351,7 +351,7 @@ VITE_API_BASE_URL=http://localhost:8000
 time curl http://localhost:8000/health
 
 # Check AI service response time
-time curl http://localhost:8090/health
+time curl http://localhost:8095/health
 time curl http://localhost:8091/health
 ```
 

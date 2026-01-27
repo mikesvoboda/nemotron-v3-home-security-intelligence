@@ -104,7 +104,7 @@ function createFullPerformanceUpdate(): PerformanceUpdate {
       { name: 'frontend', status: 'running', health: 'healthy' },
       { name: 'postgres', status: 'running', health: 'healthy' },
       { name: 'redis', status: 'running', health: 'healthy' },
-      { name: 'ai-detector', status: 'running', health: 'healthy' },
+      { name: 'ai-yolo26', status: 'running', health: 'healthy' },
       { name: 'ai-llm', status: 'running', health: 'healthy' },
     ],
     alerts: [],

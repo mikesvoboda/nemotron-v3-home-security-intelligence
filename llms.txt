@@ -51,7 +51,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 # Rebuild AI containers if ai/ code changed
-podman-compose -f docker-compose.prod.yml build ai-detector ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 
 # Restart everything
 podman-compose -f docker-compose.prod.yml down
@@ -122,7 +122,7 @@ ${AI_MODELS_PATH}/
 | Backend | 8000 | backend | No | FastAPI REST + WebSocket |
 | PostgreSQL | 5432 | postgres | No | Event/detection storage |
 | Redis | 6379 | redis | No | Queues and pub/sub |
-| YOLO26 | 8090 | ai-detector | Yes | Object detection |
+| YOLO26 | 8090 | ai-yolo26 | Yes | Object detection |
 | Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM |
 | Florence-2 | 8092 | ai-florence | Yes | Vision-language captions |
 | CLIP | 8093 | ai-clip | Yes | Embeddings/re-identification |

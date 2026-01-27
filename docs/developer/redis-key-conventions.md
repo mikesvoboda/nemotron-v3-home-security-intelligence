@@ -156,9 +156,9 @@ Used by `JobStatusService` and `JobTracker` for background job tracking.
 
 Used by `ServiceRegistry` for container service state persistence.
 
-| Pattern                             | Purpose            | TTL  | Example                                  |
-| ----------------------------------- | ------------------ | ---- | ---------------------------------------- |
-| `orchestrator:service:{name}:state` | Service state JSON | None | `orchestrator:service:ai-detector:state` |
+| Pattern                             | Purpose            | TTL  | Example                                |
+| ----------------------------------- | ------------------ | ---- | -------------------------------------- |
+| `orchestrator:service:{name}:state` | Service state JSON | None | `orchestrator:service:ai-yolo26:state` |
 
 **Location:** `backend/services/managed_service.py`, `backend/services/orchestrator/registry.py`
 

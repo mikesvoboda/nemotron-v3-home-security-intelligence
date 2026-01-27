@@ -70,8 +70,8 @@ def gpu_config_service(
 def sample_assignments() -> dict[str, GpuAssignment]:
     """Create sample GPU assignments for testing."""
     return {
-        "ai-detector": GpuAssignment(
-            service_name="ai-detector",
+        "ai-yolo26": GpuAssignment(
+            service_name="ai-yolo26",
             gpu_index=0,
             vram_limit_mb=8192,
         ),
@@ -93,9 +93,9 @@ class TestServiceRestartStatus:
 
     def test_create_with_defaults(self) -> None:
         """Test creating ServiceRestartStatus with defaults."""
-        status = ServiceRestartStatus(service_name="ai-detector")
+        status = ServiceRestartStatus(service_name="ai-yolo26")
 
-        assert status.service_name == "ai-detector"
+        assert status.service_name == "ai-yolo26"
         assert status.status == RestartStatus.PENDING
         assert status.started_at is None
         assert status.completed_at is None
@@ -105,14 +105,14 @@ class TestServiceRestartStatus:
         """Test creating ServiceRestartStatus with all fields."""
         now = datetime.now(UTC)
         status = ServiceRestartStatus(
-            service_name="ai-detector",
+            service_name="ai-yolo26",
             status=RestartStatus.RUNNING,
             started_at=now,
             completed_at=now,
             error=None,
         )
 
-        assert status.service_name == "ai-detector"
+        assert status.service_name == "ai-yolo26"
         assert status.status == RestartStatus.RUNNING
         assert status.started_at == now
         assert status.completed_at == now
@@ -121,7 +121,7 @@ class TestServiceRestartStatus:
         """Test serializing ServiceRestartStatus to dict."""
         now = datetime.now(UTC)
         status = ServiceRestartStatus(
-            service_name="ai-detector",
+            service_name="ai-yolo26",
             status=RestartStatus.FAILED,
             started_at=now,
             completed_at=now,
@@ -130,7 +130,7 @@ class TestServiceRestartStatus:
 
         data = status.to_dict()
 
-        assert data["service_name"] == "ai-detector"
+        assert data["service_name"] == "ai-yolo26"
         assert data["status"] == "failed"
         assert data["started_at"] == now.isoformat()
         assert data["completed_at"] == now.isoformat()
@@ -158,7 +158,7 @@ class TestServiceRestartStatus:
     def test_from_dict_with_null_timestamps(self) -> None:
         """Test deserializing with null timestamps."""
         data = {
-            "service_name": "ai-detector",
+            "service_name": "ai-yolo26",
             "status": "pending",
             "started_at": None,
             "completed_at": None,
@@ -203,10 +203,10 @@ class TestApplyResult:
             operation_id="op-456",
             started_at=now,
             completed_at=now,
-            changed_services=["ai-detector", "ai-llm"],
+            changed_services=["ai-yolo26", "ai-llm"],
             service_statuses={
-                "ai-detector": ServiceRestartStatus(
-                    service_name="ai-detector",
+                "ai-yolo26": ServiceRestartStatus(
+                    service_name="ai-yolo26",
                     status=RestartStatus.FAILED,
                     error="Timeout",
                 )
@@ -220,8 +220,8 @@ class TestApplyResult:
         assert data["operation_id"] == "op-456"
         assert data["started_at"] == now.isoformat()
         assert data["completed_at"] == now.isoformat()
-        assert data["changed_services"] == ["ai-detector", "ai-llm"]
-        assert "ai-detector" in data["service_statuses"]
+        assert data["changed_services"] == ["ai-yolo26", "ai-llm"]
+        assert "ai-yolo26" in data["service_statuses"]
         assert data["error"] == "Partial failure"
 
 
@@ -236,11 +236,11 @@ class TestGpuAssignment:
     def test_create_minimal(self) -> None:
         """Test creating GpuAssignment with minimal fields."""
         assignment = GpuAssignment(
-            service_name="ai-detector",
+            service_name="ai-yolo26",
             gpu_index=0,
         )
 
-        assert assignment.service_name == "ai-detector"
+        assert assignment.service_name == "ai-yolo26"
         assert assignment.gpu_index == 0
         assert assignment.vram_limit_mb is None
 
@@ -282,11 +282,11 @@ class TestDiffAssignments:
     def test_no_changes(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff with identical assignments."""
         old = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             "ai-llm": GpuAssignment("ai-llm", 1),
         }
         new = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             "ai-llm": GpuAssignment("ai-llm", 1),
         }
 
@@ -297,15 +297,15 @@ class TestDiffAssignments:
     def test_gpu_index_change(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff detects GPU index changes."""
         old = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
         }
         new = {
-            "ai-detector": GpuAssignment("ai-detector", 1),  # Changed from 0 to 1
+            "ai-yolo26": GpuAssignment("ai-yolo26", 1),  # Changed from 0 to 1
         }
 
         changed = gpu_config_service._diff_assignments(old, new)
 
-        assert changed == ["ai-detector"]
+        assert changed == ["ai-yolo26"]
 
     def test_vram_limit_change(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff detects VRAM limit changes."""
@@ -323,10 +323,10 @@ class TestDiffAssignments:
     def test_service_added(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff detects new services."""
         old = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
         }
         new = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             "ai-llm": GpuAssignment("ai-llm", 1),  # New service
         }
 
@@ -338,11 +338,11 @@ class TestDiffAssignments:
     def test_service_removed(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff detects removed services."""
         old = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             "ai-llm": GpuAssignment("ai-llm", 1),
         }
         new = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             # ai-llm removed
         }
 
@@ -354,12 +354,12 @@ class TestDiffAssignments:
     def test_multiple_changes(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff with multiple types of changes."""
         old = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             "ai-llm": GpuAssignment("ai-llm", 1),
             "ai-florence": GpuAssignment("ai-florence", 2),
         }
         new = {
-            "ai-detector": GpuAssignment("ai-detector", 1),  # Changed
+            "ai-yolo26": GpuAssignment("ai-yolo26", 1),  # Changed
             # ai-llm removed
             "ai-florence": GpuAssignment("ai-florence", 2),  # Unchanged
             "ai-clip": GpuAssignment("ai-clip", 3),  # Added
@@ -368,7 +368,7 @@ class TestDiffAssignments:
         changed = gpu_config_service._diff_assignments(old, new)
 
         assert len(changed) == 3
-        assert "ai-detector" in changed  # Modified
+        assert "ai-yolo26" in changed  # Modified
         assert "ai-llm" in changed  # Removed
         assert "ai-clip" in changed  # Added
         assert "ai-florence" not in changed  # Unchanged
@@ -377,23 +377,23 @@ class TestDiffAssignments:
         """Test diff from empty to populated assignments."""
         old: dict[str, GpuAssignment] = {}
         new = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
         }
 
         changed = gpu_config_service._diff_assignments(old, new)
 
-        assert changed == ["ai-detector"]
+        assert changed == ["ai-yolo26"]
 
     def test_populated_to_empty(self, gpu_config_service: GpuConfigService) -> None:
         """Test diff from populated to empty assignments."""
         old = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
         }
         new: dict[str, GpuAssignment] = {}
 
         changed = gpu_config_service._diff_assignments(old, new)
 
-        assert changed == ["ai-detector"]
+        assert changed == ["ai-yolo26"]
 
 
 # ============================================================================
@@ -407,25 +407,25 @@ class TestBuildOverrideContent:
     def test_single_service(self, gpu_config_service: GpuConfigService) -> None:
         """Test generating override content for single service."""
         assignments = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
         }
 
         content = gpu_config_service._build_override_content(assignments)
 
         assert "version: '3.8'" in content
-        assert "ai-detector:" in content
+        assert "ai-yolo26:" in content
         assert "NVIDIA_VISIBLE_DEVICES=0" in content
 
     def test_multiple_services(self, gpu_config_service: GpuConfigService) -> None:
         """Test generating override content for multiple services."""
         assignments = {
-            "ai-detector": GpuAssignment("ai-detector", 0),
+            "ai-yolo26": GpuAssignment("ai-yolo26", 0),
             "ai-llm": GpuAssignment("ai-llm", 1),
         }
 
         content = gpu_config_service._build_override_content(assignments)
 
-        assert "ai-detector:" in content
+        assert "ai-yolo26:" in content
         assert "ai-llm:" in content
         assert "NVIDIA_VISIBLE_DEVICES=0" in content
         assert "NVIDIA_VISIBLE_DEVICES=1" in content
@@ -446,7 +446,7 @@ class TestBuildOverrideContent:
 
     def test_header_comment(self, gpu_config_service: GpuConfigService) -> None:
         """Test that override content includes header comment."""
-        assignments = {"ai-detector": GpuAssignment("ai-detector", 0)}
+        assignments = {"ai-yolo26": GpuAssignment("ai-yolo26", 0)}
 
         content = gpu_config_service._build_override_content(assignments)
 
@@ -479,7 +479,7 @@ class TestRecreateService:
             mock_process.communicate = AsyncMock(return_value=(b"Success", b""))
             mock_exec.return_value = mock_process
 
-            result = await gpu_config_service._recreate_service("ai-detector")
+            result = await gpu_config_service._recreate_service("ai-yolo26")
 
             assert result is True
             mock_exec.assert_called_once()
@@ -500,7 +500,7 @@ class TestRecreateService:
             mock_process.communicate = AsyncMock(return_value=(b"", b"Error: container not found"))
             mock_exec.return_value = mock_process
 
-            result = await gpu_config_service._recreate_service("ai-detector")
+            result = await gpu_config_service._recreate_service("ai-yolo26")
 
             assert result is False
 
@@ -511,7 +511,7 @@ class TestRecreateService:
     ) -> None:
         """Test restart when no compose command is available."""
         with patch.object(gpu_config_service, "_get_compose_command", return_value=None):
-            result = await gpu_config_service._recreate_service("ai-detector")
+            result = await gpu_config_service._recreate_service("ai-yolo26")
 
             assert result is False
 
@@ -531,7 +531,7 @@ class TestRecreateService:
             mock_process.wait = AsyncMock()
             mock_exec.return_value = mock_process
 
-            result = await gpu_config_service._recreate_service("ai-detector")
+            result = await gpu_config_service._recreate_service("ai-yolo26")
 
             assert result is False
             mock_process.kill.assert_called_once()
@@ -636,7 +636,7 @@ class TestApplyGpuConfig:
 
             assert result.success is True
             assert len(result.changed_services) == 2
-            assert "ai-detector" in result.changed_services
+            assert "ai-yolo26" in result.changed_services
             assert "ai-llm" in result.changed_services
             assert mock_restart.call_count == 2
 
@@ -719,9 +719,9 @@ class TestGetContainerStatus:
         mock_docker_client.get_container_by_name = AsyncMock(return_value=mock_container)
         mock_docker_client.get_container_status = AsyncMock(return_value="running")
 
-        result = await gpu_config_service.get_container_status(["ai-detector", "ai-llm"])
+        result = await gpu_config_service.get_container_status(["ai-yolo26", "ai-llm"])
 
-        assert result["ai-detector"] == "running"
+        assert result["ai-yolo26"] == "running"
         assert result["ai-llm"] == "running"
 
     @pytest.mark.asyncio
@@ -733,9 +733,9 @@ class TestGetContainerStatus:
         """Test getting container status when container not found."""
         mock_docker_client.get_container_by_name = AsyncMock(return_value=None)
 
-        result = await gpu_config_service.get_container_status(["ai-detector"])
+        result = await gpu_config_service.get_container_status(["ai-yolo26"])
 
-        assert result["ai-detector"] is None
+        assert result["ai-yolo26"] is None
 
     @pytest.mark.asyncio
     async def test_get_status_no_docker_client(
@@ -754,9 +754,9 @@ class TestGetContainerStatus:
             project_root=tmp_path,
         )
 
-        result = await service.get_container_status(["ai-detector"])
+        result = await service.get_container_status(["ai-yolo26"])
 
-        assert result["ai-detector"] is None
+        assert result["ai-yolo26"] is None
 
     @pytest.mark.asyncio
     async def test_get_status_exception_handling(
@@ -769,9 +769,9 @@ class TestGetContainerStatus:
             side_effect=Exception("Connection failed")
         )
 
-        result = await gpu_config_service.get_container_status(["ai-detector"])
+        result = await gpu_config_service.get_container_status(["ai-yolo26"])
 
-        assert result["ai-detector"] is None
+        assert result["ai-yolo26"] is None
 
 
 # ============================================================================
@@ -796,7 +796,7 @@ class TestGetOperationStatus:
                 "operation_id": "op-123",
                 "started_at": now.isoformat(),
                 "completed_at": now.isoformat(),
-                "changed_services": ["ai-detector"],
+                "changed_services": ["ai-yolo26"],
                 "service_statuses": {},
                 "error": None,
             }
@@ -905,12 +905,12 @@ class TestGpuConfigServiceIntegration:
             override_file = tmp_path / "docker-compose.gpu-override.yml"
             assert override_file.exists()
             content = override_file.read_text()
-            assert "ai-detector:" in content
+            assert "ai-yolo26:" in content
             assert "ai-llm:" in content
 
             # Verify current assignments updated
             current = gpu_config_service.get_current_assignments()
-            assert "ai-detector" in current
+            assert "ai-yolo26" in current
             assert "ai-llm" in current
 
     @pytest.mark.asyncio
@@ -927,10 +927,10 @@ class TestGpuConfigServiceIntegration:
 
             # Change only one service
             modified = gpu_config_service.get_current_assignments()
-            modified["ai-detector"] = GpuAssignment("ai-detector", 2)  # Changed GPU
+            modified["ai-yolo26"] = GpuAssignment("ai-yolo26", 2)  # Changed GPU
 
             result2 = await gpu_config_service.apply_gpu_config(modified)
 
             assert result2.success is True
             # Only the modified service should be restarted
-            assert result2.changed_services == ["ai-detector"]
+            assert result2.changed_services == ["ai-yolo26"]

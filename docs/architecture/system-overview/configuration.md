@@ -107,7 +107,7 @@ print(settings.database_url)
 
 | Variable         | Default                 | Description               |
 | ---------------- | ----------------------- | ------------------------- |
-| `YOLO26_URL`     | `http://localhost:8090` | YOLO26 detection service  |
+| `YOLO26_URL`     | `http://localhost:8095` | YOLO26 detection service  |
 | `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service      |
 | `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision service |
 | `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service    |
@@ -304,7 +304,7 @@ REDIS_URL=redis://localhost:6379/0
 REDIS_PASSWORD=
 
 # AI Services (Docker)
-YOLO26_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-yolo26:8095
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093

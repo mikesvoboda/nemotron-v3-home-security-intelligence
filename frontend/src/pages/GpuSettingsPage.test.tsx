@@ -69,7 +69,7 @@ const mockGpuConfig: GpuConfig = {
   strategy: 'manual',
   assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-    { service: 'ai-detector', gpu_index: 0, vram_budget_override: null },
+    { service: 'ai-yolo26', gpu_index: 0, vram_budget_override: null },
     { service: 'ai-enrichment', gpu_index: 1, vram_budget_override: null },
   ],
   updated_at: '2026-01-23T10:30:00Z',
@@ -78,10 +78,10 @@ const mockGpuConfig: GpuConfig = {
 const mockGpuStatus: GpuStatusResponse = {
   in_progress: false,
   services_pending: [],
-  services_completed: ['ai-llm', 'ai-detector', 'ai-enrichment'],
+  services_completed: ['ai-llm', 'ai-yolo26', 'ai-enrichment'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-yolo26', status: 'running', message: null },
     { service: 'ai-enrichment', status: 'running', message: null },
   ],
 };
@@ -94,10 +94,10 @@ const mockUpdateResponse: GpuConfigUpdateResponse = {
 const mockApplyResult: GpuApplyResult = {
   success: true,
   warnings: [],
-  restarted_services: ['ai-llm', 'ai-detector', 'ai-enrichment'],
+  restarted_services: ['ai-llm', 'ai-yolo26', 'ai-enrichment'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-yolo26', status: 'running', message: null },
     { service: 'ai-enrichment', status: 'running', message: null },
   ],
 };
@@ -109,7 +109,7 @@ const emptyGpuList: GpuListResponse = {
 const mockServiceHealth: ServiceHealthResponse = {
   services: [
     { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-    { name: 'ai-detector', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
+    { name: 'ai-yolo26', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
     {
       name: 'ai-enrichment',
       status: 'running',
@@ -351,7 +351,7 @@ describe('GpuSettingsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('assignment-row-ai-llm')).toBeInTheDocument();
-        expect(screen.getByTestId('assignment-row-ai-detector')).toBeInTheDocument();
+        expect(screen.getByTestId('assignment-row-ai-yolo26')).toBeInTheDocument();
         expect(screen.getByTestId('assignment-row-ai-enrichment')).toBeInTheDocument();
       });
     });
@@ -373,7 +373,7 @@ describe('GpuSettingsPage', () => {
       // Then check status badges
       await waitFor(() => {
         expect(screen.getByTestId('status-badge-ai-llm')).toHaveTextContent('Unknown');
-        expect(screen.getByTestId('status-badge-ai-detector')).toHaveTextContent('Unknown');
+        expect(screen.getByTestId('status-badge-ai-yolo26')).toHaveTextContent('Unknown');
         expect(screen.getByTestId('status-badge-ai-enrichment')).toHaveTextContent('Unknown');
       });
     });

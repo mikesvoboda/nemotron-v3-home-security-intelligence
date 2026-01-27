@@ -183,7 +183,7 @@ class TestCollectGpuFallback:
         Regression test for NEM-1266: int_from_float validation error.
         """
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -218,7 +218,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_handles_int_values(self) -> None:
         """Test that GPU fallback works when API returns int values."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -249,7 +249,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_handles_missing_values(self) -> None:
         """Test that GPU fallback uses default values when fields are missing."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -279,7 +279,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_returns_none_on_error(self) -> None:
         """Test that GPU fallback returns None on HTTP error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -296,7 +296,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_returns_none_on_non_200(self) -> None:
         """Test that GPU fallback returns None on non-200 status."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -326,7 +326,7 @@ class TestCollectGpuMetrics:
         Regression test for NEM-1266: int_from_float validation error.
         """
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
             collector._pynvml_available = False  # Force fallback path
@@ -579,7 +579,7 @@ class TestCollectContainerHealth:
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
                 frontend_url="http://frontend:8080",
-                yolo26_url="http://ai-detector:8090",
+                yolo26_url="http://ai-yolo26:8095",
                 nemotron_url="http://ai-llm:8091",
             )
 
@@ -826,7 +826,7 @@ class TestCollectYolo26Metrics:
     async def test_collect_yolo26_metrics_healthy(self) -> None:
         """Test successful YOLO26 metrics collection."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -856,7 +856,7 @@ class TestCollectYolo26Metrics:
     async def test_collect_yolo26_metrics_unhealthy_status(self) -> None:
         """Test YOLO26 metrics with unhealthy status."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 
@@ -883,7 +883,7 @@ class TestCollectYolo26Metrics:
     async def test_collect_yolo26_metrics_connection_error(self) -> None:
         """Test YOLO26 metrics returns unreachable on connection error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-yolo26:8095")
 
             collector = PerformanceCollector()
 

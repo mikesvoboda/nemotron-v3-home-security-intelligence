@@ -27,11 +27,11 @@ Usage:
 
     # Create a managed service
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26v2",
         container_id="abc123",
         image="ghcr.io/.../yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         category=ServiceCategory.AI,
         status=ContainerServiceStatus.RUNNING,
@@ -42,10 +42,10 @@ Usage:
     registry.register(service)
 
     # Update status
-    registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
+    registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
 
     # Persist to Redis
-    await registry.persist_state("ai-detector")
+    await registry.persist_state("ai-yolo26")
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ class ManagedService:
     system for health monitoring, self-healing, and lifecycle management.
 
     Attributes:
-        name: Service identifier (e.g., "postgres", "ai-detector", "grafana")
+        name: Service identifier (e.g., "postgres", "ai-yolo26", "grafana")
         display_name: Human-readable name (e.g., "PostgreSQL", "YOLO26v2")
         container_id: Docker container ID or None if not yet discovered
         image: Container image (e.g., "postgres:16-alpine") or None
@@ -297,11 +297,11 @@ class ServiceRegistry:
         ai_services = registry.get_by_category(ServiceCategory.AI)
 
         # Update state
-        registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
-        registry.increment_failure("ai-detector")
+        registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
+        registry.increment_failure("ai-yolo26")
 
         # Persist to Redis
-        await registry.persist_state("ai-detector")
+        await registry.persist_state("ai-yolo26")
     """
 
     def __init__(self, redis_client: RedisClient | None = None) -> None:

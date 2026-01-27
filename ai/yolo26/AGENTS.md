@@ -221,7 +221,7 @@ detections = await client.detect_objects(
 ### Container (Production)
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-detector-yolo26
+docker compose -f docker-compose.prod.yml up ai-yolo26
 ```
 
 ### Native (Development)

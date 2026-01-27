@@ -215,7 +215,7 @@ Comprehensive health check including all AI services and circuit breakers.
       "name": "yolo26",
       "display_name": "YOLO26 Object Detection",
       "status": "healthy",
-      "url": "http://ai-detector:8090",
+      "url": "http://ai-yolo26:8095",
       "response_time_ms": 45.2,
       "circuit_state": "closed",
       "error": null,
@@ -306,7 +306,7 @@ Get monitoring target information for service discovery.
     },
     {
       "name": "yolo26",
-      "url": "http://ai-detector:8090",
+      "url": "http://ai-yolo26:8095",
       "health_endpoint": "/health"
     }
   ]

@@ -71,7 +71,7 @@ curl http://localhost:8000/api/system/health/ready
 curl http://localhost:8000/api/health/ai-services
 
 # Individual service health
-curl http://localhost:8090/health  # ai-detector (YOLO26)
+curl http://localhost:8095/health  # ai-yolo26 (YOLO26)
 curl http://localhost:8091/health  # ai-llm
 curl http://localhost:8095/health  # ai-yolo26
 ```
@@ -83,9 +83,9 @@ curl http://localhost:8095/health  # ai-yolo26
 curl http://localhost:8000/api/system/services
 
 # Restart a service
-curl -X POST http://localhost:8000/api/system/services/ai-detector/restart
+curl -X POST http://localhost:8000/api/system/services/ai-yolo26/restart
 
 # Enable/disable auto-restart
-curl -X POST http://localhost:8000/api/system/services/ai-detector/enable
-curl -X POST http://localhost:8000/api/system/services/ai-detector/disable
+curl -X POST http://localhost:8000/api/system/services/ai-yolo26/enable
+curl -X POST http://localhost:8000/api/system/services/ai-yolo26/disable
 ```

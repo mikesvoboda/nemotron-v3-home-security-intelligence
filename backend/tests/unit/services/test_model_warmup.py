@@ -384,11 +384,11 @@ class TestHealthMonitorOrchestratorWarmingState:
         # Add AI services
         registry.register(
             ManagedService(
-                name="ai-detector",
+                name="ai-yolo26",
                 display_name="AI Detector",
                 container_id="abc123",
                 image="yolo26:latest",
-                port=8090,
+                port=8095,
                 category=ServiceCategory.AI,
                 health_endpoint="/health",
             )
@@ -412,11 +412,11 @@ class TestHealthMonitorOrchestratorWarmingState:
         from backend.services.health_monitor_orchestrator import ManagedService
 
         service = ManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="AI Detector",
             container_id="abc123",
             image="yolo26:latest",
-            port=8090,
+            port=8095,
             category=ServiceCategory.AI,
         )
 
@@ -425,19 +425,19 @@ class TestHealthMonitorOrchestratorWarmingState:
 
     def test_registry_update_warmth_state(self, mock_registry):
         """Test updating warmth state in registry."""
-        mock_registry.update_warmth_state("ai-detector", "warming")
+        mock_registry.update_warmth_state("ai-yolo26", "warming")
 
-        service = mock_registry.get("ai-detector")
+        service = mock_registry.get("ai-yolo26")
         assert service.warmth_state == "warming"
 
     def test_registry_get_ai_services_warmth(self, mock_registry):
         """Test getting warmth state for all AI services."""
-        mock_registry.update_warmth_state("ai-detector", "warm")
+        mock_registry.update_warmth_state("ai-yolo26", "warm")
         mock_registry.update_warmth_state("ai-nemotron", "cold")
 
         warmth_states = mock_registry.get_ai_warmth_states()
 
-        assert warmth_states["ai-detector"] == "warm"
+        assert warmth_states["ai-yolo26"] == "warm"
         assert warmth_states["ai-nemotron"] == "cold"
 
 

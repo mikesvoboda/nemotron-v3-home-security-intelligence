@@ -40,13 +40,13 @@ const mockGpus: GpuDevice[] = [
 
 const mockAssignments: GpuAssignment[] = [
   { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-  { service: 'ai-detector', gpu_index: 0, vram_budget_override: null },
+  { service: 'ai-yolo26', gpu_index: 0, vram_budget_override: null },
   { service: 'ai-enrichment', gpu_index: 1, vram_budget_override: null },
 ];
 
 const mockServiceStatuses: ServiceHealthStatus[] = [
   { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-  { name: 'ai-detector', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
+  { name: 'ai-yolo26', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
   {
     name: 'ai-enrichment',
     status: 'running',
@@ -95,7 +95,7 @@ describe('GpuAssignmentTable', () => {
       renderWithProviders(<GpuAssignmentTable {...defaultProps} />);
 
       expect(screen.getByTestId('assignment-row-ai-llm')).toBeInTheDocument();
-      expect(screen.getByTestId('assignment-row-ai-detector')).toBeInTheDocument();
+      expect(screen.getByTestId('assignment-row-ai-yolo26')).toBeInTheDocument();
       expect(screen.getByTestId('assignment-row-ai-enrichment')).toBeInTheDocument();
     });
   });
@@ -105,7 +105,7 @@ describe('GpuAssignmentTable', () => {
       renderWithProviders(<GpuAssignmentTable {...defaultProps} />);
 
       expect(screen.getByTestId('gpu-select-ai-llm')).toBeInTheDocument();
-      expect(screen.getByTestId('gpu-select-ai-detector')).toBeInTheDocument();
+      expect(screen.getByTestId('gpu-select-ai-yolo26')).toBeInTheDocument();
       expect(screen.getByTestId('gpu-select-ai-enrichment')).toBeInTheDocument();
     });
 
@@ -174,7 +174,7 @@ describe('GpuAssignmentTable', () => {
 
       // Default VRAM for ai-llm is 8.0 GB
       expect(screen.getByText('8.0 GB')).toBeInTheDocument();
-      // Default VRAM for ai-detector is 4.0 GB
+      // Default VRAM for ai-yolo26 is 4.0 GB
       expect(screen.getByText('4.0 GB')).toBeInTheDocument();
       // Default VRAM for ai-enrichment is 3.5 GB
       expect(screen.getByText('3.5 GB')).toBeInTheDocument();
@@ -372,7 +372,7 @@ describe('GpuAssignmentTable', () => {
     it('should show reset button only when override is set', () => {
       const assignmentsWithOverride: GpuAssignment[] = [
         { service: 'ai-llm', gpu_index: 0, vram_budget_override: 10.5 },
-        { service: 'ai-detector', gpu_index: 0, vram_budget_override: null },
+        { service: 'ai-yolo26', gpu_index: 0, vram_budget_override: null },
       ];
 
       renderWithProviders(
@@ -384,7 +384,7 @@ describe('GpuAssignmentTable', () => {
       );
 
       expect(screen.getByTestId('vram-reset-ai-llm')).toBeInTheDocument();
-      expect(screen.queryByTestId('vram-reset-ai-detector')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('vram-reset-ai-yolo26')).not.toBeInTheDocument();
     });
 
     it('should validate VRAM input is a positive number', async () => {

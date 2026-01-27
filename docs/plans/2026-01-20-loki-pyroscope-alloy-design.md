@@ -332,10 +332,10 @@ volumes:
 **Add to each AI service in `docker-compose.prod.yml`:**
 
 ```yaml
-ai-detector:
+ai-yolo26:
   labels:
     pyroscope.profile: 'true'
-    pyroscope.service: 'ai-detector'
+    pyroscope.service: 'ai-yolo26'
 
 ai-llm:
   labels:

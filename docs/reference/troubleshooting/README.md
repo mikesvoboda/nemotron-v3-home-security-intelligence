@@ -69,13 +69,13 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 ## Log Locations
 
-| Service     | Docker Command                                               | Native Path                              |
-| ----------- | ------------------------------------------------------------ | ---------------------------------------- |
-| Backend     | `docker compose -f docker-compose.prod.yml logs backend`     | `backend/data/logs/security.log`         |
-| Frontend    | `docker compose -f docker-compose.prod.yml logs frontend`    | Browser console (F12)                    |
-| PostgreSQL  | `docker compose -f docker-compose.prod.yml logs postgres`    | Container `/var/lib/postgresql/data/log` |
-| Redis       | `docker compose -f docker-compose.prod.yml logs redis`       | Container logs only                      |
-| AI Services | `docker compose -f docker-compose.prod.yml logs ai-detector` | Container stdout                         |
+| Service     | Docker Command                                             | Native Path                              |
+| ----------- | ---------------------------------------------------------- | ---------------------------------------- |
+| Backend     | `docker compose -f docker-compose.prod.yml logs backend`   | `backend/data/logs/security.log`         |
+| Frontend    | `docker compose -f docker-compose.prod.yml logs frontend`  | Browser console (F12)                    |
+| PostgreSQL  | `docker compose -f docker-compose.prod.yml logs postgres`  | Container `/var/lib/postgresql/data/log` |
+| Redis       | `docker compose -f docker-compose.prod.yml logs redis`     | Container logs only                      |
+| AI Services | `docker compose -f docker-compose.prod.yml logs ai-yolo26` | Container stdout                         |
 
 ---
 
@@ -125,7 +125,7 @@ curl -s http://localhost:8000/api/system/pipeline | jq .
 3. Check AI service health:
 
    ```bash
-   curl http://localhost:8090/health  # YOLO26
+   curl http://localhost:8095/health  # YOLO26
    curl http://localhost:8091/health  # Nemotron
    ```
 
@@ -195,7 +195,7 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 curl -s http://localhost:8000/api/system/health | jq '.services.ai'
 
 # Individual service checks
-curl http://localhost:8090/health  # Should return {"status": "ok", ...}
+curl http://localhost:8095/health  # Should return {"status": "ok", ...}
 curl http://localhost:8091/health  # Should return {"status": "ok"}
 ```
 
@@ -213,7 +213,7 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
 2. Check for port conflicts:
 
    ```bash
-   lsof -i :8090  # YOLO26 port
+   lsof -i :8095  # YOLO26 port
    lsof -i :8091  # Nemotron port
    ```
 
@@ -373,7 +373,7 @@ See: [Database Issues - Disk Space](database-issues.md#disk-space)
 nvidia-smi
 
 # Check device being used
-curl -s http://localhost:8090/health | jq '.device'
+curl -s http://localhost:8095/health | jq '.device'
 ```
 
 **Solutions:**
@@ -381,7 +381,7 @@ curl -s http://localhost:8090/health | jq '.device'
 1. Verify GPU is being used:
 
    ```bash
-   curl -s http://localhost:8090/health | jq '.device'
+   curl -s http://localhost:8095/health | jq '.device'
    # Should show "cuda" or "cuda:0"
    ```
 
