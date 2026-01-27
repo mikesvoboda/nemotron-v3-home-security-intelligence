@@ -13,7 +13,7 @@
  * @module hooks/useAdminMutations
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { queryKeys } from '../services/queryClient';
 
@@ -322,13 +322,11 @@ async function flushQueues(): Promise<FlushQueuesResponse> {
  * ```
  */
 export function useSeedCamerasMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: seedCameras,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate camera queries to reflect new data
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
+      void client.invalidateQueries({ queryKey: queryKeys.cameras.all });
     },
   });
 }
@@ -343,15 +341,13 @@ export function useSeedCamerasMutation() {
  * ```
  */
 export function useSeedEventsMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: seedEvents,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate event and detection queries to reflect new data
-      void queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.detections.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
+      void client.invalidateQueries({ queryKey: queryKeys.events.all });
+      void client.invalidateQueries({ queryKey: queryKeys.detections.all });
+      void client.invalidateQueries({ queryKey: queryKeys.system.stats });
     },
   });
 }
@@ -384,17 +380,15 @@ export function useSeedPipelineLatencyMutation() {
  * ```
  */
 export function useClearSeededDataMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: clearSeededData,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate all data queries after cleanup
-      void queryClient.invalidateQueries({ queryKey: queryKeys.cameras.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.events.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.detections.all });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.storage });
+      void client.invalidateQueries({ queryKey: queryKeys.cameras.all });
+      void client.invalidateQueries({ queryKey: queryKeys.events.all });
+      void client.invalidateQueries({ queryKey: queryKeys.detections.all });
+      void client.invalidateQueries({ queryKey: queryKeys.system.stats });
+      void client.invalidateQueries({ queryKey: queryKeys.system.storage });
     },
   });
 }
@@ -409,13 +403,11 @@ export function useClearSeededDataMutation() {
  * ```
  */
 export function useOrphanCleanupMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: runOrphanCleanup,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate storage stats after cleanup
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.storage });
+      void client.invalidateQueries({ queryKey: queryKeys.system.storage });
     },
   });
 }
@@ -430,13 +422,11 @@ export function useOrphanCleanupMutation() {
  * ```
  */
 export function useClearCacheMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: clearCache,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate all queries to refetch fresh data
-      void queryClient.invalidateQueries();
+      void client.invalidateQueries();
     },
   });
 }
@@ -451,13 +441,11 @@ export function useClearCacheMutation() {
  * ```
  */
 export function useFlushQueuesMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: flushQueues,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate system stats after queue flush
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
+      void client.invalidateQueries({ queryKey: queryKeys.system.stats });
     },
   });
 }

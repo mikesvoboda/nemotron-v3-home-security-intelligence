@@ -9972,7 +9972,7 @@ export interface components {
          *     and response time metrics.
          * @example {
          *       "circuit_state": "closed",
-         *       "display_name": "YOLO26 Object Detection",
+         *       "display_name": "YOLO26v2 Object Detection",
          *       "last_check": "2026-01-08T10:30:00Z",
          *       "name": "yolo26",
          *       "response_time_ms": 45.2,
@@ -15525,7 +15525,7 @@ export interface components {
          * DetectionSettings
          * @description Detection-related settings for object detection thresholds.
          *
-         *     Controls the confidence thresholds used by YOLO26 for object detection
+         *     Controls the confidence thresholds used by YOLO26v2 for object detection
          *     and fast-path processing for high-priority alerts.
          * @example {
          *       "confidence_threshold": 0.5,
@@ -20107,7 +20107,7 @@ export interface components {
          *       "ai_services": [
          *         {
          *           "circuit_state": "closed",
-         *           "display_name": "YOLO26 Object Detection",
+         *           "display_name": "YOLO26v2 Object Detection",
          *           "last_check": "2026-01-08T10:30:00Z",
          *           "name": "yolo26",
          *           "response_time_ms": 45.2,
@@ -23991,7 +23991,7 @@ export interface components {
             vram_available_mb: number;
             /**
              * Vram Budget Mb
-             * @description Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26)
+             * @description Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26v2)
              */
             vram_budget_mb: number;
             /**
@@ -25351,7 +25351,7 @@ export interface components {
          *
          *     Pipeline stages:
          *     - watch: File watcher detecting new images (file event -> queue)
-         *     - detect: YOLO26 object detection (image -> detections)
+         *     - detect: YOLO26v2 object detection (image -> detections)
          *     - batch: Batch aggregation window (detections -> batch)
          *     - analyze: Nemotron LLM risk analysis (batch -> event)
          * @example {
@@ -25398,7 +25398,7 @@ export interface components {
             analyze?: components["schemas"]["StageLatency"] | null;
             /** @description Batch aggregation window time */
             batch?: components["schemas"]["StageLatency"] | null;
-            /** @description Object detection stage latency (YOLO26 inference) */
+            /** @description Object detection stage latency (YOLO26v2 inference) */
             detect?: components["schemas"]["StageLatency"] | null;
             /** @description File watcher stage latency (file event to queue) */
             watch?: components["schemas"]["StageLatency"] | null;
@@ -27218,7 +27218,7 @@ export interface components {
             analysis_queue: number;
             /**
              * Detection Queue
-             * @description Number of items in detection queue waiting for YOLO26 processing
+             * @description Number of items in detection queue waiting for YOLO26v2 processing
              */
             detection_queue: number;
         };

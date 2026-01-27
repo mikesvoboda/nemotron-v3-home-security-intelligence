@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 # Nemotron LLM Service Dockerfile (HuggingFace Transformers with BitsAndBytes)
 # Alternative to the llama.cpp-based Dockerfile
 #
@@ -5,15 +6,25 @@
 # - BitsAndBytes 4-bit quantization support (NEM-3810)
 # - Prepared for FlashAttention-2 integration (NEM-3811)
 # - OpenAI-compatible API endpoints
+# - BuildKit secrets for secure HuggingFace token handling (NEM-3806)
 #
-# Usage:
-#   docker build -f Dockerfile.hf -t nemotron-hf:latest .
-#   docker run --gpus all -p 8091:8091 -v /path/to/models:/models nemotron-hf:latest
+# Usage with BuildKit secrets (secure, token never in image layers):
+#   docker build \
+#     --secret id=hf_token,src=$HOME/.huggingface/token \
+#     -f Dockerfile.hf -t nemotron-hf:latest .
+#
+#   podman build \
+#     --secret id=hf_token,src=$HOME/.huggingface/token \
+#     -f Dockerfile.hf -t nemotron-hf:latest .
 #
 # Environment Variables:
 #   NEMOTRON_MODEL_PATH: HuggingFace model path (default: /models/nemotron-3-nano-30b)
 #   NEMOTRON_QUANTIZATION: Quantization mode (default: 4bit)
 #   PORT: Server port (default: 8091)
+#
+# Security Note:
+#   HuggingFace token is passed as a BuildKit secret, not as an environment variable or ARG.
+#   This ensures the token never appears in image layers or docker history.
 
 # =============================================================================
 # Base image with CUDA support
@@ -49,12 +60,18 @@ WORKDIR /app
 # Copy requirements first for layer caching
 COPY requirements_hf.txt .
 
-# Install Python dependencies
+# Install Python dependencies with secure HuggingFace token handling
 # Note: We install torch with CUDA 12.1 support
+# The HF_TOKEN is passed as a BuildKit secret and mounted at /run/secrets/hf_token
+# This ensures the token never appears in image layers or docker history
 # hadolint ignore=DL3013
-RUN pip3 install --no-cache-dir --upgrade pip && \
+RUN --mount=type=secret,id=hf_token \
+    HF_TOKEN=$(cat /run/secrets/hf_token 2>/dev/null || echo "") && \
+    export HF_TOKEN && \
+    pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu121 && \
-    pip3 install --no-cache-dir -r requirements_hf.txt
+    pip3 install --no-cache-dir -r requirements_hf.txt && \
+    unset HF_TOKEN
 
 # Copy application code
 COPY model_hf.py .

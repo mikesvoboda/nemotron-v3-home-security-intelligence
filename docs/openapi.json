@@ -118,7 +118,7 @@
         "description": "Health status for an AI service.\n\nIncludes service identification, health state, circuit breaker state,\nand response time metrics.",
         "example": {
           "circuit_state": "closed",
-          "display_name": "YOLO26 Object Detection",
+          "display_name": "YOLO26v2 Object Detection",
           "last_check": "2026-01-08T10:30:00Z",
           "name": "yolo26",
           "response_time_ms": 45.2,
@@ -7994,7 +7994,7 @@
         "type": "object"
       },
       "DetectionSettings": {
-        "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by YOLO26 for object detection\nand fast-path processing for high-priority alerts.",
+        "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by YOLO26v2 for object detection\nand fast-path processing for high-priority alerts.",
         "example": {
           "confidence_threshold": 0.5,
           "fast_path_threshold": 0.9
@@ -14166,7 +14166,7 @@
           "ai_services": [
             {
               "circuit_state": "closed",
-              "display_name": "YOLO26 Object Detection",
+              "display_name": "YOLO26v2 Object Detection",
               "last_check": "2026-01-08T10:30:00Z",
               "name": "yolo26",
               "response_time_ms": 45.2,
@@ -19826,7 +19826,7 @@
             "type": "integer"
           },
           "vram_budget_mb": {
-            "description": "Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26)",
+            "description": "Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26v2)",
             "minimum": 0.0,
             "title": "Vram Budget Mb",
             "type": "integer"
@@ -21806,7 +21806,7 @@
         "type": "object"
       },
       "PipelineLatencies": {
-        "description": "Latency statistics for all pipeline stages.\n\nPipeline stages:\n- watch: File watcher detecting new images (file event -> queue)\n- detect: YOLO26 object detection (image -> detections)\n- batch: Batch aggregation window (detections -> batch)\n- analyze: Nemotron LLM risk analysis (batch -> event)",
+        "description": "Latency statistics for all pipeline stages.\n\nPipeline stages:\n- watch: File watcher detecting new images (file event -> queue)\n- detect: YOLO26v2 object detection (image -> detections)\n- batch: Batch aggregation window (detections -> batch)\n- analyze: Nemotron LLM risk analysis (batch -> event)",
         "example": {
           "analyze": {
             "avg_ms": 5000.0,
@@ -21877,7 +21877,7 @@
                 "type": "null"
               }
             ],
-            "description": "Object detection stage latency (YOLO26 inference)"
+            "description": "Object detection stage latency (YOLO26v2 inference)"
           },
           "watch": {
             "anyOf": [
@@ -24548,7 +24548,7 @@
             "type": "integer"
           },
           "detection_queue": {
-            "description": "Number of items in detection queue waiting for YOLO26 processing",
+            "description": "Number of items in detection queue waiting for YOLO26v2 processing",
             "minimum": 0.0,
             "title": "Detection Queue",
             "type": "integer"

@@ -7,6 +7,8 @@
  * - Retry: Create new job from failed/cancelled job
  * - Delete: Remove job record permanently
  *
+ * Uses TanStack Query v5 context.client pattern (NEM-3752).
+ *
  * @example
  * ```tsx
  * const { cancelJob, isCancelling } = useJobMutations({
@@ -16,7 +18,7 @@
  * await cancelJob('job-123');
  * ```
  */
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { cancelJob, abortJob, retryJob, deleteJob } from '../services/api';
 import { queryKeys } from '../services/queryClient';
@@ -77,6 +79,7 @@ export interface UseJobMutationsReturn {
 
 /**
  * Hook for managing job lifecycle mutations.
+ * Uses TanStack Query v5 context.client pattern.
  *
  * @param options - Configuration options for callbacks and query invalidation
  * @returns Object with mutation functions and state
@@ -94,14 +97,12 @@ export function useJobMutations(options: UseJobMutationsOptions = {}): UseJobMut
     invalidateQueries = true,
   } = options;
 
-  const queryClient = useQueryClient();
-
   // Cancel mutation
   const cancelMutation = useMutation({
     mutationFn: (jobId: string) => cancelJob(jobId),
-    onSuccess: (data, jobId) => {
+    onSuccess: (data, jobId, _context, { client }) => {
       if (invalidateQueries) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+        void client.invalidateQueries({ queryKey: queryKeys.jobs.all });
       }
       onCancelSuccess?.(data, jobId);
     },
@@ -113,9 +114,9 @@ export function useJobMutations(options: UseJobMutationsOptions = {}): UseJobMut
   // Abort mutation
   const abortMutation = useMutation({
     mutationFn: (jobId: string) => abortJob(jobId),
-    onSuccess: (data, jobId) => {
+    onSuccess: (data, jobId, _context, { client }) => {
       if (invalidateQueries) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+        void client.invalidateQueries({ queryKey: queryKeys.jobs.all });
       }
       onAbortSuccess?.(data, jobId);
     },
@@ -127,9 +128,9 @@ export function useJobMutations(options: UseJobMutationsOptions = {}): UseJobMut
   // Retry mutation
   const retryMutation = useMutation({
     mutationFn: (jobId: string) => retryJob(jobId),
-    onSuccess: (data, jobId) => {
+    onSuccess: (data, jobId, _context, { client }) => {
       if (invalidateQueries) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+        void client.invalidateQueries({ queryKey: queryKeys.jobs.all });
       }
       onRetrySuccess?.(data, jobId);
     },
@@ -141,9 +142,9 @@ export function useJobMutations(options: UseJobMutationsOptions = {}): UseJobMut
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (jobId: string) => deleteJob(jobId),
-    onSuccess: (data, jobId) => {
+    onSuccess: (data, jobId, _context, { client }) => {
       if (invalidateQueries) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
+        void client.invalidateQueries({ queryKey: queryKeys.jobs.all });
       }
       onDeleteSuccess?.(data, jobId);
     },
