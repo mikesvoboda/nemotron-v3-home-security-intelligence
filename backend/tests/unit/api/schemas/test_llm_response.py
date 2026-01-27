@@ -998,3 +998,644 @@ class TestLLMRawResponseAdvancedFields:
         assert validated.flags == []
         assert validated.recommended_action is None
         assert validated.confidence_factors is None
+
+
+class TestRiskAnalysisJsonSchema:
+    """Tests for RISK_ANALYSIS_JSON_SCHEMA constant (NEM-3725).
+
+    These tests verify that the JSON schema:
+    - Validates valid LLM responses correctly
+    - Rejects invalid responses (wrong types, out of range values)
+    - Enforces enum constraints for risk_level and recommended_action
+    - Is compatible with NVIDIA NIM's guided_json parameter format
+    """
+
+    def test_schema_structure_has_required_top_level_fields(self):
+        """Test schema has all required top-level properties."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        assert RISK_ANALYSIS_JSON_SCHEMA["type"] == "object"
+        assert "properties" in RISK_ANALYSIS_JSON_SCHEMA
+        assert "required" in RISK_ANALYSIS_JSON_SCHEMA
+
+        # Check required fields
+        required = RISK_ANALYSIS_JSON_SCHEMA["required"]
+        assert "risk_score" in required
+        assert "risk_level" in required
+        assert "summary" in required
+        assert "reasoning" in required
+
+    def test_schema_risk_score_constraints(self):
+        """Test risk_score has integer type with 0-100 range."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        risk_score = RISK_ANALYSIS_JSON_SCHEMA["properties"]["risk_score"]
+        assert risk_score["type"] == "integer"
+        assert risk_score["minimum"] == 0
+        assert risk_score["maximum"] == 100
+
+    def test_schema_risk_level_enum_constraint(self):
+        """Test risk_level has enum constraint with valid values."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        risk_level = RISK_ANALYSIS_JSON_SCHEMA["properties"]["risk_level"]
+        assert risk_level["type"] == "string"
+        assert "enum" in risk_level
+        assert set(risk_level["enum"]) == {"low", "medium", "high", "critical"}
+
+    def test_schema_summary_max_length(self):
+        """Test summary has string type with maxLength constraint."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        summary = RISK_ANALYSIS_JSON_SCHEMA["properties"]["summary"]
+        assert summary["type"] == "string"
+        assert summary["maxLength"] == 200
+
+    def test_schema_reasoning_is_string(self):
+        """Test reasoning is a string type."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        reasoning = RISK_ANALYSIS_JSON_SCHEMA["properties"]["reasoning"]
+        assert reasoning["type"] == "string"
+
+    def test_schema_entities_array_structure(self):
+        """Test entities is an array with proper item schema."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        entities = RISK_ANALYSIS_JSON_SCHEMA["properties"]["entities"]
+        assert entities["type"] == "array"
+        assert "items" in entities
+
+        # Check entity item schema
+        entity_schema = entities["items"]
+        assert entity_schema["type"] == "object"
+        assert "properties" in entity_schema
+        assert "required" in entity_schema
+
+        # Check entity properties
+        entity_props = entity_schema["properties"]
+        assert "type" in entity_props
+        assert entity_props["type"]["enum"] == ["person", "vehicle", "animal", "object"]
+        assert "description" in entity_props
+        assert entity_props["description"]["type"] == "string"
+        assert "threat_level" in entity_props
+        assert entity_props["threat_level"]["enum"] == ["low", "medium", "high"]
+
+        # Check entity required fields
+        assert set(entity_schema["required"]) == {"type", "description", "threat_level"}
+
+    def test_schema_recommended_action_enum_constraint(self):
+        """Test recommended_action has enum constraint with valid values."""
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        recommended_action = RISK_ANALYSIS_JSON_SCHEMA["properties"]["recommended_action"]
+        assert recommended_action["type"] == "string"
+        assert "enum" in recommended_action
+        assert set(recommended_action["enum"]) == {
+            "none",
+            "review",
+            "alert",
+            "immediate_response",
+        }
+
+    def test_schema_validates_valid_response(self):
+        """Test schema validates a complete valid response."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        valid_response = {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Suspicious activity detected at front entrance",
+            "reasoning": "Person detected at unusual time with unknown vehicle present",
+            "entities": [
+                {
+                    "type": "person",
+                    "description": "Unknown individual near entrance",
+                    "threat_level": "medium",
+                },
+                {
+                    "type": "vehicle",
+                    "description": "Unrecognized sedan",
+                    "threat_level": "low",
+                },
+            ],
+            "recommended_action": "review",
+        }
+
+        # Should not raise
+        jsonschema.validate(valid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_validates_minimal_response(self):
+        """Test schema validates response with only required fields."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        minimal_response = {
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Activity detected",
+            "reasoning": "Normal daytime activity",
+        }
+
+        # Should not raise
+        jsonschema.validate(minimal_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_rejects_missing_required_fields(self):
+        """Test schema rejects response missing required fields."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        # Missing risk_score
+        invalid_response = {
+            "risk_level": "high",
+            "summary": "Test",
+            "reasoning": "Test",
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "risk_score" in str(exc_info.value)
+
+    def test_schema_rejects_invalid_risk_score_type(self):
+        """Test schema rejects non-integer risk_score."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": "seventy-five",  # String instead of integer
+            "risk_level": "high",
+            "summary": "Test",
+            "reasoning": "Test",
+        }
+
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_rejects_risk_score_below_minimum(self):
+        """Test schema rejects risk_score below 0."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": -1,
+            "risk_level": "low",
+            "summary": "Test",
+            "reasoning": "Test",
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "minimum" in str(exc_info.value).lower() or "-1" in str(exc_info.value)
+
+    def test_schema_rejects_risk_score_above_maximum(self):
+        """Test schema rejects risk_score above 100."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 101,
+            "risk_level": "critical",
+            "summary": "Test",
+            "reasoning": "Test",
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "maximum" in str(exc_info.value).lower() or "101" in str(exc_info.value)
+
+    def test_schema_rejects_invalid_risk_level_enum(self):
+        """Test schema rejects invalid risk_level value."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 50,
+            "risk_level": "extreme",  # Not in enum
+            "summary": "Test",
+            "reasoning": "Test",
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "extreme" in str(exc_info.value)
+
+    def test_schema_rejects_summary_exceeding_max_length(self):
+        """Test schema rejects summary exceeding maxLength."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "x" * 201,  # Exceeds 200 character limit
+            "reasoning": "Test",
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "maxLength" in str(exc_info.value) or "201" in str(exc_info.value)
+
+    def test_schema_rejects_invalid_entity_type_enum(self):
+        """Test schema rejects invalid entity type."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Test",
+            "reasoning": "Test",
+            "entities": [
+                {
+                    "type": "robot",  # Not in enum
+                    "description": "Test",
+                    "threat_level": "low",
+                }
+            ],
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "robot" in str(exc_info.value)
+
+    def test_schema_rejects_invalid_entity_threat_level_enum(self):
+        """Test schema rejects invalid entity threat_level."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Test",
+            "reasoning": "Test",
+            "entities": [
+                {
+                    "type": "person",
+                    "description": "Test",
+                    "threat_level": "critical",  # Not in entity enum (only low/medium/high)
+                }
+            ],
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "critical" in str(exc_info.value)
+
+    def test_schema_rejects_invalid_recommended_action_enum(self):
+        """Test schema rejects invalid recommended_action value."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Test",
+            "reasoning": "Test",
+            "recommended_action": "panic",  # Not in enum
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        assert "panic" in str(exc_info.value)
+
+    def test_schema_rejects_entity_missing_required_fields(self):
+        """Test schema rejects entity missing required fields."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        invalid_response = {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Test",
+            "reasoning": "Test",
+            "entities": [
+                {
+                    "type": "person",
+                    # Missing description and threat_level
+                }
+            ],
+        }
+
+        with pytest.raises(jsonschema.ValidationError) as exc_info:
+            jsonschema.validate(invalid_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        # Should mention missing required field
+        error_str = str(exc_info.value)
+        assert "description" in error_str or "threat_level" in error_str
+
+    def test_schema_accepts_boundary_risk_scores(self):
+        """Test schema accepts risk_score at boundaries (0 and 100)."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        # Test minimum (0)
+        min_response = {
+            "risk_score": 0,
+            "risk_level": "low",
+            "summary": "No activity",
+            "reasoning": "Clear",
+        }
+        jsonschema.validate(min_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+        # Test maximum (100)
+        max_response = {
+            "risk_score": 100,
+            "risk_level": "critical",
+            "summary": "Emergency",
+            "reasoning": "Immediate threat",
+        }
+        jsonschema.validate(max_response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_accepts_all_valid_risk_levels(self):
+        """Test schema accepts all valid risk_level enum values."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        for level in ["low", "medium", "high", "critical"]:
+            response = {
+                "risk_score": 50,
+                "risk_level": level,
+                "summary": "Test",
+                "reasoning": "Test",
+            }
+            # Should not raise
+            jsonschema.validate(response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_accepts_all_valid_recommended_actions(self):
+        """Test schema accepts all valid recommended_action enum values."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        for action in ["none", "review", "alert", "immediate_response"]:
+            response = {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Test",
+                "reasoning": "Test",
+                "recommended_action": action,
+            }
+            # Should not raise
+            jsonschema.validate(response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_accepts_all_valid_entity_types(self):
+        """Test schema accepts all valid entity type enum values."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        for entity_type in ["person", "vehicle", "animal", "object"]:
+            response = {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Test",
+                "reasoning": "Test",
+                "entities": [
+                    {
+                        "type": entity_type,
+                        "description": "Test",
+                        "threat_level": "low",
+                    }
+                ],
+            }
+            # Should not raise
+            jsonschema.validate(response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_accepts_empty_entities_array(self):
+        """Test schema accepts empty entities array."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        response = {
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Test",
+            "reasoning": "Test",
+            "entities": [],
+        }
+        # Should not raise
+        jsonschema.validate(response, RISK_ANALYSIS_JSON_SCHEMA)
+
+    def test_schema_is_valid_json_schema_draft(self):
+        """Test that the schema itself is a valid JSON Schema."""
+        import jsonschema
+
+        from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+        # Check that schema can be used to create a validator
+        # This validates the schema structure itself
+        validator = jsonschema.Draft7Validator(RISK_ANALYSIS_JSON_SCHEMA)
+        validator.check_schema(RISK_ANALYSIS_JSON_SCHEMA)
+
+
+class TestRiskFactor:
+    """Tests for the RiskFactor schema (NEM-3603)."""
+
+    def test_valid_risk_factor(self):
+        """Test valid RiskFactor with all fields."""
+        from backend.api.schemas.llm_response import RiskFactor
+
+        factor = RiskFactor(
+            factor_name="nighttime_activity",
+            contribution=15.0,
+            description="Activity detected outside normal hours",
+        )
+
+        assert factor.factor_name == "nighttime_activity"
+        assert factor.contribution == 15.0
+        assert factor.description == "Activity detected outside normal hours"
+
+    def test_risk_factor_without_description(self):
+        """Test RiskFactor with optional description omitted."""
+        from backend.api.schemas.llm_response import RiskFactor
+
+        factor = RiskFactor(
+            factor_name="unknown_person",
+            contribution=20.0,
+        )
+
+        assert factor.factor_name == "unknown_person"
+        assert factor.contribution == 20.0
+        assert factor.description is None
+
+    def test_risk_factor_negative_contribution(self):
+        """Test RiskFactor allows negative contribution (risk reduction)."""
+        from backend.api.schemas.llm_response import RiskFactor
+
+        factor = RiskFactor(
+            factor_name="recognized_face",
+            contribution=-25.0,
+            description="Face matched to known household member",
+        )
+
+        assert factor.contribution == -25.0
+
+    def test_risk_factor_missing_required_fields_fails(self):
+        """Test RiskFactor fails when required fields are missing."""
+        from backend.api.schemas.llm_response import RiskFactor
+
+        with pytest.raises(ValidationError):
+            RiskFactor(factor_name="test")  # Missing contribution
+
+
+class TestLLMRawResponseRiskFactors:
+    """Tests for risk factors in LLMRawResponse (NEM-3603)."""
+
+    def test_raw_response_with_risk_factors(self):
+        """Test LLMRawResponse parses risk factors from LLM output."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        llm_json = {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Suspicious activity",
+            "reasoning": "Analysis",
+            "risk_factors": [
+                {
+                    "factor_name": "nighttime_activity",
+                    "contribution": 15.0,
+                    "description": "Late hour activity",
+                },
+                {
+                    "factor_name": "unknown_person",
+                    "contribution": 20.0,
+                },
+            ],
+        }
+
+        response = LLMRawResponse.model_validate(llm_json)
+        assert len(response.risk_factors) == 2
+
+    def test_raw_response_to_validated_preserves_risk_factors(self):
+        """Test to_validated_response preserves valid risk factors."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        raw = LLMRawResponse(
+            risk_score=75,
+            risk_level="high",
+            summary="Test",
+            reasoning="Test",
+            risk_factors=[
+                {
+                    "factor_name": "test_factor",
+                    "contribution": 10.0,
+                    "description": "Test description",
+                }
+            ],
+        )
+
+        validated = raw.to_validated_response()
+        assert len(validated.risk_factors) == 1
+        assert validated.risk_factors[0].factor_name == "test_factor"
+        assert validated.risk_factors[0].contribution == 10.0
+
+    def test_raw_response_handles_invalid_risk_factor_gracefully(self):
+        """Test raw response filters out invalid risk factors."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        raw = LLMRawResponse(
+            risk_score=50,
+            risk_level="medium",
+            risk_factors=[
+                {"factor_name": "valid", "contribution": 10.0},
+                {"factor_name": "invalid"},  # Missing contribution
+                {"contribution": 5.0},  # Missing factor_name
+            ],
+        )
+
+        validated = raw.to_validated_response()
+        # Only the valid factor should be preserved
+        assert len(validated.risk_factors) == 1
+        assert validated.risk_factors[0].factor_name == "valid"
+
+
+class TestLLMRiskResponseRiskFactors:
+    """Tests for risk factors in LLMRiskResponse (NEM-3603)."""
+
+    def test_response_with_risk_factors(self):
+        """Test LLMRiskResponse with risk_factors list."""
+        from backend.api.schemas.llm_response import LLMRiskResponse, RiskFactor
+
+        response = LLMRiskResponse(
+            risk_score=75,
+            risk_level="high",
+            summary="Suspicious activity detected",
+            reasoning="Analysis details",
+            risk_factors=[
+                RiskFactor(
+                    factor_name="nighttime_activity",
+                    contribution=15.0,
+                    description="Late hour",
+                ),
+                RiskFactor(
+                    factor_name="unknown_person",
+                    contribution=20.0,
+                ),
+                RiskFactor(
+                    factor_name="routine_location",
+                    contribution=-10.0,
+                    description="Common entrance",
+                ),
+            ],
+        )
+
+        assert len(response.risk_factors) == 3
+        # Verify contributions sum to expected value
+        total = sum(f.contribution for f in response.risk_factors)
+        assert total == 25.0  # 15 + 20 - 10
+
+    def test_response_defaults_risk_factors_to_empty(self):
+        """Test risk_factors defaults to empty list."""
+        from backend.api.schemas.llm_response import LLMRiskResponse
+
+        response = LLMRiskResponse(
+            risk_score=50,
+            risk_level="medium",
+            summary="Test",
+            reasoning="Test",
+        )
+
+        assert response.risk_factors == []
+
+    def test_model_dump_includes_risk_factors(self):
+        """Test model_dump includes risk_factors."""
+        from backend.api.schemas.llm_response import LLMRiskResponse, RiskFactor
+
+        response = LLMRiskResponse(
+            risk_score=75,
+            risk_level="high",
+            summary="Test",
+            reasoning="Test",
+            risk_factors=[
+                RiskFactor(factor_name="test", contribution=10.0),
+            ],
+        )
+
+        data = response.model_dump()
+        assert "risk_factors" in data
+        assert len(data["risk_factors"]) == 1
+        assert data["risk_factors"][0]["factor_name"] == "test"

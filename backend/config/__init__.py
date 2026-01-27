@@ -23,6 +23,13 @@ from backend.config.ab_rollout_production import (
     start_production_ab_rollout,
     stop_production_ab_rollout,
 )
+from backend.config.prompt_ab_config import (
+    EXPERIMENTS,
+    PromptExperiment,
+    get_enabled_experiments,
+    get_experiment,
+    list_experiments,
+)
 from backend.config.prompt_ab_rollout import (
     ABRolloutConfig,
     ABRolloutManager,
@@ -58,6 +65,7 @@ from backend.config.shadow_mode_deployment import (
 )
 
 __all__ = [
+    "EXPERIMENTS",
     "MAX_ERROR_RATE_INCREASE",
     "MAX_FP_RATE_INCREASE",
     "MAX_LATENCY_INCREASE_PCT",
@@ -71,6 +79,7 @@ __all__ = [
     "ExperimentGroup",
     "GroupMetrics",
     "LatencyWarning",
+    "PromptExperiment",
     "PromptExperimentConfig",
     "PromptVersion",
     "RollbackCheckResult",
@@ -84,6 +93,8 @@ __all__ = [
     "create_production_rollback_config",
     "create_production_rollout_config",
     "get_camera_assignment",
+    "get_enabled_experiments",
+    "get_experiment",
     "get_experiment_status",
     "get_production_rollout_manager",
     "get_prompt_experiment_config",
@@ -91,6 +102,7 @@ __all__ = [
     "get_shadow_mode_deployment_config",
     "get_shadow_mode_stats",
     "get_shadow_mode_stats_tracker",
+    "list_experiments",
     "record_and_track_shadow_comparison",
     "record_latency_warning",
     "record_shadow_mode_comparison",

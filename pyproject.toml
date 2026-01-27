@@ -74,6 +74,8 @@ dependencies = [
     "orjson>=3.11.5",
     # MessagePack binary serialization for WebSocket (NEM-3737)
     "msgpack>=1.0.8",
+    # Statistical analysis for A/B testing (NEM-3731)
+    "scipy>=1.14.0",
 ]
 
 [project.optional-dependencies]

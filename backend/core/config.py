@@ -946,6 +946,22 @@ class Settings(BaseSettings):
         "Default: 1536 tokens.",
     )
 
+    # Nemotron Structured Generation Settings (NEM-3726)
+    # NVIDIA NIM's guided_json parameter enforces valid JSON output
+    nemotron_use_guided_json: bool = Field(
+        default=True,
+        description="Enable NVIDIA NIM structured generation via guided_json parameter. "
+        "When enabled and the endpoint supports it, the LLM response will be constrained "
+        "to the RISK_ANALYSIS_JSON_SCHEMA, ensuring valid JSON output. "
+        "If the endpoint doesn't support guided_json, falls back to regex parsing.",
+    )
+    nemotron_guided_json_fallback: bool = Field(
+        default=True,
+        description="Enable fallback to regex parsing when guided_json is not supported "
+        "by the endpoint or when guided_json request fails. "
+        "When disabled and guided_json fails, the request will raise an error.",
+    )
+
     enrichment_max_retries: int = Field(
         default=3,
         ge=1,
