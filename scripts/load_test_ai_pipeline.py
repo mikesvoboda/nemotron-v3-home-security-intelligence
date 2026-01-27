@@ -55,9 +55,8 @@ from typing import Any
 import httpx
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
-from rich.text import Text
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -84,6 +83,7 @@ AI_TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
 @dataclass
 class ServiceHealth:
     """Health status of an AI service."""
+
     name: str
     healthy: bool
     url: str
@@ -94,6 +94,7 @@ class ServiceHealth:
 @dataclass
 class PipelineResult:
     """Result from processing a single sample through the pipeline."""
+
     sample_id: str
     scenario: str
     category: str
@@ -122,6 +123,7 @@ class PipelineResult:
 @dataclass
 class TestReport:
     """Aggregate test report for all samples."""
+
     run_id: str
     started_at: str
     completed_at: str
@@ -333,7 +335,9 @@ class AIPipelineTester:
                     for key, value in result.items():
                         if key not in all_results["results"]:
                             all_results["results"][key] = value
-                        elif isinstance(value, dict) and isinstance(all_results["results"][key], dict):
+                        elif isinstance(value, dict) and isinstance(
+                            all_results["results"][key], dict
+                        ):
                             all_results["results"][key].update(value)
                 else:
                     all_results["results"][f"error_{detection_type}"] = {
@@ -412,7 +416,8 @@ Response (JSON only):"""
                 try:
                     # Extract JSON from response
                     import re
-                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', completion)
+
+                    json_match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", completion)
                     if json_match:
                         risk_data = json.loads(json_match.group())
                         return risk_data, elapsed_ms
@@ -550,7 +555,9 @@ Response (JSON only):"""
             result.errors.append(f"YOLO error: {result.yolo_result['error']}")
 
         # Step 2: Florence caption
-        result.florence_result, result.florence_time_ms = await self.get_florence_caption(image_path)
+        result.florence_result, result.florence_time_ms = await self.get_florence_caption(
+            image_path
+        )
         if result.florence_result and result.florence_result.get("error"):
             result.errors.append(f"Florence error: {result.florence_result['error']}")
 
@@ -692,7 +699,9 @@ def print_result_summary(result: PipelineResult, verbose: bool = False):
     if verbose or (result.comparison and not result.comparison.passed):
         for fr in result.comparison.field_results if result.comparison else []:
             if not fr.passed:
-                console.print(f"  [red]FAIL[/red] {fr.field_name}: expected {fr.expected}, got {fr.actual}")
+                console.print(
+                    f"  [red]FAIL[/red] {fr.field_name}: expected {fr.expected}, got {fr.actual}"
+                )
 
         for err in result.errors[:3]:  # Limit to first 3 errors
             console.print(f"  [yellow]ERROR[/yellow] {err[:100]}")
@@ -730,7 +739,12 @@ def generate_report(results: list[PipelineResult]) -> TestReport:
 
         # Update category stats
         if result.category not in report.by_category:
-            report.by_category[result.category] = {"total": 0, "passed": 0, "failed": 0, "errors": 0}
+            report.by_category[result.category] = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 0,
+            }
         report.by_category[result.category]["total"] += 1
         if result.errors:
             report.by_category[result.category]["errors"] += 1
@@ -741,7 +755,12 @@ def generate_report(results: list[PipelineResult]) -> TestReport:
 
         # Update scenario stats
         if result.scenario not in report.by_scenario:
-            report.by_scenario[result.scenario] = {"total": 0, "passed": 0, "failed": 0, "errors": 0}
+            report.by_scenario[result.scenario] = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "errors": 0,
+            }
         report.by_scenario[result.scenario]["total"] += 1
         if result.errors:
             report.by_scenario[result.scenario]["errors"] += 1
@@ -754,7 +773,9 @@ def generate_report(results: list[PipelineResult]) -> TestReport:
         if result.comparison:
             for fr in result.comparison.field_results:
                 if not fr.passed:
-                    report.field_failures[fr.field_name] = report.field_failures.get(fr.field_name, 0) + 1
+                    report.field_failures[fr.field_name] = (
+                        report.field_failures.get(fr.field_name, 0) + 1
+                    )
 
     # Calculate averages
     n = len(results) or 1
@@ -775,14 +796,16 @@ def print_report(report: TestReport):
     pass_rate = (report.passed / report.total_samples * 100) if report.total_samples else 0
     summary_color = "green" if pass_rate >= 80 else "yellow" if pass_rate >= 50 else "red"
 
-    console.print(Panel(
-        f"[bold]Total: {report.total_samples}[/bold] | "
-        f"[green]Passed: {report.passed}[/green] | "
-        f"[red]Failed: {report.failed}[/red] | "
-        f"[yellow]Errors: {report.errors}[/yellow] | "
-        f"[{summary_color}]Pass Rate: {pass_rate:.1f}%[/{summary_color}]",
-        title="Test Summary",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Total: {report.total_samples}[/bold] | "
+            f"[green]Passed: {report.passed}[/green] | "
+            f"[red]Failed: {report.failed}[/red] | "
+            f"[yellow]Errors: {report.errors}[/yellow] | "
+            f"[{summary_color}]Pass Rate: {pass_rate:.1f}%[/{summary_color}]",
+            title="Test Summary",
+        )
+    )
 
     # Category breakdown
     if report.by_category:
@@ -823,18 +846,21 @@ def print_report(report: TestReport):
 
     # Timing
     console.print()
-    console.print(Panel(
-        f"[bold]Avg Total:[/bold] {report.avg_total_time_ms:.0f}ms | "
-        f"YOLO: {report.avg_yolo_time_ms:.0f}ms | "
-        f"Florence: {report.avg_florence_time_ms:.0f}ms | "
-        f"Enrichment: {report.avg_enrichment_time_ms:.0f}ms | "
-        f"Nemotron: {report.avg_nemotron_time_ms:.0f}ms",
-        title="Timing",
-    ))
+    console.print(
+        Panel(
+            f"[bold]Avg Total:[/bold] {report.avg_total_time_ms:.0f}ms | "
+            f"YOLO: {report.avg_yolo_time_ms:.0f}ms | "
+            f"Florence: {report.avg_florence_time_ms:.0f}ms | "
+            f"Enrichment: {report.avg_enrichment_time_ms:.0f}ms | "
+            f"Nemotron: {report.avg_nemotron_time_ms:.0f}ms",
+            title="Timing",
+        )
+    )
 
 
 def save_report(report: TestReport, output_path: Path):
     """Save detailed report to JSON."""
+
     def serialize(obj):
         if hasattr(obj, "__dataclass_fields__"):
             return {k: serialize(v) for k, v in obj.__dict__.items()}
@@ -859,11 +885,16 @@ async def main():
         epilog=__doc__,
     )
     parser.add_argument("--all", action="store_true", help="Test all synthetic data")
-    parser.add_argument("--category", "-c", choices=["normal", "suspicious", "threats"],
-                        help="Test specific category")
+    parser.add_argument(
+        "--category",
+        "-c",
+        choices=["normal", "suspicious", "threats"],
+        help="Test specific category",
+    )
     parser.add_argument("--scenario", "-s", help="Test specific scenario (e.g., break_in_attempt)")
-    parser.add_argument("--quick", "-q", action="store_true",
-                        help="Quick mode: test first sample of each scenario")
+    parser.add_argument(
+        "--quick", "-q", action="store_true", help="Quick mode: test first sample of each scenario"
+    )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--output", "-o", type=Path, help="Save detailed report to JSON file")
     parser.add_argument("--skip-health", action="store_true", help="Skip service health check")
@@ -884,7 +915,9 @@ async def main():
             all_healthy = print_service_status(services)
 
             if not all_healthy:
-                console.print("\n[yellow]Warning: Some services are unhealthy. Proceeding anyway...[/yellow]")
+                console.print(
+                    "\n[yellow]Warning: Some services are unhealthy. Proceeding anyway...[/yellow]"
+                )
 
         # Discover samples
         console.print("\n[bold]Discovering samples...[/bold]")

@@ -8,13 +8,13 @@
 
 Load testing of the AI pipeline using synthetic data revealed several issues. The critical YOLO26 failure was **resolved** by switching from TensorRT to PyTorch model. Remaining issues require calibration and model loading fixes.
 
-| Issue | Severity | Status | Impact |
-|-------|----------|--------|--------|
-| YOLO26 TensorRT model failure | **Critical** | **RESOLVED** | Switched to PyTorch model |
-| Enrichment models not loaded | **High** | Open | Pose, demographics, threat detection unavailable |
-| Synthetic data quality | **High** | Open | Generated images don't match expected threat scenarios |
-| Risk score calibration | **Medium** | Open | Scores don't match expected ranges |
-| Caption keyword matching | **Low** | Open | Too strict string matching |
+| Issue                         | Severity     | Status       | Impact                                                 |
+| ----------------------------- | ------------ | ------------ | ------------------------------------------------------ |
+| YOLO26 TensorRT model failure | **Critical** | **RESOLVED** | Switched to PyTorch model                              |
+| Enrichment models not loaded  | **High**     | Open         | Pose, demographics, threat detection unavailable       |
+| Synthetic data quality        | **High**     | Open         | Generated images don't match expected threat scenarios |
+| Risk score calibration        | **Medium**   | Open         | Scores don't match expected ranges                     |
+| Caption keyword matching      | **Low**      | Open         | Too strict string matching                             |
 
 ## Test Configuration
 
@@ -34,6 +34,7 @@ Load testing of the AI pipeline using synthetic data revealed several issues. Th
 **Original Error:** `'NoneType' object has no attribute 'create_execution_context'`
 
 **Resolution:** Switched from TensorRT engine to PyTorch model in `docker-compose.prod.yml`:
+
 ```yaml
 # Changed from:
 - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
@@ -60,12 +61,14 @@ Load testing of the AI pipeline using synthetic data revealed several issues. Th
 | `depth-anything-v2-small` | **Not loaded** | No depth estimation |
 
 **Impact:**
+
 - All pose-related fields (`pose.posture`, `pose.is_suspicious`) return null
 - All face-related fields (`face.detected`, `face.count`) return null
 - All action fields (`action.action`, `action.is_suspicious`) return null
 - Demographics not available
 
 **Recommended Actions:**
+
 1. Reduce GPU memory usage by unloading unused models
 2. Consider using smaller model variants
 3. Implement lazy loading with model cycling based on detection types
@@ -82,6 +85,7 @@ Load testing of the AI pipeline using synthetic data revealed several issues. Th
 | `break_in_attempt` | Person forcing entry | Person with hammer near door |
 
 **Impact:**
+
 - Risk scores appear miscalibrated but may be correct for actual image content
 - Cannot validate true threat detection capabilities
 
@@ -89,23 +93,24 @@ Load testing of the AI pipeline using synthetic data revealed several issues. Th
 
 **Observations (with full pipeline working):**
 
-| Scenario | Category | Expected Score | Actual Score | Delta |
-|----------|----------|----------------|--------------|-------|
-| Delivery driver | Normal | 0-15 | 15 | OK |
-| Pet activity | Normal | 0-5 | 12 | +7 |
-| Resident arrival | Normal | 0-20 | 25 | +5 |
-| Vehicle parking | Normal | 0-10 | 15 | +5 |
-| Yard maintenance | Normal | 0-15 | 12-15 | OK |
-| Casing | Suspicious | 35-60 | 15 | **-20** |
-| Loitering | Suspicious | 40-70 | 75 | +5 |
-| Prowling | Suspicious | 50-80 | 75 | OK |
-| Break-in attempt | Threat | 85-100 | 75-78 | **-10** |
-| Package theft | Threat | 70-90 | 12-15 | **-60*** |
-| Weapon visible | Threat | 95-100 | 15-45 | **-50*** |
+| Scenario         | Category   | Expected Score | Actual Score | Delta     |
+| ---------------- | ---------- | -------------- | ------------ | --------- |
+| Delivery driver  | Normal     | 0-15           | 15           | OK        |
+| Pet activity     | Normal     | 0-5            | 12           | +7        |
+| Resident arrival | Normal     | 0-20           | 25           | +5        |
+| Vehicle parking  | Normal     | 0-10           | 15           | +5        |
+| Yard maintenance | Normal     | 0-15           | 12-15        | OK        |
+| Casing           | Suspicious | 35-60          | 15           | **-20**   |
+| Loitering        | Suspicious | 40-70          | 75           | +5        |
+| Prowling         | Suspicious | 50-80          | 75           | OK        |
+| Break-in attempt | Threat     | 85-100         | 75-78        | **-10**   |
+| Package theft    | Threat     | 70-90          | 12-15        | **-60\*** |
+| Weapon visible   | Threat     | 95-100         | 15-45        | **-50\*** |
 
-*These scenarios have synthetic data quality issues - the images don't show the expected threats.
+\*These scenarios have synthetic data quality issues - the images don't show the expected threats.
 
 **Analysis:**
+
 - Normal activities are scored appropriately (within 5-10 points)
 - Suspicious activities are scored inconsistently (casing too low, loitering appropriate)
 - Threat scenarios are severely underscored, but this is primarily due to synthetic images not containing actual threats
@@ -123,45 +128,49 @@ Load testing of the AI pipeline using synthetic data revealed several issues. Th
 
 ## Service Health Status
 
-| Service | Port | Status | Notes |
-|---------|------|--------|-------|
-| YOLO26 | 8095 | **Healthy** | Using PyTorch model, detecting objects |
-| Florence-2 | 8092 | Healthy | Generating accurate captions |
-| Enrichment | 8094 | **Partial** | Only clothing classifier loaded |
-| Nemotron LLM | 8091 | Healthy | Generating risk assessments |
-| Backend | 8000 | Healthy | API available |
+| Service      | Port | Status      | Notes                                  |
+| ------------ | ---- | ----------- | -------------------------------------- |
+| YOLO26       | 8095 | **Healthy** | Using PyTorch model, detecting objects |
+| Florence-2   | 8092 | Healthy     | Generating accurate captions           |
+| Enrichment   | 8094 | **Partial** | Only clothing classifier loaded        |
+| Nemotron LLM | 8091 | Healthy     | Generating risk assessments            |
+| Backend      | 8000 | Healthy     | API available                          |
 
 ## Clothing Classification Quality
 
 The enrichment clothing classifier is working well:
 
-| Scenario | Detection | Actual Classification |
-|----------|-----------|----------------------|
-| Delivery driver | person | `casual` (expected: uniform) |
-| Yard maintenance | person | `casual` (expected: work_clothes) |
-| Loitering | person | `casual, hoodie` |
-| Prowling | person | `casual` |
-| Break-in | person | `hoodie` |
+| Scenario         | Detection | Actual Classification             |
+| ---------------- | --------- | --------------------------------- |
+| Delivery driver  | person    | `casual` (expected: uniform)      |
+| Yard maintenance | person    | `casual` (expected: work_clothes) |
+| Loitering        | person    | `casual, hoodie`                  |
+| Prowling         | person    | `casual`                          |
+| Break-in         | person    | `hoodie`                          |
 
 Classification detects hoodie correctly for suspicious scenarios but misses uniform detection for service workers.
 
 ## Recommendations Priority
 
 ### P0 - Critical (Immediate)
+
 1. ~~Fix YOLO26 TensorRT engine~~ **DONE** - Switched to PyTorch
 2. Load additional enrichment models (pose, face detection)
 
 ### P1 - High (This Sprint)
+
 3. Validate synthetic data generation - ensure images match prompts
 4. Improve risk score calibration for suspicious activities
 5. Update expected labels to match realistic synthetic data
 
 ### P2 - Medium (Next Sprint)
+
 6. Implement semantic caption matching using embeddings
 7. Add service uniform detection to clothing classifier
 8. Rebuild TensorRT engine for better inference performance
 
 ### P3 - Low (Backlog)
+
 9. Create curated real-world test dataset
 10. Add confidence intervals to risk scores
 
@@ -191,15 +200,15 @@ uv run scripts/load_test_ai_pipeline.py --all --output report.json
 
 Most common failures across all tests:
 
-| Field | Failures | Cause | Resolution |
-|-------|----------|-------|------------|
-| `pose.*` | 28 | Pose model not loaded | Load vitpose model |
-| `face.*` | 28 | Face detection not in enrichment | Add face detection model |
-| `action.*` | 28 | Action recognition not implemented | Add action recognition |
-| `demographics.*` | 28 | Demographics model not loaded | Load model |
-| `threats.*` | 28 | Threat detection model not loaded | Load model |
-| `florence_caption.must_contain` | 10 | Strict string matching | Implement semantic matching |
-| `risk.score` | 6 | Calibration + synthetic data | Tune prompts, fix data |
+| Field                           | Failures | Cause                              | Resolution                  |
+| ------------------------------- | -------- | ---------------------------------- | --------------------------- |
+| `pose.*`                        | 28       | Pose model not loaded              | Load vitpose model          |
+| `face.*`                        | 28       | Face detection not in enrichment   | Add face detection model    |
+| `action.*`                      | 28       | Action recognition not implemented | Add action recognition      |
+| `demographics.*`                | 28       | Demographics model not loaded      | Load model                  |
+| `threats.*`                     | 28       | Threat detection model not loaded  | Load model                  |
+| `florence_caption.must_contain` | 10       | Strict string matching             | Implement semantic matching |
+| `risk.score`                    | 6        | Calibration + synthetic data       | Tune prompts, fix data      |
 
 ## Next Steps
 
