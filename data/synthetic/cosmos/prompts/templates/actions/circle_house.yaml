@@ -1,0 +1,17 @@
+id: circle_house
+sequence_description: 'They walk along the side of the house, pausing to look at windows and checking the side gate'
+additional_details: 'Methodical movement along property perimeter, testing access points'
+key_actions:
+  - timestamp: 0
+    action: enters_from_front
+  - timestamp: 5
+    action: walks_along_house
+  - timestamp: 10
+    action: pauses_at_window
+  - timestamp: 15
+    action: continues_to_gate
+  - timestamp: 20
+    action: checks_gate_latch
+duration_range: [18, 25]
+motion_type: deliberate
+suspicion_level: high

@@ -1,0 +1,16 @@
+id: person_normal
+type: person
+description: 'A delivery driver in branded uniform'
+appearance: 'face visible, carrying a package, moving with purposeful efficient pace'
+clothing:
+  type: uniform
+  color: brown
+  branded: true
+face_visible: true
+build: average
+gender: male
+age_range: '25-45'
+carrying_items: true
+items:
+  - package
+risk_indicators: []

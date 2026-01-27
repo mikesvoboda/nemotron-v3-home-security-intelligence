@@ -1,0 +1,15 @@
+id: dusk_clear
+time_of_day: 'dusk'
+lighting_description: 'Fading natural light mixed with activated porch lights, long shadows'
+quality_notes: 'Transitional lighting quality, warm tones, automatic exposure adjusting'
+weather: clear
+visibility: good
+sky: orange_purple_gradient
+shadows: long_soft
+ambient_light: fading_natural
+artificial_light:
+  - porch_light_warming_up
+  - street_lamps_activating
+camera_effects:
+  - exposure_transition
+  - warm_color_cast

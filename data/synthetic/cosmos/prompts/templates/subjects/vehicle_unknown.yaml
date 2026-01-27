@@ -1,0 +1,12 @@
+id: vehicle_unknown
+type: vehicle
+description: 'An unfamiliar dark sedan'
+appearance: 'license plate visible, tinted windows, parks in driveway'
+vehicle_type: sedan
+color: dark
+license_plate_visible: true
+windows: tinted
+known_household: false
+risk_indicators:
+  - unknown_vehicle
+  - tinted_windows

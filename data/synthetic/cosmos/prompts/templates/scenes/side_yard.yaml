@@ -1,0 +1,15 @@
+id: side_yard
+setting: 'suburban home side yard with fence and gate'
+camera_position: 'wall-mounted camera at corner of house'
+camera_notes: 'Fixed camera position, medium field of view along property side'
+lens_effects: 'standard security camera lens'
+zones:
+  - perimeter
+  - side_yard
+features:
+  - wooden_fence
+  - side_gate
+  - narrow_pathway
+  - utility_meters
+  - air_conditioning_unit
+typical_distance_m: 3-10

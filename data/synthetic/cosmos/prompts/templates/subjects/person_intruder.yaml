@@ -1,0 +1,22 @@
+id: person_intruder
+type: person
+description: 'A person in dark clothing with face covered by ski mask'
+appearance: 'face fully concealed, wearing gloves, crouched posture, moving stealthily'
+clothing:
+  type: dark_tactical
+  color: black
+  mask: ski_mask
+  gloves: true
+face_visible: false
+build: athletic
+gender: ambiguous
+age_range: '20-40'
+carrying_items: true
+items:
+  - tool
+risk_indicators:
+  - face_concealed
+  - gloves
+  - crouched_posture
+  - stealthy_movement
+  - carrying_tool

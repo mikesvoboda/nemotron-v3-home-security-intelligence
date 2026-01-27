@@ -1,0 +1,15 @@
+id: driveway
+setting: 'suburban home driveway and front yard'
+camera_position: 'elevated wide-angle camera mounted on garage'
+camera_notes: 'Fixed camera position, wide field of view covering driveway and street approach'
+lens_effects: 'slight barrel distortion at edges'
+zones:
+  - driveway
+  - front_yard
+features:
+  - concrete_driveway
+  - garage_door
+  - lawn
+  - sidewalk
+  - street_visible
+typical_distance_m: 5-20

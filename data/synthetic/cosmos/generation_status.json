@@ -1,0 +1,19 @@
+{
+  "started_at": null,
+  "last_updated": null,
+  "total": 88,
+  "completed": 0,
+  "failed": 0,
+  "in_progress": null,
+  "presentation": {
+    "total": 48,
+    "completed": 0,
+    "failed": 0
+  },
+  "training": {
+    "total": 40,
+    "completed": 0,
+    "failed": 0
+  },
+  "videos": {}
+}
