@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T32",
+  "prompt": "Security camera footage during heavy rain at night. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porch light. Tests all models."
+}

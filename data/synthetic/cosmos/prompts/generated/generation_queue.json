@@ -1,0 +1,621 @@
+{
+  "total": 88,
+  "files": [
+    {
+      "id": "P01",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P01.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P02",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P02.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P03",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P03.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P04",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P04.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P05",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P05.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P06",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P06.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P07",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P07.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P08",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P08.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P09",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P09.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P10",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P10.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P11",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P11.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P12",
+      "category": "presentation",
+      "subcategory": "threat_escalation",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P12.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P13",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P13.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P14",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P14.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P15",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P15.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P16",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P16.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P17",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P17.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P18",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P18.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P19",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P19.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P20",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P20.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P21",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P21.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P22",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P22.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P23",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P23.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P24",
+      "category": "presentation",
+      "subcategory": "cross_camera",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P24.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P25",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P25.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P26",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P26.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P27",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P27.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P28",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P28.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P29",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P29.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P30",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P30.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P31",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P31.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P32",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P32.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P33",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P33.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P34",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P34.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P35",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P35.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P36",
+      "category": "presentation",
+      "subcategory": "household_recognition",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P36.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P37",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P37.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P38",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P38.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P39",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P39.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P40",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P40.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P41",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P41.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P42",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P42.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P43",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P43.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P44",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P44.json",
+      "duration_seconds": 20
+    },
+    {
+      "id": "P45",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P45.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "P46",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P46.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P47",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P47.json",
+      "duration_seconds": 15
+    },
+    {
+      "id": "P48",
+      "category": "presentation",
+      "subcategory": "vehicle_person",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/P48.json",
+      "duration_seconds": 18
+    },
+    {
+      "id": "T01",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T01.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T02",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T02.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T03",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T03.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T04",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T04.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T05",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T05.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T06",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T06.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T07",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T07.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T08",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T08.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T09",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T09.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T10",
+      "category": "training",
+      "subcategory": "threat_patterns",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T10.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T11",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T11.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T12",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T12.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T13",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T13.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T14",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T14.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T15",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T15.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T16",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T16.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T17",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T17.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T18",
+      "category": "training",
+      "subcategory": "tracking_sequences",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T18.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T19",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T19.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T20",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T20.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T21",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T21.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T22",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T22.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T23",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T23.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T24",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T24.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T25",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T25.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T26",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T26.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T27",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T27.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T28",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T28.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T29",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T29.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T30",
+      "category": "training",
+      "subcategory": "enrichment_stress",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T30.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T31",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T31.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T32",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T32.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T33",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T33.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T34",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T34.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T35",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T35.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T36",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T36.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T37",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T37.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T38",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T38.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T39",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T39.json",
+      "duration_seconds": 30
+    },
+    {
+      "id": "T40",
+      "category": "training",
+      "subcategory": "edge_cases",
+      "path": "/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/T40.json",
+      "duration_seconds": 30
+    }
+  ]
+}

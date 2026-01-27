@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T34",
+  "prompt": "Security camera footage with significant motion blur. Person running fast, blur on limbs and body. Tests detection and tracking with motion artifacts. Daytime footage."
+}

@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T31",
+  "prompt": "Security camera footage in pure infrared night vision mode. Person approaching door, everything in grayscale IR. No visible light, only IR illumination. Tests all models in IR."
+}

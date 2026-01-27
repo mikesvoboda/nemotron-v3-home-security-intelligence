@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "P04",
+  "prompt": "Security camera footage from elevated doorbell camera, suburban home front porch at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with deliberate slow pace. They stop at the door, lean close to peer through the side window, then reach down to test the door handle. Furtive glances around before testing handle, handle jiggles but doesn't open. Fixed camera position, wide-angle lens with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality typical of home security systems, slight grain. Realistic human motion, 15-second duration."
+}

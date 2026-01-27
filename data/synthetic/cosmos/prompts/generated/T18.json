@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T18",
+  "prompt": "Security camera footage of person starting far at street edge, walking steadily closer until near the camera. Tests tracking through scale changes. Daytime footage."
+}

@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T21",
+  "prompt": "Security camera footage showing sequence of different people: one in business suit, one in athletic wear, one in work uniform, one in casual hoodie and jeans. Daytime footage."
+}

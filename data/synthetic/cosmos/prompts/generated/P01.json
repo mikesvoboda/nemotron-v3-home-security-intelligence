@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "P01",
+  "prompt": "Security camera footage from elevated doorbell camera, suburban home front porch at night. Single porch light provides harsh overhead illumination with deep shadows. A delivery driver in branded uniform, face visible, carrying a package, moving with purposeful efficient pace. They walk briskly to the door carrying a package, place it on the porch, ring the doorbell, and walk away. Efficient purposeful movement, brief pause after doorbell, turns and exits quickly. Fixed camera position, wide-angle lens with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality typical of home security systems, slight grain. Realistic human motion, 15-second duration."
+}

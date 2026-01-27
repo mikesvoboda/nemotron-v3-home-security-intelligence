@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T30",
+  "prompt": "Security camera footage with objects at varying distances: car far at street, person mid-distance, package close to camera. Tests depth perception. Daytime footage."
+}
