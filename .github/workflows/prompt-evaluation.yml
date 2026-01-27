@@ -64,7 +64,7 @@ jobs:
 
       - name: Upload evaluation report (JSON)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: prompt-evaluation-report-json
           path: reports/prompt_evaluation.json
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload evaluation report (HTML)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: prompt-evaluation-report-html
           path: reports/prompt_evaluation.html
