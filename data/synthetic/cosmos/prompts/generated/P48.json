@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "P48",
+  "prompt": "Security camera footage from elevated wide-angle camera mounted on garage, suburban home driveway and front yard at night. Single porch light provides harsh overhead illumination with deep shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. Headlights illuminate driveway, car parks, interior light shows occupant exiting. Fixed camera position, wide field of view covering driveway and street approach, slight barrel distortion at edges, IR-tinted footage quality typical of home security systems, slight grain. Realistic human motion, 18-second duration."
+}

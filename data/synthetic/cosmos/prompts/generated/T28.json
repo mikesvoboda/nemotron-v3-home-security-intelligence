@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T28",
+  "prompt": "Security camera footage showing person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting down. Daytime footage."
+}

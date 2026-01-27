@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T23",
+  "prompt": "Security camera footage showing different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Daytime footage."
+}

@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "P09",
+  "prompt": "Security camera footage from elevated doorbell camera, suburban home front porch at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark clothing with face covered by ski mask, face fully concealed, wearing gloves, crouched posture, moving stealthily. They attempt to force the door open, first trying the handle forcefully, then putting shoulder against the door. Aggressive physical contact with door, looking around between attempts, escalating force. Fixed camera position, wide-angle lens with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality typical of home security systems, slight grain. Realistic human motion, 18-second duration."
+}

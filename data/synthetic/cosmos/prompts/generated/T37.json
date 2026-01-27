@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T37",
+  "prompt": "Security camera footage with multiple light sources at night. Porch light, car headlights, streetlamp all creating overlapping shadows. Complex lighting conditions."
+}

@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T29",
+  "prompt": "Security camera footage showing person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. Daytime footage."
+}

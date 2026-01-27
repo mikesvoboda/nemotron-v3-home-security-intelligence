@@ -1,0 +1,5 @@
+{
+  "inference_type": "text2world",
+  "name": "T20",
+  "prompt": "Security camera footage of person at door with face partially visible. Profile view, hair covering part of face, looking down intermittently. Challenging face detection. Overcast daylight."
+}
