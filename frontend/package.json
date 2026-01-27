@@ -56,8 +56,8 @@
     "lru-cache": "^11.2.5",
     "lucide-react": "^0.563.0",
     "pako": "^2.1.0",
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.1",
     "react-joyride": "^2.9.3",
     "react-router-dom": "^7.13.0",
@@ -75,7 +75,6 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
     "@eslint/js": "^9.39.2",
-    "@msgpack/msgpack": "^3.1.3",
     "@playwright/test": "^1.58.0",
     "@stryker-mutator/api": "^8.7.1",
     "@stryker-mutator/core": "^8.7.1",
