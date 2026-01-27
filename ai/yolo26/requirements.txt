@@ -13,6 +13,10 @@ torchvision>=0.15.0
 # TensorRT support (included in base image)
 # tensorrt>=10.0.0
 
+# ONNX support for TensorRT engine export (NEM-3877)
+onnx>=1.12.0,<2.0.0
+onnxslim>=0.1.71
+
 # Image processing
 pillow>=10.0.0
 opencv-python>=4.8.0
