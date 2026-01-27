@@ -43,9 +43,9 @@ RUN uv tool install py-spy && \
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
-# Create non-root user for security
-RUN groupadd -g 1000 clip && \
-    useradd -u 1000 -g clip -s /bin/bash -m clip
+# Create non-root user for security (handle pre-existing GID/UID in NVIDIA images)
+RUN (groupadd -g 1000 clip || true) && \
+    (useradd -u 1000 -g 1000 -s /bin/bash -m clip || true)
 
 # Copy application files
 COPY ai/clip/model.py .
@@ -69,17 +69,18 @@ ENV CLIP_USE_TENSORRT=false
 # CLIP_ENGINE_PATH is set via docker-compose when TensorRT is enabled
 
 # Create cache directories for HuggingFace models and TensorRT engines
+# Use numeric UID:GID for NVIDIA image compatibility
 RUN mkdir -p /cache/huggingface /cache/tensorrt && \
-    chown -R clip:clip /cache/huggingface /cache/tensorrt
+    chown -R 1000:1000 /cache/huggingface /cache/tensorrt
 
 # Set ownership of app directory
-RUN chown -R clip:clip /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8093
 
-# Switch to non-root user
-USER clip
+# Switch to non-root user (use numeric UID for compatibility)
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 300s allows time for model loading and TensorRT auto-export on first run

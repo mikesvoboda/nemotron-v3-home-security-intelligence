@@ -59,12 +59,13 @@ RUN uv tool install py-spy && \
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
-# Create non-root user for security
-RUN groupadd -g 1000 yolo26 && \
-    useradd -u 1000 -g yolo26 -s /bin/bash -m yolo26
+# Create non-root user for security (handle pre-existing GID/UID in NVIDIA images)
+RUN (groupadd -g 1000 yolo26 || true) && \
+    (useradd -u 1000 -g 1000 -s /bin/bash -m yolo26 || true)
 
 # Copy application files
 COPY ai/yolo26/model.py .
+COPY ai/yolo26/metrics.py .
 # Copy shared utilities
 COPY ai/compile_utils.py .
 COPY ai/torch_optimizations.py .
@@ -75,17 +76,17 @@ ENV PORT=8095
 ENV YOLO26_CONFIDENCE=0.5
 ENV YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
 
-# Create model directory
-RUN mkdir -p /models/yolo26/exports && chown -R yolo26:yolo26 /models
+# Create model directory (use numeric UID:GID for NVIDIA image compatibility)
+RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
 
 # Set ownership of app directory
-RUN chown -R yolo26:yolo26 /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8095
 
-# Switch to non-root user
-USER yolo26
+# Switch to non-root user (use numeric UID for compatibility)
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 60s allows time for model loading

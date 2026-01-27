@@ -1131,6 +1131,7 @@ services:
     user: root
     security_opt:
       - label:disable
+      - seccomp:unconfined
       - no-new-privileges:true
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z

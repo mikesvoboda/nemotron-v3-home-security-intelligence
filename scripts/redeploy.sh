@@ -1076,7 +1076,7 @@ start_containers() {
         # Use timeout to prevent hanging on health check waits (depends_on conditions)
         print_step "Starting all containers from prod compose (local build)..."
         print_info "Timeout: ${COMPOSE_UP_TIMEOUT}s (health checks may continue in background)"
-        if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
+        if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d --no-build; then
             print_success "All containers started from local build"
         else
             local exit_code=$?
@@ -1134,7 +1134,7 @@ start_containers() {
         else
             # Docker: Use compose normally
             print_step "Starting AI containers from prod compose..."
-            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d --no-build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment; then
                 print_success "AI containers started"
             else
                 local exit_code=$?
