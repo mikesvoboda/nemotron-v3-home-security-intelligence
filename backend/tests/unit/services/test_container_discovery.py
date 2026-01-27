@@ -87,7 +87,7 @@ class TestServiceConfig:
         config = ServiceConfig(
             display_name="API Service",
             category=ServiceCategory.AI,
-            port=8095,
+            port=8090,
             health_endpoint="/health",
         )
 
@@ -137,7 +137,7 @@ class TestPreConfiguredServices:
     def test_ai_configs_contains_all_ai_services(self) -> None:
         """Test that AI_CONFIGS contains all expected AI services."""
         expected_services = {
-            "ai-yolo26": ("YOLO26", 8095, 60),
+            "ai-yolo26": ("YOLO26", 8090, 60),
             "ai-llm": ("Nemotron", 8091, 120),
             "ai-florence": ("Florence-2", 8092, 60),
             "ai-clip": ("CLIP", 8093, 60),
@@ -210,7 +210,7 @@ class TestManagedService:
             display_name="YOLO26",
             container_id="abc123",
             image="ghcr.io/test/yolo26:latest",
-            port=8095,
+            port=8090,
             health_endpoint="/health",
             category=ServiceCategory.AI,
         )
@@ -219,7 +219,7 @@ class TestManagedService:
         assert service.display_name == "YOLO26"
         assert service.container_id == "abc123"
         assert service.image == "ghcr.io/test/yolo26:latest"
-        assert service.port == 8095
+        assert service.port == 8090
         assert service.health_endpoint == "/health"
         assert service.health_cmd is None
         assert service.category == ServiceCategory.AI
@@ -303,7 +303,7 @@ class TestContainerDiscoveryService:
         assert discovered[0].name == "ai-yolo26"
         assert discovered[0].display_name == "YOLO26"
         assert discovered[0].container_id == "det123"
-        assert discovered[0].port == 8095
+        assert discovered[0].port == 8090
         assert discovered[0].health_endpoint == "/health"
         assert discovered[0].category == ServiceCategory.AI
 
@@ -431,7 +431,7 @@ class TestContainerDiscoveryService:
         config = service.get_config("ai-yolo26")
         assert config is not None
         assert config.display_name == "YOLO26"
-        assert config.port == 8095
+        assert config.port == 8090
 
     def test_get_config_returns_none_for_unknown_service(
         self, mock_docker_client: MagicMock

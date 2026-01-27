@@ -657,24 +657,27 @@ AI pipeline audit management for model performance, quality scoring, recommendat
 
 ### `analytics.py`
 
-Analytics endpoints for detection trends, risk history, camera uptime, and object distribution.
+Comprehensive analytics endpoints for video analytics, detection trends, risk analysis, and camera performance metrics.
 
 **Router prefix:** `/api/analytics`
 
 **Endpoints:**
 
-| Method | Path                           | Purpose                            |
-| ------ | ------------------------------ | ---------------------------------- |
-| GET    | `/api/analytics/trends`        | Detection counts aggregated by day |
-| GET    | `/api/analytics/risk-history`  | Risk level distribution over time  |
-| GET    | `/api/analytics/camera-uptime` | Uptime percentage per camera       |
-| GET    | `/api/analytics/objects`       | Detection counts by object type    |
+| Method | Path                                     | Purpose                             |
+| ------ | ---------------------------------------- | ----------------------------------- |
+| GET    | `/api/analytics/detection-trends`        | Detection counts aggregated by day  |
+| GET    | `/api/analytics/risk-history`            | Risk level distribution over time   |
+| GET    | `/api/analytics/camera-uptime`           | Uptime percentage per camera        |
+| GET    | `/api/analytics/object-distribution`     | Detection counts by object type     |
+| GET    | `/api/analytics/risk-score-distribution` | Risk score histogram with buckets   |
+| GET    | `/api/analytics/risk-score-trends`       | Average risk score trends over time |
 
 **Query Parameters:**
 
 - `start_date` - Start of date range (ISO format, required)
 - `end_date` - End of date range (ISO format, required)
 - `camera_id` - Filter by camera ID (optional)
+- `bucket_size` - Size of histogram buckets (1-50, default: 10, risk-score-distribution only)
 
 **Key Features:**
 
@@ -682,6 +685,17 @@ Analytics endpoints for detection trends, risk history, camera uptime, and objec
 - Risk level breakdown (low, medium, high, critical)
 - Camera uptime calculation based on detection activity
 - Object type distribution with percentages
+- Risk score histogram with configurable bucket sizes
+- Average risk score trends with daily counts
+- Date validation ensures start_date <= end_date
+- Gap filling for days with no data
+
+**Response Caching:**
+
+- All endpoints cached for 5 minutes
+- ETag support for conditional requests
+
+**Documentation:** See [Analytics API Reference](../../../docs/api/analytics-endpoints.md)
 
 ### `calibration.py`
 

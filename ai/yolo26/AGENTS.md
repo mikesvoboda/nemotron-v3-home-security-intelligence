@@ -14,13 +14,17 @@ FastAPI-based HTTP server that wraps YOLO26m TensorRT object detection model for
 
 ```
 ai/yolo26/
-├── AGENTS.md            # This file
-├── __init__.py          # Package init (version 1.0.0)
-├── Dockerfile           # Container build (TensorRT 24.09)
-├── model.py             # FastAPI inference server
-├── export_tensorrt.py   # TensorRT INT8/FP16 export script (NEM-3768)
-├── requirements.txt     # Python dependencies
-└── README.md            # Usage documentation
+├── AGENTS.md          # This file
+├── __init__.py        # Package init (version 1.0.0)
+├── Dockerfile         # Container build (TensorRT 24.09)
+├── metrics.py         # Prometheus metrics definitions and helpers
+├── model.py           # FastAPI inference server
+├── requirements.txt   # Python dependencies
+├── README.md          # Usage documentation
+└── tests/             # Unit tests
+    ├── conftest.py    # Test fixtures
+    ├── test_metrics.py # Metrics module tests
+    └── test_model.py  # Server tests
 ```
 
 ## Key Files
@@ -181,30 +185,10 @@ curl -X POST http://localhost:8095/detect/batch \
 | Variable                       | Default                                      | Description                                        |
 | ------------------------------ | -------------------------------------------- | -------------------------------------------------- |
 | `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path                               |
-| `YOLO26_MODEL_PATH_INT8`       | (empty)                                      | INT8 engine path (alternative config)              |
 | `YOLO26_CONFIDENCE`            | `0.5`                                        | Min confidence threshold                           |
 | `YOLO26_CACHE_CLEAR_FREQUENCY` | `1`                                          | Clear CUDA cache every N detections (0 to disable) |
 | `HOST`                         | `0.0.0.0`                                    | Bind address                                       |
 | `PORT`                         | `8095`                                       | Server port                                        |
-
-## INT8 Quantization (NEM-3768)
-
-INT8 provides ~2x throughput improvement with <1% mAP accuracy drop.
-
-**Export INT8 Engine:**
-
-```bash
-python ai/yolo26/export_tensorrt.py \
-    --model yolo26m.pt \
-    --int8 \
-    --data config/yolo26_calibration.yaml \
-    --extract-frames
-```
-
-**Use INT8 Engine:**
-Set `YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_int8.engine` in `.env`
-
-**Calibration Config:** `config/yolo26_calibration.yaml`
 
 ## Inference Pipeline
 
@@ -261,6 +245,21 @@ model.export(format="engine", half=True)
 
 ## Prometheus Metrics
 
+All metrics are defined in `metrics.py` and follow Prometheus naming conventions.
+
+### Core Metrics (NEM-3700)
+
+| Metric                              | Type      | Labels          | Description                       |
+| ----------------------------------- | --------- | --------------- | --------------------------------- |
+| `yolo26_inference_duration_seconds` | Histogram | endpoint        | Inference duration (p50/p90/p95)  |
+| `yolo26_requests_total`             | Counter   | endpoint,status | Total requests by endpoint/status |
+| `yolo26_detections_total`           | Counter   | class_name      | Detections by object class        |
+| `yolo26_vram_bytes`                 | Gauge     | -               | VRAM usage in bytes               |
+| `yolo26_errors_total`               | Counter   | error_type      | Errors by type                    |
+| `yolo26_batch_size`                 | Histogram | -               | Batch size distribution           |
+
+### Legacy Metrics (backwards compatibility)
+
 | Metric                             | Type      | Description              |
 | ---------------------------------- | --------- | ------------------------ |
 | `yolo26_inference_requests_total`  | Counter   | Total inference requests |
@@ -268,9 +267,36 @@ model.export(format="engine", half=True)
 | `yolo26_detections_per_image`      | Histogram | Detections per image     |
 | `yolo26_model_loaded`              | Gauge     | Model load status (0/1)  |
 | `yolo26_gpu_utilization_percent`   | Gauge     | GPU utilization          |
-| `yolo26_gpu_memory_used_gb`        | Gauge     | GPU memory used          |
+| `yolo26_gpu_memory_used_gb`        | Gauge     | GPU memory used (GB)     |
 | `yolo26_gpu_temperature_celsius`   | Gauge     | GPU temperature          |
 | `yolo26_gpu_power_watts`           | Gauge     | GPU power usage          |
+
+### Metrics Helper Functions
+
+```python
+from metrics import record_inference, record_detection, record_error
+
+# After successful inference:
+record_inference(endpoint="detect", duration_seconds=0.045, success=True)
+
+# Record detections:
+record_detections([{"class": "person"}, {"class": "car"}])
+
+# On error:
+record_error(error_type="invalid_image")
+```
+
+### Grafana Dashboard
+
+The AI Services dashboard (`monitoring/grafana/dashboards/ai-services.json`) provides:
+
+- YOLO26 overview (model status, latency, request rate, VRAM, errors)
+- Inference latency percentiles (p50, p90, p95, p99)
+- Request rate by endpoint and status
+- Detections by class (stacked area chart)
+- Error breakdown by type
+- Batch size distribution
+- GPU metrics (utilization, temperature, power)
 
 ## Entry Points
 

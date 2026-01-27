@@ -41,11 +41,9 @@ dependencies = [
     "jinja2>=3.1.5",
     "scikit-image>=0.26.0",
     "ultralytics>=8.4.0",  # Required for YOLO26 support
-    "supervision>=0.20.0",  # LineZone, PolygonZone, HeatMapAnnotator, ByteTrack integration
     "huggingface-hub>=0.36.0",
     "transformers>=4.57.3",
     "torchreid>=0.2.5",
-    "insightface>=0.7.3",  # Face detection and recognition with ArcFace (NEM-3716)
     "gdown>=5.2.0",
     "piq>=0.8.0",  # BRISQUE image quality - lightweight, only needs torchvision
     "open_clip_torch>=2.29.0",
@@ -73,8 +71,8 @@ dependencies = [
     "orjson>=3.11.5",
     # MessagePack binary serialization for WebSocket (NEM-3737)
     "msgpack>=1.0.8",
-    # Statistical analysis for A/B testing (NEM-3731)
-    "scipy>=1.14.0",
+    # Video analytics and tracking (NEM-3719)
+    "supervision>=0.25.0",
 ]
 
 [project.optional-dependencies]
@@ -141,12 +139,6 @@ nemo = [
 quantization = [
     "bitsandbytes>=0.44.0",
 ]
-# ALPR (Automatic License Plate Recognition) support (NEM-3718)
-# NOTE: PaddleOCR/PaddlePaddle doesn't support Python 3.14 yet.
-# The PlateOCR class in ai/enrichment/models/plate_ocr.py uses lazy imports
-# and will work when PaddlePaddle adds Python 3.14 support.
-# For now, ALPR functionality requires running in a Python 3.13 environment.
-# See: https://github.com/PaddlePaddle/Paddle/issues (Python 3.14 support)
 # Documentation validation tools
 # Usage: `uv sync --extra docs` or `uv sync --group docs`
 docs = [
@@ -340,6 +332,16 @@ ignore = [
 "ai/**/*.py" = [
     "ASYNC230", # blocking I/O in async ok for example clients
     "T201",   # print() ok in AI example clients
+]
+"ai/**/tests/*.py" = [
+    "S101",   # assert is fine in tests
+    "ARG001", # unused function argument in fixtures
+    "ARG002", # unused method argument for fixtures used via side effects
+    "ARG005", # unused lambda argument in mock __len__
+    "PLR2004",# magic values ok in tests
+    "B007",   # unused loop control variable ok in tests
+    "ERA001", # section headers and documentation comments ok in tests
+    "F841",   # unused variables ok in tests
 ]
 "tools/**/*.py" = [
     "T201",   # print() ok in tool scripts for CLI output

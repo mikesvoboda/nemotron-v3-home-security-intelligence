@@ -36,7 +36,7 @@ import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
-from prometheus_client import Counter, Gauge, Histogram, generate_latest
+from prometheus_client import generate_latest
 from pydantic import BaseModel, ConfigDict, Field
 
 # Add ai directory to path for compile_utils import
@@ -46,60 +46,29 @@ if str(_ai_dir) not in sys.path:
 
 from compile_utils import CompileConfig, compile_model, is_compile_available  # noqa: E402
 
+# Import metrics from the metrics module
+from metrics import (  # noqa: E402
+    DETECTIONS_PER_IMAGE,
+    GPU_MEMORY_USED_GB,
+    GPU_POWER_WATTS,
+    GPU_TEMPERATURE,
+    GPU_UTILIZATION,
+    INFERENCE_LATENCY_SECONDS,
+    INFERENCE_REQUESTS_TOTAL,
+    MODEL_LOADED,
+    get_vram_usage_bytes,
+    record_batch_size,
+    record_detections,
+    record_error,
+    record_inference,
+    update_vram_bytes,
+)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-# =============================================================================
-# Prometheus Metrics
-# =============================================================================
-# Total inference requests
-INFERENCE_REQUESTS_TOTAL = Counter(
-    "yolo26_inference_requests_total",
-    "Total number of inference requests",
-    ["endpoint", "status"],
-)
-
-# Inference latency histogram (buckets tuned for typical inference times)
-INFERENCE_LATENCY_SECONDS = Histogram(
-    "yolo26_inference_latency_seconds",
-    "Inference latency in seconds",
-    ["endpoint"],
-    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
-)
-
-# Number of detections per image
-DETECTIONS_PER_IMAGE = Histogram(
-    "yolo26_detections_per_image",
-    "Number of detections per image",
-    buckets=[0, 1, 2, 3, 5, 10, 20, 50, 100],
-)
-
-# Model status gauge (1 = loaded, 0 = not loaded)
-MODEL_LOADED = Gauge(
-    "yolo26_model_loaded",
-    "Whether the model is loaded (1) or not (0)",
-)
-
-# GPU metrics gauges
-GPU_UTILIZATION = Gauge(
-    "yolo26_gpu_utilization_percent",
-    "GPU utilization percentage",
-)
-GPU_MEMORY_USED_GB = Gauge(
-    "yolo26_gpu_memory_used_gb",
-    "GPU memory used in GB",
-)
-GPU_TEMPERATURE = Gauge(
-    "yolo26_gpu_temperature_celsius",
-    "GPU temperature in Celsius",
-)
-GPU_POWER_WATTS = Gauge(
-    "yolo26_gpu_power_watts",
-    "GPU power usage in Watts",
-)
 
 # Security-relevant classes for home monitoring
 # YOLO uses COCO class names - map to our security-relevant subset
@@ -843,6 +812,11 @@ async def metrics() -> Response:
         if vram_used is not None:
             GPU_MEMORY_USED_GB.set(vram_used)
 
+        # Update VRAM in bytes (new metric)
+        vram_bytes = get_vram_usage_bytes()
+        if vram_bytes is not None:
+            update_vram_bytes(vram_bytes)
+
         gpu_metrics = get_gpu_metrics()
         if gpu_metrics.get("gpu_utilization") is not None:
             GPU_UTILIZATION.set(gpu_metrics["gpu_utilization"])
@@ -965,10 +939,12 @@ async def detect_objects(
         detections, inference_time_ms = model.detect(image)
         latency_seconds = time.perf_counter() - start_time
 
-        # Record metrics
-        INFERENCE_LATENCY_SECONDS.labels(endpoint="detect").observe(latency_seconds)
+        # Record metrics using helper functions (records both new and legacy metrics)
+        record_inference(endpoint="detect", duration_seconds=latency_seconds, success=True)
         DETECTIONS_PER_IMAGE.observe(len(detections))
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="success").inc()
+
+        # Record per-class detection counts
+        record_detections(detections)
 
         return DetectionResponse(
             detections=[Detection(**d) for d in detections],
@@ -978,11 +954,13 @@ async def detect_objects(
         )
 
     except HTTPException:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
+        record_inference(endpoint="detect", duration_seconds=0, success=False)
+        record_error(error_type="http_error")
         raise
     except UnidentifiedImageError as e:
         # Handle corrupted/invalid image files - return 400 Bad Request
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
+        record_inference(endpoint="detect", duration_seconds=0, success=False)
+        record_error(error_type="invalid_image")
         logger.warning(
             f"Invalid image file received: {filename}. "
             f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
@@ -997,7 +975,8 @@ async def detect_objects(
     except OSError as e:
         # Handle truncated or corrupted images that PIL can partially read
         # This catches "image file is truncated" errors
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
+        record_inference(endpoint="detect", duration_seconds=0, success=False)
+        record_error(error_type="corrupted_image")
         logger.warning(
             f"Corrupted image file received: {filename}. Error: {e}",
             extra={"source_file": filename, "error": str(e)},
@@ -1007,7 +986,8 @@ async def detect_objects(
             detail=f"Corrupted image file '{filename}': {e!s}",
         ) from e
     except Exception as e:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect", status="error").inc()
+        record_inference(endpoint="detect", duration_seconds=0, success=False)
+        record_error(error_type="detection_error")
         logger.error(f"Detection failed for {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Detection failed: {e!s}") from e
 
@@ -1268,8 +1248,21 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
                     detail=f"Corrupted image file at index {idx} ({file.filename}): {e!s}",
                 ) from e
 
-        # Run batch detection
+        # Record batch size
+        record_batch_size(batch_size=len(images))
+
+        # Run batch detection with metrics tracking
+        start_time = time.perf_counter()
         all_detections, total_time_ms = model.detect_batch(images)
+        latency_seconds = time.perf_counter() - start_time
+
+        # Record metrics
+        record_inference(endpoint="detect_batch", duration_seconds=latency_seconds, success=True)
+
+        # Record per-class detection counts for all detections
+        for detections in all_detections:
+            record_detections(detections)
+            DETECTIONS_PER_IMAGE.observe(len(detections))
 
         # Format response
         results = []
@@ -1293,8 +1286,12 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
         )
 
     except HTTPException:
+        record_inference(endpoint="detect_batch", duration_seconds=0, success=False)
+        record_error(error_type="http_error")
         raise
     except Exception as e:
+        record_inference(endpoint="detect_batch", duration_seconds=0, success=False)
+        record_error(error_type="batch_detection_error")
         logger.error(f"Batch detection failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch detection failed: {e!s}") from e
 

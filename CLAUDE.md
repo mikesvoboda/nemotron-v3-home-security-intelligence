@@ -348,6 +348,42 @@ cd frontend && npm test -- --testPathPattern=gpuConfigApi
 | POST   | `/api/system/gpu-config/detect`  | Re-scan for GPUs                       |
 | GET    | `/api/system/gpu-config/preview` | Preview auto-assignment for strategy   |
 
+## Video Analytics Services
+
+Key services for video analytics features:
+
+| Service               | Location                                        | Purpose                                       |
+| --------------------- | ----------------------------------------------- | --------------------------------------------- |
+| **Zone Service**      | `backend/services/zone_service.py`              | Zone detection, line crossing, dwell tracking |
+| **Face Detector**     | `backend/services/face_detector.py`             | Face detection using YOLO11                   |
+| **Plate Detector**    | `backend/services/plate_detector.py`            | License plate detection and OCR               |
+| **Re-ID Service**     | `backend/services/reid_service.py`              | Person re-identification across cameras       |
+| **Entity Clustering** | `backend/services/entity_clustering_service.py` | Embedding similarity matching                 |
+| **Household Matcher** | `backend/services/household_matcher.py`         | Match detections to household members         |
+| **Context Enricher**  | `backend/services/context_enricher.py`          | Aggregate context from zones, baselines       |
+| **Baseline Service**  | `backend/services/baseline.py`                  | Activity baseline tracking                    |
+| **Model Zoo**         | `backend/services/model_zoo.py`                 | On-demand AI model management                 |
+
+### Video Analytics Documentation
+
+| Document                                                      | Purpose                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------ |
+| [Video Analytics Guide](docs/guides/video-analytics.md)       | AI pipeline overview, detection, scene understanding         |
+| [Zone Configuration Guide](docs/guides/zone-configuration.md) | Zone setup, dwell time, line crossing, household integration |
+| [Face Recognition Guide](docs/guides/face-recognition.md)     | Face detection, person re-ID, household matching             |
+| [Analytics API](docs/api/analytics-endpoints.md)              | Analytics endpoints reference                                |
+
+### Analytics API Endpoints
+
+| Method | Endpoint                                 | Purpose                           |
+| ------ | ---------------------------------------- | --------------------------------- |
+| GET    | `/api/analytics/detection-trends`        | Daily detection counts            |
+| GET    | `/api/analytics/risk-history`            | Risk level distribution over time |
+| GET    | `/api/analytics/camera-uptime`           | Camera uptime percentages         |
+| GET    | `/api/analytics/object-distribution`     | Detection counts by object type   |
+| GET    | `/api/analytics/risk-score-distribution` | Risk score histogram              |
+| GET    | `/api/analytics/risk-score-trends`       | Average risk score over time      |
+
 ## Development Documentation Index
 
 | Document                                                     | Purpose                                             |
@@ -360,3 +396,6 @@ cd frontend && npm test -- --testPathPattern=gpuConfigApi
 | [Linear Integration](docs/development/linear-integration.md) | MCP tools, workflow states, usage examples          |
 | [Contributing](docs/development/contributing.md)             | PR process and code standards                       |
 | [Multi-GPU Support](docs/development/multi-gpu.md)           | GPU configuration and assignment strategies         |
+| [Video Analytics](docs/guides/video-analytics.md)            | AI detection pipeline and features                  |
+| [Zone Configuration](docs/guides/zone-configuration.md)      | Detection zone setup and intelligence               |
+| [Face Recognition](docs/guides/face-recognition.md)          | Face detection and person re-identification         |

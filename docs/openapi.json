@@ -8367,6 +8367,163 @@
         "title": "DetectionTrendsResponse",
         "type": "object"
       },
+      "DetectorHealthResponse": {
+        "description": "Health status of a detector.",
+        "properties": {
+          "detector_type": {
+            "description": "Identifier of the detector",
+            "title": "Detector Type",
+            "type": "string"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if unhealthy",
+            "title": "Error Message"
+          },
+          "healthy": {
+            "description": "Whether the detector is responding and healthy",
+            "title": "Healthy",
+            "type": "boolean"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Health check response time in milliseconds",
+            "title": "Latency Ms"
+          },
+          "model_loaded": {
+            "default": false,
+            "description": "Whether the model is loaded in memory",
+            "title": "Model Loaded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "detector_type",
+          "healthy"
+        ],
+        "title": "DetectorHealthResponse",
+        "type": "object"
+      },
+      "DetectorInfoResponse": {
+        "description": "Information about a registered detector.",
+        "properties": {
+          "description": {
+            "default": "",
+            "description": "Description of the detector capabilities",
+            "title": "Description",
+            "type": "string"
+          },
+          "detector_type": {
+            "description": "Unique identifier for the detector (e.g., 'yolo26', 'yolov8')",
+            "examples": [
+              "yolo26"
+            ],
+            "title": "Detector Type",
+            "type": "string"
+          },
+          "display_name": {
+            "description": "Human-readable name for UI display",
+            "examples": [
+              "YOLO26"
+            ],
+            "title": "Display Name",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether this detector is available for use",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "is_active": {
+            "description": "Whether this is the currently active detector",
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model version identifier",
+            "examples": [
+              "yolo26m",
+              "yolov8n"
+            ],
+            "title": "Model Version"
+          },
+          "url": {
+            "description": "Base URL of the detector service",
+            "examples": [
+              "http://ai-yolo26:8095"
+            ],
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detector_type",
+          "display_name",
+          "url",
+          "enabled",
+          "is_active"
+        ],
+        "title": "DetectorInfoResponse",
+        "type": "object"
+      },
+      "DetectorListResponse": {
+        "description": "Response containing list of all registered detectors.",
+        "properties": {
+          "active_detector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Type of the currently active detector",
+            "title": "Active Detector"
+          },
+          "detectors": {
+            "description": "List of all registered detectors",
+            "items": {
+              "$ref": "#/components/schemas/DetectorInfoResponse"
+            },
+            "title": "Detectors",
+            "type": "array"
+          },
+          "health_checked": {
+            "default": false,
+            "description": "Whether health status was included in the response",
+            "title": "Health Checked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "detectors"
+        ],
+        "title": "DetectorListResponse",
+        "type": "object"
+      },
       "DeviationInterpretation": {
         "description": "Interpretation of current deviation from baseline.",
         "enum": [
@@ -29324,6 +29481,64 @@
           "total_count"
         ],
         "title": "SuspiciousActionsResponse",
+        "type": "object"
+      },
+      "SwitchDetectorRequest": {
+        "description": "Request to switch the active detector.",
+        "properties": {
+          "detector_type": {
+            "description": "Type identifier of the detector to switch to",
+            "examples": [
+              "yolo26",
+              "yolov8"
+            ],
+            "title": "Detector Type",
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "description": "Skip health check validation when switching",
+            "title": "Force",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "detector_type"
+        ],
+        "title": "SwitchDetectorRequest",
+        "type": "object"
+      },
+      "SwitchDetectorResponse": {
+        "description": "Response after switching detectors.",
+        "properties": {
+          "detector_type": {
+            "description": "Type of the now-active detector",
+            "title": "Detector Type",
+            "type": "string"
+          },
+          "display_name": {
+            "description": "Human-readable name of the detector",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "healthy": {
+            "default": true,
+            "description": "Health status of the new active detector",
+            "title": "Healthy",
+            "type": "boolean"
+          },
+          "message": {
+            "description": "Status message about the switch operation",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detector_type",
+          "display_name",
+          "message"
+        ],
+        "title": "SwitchDetectorResponse",
         "type": "object"
       },
       "SystemSettingListResponse": {
@@ -51657,6 +51872,200 @@
           }
         },
         "summary": "Ready"
+      }
+    },
+    "/system/detectors": {
+      "get": {
+        "description": "Returns a list of all registered object detectors with their configuration and status. Optionally includes health status for each detector.",
+        "operationId": "detectors_list_detectors",
+        "parameters": [
+          {
+            "description": "Include health status for each detector (slower)",
+            "in": "query",
+            "name": "include_health",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include health status for each detector (slower)",
+              "title": "Include Health",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectorListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all registered detectors",
+        "tags": [
+          "detectors"
+        ]
+      }
+    },
+    "/system/detectors/active": {
+      "get": {
+        "description": "Returns the configuration of the currently active object detector.",
+        "operationId": "detectors_get_active_detector",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectorInfoResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get active detector",
+        "tags": [
+          "detectors"
+        ]
+      },
+      "put": {
+        "description": "Switch to a different object detector. By default, validates that the target detector is healthy before switching. Use force=True to skip health check.",
+        "operationId": "detectors_switch_detector",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchDetectorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwitchDetectorResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Switch active detector",
+        "tags": [
+          "detectors"
+        ]
+      }
+    },
+    "/system/detectors/{detector_type}": {
+      "get": {
+        "description": "Returns the configuration for a specific detector type.",
+        "operationId": "detectors_get_detector_config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "detector_type",
+            "required": true,
+            "schema": {
+              "title": "Detector Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectorInfoResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get detector configuration",
+        "tags": [
+          "detectors"
+        ]
+      }
+    },
+    "/system/detectors/{detector_type}/health": {
+      "get": {
+        "description": "Performs a health check on a specific detector and returns the status.",
+        "operationId": "detectors_check_detector_health",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "detector_type",
+            "required": true,
+            "schema": {
+              "title": "Detector Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectorHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check detector health",
+        "tags": [
+          "detectors"
+        ]
       }
     }
   },

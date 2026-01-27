@@ -368,6 +368,9 @@ class TestAPIEndpoints:
             ],
             45.2,
         )
+        # Set required attributes for health check
+        mock_instance._is_compiled = False
+        mock_instance.torch_compile_mode = "reduce-overhead"
         # Directly set the module's model attribute
         original_model = getattr(model_module, "model", None)
         model_module.model = mock_instance

@@ -2011,6 +2011,106 @@ class TestExemplarSupport:
         assert result is None
 
 
+# =============================================================================
+# NEM-3795: Disabled _created Suffix Metrics Test
+# =============================================================================
+
+
+class TestCreatedMetricsDisabled:
+    """Test that _created suffix metrics are disabled (NEM-3795).
+
+    The _created suffix adds a Unix timestamp metric for each counter, histogram,
+    and summary indicating when the metric was first created. While useful for
+    some use cases, it doubles the metric cardinality. By disabling it, we
+    reduce Prometheus storage and query overhead by approximately 50%.
+    """
+
+    def test_created_suffix_metrics_not_in_response(self) -> None:
+        """Metrics response should NOT contain _created suffix metrics.
+
+        This test verifies that the prometheus_client.disable_created_metrics()
+        call at the top of metrics.py successfully prevents _created metrics
+        from being generated. Without this optimization, counters like
+        hsi_events_created_total would have a companion metric
+        hsi_events_created_total_created with a Unix timestamp.
+
+        Note: We look for patterns like "*_total_created" or "*_seconds_created"
+        which are the actual Prometheus _created suffix patterns. We need to
+        exclude metric names that happen to contain the word "created" as part
+        of their semantic name (e.g., hsi_events_created_total counts events
+        that were created).
+        """
+        from backend.core.metrics import get_metrics_response
+
+        # Get the full metrics response
+        response = get_metrics_response().decode("utf-8")
+
+        # Split into lines for easier debugging if test fails
+        lines = response.split("\n")
+
+        # The _created suffix is appended to the full metric name.
+        # For counters: metric_total -> metric_total_created
+        # For histograms: metric_seconds -> metric_seconds_created
+        # We need to find lines that end with "_created" followed by labels/value
+        # Patterns to look for (these are the actual Prometheus _created suffixes):
+        created_suffix_patterns = [
+            "_total_created",  # Counter created timestamps
+            "_seconds_created",  # Histogram created timestamps
+            "_bucket_created",  # Shouldn't exist but check anyway
+            "_count_created",  # Shouldn't exist but check anyway
+            "_sum_created",  # Shouldn't exist but check anyway
+        ]
+
+        # Check that no lines contain the _created suffix pattern
+        # Exclude comment lines (TYPE/HELP declarations)
+        created_lines = [
+            line
+            for line in lines
+            if any(pattern in line for pattern in created_suffix_patterns)
+            and not line.startswith("# ")
+        ]
+
+        # If any _created metrics are found, the test fails
+        assert len(created_lines) == 0, (
+            f"Found {len(created_lines)} _created suffix metrics. "
+            f"disable_created_metrics() may not be working. "
+            f"First few: {created_lines[:5]}"
+        )
+
+    def test_counter_metrics_exist_without_created_suffix(self) -> None:
+        """Counters should exist normally, just without _created companion metrics."""
+        from backend.core.metrics import get_metrics_response, record_event_created
+
+        # Record a metric to ensure it exists
+        record_event_created()
+
+        response = get_metrics_response().decode("utf-8")
+
+        # The main counter should exist
+        assert "hsi_events_created_total" in response
+
+        # But _created suffix should NOT exist
+        # Note: The pattern is "metricname_created" not "metricname_total_created"
+        assert "hsi_events_created_created" not in response
+
+    def test_histogram_metrics_exist_without_created_suffix(self) -> None:
+        """Histograms should exist normally, just without _created companion metrics."""
+        from backend.core.metrics import get_metrics_response, observe_stage_duration
+
+        # Record a metric to ensure it exists
+        observe_stage_duration("detect", 0.5)
+
+        response = get_metrics_response().decode("utf-8")
+
+        # The histogram should exist (with bucket, sum, count)
+        assert "hsi_stage_duration_seconds_bucket" in response
+        assert "hsi_stage_duration_seconds_sum" in response
+        assert "hsi_stage_duration_seconds_count" in response
+
+        # But _created suffix should NOT exist
+        assert "hsi_stage_duration_seconds_created" not in response
+
+
 class TestMetricsServiceExemplarMethods:
     """Test MetricsService exemplar methods."""
 
