@@ -263,8 +263,8 @@ def get_default_device() -> str:
     return "cpu"
 
 
-def load_yolo26_model(model_path: Path, device: str | None = None) -> Any:
-    """Load a YOLO26 model using ultralytics."""
+def load_yolo_model(model_path: Path, device: str | None = None) -> Any:
+    """Load a YOLO model using ultralytics."""
     if device is None:
         device = get_default_device()
 
@@ -276,7 +276,7 @@ def load_yolo26_model(model_path: Path, device: str | None = None) -> Any:
         model.to(device)
         return model
     except Exception as e:
-        raise RuntimeError(f"Failed to load YOLO26 model from {model_path}: {e}") from e
+        raise RuntimeError(f"Failed to load YOLO model from {model_path}: {e}") from e
 
 
 def load_yolo26_model(model_path: Path, device: str | None = None) -> tuple[Any, Any]:
@@ -307,22 +307,22 @@ def warmup_model(model: Any, processor: Any | None, device: str, num_warmup: int
 
     for _ in range(num_warmup):
         if processor is not None:
-            # YOLO26
+            # Use HuggingFace inference
             run_yolo26_inference(model, processor, dummy_image, 0.5, device)
         else:
-            # YOLO
-            run_yolo26_inference(model, dummy_image, 0.5)
+            # Use ultralytics inference
+            run_yolo_inference(model, dummy_image, 0.5)
 
 
-def run_yolo26_inference(
+def run_yolo_inference(
     model: Any,
     image: Image.Image,
     confidence: float = 0.5,
 ) -> tuple[list[Detection], float]:
-    """Run YOLO26 inference on a single image.
+    """Run YOLO inference on a single image using ultralytics.
 
     Args:
-        model: Loaded YOLO26 model
+        model: Loaded YOLO model
         image: PIL Image
         confidence: Confidence threshold
 

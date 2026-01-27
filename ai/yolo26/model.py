@@ -53,6 +53,8 @@ from metrics import (  # noqa: E402
     GPU_POWER_WATTS,
     GPU_TEMPERATURE,
     GPU_UTILIZATION,
+    INFERENCE_LATENCY_SECONDS,
+    INFERENCE_REQUESTS_TOTAL,
     MODEL_LOADED,
     get_vram_usage_bytes,
     record_batch_size,

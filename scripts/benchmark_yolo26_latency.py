@@ -186,7 +186,7 @@ def create_test_image(width: int = 640, height: int = 640) -> Image.Image:
     return Image.fromarray(data)
 
 
-def benchmark_yolo26_model(
+def benchmark_yolo_model(
     model_path: Path,
     resolution: tuple[int, int],
     batch_sizes: list[int],
@@ -194,7 +194,7 @@ def benchmark_yolo26_model(
     warmup_iterations: int,
     benchmark_iterations: int,
 ) -> list[BenchmarkResult]:
-    """Benchmark a YOLO26 model."""
+    """Benchmark a YOLO model using ultralytics."""
     try:
         from ultralytics import YOLO
     except ImportError:
