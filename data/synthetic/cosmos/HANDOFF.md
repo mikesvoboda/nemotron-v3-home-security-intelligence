@@ -85,21 +85,24 @@ This builds a container based on `nvcr.io/nvidia/pytorch:25.10-py3` with:
 - transformer-engine pre-built
 - All Cosmos dependencies
 
-### Step 3: Run Inference
+### Step 3: Run Test Inference
 
 ```bash
 docker run --rm --gpus all \
   --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-  -v /home/shadeform/cosmos-predict2.5:/workspace/cosmos \
+  -v /home/shadeform/cosmos-predict2.5:/workspace \
   -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
-  --entrypoint python \
+  -w /workspace \
   cosmos-b300 \
-  /workspace/cosmos/examples/inference.py \
-  -i /workspace/cosmos/assets/base/snowy_stop_light.json \
-  -o /workspace/cosmos/outputs/test \
+  python examples/inference.py \
+  -i assets/base/snowy_stop_light.json \
+  -o outputs/test \
   --inference-type=text2world \
-  --model=14B/post-trained
+  --model=14B/post-trained \
+  --disable-guardrails
 ```
+
+**Note:** The container's default entrypoint runs `pip install -e .` which is required. Use `-w /workspace` instead of `--entrypoint python`.
 
 ### Step 4: Verify Installation
 
@@ -274,15 +277,15 @@ python examples/inference.py \
 
 ### Output Video Specifications
 
-| Property | Value |
-|----------|-------|
-| **File Size** | 598 KB |
-| **Resolution** | 1280×704 (720p) |
-| **Duration** | 5.81 seconds |
-| **Frame Rate** | 16 fps |
-| **Total Frames** | 93 |
-| **Codec** | H.264 |
-| **Bitrate** | 843 kbps |
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Resolution** | 1280×704 (720p) | Fixed |
+| **Frame Rate** | 24 fps | Set in manifest |
+| **Codec** | H.264 | Default |
+| **Duration** | 5s / 10s / 30s | Via `num_output_frames` |
+| **Frames** | 120 / 240 / 720 | Corresponding to durations |
+
+**Note:** Earlier test runs used 16 fps default. Production runs use 24 fps for more natural motion.
 
 ### Generated Files
 
@@ -423,7 +426,8 @@ python examples/inference.py \
   -i assets/base/snowy_stop_light.json \
   -o outputs/presentation \
   --inference-type=text2world \
-  --model=14B/post-trained
+  --model=14B/post-trained \
+  --disable-guardrails
 ```
 
 #### Custom Prompt Generation
@@ -432,11 +436,17 @@ Create a JSON file like `my_video.json`:
 
 ```json
 {
-  "inference_type": "text2world",
   "name": "my_custom_video",
-  "prompt": "Security camera footage from elevated doorbell camera, suburban home front porch at night. A person in dark hoodie approaches the front door..."
+  "inference_type": "text2world",
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in dark hoodie approaches...",
+  "negative_prompt": "visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, slow motion, time lapse",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 120
 }
 ```
+
+**CRITICAL:** Use perspective-centric language, NOT device-centric ("security camera footage from...").
 
 Then run:
 
@@ -445,34 +455,37 @@ python examples/inference.py \
   -i my_video.json \
   -o outputs/custom \
   --inference-type=text2world \
-  --model=14B/post-trained
+  --model=14B/post-trained \
+  --disable-guardrails
 ```
 
 ---
 
-### Extended Duration (30s Training Videos)
+### Extended Duration (10s, 30s Videos)
 
-For videos longer than 5s, use autoregressive mode:
+For videos longer than 5s, set `num_output_frames` in the JSON prompt file:
 
-```bash
-# Docker (B300)
-docker run --rm --gpus all \
-  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-  -v /home/shadeform/cosmos-predict2.5:/workspace/cosmos \
-  -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
-  --entrypoint python \
-  cosmos-b300 \
-  /workspace/cosmos/examples/inference.py \
-  -i /workspace/cosmos/assets/base/bus_terminal_long.json \
-  -o /workspace/cosmos/outputs/long_video \
-  --model=14B/post-trained
+| Duration | Frames @ 24fps |
+|----------|----------------|
+| 5 seconds | 120 frames |
+| 10 seconds | 240 frames |
+| 30 seconds | 720 frames |
 
-# Native (H200)
-python examples/inference.py \
-  -i assets/base/bus_terminal_long.json \
-  -o outputs/long_video \
-  --model=14B/post-trained
+Example JSON for 30-second video:
+
+```json
+{
+  "name": "my_30s_video",
+  "inference_type": "text2world",
+  "prompt": "Suburban home driveway, viewed from elevated angle...",
+  "negative_prompt": "visible camera, camera equipment, slow motion...",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 720
+}
 ```
+
+The `generate_prompts.py` script automatically creates 5s, 10s, and 30s variants for each prompt.
 
 ### All Available Options
 
@@ -483,7 +496,7 @@ python examples/inference.py --help
 Key options:
 - `--model`: `2B/post-trained`, `2B/pre-trained`, `14B/post-trained`, `14B/pre-trained`
 - `--inference-type`: `text2world`, `image2world`, `video2world`
-- `--disable-guardrails`: Skip safety checks (not recommended)
+- `--disable-guardrails`: **Required** for security training videos (weapons, threats, break-ins)
 - `--seed`: Set random seed for reproducibility
 - `--guidance`: Prompt adherence (default 7.0)
 
@@ -565,9 +578,11 @@ Key options:
 └── nemotron-v3-home-security-intelligence/
     └── data/synthetic/cosmos/
         ├── HANDOFF.md                    # This file
-        ├── generation_manifest.yaml      # All 88 video definitions
+        ├── generation_manifest.yaml      # All 167 video definitions
         └── generation_status.json        # Progress tracking
 ```
+
+**Note:** H200 setup is similar to B300 but uses native Python instead of Docker. The same prompt files and scripts work on both.
 
 ---
 
@@ -707,17 +722,23 @@ python -m cosmos_reason1.inference.video_reward \
 
 ### Recommended Approach
 
-1. **Keep model loaded** - Process videos in batches to avoid reload time
-2. **Use JSONL batch input** - Multiple prompts in one file
-3. **Parallel processes** - Run 14B + 2B simultaneously (85GB total)
+1. **Keep model loaded** - Process multiple videos per container to avoid reload time
+2. **Use multiple JSON files** - Pass space-separated after single `-i` flag (tyro syntax)
+3. **8 GPU parallelism** - One container per GPU, each processing ~63 videos
 
 ### Batch Input Format
 
-Create `batch.jsonl`:
-```json
-{"inference_type": "text2world", "name": "P01", "prompt": "Security camera footage..."}
-{"inference_type": "text2world", "name": "P02", "prompt": "Security camera footage..."}
+Use individual JSON files passed to a single `-i` flag:
+
+```bash
+# ✅ CORRECT - Multiple files after single -i
+python inference.py -i P01_5s.json P02_5s.json P03_5s.json -o output/
+
+# ❌ WRONG - Repeated -i flags (only processes last file)
+python inference.py -i P01_5s.json -i P02_5s.json -i P03_5s.json -o output/
 ```
+
+The `batch_generate.sh` script handles this automatically.
 
 ---
 
@@ -743,21 +764,30 @@ Create `batch.jsonl`:
 
 ## Files Reference
 
-### Key Paths
+### Key Paths (B300 - Docker)
+
+| File | Path |
+|------|------|
+| Cosmos repo | `/home/shadeform/cosmos-predict2.5` |
+| Docker image | `cosmos-b300` (built from `docker/nightly.Dockerfile`) |
+| Inference script | `examples/inference.py` (inside container at `/workspace`) |
+| Video manifest | `/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/generation_manifest.yaml` |
+| Generated prompts | `/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/` |
+| Output videos | `/home/shadeform/cosmos-predict2.5/outputs/security_videos/` |
+
+### Key Paths (H200 - Native)
 
 | File | Path |
 |------|------|
 | Cosmos environment | `/home/ubuntu/cosmos-predict2.5/.venv/bin/activate` |
 | 14B model | `/home/ubuntu/cosmos-predict2.5/checkpoints/Cosmos-Predict2.5-14B` |
 | Inference script | `/home/ubuntu/cosmos-predict2.5/examples/inference.py` |
-| Video manifest | `/home/ubuntu/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/generation_manifest.yaml` |
-| Test output | `/home/ubuntu/cosmos-predict2.5/outputs/test/snowy_stop_light.mp4` |
 
-### Environment Activation
+### Prompt Generation Environment
 
 ```bash
-cd /home/ubuntu/cosmos-predict2.5
-source .venv/bin/activate
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+source .venv/bin/activate  # For running generate_prompts.py
 ```
 
 ---
@@ -1069,21 +1099,26 @@ This is critical for batch processing multiple videos in a single container.
 ## Quick Reference: Docker Run Command
 
 ```bash
-# Standard inference command for B300
-docker run --rm --gpus all \
+# Standard inference command for B300 (single GPU)
+docker run --rm --gpus '"device=0"' \
   --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-  -v /home/shadeform/cosmos-predict2.5:/workspace/cosmos \
+  -v /home/shadeform/cosmos-predict2.5:/workspace \
   -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
-  --entrypoint python \
+  -v /path/to/prompts:/prompts \
+  -w /workspace \
   cosmos-b300 \
-  /workspace/cosmos/examples/inference.py \
-  -i /workspace/cosmos/INPUT_FILE.json \
-  -o /workspace/cosmos/outputs/OUTPUT_DIR \
+  python examples/inference.py \
+  -i /prompts/INPUT_FILE.json \
+  -o /workspace/outputs/OUTPUT_DIR \
   --inference-type=text2world \
-  --model=14B/post-trained
+  --model=14B/post-trained \
+  --disable-guardrails
 ```
 
----
+**Key points:**
+- Use `-w /workspace` (not `--entrypoint python`) to let entrypoint install cosmos-predict2
+- Use `--disable-guardrails` for security training content
+- Use `--gpus '"device=N"'` for specific GPU assignment in parallel runs
 
 ---
 
