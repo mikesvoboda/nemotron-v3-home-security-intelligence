@@ -69,17 +69,18 @@ ENV CLIP_USE_TENSORRT=false
 # CLIP_ENGINE_PATH is set via docker-compose when TensorRT is enabled
 
 # Create cache directories for HuggingFace models and TensorRT engines
+# Use numeric UID:GID for NVIDIA image compatibility
 RUN mkdir -p /cache/huggingface /cache/tensorrt && \
-    chown -R clip:clip /cache/huggingface /cache/tensorrt
+    chown -R 1000:1000 /cache/huggingface /cache/tensorrt
 
 # Set ownership of app directory
-RUN chown -R clip:clip /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8093
 
-# Switch to non-root user
-USER clip
+# Switch to non-root user (use numeric UID for compatibility)
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 300s allows time for model loading and TensorRT auto-export on first run

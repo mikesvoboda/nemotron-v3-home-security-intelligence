@@ -75,17 +75,17 @@ ENV PORT=8095
 ENV YOLO26_CONFIDENCE=0.5
 ENV YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
 
-# Create model directory
-RUN mkdir -p /models/yolo26/exports && chown -R yolo26:yolo26 /models
+# Create model directory (use numeric UID:GID for NVIDIA image compatibility)
+RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
 
 # Set ownership of app directory
-RUN chown -R yolo26:yolo26 /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8095
 
-# Switch to non-root user
-USER yolo26
+# Switch to non-root user (use numeric UID for compatibility)
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 60s allows time for model loading
