@@ -147,24 +147,6 @@ scrape_configs:
 
   # YOLO26 TensorRT Object Detection metrics (ai-yolo26)
   # Alternative detector to YOLO26 with 5.3x faster inference
-  # Key metrics:
-  # - yolo26_inference_requests_total: Total inference requests by endpoint/status
-  # - yolo26_inference_latency_seconds: Inference latency histogram
-  # - yolo26_detections_per_image: Number of detections per image
-  # - yolo26_model_loaded: Model status (1=loaded)
-  # - yolo26_gpu_*: GPU utilization, memory, temperature, power
-  - job_name: 'ai-yolo26-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-yolo26:8095'
-        labels:
-          service: yolo26
-          model_type: detection
-    honor_labels: true
-
   # ==========================================================================
   # JSON Exporter Scraped Endpoints (For non-Prometheus format data)
   # ==========================================================================
