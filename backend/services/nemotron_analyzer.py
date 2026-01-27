@@ -2995,29 +2995,6 @@ class NemotronAnalyzer:
             "stop": ["<|im_end|>", "<|im_start|>"],
         }
 
-        # Check if guided_json should be used (NEM-3726)
-        # NVIDIA NIM's structured generation ensures valid JSON output
-        use_guided_json_for_request = False
-        if self._use_guided_json:
-            # Check if endpoint supports guided_json (result is cached)
-            supports_guided = await self._check_guided_json_support()
-            if supports_guided:
-                # Add guided_json to payload via nvext namespace
-                guided_json_body = self._build_guided_json_extra_body()
-                payload.update(guided_json_body)
-                use_guided_json_for_request = True
-                logger.debug(
-                    "Using guided_json for structured LLM output",
-                    extra={
-                        "schema_keys": list(RISK_ANALYSIS_JSON_SCHEMA.get("properties", {}).keys())
-                    },
-                )
-            else:
-                logger.debug(
-                    "Endpoint does not support guided_json, using regex fallback",
-                    extra={"llm_url": self._llm_url},
-                )
-
         # Merge auth headers with JSON content-type
         headers = {"Content-Type": "application/json"}
         headers.update(self._get_auth_headers())
@@ -3035,6 +3012,33 @@ class NemotronAnalyzer:
         explicit_timeout = settings.nemotron_read_timeout + settings.ai_connect_timeout
 
         async with inference_semaphore:
+            # Check if guided_json should be used (NEM-3726)
+            # NVIDIA NIM's structured generation ensures valid JSON output
+            # IMPORTANT: This check must be inside the semaphore to prevent
+            # concurrent HTTP requests during capability probing (NEM-1463)
+            use_guided_json_for_request = False
+            if self._use_guided_json:
+                # Check if endpoint supports guided_json (result is cached)
+                supports_guided = await self._check_guided_json_support()
+                if supports_guided:
+                    # Add guided_json to payload via nvext namespace
+                    guided_json_body = self._build_guided_json_extra_body()
+                    payload.update(guided_json_body)
+                    use_guided_json_for_request = True
+                    logger.debug(
+                        "Using guided_json for structured LLM output",
+                        extra={
+                            "schema_keys": list(
+                                RISK_ANALYSIS_JSON_SCHEMA.get("properties", {}).keys()
+                            )
+                        },
+                    )
+                else:
+                    logger.debug(
+                        "Endpoint does not support guided_json, using regex fallback",
+                        extra={"llm_url": self._llm_url},
+                    )
+
             # OpenTelemetry span for LLM inference (NEM-1467)
             # Wraps the entire LLM call including retries for end-to-end correlation
             with tracer.start_as_current_span("llm_inference") as span:
