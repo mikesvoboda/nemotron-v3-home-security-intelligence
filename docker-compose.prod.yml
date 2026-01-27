@@ -1111,7 +1111,7 @@ services:
   alloy:
     image: docker.io/grafana/alloy:v1.0.0
     container_name: alloy
-    privileged: true  # Required for eBPF operations with Podman
+    privileged: true # Required for eBPF operations with Podman
     # Use specific capabilities instead of privileged mode for eBPF
     # CAP_SYS_ADMIN: Required for BPF operations
     # CAP_SYS_PTRACE: Required for process tracing
