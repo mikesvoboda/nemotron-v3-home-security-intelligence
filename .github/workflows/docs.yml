@@ -61,7 +61,7 @@ jobs:
           "
 
       - name: Upload OpenAPI spec
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: openapi-spec
           path: docs-output/api/openapi.json
@@ -78,7 +78,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -108,7 +108,7 @@ jobs:
             --excludeInternal
 
       - name: Upload TypeDoc output
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: typedoc-output
           path: docs-output/typescript/
@@ -126,7 +126,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -147,7 +147,7 @@ jobs:
             --title "Home Security Intelligence API Documentation"
 
       - name: Upload Redoc output
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: redoc-html
           path: docs-output/api-html/
@@ -347,7 +347,7 @@ jobs:
           EOF
 
       - name: Upload documentation site
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: docs-site
           path: docs-site/
@@ -497,7 +497,7 @@ jobs:
           echo "Created OpenAPI archive: openapi-${TIMESTAMP}-${SHORT_SHA}.json"
 
       - name: Upload versioned OpenAPI
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: openapi-versioned-${{ github.sha }}
           path: openapi-versions/
