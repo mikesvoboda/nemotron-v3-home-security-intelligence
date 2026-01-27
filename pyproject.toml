@@ -7,7 +7,7 @@ dependencies = [
     # Core FastAPI
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
-    "python-multipart>=0.0.12",
+    "python-multipart>=0.0.22",  # CVE-2026-24486 fix
     # Database (PostgreSQL)
     "sqlalchemy>=2.0.36",
     "asyncpg>=0.30.0",
