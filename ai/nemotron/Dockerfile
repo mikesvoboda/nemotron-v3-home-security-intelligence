@@ -47,8 +47,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN groupadd -g 1000 llama && \
-    useradd -u 1000 -g llama -s /bin/bash -m llama
+RUN (getent group 1000 || groupadd -g 1000 llama) && \
+    useradd -u 1000 -g 1000 -o -s /bin/bash -m llama || true
 
 # Copy the compiled binaries and shared libraries from builder stage
 COPY --from=builder /build/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
@@ -56,7 +56,7 @@ COPY --from=builder /build/llama.cpp/build/bin/*.so* /usr/local/lib/
 RUN chmod +x /usr/local/bin/llama-server && ldconfig
 
 # Create model directory
-RUN mkdir -p /models && chown llama:llama /models
+RUN mkdir -p /models && chown 1000:1000 /models
 
 # Environment variables for configuration
 ENV MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
@@ -69,7 +69,7 @@ ENV PARALLEL=1
 EXPOSE 8091
 
 # Switch to non-root user
-USER llama
+USER 1000
 
 # Health check with 120s start period for large model loading
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \

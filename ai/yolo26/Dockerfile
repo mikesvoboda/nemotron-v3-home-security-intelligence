@@ -27,7 +27,7 @@ LABEL com.example.service.port="8095"
 # procps for pgrep (needed by profiler)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     curl \
     procps \
@@ -43,12 +43,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY requirements-base.txt .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements-base.txt
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache -r requirements-base.txt
 
 # Copy and install service-specific dependencies
 COPY ai/yolo26/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements.txt
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \
@@ -60,8 +60,8 @@ COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
 # Create non-root user for security
-RUN groupadd -g 1000 yolo26 && \
-    useradd -u 1000 -g yolo26 -s /bin/bash -m yolo26
+RUN (getent group 1000 || groupadd -g 1000 yolo26) && \
+    useradd -u 1000 -g 1000 -o -s /bin/bash -m yolo26 || true
 
 # Copy application files
 COPY ai/yolo26/model.py .
@@ -76,16 +76,16 @@ ENV YOLO26_CONFIDENCE=0.5
 ENV YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
 
 # Create model directory
-RUN mkdir -p /models/yolo26/exports && chown -R yolo26:yolo26 /models
+RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
 
 # Set ownership of app directory
-RUN chown -R yolo26:yolo26 /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8095
 
 # Switch to non-root user
-USER yolo26
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 60s allows time for model loading

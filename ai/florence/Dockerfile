@@ -26,7 +26,7 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 # procps for pgrep (needed by profiler)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     curl \
     procps \
@@ -41,12 +41,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY requirements-base.txt .
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
-    uv pip install --system --no-cache -r requirements-base.txt
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache -r requirements-base.txt
 
 # Copy and install service-specific Python dependencies
 COPY ai/florence/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
-    uv pip install --system --no-cache -r requirements.txt
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \
@@ -84,19 +84,19 @@ LABEL com.example.service.port="8092"
 # Install only runtime dependencies (curl and procps removed - not needed at runtime)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Create non-root user for security (same UID/GID as builder for permission compatibility)
-RUN groupadd -g 1000 florence && \
-    useradd -u 1000 -g florence -s /bin/bash -m florence
+RUN (getent group 1000 || groupadd -g 1000 florence) && \
+    useradd -u 1000 -g 1000 -o -s /bin/bash -m florence || true
 
 # Copy installed packages from builder (pytorch images use /opt/conda for Python)
-COPY --from=builder --chown=florence:florence /opt/conda /opt/conda
-COPY --from=builder --chown=florence:florence /app .
+COPY --from=builder --chown=1000:1000 /opt/conda /opt/conda
+COPY --from=builder --chown=1000:1000 /app .
 
 # Copy profiler tools and scripts
 COPY --from=builder --chmod=755 /usr/local/bin/py-spy /usr/local/bin/py-spy
@@ -115,13 +115,13 @@ ENV TRANSFORMERS_CACHE=/cache/huggingface
 ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # Create cache directory for HuggingFace models
-RUN mkdir -p /cache/huggingface && chown -R florence:florence /cache/huggingface
+RUN mkdir -p /cache/huggingface && chown -R 1000:1000 /cache/huggingface
 
 # Expose port
 EXPOSE 8092
 
 # Switch to non-root user
-USER florence
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 120s allows time for model loading (Florence-2 is larger)

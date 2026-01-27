@@ -11,7 +11,7 @@ LABEL description="Lightweight enrichment service for pose, threat, re-id, pet, 
 # procps for pgrep (needed by profiler)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     curl \
     procps \
@@ -27,7 +27,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY ai/enrichment-light/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements.txt
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \
@@ -39,8 +39,8 @@ COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
 # Create non-root user for security
-RUN groupadd -g 1000 enrichment && \
-    useradd -u 1000 -g enrichment -s /bin/bash -m enrichment
+RUN (getent group 1000 || groupadd -g 1000 enrichment) && \
+    useradd -u 1000 -g 1000 -o -s /bin/bash -m enrichment || true
 
 # Copy application files
 COPY ai/enrichment-light/*.py ./
@@ -71,16 +71,16 @@ ENV POSE_TENSORRT_ENGINE_PATH=/cache/tensorrt/yolov8n-pose.engine
 ENV THREAT_TENSORRT_ENGINE_PATH=/cache/tensorrt/threat-detector.engine
 
 # Create cache directories for HuggingFace and TensorRT engines
-RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
+RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R 1000:1000 /cache
 
 # Set ownership of app directory
-RUN chown -R enrichment:enrichment /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8096
 
 # Switch to non-root user
-USER enrichment
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 90s allows time for loading models

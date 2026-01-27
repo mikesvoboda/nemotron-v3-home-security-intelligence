@@ -11,7 +11,7 @@ LABEL description="CLIP ViT-L embedding server for entity re-identification"
 # procps for pgrep (needed by profiler)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     curl \
     procps \
@@ -27,12 +27,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY ai/clip/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements.txt
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache -r requirements.txt
 
 # Add httpx for health check
 # hadolint ignore=DL3059
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache httpx
+    UV_BREAK_SYSTEM_PACKAGES=1 uv pip install --system --no-cache httpx
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \
@@ -44,8 +44,8 @@ COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
 # Create non-root user for security
-RUN groupadd -g 1000 clip && \
-    useradd -u 1000 -g clip -s /bin/bash -m clip
+RUN (getent group 1000 || groupadd -g 1000 clip) && \
+    useradd -u 1000 -g 1000 -o -s /bin/bash -m clip || true
 
 # Copy application files
 COPY ai/clip/model.py .
@@ -70,16 +70,16 @@ ENV CLIP_USE_TENSORRT=false
 
 # Create cache directories for HuggingFace models and TensorRT engines
 RUN mkdir -p /cache/huggingface /cache/tensorrt && \
-    chown -R clip:clip /cache/huggingface /cache/tensorrt
+    chown -R 1000:1000 /cache/huggingface /cache/tensorrt
 
 # Set ownership of app directory
-RUN chown -R clip:clip /app
+RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8093
 
 # Switch to non-root user
-USER clip
+USER 1000
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 300s allows time for model loading and TensorRT auto-export on first run
