@@ -226,9 +226,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU assignment from .env (GPU_FLORENCE, defaults to GPU_LLM for shared VRAM)
+            # GPU assignment from .env (GPU_FLORENCE, defaults to 0 for shared VRAM with LLM)
             - driver: nvidia
-              device_ids: ['${GPU_FLORENCE:-${GPU_LLM:-0}}']
+              device_ids: ['${GPU_FLORENCE:-0}']
               capabilities: [gpu]
 
   # CLIP ViT-L model for entity re-identification embeddings
