@@ -268,7 +268,7 @@ AI_CONFIGS: dict[str, ServiceConfig] = {
     "ai-yolo26": ServiceConfig(
         display_name="YOLO26",
         category=ServiceCategory.AI,
-        port=8095,
+        port=8090,
         health_endpoint="/health",
         startup_grace_period=60,
     ),
@@ -492,7 +492,7 @@ class ContainerDiscoveryService:
         """Get service configuration by name.
 
         Args:
-            name: Service name (config key like "postgres", "ai-detector")
+            name: Service name (config key like "postgres", "ai-yolo26")
 
         Returns:
             ServiceConfig if found, None otherwise

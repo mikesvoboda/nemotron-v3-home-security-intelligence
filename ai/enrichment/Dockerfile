@@ -1,5 +1,6 @@
 # Combined Enrichment Service (Multi-Stage Build)
-# Hosts Vehicle Classification, Pet Classification, FashionCLIP, YOLOv8 Pose, and OSNet Re-ID models
+# Hosts Vehicle Classification, Pet Classification, FashionCLIP, YOLOv8 Pose, OSNet Re-ID,
+# and video analytics with Supervision (ByteTrack tracking, annotators, heatmaps)
 # Port: 8094 | Expected VRAM: ~3.5GB (with new models)
 #
 # Build Optimizations:
@@ -60,6 +61,8 @@ COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
 # Copy application files (all Python modules)
 COPY ai/enrichment/*.py ./
+COPY ai/enrichment/models/ ./models/
+COPY ai/enrichment/utils/ ./utils/
 
 # =============================================================================
 # Stage 2: Runtime - Minimal image without build dependencies

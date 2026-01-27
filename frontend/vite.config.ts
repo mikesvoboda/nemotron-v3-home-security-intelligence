@@ -29,6 +29,11 @@ import path from 'path';
  * - Dependency Optimization (NEM-3386): Pre-bundles common dependencies
  * - Barrel File Tree Shaking (NEM-3436): Configures proper tree shaking
  * - Dev Server Warmup (NEM-3437): Warms up critical entry points
+ *
+ * Vite 7 Experimental Features (NEM-3782):
+ * - Rolldown Build: Enables experimental Rolldown integration for transformation
+ *   Note: Full Rolldown bundling and Oxc minification require rolldown-vite or Vite 8
+ *   See: https://vite.dev/guide/rolldown for migration path
  */
 
 export default defineConfig(({ mode }) => {
@@ -147,6 +152,15 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    // NEM-3782: Vite 7 Experimental Features for Faster Builds
+    // Enable experimental Rolldown integration for transformation
+    // Note: In Vite 7, this enables Rolldown for some internal operations but
+    // production bundling still uses Rollup. For full Rolldown bundling and
+    // Oxc minification, migrate to rolldown-vite or wait for Vite 8.
+    // See: https://vite.dev/guide/rolldown
+    experimental: {
+      rolldownBuild: true,
+    },
     plugins,
     cacheDir: '.vitest',
     resolve: {
@@ -244,7 +258,8 @@ export default defineConfig(({ mode }) => {
       // NEM-3385: Explicit build target for consistent output
       // ES2020 provides good browser support while enabling modern features
       target: 'es2020',
-      // Minification options via esbuild
+      // NEM-3782: Minification via esbuild (default for Vite 7)
+      // Note: Oxc minification will be available in Vite 8/rolldown-vite
       minify: 'esbuild',
       // Generate hidden source maps for production debugging
       // 'hidden' generates .map files but doesn't add //# sourceMappingURL= comment to bundles
@@ -278,7 +293,7 @@ export default defineConfig(({ mode }) => {
           // NEM-3384: Manual chunk splitting DISABLED
           // The previous function-based chunking caused circular import deadlocks
           // between vendor-react and vendor-misc due to shared interop helpers.
-          // Rollup's natural chunking handles this correctly.
+          // Rollup/Rolldown's natural chunking handles this correctly.
           // TODO: Re-enable with a more sophisticated approach that accounts for
           // interop helper dependencies (see NEM-XXXX for E2E test).
           // manualChunks: undefined,

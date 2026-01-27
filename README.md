@@ -62,6 +62,49 @@ The brain of this system is [NVIDIA's Nemotron-3-Nano](https://huggingface.co/nv
 
 ---
 
+## Video Analytics Features
+
+The system provides comprehensive video analytics capabilities:
+
+### Detection and Analysis
+
+| Feature                 | Description                                       | Documentation                                           |
+| ----------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| **Object Detection**    | YOLO26 detects people, vehicles, animals, objects | [Video Analytics Guide](docs/guides/video-analytics.md) |
+| **Scene Understanding** | Florence-2 generates captions and descriptions    | [Video Analytics Guide](docs/guides/video-analytics.md) |
+| **Anomaly Detection**   | CLIP baselines detect unusual activity            | [Video Analytics Guide](docs/guides/video-analytics.md) |
+| **Threat Detection**    | Weapon and dangerous item detection               | [Video Analytics Guide](docs/guides/video-analytics.md) |
+
+### Zone Intelligence
+
+| Feature                   | Description                              | Documentation                                           |
+| ------------------------- | ---------------------------------------- | ------------------------------------------------------- |
+| **Detection Zones**       | Define areas for focused monitoring      | [Zone Configuration](docs/guides/zone-configuration.md) |
+| **Dwell Time Tracking**   | Monitor how long objects remain in zones | [Zone Configuration](docs/guides/zone-configuration.md) |
+| **Line Crossing**         | Detect zone entry/exit events            | [Zone Configuration](docs/guides/zone-configuration.md) |
+| **Household Integration** | Link zones to household members          | [Zone Configuration](docs/guides/zone-configuration.md) |
+
+### Person and Vehicle Identification
+
+| Feature                    | Description                           | Documentation                                           |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------- |
+| **Face Detection**         | Detect faces within person detections | [Face Recognition](docs/guides/face-recognition.md)     |
+| **Person Re-ID**           | Track individuals across cameras      | [Face Recognition](docs/guides/face-recognition.md)     |
+| **Demographics**           | Age and gender estimation             | [Face Recognition](docs/guides/face-recognition.md)     |
+| **License Plates**         | Plate detection and OCR               | [Video Analytics Guide](docs/guides/video-analytics.md) |
+| **Vehicle Classification** | Vehicle type identification           | [Video Analytics Guide](docs/guides/video-analytics.md) |
+
+### Analytics and Reporting
+
+| Endpoint                             | Description                | Documentation                                    |
+| ------------------------------------ | -------------------------- | ------------------------------------------------ |
+| `/api/analytics/detection-trends`    | Daily detection counts     | [Analytics API](docs/api/analytics-endpoints.md) |
+| `/api/analytics/risk-history`        | Risk level distribution    | [Analytics API](docs/api/analytics-endpoints.md) |
+| `/api/analytics/camera-uptime`       | Camera performance metrics | [Analytics API](docs/api/analytics-endpoints.md) |
+| `/api/analytics/object-distribution` | Object type breakdown      | [Analytics API](docs/api/analytics-endpoints.md) |
+
+---
+
 ## AI Model Zoo
 
 The system uses multiple AI models for comprehensive security analysis. Models are managed with VRAM-efficient on-demand loading.

@@ -19,6 +19,9 @@ open_clip_torch>=2.24.0
 ultralytics>=8.0.0          # YOLOv8 pose detection and threat classification
 torchreid>=0.2.5            # OSNet re-ID model (optional, may implement manually)
 
+# Video analytics and tracking (Roboflow)
+supervision>=0.25.0         # ByteTrack tracking, annotators, heatmaps
+
 # Image processing
 pillow>=10.0.0
 numpy>=1.24.0

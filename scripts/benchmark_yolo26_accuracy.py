@@ -263,8 +263,8 @@ def get_default_device() -> str:
     return "cpu"
 
 
-def load_yolo26_model_ultralytics(model_path: Path, device: str | None = None) -> Any:
-    """Load a YOLO26 model using ultralytics."""
+def load_yolo_model(model_path: Path, device: str | None = None) -> Any:
+    """Load a YOLO model using ultralytics."""
     if device is None:
         device = get_default_device()
 
@@ -276,10 +276,10 @@ def load_yolo26_model_ultralytics(model_path: Path, device: str | None = None) -
         model.to(device)
         return model
     except Exception as e:
-        raise RuntimeError(f"Failed to load YOLO26 model from {model_path}: {e}") from e
+        raise RuntimeError(f"Failed to load YOLO model from {model_path}: {e}") from e
 
 
-def load_yolo26_model_hf(model_path: Path, device: str | None = None) -> tuple[Any, Any]:
+def load_yolo26_model(model_path: Path, device: str | None = None) -> tuple[Any, Any]:
     """Load YOLO26 model using HuggingFace Transformers."""
     if device is None:
         device = get_default_device()
@@ -307,22 +307,22 @@ def warmup_model(model: Any, processor: Any | None, device: str, num_warmup: int
 
     for _ in range(num_warmup):
         if processor is not None:
-            # YOLO26 HuggingFace
-            run_yolo26_inference_hf(model, processor, dummy_image, 0.5, device)
+            # Use HuggingFace inference
+            run_yolo26_inference(model, processor, dummy_image, 0.5, device)
         else:
-            # YOLO ultralytics
-            run_yolo26_inference_ultralytics(model, dummy_image, 0.5)
+            # Use ultralytics inference
+            run_yolo_inference(model, dummy_image, 0.5)
 
 
-def run_yolo26_inference_ultralytics(
+def run_yolo_inference(
     model: Any,
     image: Image.Image,
     confidence: float = 0.5,
 ) -> tuple[list[Detection], float]:
-    """Run YOLO26 inference on a single image using ultralytics.
+    """Run YOLO inference on a single image using ultralytics.
 
     Args:
-        model: Loaded YOLO26 model
+        model: Loaded YOLO model
         image: PIL Image
         confidence: Confidence threshold
 
@@ -360,14 +360,14 @@ def run_yolo26_inference_ultralytics(
     return detections, inference_time_ms
 
 
-def run_yolo26_inference_hf(
+def run_yolo26_inference(
     model: Any,
     processor: Any,
     image: Image.Image,
     confidence: float = 0.5,
     device: str | None = None,
 ) -> tuple[list[Detection], float]:
-    """Run YOLO26 inference on a single image using HuggingFace.
+    """Run YOLO26 inference on a single image.
 
     Args:
         model: Loaded YOLO26 model
@@ -595,15 +595,13 @@ def run_local_fixture_benchmark(
 
                 # Run inference based on model type
                 if processor is not None:
-                    # YOLO26 HuggingFace
-                    detections, inference_time = run_yolo26_inference_hf(
+                    # YOLO26
+                    detections, inference_time = run_yolo26_inference(
                         model, processor, image, confidence
                     )
                 else:
-                    # YOLO26 ultralytics
-                    detections, inference_time = run_yolo26_inference_ultralytics(
-                        model, image, confidence
-                    )
+                    # YOLO26
+                    detections, inference_time = run_yolo26_inference(model, image, confidence)
 
                 model_results.append(
                     LocalTestResult(
@@ -1039,7 +1037,7 @@ def main() -> None:
 
             if model_name == "yolo26":
                 print(f"Loading YOLO26 from {args.yolo26_path}...")
-                model, processor = load_yolo26_model_hf(args.yolo26_path, device)
+                model, processor = load_yolo26_model(args.yolo26_path, device)
                 models["YOLO26"] = (model, processor)
                 print(f"  Loaded YOLO26 (VRAM: {get_gpu_memory_mb():.0f} MB)")
 
@@ -1051,7 +1049,7 @@ def main() -> None:
 
                 if model_file.exists():
                     print(f"Loading YOLO26{variant.upper()} from {model_file}...")
-                    model = load_yolo26_model_ultralytics(model_file, device)
+                    model = load_yolo26_model(model_file, device)
                     models[f"YOLO26{variant.upper()}"] = (model, None)
                     print(f"  Loaded YOLO26{variant.upper()} (VRAM: {get_gpu_memory_mb():.0f} MB)")
                 else:

@@ -113,13 +113,58 @@ services:
           cpus: '2'
           memory: 1G
 
-  # YOLO26 TensorRT-optimized object detection
+  ai-detector:
+    tmpfs:
+      - /tmp
+      - /home/yolo26/.cache # PyTorch compile cache
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-detector'
+    build:
+      context: .
+      dockerfile: ai/yolo26/Dockerfile
+    ports:
+      - '8090:8090'
+    volumes:
+      # Persistent HuggingFace cache volume (NEM-3812)
+      # :U tells Podman to recursively chown the volume to match container user (yolo26)
+      # Docker ignores the :U flag, making this backward compatible
+      - hf_cache:/cache/huggingface:U
+    environment:
+      - SERVICE_NAME=ai-detector
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
+      - PYROSCOPE_URL=http://pyroscope:4040
+      - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
+      - YOLO26_MODEL_PATH=${YOLO26_MODEL_PATH:-PekingU/yolo26_r50vd_coco_o365}
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # YOLO26 TensorRT-optimized object detection (alternative to YOLO26)
   # Enable by setting DETECTOR_TYPE=yolo26 in backend environment
-  #
-  # INT8 Quantization (NEM-3768):
-  # For 2x throughput improvement, set YOLO26_MODEL_PATH env var to INT8 engine in .env
-  # INT8 engine must be pre-exported using ai/yolo26/export_tensorrt.py
-  # See ai/yolo26/README.md for calibration and export instructions
   ai-yolo26:
     labels:
       pyroscope.profile: 'true'
@@ -136,16 +181,7 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
-      # Model precision: FP16 (default) or INT8 (2x throughput, <1% accuracy drop)
-      # To use INT8:
-      #   1. Export engine: python ai/yolo26/export_tensorrt.py --int8 --data config/yolo26_calibration.yaml
-      #   2. Set in .env: YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_int8.engine
-      - YOLO26_MODEL_PATH=${YOLO26_MODEL_PATH:-/models/yolo26/exports/yolo26m_fp16.engine}
-      # INT8 engine path (alternative to overriding YOLO26_MODEL_PATH)
-      # Set YOLO26_MODEL_PATH_INT8=/models/yolo26/exports/yolo26m_int8.engine in .env
-      - YOLO26_MODEL_PATH_INT8=${YOLO26_MODEL_PATH_INT8:-}
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
     healthcheck:
       test:
         [
@@ -165,12 +201,10 @@ services:
       resources:
         reservations:
           devices:
-            # YOLO26 TensorRT: ~150MB - can run on smaller GPU
+            # GPU 1 (A400 4GB) - YOLO26 TensorRT uses ~1GB, shares with CLIP and Florence
             - driver: nvidia
-              device_ids: ['${GPU_YOLO26:-1}']
+              device_ids: ['1']
               capabilities: [gpu]
-              options:
-                memory: 1500m
 
   ai-llm:
     tmpfs:
@@ -190,8 +224,6 @@ services:
       - GPU_LAYERS=${GPU_LAYERS:-45}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
-      # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
-      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -205,12 +237,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
             - driver: nvidia
-              device_ids: ['${GPU_LLM:-0}']
+              count: 1
               capabilities: [gpu]
-              options:
-                memory: 24g
 
   # Florence-2 vision-language model for dense captioning and visual understanding
   # Assigned to GPU 1 (A400 4GB) - shares with CLIP (~722MB) and YOLO26 (~1GB)
@@ -235,24 +264,12 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
-      # Disable accelerate device_map to avoid final_logits_bias device placement error
-      - FLORENCE_USE_ACCELERATE=0
-      # GPU assignment from .env (default: GPU 1 for non-LLM models)
-      - CUDA_VISIBLE_DEVICES=0
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
     healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8092/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -264,16 +281,13 @@ services:
       resources:
         reservations:
           devices:
-            # Florence needs ~4GB (1.5GB model + inference) - too big for A400
-            # Assigned to GPU 0 (A5500 24GB) by default for headroom
+            # GPU 1 (A400 4GB) - Florence uses ~530MB, shares with CLIP (~722MB) and YOLO26 (~1GB)
             - driver: nvidia
-              device_ids: ['${GPU_FLORENCE:-0}']
+              device_ids: ['1']
               capabilities: [gpu]
-              options:
-                memory: 4g
 
   # CLIP ViT-L model for entity re-identification embeddings
-  # Assigned to GPU 1 (A400 4GB) - shares with YOLO26 (~150MB)
+  # Assigned to GPU 1 (A400 4GB) - shares with Florence (~530MB) and YOLO26 (~1GB)
   ai-clip:
     tmpfs:
       - /tmp
@@ -299,8 +313,6 @@ services:
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
       - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -314,12 +326,11 @@ services:
       resources:
         reservations:
           devices:
-            # CLIP ViT-L: ~550MB - can run on smaller GPU
+            # GPU 1 (A400 4GB) - CLIP TensorRT uses ~722MB, shares with Florence (~530MB) and YOLO26 (~1GB)
+            # Total GPU 1 VRAM: ~2.3GB / 4GB (~57% utilization)
             - driver: nvidia
-              device_ids: ['${GPU_CLIP:-1}']
+              count: 1
               capabilities: [gpu]
-              options:
-                memory: 1500m
 
   # Lightweight enrichment service for small, efficient models (GPU 1)
   # Hosts: pose, threat, reid, pet, depth models (~1.2GB total)
@@ -364,8 +375,6 @@ services:
       # TensorRT acceleration for YOLO models
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
       interval: 10s
@@ -379,12 +388,10 @@ services:
       resources:
         reservations:
           devices:
-            # Enrichment-light: ~1.2GB - pose, threat, reid, pet, depth models
+            # GPU 1 (A400 4GB) - Light models use ~1.2GB
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT_LIGHT:-1}']
+              device_ids: ['1']
               capabilities: [gpu]
-              options:
-                memory: 2g
 
   # Heavy enrichment service for large transformer models (GPU 0)
   # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
@@ -430,16 +437,8 @@ services:
       # Available: vehicle_classifier, fashion_clip, depth_estimator, pose_analyzer, pet_classifier
       # Only vehicle and clothing models are on heavy service (others on light)
       - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-vehicle_classifier,fashion_clip}
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
     healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8094/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -451,13 +450,11 @@ services:
       resources:
         reservations:
           devices:
-            # Enrichment-heavy: ~4.3GB - vehicle, fashion, demographics, action models
-            # Default to GPU 0 (larger GPU) due to memory requirements
+            # GPU 1 (A400 4GB) - Moved to share with light models
+            # Uses lazy loading - only loads models when requested
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT:-0}']
+              device_ids: ['1']
               capabilities: [gpu]
-              options:
-                memory: 5g
 
   backend:
     # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
@@ -476,8 +473,6 @@ services:
       - ./backend/data:/app/data:z,U
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
-      # DEV: Mount backend source for hot-reload (comment out for production deployments)
-      - ./backend:/app/backend:ro,z
     environment:
       # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
       # To enable, use python:3.14t-slim-bookworm image and uncomment:
@@ -577,8 +572,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-              options:
-                memory: 2g
 
   redis:
     tmpfs:

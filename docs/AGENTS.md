@@ -11,6 +11,7 @@ This directory contains all project documentation organized into role-based hubs
 | `ai/`              | AI model zoo and pipeline architecture    | [AGENTS.md](ai/AGENTS.md)           |
 | `getting-started/` | Installation and first-run setup          | [README](getting-started/README.md) |
 | `developer/`       | Architecture, API, patterns, contributing | [README](developer/README.md)       |
+| `guides/`          | Feature guides (video analytics, zones)   | [AGENTS.md](guides/AGENTS.md)       |
 | `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
 | `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
 | `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
@@ -77,6 +78,12 @@ docs/
 │   ├── installation.md          # Installation guide
 │   ├── first-run.md             # First run guide
 │   └── upgrading.md             # Upgrade guide
+│
+├── guides/                      # Feature guides
+│   ├── AGENTS.md                # Guides navigation
+│   ├── video-analytics.md       # AI pipeline and detection features
+│   ├── zone-configuration.md    # Detection zone setup
+│   └── face-recognition.md      # Face detection and re-ID
 │
 ├── images/                      # Diagrams and screenshots
 │   ├── AGENTS.md                # Images navigation
@@ -167,6 +174,7 @@ Each major directory has its own AGENTS.md:
 | `docs/AGENTS.md`                      | This file - documentation root |
 | `ai/AGENTS.md`                        | AI model zoo documentation     |
 | `api/AGENTS.md`                       | API governance documentation   |
+| `guides/AGENTS.md`                    | Feature guides documentation   |
 | `architecture/AGENTS.md`              | System design documents        |
 | `benchmarks/AGENTS.md`                | Performance benchmarks         |
 | `decisions/AGENTS.md`                 | Architectural Decision Records |

@@ -50,9 +50,10 @@ class TestCreateScheduledReport:
         )
 
         # Mock the model class
+        # Note: Use configure_mock for 'name' to avoid LogRecord conflict
         mock_report = MagicMock()
+        mock_report.configure_mock(name="Daily Security Report")
         mock_report.id = 1
-        mock_report.name = "Daily Security Report"
         mock_report.frequency = "daily"
         mock_report.day_of_week = None
         mock_report.day_of_month = None
@@ -104,9 +105,10 @@ class TestCreateScheduledReport:
             hour=9,
         )
 
+        # Note: Use configure_mock for 'name' to avoid LogRecord conflict
         mock_report = MagicMock()
+        mock_report.configure_mock(name="Weekly Summary")
         mock_report.id = 2
-        mock_report.name = "Weekly Summary"
         mock_report.frequency = "weekly"
         mock_report.day_of_week = 1
         mock_report.day_of_month = None

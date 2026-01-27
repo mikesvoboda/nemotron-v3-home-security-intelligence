@@ -9894,6 +9894,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system/detectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all registered detectors
+         * @description Returns a list of all registered object detectors with their configuration and status. Optionally includes health status for each detector.
+         */
+        get: operations["detectors_list_detectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/detectors/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get active detector
+         * @description Returns the configuration of the currently active object detector.
+         */
+        get: operations["detectors_get_active_detector"];
+        /**
+         * Switch active detector
+         * @description Switch to a different object detector. By default, validates that the target detector is healthy before switching. Use force=True to skip health check.
+         */
+        put: operations["detectors_switch_detector"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/detectors/{detector_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get detector configuration
+         * @description Returns the configuration for a specific detector type.
+         */
+        get: operations["detectors_get_detector_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/system/detectors/{detector_type}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check detector health
+         * @description Performs a health check on a specific detector and returns the status.
+         */
+        get: operations["detectors_check_detector_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -15804,6 +15888,107 @@ export interface components {
              * @description Total detections in date range
              */
             total_detections: number;
+        };
+        /**
+         * DetectorHealthResponse
+         * @description Health status of a detector.
+         */
+        DetectorHealthResponse: {
+            /**
+             * Detector Type
+             * @description Identifier of the detector
+             */
+            detector_type: string;
+            /**
+             * Error Message
+             * @description Error message if unhealthy
+             */
+            error_message?: string | null;
+            /**
+             * Healthy
+             * @description Whether the detector is responding and healthy
+             */
+            healthy: boolean;
+            /**
+             * Latency Ms
+             * @description Health check response time in milliseconds
+             */
+            latency_ms?: number | null;
+            /**
+             * Model Loaded
+             * @description Whether the model is loaded in memory
+             * @default false
+             */
+            model_loaded: boolean;
+        };
+        /**
+         * DetectorInfoResponse
+         * @description Information about a registered detector.
+         */
+        DetectorInfoResponse: {
+            /**
+             * Description
+             * @description Description of the detector capabilities
+             * @default
+             */
+            description: string;
+            /**
+             * Detector Type
+             * @description Unique identifier for the detector (e.g., 'yolo26', 'yolov8')
+             * @example yolo26
+             */
+            detector_type: string;
+            /**
+             * Display Name
+             * @description Human-readable name for UI display
+             * @example YOLO26
+             */
+            display_name: string;
+            /**
+             * Enabled
+             * @description Whether this detector is available for use
+             */
+            enabled: boolean;
+            /**
+             * Is Active
+             * @description Whether this is the currently active detector
+             */
+            is_active: boolean;
+            /**
+             * Model Version
+             * @description Model version identifier
+             * @example yolo26m
+             * @example yolov8n
+             */
+            model_version?: string | null;
+            /**
+             * Url
+             * @description Base URL of the detector service
+             * @example http://ai-yolo26:8095
+             */
+            url: string;
+        };
+        /**
+         * DetectorListResponse
+         * @description Response containing list of all registered detectors.
+         */
+        DetectorListResponse: {
+            /**
+             * Active Detector
+             * @description Type of the currently active detector
+             */
+            active_detector?: string | null;
+            /**
+             * Detectors
+             * @description List of all registered detectors
+             */
+            detectors: components["schemas"]["DetectorInfoResponse"][];
+            /**
+             * Health Checked
+             * @description Whether health status was included in the response
+             * @default false
+             */
+            health_checked: boolean;
         };
         /**
          * DeviationInterpretation
@@ -30624,6 +30809,52 @@ export interface components {
              * @description Total count of all action events
              */
             total_count: number;
+        };
+        /**
+         * SwitchDetectorRequest
+         * @description Request to switch the active detector.
+         */
+        SwitchDetectorRequest: {
+            /**
+             * Detector Type
+             * @description Type identifier of the detector to switch to
+             * @example yolo26
+             * @example yolov8
+             */
+            detector_type: string;
+            /**
+             * Force
+             * @description Skip health check validation when switching
+             * @default false
+             */
+            force: boolean;
+        };
+        /**
+         * SwitchDetectorResponse
+         * @description Response after switching detectors.
+         */
+        SwitchDetectorResponse: {
+            /**
+             * Detector Type
+             * @description Type of the now-active detector
+             */
+            detector_type: string;
+            /**
+             * Display Name
+             * @description Human-readable name of the detector
+             */
+            display_name: string;
+            /**
+             * Healthy
+             * @description Health status of the new active detector
+             * @default true
+             */
+            healthy: boolean;
+            /**
+             * Message
+             * @description Status message about the switch operation
+             */
+            message: string;
         };
         /**
          * SystemSettingListResponse
@@ -46504,6 +46735,153 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    detectors_list_detectors: {
+        parameters: {
+            query?: {
+                /** @description Include health status for each detector (slower) */
+                include_health?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detectors_get_active_detector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorInfoResponse"];
+                };
+            };
+        };
+    };
+    detectors_switch_detector: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchDetectorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SwitchDetectorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detectors_get_detector_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detector_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorInfoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detectors_check_detector_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detector_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorHealthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

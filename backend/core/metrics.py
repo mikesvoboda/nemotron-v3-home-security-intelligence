@@ -24,6 +24,11 @@ Usage:
 
     # Update queue depth
     set_queue_depth("detection", 10)
+
+NEM-3795: Disabled _created suffix metrics to reduce metric cardinality by ~50%.
+The _created suffix is a Unix timestamp added to counters, histograms, and summaries
+indicating when the metric was first created. While useful for some use cases, it
+doubles the number of time series and is typically not needed for our monitoring.
 """
 
 from collections import deque
@@ -31,7 +36,18 @@ from datetime import UTC
 from typing import TypedDict
 
 import numpy as np
-from prometheus_client import (
+
+# NEM-3795: Disable _created suffix metrics BEFORE importing any metric types.
+# This must be done before creating any Counter, Histogram, or Summary metrics.
+# The _created suffix adds a timestamp metric for each counter/histogram/summary,
+# which doubles the metric cardinality. Disabling this reduces Prometheus storage
+# and query overhead by approximately 50%.
+# See: https://github.com/prometheus/client_python/issues/672
+from prometheus_client import disable_created_metrics
+
+disable_created_metrics()
+
+from prometheus_client import (  # noqa: E402
     REGISTRY,
     Counter,
     Gauge,
@@ -39,8 +55,8 @@ from prometheus_client import (
     generate_latest,
 )
 
-from backend.core.logging import get_logger
-from backend.core.sanitization import (
+from backend.core.logging import get_logger  # noqa: E402
+from backend.core.sanitization import (  # noqa: E402
     sanitize_camera_id,
     sanitize_error_type,
     sanitize_metric_label,
@@ -760,6 +776,218 @@ COST_PER_DETECTION_USD = Gauge(
 COST_PER_EVENT_USD = Gauge(
     "hsi_cost_per_event_usd",
     "Average cost per security event in USD",
+    registry=_registry,
+)
+
+# =============================================================================
+# Video Analytics Metrics (NEM-3722)
+# =============================================================================
+# Comprehensive metrics for video analytics features including tracking,
+# zone monitoring, loitering detection, action recognition, and face recognition.
+
+# -----------------------------------------------------------------------------
+# Tracking Metrics
+# -----------------------------------------------------------------------------
+
+TRACKS_CREATED_TOTAL = Counter(
+    "hsi_tracks_created_total",
+    "Total number of object tracks created",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+TRACKS_LOST_TOTAL = Counter(
+    "hsi_tracks_lost_total",
+    "Total number of object tracks lost",
+    labelnames=["camera_id", "reason"],  # reason: timeout, out_of_frame, occlusion
+    registry=_registry,
+)
+
+TRACKS_REIDENTIFIED_TOTAL = Counter(
+    "hsi_tracks_reidentified_total",
+    "Total number of tracks reidentified after being lost",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+# Buckets for track duration (in seconds)
+# Covers short tracks (1s) to long tracks (30min+)
+TRACK_DURATION_BUCKETS = (
+    1.0,  # 1s
+    5.0,  # 5s
+    10.0,  # 10s
+    30.0,  # 30s
+    60.0,  # 1 min
+    120.0,  # 2 min
+    300.0,  # 5 min
+    600.0,  # 10 min
+    1800.0,  # 30 min
+)
+
+TRACK_DURATION_SECONDS = Histogram(
+    "hsi_track_duration_seconds",
+    "Duration of object tracks from creation to loss",
+    labelnames=["camera_id", "entity_type"],  # entity_type: person, vehicle, etc.
+    buckets=TRACK_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+TRACK_ACTIVE_COUNT = Gauge(
+    "hsi_track_active_count",
+    "Current number of active object tracks",
+    labelnames=["camera_id"],
+    registry=_registry,
+)
+
+# -----------------------------------------------------------------------------
+# Zone Metrics
+# -----------------------------------------------------------------------------
+
+ZONE_CROSSINGS_TOTAL = Counter(
+    "hsi_zone_crossings_total",
+    "Total number of zone boundary crossings",
+    labelnames=["zone_id", "direction", "entity_type"],  # direction: enter, exit
+    registry=_registry,
+)
+
+ZONE_INTRUSIONS_TOTAL = Counter(
+    "hsi_zone_intrusions_total",
+    "Total number of zone intrusion alerts",
+    labelnames=["zone_id", "severity"],  # severity: low, medium, high
+    registry=_registry,
+)
+
+ZONE_OCCUPANCY = Gauge(
+    "hsi_zone_occupancy",
+    "Current number of entities in a zone",
+    labelnames=["zone_id"],
+    registry=_registry,
+)
+
+# Buckets for zone dwell time (in seconds)
+# Covers brief visits (10s) to extended stays (1hr+)
+ZONE_DWELL_TIME_BUCKETS = (
+    10.0,  # 10s
+    30.0,  # 30s
+    60.0,  # 1 min
+    120.0,  # 2 min
+    300.0,  # 5 min
+    600.0,  # 10 min
+    1800.0,  # 30 min
+    3600.0,  # 1 hr
+)
+
+ZONE_DWELL_TIME_SECONDS = Histogram(
+    "hsi_zone_dwell_time_seconds",
+    "Time spent by entities within a zone",
+    labelnames=["zone_id"],
+    buckets=ZONE_DWELL_TIME_BUCKETS,
+    registry=_registry,
+)
+
+# -----------------------------------------------------------------------------
+# Loitering Metrics
+# -----------------------------------------------------------------------------
+
+LOITERING_ALERTS_TOTAL = Counter(
+    "hsi_loitering_alerts_total",
+    "Total number of loitering alerts generated",
+    labelnames=["camera_id", "zone_id"],
+    registry=_registry,
+)
+
+# Buckets for loitering dwell time (in seconds)
+# Loitering typically starts at 30s-60s and can extend to 30min+
+LOITERING_DURATION_BUCKETS = (
+    30.0,  # 30s - threshold for initial detection
+    60.0,  # 1 min
+    120.0,  # 2 min
+    180.0,  # 3 min
+    300.0,  # 5 min
+    600.0,  # 10 min
+    900.0,  # 15 min
+    1800.0,  # 30 min
+)
+
+LOITERING_DWELL_TIME_SECONDS = Histogram(
+    "hsi_loitering_dwell_time_seconds",
+    "Dwell time for loitering detections",
+    labelnames=["camera_id"],
+    buckets=LOITERING_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+# -----------------------------------------------------------------------------
+# Action Recognition Metrics
+# -----------------------------------------------------------------------------
+
+ACTION_RECOGNITION_TOTAL = Counter(
+    "hsi_action_recognition_total",
+    "Total number of actions recognized by type",
+    labelnames=["action_type", "camera_id"],  # action_type: walking, loitering, fighting, etc.
+    registry=_registry,
+)
+
+# Buckets for action recognition confidence scores (0.0 to 1.0)
+ACTION_RECOGNITION_CONFIDENCE_BUCKETS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+
+ACTION_RECOGNITION_CONFIDENCE = Histogram(
+    "hsi_action_recognition_confidence",
+    "Confidence scores for action recognition",
+    labelnames=["action_type"],
+    buckets=ACTION_RECOGNITION_CONFIDENCE_BUCKETS,
+    registry=_registry,
+)
+
+# Buckets for action recognition inference duration (in seconds)
+ACTION_RECOGNITION_DURATION_BUCKETS = (
+    0.05,  # 50ms
+    0.1,  # 100ms
+    0.2,  # 200ms
+    0.5,  # 500ms
+    1.0,  # 1s
+    2.0,  # 2s
+    5.0,  # 5s (for complex multi-frame analysis)
+)
+
+ACTION_RECOGNITION_DURATION_SECONDS = Histogram(
+    "hsi_action_recognition_duration_seconds",
+    "Duration of action recognition inference",
+    buckets=ACTION_RECOGNITION_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+# -----------------------------------------------------------------------------
+# Face Recognition Metrics
+# -----------------------------------------------------------------------------
+
+FACE_DETECTIONS_TOTAL = Counter(
+    "hsi_face_detections_total",
+    "Total number of faces detected",
+    labelnames=["camera_id", "match_status"],  # match_status: known, unknown
+    registry=_registry,
+)
+
+# Buckets for face quality scores (0.0 to 1.0)
+FACE_QUALITY_BUCKETS = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95)
+
+FACE_QUALITY_SCORE = Histogram(
+    "hsi_face_quality_score",
+    "Quality scores for detected faces (higher is better)",
+    buckets=FACE_QUALITY_BUCKETS,
+    registry=_registry,
+)
+
+FACE_EMBEDDINGS_GENERATED_TOTAL = Counter(
+    "hsi_face_embeddings_generated_total",
+    "Total number of face embeddings generated",
+    registry=_registry,
+)
+
+FACE_MATCHES_TOTAL = Counter(
+    "hsi_face_matches_total",
+    "Total number of face matches against known persons",
+    labelnames=["person_id"],
     registry=_registry,
 )
 
@@ -3563,3 +3791,232 @@ def set_pipeline_worker_uptime(worker_name: str, uptime_seconds: float) -> None:
     """
     safe_name = sanitize_metric_label(worker_name, max_length=64)
     PIPELINE_WORKER_UPTIME_SECONDS.labels(worker_name=safe_name).set(uptime_seconds)
+
+
+# =============================================================================
+# Video Analytics Helper Functions (NEM-3722)
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# Tracking Metric Helpers
+# -----------------------------------------------------------------------------
+
+
+def record_track_created(camera_id: str) -> None:
+    """Record a new object track being created.
+
+    Args:
+        camera_id: ID of the camera where the track was created.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    TRACKS_CREATED_TOTAL.labels(camera_id=safe_camera_id).inc()
+
+
+def record_track_lost(camera_id: str, reason: str) -> None:
+    """Record an object track being lost.
+
+    Args:
+        camera_id: ID of the camera where the track was lost.
+        reason: Reason for track loss (timeout, out_of_frame, occlusion).
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    safe_reason = sanitize_metric_label(reason, max_length=32)
+    TRACKS_LOST_TOTAL.labels(camera_id=safe_camera_id, reason=safe_reason).inc()
+
+
+def record_track_reidentified(camera_id: str) -> None:
+    """Record a track being reidentified after being lost.
+
+    Args:
+        camera_id: ID of the camera where the track was reidentified.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    TRACKS_REIDENTIFIED_TOTAL.labels(camera_id=safe_camera_id).inc()
+
+
+def observe_track_duration(camera_id: str, entity_type: str, duration_seconds: float) -> None:
+    """Record the duration of an object track.
+
+    Args:
+        camera_id: ID of the camera where the track existed.
+        entity_type: Type of entity tracked (person, vehicle, etc.).
+        duration_seconds: Duration of the track in seconds.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    TRACK_DURATION_SECONDS.labels(camera_id=safe_camera_id, entity_type=safe_entity_type).observe(
+        duration_seconds
+    )
+
+
+def set_active_track_count(camera_id: str, count: int) -> None:
+    """Set the current number of active tracks for a camera.
+
+    Args:
+        camera_id: ID of the camera.
+        count: Number of active tracks.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    TRACK_ACTIVE_COUNT.labels(camera_id=safe_camera_id).set(count)
+
+
+# -----------------------------------------------------------------------------
+# Zone Metric Helpers
+# -----------------------------------------------------------------------------
+
+
+def record_zone_crossing(zone_id: str, direction: str, entity_type: str) -> None:
+    """Record a zone boundary crossing event.
+
+    Args:
+        zone_id: ID of the zone being crossed.
+        direction: Direction of crossing (enter, exit).
+        entity_type: Type of entity crossing (person, vehicle, etc.).
+    """
+    safe_zone_id = sanitize_metric_label(zone_id, max_length=64)
+    safe_direction = sanitize_metric_label(direction, max_length=16)
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    ZONE_CROSSINGS_TOTAL.labels(
+        zone_id=safe_zone_id, direction=safe_direction, entity_type=safe_entity_type
+    ).inc()
+
+
+def record_zone_intrusion(zone_id: str, severity: str) -> None:
+    """Record a zone intrusion alert.
+
+    Args:
+        zone_id: ID of the zone where intrusion was detected.
+        severity: Severity of the intrusion (low, medium, high).
+    """
+    safe_zone_id = sanitize_metric_label(zone_id, max_length=64)
+    safe_severity = sanitize_metric_label(severity, max_length=16)
+    ZONE_INTRUSIONS_TOTAL.labels(zone_id=safe_zone_id, severity=safe_severity).inc()
+
+
+def set_zone_occupancy(zone_id: str, count: int) -> None:
+    """Set the current occupancy count for a zone.
+
+    Args:
+        zone_id: ID of the zone.
+        count: Number of entities currently in the zone.
+    """
+    safe_zone_id = sanitize_metric_label(zone_id, max_length=64)
+    ZONE_OCCUPANCY.labels(zone_id=safe_zone_id).set(count)
+
+
+def observe_zone_dwell_time(zone_id: str, duration_seconds: float) -> None:
+    """Record the dwell time of an entity in a zone.
+
+    Args:
+        zone_id: ID of the zone.
+        duration_seconds: Time spent in the zone in seconds.
+    """
+    safe_zone_id = sanitize_metric_label(zone_id, max_length=64)
+    ZONE_DWELL_TIME_SECONDS.labels(zone_id=safe_zone_id).observe(duration_seconds)
+
+
+# -----------------------------------------------------------------------------
+# Loitering Metric Helpers
+# -----------------------------------------------------------------------------
+
+
+def record_loitering_alert(camera_id: str, zone_id: str) -> None:
+    """Record a loitering alert being generated.
+
+    Args:
+        camera_id: ID of the camera where loitering was detected.
+        zone_id: ID of the zone where loitering occurred.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    safe_zone_id = sanitize_metric_label(zone_id, max_length=64)
+    LOITERING_ALERTS_TOTAL.labels(camera_id=safe_camera_id, zone_id=safe_zone_id).inc()
+
+
+def observe_loitering_dwell_time(camera_id: str, duration_seconds: float) -> None:
+    """Record the dwell time for a loitering detection.
+
+    Args:
+        camera_id: ID of the camera where loitering was detected.
+        duration_seconds: Duration of the loitering in seconds.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    LOITERING_DWELL_TIME_SECONDS.labels(camera_id=safe_camera_id).observe(duration_seconds)
+
+
+# -----------------------------------------------------------------------------
+# Action Recognition Metric Helpers
+# -----------------------------------------------------------------------------
+
+
+def record_action_recognition(action_type: str, camera_id: str) -> None:
+    """Record an action being recognized.
+
+    Args:
+        action_type: Type of action recognized (walking, loitering, fighting, etc.).
+        camera_id: ID of the camera where the action was detected.
+    """
+    safe_action_type = sanitize_metric_label(action_type, max_length=64)
+    safe_camera_id = sanitize_camera_id(camera_id)
+    ACTION_RECOGNITION_TOTAL.labels(action_type=safe_action_type, camera_id=safe_camera_id).inc()
+
+
+def observe_action_recognition_confidence(action_type: str, confidence: float) -> None:
+    """Record the confidence score for an action recognition.
+
+    Args:
+        action_type: Type of action recognized.
+        confidence: Confidence score (0.0 to 1.0).
+    """
+    safe_action_type = sanitize_metric_label(action_type, max_length=64)
+    ACTION_RECOGNITION_CONFIDENCE.labels(action_type=safe_action_type).observe(confidence)
+
+
+def observe_action_recognition_duration(duration_seconds: float) -> None:
+    """Record the duration of an action recognition inference.
+
+    Args:
+        duration_seconds: Inference duration in seconds.
+    """
+    ACTION_RECOGNITION_DURATION_SECONDS.observe(duration_seconds)
+
+
+# -----------------------------------------------------------------------------
+# Face Recognition Metric Helpers
+# -----------------------------------------------------------------------------
+
+
+def record_face_detection(camera_id: str, match_status: str) -> None:
+    """Record a face detection event.
+
+    Args:
+        camera_id: ID of the camera where the face was detected.
+        match_status: Whether face matched a known person (known, unknown).
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    safe_match_status = sanitize_metric_label(match_status, max_length=16)
+    FACE_DETECTIONS_TOTAL.labels(camera_id=safe_camera_id, match_status=safe_match_status).inc()
+
+
+def observe_face_quality_score(quality_score: float) -> None:
+    """Record the quality score of a detected face.
+
+    Args:
+        quality_score: Face quality score (0.0 to 1.0, higher is better).
+    """
+    FACE_QUALITY_SCORE.observe(quality_score)
+
+
+def record_face_embedding_generated() -> None:
+    """Record a face embedding being generated."""
+    FACE_EMBEDDINGS_GENERATED_TOTAL.inc()
+
+
+def record_face_match(person_id: str) -> None:
+    """Record a face matching against a known person.
+
+    Args:
+        person_id: ID of the matched person.
+    """
+    safe_person_id = sanitize_metric_label(person_id, max_length=64)
+    FACE_MATCHES_TOTAL.labels(person_id=safe_person_id).inc()
