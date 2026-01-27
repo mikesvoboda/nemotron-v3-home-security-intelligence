@@ -6,17 +6,22 @@ Contains components for managing camera detection zones. Zones define regions of
 
 ## Files
 
-| File                  | Purpose                                        |
-| --------------------- | ---------------------------------------------- |
-| `ZoneEditor.tsx`      | Main modal for zone management with drawing UI |
-| `ZoneEditor.test.tsx` | Test suite for ZoneEditor                      |
-| `ZoneCanvas.tsx`      | SVG canvas for drawing and displaying zones    |
-| `ZoneCanvas.test.tsx` | Test suite for ZoneCanvas                      |
-| `ZoneForm.tsx`        | Form for zone properties (name, type, color)   |
-| `ZoneForm.test.tsx`   | Test suite for ZoneForm                        |
-| `ZoneList.tsx`        | List view of zones with CRUD actions           |
-| `ZoneList.test.tsx`   | Test suite for ZoneList                        |
-| `index.ts`            | Barrel exports                                 |
+| File                       | Purpose                                            |
+| -------------------------- | -------------------------------------------------- |
+| `ZoneEditor.tsx`           | Main modal for zone management with drawing UI     |
+| `ZoneEditor.test.tsx`      | Test suite for ZoneEditor                          |
+| `ZoneCanvas.tsx`           | SVG canvas for drawing and displaying zones        |
+| `ZoneCanvas.test.tsx`      | Test suite for ZoneCanvas                          |
+| `ZoneForm.tsx`             | Form for zone properties (name, type, color)       |
+| `ZoneForm.test.tsx`        | Test suite for ZoneForm                            |
+| `ZoneList.tsx`             | List view of zones with CRUD actions               |
+| `ZoneList.test.tsx`        | Test suite for ZoneList                            |
+| `LineZoneEditor.tsx`       | Tripwire/line zone drawing component               |
+| `LineZoneEditor.test.tsx`  | Test suite for LineZoneEditor                      |
+| `PolygonZoneEditor.tsx`    | Polygon zone drawing with zone type support        |
+| `PolygonZoneEditor.test.tsx` | Test suite for PolygonZoneEditor                 |
+| `CameraZoneOverlay.tsx`    | SVG overlay for camera feeds with zone display     |
+| `index.ts`                 | Barrel exports                                     |
 
 ## Key Components
 
@@ -196,6 +201,86 @@ interface ZoneListProps {
 }
 ```
 
+### LineZoneEditor.tsx (NEM-3720)
+
+**Purpose:** Component for drawing tripwire/line zones on camera feeds
+
+**Key Features:**
+
+- Two-point line drawing (start and end)
+- Line preview while drawing
+- Direction indicator arrow (optional)
+- Minimum line length enforcement
+- Display of existing line zones
+- Selection and interaction with existing lines
+- Keyboard navigation (Escape to cancel)
+
+**Props:**
+
+```typescript
+interface LineZoneEditorProps {
+  /** URL for the camera snapshot background image */
+  snapshotUrl: string;
+  /** Whether the component is in drawing mode */
+  isDrawing?: boolean;
+  /** Color for the line being drawn */
+  lineColor?: string;
+  /** Whether to show direction indicator arrow */
+  showDirection?: boolean;
+  /** Existing line zones to display */
+  existingLines?: [Point, Point][];
+  /** Currently selected line index */
+  selectedLineIndex?: number;
+  /** Callback when line drawing is complete */
+  onLineComplete?: (points: [Point, Point]) => void;
+  /** Callback when drawing is cancelled */
+  onCancel?: () => void;
+  /** Callback when an existing line is selected */
+  onLineSelect?: (index: number) => void;
+}
+```
+
+### PolygonZoneEditor.tsx (NEM-3720)
+
+**Purpose:** Component for drawing polygon zones (restricted areas) on camera feeds
+
+**Key Features:**
+
+- Multi-point polygon drawing
+- Polygon preview while drawing
+- Vertex markers with visual feedback
+- Minimum 3 points requirement
+- Undo last point (Ctrl+Z)
+- Zone type styling and indicators
+- Display of existing polygon zones
+- Selection and interaction with existing zones
+- Keyboard navigation (Escape to cancel, Enter to complete)
+
+**Props:**
+
+```typescript
+interface PolygonZoneEditorProps {
+  /** URL for the camera snapshot background image */
+  snapshotUrl: string;
+  /** Whether the component is in drawing mode */
+  isDrawing?: boolean;
+  /** Type of zone being created (for styling) */
+  zoneType?: ZoneType;
+  /** Color for the zone being drawn */
+  zoneColor?: string;
+  /** Existing zones to display */
+  existingZones?: ExistingZone[];
+  /** Currently selected zone ID */
+  selectedZoneId?: string;
+  /** Callback when polygon drawing is complete */
+  onPolygonComplete?: (points: Point[]) => void;
+  /** Callback when drawing is cancelled */
+  onCancel?: () => void;
+  /** Callback when an existing zone is selected */
+  onZoneSelect?: (zoneId: string) => void;
+}
+```
+
 ### index.ts
 
 **Barrel exports:**
@@ -205,11 +290,17 @@ export { default as ZoneEditor } from './ZoneEditor';
 export { default as ZoneCanvas } from './ZoneCanvas';
 export { default as ZoneForm } from './ZoneForm';
 export { default as ZoneList } from './ZoneList';
+export { default as LineZoneEditor } from './LineZoneEditor';
+export { default as PolygonZoneEditor } from './PolygonZoneEditor';
+export { default as CameraZoneOverlay } from './CameraZoneOverlay';
 
 export type { ZoneEditorProps } from './ZoneEditor';
 export type { ZoneCanvasProps, Point } from './ZoneCanvas';
 export type { ZoneFormProps, ZoneFormData } from './ZoneForm';
 export type { ZoneListProps } from './ZoneList';
+export type { LineZoneEditorProps } from './LineZoneEditor';
+export type { PolygonZoneEditorProps, ExistingZone } from './PolygonZoneEditor';
+export type { CameraZoneOverlayProps, OverlayMode } from './CameraZoneOverlay';
 ```
 
 ## Important Patterns
@@ -301,6 +392,8 @@ Comprehensive test coverage:
 - `ZoneCanvas.test.tsx` - Rendering, drawing interactions, coordinate calculations
 - `ZoneForm.test.tsx` - Form validation, submission, field interactions
 - `ZoneList.test.tsx` - List rendering, selection, action buttons
+- `LineZoneEditor.test.tsx` - Line drawing, start/end points, direction arrows, cancellation
+- `PolygonZoneEditor.test.tsx` - Polygon drawing, multi-point, undo, zone type styling
 
 ## Entry Points
 

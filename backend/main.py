@@ -50,6 +50,7 @@ from backend.api.routes import (
     cameras,
     debug,
     detections,
+    detector,
     dlq,
     entities,
     events,
@@ -1176,6 +1177,7 @@ app.include_router(audit.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
 app.include_router(debug.router)
+app.include_router(detector.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
 app.include_router(entities.router)

@@ -17,7 +17,9 @@ ai/enrichment/tests/
 ├── test_model_registry.py       # Model registry configuration tests
 ├── test_person_reid.py          # OSNet re-ID embedding tests
 ├── test_pose_estimator.py       # YOLOv8n-pose estimation tests
-└── test_threat_detector.py      # Weapon detection tests
+├── test_threat_detector.py      # Weapon detection tests
+├── test_video_processing.py     # Video processing utilities tests (NEM-3719)
+└── test_yolo26_detector.py      # YOLO26 detector tests
 ```
 
 ## Running Tests

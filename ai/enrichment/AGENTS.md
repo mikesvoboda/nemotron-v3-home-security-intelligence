@@ -53,6 +53,10 @@ ai/enrichment/
 │   ├── person_reid.py     # OSNet re-ID embeddings
 │   ├── action_recognizer.py # X-CLIP action recognition
 │   └── yolo26_detector.py # YOLO26 secondary detector
+├── utils/                 # Utility modules (NEM-3719)
+│   ├── AGENTS.md          # Utils documentation
+│   ├── __init__.py        # Package exports
+│   └── video_processing.py # ByteTrack tracking, annotators, heatmaps
 ├── scripts/               # Utility scripts
 │   └── export_pose_tensorrt.py  # Export pose model to TensorRT
 ├── tests/                 # Unit tests
@@ -61,6 +65,7 @@ ai/enrichment/
 │   ├── test_pose_estimator.py    # Pose estimation tests
 │   ├── test_demographics.py      # Demographics tests
 │   ├── test_action_recognizer.py # Action recognition tests
+│   ├── test_video_processing.py  # Video processing utilities tests
 │   └── test_yolo26_detector.py   # YOLO26 detector tests
 └── test_model.py          # Integration tests
 ```
@@ -535,3 +540,26 @@ curl -X POST http://localhost:8094/enrich \
 9. **YOLO26 detection**: `models/yolo26_detector.py:YOLO26Detector` - Secondary object detection
 10. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
 11. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration
+
+## Related Documentation
+
+For comprehensive feature documentation:
+
+- [Video Analytics Guide](../../docs/guides/video-analytics.md) - Complete AI pipeline overview
+- [Zone Configuration Guide](../../docs/guides/zone-configuration.md) - Detection zone setup and intelligence
+- [Face Recognition Guide](../../docs/guides/face-recognition.md) - Face detection and person re-identification
+- [Analytics API Reference](../../docs/api/analytics-endpoints.md) - Analytics endpoints documentation
+
+## Integration with Video Analytics Features
+
+This enrichment service powers the following video analytics capabilities:
+
+| Feature                 | Service Component                          | Documentation                                                                      |
+| ----------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| **Scene Understanding** | `/enrich` endpoint with Florence-2         | [Video Analytics](../../docs/guides/video-analytics.md#scene-understanding)        |
+| **Person Analysis**     | Pose, demographics, clothing, re-ID        | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |
+| **Face Detection**      | Demographics + backend `face_detector.py`  | [Face Recognition](../../docs/guides/face-recognition.md)                          |
+| **Person Re-ID**        | `PersonReID` model                         | [Face Recognition](../../docs/guides/face-recognition.md#person-re-identification) |
+| **Vehicle Analysis**    | Vehicle classifier + plate detector        | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
+| **Threat Detection**    | `ThreatDetector` model (CRITICAL priority) | [Video Analytics](../../docs/guides/video-analytics.md#threat-detection)           |
+| **Action Recognition**  | `ActionRecognizer` with X-CLIP             | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |
