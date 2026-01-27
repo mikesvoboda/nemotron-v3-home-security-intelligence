@@ -1,16 +1,90 @@
 #!/bin/bash
-# Monitor Cosmos video generation progress
+# Monitor Cosmos video generation progress with auto-sync to git
 # Usage: ./monitor.sh [interval_seconds]
 
 INTERVAL=${1:-30}
 OUTPUT_DIR="/home/shadeform/cosmos-predict2.5/outputs/security_videos"
 LOG_DIR="/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/logs"
+GIT_REPO="/home/shadeform/nemotron-v3-home-security-intelligence"
+VIDEO_DEST="${GIT_REPO}/data/synthetic/cosmos/videos"
 TOTAL_VIDEOS=88
+
+# Ensure destination exists
+mkdir -p "${VIDEO_DEST}"
+
+# Function to sync new videos to git
+sync_to_git() {
+    local new_files=()
+    
+    # Find videos in output that aren't in git repo yet
+    for video in "${OUTPUT_DIR}"/*.mp4; do
+        [ -f "$video" ] || continue
+        local basename=$(basename "$video")
+        if [ ! -f "${VIDEO_DEST}/${basename}" ]; then
+            new_files+=("$basename")
+        fi
+    done
+    
+    if [ ${#new_files[@]} -eq 0 ]; then
+        echo "   No new videos to sync"
+        return 0
+    fi
+    
+    echo "   Found ${#new_files[@]} new video(s) to sync..."
+    
+    # Copy new files
+    local copied=0
+    for fname in "${new_files[@]}"; do
+        cp "${OUTPUT_DIR}/${fname}" "${VIDEO_DEST}/${fname}" 2>/dev/null && ((copied++))
+        echo "   ✓ Copied ${fname}"
+    done
+    
+    if [ $copied -eq 0 ]; then
+        echo "   No files copied"
+        return 1
+    fi
+    
+    # Git add, commit, push
+    cd "${GIT_REPO}" || return 1
+    
+    git add data/synthetic/cosmos/videos/*.mp4 2>/dev/null
+    
+    if git diff --cached --quiet; then
+        echo "   No changes to commit"
+        return 0
+    fi
+    
+    local commit_msg="Add ${copied} synthetic video(s): ${new_files[*]}"
+    
+    echo "   Committing ${copied} video(s)..."
+    if git commit --no-verify -m "${commit_msg}" >/dev/null 2>&1; then
+        echo "   ✓ Committed"
+        
+        echo "   Pushing to origin..."
+        if git push --no-verify >/dev/null 2>&1; then
+            echo "   ✓ Pushed to origin"
+            LAST_SYNC=$(date '+%H:%M:%S')
+            LAST_SYNC_COUNT=$copied
+            return 0
+        else
+            echo "   ✗ Push failed"
+            return 1
+        fi
+    else
+        echo "   ✗ Commit failed"
+        return 1
+    fi
+}
+
+# Track sync status
+LAST_SYNC="Never"
+LAST_SYNC_COUNT=0
+TOTAL_SYNCED=0
 
 clear
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║           Cosmos Video Generation Monitor                        ║"
-echo "║           Press Ctrl+C to exit                                   ║"
+echo "║     Cosmos Video Generation Monitor (Auto-Sync Enabled)         ║"
+echo "║     Press Ctrl+C to exit                                        ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -20,6 +94,9 @@ while true; do
     
     # Count generated videos
     VIDEO_COUNT=$(ls "${OUTPUT_DIR}"/*.mp4 2>/dev/null | wc -l)
+    
+    # Count synced videos
+    SYNCED_COUNT=$(ls "${VIDEO_DEST}"/*.mp4 2>/dev/null | wc -l)
     
     # Count running containers
     CONTAINER_COUNT=$(docker ps -q 2>/dev/null | wc -l)
@@ -34,7 +111,7 @@ while true; do
     # Clear screen and print status
     clear
     echo "╔══════════════════════════════════════════════════════════════════╗"
-    echo "║           Cosmos Video Generation Monitor                        ║"
+    echo "║     Cosmos Video Generation Monitor (Auto-Sync Enabled)         ║"
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo ""
     echo "📅 Time: ${TIMESTAMP}"
@@ -44,7 +121,8 @@ while true; do
     echo "📊 PROGRESS"
     echo "═══════════════════════════════════════════════════════════════════"
     echo ""
-    printf "   Videos: %d / %d (%d%%)\n" "$VIDEO_COUNT" "$TOTAL_VIDEOS" "$PERCENT"
+    printf "   Generated: %d / %d (%d%%)\n" "$VIDEO_COUNT" "$TOTAL_VIDEOS" "$PERCENT"
+    printf "   Synced to Git: %d / %d\n" "$SYNCED_COUNT" "$VIDEO_COUNT"
     printf "   Remaining: %d\n" "$REMAINING"
     echo ""
     
@@ -90,7 +168,7 @@ while true; do
     echo ""
     
     echo "═══════════════════════════════════════════════════════════════════"
-    echo "📁 GENERATED VIDEOS"
+    echo "📁 RECENT VIDEOS"
     echo "═══════════════════════════════════════════════════════════════════"
     echo ""
     
@@ -100,7 +178,7 @@ while true; do
             fname=$(echo "$line" | awk '{print $NF}')
             fsize=$(echo "$line" | awk '{print $5}')
             ftime=$(echo "$line" | awk '{print $6, $7, $8}')
-            echo "   $(basename $fname) - ${fsize} bytes - ${ftime}"
+            echo "   $(basename "$fname") - ${fsize} bytes - ${ftime}"
         done
         if [ "$VIDEO_COUNT" -gt 5 ]; then
             echo "   ... and $((VIDEO_COUNT - 5)) more"
@@ -110,6 +188,21 @@ while true; do
     fi
     echo ""
     
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo "🔄 GIT SYNC STATUS"
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo ""
+    printf "   Last sync: %s\n" "$LAST_SYNC"
+    printf "   Videos in git: %d\n" "$SYNCED_COUNT"
+    echo ""
+    
+    # Sync new videos to git
+    sync_to_git
+    
+    # Update synced count after sync
+    SYNCED_COUNT=$(ls "${VIDEO_DEST}"/*.mp4 2>/dev/null | wc -l)
+    
+    echo ""
     echo "───────────────────────────────────────────────────────────────────"
     echo "   Refreshing in ${INTERVAL}s... (Ctrl+C to exit)"
     echo "───────────────────────────────────────────────────────────────────"
