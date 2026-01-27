@@ -9,7 +9,7 @@
  * @module hooks/useRecordingMutations
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { RECORDINGS_QUERY_KEY } from './useRecordingsQuery';
 import {
@@ -91,32 +91,30 @@ export interface UseRecordingMutationsReturn {
  * ```
  */
 export function useRecordingMutations(): UseRecordingMutationsReturn {
-  const queryClient = useQueryClient();
-
   // Replay mutation - executes the recorded request and returns comparison
   const replayMutation = useMutation({
     mutationFn: (recordingId: string) => replayRecording(recordingId),
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate recordings query to refresh the list
-      void queryClient.invalidateQueries({ queryKey: RECORDINGS_QUERY_KEY });
+      void client.invalidateQueries({ queryKey: RECORDINGS_QUERY_KEY });
     },
   });
 
   // Delete mutation - removes a single recording
   const deleteMutation = useMutation({
     mutationFn: (recordingId: string) => deleteRecording(recordingId),
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate recordings query to refresh the list
-      void queryClient.invalidateQueries({ queryKey: RECORDINGS_QUERY_KEY });
+      void client.invalidateQueries({ queryKey: RECORDINGS_QUERY_KEY });
     },
   });
 
   // Clear all mutation - removes all recordings
   const clearAllMutation = useMutation({
     mutationFn: () => clearAllRecordings(),
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate recordings query to refresh the list
-      void queryClient.invalidateQueries({ queryKey: RECORDINGS_QUERY_KEY });
+      void client.invalidateQueries({ queryKey: RECORDINGS_QUERY_KEY });
     },
   });
 

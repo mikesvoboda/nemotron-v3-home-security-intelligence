@@ -12,7 +12,7 @@
  * @module hooks/useBulkDetectionMutations
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import {
   bulkCreateDetections,
@@ -148,7 +148,6 @@ export function useBulkCreateDetections(
   options: BulkMutationOptions<DetectionBulkCreateResponse> = {}
 ): UseBulkCreateDetectionsReturn {
   const { onSuccess, onError, skipInvalidation = false } = options;
-  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: bulkCreateDetections,
@@ -161,10 +160,10 @@ export function useBulkCreateDetections(
       onError?.(error);
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, _context, { client }) => {
       if (!skipInvalidation) {
         // Invalidate detection queries to refetch with new data
-        void queryClient.invalidateQueries({ queryKey: queryKeys.detections.all });
+        void client.invalidateQueries({ queryKey: queryKeys.detections.all });
       }
     },
   });
@@ -221,7 +220,6 @@ export function useBulkUpdateDetections(
   options: BulkMutationOptions<BulkOperationResponse> = {}
 ): UseBulkUpdateDetectionsReturn {
   const { onSuccess, onError, skipInvalidation = false } = options;
-  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: bulkUpdateDetections,
@@ -234,10 +232,10 @@ export function useBulkUpdateDetections(
       onError?.(error);
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, _context, { client }) => {
       if (!skipInvalidation) {
         // Invalidate detection queries to refetch with updated data
-        void queryClient.invalidateQueries({ queryKey: queryKeys.detections.all });
+        void client.invalidateQueries({ queryKey: queryKeys.detections.all });
       }
     },
   });
@@ -297,7 +295,6 @@ export function useBulkDeleteDetections(
   options: BulkMutationOptions<BulkOperationResponse> = {}
 ): UseBulkDeleteDetectionsReturn {
   const { onSuccess, onError, skipInvalidation = false } = options;
-  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: bulkDeleteDetections,
@@ -310,10 +307,10 @@ export function useBulkDeleteDetections(
       onError?.(error);
     },
 
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, _context, { client }) => {
       if (!skipInvalidation) {
         // Invalidate detection queries to refetch without deleted items
-        void queryClient.invalidateQueries({ queryKey: queryKeys.detections.all });
+        void client.invalidateQueries({ queryKey: queryKeys.detections.all });
       }
     },
   });

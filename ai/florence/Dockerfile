@@ -37,16 +37,16 @@ WORKDIR /app
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy and install Python dependencies
+# Copy and install base dependencies first
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
+COPY requirements-base.txt .
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
+    uv pip install --system --no-cache -r requirements-base.txt
+
+# Copy and install service-specific Python dependencies
 COPY ai/florence/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
     uv pip install --system --no-cache -r requirements.txt
-
-# Add httpx for health check
-# hadolint ignore=DL3059
-RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
-    uv pip install --system --no-cache httpx
 
 # Install py-spy for continuous profiling
 RUN uv tool install py-spy && \

@@ -12,7 +12,7 @@
  * @module hooks/useSetLogLevelMutation
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import { setLogLevel, type SetLogLevelResponse } from '../services/api';
 import { queryKeys } from '../services/queryClient';
@@ -79,13 +79,11 @@ export interface UseSetLogLevelMutationReturn {
  * ```
  */
 export function useSetLogLevelMutation(): UseSetLogLevelMutationReturn {
-  const queryClient = useQueryClient();
-
   const mutation = useMutation({
     mutationFn: (level: LogLevel) => setLogLevel(level),
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate log level query to refetch the new value
-      void queryClient.invalidateQueries({ queryKey: queryKeys.debug.logLevel });
+      void client.invalidateQueries({ queryKey: queryKeys.debug.logLevel });
     },
   });
 

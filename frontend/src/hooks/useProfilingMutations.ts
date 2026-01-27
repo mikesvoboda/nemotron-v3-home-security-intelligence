@@ -9,7 +9,7 @@
  * @module hooks/useProfilingMutations
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import {
   startProfiling,
@@ -61,13 +61,11 @@ export interface UseStartProfilingMutationReturn {
  * ```
  */
 export function useStartProfilingMutation(): UseStartProfilingMutationReturn {
-  const queryClient = useQueryClient();
-
   const mutation = useMutation({
     mutationFn: startProfiling,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate profile query to update status
-      void queryClient.invalidateQueries({ queryKey: queryKeys.debug.profile });
+      void client.invalidateQueries({ queryKey: queryKeys.debug.profile });
     },
   });
 
@@ -122,13 +120,11 @@ export interface UseStopProfilingMutationReturn {
  * ```
  */
 export function useStopProfilingMutation(): UseStopProfilingMutationReturn {
-  const queryClient = useQueryClient();
-
   const mutation = useMutation({
     mutationFn: stopProfiling,
-    onSuccess: () => {
+    onSuccess: (_data, _variables, _context, { client }) => {
       // Invalidate profile query to update status
-      void queryClient.invalidateQueries({ queryKey: queryKeys.debug.profile });
+      void client.invalidateQueries({ queryKey: queryKeys.debug.profile });
     },
   });
 

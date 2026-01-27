@@ -644,3 +644,175 @@ describe('createTypedEmitter()', () => {
     expect(emitter2.has('event')).toBe(false);
   });
 });
+
+describe('Batch message handling (NEM-3738)', () => {
+  let emitter: TypedWebSocketEmitter;
+
+  beforeEach(() => {
+    emitter = new TypedWebSocketEmitter();
+  });
+
+  it('should emit batch message to batch handlers', () => {
+    const batchHandler = vi.fn();
+    const batchMessage = {
+      type: 'batch' as const,
+      channel: 'detections',
+      count: 2,
+      messages: [
+        {
+          type: 'event',
+          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Test 1' },
+        },
+        {
+          type: 'event',
+          data: { id: '2', camera_id: 'cam2', risk_score: 75, risk_level: 'high', summary: 'Test 2' },
+        },
+      ],
+      batched_at: 1234567890,
+    };
+
+    emitter.on('batch', batchHandler);
+    const handled = emitter.handleMessage(batchMessage);
+
+    expect(handled).toBe(true);
+    expect(batchHandler).toHaveBeenCalledTimes(1);
+    expect(batchHandler).toHaveBeenCalledWith(batchMessage);
+  });
+
+  it('should unpack batch and emit individual messages', () => {
+    const eventHandler = vi.fn();
+    const batchMessage = {
+      type: 'batch' as const,
+      channel: 'detections',
+      count: 2,
+      messages: [
+        {
+          type: 'event',
+          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Test 1' },
+        },
+        {
+          type: 'event',
+          data: { id: '2', camera_id: 'cam2', risk_score: 75, risk_level: 'high', summary: 'Test 2' },
+        },
+      ],
+      batched_at: 1234567890,
+    };
+
+    emitter.on('event', eventHandler);
+    emitter.handleMessage(batchMessage);
+
+    expect(eventHandler).toHaveBeenCalledTimes(2);
+    expect(eventHandler).toHaveBeenNthCalledWith(1, {
+      id: '1',
+      camera_id: 'cam1',
+      risk_score: 50,
+      risk_level: 'medium',
+      summary: 'Test 1',
+    });
+    expect(eventHandler).toHaveBeenNthCalledWith(2, {
+      id: '2',
+      camera_id: 'cam2',
+      risk_score: 75,
+      risk_level: 'high',
+      summary: 'Test 2',
+    });
+  });
+
+  it('should handle batches with mixed message types', () => {
+    const eventHandler = vi.fn();
+    const alertHandler = vi.fn();
+    const batchMessage = {
+      type: 'batch' as const,
+      channel: 'mixed',
+      count: 3,
+      messages: [
+        {
+          type: 'event',
+          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Event 1' },
+        },
+        {
+          type: 'alert.created',
+          data: {
+            alert_id: 1,
+            event_id: 1,
+            severity: 'warning',
+            message: 'Alert',
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        },
+        {
+          type: 'event',
+          data: { id: '2', camera_id: 'cam2', risk_score: 75, risk_level: 'high', summary: 'Event 2' },
+        },
+      ],
+      batched_at: 1234567890,
+    };
+
+    emitter.on('event', eventHandler);
+    emitter.on('alert.created', alertHandler);
+    emitter.handleMessage(batchMessage);
+
+    expect(eventHandler).toHaveBeenCalledTimes(2);
+    expect(alertHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it('should handle empty batch gracefully', () => {
+    const batchHandler = vi.fn();
+    const eventHandler = vi.fn();
+    const batchMessage = {
+      type: 'batch' as const,
+      channel: 'detections',
+      count: 0,
+      messages: [],
+      batched_at: 1234567890,
+    };
+
+    emitter.on('batch', batchHandler);
+    emitter.on('event', eventHandler);
+    const handled = emitter.handleMessage(batchMessage);
+
+    expect(handled).toBe(true);
+    expect(batchHandler).toHaveBeenCalledTimes(1);
+    expect(eventHandler).not.toHaveBeenCalled();
+  });
+
+  it('should skip messages with unknown types in batch', () => {
+    const eventHandler = vi.fn();
+    const batchMessage = {
+      type: 'batch' as const,
+      channel: 'detections',
+      count: 2,
+      messages: [
+        {
+          type: 'event',
+          data: { id: '1', camera_id: 'cam1', risk_score: 50, risk_level: 'medium', summary: 'Test 1' },
+        },
+        { type: 'unknown_type', data: { foo: 'bar' } },
+      ],
+      batched_at: 1234567890,
+    };
+
+    emitter.on('event', eventHandler);
+    emitter.handleMessage(batchMessage);
+
+    // Only the valid event should be emitted
+    expect(eventHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it('should handle messages without data field in batch', () => {
+    const pingHandler = vi.fn();
+    const batchMessage = {
+      type: 'batch' as const,
+      channel: 'system',
+      count: 1,
+      messages: [{ type: 'ping' }],
+      batched_at: 1234567890,
+    };
+
+    emitter.on('ping', pingHandler);
+    emitter.handleMessage(batchMessage);
+
+    expect(pingHandler).toHaveBeenCalledTimes(1);
+    expect(pingHandler).toHaveBeenCalledWith({ type: 'ping' });
+  });
+});

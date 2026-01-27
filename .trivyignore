@@ -241,6 +241,14 @@ CVE-2026-0994
 # =============================================================================
 # These are Trivy misconfiguration checks that are intentionally accepted.
 
+# AVD-DS-0001 - Base image uses :latest tag for continuous development (REVIEW BY: 2026-07-05)
+# The nemotron-base image uses :latest tag because:
+# 1. The base image is built and published from the same repository
+# 2. Using :latest allows automatic pickup of base image updates
+# 3. Production deployments can pin to specific SHA tags if needed
+# 4. The base image build is controlled and not external
+AVD-DS-0001
+
 # AVD-DS-0002 - vsftpd requires root to bind to privileged port 21 (REVIEW BY: 2026-07-05)
 # vsftpd is an FTP server that needs root privileges to:
 # 1. Bind to port 21 (privileged port)

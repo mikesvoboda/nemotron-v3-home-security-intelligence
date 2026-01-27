@@ -222,7 +222,7 @@ class AIServiceHealthStatus(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "yolo26",
-                "display_name": "YOLO26 Object Detection",
+                "display_name": "YOLO26v2 Object Detection",
                 "status": "healthy",
                 "url": "http://ai-detector:8090",
                 "response_time_ms": 45.2,
@@ -361,7 +361,7 @@ class FullHealthResponse(BaseModel):
                 "ai_services": [
                     {
                         "name": "yolo26",
-                        "display_name": "YOLO26 Object Detection",
+                        "display_name": "YOLO26v2 Object Detection",
                         "status": "healthy",
                         "url": "http://ai-detector:8090",
                         "response_time_ms": 45.2,

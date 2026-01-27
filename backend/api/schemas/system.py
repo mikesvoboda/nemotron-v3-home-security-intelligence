@@ -658,7 +658,7 @@ class QueueDepths(BaseModel):
 
     detection_queue: int = Field(
         ...,
-        description="Number of items in detection queue waiting for YOLO26 processing",
+        description="Number of items in detection queue waiting for YOLO26v2 processing",
         ge=0,
     )
     analysis_queue: int = Field(
@@ -736,7 +736,7 @@ class PipelineLatencies(BaseModel):
 
     Pipeline stages:
     - watch: File watcher detecting new images (file event -> queue)
-    - detect: YOLO26 object detection (image -> detections)
+    - detect: YOLO26v2 object detection (image -> detections)
     - batch: Batch aggregation window (detections -> batch)
     - analyze: Nemotron LLM risk analysis (batch -> event)
     """
@@ -747,7 +747,7 @@ class PipelineLatencies(BaseModel):
     )
     detect: StageLatency | None = Field(
         None,
-        description="Object detection stage latency (YOLO26 inference)",
+        description="Object detection stage latency (YOLO26v2 inference)",
     )
     batch: StageLatency | None = Field(
         None,
@@ -2193,7 +2193,7 @@ class ModelRegistryResponse(BaseModel):
 
     vram_budget_mb: int = Field(
         ...,
-        description="Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26)",
+        description="Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26v2)",
         ge=0,
     )
     vram_used_mb: int = Field(
