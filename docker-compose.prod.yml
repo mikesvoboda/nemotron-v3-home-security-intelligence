@@ -245,7 +245,7 @@ services:
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
       # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
-      - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -290,7 +290,7 @@ services:
       - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
       # GPU assignment from .env (default: GPU 1 for non-LLM models)
-      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
+      - CUDA_VISIBLE_DEVICES=0
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
