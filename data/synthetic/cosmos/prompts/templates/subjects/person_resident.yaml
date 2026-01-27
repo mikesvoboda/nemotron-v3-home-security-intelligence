@@ -1,0 +1,17 @@
+id: person_resident
+type: person
+description: 'A homeowner returning from work'
+appearance: 'face clearly visible, casual business attire, relaxed confident gait'
+clothing:
+  type: business_casual
+  color: varied
+face_visible: true
+build: average
+gender: varied
+age_range: '30-55'
+carrying_items: true
+items:
+  - keys
+  - bag
+known_household: true
+risk_indicators: []

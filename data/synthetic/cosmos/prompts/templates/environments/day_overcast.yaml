@@ -1,0 +1,13 @@
+id: day_overcast
+time_of_day: 'daytime'
+lighting_description: 'Diffused overcast daylight, soft even illumination with minimal shadows'
+quality_notes: 'Good visibility footage with flat lighting, muted colors'
+weather: overcast
+visibility: good
+sky: gray_overcast
+shadows: soft_minimal
+ambient_light: diffused_daylight
+artificial_light: []
+camera_effects:
+  - flat_lighting
+  - muted_colors

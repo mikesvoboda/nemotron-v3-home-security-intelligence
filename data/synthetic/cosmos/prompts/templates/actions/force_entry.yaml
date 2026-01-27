@@ -1,0 +1,19 @@
+id: force_entry
+sequence_description: 'They attempt to force the door open, first trying the handle forcefully, then putting shoulder against the door'
+additional_details: 'Aggressive physical contact with door, looking around between attempts, escalating force'
+key_actions:
+  - timestamp: 0
+    action: approaches_door_quickly
+  - timestamp: 3
+    action: grabs_handle_forcefully
+  - timestamp: 5
+    action: rattles_handle
+  - timestamp: 8
+    action: looks_around
+  - timestamp: 10
+    action: shoulders_door
+  - timestamp: 13
+    action: pushes_harder
+duration_range: [12, 18]
+motion_type: aggressive
+suspicion_level: critical

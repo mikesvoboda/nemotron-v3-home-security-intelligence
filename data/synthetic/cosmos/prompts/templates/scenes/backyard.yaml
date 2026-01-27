@@ -1,0 +1,16 @@
+id: backyard
+setting: 'suburban home backyard with patio and lawn'
+camera_position: 'elevated camera mounted under roof eave'
+camera_notes: 'Fixed camera position, wide field of view covering patio and yard'
+lens_effects: 'wide-angle with slight edge softening'
+zones:
+  - backyard
+  - perimeter
+features:
+  - patio
+  - back_door
+  - lawn
+  - fence
+  - outdoor_furniture
+  - landscaping
+typical_distance_m: 5-15

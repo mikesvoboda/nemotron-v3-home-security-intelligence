@@ -1,0 +1,15 @@
+id: night_clear
+time_of_day: 'night'
+lighting_description: 'Single porch light provides harsh overhead illumination with deep shadows'
+quality_notes: 'IR-tinted footage quality typical of home security systems, slight grain'
+weather: clear
+visibility: medium
+sky: dark
+shadows: harsh
+ambient_light: minimal
+artificial_light:
+  - porch_light
+  - street_lamp_distant
+camera_effects:
+  - ir_tint
+  - grain
