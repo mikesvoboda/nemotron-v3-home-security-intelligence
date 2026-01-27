@@ -162,7 +162,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
               options:
                 memory: 2g
@@ -219,9 +219,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - YOLO26 TensorRT uses ~1GB, shares with CLIP and Florence
+            # GPU assignment from .env (default: GPU 1 for non-LLM models)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
               options:
                 memory: 1500m
@@ -244,6 +244,8 @@ services:
       - GPU_LAYERS=${GPU_LAYERS:-45}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
+      # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
+      - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -257,8 +259,9 @@ services:
       resources:
         reservations:
           devices:
+            # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
             - driver: nvidia
-              count: 1
+              device_ids: ['${GPU_LLM:-0}']
               capabilities: [gpu]
               options:
                 memory: 24g
@@ -286,6 +289,8 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
+      # GPU assignment from .env (default: GPU 1 for non-LLM models)
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
@@ -305,9 +310,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Florence uses ~530MB, shares with CLIP (~722MB) and YOLO26 (~1GB)
+            # GPU assignment from .env (default: GPU 1 for non-LLM models)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
               options:
                 memory: 2g
@@ -354,10 +359,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - CLIP TensorRT uses ~722MB, shares with Florence (~530MB) and YOLO26 (~1GB)
-            # Total GPU 1 VRAM: ~2.3GB / 4GB (~57% utilization)
+            # GPU assignment from .env (default: GPU 1 for non-LLM models)
             - driver: nvidia
-              count: 1
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
               options:
                 memory: 1500m
@@ -420,9 +424,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Light models use ~1.2GB
+            # GPU assignment from .env (default: GPU 1 for non-LLM models)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
               options:
                 memory: 2g
@@ -486,10 +490,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Moved to share with light models
-            # Uses lazy loading - only loads models when requested
+            # GPU assignment from .env (default: GPU 1 for non-LLM models)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
               options:
                 memory: 3g

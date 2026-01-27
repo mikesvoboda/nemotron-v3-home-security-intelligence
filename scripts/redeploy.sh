@@ -313,16 +313,20 @@ start_ai_containers_podman() {
     fi
 
     # GPU and security flags for podman
-    # --device nvidia.com/gpu=all: CDI device for GPU access
+    # CDI device specification for specific GPU access
     # --security-opt=label=disable: Disable SELinux for GPU device access
-    local gpu_flags="--device nvidia.com/gpu=all --security-opt=label=disable"
+    # GPU assignments read from .env (defaults: GPU 0 for LLM, GPU 1 for other AI models)
+    local gpu_llm="${GPU_LLM:-0}"
+    local gpu_ai="${GPU_AI_SERVICES:-1}"
+    local gpu_flags_llm="--device nvidia.com/gpu=${gpu_llm} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=${gpu_llm}"
+    local gpu_flags_other="--device nvidia.com/gpu=${gpu_ai} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=${gpu_ai}"
 
-    # ai-yolo26 (YOLO26 TensorRT)
+    # ai-yolo26 (YOLO26 TensorRT) - GPU 1
     print_step "Starting ai-yolo26..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-yolo26 \
         --network "$network_name" \
-        $gpu_flags \
+        $gpu_flags_other \
         -p 8095:8095 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro,z" \
         -e "YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}" \
@@ -331,12 +335,12 @@ start_ai_containers_podman() {
         ai-yolo26
     print_success "ai-yolo26 started"
 
-    # ai-llm (Nemotron)
+    # ai-llm (Nemotron) - GPU 0 exclusively
     print_step "Starting ai-llm..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-llm \
         --network "$network_name" \
-        $gpu_flags \
+        $gpu_flags_llm \
         -p 8091:8091 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro,z" \
         -e "GPU_LAYERS=${GPU_LAYERS:-35}" \
@@ -345,12 +349,12 @@ start_ai_containers_podman() {
         ai-llm
     print_success "ai-llm started"
 
-    # ai-florence
+    # ai-florence - GPU 1
     print_step "Starting ai-florence..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-florence \
         --network "$network_name" \
-        $gpu_flags \
+        $gpu_flags_other \
         -p 8092:8092 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
         -e "MODEL_PATH=/models/florence-2-large" \  # pragma: allowlist secret
@@ -358,12 +362,12 @@ start_ai_containers_podman() {
         ai-florence
     print_success "ai-florence started"
 
-    # ai-clip
+    # ai-clip - GPU 1
     print_step "Starting ai-clip..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-clip \
         --network "$network_name" \
-        $gpu_flags \
+        $gpu_flags_other \
         -p 8093:8093 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
         -e "CLIP_MODEL_PATH=/models/clip-vit-l" \  # pragma: allowlist secret
@@ -371,12 +375,12 @@ start_ai_containers_podman() {
         ai-clip
     print_success "ai-clip started"
 
-    # ai-enrichment
+    # ai-enrichment - GPU 1
     print_step "Starting ai-enrichment..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-enrichment \
         --network "$network_name" \
-        $gpu_flags \
+        $gpu_flags_other \
         -p 8094:8094 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro,z" \

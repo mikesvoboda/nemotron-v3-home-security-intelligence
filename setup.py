@@ -271,6 +271,12 @@ def generate_env_content(config: dict) -> str:
         "# -- SSL/TLS Configuration " + "-" * 34,
         "SSL_ENABLED=true",
         "",
+        "# -- GPU Assignment " + "-" * 41,
+        "# GPU 0: Nemotron LLM (requires ~22GB VRAM)",
+        "# GPU 1: All other AI models (YOLO26, Florence, CLIP, Enrichment)",
+        f"GPU_LLM={config.get('gpu_llm', 0)}",
+        f"GPU_AI_SERVICES={config.get('gpu_ai_services', 1)}",
+        "",
     ]
     return "\n".join(lines)
 
