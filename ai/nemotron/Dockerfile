@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Builder - Compile llama.cpp with CUDA support
 # =============================================================================
-FROM docker.io/nvidia/cuda:13.1.0-devel-ubuntu22.04 AS builder
+FROM docker.io/nvidia/cuda:13.1.1-devel-ubuntu22.04 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,7 +35,7 @@ RUN cmake -B build \
 # =============================================================================
 # Stage 2: Runtime - Minimal image with just the server binary
 # =============================================================================
-FROM docker.io/nvidia/cuda:13.1.0-runtime-ubuntu22.04
+FROM docker.io/nvidia/cuda:13.1.1-runtime-ubuntu22.04
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
