@@ -256,6 +256,9 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0
         mock.nemotron_warmup_prompt = "Test warmup prompt"
+        # Guided JSON settings (NEM-3726)
+        mock.nemotron_use_guided_json = False
+        mock.nemotron_guided_json_fallback = True
         return mock
 
     @pytest.fixture
@@ -361,12 +364,30 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         mock_settings.severity_low_max = 29
         mock_settings.severity_medium_max = 59
         mock_settings.severity_high_max = 84
+        # Token counter settings
+        mock_settings.nemotron_context_window = 4096
+        mock_settings.nemotron_max_output_tokens = 1536
+        mock_settings.context_utilization_warning_threshold = 0.80
+        mock_settings.context_truncation_enabled = True
+        mock_settings.llm_tokenizer_encoding = "cl100k_base"
+        # Cold start and warmup settings
+        mock_settings.ai_warmup_enabled = True
+        mock_settings.ai_cold_start_threshold_seconds = 300.0
+        mock_settings.nemotron_warmup_prompt = "Test warmup prompt"
+        # Guided JSON settings (NEM-3726)
+        mock_settings.nemotron_use_guided_json = False
+        mock_settings.nemotron_guided_json_fallback = True
 
         with (
             patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
             patch("backend.services.severity.get_settings", return_value=mock_settings),
+            patch("backend.services.token_counter.get_settings", return_value=mock_settings),
+            patch("backend.core.config.get_settings", return_value=mock_settings),
         ):
+            from backend.services.token_counter import reset_token_counter
+
             reset_severity_service()
+            reset_token_counter()
             analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
         captured_headers = {}

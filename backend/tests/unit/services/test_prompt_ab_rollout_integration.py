@@ -65,6 +65,9 @@ def mock_settings():
     mock.nemotron_warmup_prompt = "Test warmup prompt"
     mock.prompt_ab_testing_enabled = True
     mock.prompt_shadow_mode_enabled = False
+    # Guided JSON settings (NEM-3726)
+    mock.nemotron_use_guided_json = False
+    mock.nemotron_guided_json_fallback = True
     return mock
 
 

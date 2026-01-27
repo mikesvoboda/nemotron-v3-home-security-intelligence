@@ -12,6 +12,9 @@ Schemas:
     RiskEntity: Entity identified in the risk analysis (NEM-3601)
     RiskFlag: Risk flags with severity levels (NEM-3601)
     ConfidenceFactors: Factors affecting confidence in the analysis (NEM-3601)
+
+Constants:
+    RISK_ANALYSIS_JSON_SCHEMA: JSON Schema for NVIDIA NIM guided_json (NEM-3725)
 """
 
 from __future__ import annotations
@@ -23,6 +26,91 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# JSON Schema for NVIDIA NIM guided_json Parameter (NEM-3725)
+# =============================================================================
+
+RISK_ANALYSIS_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "risk_score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Risk assessment score from 0 (no risk) to 100 (maximum risk)",
+        },
+        "risk_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Categorical risk classification based on score thresholds",
+        },
+        "summary": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Concise human-readable summary of the detected activity",
+        },
+        "reasoning": {
+            "type": "string",
+            "description": "Detailed explanation of the risk assessment rationale",
+        },
+        "entities": {
+            "type": "array",
+            "description": "List of entities identified in the scene",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["person", "vehicle", "animal", "object"],
+                        "description": "Category of the detected entity",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed description of the entity",
+                    },
+                    "threat_level": {
+                        "type": "string",
+                        "enum": ["low", "medium", "high"],
+                        "description": "Threat level attributed to this entity",
+                    },
+                },
+                "required": ["type", "description", "threat_level"],
+            },
+        },
+        "recommended_action": {
+            "type": "string",
+            "enum": ["none", "review", "alert", "immediate_response"],
+            "description": "Suggested action based on the risk assessment",
+        },
+    },
+    "required": ["risk_score", "risk_level", "summary", "reasoning"],
+}
+"""JSON Schema for risk analysis responses compatible with NVIDIA NIM's guided_json.
+
+This schema defines the expected output format for the Nemotron LLM when performing
+risk analysis on security camera detections. It enforces:
+
+- risk_score: Integer between 0-100
+- risk_level: One of low, medium, high, critical
+- summary: String with max 200 characters
+- reasoning: String explaining the assessment
+- entities: Optional array of detected entities with type constraints
+- recommended_action: Optional enum of action types
+
+Usage with NVIDIA NIM:
+    ```python
+    response = client.chat.completions.create(
+        model="nemotron",
+        messages=[...],
+        extra_body={"guided_json": RISK_ANALYSIS_JSON_SCHEMA}
+    )
+    ```
+
+See Also:
+    - LLMRiskResponse: Pydantic model for validating parsed responses
+    - LLMRawResponse: Lenient model for parsing raw LLM output
+"""
 
 
 class RiskLevel(str, Enum):
@@ -629,3 +717,191 @@ class LLMRawResponse(BaseModel):
             return ConfidenceFactors.model_validate(self.confidence_factors)
         except Exception:
             return None
+
+
+# =============================================================================
+# Chain-of-Thought Reasoning Support (NEM-3727)
+# =============================================================================
+
+
+class LLMResponseWithReasoning(BaseModel):
+    """LLM response with extracted chain-of-thought reasoning.
+
+    This schema extends the standard risk response to include the model's
+    reasoning process when chain-of-thought is enabled. The reasoning is
+    extracted from <think>...</think> blocks in the LLM output.
+
+    Use Cases:
+        - Debugging risk assessments by reviewing the model's thought process
+        - Auditing decisions for compliance and quality assurance
+        - Improving prompts by understanding how the model reasons
+        - Providing transparency in high-stakes risk evaluations
+
+    Attributes:
+        risk_score: Risk assessment score (0-100)
+        risk_level: Risk classification level (low, medium, high, critical)
+        summary: Human-readable event summary
+        reasoning: Detailed reasoning for the risk assessment (from JSON)
+        chain_of_thought: Raw reasoning from <think> blocks before JSON response.
+            This captures the model's step-by-step thinking process. None if
+            chain-of-thought reasoning was not enabled or no think block present.
+        risk_factors: Individual factors contributing to the risk score
+        entities: Entities identified in the analysis
+        flags: Risk flags raised during analysis
+        recommended_action: Suggested action to take
+        confidence_factors: Factors affecting analysis confidence
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "risk_score": 35,
+                "risk_level": "medium",
+                "summary": "Unknown person approaching front entrance at night",
+                "reasoning": "Person detected at 11:42 PM approaching front door. "
+                "No face match found. Time of day increases risk slightly.",
+                "chain_of_thought": "Let me analyze this detection systematically:\n"
+                "1. Time: 11:42 PM - outside normal hours (typically 7 AM - 10 PM)\n"
+                "2. Location: Front entrance - a sensitive area\n"
+                "3. Person: No face match in household database\n"
+                "4. Behavior: Walking toward door, not lingering\n"
+                "5. Context: No vehicle detected, could be neighbor or delivery\n\n"
+                "Risk factors:\n"
+                "- Late hour: +15 points\n"
+                "- Unknown person: +20 points\n"
+                "- Normal walking behavior: -10 points\n"
+                "- No threatening items: -5 points\n\n"
+                "Final assessment: Medium risk, worth noting but not alarming.",
+                "risk_factors": [
+                    {
+                        "factor_name": "late_hour",
+                        "contribution": 15.0,
+                        "description": "Activity outside normal hours (11 PM)",
+                    },
+                    {
+                        "factor_name": "unknown_person",
+                        "contribution": 20.0,
+                        "description": "No face match in household database",
+                    },
+                    {
+                        "factor_name": "normal_behavior",
+                        "contribution": -10.0,
+                        "description": "Walking at normal pace, not lingering",
+                    },
+                ],
+            }
+        },
+    )
+
+    risk_score: int = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Risk assessment score (0-100)",
+    )
+    risk_level: str = Field(
+        ...,
+        description="Risk classification level (low, medium, high, critical)",
+    )
+    summary: str = Field(
+        ...,
+        description="Human-readable event summary",
+    )
+    reasoning: str = Field(
+        ...,
+        description="Detailed reasoning for the risk assessment (from JSON response)",
+    )
+    chain_of_thought: str | None = Field(
+        None,
+        description="Raw chain-of-thought reasoning from <think> blocks. "
+        "Captures the model's step-by-step thinking process before generating "
+        "the final JSON response. None if CoT was not enabled.",
+    )
+    # Risk factors breakdown (NEM-3603)
+    risk_factors: list[RiskFactor] = Field(
+        default_factory=list,
+        description="Individual factors contributing to the risk score",
+    )
+    # Advanced fields (NEM-3601)
+    entities: list[RiskEntity] = Field(
+        default_factory=list,
+        description="Entities identified in the analysis",
+    )
+    flags: list[RiskFlag] = Field(
+        default_factory=list,
+        description="Risk flags raised during analysis",
+    )
+    recommended_action: str | None = Field(
+        default=None,
+        description="Suggested action to take based on the analysis",
+    )
+    confidence_factors: ConfidenceFactors | None = Field(
+        default=None,
+        description="Factors affecting confidence in the analysis",
+    )
+
+    @field_validator("risk_score", mode="before")
+    @classmethod
+    def coerce_risk_score(cls, v: Any) -> int:
+        """Coerce risk_score to integer.
+
+        Handles string numbers and floats from LLM output.
+        """
+        if v is None:
+            raise ValueError("risk_score is required")
+        if isinstance(v, int):
+            return v
+        if isinstance(v, float):
+            return int(v)
+        if isinstance(v, str):
+            try:
+                return int(float(v))
+            except ValueError:
+                raise ValueError(f"Cannot convert '{v}' to integer") from None
+        raise ValueError(f"risk_score must be numeric, got {type(v).__name__}")
+
+    @field_validator("risk_level", mode="before")
+    @classmethod
+    def validate_risk_level(cls, v: str | RiskLevel) -> str:
+        """Validate and normalize risk_level to lowercase."""
+        if isinstance(v, RiskLevel):
+            return v.value
+        if isinstance(v, str):
+            normalized = v.lower()
+            valid_values = [level.value for level in RiskLevel]
+            if normalized in valid_values:
+                return normalized
+            raise ValueError(f"Invalid risk_level '{v}'. Must be one of: {valid_values}")
+        raise ValueError(f"risk_level must be a string, got {type(v).__name__}")
+
+    @classmethod
+    def from_risk_response(
+        cls,
+        risk_response: LLMRiskResponse,
+        chain_of_thought: str | None = None,
+    ) -> LLMResponseWithReasoning:
+        """Create LLMResponseWithReasoning from an existing LLMRiskResponse.
+
+        This factory method allows adding chain-of-thought reasoning to an
+        already-validated risk response.
+
+        Args:
+            risk_response: Validated LLMRiskResponse instance
+            chain_of_thought: Optional reasoning extracted from <think> blocks
+
+        Returns:
+            LLMResponseWithReasoning with all fields from risk_response plus CoT
+        """
+        return cls(
+            risk_score=risk_response.risk_score,
+            risk_level=risk_response.risk_level,
+            summary=risk_response.summary,
+            reasoning=risk_response.reasoning,
+            chain_of_thought=chain_of_thought if chain_of_thought else None,
+            risk_factors=risk_response.risk_factors,
+            entities=risk_response.entities,
+            flags=risk_response.flags,
+            recommended_action=risk_response.recommended_action,
+            confidence_factors=risk_response.confidence_factors,
+        )

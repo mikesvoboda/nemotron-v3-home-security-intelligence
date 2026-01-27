@@ -46,6 +46,9 @@ class TestNemotronAnalyzerWarmup:
         mock.context_truncation_enabled = True
         mock.llm_tokenizer_encoding = "cl100k_base"
         mock.image_quality_enabled = False
+        # Guided JSON settings (NEM-3726)
+        mock.nemotron_use_guided_json = False
+        mock.nemotron_guided_json_fallback = True
         # Warmup-specific settings (NEM-1670)
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0  # 5 minutes

@@ -79,6 +79,9 @@ def mock_settings():
     mock.use_enrichment_service = False
     # Inference semaphore settings (NEM-1463, used by facade)
     mock.ai_max_concurrent_inferences = 4
+    # Guided JSON settings (NEM-3726)
+    mock.nemotron_use_guided_json = False  # Disabled by default for existing tests
+    mock.nemotron_guided_json_fallback = True
     return mock
 
 
@@ -2535,6 +2538,9 @@ class TestNemotronAnalyzerImprovedPatterns:
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0
         mock.nemotron_warmup_prompt = "Test warmup prompt"
+        # Guided JSON settings (NEM-3726)
+        mock.nemotron_use_guided_json = False
+        mock.nemotron_guided_json_fallback = True
         return mock
 
     @pytest.fixture
@@ -2723,6 +2729,9 @@ class TestIdempotencyHandling:
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0
         mock.nemotron_warmup_prompt = "Test warmup prompt"
+        # Guided JSON settings (NEM-3726)
+        mock.nemotron_use_guided_json = False
+        mock.nemotron_guided_json_fallback = True
         return mock
 
     @pytest.fixture
@@ -3273,6 +3282,9 @@ class TestLLMTokenMetrics:
         mock.nemotron_warmup_prompt = "Test warmup prompt"
         # Inference semaphore settings (NEM-1463, used by facade)
         mock.ai_max_concurrent_inferences = 4
+        # Guided JSON settings (NEM-3726)
+        mock.nemotron_use_guided_json = False
+        mock.nemotron_guided_json_fallback = True
         return mock
 
     @pytest.fixture
@@ -3467,6 +3479,9 @@ class TestTokenCountingIntegration:
         mock.nemotron_warmup_prompt = "Test warmup prompt"
         # Inference semaphore settings (NEM-1463)
         mock.ai_max_concurrent_inferences = 4
+        # Guided JSON settings (NEM-3726)
+        mock.nemotron_use_guided_json = False
+        mock.nemotron_guided_json_fallback = True
         return mock
 
     @pytest.fixture

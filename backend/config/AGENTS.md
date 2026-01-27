@@ -6,13 +6,14 @@ This directory contains configuration modules for A/B testing experiments, promp
 
 ## Key Files
 
-| File                        | Purpose                                                       |
-| --------------------------- | ------------------------------------------------------------- |
-| `__init__.py`               | Package exports for all configuration classes and functions   |
-| `prompt_experiment.py`      | Core experiment configuration with version assignment         |
-| `prompt_ab_rollout.py`      | A/B rollout manager with metrics collection and auto-rollback |
-| `ab_rollout_production.py`  | Production-specific A/B test configuration (50/50, 48 hours)  |
-| `shadow_mode_deployment.py` | Shadow mode configuration for parallel prompt execution       |
+| File                        | Purpose                                                                    |
+| --------------------------- | -------------------------------------------------------------------------- |
+| `__init__.py`               | Package exports for all configuration classes and functions                |
+| `prompt_experiment.py`      | Core experiment configuration with version assignment                      |
+| `prompt_ab_rollout.py`      | A/B rollout manager with metrics collection and auto-rollback              |
+| `ab_rollout_production.py`  | Production-specific A/B test configuration (50/50, 48 hours)               |
+| `shadow_mode_deployment.py` | Shadow mode configuration for parallel prompt execution                    |
+| `prompt_ab_config.py`       | Prompt A/B experiment configuration with predefined experiments (NEM-3731) |
 
 ## Architecture
 
@@ -46,6 +47,13 @@ This directory contains configuration modules for A/B testing experiments, promp
 - Control result used, treatment logged
 - Latency warning threshold detection
 - Rolling statistics via `ShadowModeStatsTracker`
+
+**`PromptExperiment`** (`prompt_ab_config.py`):
+
+- Defines prompt A/B experiments with control/variant keys
+- Configurable traffic split (default 10% to variant)
+- Predefined experiments: `rubric_vs_current`, `cot_vs_current`
+- Integration with statistical analysis via `ab_experiment_runner.py`
 
 ## Patterns Used
 

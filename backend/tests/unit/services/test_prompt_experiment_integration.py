@@ -64,6 +64,9 @@ def mock_settings():
     # A/B testing settings
     mock.prompt_ab_testing_enabled = True
     mock.prompt_shadow_mode_enabled = True
+    # Guided JSON settings (NEM-3726)
+    mock.nemotron_use_guided_json = False
+    mock.nemotron_guided_json_fallback = True
     return mock
 
 

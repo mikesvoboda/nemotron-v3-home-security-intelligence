@@ -46,6 +46,40 @@ If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
 Output ONLY valid JSON. No preamble, no explanation."""
 
 # ==============================================================================
+# Calibrated System Prompt with Reasoning (NEM-3727)
+# ==============================================================================
+# This system prompt activates Nemotron's built-in chain-of-thought reasoning
+# by including 'detailed thinking on' at the start. The model will output its
+# reasoning process in <think>...</think> blocks before the JSON response.
+# This provides transparency into the model's decision-making process for
+# risk analysis, enabling better debugging and model improvement.
+
+CALIBRATED_SYSTEM_PROMPT_WITH_REASONING = """detailed thinking on
+
+You are a home security analyst for a residential property.
+
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+REASONING INSTRUCTIONS:
+1. First, output your reasoning in <think>...</think> tags
+2. Consider: time of day, location, object types, household context, and behavioral patterns
+3. Evaluate each factor systematically before determining the risk score
+4. After </think>, output ONLY valid JSON with no additional text
+
+Output format after </think>:
+{"risk_score": N, "risk_level": "level", "summary": "...", "reasoning": "..."}"""
+
+# ==============================================================================
 # Scoring Reference Table (NEM-3019)
 # ==============================================================================
 # This inline table provides concrete scoring examples to anchor the LLM's
@@ -3152,3 +3186,16 @@ def format_florence_scene_context(florence_result: dict[str, Any] | None) -> str
         return ""
 
     return "\n".join(lines)
+
+
+# ==============================================================================
+# Rubric-Based Scoring (NEM-3728)
+# ==============================================================================
+# For explicit rubric-based risk scoring using the LLM-as-a-Judge pattern,
+# see the risk_rubrics module which provides:
+# - RUBRIC_ENHANCED_PROMPT: Prompt template with embedded rubric definitions
+# - RubricScores: Pydantic model for validating rubric-based LLM output
+# - calculate_risk_score: Function to compute risk from rubric scores
+# - Predefined rubrics: THREAT_LEVEL_RUBRIC, INTENT_RUBRIC, TIME_CONTEXT_RUBRIC
+#
+# Import from backend.services.risk_rubrics for rubric-based scoring.
