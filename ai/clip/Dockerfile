@@ -2,7 +2,7 @@
 # Uses HuggingFace Transformers for model loading with optional TensorRT inference
 # Port: 8093 | Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
 
-FROM nvcr.io/nvidia/tensorrt:24.09-py3
+FROM nvcr.io/nvidia/tensorrt:25.12-py3
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="CLIP ViT-L embedding server for entity re-identification"

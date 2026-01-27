@@ -807,23 +807,29 @@ class TestGetDbDependency:
             mock_session.rollback = AsyncMock()
             mock_session.close = AsyncMock()
 
+            # Create a proper async context manager mock
+            mock_cm = AsyncMock()
+            mock_cm.__aenter__.return_value = mock_session
+            mock_cm.__aexit__.return_value = None
+
             mock_factory = MagicMock()
-            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_factory.return_value = mock_cm
 
             db_module._async_session_factory = mock_factory
 
-            # Consume the async generator
-            gen = db_module.get_db()
-            session = await gen.__anext__()
+            # Mock _check_loop_mismatch to avoid re-initialization
+            with patch.object(db_module, "_check_loop_mismatch", return_value=False):
+                # Consume the async generator
+                gen = db_module.get_db()
+                session = await gen.__anext__()
 
-            assert session is mock_session
+                assert session is mock_session
 
-            # Complete the generator normally
-            try:
-                await gen.__anext__()
-            except StopAsyncIteration:
-                pass
+                # Complete the generator normally
+                try:
+                    await gen.__anext__()
+                except StopAsyncIteration:
+                    pass
 
             mock_session.commit.assert_called_once()
             mock_session.close.assert_called_once()
@@ -844,20 +850,26 @@ class TestGetDbDependency:
             mock_session.rollback = AsyncMock()
             mock_session.close = AsyncMock()
 
+            # Create a proper async context manager mock
+            mock_cm = AsyncMock()
+            mock_cm.__aenter__.return_value = mock_session
+            mock_cm.__aexit__.return_value = None
+
             mock_factory = MagicMock()
-            mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+            mock_factory.return_value = mock_cm
 
             db_module._async_session_factory = mock_factory
 
-            gen = db_module.get_db()
-            await gen.__anext__()
+            # Mock _check_loop_mismatch to avoid re-initialization
+            with patch.object(db_module, "_check_loop_mismatch", return_value=False):
+                gen = db_module.get_db()
+                await gen.__anext__()
 
-            # Throw an exception into the generator
-            try:
-                await gen.athrow(ValueError("Test error"))
-            except ValueError:
-                pass
+                # Throw an exception into the generator
+                try:
+                    await gen.athrow(ValueError("Test error"))
+                except ValueError:
+                    pass
 
             # Session should still be closed in finally block
             mock_session.close.assert_called_once()
