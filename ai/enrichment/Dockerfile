@@ -95,8 +95,8 @@ WORKDIR /app
 RUN groupadd -g 1000 enrichment && \
     useradd -u 1000 -g enrichment -s /bin/bash -m enrichment
 
-# Copy installed packages from builder (all Python packages are in /usr/local)
-COPY --from=builder --chown=enrichment:enrichment /usr/local /usr/local
+# Copy installed packages from builder (pytorch images use /opt/conda for Python)
+COPY --from=builder --chown=enrichment:enrichment /opt/conda /opt/conda
 COPY --from=builder --chown=enrichment:enrichment /app .
 
 # Copy profiler tools and scripts

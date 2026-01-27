@@ -316,10 +316,11 @@ start_ai_containers_podman() {
     # CDI device specification for specific GPU access
     # --security-opt=label=disable: Disable SELinux for GPU device access
     # GPU assignments read from .env (defaults: GPU 0 for LLM, GPU 1 for other AI models)
+    # NOTE: CUDA_VISIBLE_DEVICES=0 because CDI makes the specified GPU appear as device 0 inside the container
     local gpu_llm="${GPU_LLM:-0}"
     local gpu_ai="${GPU_AI_SERVICES:-1}"
-    local gpu_flags_llm="--device nvidia.com/gpu=${gpu_llm} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=${gpu_llm}"
-    local gpu_flags_other="--device nvidia.com/gpu=${gpu_ai} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=${gpu_ai}"
+    local gpu_flags_llm="--device nvidia.com/gpu=${gpu_llm} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0"
+    local gpu_flags_other="--device nvidia.com/gpu=${gpu_ai} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0"
 
     # ai-yolo26 (YOLO26 TensorRT) - GPU 1
     print_step "Starting ai-yolo26..."
