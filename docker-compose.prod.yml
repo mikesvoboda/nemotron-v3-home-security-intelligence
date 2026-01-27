@@ -29,12 +29,19 @@
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8443)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
-#   - GPU_LAYERS: Number of GPU layers for LLM (default: 30)
-#   - CTX_SIZE: LLM context window size (default: 131072)
+#   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
+#   - CTX_SIZE: LLM context window size (default: 65536)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
 #   - GF_ADMIN_PASSWORD: Grafana admin password (default: admin, anonymous access enabled)
+#
+# GPU Assignment (configured in .env - single source of truth):
+#   - GPU_LLM: GPU for Nemotron LLM (default: 0)
+#   - GPU_FLORENCE: GPU for Florence-2 (default: GPU_LLM, shares with LLM)
+#   - GPU_YOLO26: GPU for YOLO26 (default: 1)
+#   - GPU_CLIP: GPU for CLIP (default: 1)
+#   - GPU_ENRICHMENT: GPU for Enrichment models (default: 1)
 
 version: '3.8'
 
@@ -151,9 +158,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - YOLO26 TensorRT uses ~1GB, shares with CLIP and Florence
+            # GPU assignment from .env (GPU_YOLO26, defaults to 1)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_YOLO26:-1}']
               capabilities: [gpu]
 
   ai-llm:
@@ -219,9 +226,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Florence uses ~530MB, shares with CLIP (~722MB) and YOLO26 (~1GB)
+            # GPU assignment from .env (GPU_FLORENCE, defaults to GPU_LLM for shared VRAM)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_FLORENCE:-${GPU_LLM:-0}}']
               capabilities: [gpu]
 
   # CLIP ViT-L model for entity re-identification embeddings
@@ -317,9 +324,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Light models use ~1.2GB
+            # GPU assignment from .env (GPU_CLIP, defaults to 1)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_CLIP:-1}']
               capabilities: [gpu]
 
   # Heavy enrichment service for large transformer models (GPU 0)
@@ -372,10 +379,9 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Moved to share with light models
-            # Uses lazy loading - only loads models when requested
+            # GPU assignment from .env (GPU_ENRICHMENT, defaults to 1)
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['${GPU_ENRICHMENT:-1}']
               capabilities: [gpu]
 
   backend:
