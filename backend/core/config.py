@@ -1850,6 +1850,30 @@ class Settings(BaseSettings):
         "Default: 6 (good balance between speed and compression ratio).",
     )
 
+    # WebSocket message batching settings (NEM-3738)
+    websocket_batch_interval_ms: int = Field(
+        default=100,
+        ge=10,
+        le=5000,
+        description="Interval in milliseconds for batching high-frequency WebSocket messages. "
+        "Messages on batch channels are collected over this interval and sent as a single batch. "
+        "Lower values reduce latency, higher values improve batching efficiency. Default: 100ms.",
+    )
+    websocket_batch_max_size: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum number of messages per batch before immediate flush. "
+        "When a channel accumulates this many messages, the batch is sent immediately "
+        "without waiting for the interval timer. Default: 50 messages.",
+    )
+    websocket_batch_channels: list[str] = Field(
+        default=["detections", "alerts"],
+        description="List of WebSocket channels to apply batching to. "
+        "Messages on these channels are batched; other channels send immediately. "
+        "Default: ['detections', 'alerts'] for high-frequency detection events.",
+    )
+
     # Severity threshold settings (risk score 0-100)
     severity_low_max: int = Field(
         default=29,

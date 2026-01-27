@@ -84,6 +84,14 @@ from backend.core.websocket.event_types import (
     get_required_payload_fields,
     validate_event_type,
 )
+from backend.core.websocket.message_batcher import (
+    BatchedMessage,
+    BatchMetrics,
+    MessageBatcher,
+    get_message_batcher,
+    reset_message_batcher_state,
+    stop_message_batcher,
+)
 from backend.core.websocket.sequence_tracker import (
     SequenceTracker,
     get_sequence_tracker,
@@ -101,11 +109,14 @@ __all__ = [
     "COMPRESSION_MAGIC_BYTE",
     "EVENT_TYPE_METADATA",
     "MSGPACK_MAGIC_BYTE",
+    "BatchMetrics",
+    "BatchedMessage",
     "CompressionStats",
     "ConnectionHealth",
     "ConnectionHealthStatus",
     "ConnectionHealthTracker",
     "ConnectionMetrics",
+    "MessageBatcher",
     "SequenceTracker",
     "SerializationFormat",
     "SubscriptionManager",
@@ -127,6 +138,7 @@ __all__ = [
     "get_event_description",
     "get_event_types_by_channel",
     "get_health_tracker",
+    "get_message_batcher",
     "get_required_payload_fields",
     "get_sequence_tracker",
     "get_subscription_manager",
@@ -136,8 +148,10 @@ __all__ = [
     "prepare_message_with_format",
     "reset_compression_stats",
     "reset_health_tracker_state",
+    "reset_message_batcher_state",
     "reset_sequence_tracker_state",
     "reset_subscription_manager_state",
     "should_compress",
+    "stop_message_batcher",
     "validate_event_type",
 ]

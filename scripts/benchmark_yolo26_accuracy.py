@@ -279,17 +279,39 @@ def load_yolo26_model(model_path: Path, device: str | None = None) -> Any:
         raise RuntimeError(f"Failed to load YOLO26 model from {model_path}: {e}") from e
 
 
+def load_yolo26_model(model_path: Path, device: str | None = None) -> tuple[Any, Any]:
+    """Load YOLO26 model using HuggingFace Transformers."""
+    if device is None:
+        device = get_default_device()
+
+    try:
+        from transformers import AutoImageProcessor, AutoModelForObjectDetection
+
+        processor = AutoImageProcessor.from_pretrained(str(model_path))
+        model = AutoModelForObjectDetection.from_pretrained(str(model_path))
+        model = model.to(device)
+        model.eval()
+        return model, processor
+    except Exception as e:
+        raise RuntimeError(f"Failed to load YOLO26 model from {model_path}: {e}") from e
+
+
 # =============================================================================
 # Inference Functions
 # =============================================================================
 
 
-def warmup_model(model: Any, device: str, num_warmup: int = 3) -> None:
+def warmup_model(model: Any, processor: Any | None, device: str, num_warmup: int = 3) -> None:
     """Warmup a model with dummy inference to stabilize timings."""
     dummy_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
 
     for _ in range(num_warmup):
-        run_yolo26_inference(model, dummy_image, 0.5)
+        if processor is not None:
+            # YOLO26
+            run_yolo26_inference(model, processor, dummy_image, 0.5, device)
+        else:
+            # YOLO
+            run_yolo26_inference(model, dummy_image, 0.5)
 
 
 def run_yolo26_inference(
@@ -334,6 +356,75 @@ def run_yolo26_inference(
                         bbox=(x1, y1, x2, y2),
                     )
                 )
+
+    return detections, inference_time_ms
+
+
+def run_yolo26_inference(
+    model: Any,
+    processor: Any,
+    image: Image.Image,
+    confidence: float = 0.5,
+    device: str | None = None,
+) -> tuple[list[Detection], float]:
+    """Run YOLO26 inference on a single image.
+
+    Args:
+        model: Loaded YOLO26 model
+        processor: Image processor
+        image: PIL Image
+        confidence: Confidence threshold
+        device: Device to run on
+
+    Returns:
+        Tuple of (detections, inference_time_ms)
+    """
+    if device is None:
+        device = get_default_device()
+
+    start = time.perf_counter()
+
+    # Ensure RGB
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    original_size = image.size  # (width, height)
+
+    # Preprocess
+    inputs = processor(images=image, return_tensors="pt")
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    # Inference
+    with torch.inference_mode():
+        outputs = model(**inputs)
+
+    # Post-process
+    target_sizes = torch.tensor([[original_size[1], original_size[0]]]).to(device)
+    results = processor.post_process_object_detection(
+        outputs,
+        target_sizes=target_sizes,
+        threshold=confidence,
+    )[0]
+
+    inference_time_ms = (time.perf_counter() - start) * 1000
+
+    detections = []
+    for score, label, box in zip(
+        results["scores"], results["labels"], results["boxes"], strict=False
+    ):
+        class_name = model.config.id2label[label.item()]
+
+        # Only include security-relevant classes
+        if class_name.lower() in [c.lower() for c in SECURITY_CLASSES.values()]:
+            x1, y1, x2, y2 = box.tolist()
+            detections.append(
+                Detection(
+                    class_id=SECURITY_CLASS_NAME_TO_ID.get(class_name.lower(), label.item()),
+                    class_name=class_name.lower(),
+                    confidence=float(score),
+                    bbox=(x1, y1, x2, y2),
+                )
+            )
 
     return detections, inference_time_ms
 

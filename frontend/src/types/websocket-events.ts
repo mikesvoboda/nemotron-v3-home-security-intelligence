@@ -104,6 +104,24 @@ export interface PongPayload {
  * - 'system.health_changed' -> SystemHealthChangedPayload
  * - 'system.error' -> SystemErrorPayload
  */
+
+/**
+ * Batched message payload (NEM-3738).
+ * Sent by server to group high-frequency messages together.
+ */
+export interface BatchedMessagePayload {
+  /** Message type, always 'batch' */
+  type: 'batch';
+  /** Channel the messages belong to (e.g., 'detections', 'alerts') */
+  channel: string;
+  /** Number of messages in this batch */
+  count: number;
+  /** Array of individual message payloads */
+  messages: Record<string, unknown>[];
+  /** Unix timestamp when batch was created */
+  batched_at: number;
+}
+
 export interface WebSocketEventMap {
   /** Security event from the events channel */
   event: SecurityEventData;
@@ -121,6 +139,8 @@ export interface WebSocketEventMap {
   error: WebSocketErrorPayload;
   /** Pong response */
   pong: PongPayload;
+  /** Batched messages from server (NEM-3738) */
+  batch: BatchedMessagePayload;
 
   // ========================================================================
   // Legacy job event types (underscore format - NEM-2505)
@@ -298,6 +318,8 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'gpu_stats',
   'error',
   'pong',
+  // Batched messages (NEM-3738)
+  'batch',
   // Legacy job event keys (underscore format - NEM-2505)
   'job_progress',
   'job_completed',
