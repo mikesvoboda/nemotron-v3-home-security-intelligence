@@ -66,7 +66,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
-        uses: actions/setup-node@60edb5dd545a775178fac7f3be8dfca0013e7d64 # v4
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
