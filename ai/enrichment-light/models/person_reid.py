@@ -8,11 +8,12 @@ Features:
 - Cosine similarity computation for person matching
 - Configurable matching threshold
 - Embedding hash for quick lookup
+- Standalone OSNet architecture (no torchreid dependency)
 
 Reference:
-- Model: torchreid/osnet_x0_25
-- Paper: Omni-Scale Feature Learning for Person Re-Identification
-- HuggingFace: Not directly available, uses torchreid library or direct weights
+- Model: OSNet-x0.25
+- Paper: Omni-Scale Feature Learning for Person Re-Identification (ICCV 2019)
+- Authors: Zhou et al.
 
 VRAM Usage: ~100MB
 """
@@ -27,6 +28,8 @@ from typing import Any
 import numpy as np
 import torch
 from PIL import Image
+from torch import nn
+from torch.nn import functional as F
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,341 @@ IMAGENET_STD = [0.229, 0.224, 0.225]
 
 # Default similarity threshold for same-person matching
 DEFAULT_SIMILARITY_THRESHOLD = 0.7
+
+
+# =============================================================================
+# OSNet Architecture Components
+# Adapted from torchreid: https://github.com/KaiyangZhou/deep-person-reid
+# =============================================================================
+
+
+class ConvLayer(nn.Module):
+    """Convolution layer (conv + bn + relu)."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int = 1,
+        padding: int = 0,
+        groups: int = 1,
+    ):
+        super().__init__()
+        self.conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride=stride,
+            padding=padding,
+            bias=False,
+            groups=groups,
+        )
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+        x = self.bn(x)
+        return self.relu(x)
+
+
+class Conv1x1(nn.Module):
+    """1x1 convolution + bn + relu."""
+
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1, groups: int = 1):
+        super().__init__()
+        self.conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            1,
+            stride=stride,
+            padding=0,
+            bias=False,
+            groups=groups,
+        )
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+        x = self.bn(x)
+        return self.relu(x)
+
+
+class Conv1x1Linear(nn.Module):
+    """1x1 convolution + bn (w/o non-linearity)."""
+
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, 1, stride=stride, padding=0, bias=False)
+        self.bn = nn.BatchNorm2d(out_channels)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+        return self.bn(x)
+
+
+class LightConv3x3(nn.Module):
+    """Lightweight 3x3 convolution: 1x1 (linear) + dw 3x3 (nonlinear)."""
+
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 1, stride=1, padding=0, bias=False)
+        self.conv2 = nn.Conv2d(
+            out_channels,
+            out_channels,
+            3,
+            stride=1,
+            padding=1,
+            bias=False,
+            groups=out_channels,
+        )
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.bn(x)
+        return self.relu(x)
+
+
+class ChannelGate(nn.Module):
+    """Mini-network that generates channel-wise gates conditioned on input."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        num_gates: int | None = None,
+        return_gates: bool = False,
+        gate_activation: str = "sigmoid",
+        reduction: int = 16,
+        layer_norm: bool = False,
+    ):
+        super().__init__()
+        if num_gates is None:
+            num_gates = in_channels
+        self.return_gates = return_gates
+        self.global_avgpool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = nn.Conv2d(
+            in_channels,
+            in_channels // reduction,
+            kernel_size=1,
+            bias=True,
+            padding=0,
+        )
+        self.norm1: nn.LayerNorm | None = None
+        if layer_norm:
+            self.norm1 = nn.LayerNorm((in_channels // reduction, 1, 1))
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Conv2d(
+            in_channels // reduction,
+            num_gates,
+            kernel_size=1,
+            bias=True,
+            padding=0,
+        )
+        if gate_activation == "sigmoid":
+            self.gate_activation: nn.Module | None = nn.Sigmoid()
+        elif gate_activation == "relu":
+            self.gate_activation = nn.ReLU(inplace=True)
+        elif gate_activation == "linear":
+            self.gate_activation = None
+        else:
+            raise RuntimeError(f"Unknown gate activation: {gate_activation}")
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        input_tensor = x
+        x = self.global_avgpool(x)
+        x = self.fc1(x)
+        if self.norm1 is not None:
+            x = self.norm1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        if self.gate_activation is not None:
+            x = self.gate_activation(x)
+        if self.return_gates:
+            return x
+        return input_tensor * x
+
+
+class OSBlock(nn.Module):
+    """Omni-scale feature learning block."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        bottleneck_reduction: int = 4,
+    ):
+        super().__init__()
+        mid_channels = out_channels // bottleneck_reduction
+        self.conv1 = Conv1x1(in_channels, mid_channels)
+        self.conv2a = LightConv3x3(mid_channels, mid_channels)
+        self.conv2b = nn.Sequential(
+            LightConv3x3(mid_channels, mid_channels),
+            LightConv3x3(mid_channels, mid_channels),
+        )
+        self.conv2c = nn.Sequential(
+            LightConv3x3(mid_channels, mid_channels),
+            LightConv3x3(mid_channels, mid_channels),
+            LightConv3x3(mid_channels, mid_channels),
+        )
+        self.conv2d = nn.Sequential(
+            LightConv3x3(mid_channels, mid_channels),
+            LightConv3x3(mid_channels, mid_channels),
+            LightConv3x3(mid_channels, mid_channels),
+            LightConv3x3(mid_channels, mid_channels),
+        )
+        self.gate = ChannelGate(mid_channels)
+        self.conv3 = Conv1x1Linear(mid_channels, out_channels)
+        self.downsample: Conv1x1Linear | None = None
+        if in_channels != out_channels:
+            self.downsample = Conv1x1Linear(in_channels, out_channels)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        identity = x
+        x1 = self.conv1(x)
+        x2a = self.conv2a(x1)
+        x2b = self.conv2b(x1)
+        x2c = self.conv2c(x1)
+        x2d = self.conv2d(x1)
+        x2 = self.gate(x2a) + self.gate(x2b) + self.gate(x2c) + self.gate(x2d)
+        x3 = self.conv3(x2)
+        if self.downsample is not None:
+            identity = self.downsample(identity)
+        out = x3 + identity
+        return F.relu(out)
+
+
+class OSNet(nn.Module):
+    """Omni-Scale Network for Person Re-Identification.
+
+    Reference:
+        - Zhou et al. Omni-Scale Feature Learning for Person Re-Identification.
+          ICCV, 2019.
+        - Zhou et al. Learning Generalisable Omni-Scale Representations
+          for Person Re-Identification. TPAMI, 2021.
+    """
+
+    def __init__(
+        self,
+        num_classes: int,
+        blocks: list[type[OSBlock]],
+        layers: list[int],
+        channels: list[int],
+        feature_dim: int = 512,
+    ):
+        super().__init__()
+        num_blocks = len(blocks)
+        assert num_blocks == len(layers)
+        assert num_blocks == len(channels) - 1
+        self.feature_dim = feature_dim
+
+        # Convolutional backbone
+        self.conv1 = ConvLayer(3, channels[0], 7, stride=2, padding=3)
+        self.maxpool = nn.MaxPool2d(3, stride=2, padding=1)
+        self.conv2 = self._make_layer(blocks[0], layers[0], channels[0], channels[1], True)
+        self.conv3 = self._make_layer(blocks[1], layers[1], channels[1], channels[2], True)
+        self.conv4 = self._make_layer(blocks[2], layers[2], channels[2], channels[3], False)
+        self.conv5 = Conv1x1(channels[3], channels[3])
+        self.global_avgpool = nn.AdaptiveAvgPool2d(1)
+
+        # Fully connected layer for feature extraction
+        self.fc = self._construct_fc_layer(self.feature_dim, channels[3])
+
+        # Identity classification layer (used during training only)
+        self.classifier = nn.Linear(self.feature_dim, num_classes)
+
+        self._init_params()
+
+    def _make_layer(
+        self,
+        block: type[OSBlock],
+        layer: int,
+        in_channels: int,
+        out_channels: int,
+        reduce_spatial_size: bool,
+    ) -> nn.Sequential:
+        layers: list[nn.Module] = []
+        layers.append(block(in_channels, out_channels))
+        for _ in range(1, layer):
+            layers.append(block(out_channels, out_channels))
+
+        if reduce_spatial_size:
+            layers.append(
+                nn.Sequential(Conv1x1(out_channels, out_channels), nn.AvgPool2d(2, stride=2))
+            )
+
+        return nn.Sequential(*layers)
+
+    def _construct_fc_layer(self, fc_dims: int, input_dim: int) -> nn.Sequential:
+        layers: list[nn.Module] = [
+            nn.Linear(input_dim, fc_dims),
+            nn.BatchNorm1d(fc_dims),
+            nn.ReLU(inplace=True),
+        ]
+        return nn.Sequential(*layers)
+
+    def _init_params(self) -> None:
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d | nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+    def featuremaps(self, x: torch.Tensor) -> torch.Tensor:
+        """Extract feature maps from backbone."""
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.conv4(x)
+        return self.conv5(x)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass returns embeddings (not logits) for inference."""
+        x = self.featuremaps(x)
+        v = self.global_avgpool(x)
+        v = v.view(v.size(0), -1)
+        if self.fc is not None:
+            v = self.fc(v)
+        # During inference, return the feature embedding
+        if not self.training:
+            return v
+        # During training, return classifier logits
+        return self.classifier(v)
+
+
+def create_osnet_x0_25(num_classes: int = 1) -> OSNet:
+    """Create OSNet-x0.25 architecture (very tiny, width x0.25).
+
+    Args:
+        num_classes: Number of output classes. Use 1 for feature extraction.
+
+    Returns:
+        OSNet model configured for x0.25 width.
+    """
+    return OSNet(
+        num_classes=num_classes,
+        blocks=[OSBlock, OSBlock, OSBlock],
+        layers=[2, 2, 2],
+        channels=[16, 64, 96, 128],
+        feature_dim=EMBEDDING_DIMENSION,
+    )
+
+
+# =============================================================================
+# Data Classes
+# =============================================================================
 
 
 @dataclass
@@ -63,6 +401,11 @@ class ReIDResult:
             "embedding": self.embedding,
             "embedding_hash": self.embedding_hash,
         }
+
+
+# =============================================================================
+# PersonReID Wrapper
+# =============================================================================
 
 
 class PersonReID:
@@ -105,7 +448,7 @@ class PersonReID:
         """Load the OSNet-x0.25 model into memory.
 
         Attempts to load using torchreid library first, then falls back to
-        direct weight loading if torchreid is not available.
+        direct weight loading with standalone OSNet architecture.
 
         Returns:
             Self for method chaining.
@@ -122,7 +465,7 @@ class PersonReID:
         try:
             self._load_with_torchreid()
         except ImportError:
-            logger.info("torchreid not available, attempting direct weight loading")
+            logger.info("torchreid not available, using standalone OSNet architecture")
             self._load_direct_weights()
 
         # Move to device
@@ -168,10 +511,10 @@ class PersonReID:
             logger.info("Using pretrained torchreid weights")
 
     def _load_direct_weights(self) -> None:
-        """Load model weights directly without torchreid.
+        """Load model weights directly using standalone OSNet architecture.
 
-        This is a fallback method when torchreid is not installed but
-        we have the weights file.
+        This method creates the OSNet-x0.25 architecture and loads weights
+        from the specified file without requiring torchreid.
         """
         if not self.model_path:
             raise ImportError(
@@ -179,36 +522,35 @@ class PersonReID:
                 "Install torchreid or provide a weights file path."
             )
 
-        # Load the state dict directly
-        # This assumes the weights are in the standard OSNet format
+        logger.info("Creating standalone OSNet-x0.25 architecture...")
+
+        # Create the model architecture
+        self.model = create_osnet_x0_25(num_classes=1)
+
+        # Load weights from file
+        logger.info(f"Loading weights from {self.model_path}")
         state_dict = torch.load(self.model_path, map_location="cpu", weights_only=True)
 
-        # Try to infer model architecture from state dict
-        # This is a simplified fallback - full implementation would
-        # include the OSNet architecture definition
-        logger.warning(
-            "Direct weight loading without torchreid is limited. "
-            "Consider installing torchreid for full functionality."
-        )
-        self.model = self._create_osnet_x0_25()
-        self.model.load_state_dict(state_dict)
+        # Handle potential key mismatches (e.g., 'module.' prefix from DataParallel)
+        if any(k.startswith("module.") for k in state_dict):
+            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 
-    def _create_osnet_x0_25(self) -> torch.nn.Module:
-        """Create OSNet-x0.25 architecture.
+        # Load weights with strict=False to handle classifier layer mismatch
+        # (pretrained model may have different num_classes)
+        missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
 
-        This is a simplified placeholder. In production, the full OSNet
-        architecture should be implemented or torchreid should be used.
+        if missing:
+            # Filter out classifier-related keys (expected to be missing)
+            missing_important = [k for k in missing if "classifier" not in k]
+            if missing_important:
+                logger.warning(f"Missing keys in state_dict: {missing_important}")
+            else:
+                logger.debug(f"Missing classifier keys (expected): {missing}")
 
-        Returns:
-            A torch Module that can be used for feature extraction.
+        if unexpected:
+            logger.debug(f"Unexpected keys in state_dict (ignored): {unexpected}")
 
-        Raises:
-            ImportError: Always raises, directing users to install torchreid.
-        """
-        raise ImportError(
-            "Direct OSNet architecture creation is not supported. "
-            "Please install torchreid: pip install torchreid"
-        )
+        logger.info("OSNet-x0.25 weights loaded successfully")
 
     def _preprocess(self, image: Image.Image | np.ndarray) -> torch.Tensor:
         """Preprocess image for model input.
