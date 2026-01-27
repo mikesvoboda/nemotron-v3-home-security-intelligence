@@ -1,0 +1,14 @@
+id: front_porch
+setting: 'suburban home front porch'
+camera_position: 'elevated doorbell camera'
+camera_notes: 'Fixed camera position, wide-angle lens with slight barrel distortion'
+lens_effects: 'fisheye edge distortion'
+zones:
+  - entry_point
+features:
+  - front_door
+  - doorbell
+  - porch_light
+  - welcome_mat
+  - potted_plants
+typical_distance_m: 2-5

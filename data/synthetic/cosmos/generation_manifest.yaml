@@ -1,0 +1,964 @@
+version: '2.0'
+description: 'NVIDIA Cosmos video generation manifest for home security synthetic data'
+total_videos: 88
+created_at: '2026-01-27'
+cosmos_version: 'Predict2.5'
+
+# Optimized for H200 (141GB VRAM) with maximum quality settings
+defaults:
+  model: 'Cosmos-Predict2.5-14B'
+  model_path: 'checkpoints/Cosmos-Predict2.5-14B'
+  resolution: 720 # 1280x704
+  fps: 16
+  aspect_ratio: '16:9'
+  guidance: 7.0
+  negative_prompt: 'blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts'
+
+  # H200 optimizations
+  natten: true # Sparse attention - 2.5x speedup on Hopper
+  use_cuda_graphs: true # CUDA acceleration
+
+  presentation:
+    duration_per_clip: 5 # seconds (native Cosmos output)
+    # For 15-20s videos, generate 3-4 clips and concatenate
+
+  training:
+    duration_total: 30 # seconds
+    num_iterations: 6 # 6 × 5s = 30s using sliding window
+    autoregressive_mode: 'sliding_window'
+
+# =============================================================================
+# PRESENTATION VIDEOS (48 total)
+# =============================================================================
+
+presentation:
+  # ---------------------------------------------------------------------------
+  # Threat Escalation Scenario (12 videos) - Night
+  # Shows risk scoring intelligence through progressive escalation
+  # ---------------------------------------------------------------------------
+  threat_escalation:
+    - id: P01
+      variation: delivery_baseline
+      description: 'Normal delivery for LOW risk baseline contrast'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_normal
+      action: deliver_package
+      expected_risk: low
+
+    - id: P02
+      variation: lingering_mild
+      description: 'Person pauses too long at door'
+      duration_seconds: 18
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: loiter
+      expected_risk: medium
+
+    - id: P03
+      variation: window_peering
+      description: 'Person looks through windows'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: test_handle
+      action_override: 'They approach the door and lean close to peer through the side window, cupping hands around eyes'
+      expected_risk: high
+
+    - id: P04
+      variation: handle_test
+      description: 'Person tests door handle'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: test_handle
+      expected_risk: high
+
+    - id: P05
+      variation: circling_house
+      description: 'Person walks around perimeter'
+      duration_seconds: 20
+      scene: side_yard
+      environment: night_clear
+      subject: person_suspicious
+      action: circle_house
+      expected_risk: high
+
+    - id: P06
+      variation: return_visit
+      description: 'Same person returns after leaving'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They return to the porch after briefly leaving, looking around more cautiously'
+      expected_risk: high
+
+    - id: P07
+      variation: crouching
+      description: 'Person crouches near entry'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: loiter
+      action_override: 'They crouch down near the door, staying low and out of direct light'
+      expected_risk: critical
+
+    - id: P08
+      variation: tool_visible
+      description: 'Person carrying suspicious object'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_intruder
+      action: approach_door
+      subject_override: 'A person in dark clothing carrying what appears to be a pry bar or tool'
+      expected_risk: critical
+
+    - id: P09
+      variation: forced_entry_attempt
+      description: 'Person attempts to force door'
+      duration_seconds: 18
+      scene: front_porch
+      environment: night_clear
+      subject: person_intruder
+      action: force_entry
+      expected_risk: critical
+
+    - id: P10
+      variation: hooded_approach
+      description: 'Hood up, face completely hidden'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: approach_door
+      subject_override: 'A person in dark hoodie with hood pulled up completely obscuring face, head down'
+      expected_risk: high
+
+    - id: P11
+      variation: multiple_checks
+      description: 'Checks door, windows, garage'
+      duration_seconds: 20
+      scene: driveway
+      environment: night_clear
+      subject: person_suspicious
+      action: circle_house
+      action_override: 'They methodically check the front door, peer in windows, then walk to check the garage door'
+      expected_risk: critical
+
+    - id: P12
+      variation: flee_on_light
+      description: 'Runs when motion light activates'
+      duration_seconds: 15
+      scene: front_porch
+      environment: night_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They approach the door slowly, then suddenly turn and run when the porch light activates'
+      expected_risk: high
+
+  # ---------------------------------------------------------------------------
+  # Cross-Camera Tracking Scenario (12 videos) - Dusk
+  # Demonstrates ReID and correlation across cameras
+  # ---------------------------------------------------------------------------
+  cross_camera:
+    - id: P13
+      variation: driveway_to_door
+      description: 'Person walks from driveway to front door'
+      duration_seconds: 20
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They walk the length of the driveway toward the front door, visible across the entire approach'
+      expected_risk: medium
+
+    - id: P14
+      variation: door_to_side
+      description: 'Person moves from door to side yard'
+      duration_seconds: 18
+      scene: front_porch
+      environment: dusk_clear
+      subject: person_suspicious
+      action: circle_house
+      action_override: 'They leave the front door area and walk along the house toward the side yard'
+      expected_risk: medium
+
+    - id: P15
+      variation: full_perimeter
+      description: 'Walks entire house perimeter'
+      duration_seconds: 20
+      scene: side_yard
+      environment: dusk_clear
+      subject: person_suspicious
+      action: circle_house
+      expected_risk: high
+
+    - id: P16
+      variation: vehicle_exit_approach
+      description: 'Exits car and approaches house'
+      duration_seconds: 20
+      scene: driveway
+      environment: dusk_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'Vehicle pulls into driveway, person exits and walks toward the front door'
+      expected_risk: medium
+
+    - id: P17
+      variation: backyard_entry
+      description: 'Enters property via back gate'
+      duration_seconds: 18
+      scene: backyard
+      environment: dusk_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They enter through the back gate and walk across the backyard toward the house'
+      expected_risk: high
+
+    - id: P18
+      variation: garage_check
+      description: 'Checks garage then moves on'
+      duration_seconds: 15
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: loiter
+      action_override: 'They pause at the garage door, try the handle, then continue around the house'
+      expected_risk: high
+
+    - id: P19
+      variation: pace_change
+      description: 'Walking changes to running'
+      duration_seconds: 18
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They start walking normally then suddenly break into a run toward the house'
+      expected_risk: high
+
+    - id: P20
+      variation: disappear_reappear
+      description: 'Goes behind obstacle, reappears'
+      duration_seconds: 20
+      scene: side_yard
+      environment: dusk_clear
+      subject: person_suspicious
+      action: circle_house
+      action_override: 'They walk behind a large bush, disappearing briefly, then reappear continuing along the fence'
+      expected_risk: medium
+
+    - id: P21
+      variation: two_people
+      description: 'Two subjects take different paths'
+      duration_seconds: 20
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: approach_door
+      subject_override: 'Two people in dark clothing'
+      action_override: 'They split up at the driveway, one going to the front door, another around the side'
+      expected_risk: critical
+
+    - id: P22
+      variation: loiter_multiple_zones
+      description: 'Stops in multiple areas'
+      duration_seconds: 20
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: loiter
+      action_override: 'They pause in the driveway, look around, walk to the lawn and stop again, then continue'
+      expected_risk: medium
+
+    - id: P23
+      variation: quick_traverse
+      description: 'Rapid movement through zones'
+      duration_seconds: 15
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They move quickly across the driveway and lawn, almost jogging'
+      expected_risk: medium
+
+    - id: P24
+      variation: slow_deliberate
+      description: 'Very slow methodical movement'
+      duration_seconds: 20
+      scene: driveway
+      environment: dusk_clear
+      subject: person_suspicious
+      action: approach_door
+      action_override: 'They walk extremely slowly and deliberately, pausing frequently to look around'
+      expected_risk: high
+
+  # ---------------------------------------------------------------------------
+  # Household Recognition Scenario (12 videos) - Day
+  # Contrasts known vs unknown individuals
+  # ---------------------------------------------------------------------------
+  household_recognition:
+    - id: P25
+      variation: resident_arrives
+      description: 'Known resident normal entry'
+      duration_seconds: 15
+      scene: front_porch
+      environment: day_clear
+      subject: person_resident
+      action: normal_entry
+      expected_risk: low
+
+    - id: P26
+      variation: resident_with_groceries
+      description: 'Resident carrying shopping bags'
+      duration_seconds: 18
+      scene: front_porch
+      environment: day_clear
+      subject: person_resident
+      action: normal_entry
+      subject_override: 'A familiar homeowner carrying multiple grocery bags'
+      expected_risk: low
+
+    - id: P27
+      variation: family_member
+      description: 'Different known household member'
+      duration_seconds: 15
+      scene: front_porch
+      environment: day_clear
+      subject: person_resident
+      action: normal_entry
+      subject_override: 'A recognized family member, teenager with backpack'
+      expected_risk: low
+
+    - id: P28
+      variation: unknown_same_behavior
+      description: 'Unknown person same confident entry'
+      duration_seconds: 15
+      scene: front_porch
+      environment: day_clear
+      subject: person_suspicious
+      action: normal_entry
+      subject_override: 'An unfamiliar person in casual clothing'
+      action_override: 'They walk confidently to the door and try the handle as if they expect it to be unlocked'
+      expected_risk: medium
+
+    - id: P29
+      variation: service_worker_expected
+      description: 'Scheduled service worker arrives'
+      duration_seconds: 18
+      scene: front_porch
+      environment: day_clear
+      subject: person_normal
+      action: approach_door
+      subject_override: 'A service worker in branded uniform carrying a clipboard'
+      expected_risk: low
+
+    - id: P30
+      variation: service_worker_unexpected
+      description: 'Unscheduled worker arrives'
+      duration_seconds: 18
+      scene: front_porch
+      environment: day_clear
+      subject: person_normal
+      action: approach_door
+      subject_override: 'A person claiming to be a utility worker in generic work clothes'
+      expected_risk: medium
+
+    - id: P31
+      variation: known_vehicle
+      description: 'Recognized family car arrives'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_known
+      action: exit_vehicle
+      expected_risk: low
+
+    - id: P32
+      variation: unknown_vehicle
+      description: 'Unrecognized car arrives'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      expected_risk: medium
+
+    - id: P33
+      variation: resident_unusual_time
+      description: 'Known person at unexpected hour'
+      duration_seconds: 15
+      scene: front_porch
+      environment: day_clear
+      subject: person_resident
+      action: normal_entry
+      action_override: 'The familiar resident arrives home at an unusual mid-morning time, looking rushed'
+      expected_risk: low
+
+    - id: P34
+      variation: visitor_with_resident
+      description: 'Guest arrives with known resident'
+      duration_seconds: 18
+      scene: front_porch
+      environment: day_clear
+      subject: person_resident
+      action: normal_entry
+      subject_override: 'A known resident accompanied by an unfamiliar guest'
+      action_override: 'They walk together to the door, resident unlocks and both enter'
+      expected_risk: low
+
+    - id: P35
+      variation: child_playing
+      description: 'Known child in yard'
+      duration_seconds: 15
+      scene: backyard
+      environment: day_clear
+      subject: person_resident
+      action: loiter
+      subject_override: 'A recognized child from the household'
+      action_override: 'The child plays in the backyard, running around and playing with toys'
+      expected_risk: low
+
+    - id: P36
+      variation: unknown_child
+      description: 'Unknown child for contrast'
+      duration_seconds: 15
+      scene: backyard
+      environment: day_clear
+      subject: person_suspicious
+      action: loiter
+      subject_override: 'An unfamiliar child'
+      action_override: 'An unknown child wanders into the backyard looking around curiously'
+      expected_risk: medium
+
+  # ---------------------------------------------------------------------------
+  # Vehicle + Person Composite Scenario (12 videos) - Day
+  # Shows full enrichment pipeline
+  # ---------------------------------------------------------------------------
+  vehicle_person:
+    - id: P37
+      variation: sedan_approach
+      description: 'Sedan parks, person exits and approaches'
+      duration_seconds: 20
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      subject_override: 'A dark sedan with visible license plate'
+      action_override: 'The sedan pulls into the driveway, parks, driver exits and walks toward the front door'
+      expected_risk: medium
+
+    - id: P38
+      variation: van_delivery
+      description: 'Delivery van, driver exits with package'
+      duration_seconds: 18
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_known
+      action: exit_vehicle
+      subject_override: 'A branded delivery van'
+      action_override: 'The van stops, driver exits with a package and walks briskly to the door'
+      expected_risk: low
+
+    - id: P39
+      variation: truck_unknown
+      description: 'Unknown pickup truck arrives'
+      duration_seconds: 20
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      subject_override: 'An unfamiliar pickup truck'
+      action_override: 'The truck parks, a person in work clothes exits and looks around the property'
+      expected_risk: medium
+
+    - id: P40
+      variation: multiple_exit
+      description: 'Two people exit same vehicle'
+      duration_seconds: 20
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'The car parks, both driver and passenger exit and walk toward the house together'
+      expected_risk: medium
+
+    - id: P41
+      variation: plate_visible_front
+      description: 'Clear front plate capture'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'The vehicle approaches head-on, front license plate clearly visible, then turns to park'
+      expected_risk: medium
+
+    - id: P42
+      variation: plate_visible_rear
+      description: 'Clear rear plate as car leaves'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'The vehicle backs out of the driveway, rear license plate clearly visible to camera'
+      expected_risk: medium
+
+    - id: P43
+      variation: quick_dropoff
+      description: 'Brief stop, person exits quickly'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'The car barely stops before passenger jumps out and runs to the door'
+      expected_risk: medium
+
+    - id: P44
+      variation: idling_vehicle
+      description: 'Car idles, no one exits'
+      duration_seconds: 20
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: loiter
+      subject_override: 'A dark sedan with tinted windows'
+      action_override: 'The vehicle pulls up and idles in the driveway, no one exits, just sits there'
+      expected_risk: high
+
+    - id: P45
+      variation: reverse_in
+      description: 'Vehicle backs into driveway'
+      duration_seconds: 18
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'The vehicle reverses into the driveway for quick exit positioning, then driver exits'
+      expected_risk: medium
+
+    - id: P46
+      variation: motorcycle
+      description: 'Motorcycle rider arrives'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      subject_override: 'A motorcycle with helmeted rider'
+      action_override: 'Motorcycle pulls into driveway, rider dismounts, removes helmet revealing face'
+      expected_risk: medium
+
+    - id: P47
+      variation: bicycle_rider
+      description: 'Cyclist approaches property'
+      duration_seconds: 15
+      scene: driveway
+      environment: day_clear
+      subject: person_normal
+      action: approach_door
+      subject_override: 'A person on a bicycle'
+      action_override: 'Cyclist rides up driveway, dismounts, leans bike against house, walks to door'
+      expected_risk: low
+
+    - id: P48
+      variation: vehicle_at_night
+      description: 'Nighttime vehicle arrival'
+      duration_seconds: 18
+      scene: driveway
+      environment: night_clear
+      subject: vehicle_unknown
+      action: exit_vehicle
+      action_override: 'Headlights illuminate driveway, car parks, interior light shows occupant exiting'
+      expected_risk: high
+
+# =============================================================================
+# TRAINING VIDEOS (40 total)
+# =============================================================================
+
+training:
+  # ---------------------------------------------------------------------------
+  # Threat Patterns (10 videos) - Exercise threat detection models
+  # ---------------------------------------------------------------------------
+  threat_patterns:
+    - id: T01
+      variation: weapon_handgun
+      description: 'Visible handgun for threat detection'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [threat_detector, pose]
+      prompt_override: 'Security camera footage of suburban home front porch at night. A person approaches the door, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. IR-tinted security footage quality.'
+
+    - id: T02
+      variation: weapon_knife
+      description: 'Visible knife for threat detection'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [threat_detector, pose]
+      prompt_override: 'Security camera footage showing a person at a front door holding a large knife. The blade glints in the porch light. Threatening posture, IR security camera quality.'
+
+    - id: T03
+      variation: weapon_bat
+      description: 'Baseball bat as weapon'
+      duration_seconds: 30
+      scene: side_yard
+      environment: night_clear
+      models_exercised: [threat_detector, pose]
+      prompt_override: 'Security camera footage of side yard at night. A person carrying a baseball bat walks along the fence, tapping it against their palm threateningly. Security camera quality with IR tint.'
+
+    - id: T04
+      variation: aggressive_stance
+      description: 'Aggressive body posture without weapon'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [pose, action]
+      prompt_override: 'Security camera footage of front porch. A person stands with aggressive posture - fists clenched, shoulders squared, leaning forward menacingly. Fixed security camera, night IR footage.'
+
+    - id: T05
+      variation: kicking_door
+      description: 'Person kicking at door'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [pose, action, threat_detector]
+      prompt_override: 'Security camera footage showing person repeatedly kicking at a front door, attempting to break it down. Violent forceful kicks, aggressive body language. Night IR security footage.'
+
+    - id: T06
+      variation: window_break
+      description: 'Breaking window'
+      duration_seconds: 30
+      scene: side_yard
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Security camera footage of person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Night security camera footage.'
+
+    - id: T07
+      variation: pry_bar_usage
+      description: 'Using pry bar on door'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [threat_detector]
+      prompt_override: 'Security camera footage showing person using a pry bar to attempt forced entry on front door. Metal tool visible, leveraging against door frame. IR night footage.'
+
+    - id: T08
+      variation: masked_intruder
+      description: 'Ski mask and gloves'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [face, clothing, threat_detector]
+      prompt_override: 'Security camera footage of person wearing ski mask and dark gloves at front door. Face completely concealed, tactical clothing. Night IR security footage.'
+
+    - id: T09
+      variation: multiple_intruders
+      description: 'Group of threatening individuals'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [reid, threat_detector, pose]
+      prompt_override: 'Security camera footage showing three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Night IR footage.'
+
+    - id: T10
+      variation: vehicle_ramming
+      description: 'Vehicle as threat'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [vehicle, threat_detector]
+      prompt_override: 'Security camera footage of vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. Night footage with headlights.'
+
+  # ---------------------------------------------------------------------------
+  # Tracking Sequences (8 videos) - Exercise ReID models
+  # ---------------------------------------------------------------------------
+  tracking_sequences:
+    - id: T11
+      variation: same_person_3_angles
+      description: 'Same person seen from multiple angles'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, pose]
+      prompt_override: 'Security camera footage showing same person walking through property. First seen from front, then side profile, then from behind. Consistent clothing and gait throughout. Daytime footage.'
+
+    - id: T12
+      variation: person_occlusion
+      description: 'Person partially hidden by objects'
+      duration_seconds: 30
+      scene: side_yard
+      environment: day_clear
+      models_exercised: [reid, depth]
+      prompt_override: 'Security camera footage of person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation. Daytime security footage.'
+
+    - id: T13
+      variation: person_appearance_change
+      description: 'Same person removes jacket'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [reid, clothing]
+      prompt_override: 'Security camera footage showing person who removes their jacket while walking. First wearing blue jacket, then carrying it, revealing different shirt underneath. Daytime footage.'
+
+    - id: T14
+      variation: vehicle_track_3_angles
+      description: 'Same vehicle from multiple views'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [vehicle, plate_ocr]
+      prompt_override: 'Security camera footage tracking same silver SUV. First approaching from street, then parked in driveway showing side, then backing out showing rear plate. Daytime footage.'
+
+    - id: T15
+      variation: fast_moving_person
+      description: 'Running person for motion tracking'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, action]
+      prompt_override: 'Security camera footage of person running across property. Fast movement with motion blur, changing direction once. Tests tracking at speed. Daytime footage.'
+
+    - id: T16
+      variation: group_tracking
+      description: 'Multiple people to track individually'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, demographics]
+      prompt_override: 'Security camera footage showing group of four distinct people walking together then separating. Different heights, clothing, and genders. Daytime footage.'
+
+    - id: T17
+      variation: enter_exit_frame
+      description: 'Person enters and exits multiple times'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [reid]
+      prompt_override: 'Security camera footage where same person enters frame, walks to door, leaves frame, then returns again. Tests re-identification after absence. Daytime footage.'
+
+    - id: T18
+      variation: long_distance_approach
+      description: 'Person approaching from far to near'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, depth]
+      prompt_override: 'Security camera footage of person starting far at street edge, walking steadily closer until near the camera. Tests tracking through scale changes. Daytime footage.'
+
+  # ---------------------------------------------------------------------------
+  # Enrichment Stress Tests (12 videos) - Exercise all Model Zoo models
+  # ---------------------------------------------------------------------------
+  enrichment_stress:
+    - id: T19
+      variation: clear_face_multiple
+      description: 'Multiple clear faces for demographics'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [face, demographics]
+      prompt_override: 'Security camera footage showing three people at front door. All faces clearly visible - young woman, middle-aged man, elderly person. Good lighting, clear features. Daytime footage.'
+
+    - id: T20
+      variation: partial_face
+      description: 'Partially visible face challenges'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_overcast
+      models_exercised: [face]
+      prompt_override: 'Security camera footage of person at door with face partially visible. Profile view, hair covering part of face, looking down intermittently. Challenging face detection. Overcast daylight.'
+
+    - id: T21
+      variation: varied_clothing_types
+      description: 'Different clothing for FashionCLIP'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [clothing]
+      prompt_override: 'Security camera footage showing sequence of different people: one in business suit, one in athletic wear, one in work uniform, one in casual hoodie and jeans. Daytime footage.'
+
+    - id: T22
+      variation: uniform_recognition
+      description: 'Various branded uniforms'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [clothing, ocr]
+      prompt_override: 'Security camera footage showing delivery workers in different uniforms - Amazon, FedEx, UPS logos visible on clothing. Clear uniform details. Daytime footage.'
+
+    - id: T23
+      variation: vehicle_types_parade
+      description: 'Multiple vehicle types'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [vehicle]
+      prompt_override: 'Security camera footage showing different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Daytime footage.'
+
+    - id: T24
+      variation: license_plates_varied
+      description: 'Multiple plate formats'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [plate_ocr]
+      prompt_override: 'Security camera footage showing vehicles with clearly visible license plates. Different states, colors, formats. Front and rear plates shown. Daytime footage.'
+
+    - id: T25
+      variation: dog_in_yard
+      description: 'Dog for pet classifier'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [pet]
+      prompt_override: 'Security camera footage of large dog running and playing in backyard. German Shepherd, clearly visible, active movement. Daytime footage.'
+
+    - id: T26
+      variation: cat_on_porch
+      description: 'Cat for pet classifier'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [pet]
+      prompt_override: 'Security camera footage of cat on front porch. Orange tabby walking, sitting, grooming. Clear view of the cat throughout. Daytime footage.'
+
+    - id: T27
+      variation: person_with_pet
+      description: 'Person walking dog'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [pet, reid]
+      prompt_override: 'Security camera footage of person walking dog on leash up the driveway. Both person and dog clearly visible. Golden retriever, casual dressed owner. Daytime footage.'
+
+    - id: T28
+      variation: pose_variety
+      description: 'Various body poses'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [pose]
+      prompt_override: 'Security camera footage showing person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting down. Daytime footage.'
+
+    - id: T29
+      variation: action_variety
+      description: 'Various actions for recognition'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [action]
+      prompt_override: 'Security camera footage showing person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. Daytime footage.'
+
+    - id: T30
+      variation: depth_near_far
+      description: 'Objects at various distances'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [depth]
+      prompt_override: 'Security camera footage with objects at varying distances: car far at street, person mid-distance, package close to camera. Tests depth perception. Daytime footage.'
+
+  # ---------------------------------------------------------------------------
+  # Edge Cases (10 videos) - Test under adverse conditions
+  # ---------------------------------------------------------------------------
+  edge_cases:
+    - id: T31
+      variation: night_ir_only
+      description: 'Pure IR night vision'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [all]
+      prompt_override: 'Security camera footage in pure infrared night vision mode. Person approaching door, everything in grayscale IR. No visible light, only IR illumination. Tests all models in IR.'
+
+    - id: T32
+      variation: heavy_rain
+      description: 'Rainy conditions'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_rain
+      models_exercised: [all]
+      prompt_override: 'Security camera footage during heavy rain at night. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porch light. Tests all models.'
+
+    - id: T33
+      variation: fog_low_visibility
+      description: 'Foggy conditions'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [all]
+      prompt_override: 'Security camera footage in dense fog. Person barely visible approaching through fog, silhouette becoming clearer as they get closer. Very low visibility conditions.'
+
+    - id: T34
+      variation: motion_blur_running
+      description: 'Fast motion causing blur'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, action]
+      prompt_override: 'Security camera footage with significant motion blur. Person running fast, blur on limbs and body. Tests detection and tracking with motion artifacts. Daytime footage.'
+
+    - id: T35
+      variation: partial_occlusion_tree
+      description: 'Tree branches blocking view'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [all]
+      prompt_override: 'Security camera footage partially blocked by tree branches. Person visible through gaps in foliage, intermittent clear views. Tests detection through occlusion. Daytime.'
+
+    - id: T36
+      variation: backlit_silhouette
+      description: 'Strong backlighting'
+      duration_seconds: 30
+      scene: front_porch
+      environment: dusk_clear
+      models_exercised: [face, pose]
+      prompt_override: 'Security camera footage with strong backlighting at sunset. Person appears as dark silhouette against bright sky. Face and details obscured by contrast. Dusk footage.'
+
+    - id: T37
+      variation: multiple_light_sources
+      description: 'Complex lighting'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [all]
+      prompt_override: 'Security camera footage with multiple light sources at night. Porch light, car headlights, streetlamp all creating overlapping shadows. Complex lighting conditions.'
+
+    - id: T38
+      variation: lens_flare_glare
+      description: 'Lens artifacts'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [all]
+      prompt_override: 'Security camera footage with sun causing lens flare and glare. Bright spots, lens artifacts partially obscuring view. Person walking through areas of flare. Daytime.'
+
+    - id: T39
+      variation: snow_ground_cover
+      description: 'Snowy conditions'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [all]
+      prompt_override: 'Security camera footage in winter with snow on ground. Person in dark clothing highly visible against white snow. Overcast lighting, snow reflecting light. Winter daytime.'
+
+    - id: T40
+      variation: dusk_transition
+      description: 'Changing light conditions'
+      duration_seconds: 30
+      scene: driveway
+      environment: dusk_clear
+      models_exercised: [all]
+      prompt_override: 'Security camera footage during dusk transition. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting change. Dusk footage.'

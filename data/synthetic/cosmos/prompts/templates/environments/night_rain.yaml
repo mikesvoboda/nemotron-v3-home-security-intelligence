@@ -1,0 +1,17 @@
+id: night_rain
+time_of_day: 'night'
+lighting_description: 'Porch light reflecting off wet surfaces, rain visible in light beams'
+quality_notes: 'IR-tinted footage with rain streaks, reflections on wet concrete, reduced visibility'
+weather: rain
+visibility: poor
+sky: overcast_dark
+shadows: diffused
+ambient_light: minimal
+artificial_light:
+  - porch_light
+  - street_lamp_halo
+camera_effects:
+  - ir_tint
+  - rain_streaks
+  - wet_reflections
+  - reduced_sharpness

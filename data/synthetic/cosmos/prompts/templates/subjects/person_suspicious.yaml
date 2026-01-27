@@ -1,0 +1,17 @@
+id: person_suspicious
+type: person
+description: 'A person in dark hoodie with hood pulled up'
+appearance: 'face obscured by hood, average build, moving with deliberate slow pace'
+clothing:
+  type: hoodie
+  color: dark
+  hood_up: true
+face_visible: false
+build: average
+gender: ambiguous
+age_range: '25-45'
+carrying_items: false
+risk_indicators:
+  - face_obscured
+  - dark_clothing
+  - deliberate_movement

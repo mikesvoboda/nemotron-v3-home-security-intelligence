@@ -1,0 +1,17 @@
+id: loiter
+sequence_description: 'They stand near the entrance, shifting weight between feet, occasionally looking around and at their phone'
+additional_details: 'Extended presence without clear purpose, periodic surveillance of surroundings'
+key_actions:
+  - timestamp: 0
+    action: stops_near_door
+  - timestamp: 5
+    action: looks_at_phone
+  - timestamp: 10
+    action: glances_around
+  - timestamp: 15
+    action: shifts_weight
+  - timestamp: 20
+    action: continues_waiting
+duration_range: [20, 30]
+motion_type: stationary_fidgeting
+suspicion_level: medium

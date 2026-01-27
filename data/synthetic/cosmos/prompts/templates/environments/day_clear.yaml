@@ -1,0 +1,13 @@
+id: day_clear
+time_of_day: 'midday'
+lighting_description: 'Bright natural daylight with clear sky, well-lit scene with defined shadows'
+quality_notes: 'Clear high-quality footage typical of daytime security camera recording'
+weather: clear
+visibility: excellent
+sky: blue_clear
+shadows: defined
+ambient_light: full_sunlight
+artificial_light: []
+camera_effects:
+  - natural_color
+  - sharp_detail

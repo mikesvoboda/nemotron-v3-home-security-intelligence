@@ -1,0 +1,19 @@
+id: exit_vehicle
+sequence_description: 'The vehicle pulls into the driveway and parks, driver door opens, and a person steps out'
+additional_details: 'Vehicle comes to complete stop, slight pause before door opens, person emerges and stands briefly'
+key_actions:
+  - timestamp: 0
+    action: vehicle_enters_frame
+  - timestamp: 5
+    action: vehicle_slows
+  - timestamp: 8
+    action: vehicle_parks
+  - timestamp: 12
+    action: door_opens
+  - timestamp: 14
+    action: person_exits
+  - timestamp: 17
+    action: person_stands
+duration_range: [15, 20]
+motion_type: vehicle_then_person
+suspicion_level: varies

@@ -1,0 +1,10 @@
+id: vehicle_known
+type: vehicle
+description: 'A familiar family SUV'
+appearance: 'recognizable license plate, pulls smoothly into usual parking spot'
+vehicle_type: suv
+color: silver
+license_plate_visible: true
+windows: clear
+known_household: true
+risk_indicators: []

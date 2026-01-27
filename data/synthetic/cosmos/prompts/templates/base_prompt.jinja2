@@ -1,0 +1,21 @@
+{#-
+  Cosmos Video Generation Base Prompt Template
+
+  Target: ~120 words for optimal Cosmos output quality
+
+  Components:
+    - scene: Camera position, setting, visual characteristics
+    - environment: Time of day, lighting, weather, quality notes
+    - subject: Person/vehicle description and appearance
+    - action: What happens in the video
+    - generation: Duration and technical specs
+-#}
+Security camera footage from {{ scene.camera_position }}, {{ scene.setting }}
+{%- if environment.time_of_day %} at {{ environment.time_of_day }}{% endif %}. {{ environment.lighting_description }}.
+
+{{ subject.description }}
+{%- if subject.appearance %}, {{ subject.appearance }}{% endif %}. {{ action.sequence_description }}.
+{%- if action.additional_details %} {{ action.additional_details }}.{% endif %}
+
+{{ scene.camera_notes }}
+{%- if scene.lens_effects %}, {{ scene.lens_effects }}{% endif %}, {{ environment.quality_notes }}. Realistic human motion, {{ generation.duration_seconds }}-second duration.
