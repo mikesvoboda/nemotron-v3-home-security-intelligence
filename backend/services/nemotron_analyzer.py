@@ -31,8 +31,10 @@ __all__ = [
     "NEMOTRON_CONNECT_TIMEOUT",
     "NEMOTRON_HEALTH_TIMEOUT",
     "NEMOTRON_READ_TIMEOUT",
+    "RISK_ANALYSIS_JSON_SCHEMA",
     "AnalyzerUnavailableError",
     "NemotronAnalyzer",
+    "extract_reasoning_and_response",
 ]
 
 import asyncio
@@ -47,7 +49,11 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from backend.api.middleware.correlation import get_correlation_headers
-from backend.api.schemas.llm_response import LLMRawResponse, LLMRiskResponse
+from backend.api.schemas.llm_response import (
+    RISK_ANALYSIS_JSON_SCHEMA,
+    LLMRawResponse,
+    LLMRiskResponse,
+)
 from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.config import get_settings
 from backend.core.constants import CacheInvalidationReason
@@ -129,9 +135,75 @@ from backend.services.webhook_service import get_webhook_service
 # Pre-compiled regex patterns for LLM response parsing
 # These are compiled once at module load time for better performance
 _THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+_THINK_EXTRACT_PATTERN = re.compile(r"<think>(.*?)</think>", re.DOTALL)
 _JSON_PATTERN = re.compile(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", re.DOTALL)
 
 logger = get_logger(__name__)
+
+
+def extract_reasoning_and_response(text: str) -> tuple[str, str]:
+    """Extract chain-of-thought reasoning and final JSON response from LLM output.
+
+    Nemotron models with 'detailed thinking on' enabled output reasoning in
+    <think>...</think> tags before the JSON response. This function separates
+    the reasoning from the response for structured storage and analysis.
+
+    Args:
+        text: Raw LLM completion text that may contain <think>...</think> blocks
+            followed by JSON response.
+
+    Returns:
+        A tuple of (reasoning, json_response) where:
+        - reasoning: The content extracted from <think>...</think> tags,
+            or empty string if no think block is present
+        - json_response: The remaining text after removing think blocks,
+            which should contain the JSON response
+
+    Examples:
+        >>> text = "<think>Analyzing the scene...</think>{\"risk_score\": 25}"
+        >>> reasoning, response = extract_reasoning_and_response(text)
+        >>> reasoning
+        'Analyzing the scene...'
+        >>> response
+        '{"risk_score": 25}'
+
+        >>> # Text without think blocks
+        >>> text = '{"risk_score": 25, "risk_level": "low"}'
+        >>> reasoning, response = extract_reasoning_and_response(text)
+        >>> reasoning
+        ''
+        >>> response
+        '{"risk_score": 25, "risk_level": "low"}'
+
+        >>> # Handles malformed/incomplete tags gracefully
+        >>> text = "<think>Incomplete reasoning"
+        >>> reasoning, response = extract_reasoning_and_response(text)
+        >>> reasoning
+        ''  # No closing tag, so no reasoning extracted
+        >>> response
+        '<think>Incomplete reasoning'
+
+    Note:
+        This function is designed to work with Nemotron's chain-of-thought
+        reasoning feature (NEM-3727). The reasoning content can be stored
+        separately for debugging, auditing, and model improvement.
+    """
+    # Try to extract content from <think>...</think> blocks
+    think_match = _THINK_EXTRACT_PATTERN.search(text)
+
+    if think_match:
+        # Extract reasoning content (strip whitespace for cleaner output)
+        reasoning = think_match.group(1).strip()
+
+        # Remove all think blocks from text to get the response
+        # Uses the existing _THINK_PATTERN for consistency
+        json_response = _THINK_PATTERN.sub("", text).strip()
+
+        return reasoning, json_response
+
+    # No think block found - return empty reasoning and original text
+    return "", text.strip()
+
 
 # OpenTelemetry tracer for LLM inference instrumentation (NEM-1467)
 # Returns a no-op tracer if OTEL is not enabled
@@ -243,10 +315,150 @@ class NemotronAnalyzer:
         # A/B Rollout Manager support (NEM-3338)
         self._rollout_manager: Any | None = None  # ABRolloutManager when configured
 
+        # Structured Generation support (NEM-3726)
+        # NVIDIA NIM's guided_json parameter enforces valid JSON output
+        self._use_guided_json = settings.nemotron_use_guided_json
+        self._guided_json_fallback = settings.nemotron_guided_json_fallback
+        self._supports_guided_json: bool | None = None  # Cached capability check
+
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
-            f"timeout={settings.nemotron_read_timeout}s"
+            f"timeout={settings.nemotron_read_timeout}s, "
+            f"guided_json={self._use_guided_json}"
         )
+
+    # =========================================================================
+    # Structured Generation Support (NEM-3726)
+    # =========================================================================
+
+    async def _check_guided_json_support(self) -> bool:
+        """Check if the Nemotron endpoint supports guided_json parameter.
+
+        NVIDIA NIM endpoints support structured generation via the guided_json
+        parameter in the nvext namespace. This method probes the endpoint with
+        a minimal test request to detect support.
+
+        The result is cached after the first check to avoid repeated probes.
+
+        Returns:
+            True if endpoint supports guided_json, False otherwise
+        """
+        # Return cached result if available
+        if self._supports_guided_json is not None:
+            return self._supports_guided_json
+
+        # Try a minimal test request with guided_json
+        test_schema = {"type": "object", "properties": {"test": {"type": "string"}}}
+        result = False  # Default to not supported
+
+        try:
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
+                # Send a minimal completion request with guided_json
+                response = await client.post(
+                    f"{self._llm_url}/completion",
+                    headers=self._get_auth_headers(),
+                    json={
+                        "prompt": "Say hello",
+                        "max_tokens": 10,
+                        "temperature": 0.0,
+                        "nvext": {"guided_json": test_schema},
+                    },
+                )
+
+                # If we get a 2xx response, the endpoint likely supports guided_json
+                # Some endpoints may return 200 but ignore the parameter
+                if response.status_code < 300:
+                    self._supports_guided_json = True
+                    logger.info(
+                        "Nemotron endpoint supports guided_json structured generation",
+                        extra={"llm_url": self._llm_url},
+                    )
+                    result = True
+                # 4xx errors indicate the endpoint doesn't support guided_json
+                # (e.g., 422 Unprocessable Entity for unknown parameters)
+                elif 400 <= response.status_code < 500:
+                    self._supports_guided_json = False
+                    logger.info(
+                        "Nemotron endpoint does not support guided_json, using regex fallback",
+                        extra={"llm_url": self._llm_url, "status_code": response.status_code},
+                    )
+
+        except httpx.HTTPStatusError as e:
+            # 4xx status errors indicate unsupported parameter
+            if 400 <= e.response.status_code < 500:
+                self._supports_guided_json = False
+                logger.info(
+                    "Nemotron endpoint does not support guided_json (HTTP error), using regex fallback",
+                    extra={"llm_url": self._llm_url, "status_code": e.response.status_code},
+                )
+            else:
+                # 5xx errors are transient - don't cache, try again later
+                logger.warning(
+                    "Failed to check guided_json support (server error), will retry",
+                    extra={"llm_url": self._llm_url, "error": str(e)},
+                )
+
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            # Connection issues are transient - don't cache, try again later
+            logger.warning(
+                "Failed to check guided_json support (connection error), will retry",
+                extra={"llm_url": self._llm_url, "error": str(e)},
+            )
+
+        except Exception as e:
+            # Unexpected errors - don't cache, try again later
+            logger.warning(
+                "Failed to check guided_json support (unexpected error), will retry",
+                extra={"llm_url": self._llm_url, "error": str(e)},
+            )
+
+        return result
+
+    def _build_guided_json_extra_body(self) -> dict[str, Any]:
+        """Build the extra_body dict with guided_json schema for NVIDIA NIM.
+
+        Returns:
+            Dictionary with nvext.guided_json set to RISK_ANALYSIS_JSON_SCHEMA,
+            or empty dict if guided_json is disabled
+        """
+        if not self._use_guided_json:
+            return {}
+
+        return {"nvext": {"guided_json": RISK_ANALYSIS_JSON_SCHEMA}}
+
+    def is_guided_json_enabled(self) -> bool:
+        """Check if guided_json is enabled via configuration.
+
+        Returns:
+            True if guided_json is enabled in settings
+        """
+        return self._use_guided_json
+
+    def is_guided_json_fallback_enabled(self) -> bool:
+        """Check if fallback to regex parsing is enabled.
+
+        Returns:
+            True if fallback is enabled in settings
+        """
+        return self._guided_json_fallback
+
+    async def supports_guided_json(self) -> bool:
+        """Check if the endpoint supports guided_json.
+
+        Public method for checking guided_json support. Uses cached result
+        when available.
+
+        Returns:
+            True if endpoint supports guided_json, False otherwise
+        """
+        return await self._check_guided_json_support()
+
+    def reset_guided_json_support_cache(self) -> None:
+        """Reset the cached guided_json support check.
+
+        Useful for testing or when the endpoint configuration changes.
+        """
+        self._supports_guided_json = None
 
     # =========================================================================
     # A/B Testing Support (NEM-1667)
@@ -2775,7 +2987,7 @@ class NemotronAnalyzer:
 
         # Call llama.cpp completion endpoint with retry logic (NEM-1343)
         # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
-        payload = {
+        payload: dict[str, Any] = {
             "prompt": prompt,
             "temperature": 0.7,  # Slightly creative for detailed reasoning
             "top_p": 0.95,
@@ -2800,6 +3012,33 @@ class NemotronAnalyzer:
         explicit_timeout = settings.nemotron_read_timeout + settings.ai_connect_timeout
 
         async with inference_semaphore:
+            # Check if guided_json should be used (NEM-3726)
+            # NVIDIA NIM's structured generation ensures valid JSON output
+            # IMPORTANT: This check must be inside the semaphore to prevent
+            # concurrent HTTP requests during capability probing (NEM-1463)
+            use_guided_json_for_request = False
+            if self._use_guided_json:
+                # Check if endpoint supports guided_json (result is cached)
+                supports_guided = await self._check_guided_json_support()
+                if supports_guided:
+                    # Add guided_json to payload via nvext namespace
+                    guided_json_body = self._build_guided_json_extra_body()
+                    payload.update(guided_json_body)
+                    use_guided_json_for_request = True
+                    logger.debug(
+                        "Using guided_json for structured LLM output",
+                        extra={
+                            "schema_keys": list(
+                                RISK_ANALYSIS_JSON_SCHEMA.get("properties", {}).keys()
+                            )
+                        },
+                    )
+                else:
+                    logger.debug(
+                        "Endpoint does not support guided_json, using regex fallback",
+                        extra={"llm_url": self._llm_url},
+                    )
+
             # OpenTelemetry span for LLM inference (NEM-1467)
             # Wraps the entire LLM call including retries for end-to-end correlation
             with tracer.start_as_current_span("llm_inference") as span:
@@ -2825,6 +3064,7 @@ class NemotronAnalyzer:
                     template_name=template_name,
                     prompt_length=len(prompt),
                     pipeline_stage="llm_analysis",
+                    guided_json_enabled=use_guided_json_for_request,
                 )
 
                 for attempt in range(self._max_retries):

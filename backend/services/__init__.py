@@ -153,6 +153,18 @@ from .gpu_detection_service import (
     reset_gpu_detection_service,
 )
 from .gpu_monitor import GPUMonitor
+from .guided_constraints import (
+    ENTITY_TYPE_CHOICES,
+    RECOMMENDED_ACTION_CHOICES,
+    RISK_LEVEL_CHOICES,
+    THREAT_LEVEL_CHOICES,
+    get_guided_choice_config,
+    get_guided_regex_config,
+    validate_entity_type,
+    validate_recommended_action,
+    validate_risk_level,
+    validate_threat_level,
+)
 from .household_matcher import (
     HouseholdMatch,
     HouseholdMatcher,
@@ -380,6 +392,11 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FILE_DELETION_QUEUE",
     "DEFAULT_MAX_TRAJECTORY_POINTS",
     "DEFAULT_TRACK_RETENTION_HOURS",
+    # Guided Constraints Constants
+    "ENTITY_TYPE_CHOICES",
+    "RECOMMENDED_ACTION_CHOICES",
+    "RISK_LEVEL_CHOICES",
+    "THREAT_LEVEL_CHOICES",
     # Classes - AI Services
     "FaceDetectorService",
     "OCRService",
@@ -566,6 +583,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_file_service",
     "get_florence_extractor",
     "get_gpu_detection_service",
+    "get_guided_choice_config",
+    "get_guided_regex_config",
     "get_household_matcher",
     "get_highest_priority_zone",
     "get_job_status_service",
@@ -642,5 +661,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "stop_broadcaster",
     "stop_pg_notify_listener",
     "update_event_object_types",
+    "validate_entity_type",
+    "validate_recommended_action",
+    "validate_risk_level",
+    "validate_threat_level",
     "zones_to_context",
 ]

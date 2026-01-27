@@ -458,14 +458,155 @@ curl -X POST http://localhost:8091/v1/chat/completions \
 4. **Backend integration**: `backend/services/nemotron_analyzer.py`
 5. **Prompt templates**: `backend/services/prompts.py`
 
+## Chain-of-Thought Reasoning (NEM-3727)
+
+Nemotron supports built-in chain-of-thought reasoning via the `'detailed thinking on'` directive.
+
+### Enabling Reasoning
+
+Include `'detailed thinking on'` at the start of the system prompt:
+
+```python
+SYSTEM_PROMPT_WITH_REASONING = """detailed thinking on
+
+You are a home security analyst...
+"""
+```
+
+### Output Format
+
+When enabled, the model outputs reasoning in `<think>...</think>` blocks:
+
+```
+<think>
+Let me analyze this detection systematically:
+1. Time: 14:30 - normal business hours
+2. Location: Front door - entry point
+3. Detection: Single person (0.92 confidence)
+...
+</think>
+{"risk_score": 15, "risk_level": "low", ...}
+```
+
+### Parsing Reasoning
+
+```python
+from backend.services.nemotron_analyzer import extract_reasoning_and_response
+
+reasoning, json_response = extract_reasoning_and_response(raw_output)
+```
+
+**Implementation**: `backend/services/nemotron_analyzer.py`
+
+## Structured Generation Support (NEM-3725/NEM-3726)
+
+NVIDIA NIM endpoints support guided generation for enforcing valid output structure.
+
+### guided_json
+
+Enforce a JSON schema on output:
+
+```python
+from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
+
+extra_body = {
+    "nvext": {
+        "guided_json": RISK_ANALYSIS_JSON_SCHEMA
+    }
+}
+```
+
+### guided_choice
+
+Constrain output to predefined values:
+
+```python
+from backend.services.guided_constraints import RISK_LEVEL_CHOICES
+
+extra_body = {
+    "nvext": {
+        "guided_choice": RISK_LEVEL_CHOICES  # ["low", "medium", "high", "critical"]
+    }
+}
+```
+
+### guided_regex
+
+Constrain output to regex patterns:
+
+```python
+from backend.services.guided_constraints import get_guided_regex_config
+
+config = get_guided_regex_config("risk_score")
+# Returns: {'nvext': {'guided_regex': '[0-9]|[1-9][0-9]|100'}}
+```
+
+**Implementation**:
+
+- `backend/api/schemas/llm_response.py` - JSON schema
+- `backend/services/guided_constraints.py` - Choice/regex constraints
+
+## Prompt Evaluation Workflow (NEM-3731)
+
+### Synthetic Data Location
+
+Evaluation scenarios are in `data/synthetic/`:
+
+```
+data/synthetic/
+├── normal/       # 80% - delivery, residents, pets, vehicles
+├── suspicious/   # 15% - loitering, casing
+└── threats/      # 5% - break-ins, vandalism
+```
+
+### Loading Evaluation Data
+
+```python
+from backend.evaluation.prompt_eval_dataset import load_synthetic_eval_dataset
+
+samples = load_synthetic_eval_dataset()
+```
+
+### Running Evaluations
+
+```python
+from backend.evaluation.prompt_evaluator import evaluate_batch, calculate_metrics
+
+results = evaluate_batch(samples, predictions)
+metrics = calculate_metrics(results)
+print(f"Accuracy: {metrics['accuracy']:.1%}")
+```
+
+### A/B Testing
+
+```python
+from backend.config.prompt_ab_config import get_experiment
+from backend.evaluation.ab_experiment_runner import select_variant, analyze_experiment
+
+experiment = get_experiment("rubric_vs_current")
+prompt_key = select_variant(experiment)
+
+# After collecting data
+results = analyze_experiment(control_scores, variant_scores)
+```
+
+**Implementation**:
+
+- `backend/evaluation/prompt_eval_dataset.py` - Dataset loading
+- `backend/evaluation/prompt_evaluator.py` - Evaluation metrics
+- `backend/evaluation/ab_experiment_runner.py` - A/B experiments
+- `backend/config/prompt_ab_config.py` - Experiment configuration
+
 ## Related Documentation
 
 - [AI Pipeline Architecture](../../docs/architecture/ai-pipeline.md)
 - [Risk Analysis Developer Guide](../../docs/developer/risk-analysis.md)
 - [AI Configuration](../../docs/operator/ai-configuration.md)
+- [Nemotron Prompting Best Practices](../../docs/development/nemotron-prompting.md)
 
 ## External Resources
 
 - [NVIDIA Nemotron-3-Nano-30B-A3B on HuggingFace](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
+- [NVIDIA NIM Guided Generation](https://docs.nvidia.com/nim/large-language-models/latest/structured-output.html)
 - [llama.cpp GitHub Repository](https://github.com/ggerganov/llama.cpp)
 - [GGUF Format Specification](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md)

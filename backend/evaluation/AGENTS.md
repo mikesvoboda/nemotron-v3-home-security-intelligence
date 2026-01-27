@@ -10,11 +10,14 @@ This module provides tools for evaluating and comparing Nemotron prompt template
 
 ```
 backend/evaluation/
-├── AGENTS.md           # This file
-├── __init__.py         # Module exports with lazy imports
-├── harness.py          # PromptEvaluator class and CLI
-├── metrics.py          # Score calculation functions
-└── reports.py          # Report generation (JSON, HTML)
+├── AGENTS.md              # This file
+├── __init__.py            # Module exports with lazy imports
+├── ab_experiment_runner.py # A/B experiment statistical analysis (NEM-3731)
+├── harness.py             # PromptEvaluator class and CLI
+├── metrics.py             # Score calculation functions
+├── prompt_eval_dataset.py # Synthetic dataset loader
+├── prompt_evaluator.py    # Prediction evaluation and metrics
+└── reports.py             # Report generation (JSON, HTML)
 ```
 
 ## Key Components
@@ -62,6 +65,86 @@ Functions for generating evaluation reports.
 | `save_report(report, path, format)`      | Save report to file                |
 | `generate_summary_table(metrics)`        | Text summary for terminal output   |
 
+### prompt_eval_dataset.py
+
+Loader for synthetic evaluation scenarios from `data/synthetic/`.
+
+| Class/Function                          | Description                                         |
+| --------------------------------------- | --------------------------------------------------- |
+| `PromptEvalSample`                      | Dataclass for a single evaluation sample            |
+| `load_synthetic_eval_dataset(data_dir)` | Load all scenarios from synthetic data directory    |
+| `get_samples_by_category(samples)`      | Group samples by category (normal, suspicious, etc) |
+| `get_samples_by_risk_level(samples)`    | Group samples by expected risk level                |
+| `filter_samples_with_media(samples)`    | Filter to samples with images/videos                |
+| `get_scenario_summary(samples)`         | Get summary statistics of loaded samples            |
+
+### prompt_evaluator.py
+
+Functions for evaluating predictions against expected values.
+
+| Class/Function                                   | Description                                |
+| ------------------------------------------------ | ------------------------------------------ |
+| `EvaluationResult`                               | Result from evaluating a single prediction |
+| `evaluate_prediction(sample, score, level)`      | Evaluate one prediction against expected   |
+| `calculate_metrics(results)`                     | Calculate aggregate metrics from results   |
+| `evaluate_batch(samples, predictions)`           | Evaluate multiple predictions at once      |
+| `summarize_results(results)`                     | Generate human-readable summary            |
+| `get_misclassified(results, by_score, by_level)` | Get results where predictions didn't match |
+
+### ab_experiment_runner.py
+
+A/B experiment statistical analysis with significance testing (NEM-3731).
+
+| Class/Function                                | Description                                     |
+| --------------------------------------------- | ----------------------------------------------- |
+| `ExperimentResults`                           | Dataclass holding statistical analysis results  |
+| `select_variant(experiment)`                  | Random variant selection based on traffic split |
+| `analyze_experiment(control, variant, alpha)` | Two-sample t-test with Cohen's d effect size    |
+| `summarize_results(results)`                  | Human-readable summary with interpretation      |
+
+**Usage:**
+
+```python
+from backend.evaluation import analyze_experiment, summarize_ab_results
+from backend.config import get_experiment
+
+# Collect performance scores from A/B test
+control_scores = [0.80, 0.82, 0.79, 0.81, 0.83]
+variant_scores = [0.88, 0.90, 0.87, 0.89, 0.91]
+
+# Analyze for statistical significance
+results = analyze_experiment(control_scores, variant_scores)
+print(summarize_ab_results(results))
+# Shows: t-statistic, p-value, effect size, significance determination
+```
+
+## Synthetic Data Structure
+
+The `data/synthetic/` directory contains pre-generated evaluation scenarios:
+
+```
+data/synthetic/
+├── normal/              # Low-risk scenarios
+│   ├── delivery_driver_*/
+│   ├── pet_activity_*/
+│   └── ...
+├── suspicious/          # Medium-risk scenarios
+│   ├── casing_*/
+│   ├── loitering_*/
+│   └── ...
+└── threats/             # High-risk scenarios
+    ├── break_in_attempt_*/
+    ├── package_theft_*/
+    └── ...
+```
+
+Each scenario folder contains:
+
+- `expected_labels.json` - Ground truth with risk score ranges
+- `scenario_spec.json` - Full scenario specification
+- `metadata.json` - Generation metadata
+- `media/` - Generated images/videos (optional)
+
 ## Usage
 
 ### Programmatic Usage
@@ -98,6 +181,40 @@ uv run python -m backend.evaluation.harness \
 
 # Generate HTML report
 uv run python -m backend.evaluation.harness --mock --output reports/report.html --format html
+```
+
+### Loading Synthetic Evaluation Data
+
+```python
+from backend.evaluation import (
+    load_synthetic_eval_dataset,
+    get_samples_by_category,
+    evaluate_prediction,
+    calculate_metrics,
+)
+
+# Load all synthetic samples
+samples = load_synthetic_eval_dataset()
+print(f"Loaded {len(samples)} samples")
+
+# Group by category
+by_category = get_samples_by_category(samples)
+for cat, cat_samples in by_category.items():
+    print(f"  {cat}: {len(cat_samples)} samples")
+
+# Evaluate predictions (example with mock scores)
+results = []
+for sample in samples:
+    # In practice, get these from your model
+    mock_score = 50
+    mock_level = "medium"
+    result = evaluate_prediction(sample, mock_score, mock_level)
+    results.append(result)
+
+# Calculate aggregate metrics
+metrics = calculate_metrics(results)
+print(f"Accuracy: {metrics['accuracy']:.2%}")
+print(f"Level accuracy: {metrics['level_accuracy']:.2%}")
 ```
 
 ## Design Decisions
