@@ -679,7 +679,7 @@ class NemotronAnalyzer:
 
         payload = {
             "prompt": context,
-            "temperature": 0.7,
+            "temperature": 0.3,
             "top_p": 0.95,
             "max_tokens": max_output_tokens,
             "stop": ["<|im_end|>", "<|im_start|>"],
@@ -2989,7 +2989,7 @@ class NemotronAnalyzer:
         # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
         payload: dict[str, Any] = {
             "prompt": prompt,
-            "temperature": 0.7,  # Slightly creative for detailed reasoning
+            "temperature": 0.3,  # Low temperature for consistent risk scoring (NEM-3734)
             "top_p": 0.95,
             "max_tokens": max_output_tokens,  # Use settings-based value
             "stop": ["<|im_end|>", "<|im_start|>"],
