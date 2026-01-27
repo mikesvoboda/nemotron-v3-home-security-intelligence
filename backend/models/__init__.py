@@ -1,6 +1,8 @@
 """SQLAlchemy models for home security intelligence system."""
 
+from .action_event import ActionEvent
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
+from .analytics_zone import LineZone, PolygonZone
 from .area import Area, camera_areas
 from .audit import AuditAction, AuditLog, AuditStatus
 from .backup_job import BackupJob, BackupJobStatus, RestoreJob, RestoreJobStatus
@@ -16,6 +18,7 @@ from .camera_zone import (
     ZoneType,
 )
 from .detection import Detection
+from .dwell_time import DwellTimeRecord
 from .enrichment import (
     ActionResult,
     DemographicsResult,
@@ -31,6 +34,11 @@ from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
 from .experiment_result import ExperimentResult
 from .export_job import ExportJob, ExportJobStatus, ExportType
+from .face_identity import (
+    FaceDetectionEvent,
+    FaceEmbedding,
+    KnownPerson,
+)
 from .gpu_config import (
     GpuAssignmentStrategy,
     GpuConfiguration,
@@ -38,6 +46,7 @@ from .gpu_config import (
     SystemSetting,
 )
 from .gpu_stats import GPUStats
+from .heatmap import HeatmapData, HeatmapResolution
 from .household import (
     HouseholdMember,
     MemberRole,
@@ -67,18 +76,21 @@ from .outbound_webhook import (
     WebhookDeliveryStatus,
     WebhookEventType,
 )
+from .plate_read import PlateRead
 from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
 from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .scheduled_report import ReportFormat, ReportFrequency, ScheduledReport
 from .summary import Summary, SummaryType
+from .track import Track
 from .user_calibration import UserCalibration
 from .zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly
 from .zone_baseline import ZoneActivityBaseline
 from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
+    "ActionEvent",
     "ActionResult",
     "ActivityBaseline",
     "Alert",
@@ -105,6 +117,7 @@ __all__ = [
     "DayOfWeek",
     "DemographicsResult",
     "Detection",
+    "DwellTimeRecord",
     "Entity",
     "EntityType",
     "Event",
@@ -115,11 +128,15 @@ __all__ = [
     "ExportJob",
     "ExportJobStatus",
     "ExportType",
+    "FaceDetectionEvent",
+    "FaceEmbedding",
     "FeedbackType",
     "GPUStats",
     "GpuAssignmentStrategy",
     "GpuConfiguration",
     "GpuDevice",
+    "HeatmapData",
+    "HeatmapResolution",
     "Household",
     "HouseholdMember",
     "IntegrationType",
@@ -130,6 +147,8 @@ __all__ = [
     "JobStatus",
     "JobTransition",
     "JobTransitionTrigger",
+    "KnownPerson",
+    "LineZone",
     "Log",
     "LogLevel",
     "MemberRole",
@@ -137,6 +156,8 @@ __all__ = [
     "NotificationSound",
     "OutboundWebhook",
     "PersonEmbedding",
+    "PlateRead",
+    "PolygonZone",
     "PoseResult",
     "PrometheusAlert",
     "PrometheusAlertStatus",
@@ -158,6 +179,7 @@ __all__ = [
     "SummaryType",
     "SystemSetting",
     "ThreatDetection",
+    "Track",
     "TrustLevel",
     "TrustStatus",
     "UserCalibration",

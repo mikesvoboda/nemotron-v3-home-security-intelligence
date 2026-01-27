@@ -389,6 +389,32 @@
             'description': 'Path to thumbnail image with bbox overlay',
             'title': 'Thumbnail Path',
           }),
+          'track_confidence': dict({
+            'anyOf': list([
+              dict({
+                'type': 'number',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Confidence score for the track assignment (0-1)',
+            'title': 'Track Confidence',
+          }),
+          'track_id': dict({
+            'anyOf': list([
+              dict({
+                'type': 'integer',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'default': None,
+            'description': 'Unique track ID for tracking objects across frames',
+            'title': 'Track Id',
+          }),
           'video_codec': dict({
             'anyOf': list([
               dict({
@@ -878,6 +904,8 @@
     'media_type': 'image',
     'object_type': 'person',
     'thumbnail_path': '/data/thumbnails/1_thumb.jpg',
+    'track_confidence': None,
+    'track_id': None,
     'video_codec': None,
     'video_height': None,
     'video_width': None,

@@ -38,11 +38,13 @@ from backend.api.middleware import (
 )
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
+    action_events,
     admin,
     ai_audit,
     alertmanager,
     alerts,
     analytics,
+    analytics_zones,
     audit,
     calibration,
     cameras,
@@ -52,9 +54,11 @@ from backend.api.routes import (
     entities,
     events,
     exports,
+    face_recognition,
     feedback,
     gpu_config,
     health_ai_services,
+    heatmaps,
     hierarchy,
     household,
     jobs,
@@ -64,6 +68,7 @@ from backend.api.routes import (
     notification,
     notification_preferences,
     outbound_webhooks,
+    plate_reads,
     prompt_management,
     queues,
     rum,
@@ -73,6 +78,7 @@ from backend.api.routes import (
     summaries,
     system,
     system_settings,
+    tracks,
     webhooks,
     websocket,
     zone_anomalies,
@@ -1158,12 +1164,14 @@ if get_settings().idempotency_enabled:
 register_exception_handlers(app)
 
 # Register routers
+app.include_router(action_events.router)
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
 app.include_router(alertmanager.router)
 app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
+app.include_router(analytics_zones.router)
 app.include_router(audit.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
@@ -1173,9 +1181,11 @@ app.include_router(dlq.router)
 app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(exports.router)
+app.include_router(face_recognition.router)
 app.include_router(feedback.router)
 app.include_router(gpu_config.router)
 app.include_router(health_ai_services.router)
+app.include_router(heatmaps.router)
 app.include_router(hierarchy.router)
 app.include_router(hierarchy.property_router)
 app.include_router(hierarchy.area_router)
@@ -1187,6 +1197,7 @@ app.include_router(metrics.router)
 app.include_router(notification.router)
 app.include_router(notification_preferences.router)
 app.include_router(outbound_webhooks.router)
+app.include_router(plate_reads.router)
 app.include_router(prompt_management.router)
 app.include_router(queues.router)
 app.include_router(rum.router)
@@ -1196,6 +1207,7 @@ app.include_router(settings_api.router)
 app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(system_settings.router)
+app.include_router(tracks.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)
 app.include_router(zone_anomalies.router)

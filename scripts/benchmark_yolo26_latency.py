@@ -186,7 +186,7 @@ def create_test_image(width: int = 640, height: int = 640) -> Image.Image:
     return Image.fromarray(data)
 
 
-def benchmark_yolo26_model(
+def benchmark_yolo26_model_ultralytics(
     model_path: Path,
     resolution: tuple[int, int],
     batch_sizes: list[int],
@@ -194,7 +194,7 @@ def benchmark_yolo26_model(
     warmup_iterations: int,
     benchmark_iterations: int,
 ) -> list[BenchmarkResult]:
-    """Benchmark a YOLO26 model."""
+    """Benchmark a YOLO26 model using ultralytics."""
     try:
         from ultralytics import YOLO
     except ImportError:
@@ -340,7 +340,7 @@ def benchmark_yolo26_model(
     return results
 
 
-def benchmark_yolo26_model(
+def benchmark_yolo26_model_hf(
     model_path: Path,
     resolution: tuple[int, int],
     batch_sizes: list[int],
@@ -953,7 +953,7 @@ def main() -> None:
 
             all_results = []
             for resolution in resolutions:
-                results = benchmark_yolo26_model(
+                results = benchmark_yolo26_model_ultralytics(
                     model_path=model_path,
                     resolution=resolution,
                     batch_sizes=batch_sizes,
@@ -971,7 +971,7 @@ def main() -> None:
             print(f"\nWARNING: YOLO26 not found at {YOLO26_MODEL_PATH}")
         else:
             for resolution in resolutions:
-                results = benchmark_yolo26_model(
+                results = benchmark_yolo26_model_hf(
                     model_path=YOLO26_MODEL_PATH,
                     resolution=resolution,
                     batch_sizes=batch_sizes,

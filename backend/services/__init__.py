@@ -91,6 +91,7 @@ from .degradation_manager import (
     reset_degradation_manager,
 )
 from .detector_client import DetectorClient, DetectorUnavailableError
+from .dwell_time_service import DwellTimeService, get_dwell_time_service
 from .enrichment_pipeline import (
     BoundingBox,
     DetectionInput,
@@ -192,6 +193,10 @@ from .job_tracker import (
     get_job_tracker,
     reset_job_tracker,
 )
+from .line_zone_service import (
+    LineZoneService,
+    get_line_zone_service,
+)
 from .managed_service import (
     ManagedService,
     ServiceConfig,
@@ -261,6 +266,7 @@ from .plate_detector import (
     detect_plates,
     is_vehicle_class,
 )
+from .polygon_zone_service import PolygonZoneService, get_polygon_zone_service
 from .reid_service import (
     DEFAULT_SIMILARITY_THRESHOLD,
     EMBEDDING_DIMENSION,
@@ -315,6 +321,14 @@ from .severity import (
     severity_lte,
 )
 from .thumbnail_generator import ThumbnailGenerator
+from .track_service import (
+    DEFAULT_MAX_TRAJECTORY_POINTS,
+    DEFAULT_TRACK_RETENTION_HOURS,
+    TrackService,
+    configure_track_service,
+    get_track_service,
+    reset_track_service,
+)
 from .transcode_cache import (
     CacheEntry,
     CacheStats,
@@ -364,6 +378,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "VEHICLE_CLASSES",
     "DEFAULT_DELETION_DELAY_SECONDS",
     "FILE_DELETION_QUEUE",
+    "DEFAULT_MAX_TRAJECTORY_POINTS",
+    "DEFAULT_TRACK_RETENTION_HOURS",
     # Classes - AI Services
     "FaceDetectorService",
     "OCRService",
@@ -415,6 +431,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DetectionInput",
     "DetectorClient",
     "DetectorUnavailableError",
+    "DwellTimeService",
     "EnrichedContext",
     "EnrichmentPipeline",
     "EnrichmentResult",
@@ -452,6 +469,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "JobTimeoutService",
     "JobTracker",
     "LicensePlateResult",
+    "LineZoneService",
+    "PolygonZoneService",
     "ModelConfig",
     "ModelManager",
     "NemotronAnalyzer",
@@ -488,6 +507,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SeverityDefinition",
     "SeverityService",
     "ThumbnailGenerator",
+    # Track Service
+    "TrackService",
     # Transcode Cache
     "CacheEntry",
     "CacheStats",
@@ -513,6 +534,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "audit_service",
     "bbox_center",
     "classify_scene_change_type",
+    "configure_track_service",
     "get_audit_service",
     "build_dedup_key",
     "clean_plate_text",
@@ -536,6 +558,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_db_audit_service",
     "get_dedupe_service",
     "get_degradation_manager",
+    "get_dwell_time_service",
     "get_enabled_models",
     "get_enrichment_pipeline",
     "get_evaluation_queue",
@@ -548,6 +571,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_job_status_service",
     "get_job_timeout_service",
     "get_job_tracker",
+    "get_line_zone_service",
+    "get_polygon_zone_service",
     "get_model_config",
     "get_model_manager",
     "get_model_zoo",
@@ -561,6 +586,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_severity_service",
     "get_total_vram_if_loaded",
     "get_transcode_cache",
+    "get_track_service",
     "get_worker_supervisor",
     "get_zones_for_detection",
     "is_image_file",
@@ -605,6 +631,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_audit_service",
     "reset_severity_service",
     "reset_transcode_cache",
+    "reset_track_service",
     "reset_worker_supervisor",
     "search_events",
     "severity_from_string",

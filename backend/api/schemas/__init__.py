@@ -1,5 +1,14 @@
 """API schemas for request/response validation."""
 
+from .action_event import (
+    ActionAnalyzeRequest,
+    ActionAnalyzeResponse,
+    ActionEventBase,
+    ActionEventCreate,
+    ActionEventListResponse,
+    ActionEventResponse,
+    SuspiciousActionsResponse,
+)
 from .ai_audit import (
     EnrichedSuggestion,
     ExampleImprovement,
@@ -26,6 +35,23 @@ from .alerts import (
     AlertUpdate,
     DedupCheckRequest,
     DedupCheckResponse,
+)
+from .analytics_zone import (
+    CrossingDirection,
+    IntrusionEvent,
+    IntrusionSeverity,
+    LineCrossingEvent,
+    LineZoneBase,
+    LineZoneCreate,
+    LineZoneListResponse,
+    LineZoneResponse,
+    LineZoneUpdate,
+    PolygonZoneBase,
+    PolygonZoneCreate,
+    PolygonZoneListResponse,
+    PolygonZoneResponse,
+    PolygonZoneType,
+    PolygonZoneUpdate,
 )
 from .baseline import (
     ActivityBaselineEntry,
@@ -81,6 +107,17 @@ from .discriminated_union_errors import (
     extract_discriminator_error,
     format_discriminated_union_error,
     get_valid_discriminator_values,
+)
+from .dwell_time import (
+    ActiveDwellerResponse,
+    ActiveDwellersListResponse,
+    DwellHistoryResponse,
+    DwellStatisticsResponse,
+    DwellTimeRecordBase,
+    DwellTimeRecordResponse,
+    LoiteringAlert,
+    LoiteringCheckRequest,
+    LoiteringCheckResponse,
 )
 from .enrichment import (
     ClothingEnrichment,
@@ -144,6 +181,20 @@ from .export import (
     ExportJobStatusEnum,
     ExportJobUpdate,
     ExportTypeEnum,
+)
+from .face_recognition import (
+    FaceDetectionEventListResponse,
+    FaceDetectionEventResponse,
+    FaceEmbeddingCreate,
+    FaceEmbeddingResponse,
+    FaceMatchRequest,
+    FaceMatchResponse,
+    KnownPersonCreate,
+    KnownPersonListResponse,
+    KnownPersonResponse,
+    KnownPersonUpdate,
+    UnknownStrangerAlert,
+    UnknownStrangerListResponse,
 )
 from .feedback import (
     ActualThreatLevel,
@@ -214,6 +265,16 @@ from .pagination import (
     PaginatedResponse,
     create_paginated_response,
 )
+from .plate_read import (
+    BoundingBox,
+    PlateReadBase,
+    PlateReadCreate,
+    PlateReadListResponse,
+    PlateReadResponse,
+    PlateRecognizeRequest,
+    PlateRecognizeResponse,
+    PlateStatisticsResponse,
+)
 from .problem_details import (
     HTTP_STATUS_PHRASES,
     ProblemDetail,
@@ -248,6 +309,13 @@ from .services import (
     ServiceInfo,
     ServicesResponse,
     ServiceStatusEvent,
+)
+from .track import (
+    MovementMetrics,
+    TrackHistoryResponse,
+    TrackListResponse,
+    TrackResponse,
+    TrajectoryPoint,
 )
 from .trusted import (
     from_db_record,
@@ -300,6 +368,14 @@ __all__ = [  # noqa: RUF022
     "COMMON_ERROR_RESPONSES",
     "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
+    # Action event schemas (NEM-3714)
+    "ActionAnalyzeRequest",
+    "ActionAnalyzeResponse",
+    "ActionEventBase",
+    "ActionEventCreate",
+    "ActionEventListResponse",
+    "ActionEventResponse",
+    "SuspiciousActionsResponse",
     # AI Services Health schemas (NEM-3143)
     "AIServiceCircuitState",
     "AIServiceHealthDetail",
@@ -322,6 +398,22 @@ __all__ = [  # noqa: RUF022
     "AlertSeverity",
     "AlertStatus",
     "AlertUpdate",
+    # Analytics zone schemas (line crossing and polygon intrusion detection)
+    "CrossingDirection",
+    "IntrusionEvent",
+    "IntrusionSeverity",
+    "LineCrossingEvent",
+    "LineZoneBase",
+    "LineZoneCreate",
+    "LineZoneListResponse",
+    "LineZoneResponse",
+    "LineZoneUpdate",
+    "PolygonZoneBase",
+    "PolygonZoneCreate",
+    "PolygonZoneListResponse",
+    "PolygonZoneResponse",
+    "PolygonZoneType",
+    "PolygonZoneUpdate",
     "AnomalyConfig",
     "AnomalyConfigUpdate",
     "AnomalyEvent",
@@ -362,6 +454,16 @@ __all__ = [  # noqa: RUF022
     "DetectionBulkUpdateItem",
     "DetectionBulkUpdateRequest",
     "DeviationInterpretation",
+    # Dwell time schemas (NEM-3712)
+    "ActiveDwellerResponse",
+    "ActiveDwellersListResponse",
+    "DwellHistoryResponse",
+    "DwellStatisticsResponse",
+    "DwellTimeRecordBase",
+    "DwellTimeRecordResponse",
+    "LoiteringAlert",
+    "LoiteringCheckRequest",
+    "LoiteringCheckResponse",
     # Entity schemas (database and API)
     "EmbeddingVectorData",
     "EnrichedSuggestion",
@@ -413,7 +515,14 @@ __all__ = [  # noqa: RUF022
     "ExportJobStatusEnum",
     "ExportJobUpdate",
     "ExportTypeEnum",
+    # Face recognition schemas (NEM-3716, NEM-3717)
+    "FaceDetectionEventListResponse",
+    "FaceDetectionEventResponse",
+    "FaceEmbeddingCreate",
+    "FaceEmbeddingResponse",
     "FaceEnrichment",
+    "FaceMatchRequest",
+    "FaceMatchResponse",
     "FeedbackStatsResponse",
     "FeedbackType",
     "FieldSelectionParams",
@@ -435,6 +544,10 @@ __all__ = [  # noqa: RUF022
     "HealthReadinessResponse",
     "HourlyPattern",
     "ImageQualityEnrichment",
+    "KnownPersonCreate",
+    "KnownPersonListResponse",
+    "KnownPersonResponse",
+    "KnownPersonUpdate",
     "LLMRawResponse",
     "LLMRiskLevel",
     "LLMRiskResponse",
@@ -454,6 +567,15 @@ __all__ = [  # noqa: RUF022
     "PersonEnrichmentData",
     "PetEnrichment",
     "PetEnrichmentData",
+    # Plate read schemas (ALPR - NEM-3718)
+    "BoundingBox",
+    "PlateReadBase",
+    "PlateReadCreate",
+    "PlateReadListResponse",
+    "PlateReadResponse",
+    "PlateRecognizeRequest",
+    "PlateRecognizeResponse",
+    "PlateStatisticsResponse",
     "PoseEnrichment",
     "ProblemDetail",
     "QueueDepthInfo",
@@ -478,8 +600,16 @@ __all__ = [  # noqa: RUF022
     "SortParams",
     "TestNotificationRequest",
     "TestNotificationResponse",
+    # Track schemas (object tracking)
+    "MovementMetrics",
+    "TrackHistoryResponse",
+    "TrackListResponse",
+    "TrackResponse",
+    "TrajectoryPoint",
     "TrustCheckResponse",
     "TrustLevelResult",
+    "UnknownStrangerAlert",
+    "UnknownStrangerListResponse",
     "ValidationErrorDetail",
     "ValidationErrorResponse",
     "VehicleEnrichment",

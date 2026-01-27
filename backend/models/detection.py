@@ -65,6 +65,10 @@ class Detection(Base):
     video_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     video_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Object tracking fields (for multi-object tracking across frames)
+    track_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    track_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Enrichment pipeline results (JSONB for structured vision model outputs)
     # Contains results from 18+ vision models: license plate, face, vehicle,
     # clothing, violence, weather, image quality, pet classification, etc.
@@ -128,6 +132,8 @@ class Detection(Base):
             "detected_at",
             postgresql_using="brin",
         ),
+        # Index for efficient track_id queries (object tracking across frames)
+        Index("idx_detections_track_id", "track_id"),
         # Note: idx_detections_object_type_trgm (GIN trigram index on object_type) is created
         # via Alembic migration as it requires pg_trgm extension and gin_trgm_ops operator class
         # which may not be available in all PostgreSQL installations (e.g., Alpine)
@@ -139,6 +145,10 @@ class Detection(Base):
         CheckConstraint(
             "confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)",
             name="ck_detections_confidence_range",
+        ),
+        CheckConstraint(
+            "track_confidence IS NULL OR (track_confidence >= 0.0 AND track_confidence <= 1.0)",
+            name="ck_detections_track_confidence_range",
         ),
     )
 
