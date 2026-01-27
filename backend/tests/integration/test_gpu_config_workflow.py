@@ -239,7 +239,7 @@ class TestFullConfigurationWorkflow:
         # Step 3: Create and save configuration assignments
         assignments = [
             GpuAssignment(service_name="ai-llm", gpu_index=1, vram_budget_override=None),
-            GpuAssignment(service_name="ai-detector", gpu_index=0, vram_budget_override=None),
+            GpuAssignment(service_name="ai-yolo26", gpu_index=0, vram_budget_override=None),
             GpuAssignment(service_name="ai-enrichment", gpu_index=0, vram_budget_override=None),
         ]
 
@@ -396,7 +396,7 @@ class TestDatabaseIntegration:
                 enabled=True,
             ),
             GpuConfiguration(
-                service_name="ai-detector",
+                service_name="ai-yolo26",
                 gpu_index=1,
                 strategy=GpuAssignmentStrategy.VRAM_BASED.value,
                 vram_budget_override=2.5,  # 2.5GB override
@@ -418,7 +418,7 @@ class TestDatabaseIntegration:
         db_configs = result.scalars().all()
 
         assert len(db_configs) == 2
-        assert db_configs[0].service_name == "ai-detector"
+        assert db_configs[0].service_name == "ai-yolo26"
         assert db_configs[0].gpu_index == 1
         assert db_configs[0].vram_budget_override == 2.5
         assert db_configs[1].service_name == "ai-llm"
@@ -520,7 +520,7 @@ class TestOverrideFileGeneration:
         """Test that generated YAML files have valid structure."""
         assignments = [
             GpuAssignment(service_name="ai-llm", gpu_index=1, vram_budget_override=None),
-            GpuAssignment(service_name="ai-detector", gpu_index=0, vram_budget_override=2.0),
+            GpuAssignment(service_name="ai-yolo26", gpu_index=0, vram_budget_override=2.0),
         ]
 
         override_path, assignments_path = await gpu_config_service.write_config_files(
@@ -532,7 +532,7 @@ class TestOverrideFileGeneration:
         override_content = yaml.safe_load(override_path.read_text())
         assert "services" in override_content
         assert "ai-llm" in override_content["services"]
-        assert "ai-detector" in override_content["services"]
+        assert "ai-yolo26" in override_content["services"]
 
         # Verify LLM configuration
         llm_config = override_content["services"]["ai-llm"]
@@ -545,7 +545,7 @@ class TestOverrideFileGeneration:
         assert devices[0]["capabilities"] == ["gpu"]
 
         # Verify detector configuration has VRAM override
-        detector_config = override_content["services"]["ai-detector"]
+        detector_config = override_content["services"]["ai-yolo26"]
         assert "environment" in detector_config
         assert "VRAM_BUDGET_GB=2.0" in detector_config["environment"]
 
@@ -555,7 +555,7 @@ class TestOverrideFileGeneration:
         assert assignments_content["strategy"] == "vram_based"
         assert "assignments" in assignments_content
         assert assignments_content["assignments"]["ai-llm"]["gpu"] == 1
-        assert assignments_content["assignments"]["ai-detector"]["vram_budget"] == 2.0
+        assert assignments_content["assignments"]["ai-yolo26"]["vram_budget"] == 2.0
 
     @pytest.mark.asyncio
     async def test_environment_variables_included_when_override_set(
@@ -710,7 +710,7 @@ class TestStrategyCalculations:
 
         # Detector (critical path) should be on fastest GPU (highest compute capability)
         # GPU 1 has compute capability 8.9 (fastest)
-        detector_assignment = next(a for a in assignments if a.service == "ai-detector")
+        detector_assignment = next(a for a in assignments if a.service == "ai-yolo26")
         assert detector_assignment.gpu_index == 1
 
         # Enrichment (also critical) should be on fastest GPU
@@ -857,7 +857,7 @@ class TestAPIWorkflowIntegration:
                 "assignments": [
                     {"service": "ai-llm", "gpu_index": 1, "vram_budget_override": None},
                     {
-                        "service": "ai-detector",
+                        "service": "ai-yolo26",
                         "gpu_index": 0,
                         "vram_budget_override": None,
                     },

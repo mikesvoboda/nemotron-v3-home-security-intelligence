@@ -1209,7 +1209,7 @@ class WebhookService:
                 "score": 0.87,
             },
             "system_health_changed": {
-                "component": "ai-detector",
+                "component": "ai-yolo26",
                 "status": "degraded",
                 "message": "High latency detected",
             },

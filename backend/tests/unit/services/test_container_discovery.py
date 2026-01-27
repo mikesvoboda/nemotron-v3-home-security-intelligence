@@ -87,7 +87,7 @@ class TestServiceConfig:
         config = ServiceConfig(
             display_name="API Service",
             category=ServiceCategory.AI,
-            port=8090,
+            port=8095,
             health_endpoint="/health",
         )
 
@@ -137,7 +137,7 @@ class TestPreConfiguredServices:
     def test_ai_configs_contains_all_ai_services(self) -> None:
         """Test that AI_CONFIGS contains all expected AI services."""
         expected_services = {
-            "ai-detector": ("YOLO26", 8090, 60),
+            "ai-yolo26": ("YOLO26", 8095, 60),
             "ai-llm": ("Nemotron", 8091, 120),
             "ai-florence": ("Florence-2", 8092, 60),
             "ai-clip": ("CLIP", 8093, 60),
@@ -206,20 +206,20 @@ class TestManagedService:
     def test_managed_service_creation(self) -> None:
         """Test ManagedService can be created with required fields."""
         service = ManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             container_id="abc123",
             image="ghcr.io/test/yolo26:latest",
-            port=8090,
+            port=8095,
             health_endpoint="/health",
             category=ServiceCategory.AI,
         )
 
-        assert service.name == "ai-detector"
+        assert service.name == "ai-yolo26"
         assert service.display_name == "YOLO26"
         assert service.container_id == "abc123"
         assert service.image == "ghcr.io/test/yolo26:latest"
-        assert service.port == 8090
+        assert service.port == 8095
         assert service.health_endpoint == "/health"
         assert service.health_cmd is None
         assert service.category == ServiceCategory.AI
@@ -290,7 +290,7 @@ class TestContainerDiscoveryService:
     ) -> None:
         """Test discovery finds AI detector container matching pattern."""
         mock_detector = create_mock_container(
-            name="security-ai-detector-1",
+            name="security-ai-yolo26-1",
             container_id="det123",
             image_tags=["ghcr.io/test/yolo26:latest"],
         )
@@ -300,10 +300,10 @@ class TestContainerDiscoveryService:
         discovered = await service.discover_all()
 
         assert len(discovered) == 1
-        assert discovered[0].name == "ai-detector"
+        assert discovered[0].name == "ai-yolo26"
         assert discovered[0].display_name == "YOLO26"
         assert discovered[0].container_id == "det123"
-        assert discovered[0].port == 8090
+        assert discovered[0].port == 8095
         assert discovered[0].health_endpoint == "/health"
         assert discovered[0].category == ServiceCategory.AI
 
@@ -315,7 +315,7 @@ class TestContainerDiscoveryService:
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
             create_mock_container("security-redis-1", "redis123"),
-            create_mock_container("security-ai-detector-1", "det123"),
+            create_mock_container("security-ai-yolo26-1", "det123"),
             create_mock_container("security-prometheus-1", "prom123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
@@ -325,7 +325,7 @@ class TestContainerDiscoveryService:
 
         assert len(discovered) == 4
         names = {s.name for s in discovered}
-        assert names == {"postgres", "redis", "ai-detector", "prometheus"}
+        assert names == {"postgres", "redis", "ai-yolo26", "prometheus"}
 
     @pytest.mark.asyncio
     async def test_discover_all_ignores_unrecognized_containers(
@@ -363,7 +363,7 @@ class TestContainerDiscoveryService:
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
             create_mock_container("security-redis-1", "redis123"),
-            create_mock_container("security-ai-detector-1", "det123"),
+            create_mock_container("security-ai-yolo26-1", "det123"),
             create_mock_container("security-prometheus-1", "prom123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
@@ -382,7 +382,7 @@ class TestContainerDiscoveryService:
         """Test discovery filtering by AI category."""
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
-            create_mock_container("security-ai-detector-1", "det123"),
+            create_mock_container("security-ai-yolo26-1", "det123"),
             create_mock_container("security-ai-llm-1", "llm123"),
             create_mock_container("security-ai-florence-1", "flor123"),
         ]
@@ -393,7 +393,7 @@ class TestContainerDiscoveryService:
 
         assert len(discovered) == 3
         names = {s.name for s in discovered}
-        assert names == {"ai-detector", "ai-llm", "ai-florence"}
+        assert names == {"ai-yolo26", "ai-llm", "ai-florence"}
         for s in discovered:
             assert s.category == ServiceCategory.AI
 
@@ -404,7 +404,7 @@ class TestContainerDiscoveryService:
             create_mock_container("security-prometheus-1", "prom123"),
             create_mock_container("security-grafana-1", "graf123"),
             create_mock_container("security-redis-exporter-1", "rexp123"),
-            create_mock_container("security-ai-detector-1", "det123"),
+            create_mock_container("security-ai-yolo26-1", "det123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
@@ -428,10 +428,10 @@ class TestContainerDiscoveryService:
         assert config.display_name == "PostgreSQL"
         assert config.port == 5432
 
-        config = service.get_config("ai-detector")
+        config = service.get_config("ai-yolo26")
         assert config is not None
         assert config.display_name == "YOLO26"
-        assert config.port == 8090
+        assert config.port == 8095
 
     def test_get_config_returns_none_for_unknown_service(
         self, mock_docker_client: MagicMock
@@ -451,11 +451,11 @@ class TestContainerDiscoveryService:
 
         # Exact match
         assert service.match_container_name("postgres") == "postgres"
-        assert service.match_container_name("ai-detector") == "ai-detector"
+        assert service.match_container_name("ai-yolo26") == "ai-yolo26"
 
         # Prefix match
         assert service.match_container_name("security-postgres-1") == "postgres"
-        assert service.match_container_name("myapp-ai-detector-prod") == "ai-detector"
+        assert service.match_container_name("myapp-ai-yolo26-prod") == "ai-yolo26"
 
         # Contains match
         assert service.match_container_name("my-redis-cache") == "redis"
@@ -640,7 +640,7 @@ class TestCategoryPriorityOrdering:
     def test_infrastructure_backoff_less_than_ai(self) -> None:
         """Test that infrastructure backoff is less than AI (more aggressive)."""
         infra_config = INFRASTRUCTURE_CONFIGS["postgres"]
-        ai_config = AI_CONFIGS["ai-detector"]
+        ai_config = AI_CONFIGS["ai-yolo26"]
 
         assert infra_config.restart_backoff_base < ai_config.restart_backoff_base
         assert infra_config.restart_backoff_max < ai_config.restart_backoff_max
@@ -652,7 +652,7 @@ class TestCategoryPriorityOrdering:
         explicit max (120.0). This is intentional - AI services have aggressive
         base backoff but larger max to avoid overwhelming GPU resources.
         """
-        ai_config = AI_CONFIGS["ai-detector"]
+        ai_config = AI_CONFIGS["ai-yolo26"]
         mon_config = MONITORING_CONFIGS["prometheus"]
 
         # Base backoff: AI(5.0) < monitoring(10.0) - AI restarts faster initially
@@ -680,7 +680,7 @@ class TestCategoryPriorityOrdering:
         """Test complete backoff hierarchy: infrastructure < ai < monitoring (base) and infra < mon < ai (max)."""
         # Get one representative from each category
         infra_base = INFRASTRUCTURE_CONFIGS["postgres"].restart_backoff_base
-        ai_base = AI_CONFIGS["ai-detector"].restart_backoff_base
+        ai_base = AI_CONFIGS["ai-yolo26"].restart_backoff_base
         mon_base = MONITORING_CONFIGS["prometheus"].restart_backoff_base
 
         # Base backoff: infra(2) < ai(5) < mon(10) - more aggressive for infrastructure
@@ -689,7 +689,7 @@ class TestCategoryPriorityOrdering:
         )
 
         infra_max = INFRASTRUCTURE_CONFIGS["postgres"].restart_backoff_max
-        ai_max = AI_CONFIGS["ai-detector"].restart_backoff_max
+        ai_max = AI_CONFIGS["ai-yolo26"].restart_backoff_max
         mon_max = MONITORING_CONFIGS["prometheus"].restart_backoff_max
 
         # Max backoff: infra(60) < mon(120) < ai(300) - AI uses default 300.0
@@ -704,7 +704,7 @@ class TestCategoryPriorityOrdering:
         """Test that discovered services preserve their category-specific settings."""
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
-            create_mock_container("security-ai-detector-1", "det123"),
+            create_mock_container("security-ai-yolo26-1", "det123"),
             create_mock_container("security-prometheus-1", "prom123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
@@ -714,7 +714,7 @@ class TestCategoryPriorityOrdering:
 
         # Find each service
         postgres = next(s for s in discovered if s.name == "postgres")
-        detector = next(s for s in discovered if s.name == "ai-detector")
+        detector = next(s for s in discovered if s.name == "ai-yolo26")
         prometheus = next(s for s in discovered if s.name == "prometheus")
 
         # Verify category-specific settings preserved

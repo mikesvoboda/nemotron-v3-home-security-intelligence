@@ -94,8 +94,8 @@ WORKDIR /app
 RUN groupadd -g 1000 florence && \
     useradd -u 1000 -g florence -s /bin/bash -m florence
 
-# Copy installed packages from builder (all Python packages are in /usr/local)
-COPY --from=builder --chown=florence:florence /usr/local /usr/local
+# Copy installed packages from builder (pytorch images use /opt/conda for Python)
+COPY --from=builder --chown=florence:florence /opt/conda /opt/conda
 COPY --from=builder --chown=florence:florence /app .
 
 # Copy profiler tools and scripts

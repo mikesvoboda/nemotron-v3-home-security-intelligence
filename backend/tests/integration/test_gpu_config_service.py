@@ -95,10 +95,10 @@ class TestOperationStatusPersistence:
             success=True,
             operation_id=operation_id,
             started_at=datetime.now(UTC),
-            changed_services=["ai-detector", "ai-llm"],
+            changed_services=["ai-yolo26", "ai-llm"],
             service_statuses={
-                "ai-detector": ServiceRestartStatus(
-                    service_name="ai-detector",
+                "ai-yolo26": ServiceRestartStatus(
+                    service_name="ai-yolo26",
                     status=RestartStatus.RUNNING,
                 ),
                 "ai-llm": ServiceRestartStatus(
@@ -117,9 +117,9 @@ class TestOperationStatusPersistence:
         assert loaded is not None
         assert loaded.operation_id == operation_id
         assert loaded.success is True
-        assert loaded.changed_services == ["ai-detector", "ai-llm"]
+        assert loaded.changed_services == ["ai-yolo26", "ai-llm"]
         assert len(loaded.service_statuses) == 2
-        assert loaded.service_statuses["ai-detector"].status == RestartStatus.RUNNING
+        assert loaded.service_statuses["ai-yolo26"].status == RestartStatus.RUNNING
         assert loaded.service_statuses["ai-llm"].status == RestartStatus.RESTARTING
 
     @pytest.mark.asyncio
@@ -146,10 +146,10 @@ class TestOperationStatusPersistence:
             operation_id=operation_id,
             started_at=datetime.now(UTC),
             completed_at=datetime.now(UTC),
-            changed_services=["ai-detector"],
+            changed_services=["ai-yolo26"],
             service_statuses={
-                "ai-detector": ServiceRestartStatus(
-                    service_name="ai-detector",
+                "ai-yolo26": ServiceRestartStatus(
+                    service_name="ai-yolo26",
                     status=RestartStatus.FAILED,
                     error="GPU not available",
                 ),
@@ -164,8 +164,8 @@ class TestOperationStatusPersistence:
         assert loaded is not None
         assert loaded.success is False
         assert loaded.error == "One or more services failed to restart"
-        assert loaded.service_statuses["ai-detector"].status == RestartStatus.FAILED
-        assert loaded.service_statuses["ai-detector"].error == "GPU not available"
+        assert loaded.service_statuses["ai-yolo26"].status == RestartStatus.FAILED
+        assert loaded.service_statuses["ai-yolo26"].error == "GPU not available"
 
 
 # =============================================================================
@@ -189,10 +189,10 @@ class TestMultiServiceStatus:
             success=False,  # Partial success
             operation_id=operation_id,
             started_at=datetime.now(UTC),
-            changed_services=["ai-detector", "ai-llm", "ai-pose"],
+            changed_services=["ai-yolo26", "ai-llm", "ai-pose"],
             service_statuses={
-                "ai-detector": ServiceRestartStatus(
-                    service_name="ai-detector",
+                "ai-yolo26": ServiceRestartStatus(
+                    service_name="ai-yolo26",
                     status=RestartStatus.RUNNING,
                     started_at=datetime.now(UTC),
                     completed_at=datetime.now(UTC),
@@ -221,7 +221,7 @@ class TestMultiServiceStatus:
         assert len(loaded.service_statuses) == 3
 
         # Check each service status
-        assert loaded.service_statuses["ai-detector"].status == RestartStatus.RUNNING
+        assert loaded.service_statuses["ai-yolo26"].status == RestartStatus.RUNNING
         assert loaded.service_statuses["ai-llm"].status == RestartStatus.RUNNING
         assert loaded.service_statuses["ai-pose"].status == RestartStatus.FAILED
         assert loaded.service_statuses["ai-pose"].error == "Container exited with code 1"

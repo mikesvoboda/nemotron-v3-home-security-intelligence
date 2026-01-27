@@ -65,6 +65,9 @@ RUN groupadd -g 1000 yolo26 && \
 
 # Copy application files
 COPY ai/yolo26/model.py .
+# Copy shared utilities
+COPY ai/compile_utils.py .
+COPY ai/torch_optimizations.py .
 
 # Environment variables
 ENV HOST=0.0.0.0

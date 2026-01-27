@@ -96,7 +96,7 @@ def build_service_configs(
     }
 
     ai_configs: dict[str, ServiceConfig] = {
-        "ai-detector": ServiceConfig(
+        "ai-yolo26": ServiceConfig(
             display_name="YOLO26",
             category=ServiceCategory.AI,
             port=yolo26_port,
@@ -265,10 +265,10 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
 }
 
 AI_CONFIGS: dict[str, ServiceConfig] = {
-    "ai-detector": ServiceConfig(
+    "ai-yolo26": ServiceConfig(
         display_name="YOLO26",
         category=ServiceCategory.AI,
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         startup_grace_period=60,
     ),
