@@ -1,0 +1,9 @@
+{
+  "id": "F11",
+  "variation": "reflections_window_glare",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Bright sun reflects off a car windshield creating intense glare spots that shift as clouds pass. Exposure challenges, no people. Static elevated viewpoint, clear daytime footage with glare. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.489615+00:00"
+}

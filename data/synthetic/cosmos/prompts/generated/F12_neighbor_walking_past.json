@@ -1,0 +1,9 @@
+{
+  "id": "F12",
+  "variation": "neighbor_walking_past",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A person walks along the sidewalk past the property, staying on public path, not entering driveway or yard. Normal pedestrian traffic. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.489765+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "T09",
+  "variation": "multiple_intruders",
+  "category": "training",
+  "scenario": "threat_patterns",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. Three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.477303+00:00"
+}

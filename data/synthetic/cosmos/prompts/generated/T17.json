@@ -1,5 +1,0 @@
-{
-  "inference_type": "text2world",
-  "name": "T17",
-  "prompt": "Security camera footage where same person enters frame, walks to door, leaves frame, then returns again. Tests re-identification after absence. Daytime footage."
-}

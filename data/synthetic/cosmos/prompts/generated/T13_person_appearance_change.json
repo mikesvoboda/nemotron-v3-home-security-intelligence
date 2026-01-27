@@ -1,0 +1,9 @@
+{
+  "id": "T13",
+  "variation": "person_appearance_change",
+  "category": "training",
+  "scenario": "tracking_sequences",
+  "duration_seconds": 30,
+  "prompt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person removes their jacket while walking. First wearing blue jacket, then carrying it, revealing different shirt underneath. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.478394+00:00"
+}

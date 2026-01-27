@@ -1,0 +1,9 @@
+{
+  "id": "P45",
+  "variation": "reverse_in",
+  "category": "presentation",
+  "scenario": "vehicle_person",
+  "duration_seconds": 18,
+  "prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. The vehicle reverses into the driveway for quick exit positioning, then driver exits. Door swings open at normal speed, person exits with natural fluid motion, stands upright. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.466989+00:00"
+}

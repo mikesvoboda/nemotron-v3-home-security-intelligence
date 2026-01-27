@@ -1,5 +1,0 @@
-{
-  "inference_type": "text2world",
-  "name": "T35",
-  "prompt": "Security camera footage partially blocked by tree branches. Person visible through gaps in foliage, intermittent clear views. Tests detection through occlusion. Daytime."
-}

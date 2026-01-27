@@ -1,0 +1,9 @@
+{
+  "id": "T30",
+  "variation": "depth_near_far",
+  "category": "training",
+  "scenario": "enrichment_stress",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Objects at varying distances: car far at street, person mid-distance, package close in the foreground. Wide-angle perspective showing depth. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.483348+00:00"
+}

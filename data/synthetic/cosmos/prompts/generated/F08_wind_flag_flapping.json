@@ -1,0 +1,9 @@
+{
+  "id": "F08",
+  "variation": "wind_flag_flapping",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. An American flag on a pole near the porch flaps continuously in the breeze. Constant repetitive fabric motion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.489169+00:00"
+}

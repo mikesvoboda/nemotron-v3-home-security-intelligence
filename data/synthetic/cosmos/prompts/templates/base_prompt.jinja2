@@ -3,19 +3,22 @@
 
   Target: ~120 words for optimal Cosmos output quality
 
+  IMPORTANT: Use perspective/viewpoint language instead of naming camera devices
+  to prevent Cosmos from rendering camera equipment IN the generated scene.
+
   Components:
-    - scene: Camera position, setting, visual characteristics
+    - scene: Viewing angle, setting, visual characteristics
     - environment: Time of day, lighting, weather, quality notes
     - subject: Person/vehicle description and appearance
     - action: What happens in the video
     - generation: Duration and technical specs
 -#}
-Security camera footage from {{ scene.camera_position }}, {{ scene.setting }}
+{{ scene.setting }}, viewed from {{ scene.viewing_angle }}
 {%- if environment.time_of_day %} at {{ environment.time_of_day }}{% endif %}. {{ environment.lighting_description }}.
 
 {{ subject.description }}
 {%- if subject.appearance %}, {{ subject.appearance }}{% endif %}. {{ action.sequence_description }}.
 {%- if action.additional_details %} {{ action.additional_details }}.{% endif %}
 
-{{ scene.camera_notes }}
-{%- if scene.lens_effects %}, {{ scene.lens_effects }}{% endif %}, {{ environment.quality_notes }}. Realistic human motion, {{ generation.duration_seconds }}-second duration.
+{{ scene.perspective_notes }}
+{%- if scene.lens_effects %}, {{ scene.lens_effects }}{% endif %}, {{ environment.quality_notes }}. Real-time speed, natural fluid human motion at 1x playback rate.

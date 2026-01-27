@@ -1,0 +1,9 @@
+{
+  "id": "R02",
+  "variation": "package_theft_casual",
+  "category": "training",
+  "scenario": "real_threats",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person casually walks up to the porch, picks up a package as if it belongs to them, tucks it under arm, and walks away calmly. Deceptive theft behavior. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.490730+00:00"
+}

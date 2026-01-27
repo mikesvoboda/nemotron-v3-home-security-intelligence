@@ -1,0 +1,9 @@
+{
+  "id": "E18",
+  "variation": "guest_expected",
+  "category": "training",
+  "scenario": "everyday_recognition",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person walks up confidently to the door, waves at the camera with a smile, rings doorbell, and waits comfortably. Expected guest arrival. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.496238+00:00"
+}

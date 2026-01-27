@@ -1,0 +1,9 @@
+{
+  "id": "T33",
+  "variation": "fog_low_visibility",
+  "category": "training",
+  "scenario": "edge_cases",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway on overcast foggy day, viewed from an elevated position on the garage. Dense fog with person barely visible approaching. Silhouette becoming clearer as they get closer. Very low visibility conditions. Static elevated viewpoint, muted colors. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.485120+00:00"
+}

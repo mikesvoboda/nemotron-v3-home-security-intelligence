@@ -1,0 +1,9 @@
+{
+  "id": "T18",
+  "variation": "long_distance_approach",
+  "category": "training",
+  "scenario": "tracking_sequences",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person starting far at street edge, walking steadily closer until near the viewpoint. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.479756+00:00"
+}

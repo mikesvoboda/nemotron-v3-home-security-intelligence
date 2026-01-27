@@ -1,0 +1,9 @@
+{
+  "id": "P23",
+  "variation": "quick_traverse",
+  "category": "presentation",
+  "scenario": "cross_camera",
+  "duration_seconds": 15,
+  "prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They move quickly across the driveway and lawn, almost jogging. Natural walking speed, arms swinging normally, continuous forward motion. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Transitional lighting quality, warm tones, automatic exposure adjusting. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.407508+00:00"
+}

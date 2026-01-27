@@ -1,0 +1,9 @@
+{
+  "id": "E14",
+  "variation": "utility_gas",
+  "category": "training",
+  "scenario": "everyday_recognition",
+  "duration_seconds": 30,
+  "prompt": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A gas company technician in uniform with detection equipment checks the gas meter and surrounding pipes, takes readings. Safety inspection. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.495644+00:00"
+}

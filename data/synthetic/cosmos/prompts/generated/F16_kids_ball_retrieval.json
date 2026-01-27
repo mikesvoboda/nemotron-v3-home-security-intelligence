@@ -1,0 +1,9 @@
+{
+  "id": "F16",
+  "variation": "kids_ball_retrieval",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. A child quickly runs into the yard, grabs a soccer ball, waves apologetically toward neighboring house, and runs back out. Innocent brief intrusion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.490446+00:00"
+}

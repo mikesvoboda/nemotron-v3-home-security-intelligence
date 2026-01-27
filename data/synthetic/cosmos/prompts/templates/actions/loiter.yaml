@@ -1,17 +1,14 @@
 id: loiter
-sequence_description: 'They stand near the entrance, shifting weight between feet, occasionally looking around and at their phone'
-additional_details: 'Extended presence without clear purpose, periodic surveillance of surroundings'
+sequence_description: 'They stand near the entrance looking around nervously, checking their phone'
+additional_details: 'Visible fidgeting, head turns to scan surroundings, natural real-time movements'
 key_actions:
   - timestamp: 0
-    action: stops_near_door
-  - timestamp: 5
-    action: looks_at_phone
-  - timestamp: 10
-    action: glances_around
-  - timestamp: 15
-    action: shifts_weight
-  - timestamp: 20
-    action: continues_waiting
-duration_range: [20, 30]
+    action: standing_looking_around
+  - timestamp: 2
+    action: checking_phone
+  - timestamp: 4
+    action: glancing_at_door
+duration_range: [5, 5]
 motion_type: stationary_fidgeting
 suspicion_level: medium
+speed_note: 'real-time natural fidgeting speed, not slow motion'

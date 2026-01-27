@@ -1,0 +1,9 @@
+{
+  "id": "T38",
+  "variation": "lens_flare_glare",
+  "category": "training",
+  "scenario": "edge_cases",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Sun causing lens flare and glare. Bright spots, lens artifacts partially obscuring view. Person walking through areas of flare. Static elevated viewpoint, daytime footage with lens effects. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.487067+00:00"
+}

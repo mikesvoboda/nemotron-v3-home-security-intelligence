@@ -1,13 +1,14 @@
 id: approach_door
-sequence_description: 'They walk steadily toward the front door from the edge of frame'
-additional_details: 'Natural walking gait, arms swinging slightly'
+sequence_description: 'They walk at normal pace toward the front door'
+additional_details: 'Natural walking speed, arms swinging normally, continuous forward motion'
 key_actions:
   - timestamp: 0
-    action: enters_frame_walking
+    action: walking_toward_door
+  - timestamp: 3
+    action: approaching_door
   - timestamp: 5
-    action: continues_approach
-  - timestamp: 10
-    action: reaches_door
-duration_range: [10, 15]
+    action: reaching_door
+duration_range: [5, 5]
 motion_type: walking
 suspicion_level: low
+speed_note: 'real-time natural walking speed, not slow motion'

@@ -1,0 +1,9 @@
+{
+  "id": "T37",
+  "variation": "multiple_light_sources",
+  "category": "training",
+  "scenario": "edge_cases",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple light sources: porch light, car headlights, streetlamp all creating overlapping shadows. Complex lighting conditions. Static elevated viewpoint, IR-tinted footage.",
+  "generated_at": "2026-01-27T22:07:34.486781+00:00"
+}

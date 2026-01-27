@@ -1,0 +1,9 @@
+{
+  "id": "F05",
+  "variation": "wildlife_birds",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Several small birds hop around on the porch, pecking at crumbs near the doormat, fluttering wings occasionally. Small repetitive animal motion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.488671+00:00"
+}

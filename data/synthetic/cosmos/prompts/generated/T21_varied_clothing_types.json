@@ -1,0 +1,9 @@
+{
+  "id": "T21",
+  "variation": "varied_clothing_types",
+  "category": "training",
+  "scenario": "enrichment_stress",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Sequence of different people walking through: one in business suit, one in athletic wear, one in work uniform, one in casual hoodie and jeans. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.480561+00:00"
+}

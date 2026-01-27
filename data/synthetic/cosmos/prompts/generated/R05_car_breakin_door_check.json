@@ -1,0 +1,9 @@
+{
+  "id": "R05",
+  "variation": "car_breakin_door_check",
+  "category": "training",
+  "scenario": "real_threats",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. A person walks along parked cars, trying each door handle quietly, finds one unlocked, opens it, rummages inside briefly, then moves on. Subtle vehicle crime. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.491180+00:00"
+}

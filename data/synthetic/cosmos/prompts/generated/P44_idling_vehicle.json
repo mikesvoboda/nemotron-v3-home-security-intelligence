@@ -1,0 +1,9 @@
+{
+  "id": "P44",
+  "variation": "idling_vehicle",
+  "category": "presentation",
+  "scenario": "vehicle_person",
+  "duration_seconds": 20,
+  "prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A dark sedan with tinted windows, license plate visible, tinted windows, parks in driveway. The vehicle pulls up and idles in the driveway, no one exits, just sits there. Visible fidgeting, head turns to scan surroundings, natural real-time movements. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.464421+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "T07",
+  "variation": "pry_bar_usage",
+  "category": "training",
+  "scenario": "threat_patterns",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Person using a pry bar to attempt forced entry. Metal tool visible, leveraging against door frame. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.476755+00:00"
+}

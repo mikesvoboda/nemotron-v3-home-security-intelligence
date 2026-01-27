@@ -1,0 +1,9 @@
+{
+  "id": "P15",
+  "variation": "full_perimeter",
+  "category": "presentation",
+  "scenario": "cross_camera",
+  "duration_seconds": 20,
+  "prompt": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They walk quickly along the side of the house toward the back. Brisk walking pace, glancing at windows while moving, continuous motion. Static viewpoint along the fence line, medium field of view, standard wide-angle perspective, Transitional lighting quality, warm tones, automatic exposure adjusting. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.382745+00:00"
+}

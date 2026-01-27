@@ -1,0 +1,9 @@
+{
+  "id": "T14",
+  "variation": "vehicle_track_3_angles",
+  "category": "training",
+  "scenario": "tracking_sequences",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Same silver SUV tracked throughout. First approaching from street, then parked in driveway showing side, then backing out showing rear plate. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.478665+00:00"
+}

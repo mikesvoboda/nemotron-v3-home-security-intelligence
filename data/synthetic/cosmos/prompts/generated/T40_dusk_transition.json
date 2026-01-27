@@ -1,0 +1,9 @@
+{
+  "id": "T40",
+  "variation": "dusk_transition",
+  "category": "training",
+  "scenario": "edge_cases",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at dusk, viewed from an elevated position on the garage. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting transition. Static elevated viewpoint, warm transitional lighting with exposure adjusting. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.487728+00:00"
+}

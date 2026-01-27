@@ -1,0 +1,9 @@
+{
+  "id": "F13",
+  "variation": "neighbor_jogging_past",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A jogger in athletic wear runs along the sidewalk past the property at a steady pace, not looking at the house. Normal exercise activity. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.489945+00:00"
+}

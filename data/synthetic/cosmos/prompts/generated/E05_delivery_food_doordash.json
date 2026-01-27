@@ -1,0 +1,9 @@
+{
+  "id": "E05",
+  "variation": "delivery_food_doordash",
+  "category": "training",
+  "scenario": "everyday_recognition",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person in casual clothes carrying a red insulated DoorDash bag walks up, places food containers at the door, takes a photo, and walks back to their car. Food delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.494231+00:00"
+}

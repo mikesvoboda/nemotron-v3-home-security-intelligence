@@ -1,0 +1,9 @@
+{
+  "id": "C07",
+  "variation": "lighting_headlight_sweep",
+  "category": "training",
+  "scenario": "challenging_conditions",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands at the door as a car turns into the driveway, headlights sweeping dramatically across the scene, causing rapid brightness changes. Dynamic night lighting. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.498624+00:00"
+}

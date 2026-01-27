@@ -1,0 +1,9 @@
+{
+  "id": "P08",
+  "variation": "tool_visible",
+  "category": "presentation",
+  "scenario": "threat_escalation",
+  "duration_seconds": 15,
+  "prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark clothing carrying what appears to be a pry bar or tool, face fully concealed, wearing gloves, crouched posture, moving stealthily. They walk at normal pace toward the front door. Natural walking speed, arms swinging normally, continuous forward motion. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.361749+00:00"
+}

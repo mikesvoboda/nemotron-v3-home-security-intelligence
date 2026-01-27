@@ -1,0 +1,9 @@
+{
+  "id": "F02",
+  "variation": "wildlife_raccoon",
+  "category": "training",
+  "scenario": "false_positives",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A raccoon waddles onto the porch, investigates a trash can, knocks it slightly, then scurries away. Small animal movement near door. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.488205+00:00"
+}

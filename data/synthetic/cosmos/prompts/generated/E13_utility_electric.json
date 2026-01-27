@@ -1,0 +1,9 @@
+{
+  "id": "E13",
+  "variation": "utility_electric",
+  "category": "training",
+  "scenario": "everyday_recognition",
+  "duration_seconds": 30,
+  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. An electric company worker in hard hat and safety vest inspects the power lines near the house, utility truck with cherry picker visible at street. Utility inspection. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.495495+00:00"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "P32",
+  "variation": "unknown_vehicle",
+  "category": "presentation",
+  "scenario": "household_recognition",
+  "duration_seconds": 15,
+  "prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. A car door opens and a person quickly steps out onto the driveway. Door swings open at normal speed, person exits with natural fluid motion, stands upright. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.433345+00:00"
+}

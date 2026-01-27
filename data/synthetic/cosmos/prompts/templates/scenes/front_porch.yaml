@@ -1,7 +1,7 @@
 id: front_porch
 setting: 'suburban home front porch'
-camera_position: 'elevated doorbell camera'
-camera_notes: 'Fixed camera position, wide-angle lens with slight barrel distortion'
+viewing_angle: 'an elevated vantage point near the front door, looking outward'
+perspective_notes: 'Static downward-angled viewpoint, wide-angle with slight barrel distortion'
 lens_effects: 'fisheye edge distortion'
 zones:
   - entry_point

@@ -1,0 +1,9 @@
+{
+  "id": "T17",
+  "variation": "enter_exit_frame",
+  "category": "training",
+  "scenario": "tracking_sequences",
+  "duration_seconds": 30,
+  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Same person enters frame, walks to door, leaves frame, then returns again. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "generated_at": "2026-01-27T22:07:34.479486+00:00"
+}
