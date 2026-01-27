@@ -124,7 +124,7 @@ infrastructure_config = CircuitBreakerConfig(
 
 | Service    | Failure Threshold | Recovery Timeout | Source                |
 | ---------- | ----------------- | ---------------- | --------------------- |
-| YOLO26  | 5                 | 30s              | AI config             |
+| YOLO26     | 5                 | 30s              | AI config             |
 | Nemotron   | 5                 | 30s              | AI config             |
 | PostgreSQL | 10                | 60s              | Infrastructure config |
 | Redis      | 10                | 60s              | Infrastructure config |
