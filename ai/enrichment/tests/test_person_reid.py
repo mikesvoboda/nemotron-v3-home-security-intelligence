@@ -746,3 +746,73 @@ class TestEmbeddingHash:
         hash2 = hashlib.sha256(np.array(different_embedding).tobytes()).hexdigest()[:16]
 
         assert hash1 != hash2
+
+
+# =============================================================================
+# Standalone OSNet Architecture Tests
+# =============================================================================
+
+
+class TestStandaloneOSNet:
+    """Tests for standalone OSNet architecture (torchreid-free loading)."""
+
+    def test_create_osnet_x0_25_returns_model(self) -> None:
+        """create_osnet_x0_25 returns an OSNet model instance."""
+        from ai.enrichment.models.person_reid import OSNet, create_osnet_x0_25
+
+        model = create_osnet_x0_25()
+        assert isinstance(model, OSNet)
+
+    def test_create_osnet_x0_25_feature_dimension(self) -> None:
+        """OSNet-x0.25 has 512-dimensional feature output."""
+        from ai.enrichment.models.person_reid import create_osnet_x0_25
+
+        model = create_osnet_x0_25()
+        assert model.feature_dim == EMBEDDING_DIMENSION
+
+    def test_create_osnet_x0_25_forward_pass(self) -> None:
+        """OSNet-x0.25 produces correct output shape."""
+        from ai.enrichment.models.person_reid import create_osnet_x0_25
+
+        model = create_osnet_x0_25()
+        model.eval()
+
+        # Create dummy input: batch=1, channels=3, height=256, width=128
+        dummy_input = torch.randn(1, 3, OSNET_INPUT_HEIGHT, OSNET_INPUT_WIDTH)
+
+        with torch.no_grad():
+            output = model(dummy_input)
+
+        assert output.shape == (1, EMBEDDING_DIMENSION)
+
+    def test_create_osnet_x0_25_batch_processing(self) -> None:
+        """OSNet-x0.25 handles batch inputs correctly."""
+        from ai.enrichment.models.person_reid import create_osnet_x0_25
+
+        model = create_osnet_x0_25()
+        model.eval()
+
+        batch_size = 4
+        dummy_input = torch.randn(batch_size, 3, OSNET_INPUT_HEIGHT, OSNET_INPUT_WIDTH)
+
+        with torch.no_grad():
+            output = model(dummy_input)
+
+        assert output.shape == (batch_size, EMBEDDING_DIMENSION)
+
+    def test_load_direct_weights_requires_model_path(self) -> None:
+        """_load_direct_weights raises ImportError without model_path."""
+        reid = PersonReID(model_path=None, device="cpu")
+
+        with pytest.raises(ImportError, match="no model_path specified"):
+            reid._load_direct_weights()
+
+    def test_osnet_parameter_count(self) -> None:
+        """OSNet-x0.25 has expected parameter count (~200-300K)."""
+        from ai.enrichment.models.person_reid import create_osnet_x0_25
+
+        model = create_osnet_x0_25()
+        total_params = sum(p.numel() for p in model.parameters())
+
+        # OSNet-x0.25 should have approximately 200-300K parameters
+        assert 150_000 < total_params < 400_000

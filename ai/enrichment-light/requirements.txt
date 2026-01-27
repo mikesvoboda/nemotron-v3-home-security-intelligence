@@ -23,8 +23,9 @@ onnx>=1.12.0
 onnxslim>=0.1.71
 onnxruntime-gpu>=1.16.0
 
-# OSNet re-ID model
-torchreid>=0.2.5
+# OSNet re-ID model - standalone architecture implemented in person_reid.py
+# torchreid removed: uses ~500MB and has external dependencies (gdown)
+# The standalone OSNet implementation loads weights directly from .pth files
 
 # Image processing
 pillow>=10.0.0
