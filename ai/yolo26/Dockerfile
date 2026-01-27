@@ -5,7 +5,7 @@
 # Multi-stage build: Uses shared base image to reduce build time by 60-80%
 # Build order: nvcr.io/nvidia/tensorrt -> builder stage -> base image extensions
 
-FROM nvcr.io/nvidia/tensorrt:24.09-py3 AS tensorrt_base
+FROM nvcr.io/nvidia/tensorrt:25.12-py3 AS tensorrt_base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"

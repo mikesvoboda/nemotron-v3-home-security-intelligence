@@ -29,7 +29,7 @@
 # =============================================================================
 # Base image with CUDA support
 # =============================================================================
-FROM docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04
+FROM docker.io/nvidia/cuda:13.1.1-runtime-ubuntu22.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
