@@ -85,13 +85,13 @@ docker compose -f docker-compose.prod.yml up -d
 Start only the core services:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-detector ai-llm
+docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-yolo26 ai-llm
 ```
 
 Start only AI services (all 5):
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment
+docker compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 ```
 
 Stop:
@@ -158,7 +158,7 @@ Returns:
 
 ```bash
 # Health check
-curl http://localhost:8090/health
+curl http://localhost:8095/health
 ```
 
 **Expected response:**
@@ -263,7 +263,7 @@ Create systemd services for production. Replace placeholders with actual values.
 **YOLO26 Service:**
 
 ```bash
-sudo tee /etc/systemd/system/ai-detector.service > /dev/null << EOF
+sudo tee /etc/systemd/system/ai-yolo26.service > /dev/null << EOF
 [Unit]
 Description=YOLO26 Object Detection Service
 After=network.target
@@ -305,8 +305,8 @@ EOF
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable ai-detector ai-llm
-sudo systemctl start ai-detector ai-llm
+sudo systemctl enable ai-yolo26 ai-llm
+sudo systemctl start ai-yolo26 ai-llm
 ```
 
 ### Auto-start on Boot

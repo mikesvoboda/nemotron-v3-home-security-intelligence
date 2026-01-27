@@ -27,7 +27,7 @@ flowchart TB
             end
 
             subgraph AI["AI Services (GPU)"]
-                DET["ai-detector<br/>YOLO26<br/>:8090"]
+                DET["ai-yolo26<br/>YOLO26<br/>:8095"]
                 LLM["ai-llm<br/>Nemotron<br/>:8091"]
                 FLO["ai-florence<br/>Florence-2<br/>:8092"]
                 CLIP["ai-clip<br/>CLIP ViT-L<br/>:8093"]
@@ -81,7 +81,7 @@ networks:
 | backend       | 8000          | 8000          | HTTP/WS    |
 | postgres      | 5432          | 5432          | TCP        |
 | redis         | 6379          | 6379          | TCP        |
-| ai-detector   | 8090          | 8090          | HTTP       |
+| ai-yolo26     | 8090          | 8090          | HTTP       |
 | ai-llm        | 8091          | 8091          | HTTP       |
 | ai-florence   | 8092          | 8092          | HTTP       |
 | ai-clip       | 8093          | 8093          | HTTP       |
@@ -98,7 +98,7 @@ networks:
 
 All AI services use NVIDIA Container Toolkit (CDI) for GPU access.
 
-**Source:** `docker-compose.prod.yml:137-143` (ai-detector example)
+**Source:** `docker-compose.prod.yml:137-143` (ai-yolo26 example)
 
 ```yaml
 deploy:
@@ -208,7 +208,7 @@ volumes:
 | `loki_data`                  | loki         | `/loki`                    | Log storage               |
 | `pyroscope_data`             | pyroscope    | `/data`                    | Profile storage           |
 | Host: `/export/foscam`       | backend      | `/cameras:ro`              | Camera images (read-only) |
-| Host: `~/.cache/huggingface` | ai-detector  | `/cache/huggingface`       | Model cache               |
+| Host: `~/.cache/huggingface` | ai-yolo26    | `/cache/huggingface`       | Model cache               |
 
 ## Health Checks
 
@@ -222,7 +222,7 @@ All services include Docker health checks for orchestration and monitoring.
 | redis         | `redis-cli ping`               | 10s      | 5s      | 3       | -            |
 | backend       | `GET /api/system/health/ready` | 10s      | 5s      | 3       | 30s          |
 | frontend      | `GET /health`                  | 30s      | 10s     | 3       | 40s          |
-| ai-detector   | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
+| ai-yolo26     | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
 | ai-llm        | `GET /health`                  | 10s      | 5s      | 5       | 120s         |
 | ai-florence   | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
 | ai-clip       | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
@@ -238,7 +238,7 @@ All services include Docker health checks for orchestration and monitoring.
 
 AI services have longer start periods due to model loading:
 
-- **ai-detector**: 60s for YOLO26 model loading
+- **ai-yolo26**: 60s for YOLO26 model loading
 - **ai-llm**: 120s for Nemotron LLM loading (largest model)
 - **ai-enrichment**: 180s for multiple model initialization
 
@@ -262,7 +262,7 @@ AI services have longer start periods due to model loading:
 | json-exporter     | 0.5       | 64M          |
 | blackbox-exporter | 0.5       | 64M          |
 
-**Note:** AI services (ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment) do not have CPU/memory limits to allow full GPU utilization.
+**Note:** AI services (ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment) do not have CPU/memory limits to allow full GPU utilization.
 
 ## Service Dependencies
 
@@ -281,7 +281,7 @@ depends_on:
     condition: service_healthy
   redis:
     condition: service_healthy
-  ai-detector:
+  ai-yolo26:
     condition: service_healthy
   ai-llm:
     condition: service_healthy
@@ -291,7 +291,7 @@ depends_on:
 flowchart LR
     PG["postgres"] --> BE["backend"]
     RD["redis"] --> BE
-    DET["ai-detector"] --> BE
+    DET["ai-yolo26"] --> BE
     LLM["ai-llm"] --> BE
     BE --> FE["frontend"]
     PROM["prometheus"] --> GRAF["grafana"]

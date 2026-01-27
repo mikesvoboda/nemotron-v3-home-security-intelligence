@@ -44,11 +44,11 @@ from backend.services.service_registry import ManagedService
 def running_service() -> ManagedService:
     """Create a running service with recent restart."""
     return ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abcdef123456789",
         image="ghcr.io/example/yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
@@ -104,11 +104,11 @@ def service_without_container() -> ManagedService:
 def hm_running_service() -> HealthMonitorService:
     """Create a HealthMonitorService for testing callbacks."""
     return HealthMonitorService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abcdef123456789",
         image="ghcr.io/example/yolo26:latest",
-        port=8090,
+        port=8095,
         category=ServiceCategory.AI,
         health_endpoint="/health",
         status=ContainerServiceStatus.RUNNING,
@@ -123,11 +123,11 @@ def hm_running_service() -> HealthMonitorService:
 def lm_running_service() -> LifecycleService:
     """Create a LifecycleService for testing callbacks."""
     return LifecycleService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abcdef123456789",
         image="ghcr.io/example/yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         category=ServiceCategory.AI,
         status=ContainerServiceStatus.RUNNING,
@@ -196,12 +196,12 @@ class TestCreateServiceStatusEvent:
         event = create_service_status_event(running_service, "Test message")
         data = event["data"]
 
-        assert data["name"] == "ai-detector"
+        assert data["name"] == "ai-yolo26"
         assert data["display_name"] == "YOLO26"
         assert data["category"] == "ai"
         assert data["status"] == "running"
         assert data["enabled"] is True
-        assert data["port"] == 8090
+        assert data["port"] == 8095
         assert data["failure_count"] == 0
         assert data["restart_count"] == 2
         assert data["image"] == "ghcr.io/example/yolo26:latest"
@@ -316,7 +316,7 @@ class TestContainerOrchestratorBroadcast:
             event = broadcast_fn.call_args[0][0]
             assert event["type"] == "service_status"
             assert event["message"] == "Service recovered"
-            assert event["data"]["name"] == "ai-detector"
+            assert event["data"]["name"] == "ai-yolo26"
 
     @pytest.mark.asyncio
     async def test_broadcasts_on_health_failure(
@@ -528,7 +528,7 @@ class TestContainerOrchestratorServiceActions:
             orchestrator._lifecycle_manager = None
             orchestrator._lm_registry = None
 
-            result = await orchestrator.disable_service("ai-detector")
+            result = await orchestrator.disable_service("ai-yolo26")
 
             assert result is True
             broadcast_fn.assert_called_once()
@@ -558,7 +558,7 @@ class TestContainerOrchestratorServiceActions:
             orchestrator._lm_registry = None
             orchestrator._docker_client = mock_docker_client
 
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
             assert result is True
             assert broadcast_fn.call_count == 2
@@ -592,7 +592,7 @@ class TestContainerOrchestratorServiceActions:
             orchestrator._lm_registry = None
             orchestrator._docker_client = mock_docker_client
 
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
             assert result is False
             assert broadcast_fn.call_count == 2

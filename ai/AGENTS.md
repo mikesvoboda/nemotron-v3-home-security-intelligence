@@ -271,10 +271,10 @@ The system supports distributing AI workloads across multiple GPUs. See **[Multi
 
 **Reference Multi-GPU Configuration:**
 
-| GPU   | Model     | VRAM  | Recommended Services                      |
-| ----- | --------- | ----- | ----------------------------------------- |
-| GPU 0 | RTX A5500 | 24 GB | ai-llm, ai-detector, ai-florence, ai-clip |
-| GPU 1 | RTX A400  | 4 GB  | ai-enrichment (with 3.5GB budget)         |
+| GPU   | Model     | VRAM  | Recommended Services                    |
+| ----- | --------- | ----- | --------------------------------------- |
+| GPU 0 | RTX A5500 | 24 GB | ai-llm, ai-yolo26, ai-florence, ai-clip |
+| GPU 1 | RTX A400  | 4 GB  | ai-enrichment (with 3.5GB budget)       |
 
 ### GPU Configuration Files (Auto-Generated)
 

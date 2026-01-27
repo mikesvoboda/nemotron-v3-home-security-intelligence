@@ -305,7 +305,7 @@ docker compose up -d
 
 ```bash
 # AI services on compose network (internal DNS)
-YOLO26_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-yolo26:8095
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -315,14 +315,14 @@ ENRICHMENT_URL=http://ai-enrichment:8094
 **Development with host AI:**
 
 ```bash
-YOLO26_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8095
 NEMOTRON_URL=http://localhost:8091
 ```
 
 **Docker Desktop (macOS/Windows):**
 
 ```bash
-YOLO26_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8095
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -364,7 +364,7 @@ The system supports a multi-service AI stack:
 
 ```bash
 # Health checks
-curl http://localhost:8090/health   # YOLO26
+curl http://localhost:8095/health   # YOLO26
 curl http://localhost:8091/health   # Nemotron
 curl http://localhost:8092/health   # Florence-2 (optional)
 curl http://localhost:8093/health   # CLIP (optional)
@@ -636,7 +636,7 @@ docker compose -f docker-compose.prod.yml ps
 
 # Check logs for specific service
 docker compose -f docker-compose.prod.yml logs backend
-docker compose -f docker-compose.prod.yml logs ai-detector
+docker compose -f docker-compose.prod.yml logs ai-yolo26
 
 # Check health endpoint
 curl -v http://localhost:8000/health
@@ -653,7 +653,7 @@ curl -v http://localhost:8000/health
 2. **Test health endpoints directly:**
 
    ```bash
-   curl http://localhost:8090/health
+   curl http://localhost:8095/health
    curl http://localhost:8091/health
    ```
 
@@ -661,7 +661,7 @@ curl -v http://localhost:8000/health
 
    ```bash
    nvidia-smi
-   docker compose -f docker-compose.prod.yml exec ai-detector nvidia-smi
+   docker compose -f docker-compose.prod.yml exec ai-yolo26 nvidia-smi
    ```
 
 4. **Verify URL configuration:**
@@ -677,7 +677,7 @@ nvidia-smi
 nvidia-smi --query-compute-apps=pid --format=csv,noheader | xargs kill
 
 # Restart AI services
-docker compose -f docker-compose.prod.yml restart ai-detector ai-llm
+docker compose -f docker-compose.prod.yml restart ai-yolo26 ai-llm
 ```
 
 ### Database Connection Failed

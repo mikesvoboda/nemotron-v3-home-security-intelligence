@@ -176,14 +176,14 @@ REDIS_URL=redis://redis:6379
 # See: docs/operator/deployment-modes.md
 #
 # Production (docker-compose.prod.yml): backend reaches AI via compose DNS
-# YOLO26_URL=http://ai-detector:8090
+# YOLO26_URL=http://ai-yolo26:8095
 # NEMOTRON_URL=http://ai-llm:8091
 # FLORENCE_URL=http://ai-florence:8092
 # CLIP_URL=http://ai-clip:8093
 # ENRICHMENT_URL=http://ai-enrichment:8094
 #
 # Development (host-run AI):
-# YOLO26_URL=http://localhost:8090
+# YOLO26_URL=http://localhost:8095
 # NEMOTRON_URL=http://localhost:8091
 
 # Camera Upload Directory
@@ -252,7 +252,7 @@ cd frontend && npm list --depth=0
 ls -la ai/nemotron/*.gguf
 
 # YOLO26 weights live in HuggingFace cache. Verify by starting the service and hitting /health:
-# curl http://localhost:8090/health
+# curl http://localhost:8095/health
 
 # Check container runtime (choose one)
 docker --version && docker compose version   # Docker

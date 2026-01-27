@@ -57,11 +57,11 @@ def mock_redis() -> AsyncMock:
 def sample_service() -> ManagedService:
     """Create a sample managed service for testing."""
     return ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abc123",
         image="ghcr.io/.../yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,

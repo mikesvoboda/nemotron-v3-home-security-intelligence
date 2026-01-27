@@ -715,14 +715,14 @@ async def test_list_services_with_multiple_categories(client, mock_redis):
 
     # AI service
     mock_ai = MagicMock()
-    mock_ai.name = "ai-detector"
+    mock_ai.name = "ai-yolo26"
     mock_ai.display_name = "YOLO26"
     mock_ai.category = ServiceCategory.AI
     mock_ai.status = ContainerServiceStatus.RUNNING
     mock_ai.enabled = True
     mock_ai.container_id = "def456"
     mock_ai.image = "yolo26:latest"
-    mock_ai.port = 8090
+    mock_ai.port = 8095
     mock_ai.failure_count = 0
     mock_ai.restart_count = 0
     mock_ai.last_restart_at = None

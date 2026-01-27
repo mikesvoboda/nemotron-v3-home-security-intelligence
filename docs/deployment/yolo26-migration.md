@@ -76,7 +76,7 @@ If the engine file doesn't exist, see [Exporting TensorRT Engines](#exporting-te
 
 | Variable                       | Default                                      | Description                                      |
 | ------------------------------ | -------------------------------------------- | ------------------------------------------------ |
-| `YOLO26_URL`                   | `http://ai-yolo26:8090`                      | YOLO26 service endpoint (Docker network)         |
+| `YOLO26_URL`                   | `http://ai-yolo26:8095`                      | YOLO26 service endpoint (Docker network)         |
 | `YOLO26_CONFIDENCE`            | `0.5`                                        | Minimum confidence threshold (0.0-1.0)           |
 | `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | Path to TensorRT engine inside container         |
 | `YOLO26_API_KEY`               | (none)                                       | Optional API key for service authentication      |

@@ -76,7 +76,7 @@ podman-compose -f docker-compose.prod.yml up -d
 | ------------- | ---- | -------------------------- |
 | PostgreSQL    | 5432 | Database                   |
 | Redis         | 6379 | Queues + pub/sub           |
-| ai-detector   | 8090 | YOLO26 object detection    |
+| ai-yolo26     | 8090 | YOLO26 object detection    |
 | ai-llm        | 8091 | Nemotron LLM risk analysis |
 | ai-florence   | 8092 | Florence-2 (optional)      |
 | ai-clip       | 8093 | CLIP (optional)            |
@@ -97,7 +97,7 @@ podman-compose -f docker-compose.prod.yml ps
 NAME                      STATUS
 security-postgres-1       healthy
 security-redis-1          healthy
-security-ai-detector-1    healthy
+security-ai-yolo26-1    healthy
 security-ai-llm-1         healthy
 security-backend-1        healthy
 security-frontend-1       healthy
@@ -143,7 +143,7 @@ Starting YOLO26 Detection Server...
 Model directory: /path/to/ai/yolo26
 Port: 8090
 Expected VRAM usage: ~4GB
-INFO:     Uvicorn running on http://0.0.0.0:8090
+INFO:     Uvicorn running on http://0.0.0.0:8095
 ```
 
 #### Terminal 2: Nemotron LLM Server
@@ -175,7 +175,7 @@ llama server listening at http://0.0.0.0:8091
 
 ```bash
 # Check YOLO26
-curl http://localhost:8090/health
+curl http://localhost:8095/health
 # Expected: JSON describing model + CUDA status
 
 # Check Nemotron
@@ -365,7 +365,7 @@ ls -la ai/nemotron/*.gguf
 # YOLO26 weights are downloaded to HuggingFace cache; use /health to confirm model_loaded=true
 
 # Check port availability
-lsof -i :8090
+lsof -i :8095
 lsof -i :8091
 ```
 
@@ -382,10 +382,10 @@ This happens when you mix host AI servers with `docker-compose.prod.yml`.
 
 ```bash
 # From inside container - Docker
-docker exec security-backend-1 curl http://host.docker.internal:8090/health
+docker exec security-backend-1 curl http://host.docker.internal:8095/health
 
 # From inside container - Podman
-podman exec security-backend-1 curl http://host.containers.internal:8090/health
+podman exec security-backend-1 curl http://host.containers.internal:8095/health
 
 # Check AI_HOST is set correctly
 echo $AI_HOST

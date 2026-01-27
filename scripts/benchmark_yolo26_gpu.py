@@ -927,7 +927,7 @@ def generate_gpu_benchmark_report(
                     "",
                     "```yaml",
                     "# docker-compose configuration",
-                    "ai-detector:",
+                    "ai-yolo26:",
                     "  environment:",
                     f"    DETECTOR_MODEL: /models/yolo26/exports/{trt_fastest.model_name}.engine",
                     "    DETECTOR_DEVICE: cuda:0",

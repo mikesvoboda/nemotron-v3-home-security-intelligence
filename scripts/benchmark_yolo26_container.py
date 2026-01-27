@@ -917,7 +917,7 @@ def generate_benchmark_report(
                     "",
                     "```yaml",
                     "# docker-compose.prod.yml configuration",
-                    "ai-detector:",
+                    "ai-yolo26:",
                     "  environment:",
                     f"    DETECTOR_MODEL: /models/yolo26/exports/{best_trt.model_name}_fp16.engine",
                     "    DETECTOR_DEVICE: cuda:0",

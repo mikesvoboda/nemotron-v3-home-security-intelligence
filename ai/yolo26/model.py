@@ -8,6 +8,17 @@ Uses Ultralytics YOLO for loading and running TensorRT engines.
 Port: 8095 (configurable via PORT env var)
 Expected VRAM: ~2GB
 
+TensorRT Version Compatibility (NEM-3871):
+    TensorRT engines are version-specific and may fail to load if created with
+    a different TensorRT version than the runtime. This module automatically:
+    - Detects TensorRT version mismatches on engine load
+    - Deletes stale engine files when version mismatch detected
+    - Rebuilds the engine from the source .pt file if available
+
+    Environment Variables:
+    - YOLO26_AUTO_REBUILD: Enable auto-rebuild on version mismatch (default: "true")
+    - YOLO26_PT_MODEL_PATH: Path to .pt source model for rebuilding (default: derived from engine path)
+
 torch.compile Support (NEM-3773):
     Set TORCH_COMPILE_ENABLED=true to enable PyTorch 2.0+ graph optimization.
     This provides 15-30% speedup with automatic kernel fusion.
@@ -26,6 +37,8 @@ import binascii
 import io
 import logging
 import os
+import re
+import shutil
 import sys
 import time
 from contextlib import asynccontextmanager
@@ -186,6 +199,176 @@ def validate_file_extension(filename: str | None) -> tuple[bool, str]:
     return True, ""
 
 
+# =============================================================================
+# TensorRT Version Checking Utilities (NEM-3871)
+# =============================================================================
+
+
+def get_tensorrt_version() -> str | None:
+    """Get the installed TensorRT version.
+
+    Returns:
+        TensorRT version string (e.g., "10.14.1.48") or None if TensorRT is not installed.
+    """
+    try:
+        import tensorrt as trt
+
+        return trt.__version__
+    except ImportError:
+        logger.debug("TensorRT not installed")
+        return None
+    except Exception as e:
+        logger.warning(f"Error getting TensorRT version: {e}")
+        return None
+
+
+def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
+    """Check if an exception indicates a TensorRT version mismatch.
+
+    Args:
+        error: The exception to check.
+
+    Returns:
+        True if the error indicates a TensorRT version mismatch, False otherwise.
+    """
+    error_str = str(error).lower()
+    # Common TensorRT version mismatch error patterns
+    mismatch_patterns = [
+        "older plan file",
+        "newer plan file",
+        "deserialization",
+        "failed due to an old",
+        "version mismatch",
+        "incompatible",
+        "exported with a different version",
+        "deserializecudaengine",
+    ]
+    return any(pattern in error_str for pattern in mismatch_patterns)
+
+
+def get_pt_model_path_for_engine(engine_path: str) -> str | None:
+    """Derive the .pt model path from a TensorRT engine path.
+
+    TensorRT engines are typically named like:
+    - yolo26m_fp16.engine -> yolo26m.pt
+    - yolo26m.engine -> yolo26m.pt
+
+    Args:
+        engine_path: Path to the TensorRT engine file.
+
+    Returns:
+        Path to the corresponding .pt file if it exists, None otherwise.
+    """
+    engine_path_obj = Path(engine_path)
+
+    # Remove precision suffix if present (e.g., _fp16, _int8, _fp32)
+    stem = engine_path_obj.stem
+    stem = re.sub(r"_(fp16|fp32|int8)$", "", stem, flags=re.IGNORECASE)
+
+    # Look for .pt file in same directory
+    pt_path = engine_path_obj.parent / f"{stem}.pt"
+    if pt_path.exists():
+        return str(pt_path)
+
+    # Look for .pt file in parent directory
+    pt_path = engine_path_obj.parent.parent / f"{stem}.pt"
+    if pt_path.exists():
+        return str(pt_path)
+
+    # Check common model paths
+    common_paths = [
+        f"/models/yolo26/{stem}.pt",
+        f"/models/yolo26/exports/{stem}.pt",
+    ]
+    for path in common_paths:
+        if Path(path).exists():
+            return path
+
+    return None
+
+
+def rebuild_tensorrt_engine(
+    pt_model_path: str,
+    engine_output_path: str,
+    imgsz: int = 640,
+    half: bool = True,
+) -> bool:
+    """Rebuild a TensorRT engine from a PyTorch model.
+
+    Args:
+        pt_model_path: Path to the source PyTorch model (.pt file).
+        engine_output_path: Path to write the rebuilt engine.
+        imgsz: Image size for export (default: 640).
+        half: Use FP16 precision (default: True).
+
+    Returns:
+        True if rebuild succeeded, False otherwise.
+    """
+    try:
+        from ultralytics import YOLO
+
+        logger.info(f"Rebuilding TensorRT engine from {pt_model_path}...")
+        logger.info(f"  Output: {engine_output_path}")
+        logger.info(f"  Image size: {imgsz}")
+        logger.info(f"  FP16: {half}")
+
+        # Load the PyTorch model
+        model = YOLO(pt_model_path)
+
+        # Export to TensorRT
+        start_time = time.time()
+        exported_path = model.export(
+            format="engine",
+            imgsz=imgsz,
+            half=half,
+            device=0 if torch.cuda.is_available() else "cpu",
+            dynamic=False,
+            simplify=True,
+            workspace=4,  # 4GB workspace
+        )
+        export_time = time.time() - start_time
+
+        # Move exported file to target location if needed
+        exported_path = Path(str(exported_path))
+        target_path = Path(engine_output_path)
+
+        if exported_path != target_path:
+            # Ensure parent directory exists
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(exported_path), str(target_path))
+
+        logger.info(f"TensorRT engine rebuilt successfully in {export_time:.1f}s")
+        trt_version = get_tensorrt_version()
+        logger.info(f"Engine built with TensorRT version: {trt_version}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to rebuild TensorRT engine: {e}")
+        return False
+
+
+def delete_stale_engine(engine_path: str) -> bool:
+    """Delete a stale TensorRT engine file.
+
+    Args:
+        engine_path: Path to the engine file to delete.
+
+    Returns:
+        True if deletion succeeded, False otherwise.
+    """
+    try:
+        engine_path_obj = Path(engine_path)
+        if engine_path_obj.exists():
+            engine_path_obj.unlink()
+            logger.info(f"Deleted stale TensorRT engine: {engine_path}")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"Failed to delete stale engine {engine_path}: {e}")
+        return False
+
+
 class BoundingBox(BaseModel):
     """Bounding box coordinates."""
 
@@ -253,6 +436,7 @@ class HealthResponse(BaseModel):
     temperature: int | None = None
     power_watts: float | None = None
     tensorrt_enabled: bool | None = None
+    tensorrt_version: str | None = None
     torch_compile_enabled: bool | None = None
     torch_compile_mode: str | None = None
 
@@ -268,6 +452,8 @@ class YOLO26Model:
         cache_clear_frequency: int = 1,
         enable_torch_compile: bool | None = None,
         torch_compile_mode: str | None = None,
+        auto_rebuild: bool | None = None,
+        pt_model_path: str | None = None,
     ):
         """Initialize YOLO26 model.
 
@@ -283,6 +469,10 @@ class YOLO26Model:
                                  Note: Only applies to PyTorch models, not TensorRT engines.
             torch_compile_mode: Compilation mode ("default", "reduce-overhead", "max-autotune").
                                If None, reads from TORCH_COMPILE_MODE env var.
+            auto_rebuild: Enable automatic TensorRT engine rebuild on version mismatch (NEM-3871).
+                         If None, reads from YOLO26_AUTO_REBUILD env var (default: True).
+            pt_model_path: Path to source .pt model for rebuilding TensorRT engines.
+                          If None, reads from YOLO26_PT_MODEL_PATH env var or derives from engine path.
         """
         self.model_path = str(model_path)
         self.confidence_threshold = confidence_threshold
@@ -291,6 +481,15 @@ class YOLO26Model:
         self.cache_clear_count = 0  # Metric: total number of cache clears
         self.model: Any = None
         self.tensorrt_enabled = False
+
+        # TensorRT auto-rebuild configuration (NEM-3871)
+        if auto_rebuild is None:
+            auto_rebuild = os.environ.get("YOLO26_AUTO_REBUILD", "true").lower() == "true"
+        self.auto_rebuild = auto_rebuild
+
+        if pt_model_path is None:
+            pt_model_path = os.environ.get("YOLO26_PT_MODEL_PATH")
+        self.pt_model_path = pt_model_path
 
         # torch.compile configuration (NEM-3773)
         if enable_torch_compile is None:
@@ -308,19 +507,52 @@ class YOLO26Model:
         logger.info(f"Initializing YOLO26 model from {self.model_path}")
         logger.info(f"Device: {device}, Confidence threshold: {confidence_threshold}")
         logger.info(f"CUDA cache clear frequency: {cache_clear_frequency}")
+        logger.info(f"TensorRT auto-rebuild: {self.auto_rebuild}")
         logger.info(
             f"torch.compile enabled: {self.enable_torch_compile}, mode: {self.torch_compile_mode}"
         )
+        # Log TensorRT version for diagnostics
+        trt_version = get_tensorrt_version()
+        if trt_version:
+            logger.info(f"TensorRT runtime version: {trt_version}")
 
     def load_model(self) -> None:
-        """Load the TensorRT model using Ultralytics YOLO."""
+        """Load the TensorRT model using Ultralytics YOLO.
+
+        Handles TensorRT version mismatches (NEM-3871) by:
+        1. Detecting version mismatch errors during engine load
+        2. Deleting the stale engine file
+        3. Rebuilding the engine from the source .pt file if available
+        4. Falling back to the .pt model if rebuild fails or is disabled
+        """
         try:
             logger.info("Loading YOLO26 TensorRT model with Ultralytics...")
 
             from ultralytics import YOLO
 
-            # Load the TensorRT engine
-            self.model = YOLO(self.model_path)
+            # Attempt to load the model
+            try:
+                self.model = YOLO(self.model_path)
+            except Exception as load_error:
+                # Check if this is a TensorRT version mismatch
+                if self.model_path.endswith(".engine") and is_tensorrt_version_mismatch_error(
+                    load_error
+                ):
+                    logger.warning(f"TensorRT version mismatch detected: {load_error}")
+                    trt_version = get_tensorrt_version()
+                    logger.warning(f"Current TensorRT runtime version: {trt_version}")
+
+                    # Attempt to rebuild if auto_rebuild is enabled
+                    if self.auto_rebuild:
+                        self._handle_tensorrt_version_mismatch()
+                    else:
+                        logger.error(
+                            "TensorRT auto-rebuild is disabled. "
+                            "Set YOLO26_AUTO_REBUILD=true to enable automatic engine rebuilding."
+                        )
+                        raise
+                else:
+                    raise
 
             # Check if TensorRT is being used
             if self.model_path.endswith(".engine"):
@@ -353,6 +585,65 @@ class YOLO26Model:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+
+    def _handle_tensorrt_version_mismatch(self) -> None:
+        """Handle TensorRT version mismatch by rebuilding the engine.
+
+        This method:
+        1. Deletes the stale engine file
+        2. Finds or uses the configured source .pt model
+        3. Rebuilds the TensorRT engine
+        4. Loads the rebuilt engine
+
+        Raises:
+            RuntimeError: If the engine cannot be rebuilt or loaded.
+        """
+        from ultralytics import YOLO
+
+        engine_path = self.model_path
+
+        # Find the source .pt model
+        pt_path = self.pt_model_path or get_pt_model_path_for_engine(engine_path)
+
+        if pt_path is None:
+            logger.error(
+                f"Cannot rebuild TensorRT engine: no source .pt model found for {engine_path}. "
+                "Set YOLO26_PT_MODEL_PATH to specify the source model path."
+            )
+            raise RuntimeError(
+                f"TensorRT version mismatch and no source model available for {engine_path}"
+            )
+
+        logger.info(f"Found source model for rebuild: {pt_path}")
+
+        # Delete the stale engine file
+        delete_stale_engine(engine_path)
+
+        # Determine precision from engine filename
+        half = "_fp16" in engine_path.lower() or "_int8" not in engine_path.lower()
+
+        # Rebuild the engine
+        success = rebuild_tensorrt_engine(
+            pt_model_path=pt_path,
+            engine_output_path=engine_path,
+            imgsz=640,
+            half=half,
+        )
+
+        if not success:
+            logger.error("Failed to rebuild TensorRT engine, falling back to .pt model")
+            # Fall back to using the .pt model directly
+            self.model_path = pt_path
+            self.model = YOLO(pt_path)
+            self.tensorrt_enabled = False
+            logger.info(f"Loaded fallback PyTorch model from {pt_path}")
+            return
+
+        # Load the rebuilt engine
+        logger.info(f"Loading rebuilt TensorRT engine from {engine_path}...")
+        self.model = YOLO(engine_path)
+        self.tensorrt_enabled = True
+        logger.info("Rebuilt TensorRT engine loaded successfully")
 
     def _apply_torch_compile(self) -> None:
         """Apply torch.compile() to the underlying PyTorch model for automatic kernel fusion.
@@ -791,6 +1082,7 @@ async def health_check() -> HealthResponse:
         temperature=gpu_metrics.get("temperature"),
         power_watts=gpu_metrics.get("power_watts"),
         tensorrt_enabled=model.tensorrt_enabled if model else None,
+        tensorrt_version=get_tensorrt_version(),
         torch_compile_enabled=model._is_compiled if model else None,
         torch_compile_mode=model.torch_compile_mode if model and model._is_compiled else None,
     )

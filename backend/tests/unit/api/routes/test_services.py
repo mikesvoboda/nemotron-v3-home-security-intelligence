@@ -103,14 +103,14 @@ class TestToServiceInfo:
     def test_converts_service_correctly(self) -> None:
         """Test conversion of ManagedService to ServiceInfo."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             enabled=True,
             container_id="abc123def456789",
             image="ghcr.io/test/yolo26:latest",
-            port=8090,
+            port=8095,
             failure_count=2,
             restart_count=5,
             last_restart_at=datetime(2025, 1, 5, 10, 30, 0, tzinfo=UTC),
@@ -118,14 +118,14 @@ class TestToServiceInfo:
 
         info = _to_service_info(service)
 
-        assert info.name == "ai-detector"
+        assert info.name == "ai-yolo26"
         assert info.display_name == "YOLO26"
         assert info.category == ServiceCategory.AI
         assert info.status == ContainerServiceStatus.RUNNING
         assert info.enabled is True
         assert info.container_id == "abc123def456"  # Truncated to 12 chars
         assert info.image == "ghcr.io/test/yolo26:latest"
-        assert info.port == 8090
+        assert info.port == 8095
         assert info.failure_count == 2
         assert info.restart_count == 5
 
@@ -164,7 +164,7 @@ class TestBuildCategorySummaries:
                 status=ContainerServiceStatus.RUNNING,
             ),
             MockManagedService(
-                name="ai-detector",
+                name="ai-yolo26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
             ),
@@ -218,11 +218,11 @@ class TestListServicesEndpoint:
                 port=5432,
             ),
             MockManagedService(
-                name="ai-detector",
+                name="ai-yolo26",
                 display_name="YOLO26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
-                port=8090,
+                port=8095,
             ),
         ]
 
@@ -241,7 +241,7 @@ class TestListServicesEndpoint:
         data = response.json()
         assert len(data["services"]) == 2
         assert data["services"][0]["name"] == "postgres"
-        assert data["services"][1]["name"] == "ai-detector"
+        assert data["services"][1]["name"] == "ai-yolo26"
         assert "by_category" in data
         assert "timestamp" in data
 
@@ -254,7 +254,7 @@ class TestListServicesEndpoint:
                 category=ServiceCategory.INFRASTRUCTURE,
             ),
             MockManagedService(
-                name="ai-detector",
+                name="ai-yolo26",
                 category=ServiceCategory.AI,
             ),
             MockManagedService(
@@ -303,7 +303,7 @@ class TestRestartServiceEndpoint:
     async def test_restart_success(self) -> None:
         """Test successful service restart."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.RUNNING,
         )
 
@@ -317,15 +317,13 @@ class TestRestartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/restart")
+            response = await client.post("/api/system/services/ai-yolo26/restart")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "restart initiated" in data["message"]
-        mock_orchestrator.restart_service.assert_called_once_with(
-            "ai-detector", reset_failures=True
-        )
+        mock_orchestrator.restart_service.assert_called_once_with("ai-yolo26", reset_failures=True)
 
     @pytest.mark.asyncio
     async def test_restart_service_not_found(self) -> None:
@@ -348,7 +346,7 @@ class TestRestartServiceEndpoint:
     async def test_restart_disabled_service_returns_400(self) -> None:
         """Test restart returns 400 for disabled service."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.DISABLED,
         )
 
@@ -361,7 +359,7 @@ class TestRestartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/restart")
+            response = await client.post("/api/system/services/ai-yolo26/restart")
 
         assert response.status_code == 400
         assert "disabled" in response.json()["detail"].lower()
@@ -375,7 +373,7 @@ class TestRestartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/restart")
+            response = await client.post("/api/system/services/ai-yolo26/restart")
 
         assert response.status_code == 503
 
@@ -387,7 +385,7 @@ class TestEnableServiceEndpoint:
     async def test_enable_success(self) -> None:
         """Test successful service enable."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.DISABLED,
             enabled=False,
         )
@@ -402,13 +400,13 @@ class TestEnableServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/enable")
+            response = await client.post("/api/system/services/ai-yolo26/enable")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "enabled" in data["message"]
-        mock_orchestrator.enable_service.assert_called_once_with("ai-detector")
+        mock_orchestrator.enable_service.assert_called_once_with("ai-yolo26")
 
     @pytest.mark.asyncio
     async def test_enable_service_not_found(self) -> None:
@@ -435,7 +433,7 @@ class TestDisableServiceEndpoint:
     async def test_disable_success(self) -> None:
         """Test successful service disable."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.RUNNING,
             enabled=True,
         )
@@ -450,13 +448,13 @@ class TestDisableServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/disable")
+            response = await client.post("/api/system/services/ai-yolo26/disable")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "disabled" in data["message"]
-        mock_orchestrator.disable_service.assert_called_once_with("ai-detector")
+        mock_orchestrator.disable_service.assert_called_once_with("ai-yolo26")
 
     @pytest.mark.asyncio
     async def test_disable_service_not_found(self) -> None:
@@ -483,7 +481,7 @@ class TestStartServiceEndpoint:
     async def test_start_success(self) -> None:
         """Test successful service start."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.STOPPED,
         )
 
@@ -497,13 +495,13 @@ class TestStartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/start")
+            response = await client.post("/api/system/services/ai-yolo26/start")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "start initiated" in data["message"]
-        mock_orchestrator.start_service.assert_called_once_with("ai-detector")
+        mock_orchestrator.start_service.assert_called_once_with("ai-yolo26")
 
     @pytest.mark.asyncio
     async def test_start_service_not_found(self) -> None:
@@ -526,7 +524,7 @@ class TestStartServiceEndpoint:
     async def test_start_already_running_returns_400(self) -> None:
         """Test start returns 400 if service is already running."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.RUNNING,
         )
 
@@ -539,7 +537,7 @@ class TestStartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/start")
+            response = await client.post("/api/system/services/ai-yolo26/start")
 
         assert response.status_code == 400
         assert "already running" in response.json()["detail"].lower()
@@ -548,7 +546,7 @@ class TestStartServiceEndpoint:
     async def test_start_disabled_service_returns_400(self) -> None:
         """Test start returns 400 for disabled service."""
         service = MockManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             status=ContainerServiceStatus.DISABLED,
         )
 
@@ -561,7 +559,7 @@ class TestStartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/start")
+            response = await client.post("/api/system/services/ai-yolo26/start")
 
         assert response.status_code == 400
         assert "disabled" in response.json()["detail"].lower()
@@ -575,6 +573,6 @@ class TestStartServiceEndpoint:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/start")
+            response = await client.post("/api/system/services/ai-yolo26/start")
 
         assert response.status_code == 503

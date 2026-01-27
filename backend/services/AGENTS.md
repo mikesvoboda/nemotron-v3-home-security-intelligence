@@ -932,7 +932,7 @@ from backend.services.health_monitor_orchestrator import (
 # Create registry and register services
 registry = ServiceRegistry()
 service = ManagedService(
-    name="ai-detector",
+    name="ai-yolo26",
     container_id="abc123",
     image="ghcr.io/.../yolo26:latest",
     port=8090,
@@ -1137,7 +1137,7 @@ metrics = breaker.get_metrics()
 
 **ManagedService Dataclass:**
 
-- `name` - Service identifier (e.g., "postgres", "ai-detector")
+- `name` - Service identifier (e.g., "postgres", "ai-yolo26")
 - `display_name` - Human-readable name (e.g., "PostgreSQL", "YOLO26v2")
 - `container_id` - Docker container ID or None
 - `image` - Container image (e.g., "postgres:16-alpine")
@@ -1418,8 +1418,8 @@ remaining = manager.backoff_remaining(service)
 await manager.restart_service(service)
 await manager.start_service(service)
 await manager.stop_service(service)
-await manager.enable_service("ai-detector")  # Reset failures and enable
-await manager.disable_service("ai-detector")
+await manager.enable_service("ai-yolo26")  # Reset failures and enable
+await manager.disable_service("ai-yolo26")
 
 # Self-healing handlers
 await manager.handle_unhealthy(service)
@@ -1436,19 +1436,19 @@ registry = ServiceRegistry(redis_client=redis)
 registry.register(service)
 
 # Get service(s)
-service = registry.get("ai-detector")
+service = registry.get("ai-yolo26")
 all_services = registry.get_all()
 enabled = registry.get_enabled_services()
 
 # Update tracking
-registry.record_restart("ai-detector")
-new_count = registry.increment_failure("ai-detector")
-registry.reset_failures("ai-detector")
-registry.update_status("ai-detector", ContainerServiceStatus.RUNNING)
-registry.set_enabled("ai-detector", False)
+registry.record_restart("ai-yolo26")
+new_count = registry.increment_failure("ai-yolo26")
+registry.reset_failures("ai-yolo26")
+registry.update_status("ai-yolo26", ContainerServiceStatus.RUNNING)
+registry.set_enabled("ai-yolo26", False)
 
 # Persistence
-await registry.persist_state("ai-detector")
+await registry.persist_state("ai-yolo26")
 await registry.load_state()
 ```
 
@@ -1485,13 +1485,13 @@ await orchestrator.start()
 
 # Query services
 all_services = orchestrator.get_all_services()
-service = orchestrator.get_service("ai-detector")
+service = orchestrator.get_service("ai-yolo26")
 
 # Manual control
-await orchestrator.restart_service("ai-detector")
-await orchestrator.enable_service("ai-detector")
-await orchestrator.disable_service("ai-detector")
-await orchestrator.start_service("ai-detector")
+await orchestrator.restart_service("ai-yolo26")
+await orchestrator.enable_service("ai-yolo26")
+await orchestrator.disable_service("ai-yolo26")
+await orchestrator.start_service("ai-yolo26")
 
 # Stop orchestrator
 await orchestrator.stop()
@@ -2463,7 +2463,7 @@ from backend.api.schemas.services import ServiceCategory, ContainerServiceStatus
 
 # Create a managed service
 service = ManagedService(
-    name="ai-detector",
+    name="ai-yolo26",
     display_name="YOLO26v2",
     container_id="abc123",
     image="ghcr.io/.../yolo26:latest",
@@ -2478,13 +2478,13 @@ registry = await get_service_registry()
 
 # Register and manage services
 registry.register(service)
-registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
-registry.increment_failure("ai-detector")
-registry.record_restart("ai-detector")
+registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
+registry.increment_failure("ai-yolo26")
+registry.record_restart("ai-yolo26")
 
 # Persist to Redis
-await registry.persist_state("ai-detector")
-await registry.load_state("ai-detector")
+await registry.persist_state("ai-yolo26")
+await registry.load_state("ai-yolo26")
 ```
 
 ### model_loader_base.py
@@ -2650,7 +2650,7 @@ from backend.services.service_managers import (
 # Create config
 config = ServiceConfig(
     name="yolo26",
-    health_url="http://localhost:8090/health",
+    health_url="http://localhost:8095/health",
     restart_cmd="scripts/restart_yolo26.sh",  # Must be in allowlist
     health_timeout=5.0,
     max_retries=3,
@@ -2671,7 +2671,7 @@ if not healthy:
 
 # Validate commands
 is_valid = validate_restart_command("scripts/restart_yolo26.sh")
-is_valid = validate_container_name("ai-detector-1")
+is_valid = validate_container_name("ai-yolo26-1")
 ```
 
 ### notification_filter.py

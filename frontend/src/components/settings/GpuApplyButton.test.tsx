@@ -25,10 +25,10 @@ import type { GpuApplyResult, ServiceStatus } from '../../hooks/useGpuConfig';
 const mockApplyResultSuccess: GpuApplyResult = {
   success: true,
   warnings: [],
-  restarted_services: ['ai-llm', 'ai-detector', 'ai-enrichment'],
+  restarted_services: ['ai-llm', 'ai-yolo26', 'ai-enrichment'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-yolo26', status: 'running', message: null },
     { service: 'ai-enrichment', status: 'running', message: null },
   ],
 };
@@ -39,14 +39,14 @@ const mockApplyResultWithFailures: GpuApplyResult = {
   restarted_services: ['ai-llm'],
   service_statuses: [
     { service: 'ai-llm', status: 'running', message: null },
-    { service: 'ai-detector', status: 'error', message: 'Failed to restart' },
+    { service: 'ai-yolo26', status: 'error', message: 'Failed to restart' },
     { service: 'ai-enrichment', status: 'error', message: 'Failed to restart' },
   ],
 };
 
 const mockServiceStatuses: ServiceStatus[] = [
   { service: 'ai-llm', status: 'running', message: null },
-  { service: 'ai-detector', status: 'starting', message: 'Restarting' },
+  { service: 'ai-yolo26', status: 'starting', message: 'Restarting' },
   { service: 'ai-enrichment', status: 'running', message: null },
 ];
 
@@ -243,7 +243,7 @@ describe('GpuApplyButton', () => {
       );
 
       expect(screen.getByText('ai-llm')).toBeInTheDocument();
-      expect(screen.getByText('ai-detector')).toBeInTheDocument();
+      expect(screen.getByText('ai-yolo26')).toBeInTheDocument();
       expect(screen.getByText('ai-enrichment')).toBeInTheDocument();
     });
 
@@ -252,7 +252,7 @@ describe('GpuApplyButton', () => {
         <GpuApplyButton {...defaultProps} isApplying serviceStatuses={mockServiceStatuses} />
       );
 
-      // 2 out of 3 running (ai-llm and ai-enrichment are running, ai-detector is starting)
+      // 2 out of 3 running (ai-llm and ai-enrichment are running, ai-yolo26 is starting)
       expect(screen.getByText('2 / 3 running')).toBeInTheDocument();
     });
   });
@@ -272,7 +272,7 @@ describe('GpuApplyButton', () => {
         <GpuApplyButton {...defaultProps} lastApplyResult={mockApplyResultSuccess} />
       );
 
-      expect(screen.getByText(/ai-llm, ai-detector, ai-enrichment/)).toBeInTheDocument();
+      expect(screen.getByText(/ai-llm, ai-yolo26, ai-enrichment/)).toBeInTheDocument();
     });
 
     it('should show failure result', () => {
@@ -288,7 +288,7 @@ describe('GpuApplyButton', () => {
         <GpuApplyButton {...defaultProps} lastApplyResult={mockApplyResultWithFailures} />
       );
 
-      expect(screen.getByText(/ai-detector, ai-enrichment/)).toBeInTheDocument();
+      expect(screen.getByText(/ai-yolo26, ai-enrichment/)).toBeInTheDocument();
     });
 
     it('should show warnings', () => {

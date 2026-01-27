@@ -84,11 +84,11 @@ def mock_broadcast_fn() -> AsyncMock:
 def discovered_service() -> DiscoveredService:
     """Create a discovered service fixture."""
     return DiscoveredService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abc123def456",
         image="ghcr.io/example/yolo26:latest",
-        port=8090,
+        port=8095,
         category=ServiceCategory.AI,
         health_endpoint="/health",
         max_failures=5,
@@ -102,11 +102,11 @@ def discovered_service() -> DiscoveredService:
 def managed_service() -> ManagedService:
     """Create a managed service fixture."""
     return ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abc123def456",
         image="ghcr.io/example/yolo26:latest",
-        port=8090,
+        port=8095,
         category=ServiceCategory.AI,
         health_endpoint="/health",
         health_cmd=None,
@@ -150,7 +150,7 @@ class TestCreateServiceStatusEvent:
         event = create_service_status_event(managed_service, "Test message")
 
         assert event["type"] == "service_status"
-        assert event["data"]["name"] == "ai-detector"
+        assert event["data"]["name"] == "ai-yolo26"
         assert event["data"]["display_name"] == "YOLO26"
         assert event["message"] == "Test message"
 
@@ -485,7 +485,7 @@ class TestGetAllServices:
 
         services = orchestrator.get_all_services()
         assert len(services) == 1
-        assert services[0].name == "ai-detector"
+        assert services[0].name == "ai-yolo26"
 
 
 # =============================================================================
@@ -519,9 +519,9 @@ class TestGetService:
         ):
             await orchestrator.start()
 
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
-        assert service.name == "ai-detector"
+        assert service.name == "ai-yolo26"
 
 
 # =============================================================================
@@ -546,7 +546,7 @@ class TestRestartService:
         managed_service.container_id = None
         orchestrator._registry.register(managed_service)
 
-        result = await orchestrator.restart_service("ai-detector")
+        result = await orchestrator.restart_service("ai-yolo26")
         assert result is False
 
     @pytest.mark.asyncio
@@ -560,7 +560,7 @@ class TestRestartService:
         """Test restart_service broadcasts status changes."""
         orchestrator._registry.register(managed_service)
 
-        await orchestrator.restart_service("ai-detector")
+        await orchestrator.restart_service("ai-yolo26")
 
         # Should have broadcast at least "Manual restart initiated"
         assert mock_broadcast_fn.call_count >= 1
@@ -597,10 +597,10 @@ class TestEnableService:
         with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
             await orchestrator.start()
 
-        result = await orchestrator.enable_service("ai-detector")
+        result = await orchestrator.enable_service("ai-yolo26")
 
         assert result is True
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.enabled is True
         assert service.status == ContainerServiceStatus.STOPPED
@@ -622,9 +622,9 @@ class TestEnableService:
         with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
             await orchestrator.start()
 
-        await orchestrator.enable_service("ai-detector")
+        await orchestrator.enable_service("ai-yolo26")
 
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.failure_count == 0
 
@@ -645,7 +645,7 @@ class TestEnableService:
         with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
             await orchestrator.start()
 
-        await orchestrator.enable_service("ai-detector")
+        await orchestrator.enable_service("ai-yolo26")
 
         mock_broadcast_fn.assert_called()
 
@@ -679,10 +679,10 @@ class TestDisableService:
         with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
             await orchestrator.start()
 
-        result = await orchestrator.disable_service("ai-detector")
+        result = await orchestrator.disable_service("ai-yolo26")
 
         assert result is True
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.enabled is False
         assert service.status == ContainerServiceStatus.DISABLED
@@ -703,7 +703,7 @@ class TestDisableService:
         with patch.object(orchestrator._discovery_service, "discover_all", return_value=[]):
             await orchestrator.start()
 
-        await orchestrator.disable_service("ai-detector")
+        await orchestrator.disable_service("ai-yolo26")
 
         mock_broadcast_fn.assert_called()
 
@@ -730,7 +730,7 @@ class TestStartService:
         managed_service.container_id = None
         orchestrator._registry.register(managed_service)
 
-        result = await orchestrator.start_service("ai-detector")
+        result = await orchestrator.start_service("ai-yolo26")
         assert result is False
 
     @pytest.mark.asyncio
@@ -743,7 +743,7 @@ class TestStartService:
         """Test start_service calls Docker client."""
         orchestrator._registry.register(managed_service)
 
-        await orchestrator.start_service("ai-detector")
+        await orchestrator.start_service("ai-yolo26")
 
         mock_docker_client.start_container.assert_called_once_with(managed_service.container_id)
 
@@ -759,7 +759,7 @@ class TestStartService:
         mock_docker_client.start_container.return_value = True
         orchestrator._registry.register(managed_service)
 
-        await orchestrator.start_service("ai-detector")
+        await orchestrator.start_service("ai-yolo26")
 
         mock_broadcast_fn.assert_called()
 
@@ -991,10 +991,10 @@ class TestEnableServiceFallback:
         # Ensure lifecycle manager is None
         orchestrator._lifecycle_manager = None
 
-        result = await orchestrator.enable_service("ai-detector")
+        result = await orchestrator.enable_service("ai-yolo26")
 
         assert result is True
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.enabled is True
         assert service.failure_count == 0
@@ -1020,10 +1020,10 @@ class TestDisableServiceFallback:
         # Ensure lifecycle manager is None
         orchestrator._lifecycle_manager = None
 
-        result = await orchestrator.disable_service("ai-detector")
+        result = await orchestrator.disable_service("ai-yolo26")
 
         assert result is True
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.enabled is False
         assert service.status == ContainerServiceStatus.DISABLED
@@ -1049,9 +1049,9 @@ class TestRestartServiceAdvanced:
         # Ensure lifecycle manager is None to test fallback
         orchestrator._lifecycle_manager = None
 
-        await orchestrator.restart_service("ai-detector", reset_failures=True)
+        await orchestrator.restart_service("ai-yolo26", reset_failures=True)
 
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.failure_count == 0
 
@@ -1073,7 +1073,7 @@ class TestRestartServiceAdvanced:
 
         # Mock lifecycle manager restart to succeed
         with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
         # Should broadcast restart succeeded
@@ -1099,7 +1099,7 @@ class TestRestartServiceAdvanced:
 
         # Mock lifecycle manager restart to fail
         with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=False):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is False
         # Should broadcast restart failed
@@ -1122,12 +1122,12 @@ class TestRestartServiceAdvanced:
         # Ensure lifecycle manager is None
         orchestrator._lifecycle_manager = None
 
-        result = await orchestrator.restart_service("ai-detector")
+        result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
         mock_docker_client.restart_container.assert_called_once_with(managed_service.container_id)
 
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.restart_count > 0
 
@@ -1151,7 +1151,7 @@ class TestRestartServiceAdvanced:
         # Ensure lifecycle manager is None
         orchestrator._lifecycle_manager = None
 
-        result = await orchestrator.restart_service("ai-detector")
+        result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is False
         # Should broadcast restart failed
@@ -1181,7 +1181,7 @@ class TestStartServiceAdvanced:
 
         # Mock lifecycle manager start to succeed
         with patch.object(orchestrator._lifecycle_manager, "start_service", return_value=True):
-            result = await orchestrator.start_service("ai-detector")
+            result = await orchestrator.start_service("ai-yolo26")
 
         assert result is True
         # Should broadcast service started
@@ -1206,7 +1206,7 @@ class TestStartServiceAdvanced:
 
         # Mock lifecycle manager start to fail
         with patch.object(orchestrator._lifecycle_manager, "start_service", return_value=False):
-            result = await orchestrator.start_service("ai-detector")
+            result = await orchestrator.start_service("ai-yolo26")
 
         assert result is False
 
@@ -1225,12 +1225,12 @@ class TestStartServiceAdvanced:
         # Ensure lifecycle manager is None
         orchestrator._lifecycle_manager = None
 
-        result = await orchestrator.start_service("ai-detector")
+        result = await orchestrator.start_service("ai-yolo26")
 
         assert result is True
         mock_docker_client.start_container.assert_called_once_with(managed_service.container_id)
 
-        service = orchestrator.get_service("ai-detector")
+        service = orchestrator.get_service("ai-yolo26")
         assert service is not None
         assert service.status == ContainerServiceStatus.STARTING
 
@@ -1253,7 +1253,7 @@ class TestStartServiceAdvanced:
         # Ensure lifecycle manager is None
         orchestrator._lifecycle_manager = None
 
-        result = await orchestrator.start_service("ai-detector")
+        result = await orchestrator.start_service("ai-yolo26")
 
         assert result is False
 
@@ -1423,7 +1423,7 @@ class TestBroadcastEdgeCases:
             return None
 
         with patch.object(orchestrator._registry, "get", side_effect=mock_get_none_second_call):
-            result = await orchestrator.enable_service("ai-detector")
+            result = await orchestrator.enable_service("ai-yolo26")
 
         # Should still return True (operation succeeded)
         assert result is True
@@ -1454,7 +1454,7 @@ class TestBroadcastEdgeCases:
             return None
 
         with patch.object(orchestrator._registry, "get", side_effect=mock_get_none_second_call):
-            result = await orchestrator.disable_service("ai-detector")
+            result = await orchestrator.disable_service("ai-yolo26")
 
         assert result is True
         assert mock_broadcast_fn.call_count == 0
@@ -1493,7 +1493,7 @@ class TestBroadcastEdgeCases:
             patch.object(orchestrator._registry, "get", side_effect=mock_get_for_restart),
             patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True),
         ):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
 
@@ -1524,7 +1524,7 @@ class TestBroadcastEdgeCases:
             return None
 
         with patch.object(orchestrator._registry, "get", side_effect=mock_get_for_fallback):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
 
@@ -1561,7 +1561,7 @@ class TestBroadcastEdgeCases:
             patch.object(orchestrator._registry, "get", side_effect=mock_get_for_start),
             patch.object(orchestrator._lifecycle_manager, "start_service", return_value=True),
         ):
-            result = await orchestrator.start_service("ai-detector")
+            result = await orchestrator.start_service("ai-yolo26")
 
         assert result is True
 
@@ -1592,7 +1592,7 @@ class TestBroadcastEdgeCases:
             return None
 
         with patch.object(orchestrator._registry, "get", side_effect=mock_get_for_fallback_start):
-            result = await orchestrator.start_service("ai-detector")
+            result = await orchestrator.start_service("ai-yolo26")
 
         assert result is True
 
@@ -1641,7 +1641,7 @@ class TestStopPersistStateIteration:
             # Should persist state for both services
             assert mock_persist.call_count == 2
             persisted_names = [call[0][0] for call in mock_persist.call_args_list]
-            assert "ai-detector" in persisted_names
+            assert "ai-yolo26" in persisted_names
             assert "ai-analyzer" in persisted_names
 
     @pytest.mark.asyncio
@@ -1664,7 +1664,7 @@ class TestStopPersistStateIteration:
             await orchestrator.stop()
 
             # Should still persist state
-            mock_persist.assert_called_once_with("ai-detector")
+            mock_persist.assert_called_once_with("ai-yolo26")
 
         assert orchestrator.is_running is False
 
@@ -1693,7 +1693,7 @@ class TestRestartFailureBroadcasts:
 
         # Mock lifecycle manager restart to fail
         with patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=False):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is False
         # Should broadcast restart initiated and restart failed
@@ -1719,7 +1719,7 @@ class TestRestartFailureBroadcasts:
         # Clear previous calls
         mock_broadcast_fn.reset_mock()
 
-        result = await orchestrator.restart_service("ai-detector")
+        result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is False
         # Should broadcast restart initiated and restart failed
@@ -1764,7 +1764,7 @@ class TestRestartFailureBroadcasts:
             patch.object(orchestrator._registry, "get", side_effect=mock_get_with_removal),
             patch.object(orchestrator._lifecycle_manager, "restart_service", return_value=True),
         ):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
         # Should have broadcast initiated but not succeeded (service was None)
@@ -1799,7 +1799,7 @@ class TestRestartFailureBroadcasts:
             return None
 
         with patch.object(orchestrator._registry, "get", side_effect=mock_get_fallback_removal):
-            result = await orchestrator.restart_service("ai-detector")
+            result = await orchestrator.restart_service("ai-yolo26")
 
         assert result is True
         # Should have broadcast initiated but not succeeded

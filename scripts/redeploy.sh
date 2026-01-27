@@ -195,13 +195,13 @@ DESCRIPTION:
     LOCAL MODE (default):
       Builds all 9 services locally from source:
       - Core: postgres, redis, backend, frontend
-      - AI: ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+      - AI: ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 
     HYBRID MODE (--hybrid flag):
       Pulls backend/frontend from GHCR, builds AI services locally.
       All 9 services deployed:
       - Core (GHCR): postgres, redis, backend, frontend
-      - AI (local build): ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+      - AI (local build): ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 
     GHCR MODE (--ghcr flag):
       Pulls 4 pre-built services from GitHub Container Registry:
@@ -934,7 +934,7 @@ build_images() {
         else
             # Docker: Use compose normally
             print_step "Building AI service images (this may take a few minutes)..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment; then
                 print_success "AI images built"
             else
                 print_fail "Failed to build AI images"
@@ -1134,7 +1134,7 @@ start_containers() {
         else
             # Docker: Use compose normally
             print_step "Starting AI containers from prod compose..."
-            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment; then
                 print_success "AI containers started"
             else
                 local exit_code=$?

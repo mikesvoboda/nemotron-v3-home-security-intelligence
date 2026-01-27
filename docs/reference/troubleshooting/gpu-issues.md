@@ -52,7 +52,7 @@ Docker Compose:
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     deploy:
       resources:
         reservations:
@@ -138,7 +138,7 @@ Download Q4_K_S quantization instead of Q4_K_M (saves ~500MB).
 
 ```bash
 # Check YOLO26 health
-curl http://localhost:8090/health | jq .device
+curl http://localhost:8095/health | jq .device
 
 # Check if GPU processes exist
 nvidia-smi --query-compute-apps=pid,name --format=csv
@@ -150,10 +150,10 @@ nvidia-smi --query-compute-apps=pid,name --format=csv
 
 ```bash
 # Check container GPU access
-docker exec ai-detector_1 nvidia-smi
+docker exec ai-yolo26_1 nvidia-smi
 
 # Check PyTorch CUDA
-docker exec ai-detector_1 python3 -c "import torch; print(torch.cuda.is_available())"
+docker exec ai-yolo26_1 python3 -c "import torch; print(torch.cuda.is_available())"
 ```
 
 **2. Check llama.cpp GPU support:**
@@ -276,7 +276,7 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base nvidia-smi
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     # Docker
     deploy:
       resources:
@@ -326,7 +326,7 @@ CUDA_VISIBLE_DEVICES=1 llama-server ...
 
 ```yaml
 services:
-  ai-detector:
+  ai-yolo26:
     environment:
       - CUDA_VISIBLE_DEVICES=0
     deploy:

@@ -438,10 +438,10 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 ```bash
 # Check container status
-docker compose -f docker-compose.prod.yml ps ai-detector
+docker compose -f docker-compose.prod.yml ps ai-yolo26
 
 # Check container logs
-docker compose -f docker-compose.prod.yml logs --tail=100 ai-detector
+docker compose -f docker-compose.prod.yml logs --tail=100 ai-yolo26
 
 # Check GPU availability
 nvidia-smi
@@ -452,7 +452,7 @@ nvidia-smi
 1. **Container crashed:** Restart container
 
    ```bash
-   docker compose -f docker-compose.prod.yml restart ai-detector
+   docker compose -f docker-compose.prod.yml restart ai-yolo26
    ```
 
 2. **GPU OOM:** Check GPU memory and reduce concurrent inferences
@@ -464,7 +464,7 @@ nvidia-smi
 3. **Model loading failure:** Check model path and permissions
 
    ```bash
-   docker compose exec ai-detector ls -la /models/
+   docker compose exec ai-yolo26 ls -la /models/
    ```
 
 ---

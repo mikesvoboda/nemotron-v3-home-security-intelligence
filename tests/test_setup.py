@@ -74,7 +74,7 @@ def test_generate_env_content():
             "postgres": 5432,
             "redis": 6379,
             "grafana": 3002,
-            "yolo26": 8090,
+            "yolo26": 8095,
             "nemotron": 8091,
             "florence": 8092,
             "clip": 8093,
@@ -85,7 +85,7 @@ def test_generate_env_content():
     assert "FOSCAM_BASE_PATH=/export/foscam" in content  # pragma: allowlist secret
     assert "POSTGRES_PASSWORD=testpass123" in content
     assert "GRAFANA_URL=http://localhost:3002" in content
-    assert "YOLO26_URL=http://ai-detector:8090" in content
+    assert "YOLO26_URL=http://ai-yolo26:8095" in content
 
 
 def test_generate_docker_override_content():

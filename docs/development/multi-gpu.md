@@ -51,7 +51,7 @@ The system is optimized for configurations like:
 | Service       | Model                        | VRAM Estimate  |
 | ------------- | ---------------------------- | -------------- |
 | ai-llm        | Nemotron-3-Nano-30B (Q4_K_M) | ~21.7 GB       |
-| ai-detector   | YOLO26                       | ~650 MB        |
+| ai-yolo26     | YOLO26                       | ~650 MB        |
 | ai-florence   | Florence-2-Large             | ~1.5 GB        |
 | ai-clip       | CLIP ViT-L                   | ~1.2 GB        |
 | ai-enrichment | Model Zoo (9 models)         | ~6.8 GB budget |
@@ -107,7 +107,7 @@ Select a strategy based on your priorities:
 
 - **Description**: Critical path models on fastest GPU
 - **Best For**: Minimizing detection-to-analysis latency
-- **Algorithm**: Assigns ai-detector and ai-llm to GPU 0 (typically fastest), distributes others
+- **Algorithm**: Assigns ai-yolo26 and ai-llm to GPU 0 (typically fastest), distributes others
 
 ### Isolation-First
 

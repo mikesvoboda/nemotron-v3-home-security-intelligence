@@ -85,7 +85,7 @@ def test_generate_env_content():
     assert "CAMERA_PATH=/export/foscam" in content
     assert "POSTGRES_PASSWORD=testpass123" in content
     assert "GRAFANA_URL=http://localhost:3002" in content
-    assert "RTDETR_URL=http://ai-detector:8090" in content
+    assert "YOLO26_URL=http://ai-yolo26:8095" in content
 
 
 def test_generate_docker_override_content():

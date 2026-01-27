@@ -17,7 +17,7 @@ This guide covers deploying the AI services stack from source. Currently, the CI
 | ----------------- | ---------------------------------------------------------------------------- | ----------------------------------- |
 | **backend**       | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`  | Published on every merge to main    |
 | **frontend**      | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest` | Published on every merge to main    |
-| **ai-detector**   | Build locally                                                                | YOLO26 object detection             |
+| **ai-yolo26**     | Build locally                                                                | YOLO26 object detection             |
 | **ai-llm**        | Build locally                                                                | Nemotron LLM (llama.cpp)            |
 | **ai-florence**   | Build locally                                                                | Florence-2 vision-language          |
 | **ai-clip**       | Build locally                                                                | CLIP embeddings                     |
@@ -44,7 +44,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 # 2. Build AI services locally (first time only, ~10-15 min)
-podman-compose -f docker-compose.prod.yml build ai-detector ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 
 # 3. Start the full stack
 podman-compose -f docker-compose.prod.yml up -d
@@ -57,11 +57,11 @@ curl http://localhost:8000/api/system/health/ready
 
 ```bash
 # Build and start only YOLO26 and Nemotron
-podman-compose -f docker-compose.prod.yml build ai-detector ai-llm
-podman-compose -f docker-compose.prod.yml up -d ai-detector ai-llm
+podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm
+podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm
 
 # Verify
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 ```
 
@@ -69,7 +69,7 @@ curl http://localhost:8091/health  # Nemotron
 
 ## AI Service Container Reference
 
-### ai-detector (YOLO26)
+### ai-yolo26 (YOLO26)
 
 Object detection service using YOLO26 transformer model.
 
@@ -84,7 +84,7 @@ Object detection service using YOLO26 transformer model.
 **Build:**
 
 ```bash
-podman-compose -f docker-compose.prod.yml build ai-detector
+podman-compose -f docker-compose.prod.yml build ai-yolo26
 ```
 
 **Environment Variables:**
@@ -319,11 +319,11 @@ docker run --rm --gpus all \
 
 ### VRAM Requirements
 
-| Deployment Scenario   | Services                        | Total VRAM |
-| --------------------- | ------------------------------- | ---------- |
-| **Core only**         | ai-detector + ai-llm (Mini 4B)  | ~7GB       |
-| **Core (production)** | ai-detector + ai-llm (Nano 30B) | ~18GB      |
-| **Full stack**        | All 5 AI services               | ~22-24GB   |
+| Deployment Scenario   | Services                      | Total VRAM |
+| --------------------- | ----------------------------- | ---------- |
+| **Core only**         | ai-yolo26 + ai-llm (Mini 4B)  | ~7GB       |
+| **Core (production)** | ai-yolo26 + ai-llm (Nano 30B) | ~18GB      |
+| **Full stack**        | All 5 AI services             | ~22-24GB   |
 
 ---
 
@@ -346,7 +346,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 # Build AI services
-podman-compose -f docker-compose.prod.yml build ai-detector ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 
 # Download models (see Model Downloads section above)
 
@@ -360,7 +360,7 @@ Deploy without optional AI services (Florence, CLIP, Enrichment):
 
 ```bash
 # Build only core AI
-podman-compose -f docker-compose.prod.yml build ai-detector ai-llm
+podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm
 
 # Download Nemotron model from official NVIDIA repository
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
@@ -369,7 +369,7 @@ wget -O /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-
 
 # Start core services only
 podman-compose -f docker-compose.prod.yml up -d \
-  postgres redis backend frontend ai-detector ai-llm
+  postgres redis backend frontend ai-yolo26 ai-llm
 ```
 
 ### Pattern 3: AI Services on Separate GPU Host
@@ -384,8 +384,8 @@ git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.
 cd nemotron-v3-home-security-intelligence
 
 # Build and start AI services only
-podman-compose -f docker-compose.prod.yml build ai-detector ai-llm ai-florence ai-clip ai-enrichment
-podman-compose -f docker-compose.prod.yml up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 ```
 
 **On application host:**
@@ -394,7 +394,7 @@ Configure `.env` to point to the GPU host:
 
 ```bash
 GPU_HOST=10.0.0.50  # Your GPU host IP
-YOLO26_URL=http://${GPU_HOST}:8090
+YOLO26_URL=http://${GPU_HOST}:8095
 NEMOTRON_URL=http://${GPU_HOST}:8091
 FLORENCE_URL=http://${GPU_HOST}:8092
 CLIP_URL=http://${GPU_HOST}:8093
@@ -432,10 +432,10 @@ podman-compose -f docker-compose.prod.yml up -d backend frontend
 git pull origin main
 
 # Rebuild AI containers
-podman-compose -f docker-compose.prod.yml build --no-cache ai-detector ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml build --no-cache ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 
 # Recreate containers
-podman-compose -f docker-compose.prod.yml up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
 ```
 
 ### Use Specific Version (SHA Tag)
@@ -458,7 +458,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:
 curl http://localhost:8000/api/system/health/ready  # Backend
 
 # AI services individually
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 curl http://localhost:8092/health  # Florence-2
 curl http://localhost:8093/health  # CLIP
@@ -473,7 +473,7 @@ echo "=== Health Check ==="
 
 services=(
   "backend:8000/api/system/health/ready"
-  "ai-detector:8090/health"
+  "ai-yolo26:8095/health"
   "ai-llm:8091/health"
   "ai-florence:8092/health"
   "ai-clip:8093/health"
@@ -509,7 +509,7 @@ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 
 ```bash
 # Check container logs
-podman-compose -f docker-compose.prod.yml logs ai-detector
+podman-compose -f docker-compose.prod.yml logs ai-yolo26
 podman-compose -f docker-compose.prod.yml logs ai-llm
 
 # Check if model files exist
@@ -549,7 +549,7 @@ AI services have long startup times due to model loading:
 
 | Service       | Expected Startup Time |
 | ------------- | --------------------- |
-| ai-detector   | 60-90 seconds         |
+| ai-yolo26     | 60-90 seconds         |
 | ai-llm        | 120-180 seconds       |
 | ai-florence   | 60-120 seconds        |
 | ai-clip       | 30-60 seconds         |

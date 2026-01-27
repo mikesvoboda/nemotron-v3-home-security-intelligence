@@ -72,7 +72,7 @@ These configure how the backend connects to AI services (`backend/core/config.py
 
 | Variable           | Description                                | Default                 |
 | ------------------ | ------------------------------------------ | ----------------------- |
-| `YOLO26_URL`       | Full URL to YOLO26 service                 | `http://localhost:8090` |
+| `YOLO26_URL`       | Full URL to YOLO26 service                 | `http://localhost:8095` |
 | `NEMOTRON_URL`     | Full URL to NVIDIA Nemotron service        | `http://localhost:8091` |
 | `YOLO26_API_KEY`   | API key for YOLO26 authentication          | (none)                  |
 | `NEMOTRON_API_KEY` | API key for NVIDIA Nemotron authentication | (none)                  |
@@ -111,16 +111,16 @@ When AI services run in containers, use appropriate host resolution:
 
 | Platform | Runtime        | AI Service URLs                        |
 | -------- | -------------- | -------------------------------------- |
-| macOS    | Docker Desktop | `http://host.docker.internal:8090`     |
-| macOS    | Podman         | `http://host.containers.internal:8090` |
-| Linux    | Docker/Podman  | `http://192.168.1.100:8090` (host IP)  |
+| macOS    | Docker Desktop | `http://host.docker.internal:8095`     |
+| macOS    | Podman         | `http://host.containers.internal:8095` |
+| Linux    | Docker/Podman  | `http://192.168.1.100:8095` (host IP)  |
 
 ### Production compose DNS (recommended)
 
 When running `docker-compose.prod.yml`, the backend reaches AI services by compose DNS:
 
 ```bash
-YOLO26_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-yolo26:8095
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -130,7 +130,7 @@ ENRICHMENT_URL=http://ai-enrichment:8094
 **Example .env for macOS with Docker:**
 
 ```bash
-YOLO26_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8095
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -138,7 +138,7 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ```bash
 export AI_HOST=host.containers.internal
-YOLO26_URL=http://${AI_HOST}:8090
+YOLO26_URL=http://${AI_HOST}:8095
 NEMOTRON_URL=http://${AI_HOST}:8091
 ```
 
@@ -147,7 +147,7 @@ NEMOTRON_URL=http://${AI_HOST}:8091
 ```bash
 # Get your host IP
 export AI_HOST=$(hostname -I | awk '{print $1}')
-YOLO26_URL=http://${AI_HOST}:8090
+YOLO26_URL=http://${AI_HOST}:8095
 NEMOTRON_URL=http://${AI_HOST}:8091
 ```
 
@@ -203,7 +203,7 @@ YOLO26_PORT=8090
 NEMOTRON_PORT=8091
 
 # AI service URLs (for backend)
-YOLO26_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8095
 NEMOTRON_URL=http://localhost:8091
 
 # Detection tuning

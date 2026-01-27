@@ -38,7 +38,7 @@ flowchart TB
     end
 
     subgraph AIServices["AI Services Network"]
-        YOLO26[YOLO26<br/>:8090]
+        YOLO26[YOLO26<br/>:8095]
         NEMOTRON[Nemotron<br/>:8091]
         FLORENCE[Florence-2<br/>:8092]
     end
@@ -324,8 +324,8 @@ AI services use internal Docker network URLs:
 ```python
 # From backend/core/config.py:655-664
 yolo26_url: str = Field(
-    default="http://localhost:8090",
-    description="YOLO26 detection service URL. Docker: http://ai-detector:8090",
+    default="http://localhost:8095",
+    description="YOLO26 detection service URL. Docker: http://ai-yolo26:8095",
 )
 nemotron_url: str = Field(
     default="http://localhost:8091",

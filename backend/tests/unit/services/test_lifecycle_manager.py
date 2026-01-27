@@ -85,11 +85,11 @@ def infrastructure_service() -> ManagedService:
 def ai_service() -> ManagedService:
     """Create an AI service (YOLO26-like)."""
     return ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="def456",
         image="ghcr.io/.../yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
@@ -568,10 +568,10 @@ class TestEnableService:
         """Test enable_service resets failure count."""
         mock_registry.get.return_value = MagicMock()
 
-        result = await lifecycle_manager.enable_service("ai-detector")
+        result = await lifecycle_manager.enable_service("ai-yolo26")
 
         assert result is True
-        mock_registry.reset_failures.assert_called_once_with("ai-detector")
+        mock_registry.reset_failures.assert_called_once_with("ai-yolo26")
 
     @pytest.mark.asyncio
     async def test_enable_service_sets_enabled(
@@ -582,9 +582,9 @@ class TestEnableService:
         """Test enable_service sets enabled flag."""
         mock_registry.get.return_value = MagicMock()
 
-        await lifecycle_manager.enable_service("ai-detector")
+        await lifecycle_manager.enable_service("ai-yolo26")
 
-        mock_registry.set_enabled.assert_called_once_with("ai-detector", True)
+        mock_registry.set_enabled.assert_called_once_with("ai-yolo26", True)
 
     @pytest.mark.asyncio
     async def test_enable_service_updates_status(
@@ -595,10 +595,10 @@ class TestEnableService:
         """Test enable_service updates status to STOPPED."""
         mock_registry.get.return_value = MagicMock()
 
-        await lifecycle_manager.enable_service("ai-detector")
+        await lifecycle_manager.enable_service("ai-yolo26")
 
         mock_registry.update_status.assert_called_once_with(
-            "ai-detector", ContainerServiceStatus.STOPPED
+            "ai-yolo26", ContainerServiceStatus.STOPPED
         )
 
     @pytest.mark.asyncio
@@ -610,9 +610,9 @@ class TestEnableService:
         """Test enable_service persists state."""
         mock_registry.get.return_value = MagicMock()
 
-        await lifecycle_manager.enable_service("ai-detector")
+        await lifecycle_manager.enable_service("ai-yolo26")
 
-        mock_registry.persist_state.assert_called_once_with("ai-detector")
+        mock_registry.persist_state.assert_called_once_with("ai-yolo26")
 
     @pytest.mark.asyncio
     async def test_enable_service_not_found(
@@ -645,10 +645,10 @@ class TestDisableService:
         """Test disable_service sets enabled to False."""
         mock_registry.get.return_value = MagicMock()
 
-        result = await lifecycle_manager.disable_service("ai-detector")
+        result = await lifecycle_manager.disable_service("ai-yolo26")
 
         assert result is True
-        mock_registry.set_enabled.assert_called_once_with("ai-detector", False)
+        mock_registry.set_enabled.assert_called_once_with("ai-yolo26", False)
 
     @pytest.mark.asyncio
     async def test_disable_service_updates_status(
@@ -659,10 +659,10 @@ class TestDisableService:
         """Test disable_service updates status to DISABLED."""
         mock_registry.get.return_value = MagicMock()
 
-        await lifecycle_manager.disable_service("ai-detector")
+        await lifecycle_manager.disable_service("ai-yolo26")
 
         mock_registry.update_status.assert_called_once_with(
-            "ai-detector", ContainerServiceStatus.DISABLED
+            "ai-yolo26", ContainerServiceStatus.DISABLED
         )
 
     @pytest.mark.asyncio
@@ -674,9 +674,9 @@ class TestDisableService:
         """Test disable_service persists state."""
         mock_registry.get.return_value = MagicMock()
 
-        await lifecycle_manager.disable_service("ai-detector")
+        await lifecycle_manager.disable_service("ai-yolo26")
 
-        mock_registry.persist_state.assert_called_once_with("ai-detector")
+        mock_registry.persist_state.assert_called_once_with("ai-yolo26")
 
     @pytest.mark.asyncio
     async def test_disable_service_not_found(

@@ -46,7 +46,7 @@ def multiple_assignments() -> list[GpuAssignment]:
     """Create multiple GPU assignments fixture."""
     return [
         GpuAssignment(service_name="ai-llm", gpu_index=0),
-        GpuAssignment(service_name="ai-detector", gpu_index=0),
+        GpuAssignment(service_name="ai-yolo26", gpu_index=0),
         GpuAssignment(service_name="ai-enrichment", gpu_index=1, vram_budget_override=3.5),
     ]
 
@@ -201,7 +201,7 @@ class TestGenerateOverrideContent:
         services = parsed["services"]
         assert len(services) == 3
         assert "ai-llm" in services
-        assert "ai-detector" in services
+        assert "ai-yolo26" in services
         assert "ai-enrichment" in services
 
     def test_vram_budget_environment_variable(
@@ -366,7 +366,7 @@ class TestGenerateAssignmentsContent:
         assignments = parsed["assignments"]
         assert len(assignments) == 3
         assert "ai-llm" in assignments
-        assert "ai-detector" in assignments
+        assert "ai-yolo26" in assignments
         assert "ai-enrichment" in assignments
 
     def test_assignment_structure(
@@ -643,7 +643,7 @@ class TestGpuConfigServiceIntegration:
         # Create realistic multi-GPU assignments
         assignments = [
             GpuAssignment(service_name="ai-llm", gpu_index=0),
-            GpuAssignment(service_name="ai-detector", gpu_index=0),
+            GpuAssignment(service_name="ai-yolo26", gpu_index=0),
             GpuAssignment(service_name="ai-florence", gpu_index=0),
             GpuAssignment(service_name="ai-clip", gpu_index=0),
             GpuAssignment(
@@ -695,7 +695,7 @@ class TestGpuConfigServiceIntegration:
         service = GpuConfigService(config_dir=config_dir)
         assignments = [
             GpuAssignment(service_name="ai-llm", gpu_index=0),
-            GpuAssignment(service_name="ai-detector", gpu_index=1),
+            GpuAssignment(service_name="ai-yolo26", gpu_index=1),
         ]
 
         # Write first time

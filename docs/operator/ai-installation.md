@@ -82,7 +82,7 @@ flowchart TD
     end
 
     subgraph "Service Layer"
-        Detector[ai-detector:8090]
+        Detector[ai-yolo26:8095]
         LLM[ai-llm:8091]
         OptServices[ai-florence:8092<br/>ai-clip:8093<br/>ai-enrichment:8094]
     end

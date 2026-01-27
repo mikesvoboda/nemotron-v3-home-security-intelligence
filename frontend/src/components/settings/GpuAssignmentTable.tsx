@@ -21,11 +21,10 @@ import type { GpuDevice, GpuAssignment, ServiceHealthStatus } from '../../hooks/
  */
 const DEFAULT_VRAM_REQUIREMENTS: Record<string, number> = {
   'ai-llm': 8.0,
-  'ai-detector': 4.0,
+  'ai-yolo26': 0.1, // ~100MB for YOLO26m TensorRT
   'ai-enrichment': 3.5,
   'ai-florence': 4.0,
   'ai-clip': 2.0,
-  'ai-yolo26': 0.1, // ~100MB for YOLO26m TensorRT
 };
 
 /**

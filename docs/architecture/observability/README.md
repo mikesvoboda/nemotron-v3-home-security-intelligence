@@ -26,7 +26,7 @@ The stack runs entirely in containers alongside the application services, with P
 graph TD
     subgraph "Application Layer"
         BE[Backend Service<br/>backend/api/main.py]
-        AI[AI Services<br/>ai-detector, ai-llm, ai-florence]
+        AI[AI Services<br/>ai-yolo26, ai-llm, ai-florence]
     end
 
     subgraph "Instrumentation"

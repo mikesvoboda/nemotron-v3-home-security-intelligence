@@ -130,7 +130,7 @@ The original image showed abstract containers without service labels or network 
 
 **AI Services (correctly grouped with GPU connection):**
 
-- ai-detector:8090
+- ai-yolo26:8095
 - ai-llm:8091
 - ai-enrichment:8092
 
@@ -151,7 +151,7 @@ The original image showed abstract containers without service labels or network 
 
 Cross-referenced with `/docs/architecture/system-overview/deployment-topology.md`:
 
-- Container names match: frontend, backend, postgres, redis, ai-detector, ai-llm, ai-enrichment
+- Container names match: frontend, backend, postgres, redis, ai-yolo26, ai-llm, ai-enrichment
 - Ports match: 8080, 8000, 8090, 8091, 8092
 - Network name correct: security-net (bridge)
 - GPU passthrough visual correctly shows NVIDIA card connecting to AI services
@@ -166,7 +166,7 @@ The image shows ai-enrichment:8092 but documentation shows ai-florence:8092 and 
 
 ### 3. flow-container-startup.png
 
-**Purpose:** Show service dependency order (postgres -> redis -> ai-detector -> ai-llm -> backend -> frontend)
+**Purpose:** Show service dependency order (postgres -> redis -> ai-yolo26 -> ai-llm -> backend -> frontend)
 
 **Title in Image:** "SERVICE STARTUP SEQUENCE: CONTAINER DEPENDENCY & TIMING FLOWCHART - Dark Tech Aesthetic | Clean Lines | Professional Documentation Style"
 
@@ -187,7 +187,7 @@ The original image showed a generic 5-stage flow without service names or timing
 **Services Labeled by Stage:**
 
 - Stage 1: POSTGRES, REDIS (parallel start correctly shown)
-- Stage 2: AI-DETECTOR (with "ai-detector" label)
+- Stage 2: AI-DETECTOR (with "ai-yolo26" label)
 - Stage 3: AI-LLM (with "ai-llm" label)
 - Stage 4: AI-ENRICHMENT (with "ai-enrichment" label)
 - Stage 5: BACKEND SERVICE (with dependency arrows)
@@ -211,7 +211,7 @@ The original image showed a generic 5-stage flow without service names or timing
 
 Cross-referenced with `/docs/architecture/system-overview/deployment-topology.md` Health Checks section:
 
-- Start periods match: postgres 10s, ai-detector 60s, ai-llm 120s, ai-enrichment 180s
+- Start periods match: postgres 10s, ai-yolo26 60s, ai-llm 120s, ai-enrichment 180s
 - Dependency order matches docker-compose.prod.yml depends_on structure
 - Service names are accurate
 

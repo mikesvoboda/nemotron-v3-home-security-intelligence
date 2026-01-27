@@ -29,7 +29,11 @@ from model import (  # noqa: E402
     HealthResponse,
     YOLO26Model,
     app,
+    delete_stale_engine,
     get_gpu_metrics,
+    get_pt_model_path_for_engine,
+    get_tensorrt_version,
+    is_tensorrt_version_mismatch_error,
     validate_file_extension,
     validate_image_magic_bytes,
 )
@@ -1059,6 +1063,237 @@ class TestGetGpuMetrics:
             assert result["gpu_utilization"] == 50.0
             assert result["temperature"] is None  # Failed
             assert result["power_watts"] == 100.0
+
+
+class TestTensorRTVersionUtilities:
+    """Tests for TensorRT version checking utilities (NEM-3871)."""
+
+    def test_get_tensorrt_version_when_installed(self):
+        """Test get_tensorrt_version returns version when TensorRT is installed."""
+        mock_trt = MagicMock()
+        mock_trt.__version__ = "10.14.1.48"
+
+        with patch.dict("sys.modules", {"tensorrt": mock_trt}):
+            version = get_tensorrt_version()
+            assert version == "10.14.1.48"
+
+    def test_get_tensorrt_version_when_not_installed(self):
+        """Test get_tensorrt_version returns None when TensorRT is not installed."""
+        with patch.dict("sys.modules", {"tensorrt": None}):
+            # Remove tensorrt from sys.modules to simulate ImportError
+            import sys
+
+            original = sys.modules.pop("tensorrt", None)
+            try:
+                version = get_tensorrt_version()
+                assert version is None
+            finally:
+                if original is not None:
+                    sys.modules["tensorrt"] = original
+
+    def test_is_tensorrt_version_mismatch_error_old_plan_file(self):
+        """Test detection of 'older plan file' error."""
+        error = RuntimeError("Failed due to an old deserialization call on a newer plan file.")
+        assert is_tensorrt_version_mismatch_error(error) is True
+
+    def test_is_tensorrt_version_mismatch_error_different_version(self):
+        """Test detection of 'different version' error."""
+        error = RuntimeError("TensorRT model exported with a different version than 10.14.1.48")
+        assert is_tensorrt_version_mismatch_error(error) is True
+
+    def test_is_tensorrt_version_mismatch_error_deserialization(self):
+        """Test detection of deserialization error."""
+        error = RuntimeError("IRuntime::deserializeCudaEngine: Error Code 1: Internal Error")
+        assert is_tensorrt_version_mismatch_error(error) is True
+
+    def test_is_tensorrt_version_mismatch_error_incompatible(self):
+        """Test detection of 'incompatible' error."""
+        error = RuntimeError("Engine is incompatible with this version of TensorRT")
+        assert is_tensorrt_version_mismatch_error(error) is True
+
+    def test_is_tensorrt_version_mismatch_error_not_matching(self):
+        """Test that unrelated errors are not flagged as version mismatch."""
+        error = RuntimeError("File not found: /models/yolo26.engine")
+        assert is_tensorrt_version_mismatch_error(error) is False
+
+    def test_is_tensorrt_version_mismatch_error_cuda_error(self):
+        """Test that CUDA errors are not flagged as version mismatch."""
+        error = RuntimeError("CUDA out of memory")
+        assert is_tensorrt_version_mismatch_error(error) is False
+
+    def test_get_pt_model_path_for_engine_fp16_suffix(self, tmp_path):
+        """Test deriving .pt path from engine with _fp16 suffix."""
+        # Create the .pt file
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = str(tmp_path / "yolo26m_fp16.engine")
+        result = get_pt_model_path_for_engine(engine_path)
+        assert result == str(pt_file)
+
+    def test_get_pt_model_path_for_engine_int8_suffix(self, tmp_path):
+        """Test deriving .pt path from engine with _int8 suffix."""
+        # Create the .pt file
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = str(tmp_path / "yolo26m_int8.engine")
+        result = get_pt_model_path_for_engine(engine_path)
+        assert result == str(pt_file)
+
+    def test_get_pt_model_path_for_engine_no_suffix(self, tmp_path):
+        """Test deriving .pt path from engine without precision suffix."""
+        # Create the .pt file
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = str(tmp_path / "yolo26m.engine")
+        result = get_pt_model_path_for_engine(engine_path)
+        assert result == str(pt_file)
+
+    def test_get_pt_model_path_for_engine_not_found(self, tmp_path):
+        """Test returns None when .pt file doesn't exist."""
+        engine_path = str(tmp_path / "nonexistent_fp16.engine")
+        result = get_pt_model_path_for_engine(engine_path)
+        assert result is None
+
+    def test_get_pt_model_path_for_engine_parent_directory(self, tmp_path):
+        """Test finding .pt file in parent directory."""
+        # Create the .pt file in parent directory
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        # Create exports subdirectory
+        exports_dir = tmp_path / "exports"
+        exports_dir.mkdir()
+
+        engine_path = str(exports_dir / "yolo26m_fp16.engine")
+        result = get_pt_model_path_for_engine(engine_path)
+        assert result == str(pt_file)
+
+    def test_delete_stale_engine_success(self, tmp_path):
+        """Test successful deletion of stale engine file."""
+        engine_file = tmp_path / "stale.engine"
+        engine_file.touch()
+
+        assert engine_file.exists()
+        result = delete_stale_engine(str(engine_file))
+        assert result is True
+        assert not engine_file.exists()
+
+    def test_delete_stale_engine_not_exists(self, tmp_path):
+        """Test deletion of non-existent file returns False."""
+        engine_path = str(tmp_path / "nonexistent.engine")
+        result = delete_stale_engine(engine_path)
+        assert result is False
+
+
+class TestYOLO26ModelTensorRTVersionHandling:
+    """Tests for YOLO26Model TensorRT version mismatch handling (NEM-3871)."""
+
+    def test_model_initialization_with_auto_rebuild(self):
+        """Test model initialization includes auto_rebuild parameter."""
+        model = YOLO26Model(
+            model_path="test.engine",
+            auto_rebuild=True,
+            pt_model_path="/models/test.pt",
+        )
+        assert model.auto_rebuild is True
+        assert model.pt_model_path == "/models/test.pt"
+
+    def test_model_initialization_auto_rebuild_default(self):
+        """Test auto_rebuild defaults to True from env var."""
+        with patch.dict("os.environ", {"YOLO26_AUTO_REBUILD": "true"}):
+            model = YOLO26Model(model_path="test.engine")
+            assert model.auto_rebuild is True
+
+    def test_model_initialization_auto_rebuild_disabled(self):
+        """Test auto_rebuild can be disabled via env var."""
+        with patch.dict("os.environ", {"YOLO26_AUTO_REBUILD": "false"}, clear=False):
+            model = YOLO26Model(model_path="test.engine", auto_rebuild=None)
+            assert model.auto_rebuild is False
+
+    def test_version_mismatch_detection_in_load_model_path(self, tmp_path):
+        """Test that version mismatch is detected based on exception patterns.
+
+        This test validates that is_tensorrt_version_mismatch_error() correctly
+        identifies the error patterns that trigger auto-rebuild.
+        """
+        # Test various error patterns that should trigger version mismatch handling
+        mismatch_errors = [
+            RuntimeError("Failed due to an old deserialization call on a newer plan file."),
+            RuntimeError("IRuntime::deserializeCudaEngine: Error Code 1: Internal Error"),
+            RuntimeError("TensorRT model exported with a different version than 10.14.1.48"),
+            RuntimeError("Engine is incompatible with this version of TensorRT"),
+        ]
+
+        for error in mismatch_errors:
+            assert is_tensorrt_version_mismatch_error(error) is True, (
+                f"Expected error to be detected as version mismatch: {error}"
+            )
+
+        # Test errors that should NOT trigger version mismatch handling
+        non_mismatch_errors = [
+            RuntimeError("File not found: /models/yolo26.engine"),
+            RuntimeError("CUDA out of memory"),
+            RuntimeError("Invalid model format"),
+        ]
+
+        for error in non_mismatch_errors:
+            assert is_tensorrt_version_mismatch_error(error) is False, (
+                f"Expected error NOT to be detected as version mismatch: {error}"
+            )
+
+    def test_handle_version_mismatch_finds_pt_model(self, tmp_path):
+        """Test that _handle_tensorrt_version_mismatch finds the correct .pt model."""
+        # Create mock .pt file
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            auto_rebuild=True,
+            device="cpu",
+        )
+
+        # Verify the utility function finds the correct .pt path
+        found_pt_path = get_pt_model_path_for_engine(str(engine_path))
+        assert found_pt_path == str(pt_file)
+
+    def test_pt_model_path_not_found_for_engine(self, tmp_path):
+        """Test that get_pt_model_path_for_engine returns None when no .pt model exists."""
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+        # Intentionally don't create the .pt file
+
+        # Verify the utility function returns None when no .pt found
+        found_pt_path = get_pt_model_path_for_engine(str(engine_path))
+        assert found_pt_path is None
+
+    def test_health_response_includes_tensorrt_version(self):
+        """Test that HealthResponse includes tensorrt_version field."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+            tensorrt_enabled=True,
+            tensorrt_version="10.14.1.48",
+        )
+        assert response.tensorrt_version == "10.14.1.48"
+
+    def test_health_response_tensorrt_version_optional(self):
+        """Test that tensorrt_version field is optional."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+        )
+        assert response.tensorrt_version is None
 
 
 if __name__ == "__main__":

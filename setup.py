@@ -51,14 +51,14 @@ class ServiceInfo(TypedDict):
 
 # Service definitions with STANDARDIZED DEFAULT PORTS (NEM-3148)
 # NOTE: Ports are the same for development and Docker environments.
-# Docker uses service names (postgres, redis, ai-detector) on the container network.
+# Docker uses service names (postgres, redis, ai-yolo26) on the container network.
 # Development uses localhost. Ports themselves never change - only hostnames vary.
 #
 # Internal Service Ports (never change):
 #   - Backend: 8000 (FastAPI default)
 #   - PostgreSQL: 5432 (database standard)
 #   - Redis: 6379 (cache standard)
-#   - AI Services: 8090-8094 (detector, llm, florence, clip, enrichment)
+#   - AI Services: 8091-8095 (llm, florence, clip, enrichment, yolo26)
 #
 # setup.py automatically detects port conflicts and finds alternatives for external
 # ports (5173, 8443, 3002, 9090, etc.) but internal service ports remain constant.
@@ -68,7 +68,7 @@ SERVICES: dict[str, ServiceInfo] = {
     "frontend_https": {"port": 8443, "category": "Core", "desc": "Frontend HTTPS"},
     "postgres": {"port": 5432, "category": "Core", "desc": "PostgreSQL database"},
     "redis": {"port": 6379, "category": "Core", "desc": "Redis cache/queue"},
-    "yolo26": {"port": 8090, "category": "AI", "desc": "YOLO26 object detection"},
+    "yolo26": {"port": 8095, "category": "AI", "desc": "YOLO26 object detection"},
     "nemotron": {"port": 8091, "category": "AI", "desc": "Nemotron LLM reasoning"},
     "florence": {"port": 8092, "category": "AI", "desc": "Florence-2 vision-language"},
     "clip": {"port": 8093, "category": "AI", "desc": "CLIP embeddings"},
@@ -254,7 +254,7 @@ def generate_env_content(config: dict) -> str:
         f"DATABASE_URL=postgresql+asyncpg://security:{config.get('postgres_password', '')}@postgres:{ports.get('postgres', 5432)}/security",
         "",
         "# -- Service URLs " + "-" * 43,
-        f"YOLO26_URL=http://ai-detector:{ports.get('yolo26', 8090)}",
+        f"YOLO26_URL=http://ai-yolo26:{ports.get('yolo26', 8095)}",
         f"NEMOTRON_URL=http://ai-llm:{ports.get('nemotron', 8091)}",
         f"FLORENCE_URL=http://ai-florence:{ports.get('florence', 8092)}",
         f"CLIP_URL=http://ai-clip:{ports.get('clip', 8093)}",
@@ -309,7 +309,7 @@ def generate_docker_override_content(config: dict) -> str:
             "internal": 8000,
             "volumes": [f"{foscam_base_path}:/cameras:ro"],
         },
-        "ai-detector": {"port": ports.get("yolo26", 8090), "internal": 8090},
+        "ai-yolo26": {"port": ports.get("yolo26", 8095), "internal": 8095},
         "ai-llm": {"port": ports.get("nemotron", 8091), "internal": 8091},
         "ai-florence": {"port": ports.get("florence", 8092), "internal": 8092},
         "ai-clip": {"port": ports.get("clip", 8093), "internal": 8093},

@@ -104,7 +104,7 @@ class AIServiceHealthDetail(BaseModel):
                 "last_health_check": "2026-01-20T12:00:00Z",
                 "error_rate_1h": 0.02,
                 "latency_p99_ms": 450,
-                "url": "http://ai-detector:8090",
+                "url": "http://ai-yolo26:8095",
                 "error": None,
             }
         }
@@ -180,7 +180,7 @@ class AIServicesHealthResponse(BaseModel):
                         "last_health_check": "2026-01-20T12:00:00Z",
                         "error_rate_1h": 0.02,
                         "latency_p99_ms": 450,
-                        "url": "http://ai-detector:8090",
+                        "url": "http://ai-yolo26:8095",
                         "error": None,
                     },
                     "nemotron": {

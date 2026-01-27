@@ -87,7 +87,7 @@ class TestServiceConfig:
         config = ServiceConfig(
             display_name="API Service",
             category=ServiceCategory.AI,
-            port=8090,
+            port=8095,
             health_endpoint="/health",
         )
 
@@ -210,7 +210,7 @@ class TestManagedService:
             display_name="YOLO26",
             container_id="abc123",
             image="ghcr.io/test/yolo26:latest",
-            port=8090,
+            port=8095,
             health_endpoint="/health",
             category=ServiceCategory.AI,
         )
@@ -219,7 +219,7 @@ class TestManagedService:
         assert service.display_name == "YOLO26"
         assert service.container_id == "abc123"
         assert service.image == "ghcr.io/test/yolo26:latest"
-        assert service.port == 8090
+        assert service.port == 8095
         assert service.health_endpoint == "/health"
         assert service.health_cmd is None
         assert service.category == ServiceCategory.AI

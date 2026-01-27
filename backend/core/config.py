@@ -207,10 +207,10 @@ class OrchestratorSettings(BaseSettings):
 
     # AI services
     yolo26_port: int = Field(
-        8090,
+        8095,
         ge=1,
         le=65535,
-        description="YOLO26 (ai-detector) container service port for health checks.",
+        description="YOLO26 (ai-yolo26) container service port for health checks.",
     )
     nemotron_port: int = Field(
         8091,

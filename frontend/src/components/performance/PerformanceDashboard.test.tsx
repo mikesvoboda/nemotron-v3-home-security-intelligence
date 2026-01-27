@@ -77,7 +77,7 @@ const mockPerformanceUpdate: PerformanceUpdate = {
     { name: 'frontend', status: 'running', health: 'healthy' },
     { name: 'postgres', status: 'running', health: 'healthy' },
     { name: 'redis', status: 'running', health: 'healthy' },
-    { name: 'ai-detector', status: 'running', health: 'healthy' },
+    { name: 'ai-yolo26', status: 'running', health: 'healthy' },
     { name: 'ai-llm', status: 'running', health: 'starting' },
   ],
   alerts: [],
@@ -385,7 +385,7 @@ describe('PerformanceDashboard', () => {
       expect(screen.getByTestId('container-frontend')).toBeInTheDocument();
       expect(screen.getByTestId('container-postgres')).toBeInTheDocument();
       expect(screen.getByTestId('container-redis')).toBeInTheDocument();
-      expect(screen.getByTestId('container-ai-detector')).toBeInTheDocument();
+      expect(screen.getByTestId('container-ai-yolo26')).toBeInTheDocument();
       expect(screen.getByTestId('container-ai-llm')).toBeInTheDocument();
     });
 

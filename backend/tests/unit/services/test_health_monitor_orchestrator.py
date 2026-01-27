@@ -66,11 +66,11 @@ def mock_settings() -> MagicMock:
 def sample_service() -> ManagedService:
     """Create a sample ManagedService for testing."""
     return ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="YOLO26",
         container_id="abc123",
         image="ghcr.io/example/yolo26:latest",
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         health_cmd=None,
         category=ServiceCategory.AI,
@@ -130,7 +130,7 @@ class TestManagedService:
 
     def test_create_ai_service(self, sample_service: ManagedService) -> None:
         """Test creating an AI service."""
-        assert sample_service.name == "ai-detector"
+        assert sample_service.name == "ai-yolo26"
         assert sample_service.category == ServiceCategory.AI
         assert sample_service.health_endpoint == "/health"
         assert sample_service.health_cmd is None
@@ -174,8 +174,8 @@ class TestServiceRegistry:
         registry = ServiceRegistry()
         registry.register(sample_service)
 
-        assert "ai-detector" in registry.list_names()
-        assert registry.get("ai-detector") is sample_service
+        assert "ai-yolo26" in registry.list_names()
+        assert registry.get("ai-yolo26") is sample_service
 
     def test_get_nonexistent_service(self) -> None:
         """Test getting a nonexistent service returns None."""
@@ -199,17 +199,17 @@ class TestServiceRegistry:
 
     def test_update_status(self, service_registry: ServiceRegistry) -> None:
         """Test updating service status."""
-        service_registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
+        service_registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
 
-        service = service_registry.get("ai-detector")
+        service = service_registry.get("ai-yolo26")
         assert service is not None
         assert service.status == ContainerServiceStatus.UNHEALTHY
 
     def test_increment_failures(self, service_registry: ServiceRegistry) -> None:
         """Test incrementing failure count."""
-        service_registry.increment_failures("ai-detector")
+        service_registry.increment_failures("ai-yolo26")
 
-        service = service_registry.get("ai-detector")
+        service = service_registry.get("ai-yolo26")
         assert service is not None
         assert service.failure_count == 1
         assert service.last_failure_at is not None
@@ -217,13 +217,13 @@ class TestServiceRegistry:
     def test_reset_failures(self, service_registry: ServiceRegistry) -> None:
         """Test resetting failure count."""
         # First increment
-        service_registry.increment_failures("ai-detector")
-        service_registry.increment_failures("ai-detector")
+        service_registry.increment_failures("ai-yolo26")
+        service_registry.increment_failures("ai-yolo26")
 
         # Then reset
-        service_registry.reset_failures("ai-detector")
+        service_registry.reset_failures("ai-yolo26")
 
-        service = service_registry.get("ai-detector")
+        service = service_registry.get("ai-yolo26")
         assert service is not None
         assert service.failure_count == 0
 
@@ -237,7 +237,7 @@ class TestServiceRegistry:
 
         names = registry.list_names()
         assert len(names) == 2
-        assert "ai-detector" in names
+        assert "ai-yolo26" in names
         assert "postgres" in names
 
 
@@ -418,7 +418,7 @@ class TestHealthMonitorCheckServiceHealth:
 
             assert result is True
             mock_http.assert_called_once_with(
-                host="ai-detector", port=8090, endpoint="/health", timeout=5.0
+                host="ai-yolo26", port=8095, endpoint="/health", timeout=5.0
             )
 
     @pytest.mark.asyncio
@@ -515,7 +515,7 @@ class TestHealthMonitorCheckAllServices:
             results = await monitor.check_all_services()
 
             assert len(results) == 2
-            assert results["ai-detector"] is True
+            assert results["ai-yolo26"] is True
             assert results["postgres"] is True
 
 
@@ -1220,11 +1220,11 @@ class TestGracePeriodStartingStatus:
     ) -> None:
         """Test that AI services have longer grace periods (60s)."""
         service = ManagedService(
-            name="ai-detector",
+            name="ai-yolo26",
             display_name="YOLO26",
             container_id="det123",
             image="yolo26:latest",
-            port=8090,
+            port=8095,
             health_endpoint="/health",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.STARTING,

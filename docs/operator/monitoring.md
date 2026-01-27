@@ -128,7 +128,7 @@ nvidia-smi
 docker compose -f docker-compose.prod.yml logs backend | grep -i gpu
 
 # Test AI container health endpoint
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 ```
 
 **High memory pressure alerts:**
@@ -1092,7 +1092,7 @@ labels:
 **Supported Services:**
 
 - `backend` - FastAPI backend
-- `ai-detector` - YOLO26 object detection
+- `ai-yolo26` - YOLO26 object detection
 - `ai-florence` - Florence-2 vision-language
 - `ai-enrichment` - Entity enrichment
 

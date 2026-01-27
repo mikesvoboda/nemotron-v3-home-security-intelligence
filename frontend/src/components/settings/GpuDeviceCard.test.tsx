@@ -32,7 +32,7 @@ const mockGpu: GpuDevice = {
 
 const mockAssignments: GpuAssignment[] = [
   { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
-  { service: 'ai-detector', gpu_index: 0, vram_budget_override: null },
+  { service: 'ai-yolo26', gpu_index: 0, vram_budget_override: null },
 ];
 
 // ============================================================================
@@ -139,7 +139,7 @@ describe('GpuDeviceCard', () => {
       renderWithProviders(<GpuDeviceCard gpu={mockGpu} assignedServices={mockAssignments} />);
 
       expect(screen.getByText('ai-llm')).toBeInTheDocument();
-      expect(screen.getByText('ai-detector')).toBeInTheDocument();
+      expect(screen.getByText('ai-yolo26')).toBeInTheDocument();
     });
 
     it('should show empty message when no services assigned', () => {
