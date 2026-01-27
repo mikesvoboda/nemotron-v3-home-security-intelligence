@@ -1,6 +1,7 @@
 #!/bin/bash
 # Batch video generation with persistent model per GPU
-# Each GPU loads model once, then processes ~11 videos sequentially
+# Each GPU loads model once, then processes ~63 videos sequentially
+# Total: 501 videos (167 prompts × 3 durations: 5s, 10s, 30s) across 8 GPUs
 
 set -e
 
@@ -15,7 +16,8 @@ mkdir -p "${OUTPUT_BASE}"
 mkdir -p "${LOG_DIR}"
 
 # Get all prompt files (excluding generation_queue.json)
-mapfile -t PROMPT_FILES < <(ls ${PROMPTS_DIR}/*.json | grep -v generation_queue | sort)
+# Sort by duration: 5s first, then 10s, then 30s (for quality checking)
+mapfile -t PROMPT_FILES < <(ls ${PROMPTS_DIR}/*.json | grep -v generation_queue | sort -t'_' -k2 -V)
 TOTAL_FILES=${#PROMPT_FILES[@]}
 FILES_PER_GPU=$(( (TOTAL_FILES + NUM_GPUS - 1) / NUM_GPUS ))
 

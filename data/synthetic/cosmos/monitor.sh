@@ -7,7 +7,7 @@ OUTPUT_DIR="/home/shadeform/cosmos-predict2.5/outputs/security_videos"
 LOG_DIR="/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/logs"
 GIT_REPO="/home/shadeform/nemotron-v3-home-security-intelligence"
 VIDEO_DEST="${GIT_REPO}/data/synthetic/cosmos/videos"
-TOTAL_VIDEOS=88
+TOTAL_VIDEOS=501
 
 # Ensure destination exists
 mkdir -p "${VIDEO_DEST}"

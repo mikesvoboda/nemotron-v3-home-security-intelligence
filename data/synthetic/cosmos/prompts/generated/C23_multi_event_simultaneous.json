@@ -1,9 +1,0 @@
-{
-  "id": "C23",
-  "variation": "multi_event_simultaneous",
-  "category": "training",
-  "scenario": "challenging_conditions",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Two unrelated events happen simultaneously: a delivery driver places a package at door while a different person walks a dog past on the sidewalk. Split attention scenario. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.501613+00:00"
-}

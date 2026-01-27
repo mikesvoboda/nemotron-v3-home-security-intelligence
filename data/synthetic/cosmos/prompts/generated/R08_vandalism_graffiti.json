@@ -1,9 +1,0 @@
-{
-  "id": "R08",
-  "variation": "vandalism_graffiti",
-  "category": "training",
-  "scenario": "real_threats",
-  "duration_seconds": 30,
-  "prompt": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person with a spray paint can sprays graffiti on the fence, looking around nervously between strokes. Property vandalism. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.491605+00:00"
-}

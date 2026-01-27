@@ -1,9 +1,0 @@
-{
-  "id": "T06",
-  "variation": "window_break",
-  "category": "training",
-  "scenario": "threat_patterns",
-  "duration_seconds": 30,
-  "prompt": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. Person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.476484+00:00"
-}

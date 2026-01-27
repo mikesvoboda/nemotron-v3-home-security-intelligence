@@ -1,9 +1,0 @@
-{
-  "id": "E19",
-  "variation": "guest_rideshare",
-  "category": "training",
-  "scenario": "everyday_recognition",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A rideshare car pulls up, a passenger exits from the back seat with a small bag, waves thanks to driver, and walks toward the front door as car drives away. Guest arrival by rideshare. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.496382+00:00"
-}

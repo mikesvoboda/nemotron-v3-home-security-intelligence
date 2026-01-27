@@ -2,7 +2,7 @@
 
 ## Overview
 
-You are generating **88 synthetic security camera videos** using NVIDIA Cosmos models. This document contains everything you need, **updated 2026-01-27**.
+You are generating **501 synthetic security camera videos** (167 prompts × 3 durations) using NVIDIA Cosmos models. This document contains everything you need, **updated 2026-01-27**.
 
 ---
 
@@ -15,9 +15,11 @@ You are generating **88 synthetic security camera videos** using NVIDIA Cosmos m
 | Cosmos-Reason1-7B | ✅ Downloaded | 16GB in cosmos-reason1 |
 | Test Generation | ✅ Verified | NVRTC JIT tests pass on B300 |
 | HuggingFace Auth | ✅ Configured | Token saved to cache |
-| Prompt Files | ✅ Generated | 88 JSON files in `prompts/generated/` |
+| Prompt Files | ✅ Generated | **501 JSON files** (167 × 3 durations) |
 | Batch Scripts | ✅ Ready | `batch_generate.sh`, `monitor.sh` |
 | 8-GPU Parallel | ✅ Verified | All GPUs 100% utilization |
+| Guardrails | ✅ Disabled | Required for security training data |
+| Prompt Format | ✅ Fixed | Perspective-centric (no camera in frame) |
 
 ---
 
@@ -297,44 +299,47 @@ outputs/test/
 
 ## Video Generation Summary
 
-### Total Videos: 88
+### Total Videos: 501 (167 prompts × 3 durations)
 
-| Category | Count | Duration Range | Subtotal Runtime |
-|----------|-------|----------------|------------------|
-| **Presentation** | 48 | 15-20s | 13.7 min |
-| **Training** | 40 | 30s each | 20.0 min |
-| **TOTAL** | **88** | - | **33.7 min** |
+| Category | Prompts | × Durations | Total Videos |
+|----------|---------|-------------|--------------|
+| **Presentation (P)** | 48 | × 3 | 144 |
+| **Training (T)** | 40 | × 3 | 120 |
+| **False Positives (F)** | 16 | × 3 | 48 |
+| **Real Threats (R)** | 18 | × 3 | 54 |
+| **Everyday Recognition (E)** | 22 | × 3 | 66 |
+| **Challenging Conditions (C)** | 23 | × 3 | 69 |
+| **TOTAL** | **167** | × 3 | **501** |
 
-### Duration Breakdown
+### Duration Variants (Each Prompt)
 
-| Duration | Count | Generation Method |
-|----------|-------|-------------------|
-| 15s | 23 | 3 × 5s clips concatenated |
-| 18s | 12 | 4 × 5s clips concatenated |
-| 20s | 13 | 4 × 5s clips concatenated |
-| 30s | 40 | 6 iterations (sliding window) |
+| Duration | Frames @ 24fps | Use Case |
+|----------|----------------|----------|
+| **5 seconds** | 120 frames | Quick demos, thumbnails |
+| **10 seconds** | 240 frames | Standard training clips |
+| **30 seconds** | 720 frames | Extended scenarios |
 
-### Estimated Generation Time
+### Video Category Details
 
-Based on verified test results (5s clip = ~15 minutes):
+| Prefix | Category | Description |
+|--------|----------|-------------|
+| P | Presentation | Threat escalation, cross-camera tracking, household recognition, vehicle+person |
+| T | Training | Threat patterns, tracking sequences, enrichment stress, edge cases |
+| F | False Positives | Wildlife, wind effects, shadows/reflections, passing pedestrians |
+| R | Real Threats | Package theft, vehicle crime, vandalism, casing, break-ins, trespassing |
+| E | Everyday Recognition | Deliveries, home services, utilities, solicitors, visitors |
+| C | Challenging Conditions | Weather, lighting, occlusion, speed, clothing variations |
 
-| Video Type | Count | Time Each | Total Time |
-|------------|-------|-----------|------------|
-| 15s presentation | 23 | 45 min (3 clips) | 17.25 hours |
-| 18s presentation | 12 | 60 min (4 clips) | 12 hours |
-| 20s presentation | 13 | 60 min (4 clips) | 13 hours |
-| 30s training | 40 | 75 min (6 iterations) | 50 hours |
-| **TOTAL** | **88** | - | **~92 hours** |
+### Estimated Generation Time (8× B300 GPUs)
 
-### Parallel Generation Options
+| Duration | Count | Time Each | Total Time (8 GPUs) |
+|----------|-------|-----------|---------------------|
+| 5s videos | 167 | ~17 min | ~6 hours |
+| 10s videos | 167 | ~25 min | ~9 hours |
+| 30s videos | 167 | ~60 min | ~21 hours |
+| **TOTAL** | **501** | - | **~18-24 hours** |
 
-With 65GB peak usage and 140GB total VRAM:
-
-| Configuration | Time | Risk |
-|---------------|------|------|
-| Serial (1× 14B) | ~92 hours | Safe |
-| 1× 14B + 1× 2B | ~55 hours | Safe (85GB total) |
-| 2× 14B | ~46 hours | Risky (130GB, 10GB buffer) |
+**Note:** Generation is sorted so ALL 5s videos complete first, then 10s, then 30s. This allows quality checking the 5s videos while longer ones continue generating.
 
 ---
 
@@ -355,7 +360,8 @@ docker run --rm --gpus all \
   -i /workspace/cosmos/assets/base/snowy_stop_light.json \
   -o /workspace/cosmos/outputs/presentation \
   --inference-type=text2world \
-  --model=14B/post-trained
+  --model=14B/post-trained \
+  --disable-guardrails
 ```
 
 #### Custom Prompt Generation
@@ -364,11 +370,17 @@ Create a JSON file like `my_video.json`:
 
 ```json
 {
-  "inference_type": "text2world",
   "name": "my_custom_video",
-  "prompt": "Security camera footage from elevated doorbell camera, suburban home front porch at night. A person in dark hoodie approaches the front door..."
+  "inference_type": "text2world",
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in dark hoodie approaches...",
+  "negative_prompt": "visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, slow motion, time lapse",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 120
 }
 ```
+
+**CRITICAL:** Use perspective-centric language ("viewed from elevated vantage point") NOT device-centric language ("security camera footage from doorbell camera"). The latter causes Cosmos to render camera equipment IN the frame.
 
 Then run:
 
@@ -504,18 +516,30 @@ Key options:
 └── nemotron-v3-home-security-intelligence/
     └── data/synthetic/cosmos/
         ├── HANDOFF.md                    # This file
-        ├── generation_manifest.yaml      # All 88 video definitions
+        ├── generation_manifest.yaml      # All 167 video definitions
         ├── generation_status.json        # Progress tracking
         ├── batch_generate.sh             # 8-GPU parallel generation
-        ├── generate_prompts.py           # Prompt file generator
-        ├── monitor.sh                    # Progress monitoring
+        ├── generate_prompts.py           # Prompt file generator (3 durations)
+        ├── monitor.sh                    # Progress monitoring + auto git sync
         ├── logs/                         # Per-GPU generation logs
         │   └── gpu[0-7].log
+        ├── videos/                       # Generated videos (synced to git)
+        ├── videos_deprecated/            # Old videos with camera-in-frame issues
         └── prompts/
             ├── templates/                # Jinja2 templates
-            └── generated/                # 88 JSON prompt files
-                ├── P01.json ... P48.json
-                └── T01.json ... T40.json
+            │   ├── base_prompt.jinja2    # Perspective-centric prompt template
+            │   ├── scenes/               # Scene definitions
+            │   ├── environments/         # Lighting/weather
+            │   ├── subjects/             # Person/vehicle descriptions
+            │   └── actions/              # Action sequences
+            └── generated/                # 501 JSON prompt files
+                ├── C01_5s.json ... C23_30s.json   # Challenging Conditions
+                ├── E01_5s.json ... E22_30s.json   # Everyday Recognition
+                ├── F01_5s.json ... F16_30s.json   # False Positives
+                ├── P01_5s.json ... P48_30s.json   # Presentation
+                ├── R01_5s.json ... R18_30s.json   # Real Threats
+                ├── T01_5s.json ... T40_30s.json   # Training
+                └── generation_queue.json          # Full manifest
 ```
 
 ### H200 Setup (Native)
@@ -740,37 +764,90 @@ source .venv/bin/activate
 
 ## Generation Manifest Quick Reference
 
-### Presentation Videos (48)
+### Presentation Videos (P01-P48)
 
-| Category | IDs | Duration | Environment |
-|----------|-----|----------|-------------|
-| Threat Escalation | P01-P12 | 15-20s | Night |
-| Cross-Camera | P13-P24 | 15-20s | Dusk |
-| Household Recognition | P25-P36 | 15-18s | Day |
-| Vehicle + Person | P37-P48 | 15-20s | Day |
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Threat Escalation | P01-P12 | Progressive suspicious behavior at night |
+| Cross-Camera Tracking | P13-P24 | Zone movement at dusk |
+| Household Recognition | P25-P36 | Known vs unknown during day |
+| Vehicle + Person | P37-P48 | Vehicle arrivals/exits |
 
-### Training Videos (40)
+### Training Videos (T01-T40)
 
-| Category | IDs | Duration | Purpose |
-|----------|-----|----------|---------|
-| Threat Patterns | T01-T10 | 30s | Weapons, aggressive poses |
-| Tracking Sequences | T11-T18 | 30s | ReID testing |
-| Enrichment Stress | T19-T30 | 30s | Model Zoo exercise |
-| Edge Cases | T31-T40 | 30s | Adverse conditions |
+| Category | IDs | Purpose |
+|----------|-----|---------|
+| Threat Patterns | T01-T10 | Weapons, aggressive poses |
+| Tracking Sequences | T11-T18 | ReID testing |
+| Enrichment Stress | T19-T30 | Face/clothing/pet detection |
+| Edge Cases | T31-T40 | Weather/lighting challenges |
+
+### False Positive Training (F01-F16)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Wildlife | F01-F05 | Deer, raccoon, coyote, cat, birds |
+| Wind Effects | F06-F08 | Trash, branches, flags |
+| Shadows/Reflections | F09-F11 | Headlights, clouds, glare |
+| Passing Pedestrians | F12-F14 | Joggers, dog walkers |
+| Innocent Intrusions | F15-F16 | Wrong delivery, ball retrieval |
+
+### Real Threats (R01-R18)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Package Theft | R01-R03 | Quick grab, casual, follow delivery |
+| Vehicle Crime | R04-R07 | Car break-in, theft, catalytic converter |
+| Vandalism | R08-R10 | Graffiti, mailbox, egging |
+| Casing | R11-R12 | Photography, note-taking |
+| Break-ins | R13-R16 | Home invasion, garage, shed |
+| Trespassing | R17-R18 | Shortcut, camping |
+
+### Everyday Recognition (E01-E22)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Deliveries | E01-E07 | Amazon, UPS, FedEx, USPS, food, grocery, drone |
+| Home Services | E08-E11 | Landscaper, pool, cleaner, pest control |
+| Utilities | E12-E14 | Meter reader, electric, gas |
+| Solicitors | E15-E17 | Sales, religious, political |
+| Visitors | E18-E22 | Guests, rideshare, contractor, realtor, neighbor |
+
+### Challenging Conditions (C01-C23)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Weather | C01-C05 | Rain, snow, fog, hail, wind |
+| Lighting | C06-C10 | Glare, headlights, flashlight, lightning, sunrise |
+| Occlusion | C11-C14 | Umbrella, package, crowd, stroller |
+| Speed | C15-C16 | Sprint, fast cyclist |
+| Clothing | C17-C20 | Rain gear, winter, costume, helmet |
+| Other | C21-C23 | Distance, angle, multi-event |
 
 ---
 
-## Next Steps for Generation
+## Next Steps for Generation (Quick Start)
 
-1. **Review manifest**: `cat /home/ubuntu/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/generation_manifest.yaml`
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
 
-2. **Create prompt files**: Generate prompts from manifest templates
+# 1. Activate environment and regenerate prompts (if needed)
+source .venv/bin/activate
+python generate_prompts.py
 
-3. **Start with presentation videos**: They're shorter and needed first
+# 2. Start generation (runs in background)
+./batch_generate.sh
 
-4. **Track progress**: Update `generation_status.json` after each video
+# 3. Monitor progress (auto-syncs videos to git)
+./monitor.sh 60
+```
 
-5. **Quality check**: Score videos with Cosmos-Reason1
+### Quality Check Workflow
+
+1. **First 5s videos complete in ~6 hours** - Check for camera-in-frame issues
+2. **Use ffmpeg to extract frames**: `ffmpeg -ss 2 -i video.mp4 -vframes 1 frame.jpg`
+3. **Verify**: No camera equipment visible, elevated perspective, real-time motion
+4. **If issues found**: Stop generation, fix prompts, restart
 
 ---
 
@@ -778,10 +855,10 @@ source .venv/bin/activate
 
 ### Optimal Approach: Persistent Containers
 
-The most efficient approach for generating 88 videos is to run **8 persistent Docker containers** (one per GPU), each processing ~11 videos sequentially. This loads the model once per GPU and processes all assigned videos.
+The most efficient approach for generating 501 videos is to run **8 persistent Docker containers** (one per GPU), each processing ~63 videos sequentially. This loads the model once per GPU and processes all assigned videos.
 
 **Why not other approaches?**
-- **Single GPU serial**: 92+ hours (too slow)
+- **Single GPU serial**: 100+ hours (too slow)
 - **New container per video**: Model reload (~4 min) for each video (wasteful)
 - **Context parallelism for single video**: Faster per-video but lower total throughput
 
@@ -789,9 +866,9 @@ The most efficient approach for generating 88 videos is to run **8 persistent Do
 
 | Script | Purpose |
 |--------|---------|
-| `batch_generate.sh` | Main parallel generation script |
-| `generate_prompts.py` | Renders prompts from manifest templates |
-| `monitor.sh` | Real-time progress monitoring |
+| `batch_generate.sh` | Main parallel generation script (sorted by duration) |
+| `generate_prompts.py` | Renders 501 prompts (167 × 3 durations) from manifest |
+| `monitor.sh` | Real-time progress monitoring + auto git sync |
 | `parallel_generate.py` | Alternative Python-based approach |
 
 ### Running Batch Generation
@@ -799,26 +876,72 @@ The most efficient approach for generating 88 videos is to run **8 persistent Do
 ```bash
 cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
 
-# Generate all prompt JSON files first
+# Generate all prompt JSON files first (501 files)
 source .venv/bin/activate
 python generate_prompts.py
 
 # Start parallel generation on 8 GPUs
 ./batch_generate.sh
 
-# Monitor progress (in separate terminal)
-./monitor.sh        # Refresh every 30s
-./monitor.sh 10     # Refresh every 10s
+# Monitor progress with auto-sync to git (in separate terminal)
+./monitor.sh 60     # Refresh every 60s, auto-commits new videos
 ```
 
-### Output Location
+### Generation Order (Quality Check Strategy)
 
-Videos are saved to:
+Prompts are sorted so **ALL 5s videos generate first**, then 10s, then 30s:
+
 ```
+C01_5s.json, C02_5s.json, ... T40_5s.json    # First ~6 hours
+C01_10s.json, C02_10s.json, ... T40_10s.json # Next ~9 hours
+C01_30s.json, C02_30s.json, ... T40_30s.json # Final ~9 hours
+```
+
+This allows you to quality check the 5s videos while longer videos continue generating.
+
+### Output Locations
+
+```
+# Raw generation output (Docker container writes here)
 /home/shadeform/cosmos-predict2.5/outputs/security_videos/*.mp4
+
+# Git-synced location (monitor.sh auto-copies here)
+/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/videos/*.mp4
 ```
 
-This path persists on the host filesystem (not inside containers).
+Both paths persist on the host filesystem (not inside containers).
+
+---
+
+## Critical: Camera-in-Frame Issue (FIXED)
+
+### The Problem
+
+Early video generations showed **camera equipment visible IN the frame** (~60% of videos). This happened because prompts used device-centric language like:
+- "Security camera footage from elevated doorbell camera"
+- "Camera mounted on garage"
+
+Cosmos interpreted these as instructions to SHOW a camera rather than simulate the camera's POV.
+
+### The Solution
+
+1. **Use perspective-centric language** in prompts:
+   - ❌ BAD: `Security camera footage from elevated doorbell camera`
+   - ✅ GOOD: `Suburban home front porch, viewed from an elevated vantage point near the front door`
+
+2. **Include camera exclusions in negative_prompt:**
+   ```
+   visible camera, security camera device, doorbell camera, camera lens visible,
+   camera equipment, camera housing, surveillance camera in frame, camera mount,
+   camera on wall, camera on ceiling, CCTV camera visible, Ring doorbell visible
+   ```
+
+3. **Add real-time speed specification:**
+   ```
+   Real-time speed, natural fluid motion at 1x playback rate.
+   ```
+
+The `generate_prompts.py` script and `base_prompt.jinja2` template implement these fixes.
 
 ---
 
@@ -832,7 +955,7 @@ Cosmos includes content safety guardrails (BLOCKLIST, QWEN3GUARD) that **will bl
 - Threatening behavior
 - Concealed faces (ski masks)
 
-**Our training videos (T01-T10) explicitly require these scenarios for threat detection training.**
+**Our training videos (T01-T10, R01-R18) explicitly require these scenarios for threat detection training.**
 
 ### The Solution
 
@@ -893,16 +1016,30 @@ This is critical for batch processing multiple videos in a single container.
 | **GPU Utilization** | 100% during diffusion |
 | **Time per Step** | ~29 seconds |
 | **Steps per Video** | 35 |
-| **Time per 5s Video** | ~17 minutes |
-| **Videos per GPU** | 11 |
-| **Total Batch Time** | ~3 hours |
+
+### Time per Video by Duration
+
+| Duration | Frames | Approx Time |
+|----------|--------|-------------|
+| **5 seconds** | 120 | ~17 minutes |
+| **10 seconds** | 240 | ~25 minutes |
+| **30 seconds** | 720 | ~60 minutes |
+
+### Total Generation Time (501 Videos)
+
+| Duration | Count | Time per GPU | Total (8 GPUs) |
+|----------|-------|--------------|----------------|
+| 5s videos | 167 | ~7 hours | ~6 hours |
+| 10s videos | 167 | ~10 hours | ~9 hours |
+| 30s videos | 167 | ~21 hours | ~9 hours |
+| **TOTAL** | **501** | - | **~18-24 hours** |
 
 ### Parallelization Efficiency
 
 | Configuration | Total Time | Speedup |
 |---------------|------------|---------|
-| 1 GPU (serial) | ~25 hours | 1× |
-| 8 GPUs (parallel) | ~3 hours | 8× |
+| 1 GPU (serial) | ~150 hours | 1× |
+| 8 GPUs (parallel) | ~18-24 hours | ~7-8× |
 
 ---
 
@@ -945,6 +1082,72 @@ docker run --rm --gpus all \
   --inference-type=text2world \
   --model=14B/post-trained
 ```
+
+---
+
+---
+
+## Redeployment on New Node (Quick Reference)
+
+If you need to redeploy on a fresh B300 or H200 node:
+
+### 1. Clone Repositories
+
+```bash
+cd /home/shadeform  # or /home/ubuntu for H200
+git clone https://github.com/nvidia-cosmos/cosmos-predict2.5.git
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
+git checkout msvoboda/nemo3
+```
+
+### 2. Build Docker Container (B300)
+
+```bash
+cd /home/shadeform/cosmos-predict2.5
+docker build -f docker/nightly.Dockerfile -t cosmos-b300 .
+```
+
+### 3. Setup Python Environment (for prompt generation)
+
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+apt install -y python3-venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pyyaml jinja2
+```
+
+### 4. Authenticate HuggingFace
+
+```bash
+# Accept licenses at:
+# - https://huggingface.co/nvidia/Cosmos-Predict2.5-14B
+# - https://huggingface.co/nvidia/Cosmos-Predict2.5-2B
+# - https://huggingface.co/nvidia/Cosmos-Guardrail1
+# - https://huggingface.co/nvidia/Cosmos-Reason1-7B
+
+huggingface-cli login --token YOUR_TOKEN
+```
+
+### 5. Generate Prompts and Start
+
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+source .venv/bin/activate
+python generate_prompts.py  # Creates 501 prompt files
+./batch_generate.sh         # Starts 8-GPU generation
+./monitor.sh 60             # Monitor + auto-sync to git
+```
+
+### Key Files to Verify
+
+| File | Purpose | Check |
+|------|---------|-------|
+| `generation_manifest.yaml` | Video definitions | 167 videos defined |
+| `prompts/templates/base_prompt.jinja2` | Prompt template | Perspective-centric language |
+| `prompts/generated/*.json` | Cosmos inputs | 501 files, correct format |
+| `batch_generate.sh` | Generation script | `--disable-guardrails` present |
 
 ---
 

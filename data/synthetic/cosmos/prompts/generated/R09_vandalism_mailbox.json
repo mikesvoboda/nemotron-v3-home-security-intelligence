@@ -1,9 +1,0 @@
-{
-  "id": "R09",
-  "variation": "vandalism_mailbox",
-  "category": "training",
-  "scenario": "real_threats",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. A person runs up to the mailbox at the end of the driveway and smashes it with a bat or kicks it over, then runs away. Mailbox vandalism. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.491747+00:00"
-}

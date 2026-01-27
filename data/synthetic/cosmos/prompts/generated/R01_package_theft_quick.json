@@ -1,9 +1,0 @@
-{
-  "id": "R01",
-  "variation": "package_theft_quick",
-  "category": "training",
-  "scenario": "real_threats",
-  "duration_seconds": 30,
-  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person runs up to the porch, quickly grabs a package sitting by the door, turns and sprints away. Fast theft in progress. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.490586+00:00"
-}

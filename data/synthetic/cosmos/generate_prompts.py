@@ -73,29 +73,50 @@ def render_prompt(video_config: dict, defaults: dict) -> str:
     return prompt
 
 
-def create_cosmos_json(video_id: str, prompt: str, output_dir: Path) -> Path:
-    """Create a Cosmos-compatible JSON file for inference."""
+# Video duration variants: (suffix, duration_seconds, num_frames at 24fps)
+VIDEO_DURATIONS = [
+    ("5s", 5, 120),
+    ("10s", 10, 240),
+    ("30s", 30, 720),
+]
+
+
+def create_cosmos_json_variants(video_id: str, prompt: str, negative_prompt: str, output_dir: Path) -> list[Path]:
+    """Create Cosmos-compatible JSON files for all duration variants."""
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    json_data = {
-        "inference_type": "text2world",
-        "name": video_id,
-        "prompt": prompt
-    }
+    output_paths = []
+    for suffix, duration_sec, num_frames in VIDEO_DURATIONS:
+        variant_id = f"{video_id}_{suffix}"
+        
+        # Cosmos expects these exact fields
+        json_data = {
+            "name": variant_id,
+            "inference_type": "text2world",
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "guidance": 7,
+            "seed": 0,
+            "num_output_frames": num_frames
+        }
+        
+        output_path = output_dir / f"{variant_id}.json"
+        with open(output_path, "w") as f:
+            json.dump(json_data, f, indent=2)
+        
+        output_paths.append(output_path)
     
-    output_path = output_dir / f"{video_id}.json"
-    with open(output_path, "w") as f:
-        json.dump(json_data, f, indent=2)
-    
-    return output_path
+    return output_paths
 
 
 def process_manifest():
     """Process the manifest and generate all prompt files."""
     manifest = load_yaml(MANIFEST_PATH)
     defaults = manifest.get("defaults", {})
+    negative_prompt = defaults.get("negative_prompt", "")
     
     generated_files = []
+    base_prompts = 0
     
     # Process presentation videos
     presentation = manifest.get("presentation", {})
@@ -104,17 +125,21 @@ def process_manifest():
             continue
         for video in videos:
             video_id = video["id"]
-            print(f"Generating prompt for {video_id}: {video.get('description', '')[:50]}...")
+            print(f"Generating prompts for {video_id}: {video.get('description', '')[:50]}...")
             
             prompt = render_prompt(video, defaults)
-            output_path = create_cosmos_json(video_id, prompt, OUTPUT_DIR)
-            generated_files.append({
-                "id": video_id,
-                "category": "presentation",
-                "subcategory": category_name,
-                "path": str(output_path),
-                "duration_seconds": video.get("duration_seconds", 15)
-            })
+            output_paths = create_cosmos_json_variants(video_id, prompt, negative_prompt, OUTPUT_DIR)
+            base_prompts += 1
+            
+            for output_path, (suffix, duration_sec, _) in zip(output_paths, VIDEO_DURATIONS):
+                generated_files.append({
+                    "id": f"{video_id}_{suffix}",
+                    "base_id": video_id,
+                    "category": "presentation",
+                    "subcategory": category_name,
+                    "path": str(output_path),
+                    "duration_seconds": duration_sec
+                })
     
     # Process training videos
     training = manifest.get("training", {})
@@ -123,27 +148,36 @@ def process_manifest():
             continue
         for video in videos:
             video_id = video["id"]
-            print(f"Generating prompt for {video_id}: {video.get('description', '')[:50]}...")
+            print(f"Generating prompts for {video_id}: {video.get('description', '')[:50]}...")
             
             prompt = render_prompt(video, defaults)
-            output_path = create_cosmos_json(video_id, prompt, OUTPUT_DIR)
-            generated_files.append({
-                "id": video_id,
-                "category": "training",
-                "subcategory": category_name,
-                "path": str(output_path),
-                "duration_seconds": video.get("duration_seconds", 30)
-            })
+            output_paths = create_cosmos_json_variants(video_id, prompt, negative_prompt, OUTPUT_DIR)
+            base_prompts += 1
+            
+            for output_path, (suffix, duration_sec, _) in zip(output_paths, VIDEO_DURATIONS):
+                generated_files.append({
+                    "id": f"{video_id}_{suffix}",
+                    "base_id": video_id,
+                    "category": "training",
+                    "subcategory": category_name,
+                    "path": str(output_path),
+                    "duration_seconds": duration_sec
+                })
     
     # Write manifest of generated files
     manifest_output = OUTPUT_DIR / "generation_queue.json"
     with open(manifest_output, "w") as f:
         json.dump({
             "total": len(generated_files),
+            "base_prompts": base_prompts,
+            "variants_per_prompt": len(VIDEO_DURATIONS),
+            "durations": [d[0] for d in VIDEO_DURATIONS],
             "files": generated_files
         }, f, indent=2)
     
-    print(f"\nGenerated {len(generated_files)} prompt files in {OUTPUT_DIR}")
+    print(f"\nGenerated {len(generated_files)} prompt files ({base_prompts} base × {len(VIDEO_DURATIONS)} durations)")
+    print(f"Durations: {', '.join(d[0] for d in VIDEO_DURATIONS)}")
+    print(f"Output: {OUTPUT_DIR}")
     print(f"Queue manifest: {manifest_output}")
     
     return generated_files

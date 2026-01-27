@@ -1,9 +1,0 @@
-{
-  "id": "T05",
-  "variation": "kicking_door",
-  "category": "training",
-  "scenario": "threat_patterns",
-  "duration_seconds": 30,
-  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point. Person repeatedly kicking at the front door, attempting to break it down. Violent forceful kicks, aggressive body language. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.476186+00:00"
-}

@@ -1,9 +1,0 @@
-{
-  "id": "E20",
-  "variation": "contractor_scheduled",
-  "category": "training",
-  "scenario": "everyday_recognition",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A work truck pulls into driveway, a contractor in work clothes exits carrying a toolbox, walks to front door and rings bell. Scheduled home improvement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.496527+00:00"
-}

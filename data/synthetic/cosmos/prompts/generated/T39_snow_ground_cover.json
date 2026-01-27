@@ -1,9 +1,0 @@
-{
-  "id": "T39",
-  "variation": "snow_ground_cover",
-  "category": "training",
-  "scenario": "edge_cases",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway on overcast winter day, viewed from an elevated position on the garage. Snow covering the ground. Person in dark clothing highly visible against white snow. Overcast lighting, snow reflecting light. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.487399+00:00"
-}

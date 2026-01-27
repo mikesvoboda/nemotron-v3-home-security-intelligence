@@ -1,0 +1,9 @@
+{
+  "name": "P42_30s",
+  "inference_type": "text2world",
+  "prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. The vehicle backs out of the driveway, rear license plate clearly visible to camera. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "negative_prompt": "blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts, visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, camera mount, camera on wall, camera on ceiling, camera rig, recording device in shot, gopro, webcam, CCTV camera visible, Ring doorbell visible, Nest camera visible, slow motion, time lapse, fast forward, sped up, slowed down",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 720
+}

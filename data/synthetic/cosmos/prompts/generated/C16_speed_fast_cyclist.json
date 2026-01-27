@@ -1,9 +1,0 @@
-{
-  "id": "C16",
-  "variation": "speed_fast_cyclist",
-  "category": "training",
-  "scenario": "challenging_conditions",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A cyclist speeds through the driveway at high speed, barely stopping, motion blur visible, quick traversal of frame. Fast bicycle movement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.500307+00:00"
-}

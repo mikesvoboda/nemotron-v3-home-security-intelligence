@@ -1,9 +1,0 @@
-{
-  "id": "T12",
-  "variation": "person_occlusion",
-  "category": "training",
-  "scenario": "tracking_sequences",
-  "duration_seconds": 30,
-  "prompt": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. Person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.478133+00:00"
-}

@@ -1,9 +1,0 @@
-{
-  "id": "P29",
-  "variation": "service_worker_expected",
-  "category": "presentation",
-  "scenario": "household_recognition",
-  "duration_seconds": 18,
-  "prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A service worker in branded uniform carrying a clipboard, face visible, carrying a package, moving with purposeful efficient pace. They walk at normal pace toward the front door. Natural walking speed, arms swinging normally, continuous forward motion. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.424884+00:00"
-}

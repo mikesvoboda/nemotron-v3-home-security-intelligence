@@ -1,9 +1,0 @@
-{
-  "id": "E04",
-  "variation": "delivery_usps",
-  "category": "training",
-  "scenario": "everyday_recognition",
-  "duration_seconds": 30,
-  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A USPS mail carrier in blue postal uniform walks up, puts mail in the mailbox, places a small package at door, and continues to next house. Daily mail delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.494084+00:00"
-}

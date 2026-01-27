@@ -1,9 +1,0 @@
-{
-  "id": "T10",
-  "variation": "vehicle_ramming",
-  "category": "training",
-  "scenario": "threat_patterns",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. Static viewpoint, night footage with headlights. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.477574+00:00"
-}

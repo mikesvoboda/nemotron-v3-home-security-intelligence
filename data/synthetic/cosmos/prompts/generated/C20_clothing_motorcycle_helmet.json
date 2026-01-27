@@ -1,9 +1,0 @@
-{
-  "id": "C20",
-  "variation": "clothing_motorcycle_helmet",
-  "category": "training",
-  "scenario": "challenging_conditions",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A person gets off a motorcycle wearing a full-face helmet, walks toward the house with helmet still on, face completely hidden. Helmet concealment. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.501169+00:00"
-}

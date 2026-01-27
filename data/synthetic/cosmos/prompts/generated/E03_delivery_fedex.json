@@ -1,9 +1,0 @@
-{
-  "id": "E03",
-  "variation": "delivery_fedex",
-  "category": "training",
-  "scenario": "everyday_recognition",
-  "duration_seconds": 30,
-  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A FedEx driver in purple and orange uniform walks up with a package, places it at the door, and walks back to FedEx truck. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.493942+00:00"
-}

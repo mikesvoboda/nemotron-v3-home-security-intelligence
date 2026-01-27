@@ -1,9 +1,0 @@
-{
-  "id": "C06",
-  "variation": "lighting_sun_glare",
-  "category": "training",
-  "scenario": "challenging_conditions",
-  "duration_seconds": 30,
-  "prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person approaching with harsh direct sunlight behind them, strong backlight causing silhouette effect, face details completely washed out by glare. Challenging exposure. Static elevated viewpoint, overexposed background. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.498470+00:00"
-}

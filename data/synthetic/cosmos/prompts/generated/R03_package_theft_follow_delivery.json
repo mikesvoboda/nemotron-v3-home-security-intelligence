@@ -1,9 +1,0 @@
-{
-  "id": "R03",
-  "variation": "package_theft_follow_delivery",
-  "category": "training",
-  "scenario": "real_threats",
-  "duration_seconds": 30,
-  "prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Seconds after a delivery driver leaves frame, a different person quickly approaches, grabs the just-delivered package, and hurries away. Stalking delivery pattern. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.490889+00:00"
-}

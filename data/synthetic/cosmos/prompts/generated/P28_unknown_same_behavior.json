@@ -1,9 +1,0 @@
-{
-  "id": "P28",
-  "variation": "unknown_same_behavior",
-  "category": "presentation",
-  "scenario": "household_recognition",
-  "duration_seconds": 15,
-  "prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamiliar person in casual clothing, face obscured by hood, average build, moving with cautious purposeful gait. They walk confidently to the door and try the handle as if they expect it to be unlocked. Relaxed confident body language, familiar comfortable movements, normal walking pace. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.422537+00:00"
-}

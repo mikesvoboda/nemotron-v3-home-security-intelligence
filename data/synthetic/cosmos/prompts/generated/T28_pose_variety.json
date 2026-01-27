@@ -1,9 +1,0 @@
-{
-  "id": "T28",
-  "variation": "pose_variety",
-  "category": "training",
-  "scenario": "enrichment_stress",
-  "duration_seconds": 30,
-  "prompt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting down. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.482601+00:00"
-}

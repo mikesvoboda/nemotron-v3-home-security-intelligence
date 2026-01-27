@@ -1,9 +1,0 @@
-{
-  "id": "T31",
-  "variation": "night_ir_only",
-  "category": "training",
-  "scenario": "edge_cases",
-  "duration_seconds": 30,
-  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Pure infrared night vision rendering - everything in grayscale. Person approaching door, illuminated by invisible IR light. Static elevated viewpoint, grayscale IR footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.483829+00:00"
-}

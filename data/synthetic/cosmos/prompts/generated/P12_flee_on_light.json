@@ -1,9 +1,0 @@
-{
-  "id": "P12",
-  "variation": "flee_on_light",
-  "category": "presentation",
-  "scenario": "threat_escalation",
-  "duration_seconds": 15,
-  "prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They approach the door slowly, then suddenly turn and run when the porch light activates. Natural walking speed, arms swinging normally, continuous forward motion. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate.",
-  "generated_at": "2026-01-27T22:07:34.374389+00:00"
-}
