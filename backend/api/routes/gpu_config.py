@@ -476,7 +476,7 @@ def _calculate_auto_assignments(
         sorted_gpus = sorted(gpus, key=get_compute_score, reverse=True)
         fastest_gpu = sorted_gpus[0]
 
-        critical_services = ["ai-detector", "ai-enrichment"]
+        critical_services = ["ai-yolo26", "ai-enrichment"]
 
         for service in services:
             if service in critical_services:
@@ -1068,7 +1068,7 @@ AI_SERVICE_METADATA: dict[str, dict[str, str]] = {
         "display_name": "LLM (Nemotron)",
         "description": "Nemotron LLM for risk analysis and enrichment",
     },
-    "ai-detector": {
+    "ai-yolo26": {
         "display_name": "Object Detector (YOLO26)",
         "description": "YOLO26m TensorRT real-time object detection",
     },

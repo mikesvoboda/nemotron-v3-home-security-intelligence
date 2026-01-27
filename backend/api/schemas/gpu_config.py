@@ -114,7 +114,7 @@ class GpuAssignment(BaseModel):
 
     service: str = Field(
         ...,
-        description="Service name (e.g., 'ai-llm', 'ai-detector')",
+        description="Service name (e.g., 'ai-llm', 'ai-yolo26')",
         min_length=1,
         max_length=64,
     )
@@ -165,7 +165,7 @@ class GpuConfigResponse(BaseModel):
                 "strategy": "manual",
                 "assignments": [
                     {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
-                    {"service": "ai-detector", "gpu_index": 0, "vram_budget_override": None},
+                    {"service": "ai-yolo26", "gpu_index": 0, "vram_budget_override": None},
                     {"service": "ai-enrichment", "gpu_index": 1, "vram_budget_override": 3.5},
                 ],
                 "updated_at": "2026-01-23T10:30:00Z",
@@ -195,7 +195,7 @@ class GpuConfigUpdateRequest(BaseModel):
                 "strategy": "manual",
                 "assignments": [
                     {"service": "ai-llm", "gpu_index": 0},
-                    {"service": "ai-detector", "gpu_index": 0},
+                    {"service": "ai-yolo26", "gpu_index": 0},
                     {"service": "ai-enrichment", "gpu_index": 1, "vram_budget_override": 3.5},
                 ],
             }
@@ -324,7 +324,7 @@ class ServiceHealthResponse(BaseModel):
                         "restart_status": None,
                     },
                     {
-                        "name": "ai-detector",
+                        "name": "ai-yolo26",
                         "status": "running",
                         "health": "healthy",
                         "gpu_index": 1,
@@ -402,7 +402,7 @@ class AiServicesResponse(BaseModel):
                         "description": "Nemotron LLM for risk analysis and enrichment",
                     },
                     {
-                        "name": "ai-detector",
+                        "name": "ai-yolo26",
                         "display_name": "Object Detector",
                         "vram_required_mb": 2048,
                         "vram_required_gb": 2.0,
@@ -514,7 +514,7 @@ class GpuConfigPreviewResponse(BaseModel):
                 "strategy": "vram_based",
                 "proposed_assignments": [
                     {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
-                    {"service": "ai-detector", "gpu_index": 0, "vram_budget_override": None},
+                    {"service": "ai-yolo26", "gpu_index": 0, "vram_budget_override": None},
                     {"service": "ai-enrichment", "gpu_index": 1, "vram_budget_override": 3.5},
                 ],
                 "warnings": [

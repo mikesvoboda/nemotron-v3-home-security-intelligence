@@ -26,7 +26,7 @@ Usage:
     result = await service.apply_gpu_config()
 
     # Check container status
-    status = await service.get_container_status(["ai-detector", "ai-llm"])
+    status = await service.get_container_status(["ai-yolo26", "ai-llm"])
 
     # Or use simple file writing API:
     service = GpuConfigService(config_dir=Path("config"))
@@ -79,7 +79,7 @@ class ServiceRestartStatus:
     """Status of a single service restart operation.
 
     Attributes:
-        service_name: Name of the service (e.g., 'ai-detector')
+        service_name: Name of the service (e.g., 'ai-yolo26')
         status: Current restart status
         started_at: When the restart started (None if pending)
         completed_at: When the restart completed (None if not done)
@@ -164,7 +164,7 @@ class GpuAssignment:
     """Represents a GPU assignment for a service.
 
     Attributes:
-        service_name: Name of the AI service (e.g., 'ai-detector', 'ai-llm')
+        service_name: Name of the AI service (e.g., 'ai-yolo26', 'ai-llm')
         gpu_index: Index of the GPU assigned (0-based)
         vram_limit_mb: Optional VRAM limit in megabytes
         vram_budget_override: Optional VRAM budget override in GB (alias for vram_limit_mb)

@@ -82,7 +82,7 @@ class ManagedService:
     should use this definition instead of defining their own.
 
     Attributes:
-        name: Service identifier (e.g., "postgres", "ai-detector", "grafana")
+        name: Service identifier (e.g., "postgres", "ai-yolo26", "grafana")
         display_name: Human-readable name (e.g., "PostgreSQL", "YOLO26v2")
         container_id: Docker container ID or None if not yet discovered
         image: Container image (e.g., "postgres:16-alpine")
@@ -217,7 +217,7 @@ class ManagedService:
         container into a ManagedService for tracking.
 
         Args:
-            config_key: Service name/config key (e.g., "postgres", "ai-detector")
+            config_key: Service name/config key (e.g., "postgres", "ai-yolo26")
             config: ServiceConfig with service settings
             container_id: Docker container ID
             image: Container image string

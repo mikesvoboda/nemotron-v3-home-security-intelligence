@@ -31,7 +31,7 @@
           "last_health_check": "2026-01-20T12:00:00Z",
           "latency_p99_ms": 450,
           "status": "healthy",
-          "url": "http://ai-detector:8090"
+          "url": "http://ai-yolo26:8095"
         },
         "properties": {
           "circuit_state": {
@@ -123,7 +123,7 @@
           "name": "yolo26",
           "response_time_ms": 45.2,
           "status": "healthy",
-          "url": "http://ai-detector:8090"
+          "url": "http://ai-yolo26:8095"
         },
         "properties": {
           "circuit_state": {
@@ -278,7 +278,7 @@
               "last_health_check": "2026-01-20T12:00:00Z",
               "latency_p99_ms": 450,
               "status": "healthy",
-              "url": "http://ai-detector:8090"
+              "url": "http://ai-yolo26:8095"
             }
           },
           "timestamp": "2026-01-20T12:00:00Z"
@@ -1146,7 +1146,7 @@
             {
               "description": "YOLO26 real-time object detection",
               "display_name": "Object Detector",
-              "name": "ai-detector",
+              "name": "ai-yolo26",
               "vram_required_gb": 2.0,
               "vram_required_mb": 2048
             }
@@ -14328,7 +14328,7 @@
               "name": "yolo26",
               "response_time_ms": 45.2,
               "status": "healthy",
-              "url": "http://ai-detector:8090"
+              "url": "http://ai-yolo26:8095"
             }
           ],
           "circuit_breakers": {
@@ -15288,7 +15288,7 @@
             "title": "Gpu Index"
           },
           "service": {
-            "description": "Service name (e.g., 'ai-llm', 'ai-detector')",
+            "description": "Service name (e.g., 'ai-llm', 'ai-yolo26')",
             "maxLength": 64,
             "minLength": 1,
             "title": "Service",
@@ -15336,7 +15336,7 @@
             },
             {
               "gpu_index": 0,
-              "service": "ai-detector"
+              "service": "ai-yolo26"
             },
             {
               "gpu_index": 1,
@@ -15388,7 +15388,7 @@
             },
             {
               "gpu_index": 0,
-              "service": "ai-detector"
+              "service": "ai-yolo26"
             },
             {
               "gpu_index": 1,
@@ -15495,7 +15495,7 @@
             },
             {
               "gpu_index": 0,
-              "service": "ai-detector"
+              "service": "ai-yolo26"
             },
             {
               "gpu_index": 1,
@@ -28000,8 +28000,8 @@
             "failure_count": 0,
             "image": "ghcr.io/.../yolo26:latest",
             "last_restart_at": "2026-01-05T15:50:00Z",
-            "name": "ai-detector",
-            "port": 8090,
+            "name": "ai-yolo26",
+            "port": 8095,
             "restart_count": 3,
             "status": "starting"
           },
@@ -28054,7 +28054,7 @@
             {
               "gpu_index": 1,
               "health": "healthy",
-              "name": "ai-detector",
+              "name": "ai-yolo26",
               "status": "running"
             }
           ]
@@ -28205,8 +28205,8 @@
           "failure_count": 0,
           "image": "ghcr.io/.../yolo26:latest",
           "last_restart_at": "2026-01-05T10:30:00Z",
-          "name": "ai-detector",
-          "port": 8090,
+          "name": "ai-yolo26",
+          "port": 8095,
           "restart_count": 2,
           "status": "running",
           "uptime_seconds": 3600
@@ -28272,7 +28272,7 @@
             "title": "Last Restart At"
           },
           "name": {
-            "description": "Service identifier (e.g., 'ai-detector', 'postgres', 'grafana')",
+            "description": "Service identifier (e.g., 'ai-yolo26', 'postgres', 'grafana')",
             "title": "Name",
             "type": "string"
           },
@@ -28397,8 +28397,8 @@
               "failure_count": 0,
               "image": "ghcr.io/.../yolo26:latest",
               "last_restart_at": "2026-01-05T10:30:00Z",
-              "name": "ai-detector",
-              "port": 8090,
+              "name": "ai-yolo26",
+              "port": 8095,
               "restart_count": 2,
               "status": "running",
               "uptime_seconds": 3600

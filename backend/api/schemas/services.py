@@ -55,7 +55,7 @@ class ServiceInfo(BaseModel):
 
     name: str = Field(
         ...,
-        description="Service identifier (e.g., 'ai-detector', 'postgres', 'grafana')",
+        description="Service identifier (e.g., 'ai-yolo26', 'postgres', 'grafana')",
     )
     display_name: str = Field(
         ...,
@@ -110,14 +110,14 @@ class ServiceInfo(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "name": "ai-detector",
+                "name": "ai-yolo26",
                 "display_name": "YOLO26v2",
                 "category": "ai",
                 "status": "running",
                 "enabled": True,
                 "container_id": "abc123def456",
                 "image": "ghcr.io/.../yolo26:latest",
-                "port": 8090,
+                "port": 8095,
                 "failure_count": 0,
                 "restart_count": 2,
                 "last_restart_at": "2026-01-05T10:30:00Z",
@@ -200,14 +200,14 @@ class ServicesResponse(BaseModel):
                         "uptime_seconds": 86400,
                     },
                     {
-                        "name": "ai-detector",
+                        "name": "ai-yolo26",
                         "display_name": "YOLO26v2",
                         "category": "ai",
                         "status": "running",
                         "enabled": True,
                         "container_id": "abc123...",
                         "image": "ghcr.io/.../yolo26:latest",
-                        "port": 8090,
+                        "port": 8095,
                         "failure_count": 0,
                         "restart_count": 2,
                         "last_restart_at": "2026-01-05T10:30:00Z",
@@ -250,14 +250,14 @@ class ServiceActionResponse(BaseModel):
                 "success": True,
                 "message": "Service restarted successfully",
                 "service": {
-                    "name": "ai-detector",
+                    "name": "ai-yolo26",
                     "display_name": "YOLO26v2",
                     "category": "ai",
                     "status": "starting",
                     "enabled": True,
                     "container_id": "abc123...",
                     "image": "ghcr.io/.../yolo26:latest",
-                    "port": 8090,
+                    "port": 8095,
                     "failure_count": 0,
                     "restart_count": 3,
                     "last_restart_at": "2026-01-05T15:50:00Z",

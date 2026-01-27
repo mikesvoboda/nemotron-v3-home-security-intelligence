@@ -49,18 +49,18 @@ class ServiceRegistry:
 
         # Register services
         registry.register(postgres_service)
-        registry.register(ai_detector_service)
+        registry.register(ai_yolo26_service)
 
         # Query services
         enabled = registry.get_enabled()
         ai_services = registry.get_by_category(ServiceCategory.AI)
 
         # Update state
-        registry.update_status("ai-detector", ContainerServiceStatus.UNHEALTHY)
-        registry.increment_failure("ai-detector")
+        registry.update_status("ai-yolo26", ContainerServiceStatus.UNHEALTHY)
+        registry.increment_failure("ai-yolo26")
 
         # Persist to Redis
-        await registry.persist_state("ai-detector")
+        await registry.persist_state("ai-yolo26")
     """
 
     def __init__(self, redis_client: RedisClient | None = None) -> None:
