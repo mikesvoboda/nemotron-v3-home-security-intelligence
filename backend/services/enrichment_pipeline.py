@@ -1139,6 +1139,9 @@ class EnrichmentResult:
                 }
                 for match in self.vehicle_household_matches
             ],
+            "vision_extraction": (
+                self.vision_extraction.to_dict() if self.vision_extraction else None
+            ),
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }

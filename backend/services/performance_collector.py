@@ -437,7 +437,7 @@ class PerformanceCollector:
         - frontend: GET /health (nginx health endpoint, configurable via FRONTEND_URL)
         - postgres: Checked via database metrics (status from collect_postgresql_metrics)
         - redis: Checked via redis ping (status from collect_redis_metrics)
-        - ai-detector: GET /health (YOLO26v2 health endpoint)
+        - ai-yolo26: GET /health (YOLO26 TensorRT health endpoint)
         - ai-llm: GET /health (Nemotron/llama.cpp health endpoint)
 
         Note: Backend is checked locally since we ARE the backend - if this code is
@@ -464,9 +464,9 @@ class PerformanceCollector:
         redis_health = await self._check_redis_health()
         results.append(redis_health)
 
-        # AI Detector (YOLO26): Use configurable yolo26_url
+        # AI YOLO26 (TensorRT): Use configurable yolo26_url
         detector_health = await self._check_service_health(
-            client, "ai-detector", f"{self._settings.yolo26_url}/health"
+            client, "ai-yolo26", f"{self._settings.yolo26_url}/health"
         )
         results.append(detector_health)
 

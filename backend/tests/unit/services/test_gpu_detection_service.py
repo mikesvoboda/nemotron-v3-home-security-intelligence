@@ -636,12 +636,12 @@ class TestVramRequirements:
         assert len(requirements) > 0
 
     def test_yolo26_vram_requirement(self, service_reset: None) -> None:
-        """Test YOLO26 detector VRAM requirement (~2GB)."""
+        """Test YOLO26 detector VRAM requirement (~100MB TensorRT)."""
         service = GpuDetectionService()
         requirements = service.get_service_vram_requirements()
 
-        assert "ai-detector" in requirements
-        assert requirements["ai-detector"] == 2048  # 2 GB in MB
+        assert "ai-yolo26" in requirements
+        assert requirements["ai-yolo26"] == 100  # ~100 MB TensorRT engine
 
     def test_nemotron_vram_requirement(self, service_reset: None) -> None:
         """Test Nemotron enrichment VRAM requirement (~8GB)."""
@@ -676,7 +676,7 @@ class TestVramRequirements:
 
         expected_services = [
             "ai-llm",
-            "ai-detector",
+            "ai-yolo26",
             "ai-enrichment",
             "ai-florence",
             "ai-clip",

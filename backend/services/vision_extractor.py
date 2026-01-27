@@ -246,6 +246,16 @@ class VehicleAttributes:
     commercial_text: str | None
     caption: str
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "color": self.color,
+            "vehicle_type": self.vehicle_type,
+            "is_commercial": self.is_commercial,
+            "commercial_text": self.commercial_text,
+            "caption": self.caption,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class PersonAttributes:
@@ -265,6 +275,16 @@ class PersonAttributes:
     action: str | None
     caption: str
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "clothing": self.clothing,
+            "carrying": self.carrying,
+            "is_service_worker": self.is_service_worker,
+            "action": self.action,
+            "caption": self.caption,
+        }
+
 
 @dataclass(slots=True)
 class SceneAnalysis:
@@ -282,6 +302,15 @@ class SceneAnalysis:
     abandoned_items: list[str] = field(default_factory=list)
     scene_description: str = ""
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "unusual_objects": self.unusual_objects,
+            "tools_detected": self.tools_detected,
+            "abandoned_items": self.abandoned_items,
+            "scene_description": self.scene_description,
+        }
+
 
 @dataclass(slots=True)
 class BatchExtractionResult:
@@ -298,6 +327,21 @@ class BatchExtractionResult:
     person_attributes: dict[str, PersonAttributes] = field(default_factory=dict)
     scene_analysis: SceneAnalysis | None = None
     environment_context: EnvironmentContext | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "vehicle_attributes": {
+                det_id: attrs.to_dict() for det_id, attrs in self.vehicle_attributes.items()
+            },
+            "person_attributes": {
+                det_id: attrs.to_dict() for det_id, attrs in self.person_attributes.items()
+            },
+            "scene_analysis": self.scene_analysis.to_dict() if self.scene_analysis else None,
+            "environment_context": (
+                self.environment_context.to_dict() if self.environment_context else None
+            ),
+        }
 
 
 # Vehicle classes from COCO that should trigger vehicle attribute extraction
@@ -329,6 +373,14 @@ class EnvironmentContext:
     time_of_day: str
     artificial_light: bool
     weather: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "time_of_day": self.time_of_day,
+            "artificial_light": self.artificial_light,
+            "weather": self.weather,
+        }
 
 
 # Query templates for Florence-2

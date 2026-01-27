@@ -141,7 +141,7 @@ async def test_container(docker_client: DockerClient):
     base_client = BaseDockerClient.from_env()
 
     # Generate unique container name
-    container_name = f"{TEST_CONTAINER_PREFIX}ai-detector-{datetime.now(UTC).strftime('%H%M%S%f')}"
+    container_name = f"{TEST_CONTAINER_PREFIX}ai-yolo26-{datetime.now(UTC).strftime('%H%M%S%f')}"
 
     container = None
     try:
@@ -157,7 +157,7 @@ async def test_container(docker_client: DockerClient):
             name=container_name,
             command=TEST_COMMAND,
             detach=True,
-            labels={"test": "orchestrator", "type": "ai-detector"},
+            labels={"test": "orchestrator", "type": "ai-yolo26"},
         )
 
         yield container
@@ -182,7 +182,7 @@ async def multiple_test_containers(docker_client: DockerClient):
     """Create multiple test containers for discovery tests.
 
     Creates containers matching different service patterns:
-    - ai-detector (AI category)
+    - ai-yolo26 (AI category)
     - postgres (Infrastructure category)
     - prometheus (Monitoring category)
     """
@@ -195,7 +195,7 @@ async def multiple_test_containers(docker_client: DockerClient):
     suffix = datetime.now(UTC).strftime("%H%M%S%f")
 
     container_configs = [
-        (f"{TEST_CONTAINER_PREFIX}ai-detector-{suffix}", "ai-detector"),
+        (f"{TEST_CONTAINER_PREFIX}ai-yolo26-{suffix}", "ai-yolo26"),
         (f"{TEST_CONTAINER_PREFIX}postgres-{suffix}", "postgres"),
         (f"{TEST_CONTAINER_PREFIX}prometheus-{suffix}", "prometheus"),
     ]
@@ -303,7 +303,7 @@ async def test_detects_stopped_container_and_restarts(
     # Register the test container in the service registry
     registry = ServiceRegistry(real_redis_client)
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -360,7 +360,7 @@ async def test_respects_disabled_service(
     # Register the test container as a disabled service
     registry = ServiceRegistry(real_redis_client)
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -386,7 +386,7 @@ async def test_respects_disabled_service(
     assert test_container.status == "exited"
 
     # Verify service is still marked as disabled
-    registered_service = registry.get("ai-detector")
+    registered_service = registry.get("ai-yolo26")
     assert registered_service is not None
     assert registered_service.enabled is False
     assert registered_service.status == ContainerServiceStatus.DISABLED
@@ -405,7 +405,7 @@ async def test_respects_disabled_service(
 
     lm_registry = LMRegistry()
     lm_service = LMService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -484,7 +484,7 @@ async def test_state_persists_across_restart(
     # Create first registry instance and set some state
     registry1 = ServiceRegistry(real_redis_client)
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -501,14 +501,14 @@ async def test_state_persists_across_restart(
     registry1.register(service)
 
     # Persist state to Redis
-    await registry1.persist_state("ai-detector")
+    await registry1.persist_state("ai-yolo26")
 
     # Create a new registry instance (simulating backend restart)
     registry2 = ServiceRegistry(real_redis_client)
 
     # Register the service with default values
     service2 = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -524,10 +524,10 @@ async def test_state_persists_across_restart(
     registry2.register(service2)
 
     # Load state from Redis
-    await registry2.load_state("ai-detector")
+    await registry2.load_state("ai-yolo26")
 
     # Verify state was restored
-    restored = registry2.get("ai-detector")
+    restored = registry2.get("ai-yolo26")
     assert restored is not None
     assert restored.failure_count == 2
     assert restored.restart_count == 3
@@ -551,7 +551,7 @@ async def test_disabled_status_persists(
     # Create registry and disable a service
     registry1 = ServiceRegistry(real_redis_client)
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -566,12 +566,12 @@ async def test_disabled_status_persists(
     registry1.register(service)
 
     # Persist state
-    await registry1.persist_state("ai-detector")
+    await registry1.persist_state("ai-yolo26")
 
     # Create new registry (simulating restart)
     registry2 = ServiceRegistry(real_redis_client)
     service2 = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -586,10 +586,10 @@ async def test_disabled_status_persists(
     registry2.register(service2)
 
     # Load persisted state
-    await registry2.load_state("ai-detector")
+    await registry2.load_state("ai-yolo26")
 
     # Verify disabled status was restored
-    restored = registry2.get("ai-detector")
+    restored = registry2.get("ai-yolo26")
     assert restored is not None
     assert restored.status == ContainerServiceStatus.DISABLED
     assert restored.enabled is False
@@ -631,7 +631,7 @@ async def test_api_list_services(
 
     # Manually register a service (bypassing full discovery)
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -668,7 +668,7 @@ async def test_api_list_services(
 
             # Find our test service
             services = data["services"]
-            ai_detector = next((s for s in services if s["name"] == "ai-detector"), None)
+            ai_detector = next((s for s in services if s["name"] == "ai-yolo26"), None)
             assert ai_detector is not None
             assert ai_detector["status"] == "running"
             assert ai_detector["category"] == "ai"
@@ -707,7 +707,7 @@ async def test_api_restart_service(
 
     # Register service
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -732,14 +732,14 @@ async def test_api_restart_service(
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/restart")
+            response = await client.post("/api/system/services/ai-yolo26/restart")
 
             assert response.status_code == 200
             data = response.json()
 
             assert data["success"] is True
             assert "restart" in data["message"].lower()
-            assert data["service"]["name"] == "ai-detector"
+            assert data["service"]["name"] == "ai-yolo26"
 
             # Verify Docker restart was called (mocked)
             docker_client.restart_container.assert_called_once_with(test_container.id)
@@ -775,7 +775,7 @@ async def test_api_enable_disabled_service(
 
     # Register disabled service
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -796,14 +796,14 @@ async def test_api_enable_disabled_service(
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/enable")
+            response = await client.post("/api/system/services/ai-yolo26/enable")
 
             assert response.status_code == 200
             data = response.json()
 
             assert data["success"] is True
             assert "enabled" in data["message"].lower()
-            assert data["service"]["name"] == "ai-detector"
+            assert data["service"]["name"] == "ai-yolo26"
             assert data["service"]["enabled"] is True
             # Status should be STOPPED after enable (ready for restart)
             assert data["service"]["status"] == "stopped"
@@ -839,7 +839,7 @@ async def test_api_disable_service(
 
     # Register running service
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -859,14 +859,14 @@ async def test_api_disable_service(
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/disable")
+            response = await client.post("/api/system/services/ai-yolo26/disable")
 
             assert response.status_code == 200
             data = response.json()
 
             assert data["success"] is True
             assert "disabled" in data["message"].lower()
-            assert data["service"]["name"] == "ai-detector"
+            assert data["service"]["name"] == "ai-yolo26"
             assert data["service"]["enabled"] is False
             assert data["service"]["status"] == "disabled"
 
@@ -904,7 +904,7 @@ async def test_api_start_stopped_service(
 
     # Register stopped service (no need to actually stop - we mock the start)
     service = ManagedService(
-        name="ai-detector",
+        name="ai-yolo26",
         display_name="Test AI Detector",
         container_id=test_container.id,
         image=TEST_IMAGE,
@@ -928,14 +928,14 @@ async def test_api_start_stopped_service(
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/system/services/ai-detector/start")
+            response = await client.post("/api/system/services/ai-yolo26/start")
 
             assert response.status_code == 200
             data = response.json()
 
             assert data["success"] is True
             assert "start" in data["message"].lower()
-            assert data["service"]["name"] == "ai-detector"
+            assert data["service"]["name"] == "ai-yolo26"
 
             # Verify Docker start was called (mocked)
             docker_client.start_container.assert_called_once_with(test_container.id)

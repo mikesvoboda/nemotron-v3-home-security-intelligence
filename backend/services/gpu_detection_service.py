@@ -34,7 +34,6 @@ logger = logging.getLogger(__name__)
 # These are estimates used for strategy calculations
 AI_SERVICE_VRAM_REQUIREMENTS_MB: dict[str, int] = {
     "ai-llm": 8192,  # Nemotron enrichment: ~8GB
-    "ai-detector": 2048,  # YOLO26 detector: ~2GB
     "ai-enrichment": 2048,  # Age/Gender/ReID models combined: ~2GB
     "ai-florence": 4096,  # Florence-2 model: ~4GB
     "ai-clip": 2048,  # CLIP model: ~2GB
