@@ -84,7 +84,7 @@ jobs:
           fi
 
       - name: Upload metrics artifact
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: ci-metrics-${{ github.run_id }}
           path: metrics-output.txt
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload Prometheus metrics
         if: inputs.output_format == 'prometheus' || github.event_name == 'schedule'
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: prometheus-metrics-${{ github.run_id }}
           path: prometheus-metrics.txt
@@ -153,7 +153,7 @@ jobs:
           echo '```' >> weekly-report.md
 
       - name: Upload weekly report
-        uses: actions/upload-artifact@v6.0.0
+        uses: actions/upload-artifact@v6
         with:
           name: weekly-ci-report-${{ github.run_id }}
           path: weekly-report.md
