@@ -869,7 +869,7 @@ build_base_image() {
 
     cd "$PROJECT_ROOT"
 
-    local base_image="ghcr.io/${GHCR_OWNER}/${GHCR_REPO}/nemotron-base:latest"
+    local base_image="ghcr.io/${GHCR_OWNER}/nemotron-base:latest"
     local base_dockerfile="docker/base.Dockerfile"
 
     if [ ! -f "$base_dockerfile" ]; then
