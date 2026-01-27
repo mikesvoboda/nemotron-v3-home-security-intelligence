@@ -43,9 +43,9 @@ RUN uv tool install py-spy && \
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
-# Create non-root user for security
-RUN groupadd -g 1000 clip && \
-    useradd -u 1000 -g clip -s /bin/bash -m clip
+# Create non-root user for security (handle pre-existing GID/UID in NVIDIA images)
+RUN (groupadd -g 1000 clip || true) && \
+    (useradd -u 1000 -g 1000 -s /bin/bash -m clip || true)
 
 # Copy application files
 COPY ai/clip/model.py .
