@@ -82,7 +82,7 @@ class ConvLayer(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv(x)
         x = self.bn(x)
-        return self.relu(x)
+        return self.relu(x)  # type: ignore[no-any-return]
 
 
 class Conv1x1(nn.Module):
@@ -105,7 +105,7 @@ class Conv1x1(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv(x)
         x = self.bn(x)
-        return self.relu(x)
+        return self.relu(x)  # type: ignore[no-any-return]
 
 
 class Conv1x1Linear(nn.Module):
@@ -118,7 +118,7 @@ class Conv1x1Linear(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv(x)
-        return self.bn(x)
+        return self.bn(x)  # type: ignore[no-any-return]
 
 
 class LightConv3x3(nn.Module):
@@ -143,7 +143,7 @@ class LightConv3x3(nn.Module):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.bn(x)
-        return self.relu(x)
+        return self.relu(x)  # type: ignore[no-any-return]
 
 
 class ChannelGate(nn.Module):
@@ -172,7 +172,7 @@ class ChannelGate(nn.Module):
         )
         self.norm1: nn.LayerNorm | None = None
         if layer_norm:
-            self.norm1 = nn.LayerNorm((in_channels // reduction, 1, 1))
+            self.norm1 = nn.LayerNorm([in_channels // reduction, 1, 1])
         self.relu = nn.ReLU(inplace=True)
         self.fc2 = nn.Conv2d(
             in_channels // reduction,
@@ -344,7 +344,7 @@ class OSNet(nn.Module):
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
-        return self.conv5(x)
+        return self.conv5(x)  # type: ignore[no-any-return]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass returns embeddings (not logits) for inference."""
@@ -352,12 +352,12 @@ class OSNet(nn.Module):
         v = self.global_avgpool(x)
         v = v.view(v.size(0), -1)
         if self.fc is not None:
-            v = self.fc(v)
+            v = self.fc(v)  # type: ignore[no-any-return]
         # During inference, return the feature embedding
         if not self.training:
-            return v
+            return v  # type: ignore[no-any-return]
         # During training, return classifier logits
-        return self.classifier(v)
+        return self.classifier(v)  # type: ignore[no-any-return]
 
 
 def create_osnet_x0_25(num_classes: int = 1) -> OSNet:
