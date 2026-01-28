@@ -9,13 +9,11 @@ This directory contains all project documentation organized into role-based hubs
 | Directory          | Purpose                                   | Entry Point                         |
 | ------------------ | ----------------------------------------- | ----------------------------------- |
 | `ai/`              | AI model zoo and pipeline architecture    | [AGENTS.md](ai/AGENTS.md)           |
-| `archive/`         | Archived working documents (historical)   | [AGENTS.md](archive/AGENTS.md)      |
 | `getting-started/` | Installation and first-run setup          | [README](getting-started/README.md) |
 | `developer/`       | Architecture, API, patterns, contributing | [README](developer/README.md)       |
 | `guides/`          | Feature guides (video analytics, zones)   | [AGENTS.md](guides/AGENTS.md)       |
 | `operations/`      | Operational runbooks for production       | [AGENTS.md](operations/AGENTS.md)   |
 | `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
-| `templates/`       | Document templates (AGENTS.md, etc.)      | [AGENTS.md](templates/AGENTS.md)    |
 | `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
 | `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
 | `deployment/`      | Container orchestration documentation     | [AGENTS.md](deployment/AGENTS.md)   |
@@ -38,10 +36,6 @@ docs/
 ├── api/                         # API governance documentation
 │   ├── AGENTS.md                # API docs navigation
 │   └── migrations/              # Migration guides
-│
-├── archive/                     # Archived working documents
-│   ├── AGENTS.md                # Archive navigation
-│   └── *.md                     # Historical documents
 │
 ├── architecture/                # System design documentation
 │   ├── AGENTS.md                # Architecture navigation
@@ -135,10 +129,6 @@ docs/
 │   ├── config/                  # Configuration reference
 │   └── troubleshooting/         # Troubleshooting guides
 │
-├── templates/                   # Document templates
-│   ├── AGENTS.md                # Templates navigation
-│   └── AGENTS.md.template       # AGENTS.md file template
-│
 ├── testing/                     # Testing documentation
 │   └── INTEGRATION_TEST_COVERAGE_ANALYSIS.md
 │
@@ -194,7 +184,6 @@ Each major directory has its own AGENTS.md:
 | Path                                  | Purpose                        |
 | ------------------------------------- | ------------------------------ |
 | `docs/AGENTS.md`                      | This file - documentation root |
-| `archive/AGENTS.md`                   | Archived working documents     |
 | `ai/AGENTS.md`                        | AI model zoo documentation     |
 | `api/AGENTS.md`                       | API governance documentation   |
 | `guides/AGENTS.md`                    | Feature guides documentation   |
@@ -222,7 +211,6 @@ Each major directory has its own AGENTS.md:
 | `ui/AGENTS.md`                        | UI page documentation          |
 | `user/AGENTS.md`                      | End-user documentation         |
 | `style-guides/AGENTS.md`              | Documentation style guides     |
-| `templates/AGENTS.md`                 | Document templates             |
 
 ## Visual Assets
 
