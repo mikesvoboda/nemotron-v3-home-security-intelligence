@@ -13,30 +13,48 @@ This hub documents the AI model infrastructure that powers the home security int
 
 ## Architecture Overview
 
-```
-                                    +------------------+
-                                    |   YOLO26     |
-                                    |   Port 8090     |
-        +-------------------+       | Object Detection |
-        |                   |       +--------+---------+
-        |   Backend API     |                |
-        |                   |       +--------v---------+
-        | detector_client   +------>| DetectorClient   |
-        | nemotron_analyzer +------>| NemotronAnalyzer |
-        | enrichment_client +------>| EnrichmentClient |
-        | ai_fallback       |       +--------+---------+
-        |                   |                |
-        +-------------------+       +--------v---------+
-                                    |   Nemotron 70B   |
-                                    |   Port 8091      |
-                                    | Risk Analysis    |
-                                    +--------+---------+
-                                             |
-                                    +--------v---------+
-                                    | Enrichment Svc   |
-                                    | Port 8094        |
-                                    | Multi-model Zoo  |
-                                    +------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Backend["Backend API"]
+        DC[detector_client]
+        NA[nemotron_analyzer]
+        EC[enrichment_client]
+        AF[ai_fallback]
+    end
+
+    subgraph Clients["Client Layer"]
+        DCL[DetectorClient]
+        NAL[NemotronAnalyzer]
+        ECL[EnrichmentClient]
+    end
+
+    subgraph AI["AI Services"]
+        YOLO["YOLO26<br/>Port 8090<br/>Object Detection"]
+        NEM["Nemotron 70B<br/>Port 8091<br/>Risk Analysis"]
+        ENR["Enrichment Svc<br/>Port 8094<br/>Multi-model Zoo"]
+    end
+
+    DC --> DCL
+    NA --> NAL
+    EC --> ECL
+
+    DCL --> YOLO
+    YOLO --> NAL
+    NAL --> NEM
+    NEM --> ENR
 ```
 
 ## VRAM Budget Allocation
