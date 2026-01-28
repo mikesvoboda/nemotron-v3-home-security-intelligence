@@ -3875,6 +3875,971 @@ async def seed_zone_monitoring_layer() -> dict[str, int]:
     return counts
 
 
+# =============================================================================
+# PHASE 7: METRICS SEEDING
+# =============================================================================
+# These functions exercise Prometheus metrics to ensure dashboard panels
+# show data after seeding. Metrics are recorded directly into the Prometheus
+# client, so they will be available on the /metrics endpoint.
+
+
+async def seed_face_recognition_metrics(num_samples: int = 50) -> dict[str, int]:
+    """Generate face detection events with quality scores.
+
+    Seeds:
+    - hsi_face_detections_total (Counter)
+    - hsi_face_quality_score (Histogram)
+    - hsi_face_embeddings_generated_total (Counter)
+    - hsi_face_matches_total (Counter)
+
+    Args:
+        num_samples: Number of face detection samples to generate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        FACE_DETECTIONS_TOTAL,
+        FACE_EMBEDDINGS_GENERATED_TOTAL,
+        FACE_MATCHES_TOTAL,
+        FACE_QUALITY_SCORE,
+    )
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+
+    counts = {
+        "face_detections": 0,
+        "face_quality_scores": 0,
+        "face_embeddings": 0,
+        "face_matches": 0,
+    }
+
+    # Generate face detections across cameras
+    for _ in range(num_samples):
+        camera_id = random.choice(camera_ids)  # noqa: S311
+        # 70% known, 30% unknown faces
+        match_status = "known" if random.random() < 0.7 else "unknown"  # noqa: S311
+
+        FACE_DETECTIONS_TOTAL.labels(camera_id=camera_id, match_status=match_status).inc()
+        counts["face_detections"] += 1
+
+        # Quality score between 0.3 and 0.98 (realistic face quality range)
+        quality = random.uniform(0.3, 0.98)  # noqa: S311
+        FACE_QUALITY_SCORE.observe(quality)
+        counts["face_quality_scores"] += 1
+
+        # 80% of detections generate embeddings
+        if random.random() < 0.8:  # noqa: S311
+            FACE_EMBEDDINGS_GENERATED_TOTAL.inc()
+            counts["face_embeddings"] += 1
+
+        # Known faces match to a person_id
+        if match_status == "known":
+            person_id = f"person_{random.randint(1, 5)}"  # noqa: S311
+            FACE_MATCHES_TOTAL.labels(person_id=person_id).inc()
+            counts["face_matches"] += 1
+
+    print(f"  Seeded {counts['face_detections']} face detections")
+    print(f"  Seeded {counts['face_quality_scores']} face quality scores")
+    print(f"  Seeded {counts['face_embeddings']} face embeddings")
+    print(f"  Seeded {counts['face_matches']} face matches")
+    return counts
+
+
+async def seed_action_recognition_metrics(num_samples: int = 40) -> dict[str, int]:
+    """Simulate loitering, falls, aggression detection.
+
+    Seeds:
+    - hsi_action_recognition_total (Counter)
+    - hsi_action_recognition_confidence (Histogram)
+    - hsi_action_recognition_duration_seconds (Histogram)
+    - hsi_loitering_alerts_total (Counter)
+    - hsi_loitering_dwell_time_seconds (Histogram)
+
+    Args:
+        num_samples: Number of action recognition samples to generate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        ACTION_RECOGNITION_CONFIDENCE,
+        ACTION_RECOGNITION_DURATION_SECONDS,
+        ACTION_RECOGNITION_TOTAL,
+        LOITERING_ALERTS_TOTAL,
+        LOITERING_DWELL_TIME_SECONDS,
+    )
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+
+    # Realistic action types with their relative frequencies
+    action_types = [
+        ("walking", 0.35),
+        ("loitering", 0.20),
+        ("running", 0.15),
+        ("standing", 0.15),
+        ("falling", 0.05),
+        ("fighting", 0.05),
+        ("vandalism", 0.03),
+        ("package_delivery", 0.02),
+    ]
+
+    counts = {
+        "action_recognitions": 0,
+        "action_confidences": 0,
+        "action_durations": 0,
+        "loitering_alerts": 0,
+        "dwell_times": 0,
+    }
+
+    for _ in range(num_samples):
+        camera_id = random.choice(camera_ids)  # noqa: S311
+
+        # Select action type based on weighted probability
+        rand = random.random()  # noqa: S311
+        cumulative = 0
+        action_type = "walking"  # default
+        for action, prob in action_types:
+            cumulative += prob
+            if rand < cumulative:
+                action_type = action
+                break
+
+        # Record action detection
+        ACTION_RECOGNITION_TOTAL.labels(action_type=action_type, camera_id=camera_id).inc()
+        counts["action_recognitions"] += 1
+
+        # Confidence score (0.5 to 0.99)
+        confidence = random.uniform(0.5, 0.99)  # noqa: S311
+        ACTION_RECOGNITION_CONFIDENCE.labels(action_type=action_type).observe(confidence)
+        counts["action_confidences"] += 1
+
+        # Inference duration (50ms to 2s)
+        duration = random.uniform(0.05, 2.0)  # noqa: S311
+        ACTION_RECOGNITION_DURATION_SECONDS.observe(duration)
+        counts["action_durations"] += 1
+
+        # For loitering actions, generate alerts and dwell times
+        if action_type == "loitering":
+            zone_id = f"zone_{random.randint(1, 5)}"  # noqa: S311
+            LOITERING_ALERTS_TOTAL.labels(camera_id=camera_id, zone_id=zone_id).inc()
+            counts["loitering_alerts"] += 1
+
+            # Dwell time: 30 seconds to 30 minutes
+            dwell = random.uniform(30, 1800)  # noqa: S311
+            LOITERING_DWELL_TIME_SECONDS.labels(camera_id=camera_id).observe(dwell)
+            counts["dwell_times"] += 1
+
+    print(f"  Seeded {counts['action_recognitions']} action recognitions")
+    print(f"  Seeded {counts['loitering_alerts']} loitering alerts")
+    print(f"  Seeded {counts['dwell_times']} dwell time observations")
+    return counts
+
+
+async def seed_circuit_breaker_metrics(num_samples: int = 20) -> dict[str, int]:
+    """Exercise circuit breaker state transitions.
+
+    Seeds:
+    - hsi_circuit_breaker_state (Gauge)
+    - hsi_circuit_breaker_trips_total (Counter)
+
+    Args:
+        num_samples: Number of state transitions to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.services.circuit_breaker import (
+        HSI_CIRCUIT_BREAKER_STATE,
+        HSI_CIRCUIT_BREAKER_TRIPS_TOTAL,
+    )
+
+    # Simulated services that might have circuit breakers
+    services = ["nemotron_llm", "yolo26", "clip_service", "redis_cache", "postgres_db"]
+
+    counts = {
+        "state_updates": 0,
+        "trips": 0,
+    }
+
+    for service in services:
+        # Set initial closed state (0)
+        HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+        counts["state_updates"] += 1
+
+    # Simulate some circuit breaker activity
+    for _ in range(num_samples):
+        service = random.choice(services)  # noqa: S311
+
+        # Occasionally trip a breaker (20% chance)
+        if random.random() < 0.2:  # noqa: S311
+            # Open state
+            HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(1)
+            HSI_CIRCUIT_BREAKER_TRIPS_TOTAL.labels(service=service).inc()
+            counts["state_updates"] += 1
+            counts["trips"] += 1
+
+            # 50% chance to transition to half-open
+            if random.random() < 0.5:  # noqa: S311
+                HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(2)
+                counts["state_updates"] += 1
+
+                # 70% chance to recover to closed
+                if random.random() < 0.7:  # noqa: S311
+                    HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+                    counts["state_updates"] += 1
+
+    # Ensure most breakers end up closed (healthy state)
+    for service in services:
+        if random.random() < 0.9:  # noqa: S311
+            HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+
+    print(f"  Seeded {counts['state_updates']} circuit breaker state updates")
+    print(f"  Seeded {counts['trips']} circuit breaker trips")
+    return counts
+
+
+async def seed_cache_metrics(num_samples: int = 100) -> dict[str, int]:
+    """Generate cache hit/miss events.
+
+    Seeds:
+    - hsi_cache_hits_total (Counter)
+    - hsi_cache_misses_total (Counter)
+
+    Args:
+        num_samples: Number of cache operations to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import CACHE_HITS_TOTAL, CACHE_MISSES_TOTAL
+
+    # Cache types in the system
+    cache_types = ["detection", "embedding", "event", "baseline", "config"]
+
+    counts = {
+        "cache_hits": 0,
+        "cache_misses": 0,
+    }
+
+    for _ in range(num_samples):
+        cache_type = random.choice(cache_types)  # noqa: S311
+
+        # Simulate realistic cache hit rate (70-90% depending on cache type)
+        hit_rates = {
+            "detection": 0.75,
+            "embedding": 0.85,
+            "event": 0.70,
+            "baseline": 0.90,
+            "config": 0.95,
+        }
+        hit_rate = hit_rates.get(cache_type, 0.8)
+
+        if random.random() < hit_rate:  # noqa: S311
+            CACHE_HITS_TOTAL.labels(cache_type=cache_type).inc()
+            counts["cache_hits"] += 1
+        else:
+            CACHE_MISSES_TOTAL.labels(cache_type=cache_type).inc()
+            counts["cache_misses"] += 1
+
+    print(f"  Seeded {counts['cache_hits']} cache hits")
+    print(f"  Seeded {counts['cache_misses']} cache misses")
+    return counts
+
+
+async def seed_dlq_metrics(num_items: int = 15) -> dict[str, int]:
+    """Add items to dead letter queue for visualization.
+
+    Seeds:
+    - hsi_dlq_depth (Gauge)
+    - hsi_queue_items_moved_to_dlq_total (Counter)
+
+    Args:
+        num_items: Number of DLQ items to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import DLQ_DEPTH, QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL
+
+    # Queue names that can have DLQs
+    queue_names = ["detection_queue", "analysis_queue", "notification_queue", "export_queue"]
+
+    counts = {
+        "dlq_depth_updates": 0,
+        "items_moved_to_dlq": 0,
+    }
+
+    # Distribute items across queues
+    for queue_name in queue_names:
+        # Random DLQ depth (0 to 10 items)
+        depth = random.randint(0, min(10, num_items // len(queue_names) + 2))  # noqa: S311
+        DLQ_DEPTH.labels(queue_name=queue_name).set(depth)
+        counts["dlq_depth_updates"] += 1
+
+        # Simulate historical items moved to DLQ
+        moved = random.randint(0, num_items // len(queue_names))  # noqa: S311
+        for _ in range(moved):
+            QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name).inc()
+            counts["items_moved_to_dlq"] += 1
+
+    print(f"  Seeded {counts['dlq_depth_updates']} DLQ depth updates")
+    print(f"  Seeded {counts['items_moved_to_dlq']} items moved to DLQ")
+    return counts
+
+
+async def seed_rum_metrics(num_samples: int = 50) -> dict[str, int]:
+    """Simulate frontend performance events (Real User Monitoring).
+
+    Seeds:
+    - hsi_rum_page_load_time_seconds (Histogram)
+    - hsi_rum_fcp_seconds (First Contentful Paint)
+    - hsi_rum_lcp_seconds (Largest Contentful Paint)
+    - hsi_rum_cls (Cumulative Layout Shift)
+    - hsi_rum_fid_seconds (First Input Delay)
+    - hsi_rum_inp_seconds (Interaction to Next Paint)
+    - hsi_rum_ttfb_seconds (Time to First Byte)
+    - hsi_rum_metrics_total (Counter)
+
+    Args:
+        num_samples: Number of RUM events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        RUM_CLS,
+        RUM_FCP_SECONDS,
+        RUM_FID_SECONDS,
+        RUM_INP_SECONDS,
+        RUM_LCP_SECONDS,
+        RUM_METRICS_TOTAL,
+        RUM_PAGE_LOAD_TIME_SECONDS,
+        RUM_TTFB_SECONDS,
+    )
+
+    # Common page paths
+    paths = ["/", "/events", "/cameras", "/settings", "/alerts", "/analytics", "/timeline"]
+
+    # Rating based on performance thresholds
+    def get_rating(value: float, good: float, poor: float) -> str:
+        if value <= good:
+            return "good"
+        elif value <= poor:
+            return "needs-improvement"
+        else:
+            return "poor"
+
+    counts = {
+        "page_loads": 0,
+        "fcp": 0,
+        "lcp": 0,
+        "cls": 0,
+        "fid": 0,
+        "inp": 0,
+        "ttfb": 0,
+    }
+
+    for _ in range(num_samples):
+        path = random.choice(paths)  # noqa: S311
+
+        # Page Load Time: 1-15 seconds (good < 3s, poor > 6s)
+        page_load = random.uniform(1.0, 15.0)  # noqa: S311
+        rating = get_rating(page_load, 3.0, 6.0)
+        RUM_PAGE_LOAD_TIME_SECONDS.labels(path=path, rating=rating).observe(page_load)
+        RUM_METRICS_TOTAL.labels(metric_name="page_load", rating=rating).inc()
+        counts["page_loads"] += 1
+
+        # FCP: 0.5-6 seconds (good < 1.8s, poor > 3s)
+        fcp = random.uniform(0.5, 6.0)  # noqa: S311
+        rating = get_rating(fcp, 1.8, 3.0)
+        RUM_FCP_SECONDS.labels(path=path, rating=rating).observe(fcp)
+        RUM_METRICS_TOTAL.labels(metric_name="FCP", rating=rating).inc()
+        counts["fcp"] += 1
+
+        # LCP: 0.5-10 seconds (good < 2.5s, poor > 4s)
+        lcp = random.uniform(0.5, 10.0)  # noqa: S311
+        rating = get_rating(lcp, 2.5, 4.0)
+        RUM_LCP_SECONDS.labels(path=path, rating=rating).observe(lcp)
+        RUM_METRICS_TOTAL.labels(metric_name="LCP", rating=rating).inc()
+        counts["lcp"] += 1
+
+        # Cumulative Layout Shift: range 0-1, good when below 0.1, poor when above 0.25
+        cls = random.uniform(0, 1.0)  # noqa: S311
+        rating = get_rating(cls, 0.1, 0.25)
+        RUM_CLS.labels(path=path, rating=rating).observe(cls)
+        RUM_METRICS_TOTAL.labels(metric_name="CLS", rating=rating).inc()
+        counts["cls"] += 1
+
+        # FID: 0.01-2 seconds (good < 0.1s, poor > 0.3s)
+        fid = random.uniform(0.01, 2.0)  # noqa: S311
+        rating = get_rating(fid, 0.1, 0.3)
+        RUM_FID_SECONDS.labels(path=path, rating=rating).observe(fid)
+        RUM_METRICS_TOTAL.labels(metric_name="FID", rating=rating).inc()
+        counts["fid"] += 1
+
+        # INP: 0.05-2 seconds (good < 0.2s, poor > 0.5s)
+        inp = random.uniform(0.05, 2.0)  # noqa: S311
+        rating = get_rating(inp, 0.2, 0.5)
+        RUM_INP_SECONDS.labels(path=path, rating=rating).observe(inp)
+        RUM_METRICS_TOTAL.labels(metric_name="INP", rating=rating).inc()
+        counts["inp"] += 1
+
+        # TTFB: 0.1-5 seconds (good < 0.8s, poor > 1.8s)
+        ttfb = random.uniform(0.1, 5.0)  # noqa: S311
+        rating = get_rating(ttfb, 0.8, 1.8)
+        RUM_TTFB_SECONDS.labels(path=path, rating=rating).observe(ttfb)
+        RUM_METRICS_TOTAL.labels(metric_name="TTFB", rating=rating).inc()
+        counts["ttfb"] += 1
+
+    print(f"  Seeded {counts['page_loads']} page load metrics")
+    print(f"  Seeded {counts['lcp']} LCP metrics")
+    print(f"  Seeded {counts['fcp']} FCP metrics")
+    print(f"  Seeded {counts['cls']} CLS metrics")
+    return counts
+
+
+async def seed_reid_metrics(num_samples: int = 30) -> dict[str, int]:
+    """Simulate person re-identification events.
+
+    Seeds:
+    - hsi_tracks_reidentified_total (Counter)
+
+    Note: Some Re-ID metrics (hsi_reid_matches_total, hsi_reid_attempts_total,
+    hsi_cross_camera_handoffs_total) are referenced in Grafana dashboards but
+    may not be defined in the metrics module yet. This function seeds what's available.
+
+    Args:
+        num_samples: Number of re-ID events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import TRACKS_REIDENTIFIED_TOTAL
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+
+    counts = {
+        "tracks_reidentified": 0,
+    }
+
+    for _ in range(num_samples):
+        camera_id = random.choice(camera_ids)  # noqa: S311
+        TRACKS_REIDENTIFIED_TOTAL.labels(camera_id=camera_id).inc()
+        counts["tracks_reidentified"] += 1
+
+    print(f"  Seeded {counts['tracks_reidentified']} track re-identifications")
+    return counts
+
+
+async def seed_track_metrics(num_samples: int = 40) -> dict[str, int]:
+    """Simulate object tracking metrics across cameras.
+
+    Seeds:
+    - hsi_tracks_created_total (Counter)
+    - hsi_tracks_lost_total (Counter)
+    - hsi_track_duration_seconds (Histogram)
+    - hsi_track_active_count (Gauge)
+
+    Args:
+        num_samples: Number of track lifecycle events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        TRACK_ACTIVE_COUNT,
+        TRACK_DURATION_SECONDS,
+        TRACKS_CREATED_TOTAL,
+        TRACKS_LOST_TOTAL,
+    )
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+    entity_types = ["person", "vehicle", "animal", "package"]
+
+    counts = {
+        "tracks_created": 0,
+        "tracks_lost": 0,
+        "track_durations": 0,
+        "track_active_updates": 0,
+    }
+
+    # Initialize active track counts per camera
+    active_tracks_per_camera: dict[str, int] = dict.fromkeys(camera_ids, 0)
+
+    for _ in range(num_samples):
+        camera_id = random.choice(camera_ids)  # noqa: S311
+        entity_type = random.choice(entity_types)  # noqa: S311
+
+        # Simulate track creation
+        TRACKS_CREATED_TOTAL.labels(camera_id=camera_id, entity_type=entity_type).inc()
+        counts["tracks_created"] += 1
+        active_tracks_per_camera[camera_id] += 1
+
+        # 80% of tracks are eventually lost (completed naturally)
+        if random.random() < 0.8:  # noqa: S311
+            # Track duration: 1 second to 10 minutes
+            duration = random.uniform(1.0, 600.0)  # noqa: S311
+            TRACK_DURATION_SECONDS.labels(camera_id=camera_id, entity_type=entity_type).observe(
+                duration
+            )
+            counts["track_durations"] += 1
+
+            TRACKS_LOST_TOTAL.labels(camera_id=camera_id, entity_type=entity_type).inc()
+            counts["tracks_lost"] += 1
+            active_tracks_per_camera[camera_id] = max(0, active_tracks_per_camera[camera_id] - 1)
+
+    # Set final active track counts per camera
+    for camera_id, active_count in active_tracks_per_camera.items():
+        # Add some realistic baseline of active tracks
+        final_count = active_count + random.randint(0, 3)  # noqa: S311
+        TRACK_ACTIVE_COUNT.labels(camera_id=camera_id).set(final_count)
+        counts["track_active_updates"] += 1
+
+    print(f"  Seeded {counts['tracks_created']} track creations")
+    print(f"  Seeded {counts['tracks_lost']} track losses")
+    print(f"  Seeded {counts['track_durations']} track durations")
+    return counts
+
+
+async def seed_zone_metrics(num_samples: int = 50) -> dict[str, int]:
+    """Simulate zone monitoring metrics.
+
+    Seeds:
+    - hsi_zone_crossings_total (Counter)
+    - hsi_zone_intrusions_total (Counter)
+    - hsi_zone_occupancy (Gauge)
+    - hsi_zone_dwell_time_seconds (Histogram)
+
+    Args:
+        num_samples: Number of zone events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        ZONE_CROSSINGS_TOTAL,
+        ZONE_DWELL_TIME_SECONDS,
+        ZONE_INTRUSIONS_TOTAL,
+        ZONE_OCCUPANCY,
+    )
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+
+    # Generate zone IDs based on cameras
+    zone_ids = [f"zone_{cam_id[:8]}_{i}" for cam_id in camera_ids for i in range(1, 4)]
+    if not zone_ids:
+        zone_ids = ["zone_default_1", "zone_default_2"]
+
+    directions = ["enter", "exit"]
+    severities = ["low", "medium", "high", "critical"]
+    severity_weights = [0.60, 0.25, 0.10, 0.05]
+
+    counts = {
+        "zone_crossings": 0,
+        "zone_intrusions": 0,
+        "zone_occupancy_updates": 0,
+        "zone_dwell_times": 0,
+    }
+
+    # Track occupancy per zone
+    zone_occupancy: dict[str, int] = dict.fromkeys(zone_ids, 0)
+
+    for _ in range(num_samples):
+        zone_id = random.choice(zone_ids)  # noqa: S311
+        camera_id = random.choice(camera_ids)  # noqa: S311
+
+        # Zone crossing events
+        direction = random.choice(directions)  # noqa: S311
+        ZONE_CROSSINGS_TOTAL.labels(zone_id=zone_id, camera_id=camera_id, direction=direction).inc()
+        counts["zone_crossings"] += 1
+
+        # Update occupancy based on direction
+        if direction == "enter":
+            zone_occupancy[zone_id] += 1
+        else:
+            zone_occupancy[zone_id] = max(0, zone_occupancy[zone_id] - 1)
+
+        # 15% of crossings are intrusions (unauthorized zone entry)
+        if random.random() < 0.15:  # noqa: S311
+            severity = random.choices(severities, weights=severity_weights, k=1)[0]  # noqa: S311
+            ZONE_INTRUSIONS_TOTAL.labels(zone_id=zone_id, severity=severity).inc()
+            counts["zone_intrusions"] += 1
+
+        # Record dwell time for some crossings (entry events that eventually exit)
+        if direction == "enter" and random.random() < 0.6:  # noqa: S311
+            # Dwell time: 5 seconds to 30 minutes
+            dwell_time = random.uniform(5.0, 1800.0)  # noqa: S311
+            ZONE_DWELL_TIME_SECONDS.labels(zone_id=zone_id).observe(dwell_time)
+            counts["zone_dwell_times"] += 1
+
+    # Set final occupancy for all zones
+    for zone_id, occupancy in zone_occupancy.items():
+        # Add some realistic baseline occupancy
+        final_occupancy = max(0, occupancy + random.randint(-1, 2))  # noqa: S311
+        ZONE_OCCUPANCY.labels(zone_id=zone_id).set(final_occupancy)
+        counts["zone_occupancy_updates"] += 1
+
+    print(f"  Seeded {counts['zone_crossings']} zone crossings")
+    print(f"  Seeded {counts['zone_intrusions']} zone intrusions")
+    print(f"  Seeded {counts['zone_dwell_times']} zone dwell times")
+    return counts
+
+
+async def seed_worker_metrics(num_samples: int = 20) -> dict[str, int]:
+    """Simulate pipeline worker metrics.
+
+    Seeds:
+    - hsi_worker_restarts_total (Counter)
+    - hsi_worker_crashes_total (Counter)
+    - hsi_worker_max_restarts_exceeded_total (Counter)
+    - hsi_worker_status (Gauge)
+    - hsi_worker_active_count (Gauge)
+    - hsi_worker_busy_count (Gauge)
+    - hsi_worker_idle_count (Gauge)
+    - hsi_pipeline_worker_state (Gauge)
+    - hsi_pipeline_worker_uptime_seconds (Gauge)
+
+    Args:
+        num_samples: Number of worker events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        PIPELINE_WORKER_STATE,
+        PIPELINE_WORKER_UPTIME_SECONDS,
+        WORKER_ACTIVE_COUNT,
+        WORKER_BUSY_COUNT,
+        WORKER_CRASHES_TOTAL,
+        WORKER_IDLE_COUNT,
+        WORKER_MAX_RESTARTS_EXCEEDED_TOTAL,
+        WORKER_RESTARTS_TOTAL,
+        WORKER_STATUS,
+    )
+
+    # Worker names in the pipeline
+    worker_names = [
+        "file_watcher",
+        "yolo_detector",
+        "batch_aggregator",
+        "nemotron_analyzer",
+        "event_creator",
+        "notification_sender",
+    ]
+
+    counts = {
+        "worker_restarts": 0,
+        "worker_crashes": 0,
+        "worker_status_updates": 0,
+        "worker_pool_updates": 0,
+    }
+
+    # Set all workers to running initially (status 1)
+    for worker in worker_names:
+        WORKER_STATUS.labels(worker_name=worker).set(1)  # 1 = running
+        PIPELINE_WORKER_STATE.labels(worker_name=worker).set(1)  # 1 = running
+        # Uptime: 1 hour to 7 days
+        uptime = random.uniform(3600, 604800)  # noqa: S311
+        PIPELINE_WORKER_UPTIME_SECONDS.labels(worker_name=worker).set(uptime)
+        counts["worker_status_updates"] += 1
+
+    # Simulate some worker events
+    for _ in range(num_samples):
+        worker = random.choice(worker_names)  # noqa: S311
+
+        # 30% chance of restart
+        if random.random() < 0.3:  # noqa: S311
+            WORKER_RESTARTS_TOTAL.labels(worker_name=worker).inc()
+            counts["worker_restarts"] += 1
+
+        # 5% chance of crash
+        if random.random() < 0.05:  # noqa: S311
+            WORKER_CRASHES_TOTAL.labels(worker_name=worker).inc()
+            counts["worker_crashes"] += 1
+
+            # 10% of crashes exceed max restarts
+            if random.random() < 0.1:  # noqa: S311
+                WORKER_MAX_RESTARTS_EXCEEDED_TOTAL.labels(worker_name=worker).inc()
+
+    # Set worker pool metrics (aggregate counts)
+    total_workers = len(worker_names)
+    busy_count = random.randint(1, total_workers - 1)  # noqa: S311
+    idle_count = total_workers - busy_count
+    WORKER_ACTIVE_COUNT.set(total_workers)
+    WORKER_BUSY_COUNT.set(busy_count)
+    WORKER_IDLE_COUNT.set(idle_count)
+    counts["worker_pool_updates"] = 3
+
+    print(f"  Seeded {counts['worker_restarts']} worker restarts")
+    print(f"  Seeded {counts['worker_crashes']} worker crashes")
+    print(f"  Seeded {counts['worker_status_updates']} worker status updates")
+    return counts
+
+
+async def seed_gpu_metrics(num_samples: int = 30) -> dict[str, int]:
+    """Simulate GPU usage metrics.
+
+    Seeds:
+    - hsi_gpu_seconds_total (Counter)
+
+    Args:
+        num_samples: Number of GPU usage events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import GPU_SECONDS_TOTAL
+
+    # AI models that use GPU
+    models = ["yolo26", "nemotron", "clip", "florence", "reid"]
+
+    counts = {
+        "gpu_seconds": 0,
+    }
+
+    for _ in range(num_samples):
+        model = random.choice(models)  # noqa: S311
+        # GPU time: 0.1 to 5 seconds per inference
+        gpu_time = random.uniform(0.1, 5.0)  # noqa: S311
+        GPU_SECONDS_TOTAL.labels(model=model).inc(gpu_time)
+        counts["gpu_seconds"] += 1
+
+    print(f"  Seeded {counts['gpu_seconds']} GPU usage samples")
+    return counts
+
+
+async def seed_detection_metrics(num_samples: int = 50) -> dict[str, int]:
+    """Simulate detection processing metrics.
+
+    Seeds:
+    - hsi_detection_queue_depth (Gauge)
+    - hsi_detection_confidence (Histogram)
+    - hsi_detections_processed_total (Counter)
+    - hsi_detections_by_class_total (Counter)
+    - hsi_detections_filtered_low_confidence_total (Counter)
+
+    Args:
+        num_samples: Number of detection events to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        DETECTION_CONFIDENCE,
+        DETECTION_QUEUE_DEPTH,
+        DETECTIONS_BY_CLASS_TOTAL,
+        DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL,
+        DETECTIONS_PROCESSED_TOTAL,
+    )
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+
+    object_classes = ["person", "car", "truck", "dog", "cat", "bicycle", "package", "bird"]
+    class_weights = [0.40, 0.20, 0.10, 0.08, 0.07, 0.05, 0.07, 0.03]
+
+    counts = {
+        "detections_processed": 0,
+        "detection_confidences": 0,
+        "detections_by_class": 0,
+        "detections_filtered": 0,
+        "queue_depth_updates": 0,
+    }
+
+    for _ in range(num_samples):
+        camera_id = random.choice(camera_ids)  # noqa: S311
+        object_class = random.choices(object_classes, weights=class_weights, k=1)[0]  # noqa: S311
+
+        # Detection confidence: 0.3 to 0.99
+        confidence = random.uniform(0.3, 0.99)  # noqa: S311
+
+        # Record detection
+        DETECTIONS_PROCESSED_TOTAL.labels(camera_id=camera_id).inc()
+        counts["detections_processed"] += 1
+
+        DETECTION_CONFIDENCE.observe(confidence)
+        counts["detection_confidences"] += 1
+
+        DETECTIONS_BY_CLASS_TOTAL.labels(camera_id=camera_id, object_class=object_class).inc()
+        counts["detections_by_class"] += 1
+
+        # Low confidence detections (< 0.5) get filtered
+        if confidence < 0.5:
+            DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL.labels(camera_id=camera_id).inc()
+            counts["detections_filtered"] += 1
+
+    # Set queue depth (current number of items waiting)
+    queue_depth = random.randint(0, 20)  # noqa: S311
+    DETECTION_QUEUE_DEPTH.set(queue_depth)
+    counts["queue_depth_updates"] = 1
+
+    print(f"  Seeded {counts['detections_processed']} detections processed")
+    print(f"  Seeded {counts['detections_by_class']} detections by class")
+    print(f"  Seeded {counts['detections_filtered']} low-confidence detections filtered")
+    return counts
+
+
+async def seed_event_metrics(num_samples: int = 30) -> dict[str, int]:
+    """Simulate event creation and review metrics.
+
+    Seeds:
+    - hsi_events_created_total (Counter)
+    - hsi_events_by_risk_level_total (Counter)
+    - hsi_events_by_camera_total (Counter)
+    - hsi_events_reviewed_total (Counter)
+    - hsi_events_acknowledged_total (Counter)
+    - hsi_event_analysis_cost_usd_total (Counter)
+    - hsi_cost_per_event_usd (Gauge)
+
+    Args:
+        num_samples: Number of event metrics to simulate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        COST_PER_EVENT_USD,
+        EVENT_ANALYSIS_COST_USD,
+        EVENTS_ACKNOWLEDGED_TOTAL,
+        EVENTS_BY_CAMERA_TOTAL,
+        EVENTS_BY_RISK_LEVEL,
+        EVENTS_CREATED_TOTAL,
+        EVENTS_REVIEWED_TOTAL,
+    )
+
+    cameras = await get_cameras()
+    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+
+    risk_levels = ["low", "medium", "high", "critical"]
+    risk_weights = [0.50, 0.30, 0.15, 0.05]
+
+    counts = {
+        "events_created": 0,
+        "events_by_risk": 0,
+        "events_by_camera": 0,
+        "events_reviewed": 0,
+        "events_acknowledged": 0,
+        "cost_updates": 0,
+    }
+
+    total_cost = 0.0
+
+    for _ in range(num_samples):
+        camera_id = random.choice(camera_ids)  # noqa: S311
+        risk_level = random.choices(risk_levels, weights=risk_weights, k=1)[0]  # noqa: S311
+
+        # Event creation
+        EVENTS_CREATED_TOTAL.labels(camera_id=camera_id).inc()
+        counts["events_created"] += 1
+
+        EVENTS_BY_RISK_LEVEL.labels(risk_level=risk_level).inc()
+        counts["events_by_risk"] += 1
+
+        EVENTS_BY_CAMERA_TOTAL.labels(camera_id=camera_id).inc()
+        counts["events_by_camera"] += 1
+
+        # 60% of events are reviewed
+        if random.random() < 0.6:  # noqa: S311
+            EVENTS_REVIEWED_TOTAL.labels(camera_id=camera_id).inc()
+            counts["events_reviewed"] += 1
+
+        # 40% of events are acknowledged
+        if random.random() < 0.4:  # noqa: S311
+            EVENTS_ACKNOWLEDGED_TOTAL.labels(camera_id=camera_id).inc()
+            counts["events_acknowledged"] += 1
+
+        # Analysis cost: $0.001 to $0.05 per event (LLM inference cost)
+        cost = random.uniform(0.001, 0.05)  # noqa: S311
+        EVENT_ANALYSIS_COST_USD.labels(camera_id=camera_id).inc(cost)
+        total_cost += cost
+        counts["cost_updates"] += 1
+
+    # Set average cost per event
+    avg_cost = total_cost / num_samples if num_samples > 0 else 0.0
+    COST_PER_EVENT_USD.set(avg_cost)
+
+    print(f"  Seeded {counts['events_created']} events created metrics")
+    print(f"  Seeded {counts['events_reviewed']} events reviewed metrics")
+    print(f"  Seeded {counts['events_acknowledged']} events acknowledged metrics")
+    return counts
+
+
+async def seed_metrics_layer() -> dict[str, int]:
+    """Seed all metrics data (Phase 7).
+
+    Exercises Prometheus metrics to ensure all dashboard panels show data.
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    counts: dict[str, int] = {}
+
+    print("\n  Step 1: Seeding face recognition metrics...")
+    face_counts = await seed_face_recognition_metrics()
+    counts["face_detections"] = face_counts.get("face_detections", 0)
+
+    print("\n  Step 2: Seeding action recognition metrics...")
+    action_counts = await seed_action_recognition_metrics()
+    counts["action_recognitions"] = action_counts.get("action_recognitions", 0)
+    counts["loitering_alerts"] = action_counts.get("loitering_alerts", 0)
+
+    print("\n  Step 3: Seeding circuit breaker metrics...")
+    cb_counts = await seed_circuit_breaker_metrics()
+    counts["circuit_breaker_trips"] = cb_counts.get("trips", 0)
+
+    print("\n  Step 4: Seeding cache metrics...")
+    cache_counts = await seed_cache_metrics()
+    counts["cache_hits"] = cache_counts.get("cache_hits", 0)
+    counts["cache_misses"] = cache_counts.get("cache_misses", 0)
+
+    print("\n  Step 5: Seeding DLQ metrics...")
+    dlq_counts = await seed_dlq_metrics()
+    counts["dlq_items"] = dlq_counts.get("items_moved_to_dlq", 0)
+
+    print("\n  Step 6: Seeding RUM metrics...")
+    rum_counts = await seed_rum_metrics()
+    counts["rum_page_loads"] = rum_counts.get("page_loads", 0)
+
+    print("\n  Step 7: Seeding Re-ID metrics...")
+    reid_counts = await seed_reid_metrics()
+    counts["reid_tracks"] = reid_counts.get("tracks_reidentified", 0)
+
+    print("\n  Step 8: Seeding track metrics...")
+    track_counts = await seed_track_metrics()
+    counts["tracks_created"] = track_counts.get("tracks_created", 0)
+    counts["tracks_lost"] = track_counts.get("tracks_lost", 0)
+
+    print("\n  Step 9: Seeding zone metrics...")
+    zone_counts = await seed_zone_metrics()
+    counts["zone_crossings"] = zone_counts.get("zone_crossings", 0)
+    counts["zone_intrusions"] = zone_counts.get("zone_intrusions", 0)
+
+    print("\n  Step 10: Seeding worker metrics...")
+    worker_counts = await seed_worker_metrics()
+    counts["worker_restarts"] = worker_counts.get("worker_restarts", 0)
+    counts["worker_crashes"] = worker_counts.get("worker_crashes", 0)
+
+    print("\n  Step 11: Seeding GPU metrics...")
+    gpu_counts = await seed_gpu_metrics()
+    counts["gpu_seconds"] = gpu_counts.get("gpu_seconds", 0)
+
+    print("\n  Step 12: Seeding detection metrics...")
+    detection_counts = await seed_detection_metrics()
+    counts["detections_processed"] = detection_counts.get("detections_processed", 0)
+
+    print("\n  Step 13: Seeding event metrics...")
+    event_counts = await seed_event_metrics()
+    counts["events_metrics"] = event_counts.get("events_created", 0)
+
+    return counts
+
+
 async def clear_all_data() -> None:
     """Clear all seeded data from the database."""
     async with get_session() as session:
@@ -4095,6 +5060,11 @@ This generates real data including:
         help="Skip seeding baseline data",
     )
     parser.add_argument(
+        "--no-metrics",
+        action="store_true",
+        help="Skip seeding Prometheus metrics data (face, action, cache, DLQ, RUM metrics)",
+    )
+    parser.add_argument(
         "--entities",
         type=int,
         default=30,
@@ -4305,6 +5275,18 @@ This generates real data including:
 
             print("\nSeeding pipeline latency data...")
             total_created["pipeline_latency_samples"] = await seed_pipeline_latency()
+
+        # ==========================================================================
+        # PHASE 7: METRICS LAYER (unless --minimal or --no-metrics)
+        # ==========================================================================
+        if not args.minimal and not args.no_metrics:
+            print("\n" + "=" * 50)
+            print("SEEDING METRICS LAYER (Phase 7)")
+            print("=" * 50)
+            print("Creating face recognition, action, circuit breaker, cache, DLQ, RUM metrics...")
+
+            metrics_counts = await seed_metrics_layer()
+            total_created.update(metrics_counts)
     else:
         print("\n--config-only specified, skipping AI pipeline")
 
@@ -4375,6 +5357,25 @@ This generates real data including:
         print("  Zone Monitoring layer (Phase 6):")
         print(f"    - Zone activity baselines: {total_created.get('zone_activity_baselines', 0)}")
         print(f"    - Zone anomalies: {total_created.get('zone_anomalies', 0)}")
+        print("  Metrics layer (Phase 7):")
+        print(f"    - Face detections: {total_created.get('face_detections', 0)}")
+        print(f"    - Action recognitions: {total_created.get('action_recognitions', 0)}")
+        print(f"    - Loitering alerts: {total_created.get('loitering_alerts', 0)}")
+        print(f"    - Circuit breaker trips: {total_created.get('circuit_breaker_trips', 0)}")
+        print(f"    - Cache hits: {total_created.get('cache_hits', 0)}")
+        print(f"    - Cache misses: {total_created.get('cache_misses', 0)}")
+        print(f"    - DLQ items: {total_created.get('dlq_items', 0)}")
+        print(f"    - RUM page loads: {total_created.get('rum_page_loads', 0)}")
+        print(f"    - Re-ID tracks: {total_created.get('reid_tracks', 0)}")
+        print(f"    - Tracks created: {total_created.get('tracks_created', 0)}")
+        print(f"    - Tracks lost: {total_created.get('tracks_lost', 0)}")
+        print(f"    - Zone crossings: {total_created.get('zone_crossings', 0)}")
+        print(f"    - Zone intrusions: {total_created.get('zone_intrusions', 0)}")
+        print(f"    - Worker restarts: {total_created.get('worker_restarts', 0)}")
+        print(f"    - Worker crashes: {total_created.get('worker_crashes', 0)}")
+        print(f"    - GPU seconds: {total_created.get('gpu_seconds', 0)}")
+        print(f"    - Detections processed: {total_created.get('detections_processed', 0)}")
+        print(f"    - Event metrics: {total_created.get('events_metrics', 0)}")
 
     return 0
 
