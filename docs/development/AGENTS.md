@@ -38,7 +38,6 @@ development/
   synthetic-data-quality.md       # Synthetic data quality metrics
   testing.md                      # Testing guide
   testing-workflow.md             # TDD workflow and test patterns by layer
-  test-optimization-guide.md      # Test suite optimization and parallelization
   validation-alignment.md         # Frontend/backend validation alignment guide
 ```
 
@@ -238,20 +237,6 @@ development/
 - PR checklist for TDD verification
 
 **When to use:** Following TDD practices, writing tests before implementation, understanding test patterns.
-
-### test-optimization-guide.md
-
-**Purpose:** Guide for optimizing test suite performance and parallelization.
-
-**Topics Covered:**
-
-- Test suite parallelization strategies
-- Slow test identification and optimization
-- CI/CD test pipeline optimization
-- pytest-xdist configuration
-- Test isolation best practices
-
-**When to use:** Debugging slow tests, optimizing CI pipeline, improving test suite performance.
 
 ### hooks.md
 

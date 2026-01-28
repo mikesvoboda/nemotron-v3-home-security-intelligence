@@ -8,21 +8,23 @@ This directory contains documentation for testing patterns and code patterns use
 
 ```
 patterns/
-  AGENTS.md              # This file
-  form-validation.md     # Frontend/backend validation alignment audit
-  frontend.md            # JavaScript/TypeScript code patterns
-  mutation-testing.md    # Mutation testing guide and configuration
-  test-performance.md    # Test performance metrics and CI configuration
+  AGENTS.md                    # This file
+  form-validation.md           # Frontend/backend validation alignment audit
+  frontend.md                  # JavaScript/TypeScript code patterns
+  mutation-testing.md          # Mutation testing guide and configuration
+  test-optimization-guide.md   # Frontend test optimization patterns
+  test-performance.md          # Test performance metrics and CI configuration
 ```
 
 ## Quick Navigation
 
-| File                  | Purpose                                             | When to Use                                                    |
-| --------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
-| `form-validation.md`  | Audit of frontend/backend validation alignment      | When adding form fields, ensuring validation consistency       |
-| `frontend.md`         | JS/TS patterns (Result type, AbortController, etc.) | When writing frontend code, understanding established patterns |
-| `mutation-testing.md` | Mutation testing guide and configuration            | When evaluating test quality, running mutation tests           |
-| `test-performance.md` | Test suite metrics and CI parallelization config    | When debugging slow tests, understanding CI configuration      |
+| File                         | Purpose                                             | When to Use                                                    |
+| ---------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
+| `form-validation.md`         | Audit of frontend/backend validation alignment      | When adding form fields, ensuring validation consistency       |
+| `frontend.md`                | JS/TS patterns (Result type, AbortController, etc.) | When writing frontend code, understanding established patterns |
+| `mutation-testing.md`        | Mutation testing guide and configuration            | When evaluating test quality, running mutation tests           |
+| `test-optimization-guide.md` | Frontend test optimization patterns                 | When optimizing test execution time, reducing CI duration      |
+| `test-performance.md`        | Test suite metrics and CI parallelization config    | When debugging slow tests, understanding CI configuration      |
 
 ## Key Patterns
 
@@ -74,6 +76,20 @@ patterns/
 - Baseline metrics and expected CI duration
 
 **When to use:** Debugging slow tests, understanding CI configuration, updating test baselines.
+
+### Test Optimization Guide (`test-optimization-guide.md`)
+
+**Topics Covered:**
+
+- waitFor() timeout optimization (FAST_TIMEOUT vs STANDARD_TIMEOUT)
+- Fake timers best practices with Vitest
+- Shared mock utilities (router, API, WebSocket, React Query)
+- Component testing strategies and isolation
+- Route testing without full app rendering
+- Lazy loading test patterns
+- Performance metrics and migration checklist
+
+**When to use:** Optimizing frontend test execution time, reducing CI duration, migrating tests to use optimized patterns.
 
 ## Related Resources
 
