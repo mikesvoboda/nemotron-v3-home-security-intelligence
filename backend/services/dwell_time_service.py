@@ -29,10 +29,9 @@ Example:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, select, update
-from sqlalchemy.engine import CursorResult
 
 from backend.api.schemas.dwell_time import (
     LoiteringAlert,
@@ -413,8 +412,8 @@ class DwellTimeService:
         )
         result = await self.db.execute(stmt)
         await self.db.flush()
-        cursor_result = cast("CursorResult[tuple[()]]", result)
-        return cursor_result.rowcount > 0
+        # Use attribute access instead of cast to avoid unused import in TYPE_CHECKING
+        return result.rowcount > 0  # type: ignore[attr-defined,no-any-return]
 
     async def cleanup_stale_records(
         self,

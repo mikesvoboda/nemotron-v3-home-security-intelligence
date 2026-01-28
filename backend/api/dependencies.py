@@ -1008,10 +1008,9 @@ def get_face_detector_service_dep() -> FaceDetectorService:
         FaceDetectorService singleton instance from DI container
     """
     from backend.core.container import get_container
-    from backend.services.ai_services import FaceDetectorService as FDS
 
     container = get_container()
-    return cast("FDS", container.get("face_detector_service"))
+    return cast("FaceDetectorService", container.get("face_detector_service"))
 
 
 def get_plate_detector_service_dep() -> PlateDetectorService:
@@ -1025,10 +1024,9 @@ def get_plate_detector_service_dep() -> PlateDetectorService:
         PlateDetectorService singleton instance from DI container
     """
     from backend.core.container import get_container
-    from backend.services.ai_services import PlateDetectorService as PDS
 
     container = get_container()
-    return cast("PDS", container.get("plate_detector_service"))
+    return cast("PlateDetectorService", container.get("plate_detector_service"))
 
 
 def get_ocr_service_dep() -> OCRService:
@@ -1042,10 +1040,9 @@ def get_ocr_service_dep() -> OCRService:
         OCRService singleton instance from DI container
     """
     from backend.core.container import get_container
-    from backend.services.ai_services import OCRService as OCRS
 
     container = get_container()
-    return cast("OCRS", container.get("ocr_service"))
+    return cast("OCRService", container.get("ocr_service"))
 
 
 def get_yolo_world_service_dep() -> YOLOWorldService:
@@ -1059,10 +1056,9 @@ def get_yolo_world_service_dep() -> YOLOWorldService:
         YOLOWorldService singleton instance from DI container
     """
     from backend.core.container import get_container
-    from backend.services.ai_services import YOLOWorldService as YWS
 
     container = get_container()
-    return cast("YWS", container.get("yolo_world_service"))
+    return cast("YOLOWorldService", container.get("yolo_world_service"))
 
 
 def get_job_service_dep(
