@@ -29,6 +29,70 @@ Camera Upload -> File Watcher -> Object Detection -> Batch Aggregator -> Enrichm
      (1)            (2)              (3)                  (4)              (5)            (6)          (7)
 ```
 
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph Input["1. Image Input"]
+        CAM[Camera]
+        FTP[FTP Server<br/>/export/foscam/]
+        FW[FileWatcher<br/>inotify + debounce]
+    end
+
+    subgraph Detection["2. Object Detection"]
+        DQ[(detection_queue)]
+        YOLO[YOLO26<br/>port 8091<br/>~30-50ms]
+    end
+
+    subgraph Batching["3. Batch Aggregation"]
+        BA[BatchAggregator<br/>90s window / 30s idle]
+        AQ[(analysis_queue)]
+    end
+
+    subgraph Enrichment["4. Context Enrichment"]
+        FLOR[Florence-2<br/>Scene captions<br/>port 8092]
+        CLIP[CLIP ViT-L/14<br/>Anomaly detection<br/>port 8093]
+        MZ[Model Zoo<br/>On-demand models]
+    end
+
+    subgraph Analysis["5. Risk Assessment"]
+        NEM[Nemotron-3-Nano-30B<br/>LLM risk scoring]
+    end
+
+    subgraph Output["6. Event Output"]
+        DB[(PostgreSQL<br/>Event storage)]
+        WS[WebSocket<br/>Real-time broadcast]
+        UI[React Dashboard]
+    end
+
+    CAM -->|FTP upload| FTP
+    FTP -->|inotify| FW
+    FW -->|queue job| DQ
+    DQ --> YOLO
+    YOLO -->|detections| BA
+    BA -->|batch ready| AQ
+    AQ --> FLOR
+    AQ --> CLIP
+    AQ --> MZ
+    FLOR -->|captions| NEM
+    CLIP -->|embeddings| NEM
+    MZ -->|enrichment| NEM
+    NEM -->|risk score| DB
+    NEM -->|event| WS
+    WS --> UI
+```
+
 1. **Camera Upload**: Cameras upload images via FTP to `/export/foscam/{camera_name}/`
 2. **File Watcher**: Monitors directories for new images with deduplication
 3. **Object Detection**: YOLO26 identifies objects and their bounding boxes

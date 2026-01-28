@@ -4,18 +4,22 @@
 
 Welcome! This system watches your security cameras around the clock and alerts you when something needs your attention. You do not need to be technical to use it - this guide will help you understand what everything means and how to get the most from your security system.
 
+> **Note:** This guide is for day-to-day users of the system. For installation and setup, see the [Getting Started Guide](../getting-started/README.md).
+
 ---
 
 ## Getting Started
 
-New to the system? Follow this path:
+New to the system? Follow this learning path:
 
 | Step | Guide                                                 | Description                                       | Time    |
 | ---- | ----------------------------------------------------- | ------------------------------------------------- | ------- |
-| 1    | [Getting Started](../getting-started/quick-start.md)  | What the system does and how to open it           | ~5 min  |
+| 1    | [Quick Start](../getting-started/quick-start.md)      | What the system does and how to open it           | ~5 min  |
 | 2    | [Product Tour](../getting-started/tour.md)            | Interactive tour walkthrough and first-time setup | ~8 min  |
 | 3    | [Dashboard](../ui/dashboard.md)                       | Understanding what you see on screen              | ~8 min  |
 | 4    | [Understanding Alerts](../ui/understanding-alerts.md) | What risk levels mean and when to take action     | ~10 min |
+
+> **Already set up?** Skip to [Dashboard Features](#dashboard-features) below.
 
 ---
 
@@ -112,10 +116,13 @@ This system is a monitoring tool - it does NOT automatically contact emergency s
 
 ---
 
-## Other Documentation
+## Related Documentation
 
-- **[Operator Guide](../operator/README.md)** - For system administrators who deploy and maintain the system
-- **[Developer Guide](../developer/README.md)** - For developers who want to contribute or extend the system
+| Guide                                           | Audience               | Description                                     |
+| ----------------------------------------------- | ---------------------- | ----------------------------------------------- |
+| [Getting Started](../getting-started/README.md) | New users & installers | Installation, first run, and initial setup      |
+| [Operator Guide](../operator/README.md)         | System administrators  | Deployment, monitoring, and system maintenance  |
+| [Developer Guide](../developer/README.md)       | Developers             | Contributing, testing, and extending the system |
 
 ---
 

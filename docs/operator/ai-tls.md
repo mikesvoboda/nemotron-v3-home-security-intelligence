@@ -81,7 +81,7 @@ Modify `ai/yolo26/model.py` to enable SSL:
 uvicorn.run(
     app,
     host="0.0.0.0",
-    port=8090,
+    port=8095,
     ssl_certfile="/path/to/server.crt",
     ssl_keyfile="/path/to/server.key"
 )
@@ -119,7 +119,7 @@ Update backend to use HTTPS for AI services:
 
 ```bash
 # .env
-YOLO26_URL=https://localhost:8090
+YOLO26_URL=https://localhost:8095
 NEMOTRON_URL=https://localhost:8091
 
 # For self-signed certificates, disable verification (development only)
@@ -154,7 +154,7 @@ server {
     ssl_certificate_key /path/to/key.pem;
 
     location /detect {
-        proxy_pass http://localhost:8090;
+        proxy_pass http://localhost:8095;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -192,13 +192,13 @@ Test TLS connectivity:
 
 ```bash
 # Test certificate
-openssl s_client -connect localhost:8090 -CAfile ca.crt
+openssl s_client -connect localhost:8095 -CAfile ca.crt
 
 # Test HTTPS endpoint
-curl --cacert ca.crt https://localhost:8090/health
+curl --cacert ca.crt https://localhost:8095/health
 
 # Verify in browser
-# Navigate to https://localhost:8090/health
+# Navigate to https://localhost:8095/health
 ```
 
 ---

@@ -6,11 +6,11 @@
 
 Redis provides ephemeral storage for the AI pipeline, handling queues, pub/sub messaging, batch state management, and deduplication caching. All Redis data is reconstructable from PostgreSQL, allowing recovery after Redis restarts.
 
-**Source:** `backend/core/redis.py:1-1654`
+**Source:** `backend/core/redis.py:1-2566`
 
 ### Connection Pools
 
-The Redis client supports dedicated connection pools for different workload types (`backend/core/redis.py:50-67`):
+The Redis client supports dedicated connection pools for different workload types (`backend/core/redis.py:55-71`):
 
 | Pool Type   | Purpose                             | Typical Config     |
 | ----------- | ----------------------------------- | ------------------ |
@@ -129,13 +129,13 @@ Failed items are moved to dead letter queues for manual review and reprocessing.
 
 **Purpose:** Stores items moved from main queues due to overflow when using `dlq` policy.
 
-**Source:** `backend/core/redis.py:783-825`
+**Source:** `backend/core/redis.py:794-836`
 
 ---
 
 ## Queue Overflow Policies
 
-**Source:** `backend/core/redis.py:69-75`
+**Source:** `backend/core/redis.py:74-79`
 
 | Policy        | Behavior                                        |
 | ------------- | ----------------------------------------------- |
@@ -145,7 +145,7 @@ Failed items are moved to dead letter queues for manual review and reprocessing.
 
 ### Safe Queue Add
 
-The `add_to_queue_safe()` method (`backend/core/redis.py:690-864`) provides backpressure handling:
+The `add_to_queue_safe()` method (`backend/core/redis.py:701-875`) provides backpressure handling:
 
 ```python
 result = await redis.add_to_queue_safe(
@@ -275,7 +275,7 @@ Redis pub/sub provides real-time event broadcasting to WebSocket clients.
 
 ### Subscribing to Channels
 
-**Source:** `backend/core/redis.py:1090-1127`
+**Source:** `backend/core/redis.py:1101-1138`
 
 ```python
 # Shared PubSub (for simple cases)
@@ -295,7 +295,7 @@ finally:
 
 ## Compression
 
-Large queue payloads are automatically compressed using Zstd (`backend/core/redis.py:110-186`).
+Large queue payloads are automatically compressed using Zstd (`backend/core/redis.py:118-191`).
 
 ### Compression Format
 
@@ -335,7 +335,7 @@ def _decompress_payload(self, data: str) -> str:
 
 ### Generic Cache Operations
 
-**Source:** `backend/core/redis.py:1155-1228`
+**Source:** `backend/core/redis.py:1166-1227`
 
 ```python
 # Set with expiration
@@ -360,7 +360,7 @@ exists = await redis.exists("cache:key")
 
 Sorted sets are used for priority queues and time-based data.
 
-**Source:** `backend/core/redis.py:1232-1380`
+**Source:** `backend/core/redis.py:1243-1391`
 
 ```python
 # Add with score (timestamp)
@@ -382,7 +382,7 @@ removed = await redis.zremrangebyscore("priority_queue", "-inf", cutoff_time)
 
 All Redis operations support automatic retry with exponential backoff.
 
-**Source:** `backend/core/redis.py:331-411`
+**Source:** `backend/core/redis.py:336-416`
 
 ```python
 # Manual retry wrapper
@@ -401,7 +401,7 @@ item = await redis.get_from_queue_with_retry("queue_name", timeout=5)
 ### Backoff Calculation
 
 ```python
-# backend/core/redis.py:331-344
+# backend/core/redis.py:336-349
 delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
 jitter = delay * random.uniform(0, 0.25)  # 0-25% jitter
 total_delay = delay + jitter
@@ -420,7 +420,7 @@ total_delay = delay + jitter
 
 ## Queue Pressure Monitoring
 
-**Source:** `backend/core/redis.py:870-914`
+**Source:** `backend/core/redis.py:881-925`
 
 ```python
 metrics = await redis.get_queue_pressure(
@@ -456,7 +456,7 @@ metrics = await redis.get_queue_pressure(
 
 ## Health Check
 
-**Source:** `backend/core/redis.py:666-686`
+**Source:** `backend/core/redis.py:677-697`
 
 ```python
 health = await redis.health_check()
@@ -474,7 +474,7 @@ health = await redis.health_check()
 ### Initialization
 
 ```python
-# backend/core/redis.py:1601-1625
+# backend/core/redis.py:2513-2537
 from backend.core.redis import init_redis
 
 redis = await init_redis()  # Creates singleton, connects with retry
@@ -483,7 +483,7 @@ redis = await init_redis()  # Creates singleton, connects with retry
 ### Shutdown
 
 ```python
-# backend/core/redis.py:1646-1654
+# backend/core/redis.py:2558-2566
 from backend.core.redis import close_redis
 
 await close_redis()  # Disconnects and cleans up

@@ -86,14 +86,24 @@ curl -X POST http://localhost:8090/detect \
 
 Uses **top-left origin with width/height**:
 
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph BBox["Bounding Box Format"]
+        Origin["(x, y) origin"]
+        Width["width"]
+        Height["height"]
+        Object["Object Area"]
+    end
+
+    style Object fill:#3B82F6,stroke:#60A5FA,color:#fff
 ```
-(x, y) --------+
-   |           |
-   |  Object   | height
-   |           |
-   +-----------+
-      width
-```
+
+Where:
+
+- `(x, y)` marks the **top-left corner**
+- `width` extends **rightward**
+- `height` extends **downward**
 
 - `x`: Top-left X coordinate (pixels from left edge)
 - `y`: Top-left Y coordinate (pixels from top edge)

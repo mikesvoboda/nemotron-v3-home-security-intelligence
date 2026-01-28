@@ -2,7 +2,7 @@
 
 > Configure environment variables for AI inference services.
 
-**Time to read:** ~8 min
+**Time to read:** ~12 min
 **Prerequisites:** [AI Installation](ai-installation.md)
 
 ---
@@ -23,7 +23,7 @@ These control the startup script (`scripts/start-ai.sh`):
 
 | Variable        | Description                         | Default |
 | --------------- | ----------------------------------- | ------- |
-| `YOLO26_PORT`   | Port for YOLO26 detection server    | `8090`  |
+| `YOLO26_PORT`   | Port for YOLO26 detection server    | `8095`  |
 | `NEMOTRON_PORT` | Port for NVIDIA Nemotron LLM server | `8091`  |
 
 **Note:** Log file paths are hardcoded:
@@ -33,14 +33,90 @@ These control the startup script (`scripts/start-ai.sh`):
 
 ### YOLO26 Detection Server
 
-Configuration for `ai/yolo26/model.py`:
+Configuration for `ai/yolo26/model.py`. The YOLO26 server uses TensorRT-optimized engines for efficient GPU inference.
 
-| Variable            | Description                    | Default                                       |
-| ------------------- | ------------------------------ | --------------------------------------------- |
-| `YOLO26_MODEL_PATH` | HuggingFace model path         | `/export/ai_models/yolo26v2/yolo26_v2_r101vd` |
-| `YOLO26_CONFIDENCE` | Detection confidence threshold | `0.5`                                         |
-| `PORT`              | Server port (direct execution) | `8090`                                        |
-| `HOST`              | Bind address                   | `0.0.0.0`                                     |
+#### Core Configuration
+
+| Variable                       | Description                                        | Default                                      |
+| ------------------------------ | -------------------------------------------------- | -------------------------------------------- |
+| `YOLO26_MODEL_PATH`            | Path to TensorRT engine (.engine) or PyTorch model | `/models/yolo26/exports/yolo26m_fp16.engine` |
+| `YOLO26_CONFIDENCE`            | Detection confidence threshold (0.0-1.0)           | `0.5`                                        |
+| `YOLO26_CACHE_CLEAR_FREQUENCY` | Clear CUDA cache every N detections (0 to disable) | `1`                                          |
+| `PORT`                         | Server port (direct execution)                     | `8095`                                       |
+| `HOST`                         | Bind address                                       | `0.0.0.0`                                    |
+
+#### TensorRT Engine Paths
+
+TensorRT engines are GPU-architecture specific. Use the appropriate engine for your deployment:
+
+| Precision | Engine Path                                  | VRAM   | Latency | Use Case                      |
+| --------- | -------------------------------------------- | ------ | ------- | ----------------------------- |
+| **FP16**  | `/models/yolo26/exports/yolo26m_fp16.engine` | ~2 GB  | 10-20ms | Default, highest accuracy     |
+| **INT8**  | `/models/yolo26/exports/yolo26m_int8.engine` | ~1.5GB | 5-10ms  | High throughput, multi-camera |
+| **PT**    | `/models/yolo26/yolo26m.pt` (fallback)       | ~3 GB  | 30-50ms | Development, TensorRT unavail |
+
+Production engines should be stored at `/export/ai_models/model-zoo/yolo26/exports/`.
+
+#### TensorRT Version Compatibility
+
+TensorRT engines are version-specific. The server automatically handles version mismatches:
+
+| Variable               | Description                                               | Default   |
+| ---------------------- | --------------------------------------------------------- | --------- |
+| `YOLO26_AUTO_REBUILD`  | Auto-rebuild engine on TensorRT version mismatch          | `true`    |
+| `YOLO26_PT_MODEL_PATH` | Path to source .pt model for rebuilding (if auto-rebuild) | (derived) |
+
+When the TensorRT runtime version differs from the engine version:
+
+1. The server detects the version mismatch error
+2. If `YOLO26_AUTO_REBUILD=true`, it rebuilds the engine from the .pt model
+3. If rebuild fails or is disabled, it falls back to PyTorch inference
+
+#### torch.compile Optimization (PyTorch fallback only)
+
+When using PyTorch models (not TensorRT engines), torch.compile provides 15-30% speedup:
+
+| Variable                  | Description                           | Default           |
+| ------------------------- | ------------------------------------- | ----------------- |
+| `TORCH_COMPILE_ENABLED`   | Enable PyTorch 2.0+ graph compilation | `true`            |
+| `TORCH_COMPILE_MODE`      | Compilation mode                      | `reduce-overhead` |
+| `TORCH_COMPILE_BACKEND`   | Compilation backend                   | `inductor`        |
+| `TORCH_COMPILE_CACHE_DIR` | Cache directory for compiled graphs   | (system default)  |
+
+**Compilation modes:**
+
+- `default` - Balanced optimization
+- `reduce-overhead` - Faster compilation, good speedup (recommended)
+- `max-autotune` - Best performance, slower compilation
+
+> **Note:** torch.compile is automatically skipped for TensorRT engines since they are already graph-optimized.
+
+#### Exporting TensorRT Engines
+
+Use the export script to generate TensorRT engines for your GPU:
+
+```bash
+# Export FP16 engine (default, higher accuracy)
+python ai/yolo26/export_tensorrt.py --model yolo26m.pt --output exports/
+
+# Export INT8 engine (2x throughput, requires calibration)
+python ai/yolo26/export_tensorrt.py \
+    --model yolo26m.pt \
+    --int8 \
+    --data config/yolo26_calibration.yaml \
+    --output exports/
+
+# Benchmark exported engine
+python ai/yolo26/export_tensorrt.py --benchmark exports/yolo26m_fp16.engine
+```
+
+**INT8 calibration requirements:**
+
+- 100-500 representative images from your deployment environment
+- Cover various lighting conditions and camera angles
+- Include all security-relevant object classes
+
+For detailed export options, see `ai/yolo26/README.md`.
 
 ### NVIDIA Nemotron LLM Server
 
@@ -199,12 +275,23 @@ For production deployment with systemd:
 PROJECT_ROOT=/home/user/home-security-intelligence
 
 # AI service ports (for startup scripts)
-YOLO26_PORT=8090
+YOLO26_PORT=8095
 NEMOTRON_PORT=8091
 
 # AI service URLs (for backend)
 YOLO26_URL=http://localhost:8095
 NEMOTRON_URL=http://localhost:8091
+
+# YOLO26 TensorRT configuration
+YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+YOLO26_CONFIDENCE=0.5
+YOLO26_CACHE_CLEAR_FREQUENCY=1
+YOLO26_AUTO_REBUILD=true
+# YOLO26_PT_MODEL_PATH=/models/yolo26/yolo26m.pt  # Optional: explicit fallback path
+
+# torch.compile (PyTorch fallback only)
+TORCH_COMPILE_ENABLED=true
+TORCH_COMPILE_MODE=reduce-overhead
 
 # Detection tuning
 DETECTION_CONFIDENCE_THRESHOLD=0.5

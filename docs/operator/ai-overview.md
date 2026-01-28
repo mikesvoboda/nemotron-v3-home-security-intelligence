@@ -12,7 +12,7 @@
 The AI pipeline transforms raw camera images into risk-scored security events using **core AI services** plus
 an **enrichment layer** that adds context (attributes, captions, re-ID, and other signals).
 
-### YOLO26 Detection Server (Port 8090)
+### YOLO26 Detection Server (Port 8095)
 
 **Purpose:** Real-time object detection from camera images
 
@@ -75,7 +75,7 @@ These services feed into the backend’s enrichment pipeline and ultimately impr
 |  |  YOLO26       |   |  NVIDIA Nemotron | |
 |  |  Detection       |   |  Risk Analysis   | |
 |  |                  |   |                  | |
-|  |  Port: 8090      |   |  Port: 8091      | |
+|  |  Port: 8095      |   |  Port: 8091      | |
 |  |  VRAM: ~4GB      |   |  VRAM: 3-15GB*   | |
 |  |  Latency: 30-50ms|   |  Latency: 2-5s   | |
 |  +------------------+   +------------------+ |

@@ -38,7 +38,7 @@ podman-compose -f docker-compose.prod.yml up -d
 watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
 ```
 
-**Access:** http://localhost:5173 (Dashboard) | http://localhost:8000/docs (API)
+**Access:** http://localhost:5173 or https://localhost:8443 (Dashboard) | http://localhost:8000/docs (API)
 
 ## Update Deployment (GHCR)
 
@@ -74,7 +74,7 @@ The download script (`./ai/download_models.sh`) fetches all required models:
 
 | Model | Size | Purpose |
 |-------|------|---------|
-| Nemotron-3-Nano-30B (Q4_K_M) | ~18GB | Risk reasoning LLM |
+| Nemotron-3-Nano-30B (Q4_K_M) | ~14.7GB | Risk reasoning LLM |
 | YOLO26 | ~165MB | Object detection (auto-download) |
 | Florence-2-Large | ~3GB | Vision-language captions |
 | CLIP-ViT-L | ~1.7GB | Entity re-identification |
@@ -118,15 +118,18 @@ ${AI_MODELS_PATH}/
 
 | Service | Port | Container | GPU | Description |
 |---------|------|-----------|-----|-------------|
-| Frontend | 5173 | frontend | No | React dashboard (nginx) |
+| Frontend HTTP | 5173 | frontend | No | React dashboard via nginx |
+| Frontend HTTPS | 8443 | frontend | No | React dashboard via nginx (SSL) |
 | Backend | 8000 | backend | No | FastAPI REST + WebSocket |
 | PostgreSQL | 5432 | postgres | No | Event/detection storage |
 | Redis | 6379 | redis | No | Queues and pub/sub |
-| YOLO26 | 8090 | ai-yolo26 | Yes | Object detection |
+| YOLO26 | 8095 | ai-yolo26 | Yes | Object detection |
 | Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM |
 | Florence-2 | 8092 | ai-florence | Yes | Vision-language captions |
 | CLIP | 8093 | ai-clip | Yes | Embeddings/re-identification |
 | Enrichment | 8094 | ai-enrichment | Yes | Vehicle/pet/clothing analysis |
+
+> Frontend serves via nginx in production. SSL enabled by default (self-signed). Port 5173 is also used by Vite dev server in local development.
 
 ### Monitoring Services (4)
 
@@ -202,7 +205,7 @@ GPU_LAYERS=30  # Reduce from default 35
 
 **AI service slow/not responding:**
 ```bash
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 # First request after startup is slow (model loading)
 ```
@@ -233,7 +236,7 @@ nemotron-v3-home-security-intelligence/
 │       ├── hooks/           # WebSocket + data hooks
 │       └── services/        # API client
 ├── ai/                       # AI service containers
-│   ├── yolo26/              # Object detection (port 8090)
+│   ├── yolo26/              # Object detection (port 8095)
 │   ├── nemotron/            # Risk reasoning LLM (port 8091)
 │   ├── florence/            # Vision-language (port 8092)
 │   ├── clip/                # Embeddings (port 8093)

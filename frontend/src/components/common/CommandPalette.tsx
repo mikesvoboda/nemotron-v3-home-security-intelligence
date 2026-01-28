@@ -63,14 +63,14 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     name: 'Analytics',
     path: '/analytics',
-    shortcut: 'g a',
+    shortcut: 'g n',
     icon: BarChart3,
     keywords: ['charts', 'graphs', 'statistics', 'stats'],
   },
   {
     name: 'Alerts',
     path: '/alerts',
-    shortcut: 'g l',
+    shortcut: 'g a',
     icon: Bell,
     keywords: ['notifications', 'warnings'],
   },
@@ -91,7 +91,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     name: 'System',
     path: '/system',
-    shortcut: 'g s',
+    shortcut: 'g y',
     icon: Activity,
     keywords: ['monitoring', 'health', 'status', 'performance'],
   },
@@ -112,7 +112,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   {
     name: 'Settings',
     path: '/settings',
-    shortcut: 'g ,',
+    shortcut: 'g s',
     icon: Settings,
     keywords: ['preferences', 'configuration', 'options'],
   },

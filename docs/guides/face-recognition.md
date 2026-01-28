@@ -17,15 +17,81 @@ Home Security Intelligence includes face detection capabilities that work alongs
 
 ### Face Detection Pipeline
 
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph Input["Image Input"]
+        CAM[Camera Image]
+    end
+
+    subgraph Detection["Object Detection"]
+        YOLO26["YOLO26<br/>Person Detection"]
+        BBOX["Person Bounding Box<br/>(x, y, width, height)"]
+    end
+
+    subgraph FaceDetection["Face Detection<br/>backend/services/face_detector.py"]
+        HEAD["Head Region Extraction<br/>Top 40% of bbox"]
+        CROP["Crop with 20% Padding"]
+        YOLO11["YOLO11-face<br/>Face Detection"]
+        FACE["FaceDetection<br/>(bbox, confidence, person_id)"]
+    end
+
+    subgraph ReID["Re-Identification<br/>backend/services/reid_service.py"]
+        CLIP["CLIP ViT-L<br/>ai-clip HTTP service"]
+        EMB["768-dim Embedding<br/>L2 normalized"]
+        STORE["Store in Redis<br/>24h TTL"]
+        PG["PostgreSQL<br/>30-day retention"]
+    end
+
+    subgraph Matching["Household Matching<br/>backend/services/household_matcher.py"]
+        SEARCH["Cosine Similarity Search<br/>threshold >= 0.85"]
+        MEMBERS[(Household Members<br/>Stored Embeddings)]
+        MATCH{"Match<br/>Found?"}
+        KNOWN["Known Member<br/>HouseholdMatch"]
+        UNKNOWN["Unknown Person<br/>Entity Record"]
+    end
+
+    subgraph Output["Result"]
+        ALERT["Alert Generation<br/>Based on trust level"]
+    end
+
+    CAM --> YOLO26
+    YOLO26 --> BBOX
+    BBOX --> HEAD
+    HEAD --> CROP
+    CROP --> YOLO11
+    YOLO11 --> FACE
+    FACE --> CLIP
+    CLIP --> EMB
+    EMB --> STORE
+    STORE -.-> PG
+    EMB --> SEARCH
+    MEMBERS --> SEARCH
+    SEARCH --> MATCH
+    MATCH -->|Yes| KNOWN
+    MATCH -->|No| UNKNOWN
+    KNOWN --> ALERT
+    UNKNOWN --> ALERT
 ```
-Person Detection -> Head Region Extraction -> Face Detection -> Embedding Generation -> Matching
-       (1)                  (2)                    (3)                 (4)               (5)
-```
+
+**Pipeline Stages:**
 
 1. **Person Detection**: YOLO26 identifies person bounding boxes
 2. **Head Region Extraction**: Upper 40% of person bbox extracted
 3. **Face Detection**: YOLO11 face model detects faces in head region
-4. **Embedding Generation**: OSNet generates 512-dimensional embeddings
+4. **Embedding Generation**: CLIP ViT-L generates 768-dimensional embeddings
 5. **Matching**: Embeddings compared against household member database
 
 ### Models Used

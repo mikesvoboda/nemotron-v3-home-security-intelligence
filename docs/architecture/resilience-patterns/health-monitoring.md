@@ -107,7 +107,7 @@ class HealthEvent:
 
 ## Health Check Loop
 
-![Health Check Strategy - Periodic monitoring with exponential backoff recovery](../../images/architecture/resilience-patterns/health-check-strategy.png)
+![Health Check Strategy - Periodic monitoring with exponential backoff recovery](../../images/architecture/health-check-strategy.png)
 
 The main monitoring loop (`backend/services/health_monitor.py:130-184`):
 
@@ -419,24 +419,30 @@ await monitor.stop()
 
 ## Recovery Sequence Diagram
 
-```
-Health Monitor               Service                Docker/Systemd
-     |                          |                        |
-     |-- check_health() ------->|                        |
-     |<-- unhealthy ------------|                        |
-     |                          |                        |
-     |-- (wait backoff: 5s) ----|                        |
-     |                          |                        |
-     |-- restart() ------------>|                        |
-     |                          |------ restart -------->|
-     |<-- success --------------|<----- restarted -------|
-     |                          |                        |
-     |-- (wait 2s) -------------|                        |
-     |                          |                        |
-     |-- check_health() ------->|                        |
-     |<-- healthy --------------|                        |
-     |                          |                        |
-     |-- broadcast "healthy" -->| (WebSocket clients)    |
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+sequenceDiagram
+    participant HM as Health Monitor
+    participant SVC as Service
+    participant DS as Docker/Systemd
+    participant WS as WebSocket Clients
+
+    HM->>SVC: check_health()
+    SVC--xHM: unhealthy
+
+    Note over HM: Wait backoff (5s)
+
+    HM->>SVC: restart()
+    SVC->>DS: restart command
+    DS-->>SVC: restarted
+    SVC-->>HM: success
+
+    Note over HM: Wait 2s for startup
+
+    HM->>SVC: check_health()
+    SVC-->>HM: healthy
+
+    HM->>WS: broadcast "healthy"
 ```
 
 ## Best Practices

@@ -34,15 +34,21 @@ These ports are used for service-to-service communication and remain the same in
 
 These ports expose services to external hosts and can vary based on availability:
 
-| Service        | Default | Purpose       | External Access                                                           |
-| -------------- | ------- | ------------- | ------------------------------------------------------------------------- |
-| Frontend HTTP  | 5173    | Web UI        | http://localhost:5173 (dev), configurable via docker-compose.override.yml |
-| Frontend HTTPS | 8443    | Web UI (SSL)  | https://localhost:8443 (dev), configurable                                |
-| Grafana        | 3002    | Dashboards    | http://localhost:3002 (dev), configurable                                 |
-| Prometheus     | 9090    | Metrics       | http://localhost:9090 (dev), configurable                                 |
-| Alertmanager   | 9093    | Alerts        | http://localhost:9093 (dev), configurable                                 |
-| Redis Exporter | 9121    | Redis metrics | http://localhost:9121 (dev), configurable                                 |
-| JSON Exporter  | 7979    | JSON metrics  | http://localhost:7979 (dev), configurable                                 |
+| Service        | Default | Purpose       | External Access                                                |
+| -------------- | ------- | ------------- | -------------------------------------------------------------- |
+| Frontend HTTP  | 5173    | Web UI        | http://localhost:5173, configurable via `FRONTEND_PORT`        |
+| Frontend HTTPS | 8443    | Web UI (SSL)  | https://localhost:8443, configurable via `FRONTEND_HTTPS_PORT` |
+| Grafana        | 3002    | Dashboards    | http://localhost:3002, configurable                            |
+| Prometheus     | 9090    | Metrics       | http://localhost:9090, configurable                            |
+| Alertmanager   | 9093    | Alerts        | http://localhost:9093, configurable                            |
+| Redis Exporter | 9121    | Redis metrics | http://localhost:9121, configurable                            |
+| JSON Exporter  | 7979    | JSON metrics  | http://localhost:7979, configurable                            |
+
+> **Frontend Port Notes:**
+>
+> - **Production containers (docker-compose.prod.yml):** nginx serves the React app. Internal ports are 8080 (HTTP) and 8443 (HTTPS). These are mapped to host ports 5173 and 8443 by default.
+> - **Local development (npm run dev):** Vite dev server runs directly on port 5173.
+> - **SSL is enabled by default** in production with auto-generated self-signed certificates.
 
 ## Environment Separation
 
@@ -186,10 +192,13 @@ These ports are embedded in configuration and service discovery.
 
 ### Can Vary Based on Availability
 
-- **Frontend**: 5173 (development) or 8080 (docker internal), mapped to configurable external ports
+- **Frontend HTTP**: Default host port 5173 (maps to internal nginx port 8080)
+- **Frontend HTTPS**: Default host port 8443 (maps to internal nginx port 8443)
 - **Monitoring**: 3002, 9090, 9093, etc. (all configurable external ports)
 
 These ports are for external access only and are safely remappable.
+
+> **Note on 5173:** This port is used both by the Vite dev server (local development) and as the default HTTP host port for production containers. The production container runs nginx on internal port 8080, which is mapped to host port 5173 by default.
 
 ## Important Files Changed (NEM-3148)
 

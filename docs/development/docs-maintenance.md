@@ -41,23 +41,19 @@ Documentation drift occurs when code changes without corresponding documentation
 
 The documentation drift detection system runs in three stages:
 
-```
-PR Opened/Updated
-       |
-       v
-+---------------------+
-| check-docs-drift.py |  Analyze git diff, match rules
-+---------------------+
-       |
-       v (drift-report.json)
-+----------------------+
-| create-docs-tasks.py |  Create Linear tasks via API
-+----------------------+
-       |
-       v
-+---------------------+
-|  PR Comment Posted  |  Summary with task links
-+---------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    PR[PR Opened/Updated]
+    CheckDrift["check-docs-drift.py<br/>Analyze git diff, match rules"]
+    Report["drift-report.json"]
+    CreateTasks["create-docs-tasks.py<br/>Create Linear tasks via API"]
+    Comment["PR Comment Posted<br/>Summary with task links"]
+
+    PR --> CheckDrift
+    CheckDrift --> Report
+    Report --> CreateTasks
+    CreateTasks --> Comment
 ```
 
 ### Stage 1: Detection

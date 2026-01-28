@@ -9,15 +9,33 @@ This directory contains comprehensive architecture documentation for the Home Se
 ```
 architecture/
   AGENTS.md         # This file
+  README.md         # Hub documentation with navigation
+  STANDARDS.md      # Documentation standards and formatting rules
   overview.md       # High-level system architecture
   ai-pipeline.md    # AI processing pipeline details
-  data-model.md     # Database schema and data flow
+  data-model.md     # Database schema and data flow (legacy reference)
   decisions.md      # Architectural decisions and rationale
   frontend-hooks.md # Frontend React hooks architecture
   real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
   resilience.md     # Circuit breakers, retries, DLQ, health monitoring
   system-page-pipeline-visualization.md  # System page pipeline visualization components
-  ai-orchestration/ # AI Model Zoo, inference clients, enrichment pipeline (hub)
+
+  # Hub Subdirectories (each contains README.md and topic-specific docs)
+  ai-orchestration/       # AI Model Zoo, inference clients, enrichment pipeline
+  api-reference/          # REST endpoint documentation
+  background-services/    # Async tasks and workers
+  data-model/             # Database schema and relationships (hub)
+  dataflows/              # End-to-end data traces
+  detection-pipeline/     # Image processing and object detection
+  frontend/               # React UI architecture
+  middleware/             # Request processing pipeline
+  observability/          # Logging, metrics, and monitoring
+  realtime-system/        # WebSocket and live updates
+  resilience-patterns/    # Error handling and recovery (hub)
+  security/               # Security considerations
+  system-overview/        # High-level architecture and design decisions
+  templates/              # Document templates for new content
+  testing/                # Test infrastructure and patterns
 ```
 
 ## Key Files
@@ -256,11 +274,11 @@ FileWatcher --> detection_queue --> DetectionWorker --> YOLO26
 
 1. Read `ai-orchestration/` hub for comprehensive AI documentation:
    - `model-zoo.md` - Model registry, VRAM management, LRU eviction
-   - `yolo26-client.md` - YOLO26 detector client implementation
    - `nemotron-analyzer.md` - LLM-based risk analysis service
    - `enrichment-pipeline.md` - Multi-model enrichment flow
    - `fallback-strategies.md` - Graceful degradation patterns
-2. Review source files in `backend/services/` for implementation details
+2. Review source files in `backend/services/` for implementation details:
+   - `backend/services/detector_client.py` - YOLO26 detector client implementation
 3. Check `ai/enrichment/` for enrichment service models
 
 ### Database Changes

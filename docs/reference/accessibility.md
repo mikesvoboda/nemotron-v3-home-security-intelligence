@@ -47,12 +47,12 @@ Press `g` followed by a letter to jump directly to any page:
 | -------- | ----------- |
 | `g d`    | Dashboard   |
 | `g t`    | Timeline    |
-| `g a`    | Analytics   |
-| `g l`    | Alerts      |
+| `g n`    | Analytics   |
+| `g a`    | Alerts      |
 | `g e`    | Entities    |
 | `g o`    | Logs        |
-| `g s`    | System      |
-| `g ,`    | Settings    |
+| `g y`    | System      |
+| `g s`    | Settings    |
 
 ### List Navigation
 
@@ -274,10 +274,10 @@ If you need specific accessibility accommodations not covered here, contact your
 ### Navigation Chords (press g then letter)
 
 ```
-g d - Dashboard    g l - Alerts
+g d - Dashboard    g a - Alerts
 g t - Timeline     g e - Entities
-g a - Analytics    g o - Logs
-g s - System       g , - Settings
+g n - Analytics    g o - Logs
+g y - System       g s - Settings
 ```
 
 ### List Navigation

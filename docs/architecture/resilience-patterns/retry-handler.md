@@ -152,28 +152,37 @@ async def with_retry(
 
 ### Retry Flow
 
-```
-Attempt 1 --> Success? --> Return result
-    |
-    No
-    v
-Calculate backoff delay
-    |
-    v
-Sleep with jitter
-    |
-    v
-Attempt 2 --> Success? --> Return result
-    |
-    No
-    v
-... repeat until max_retries ...
-    |
-    v
-Move to DLQ with error context
-    |
-    v
-Return RetryResult(success=False, moved_to_dlq=True)
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    START[Start Operation] --> EXEC[Execute Attempt]
+    EXEC --> CHECK{Success?}
+
+    CHECK -->|Yes| SUCCESS[Return Result]
+    CHECK -->|No| RETRY_CHECK{Attempts<br/>< max_retries?}
+
+    RETRY_CHECK -->|Yes| CALC[Calculate<br/>Backoff Delay]
+    CALC --> SLEEP[Sleep with Jitter]
+    SLEEP --> EXEC
+
+    RETRY_CHECK -->|No| DLQ[Move to DLQ<br/>with Error Context]
+    DLQ --> FAIL[Return RetryResult<br/>success=False<br/>moved_to_dlq=True]
+
+    style SUCCESS fill:#76B900,color:#fff
+    style DLQ fill:#E74856,color:#fff
+    style FAIL fill:#E74856,color:#fff
 ```
 
 ## Error Context Enrichment

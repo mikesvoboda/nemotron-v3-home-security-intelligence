@@ -19,38 +19,45 @@ The new DI pattern:
 
 ## Service Architecture
 
-```
-                    +-------------------+
-                    |    Container      |
-                    | (DI Container)    |
-                    +-------------------+
-                            |
-                            | registers
-                            v
-                    +-------------------+
-                    | HealthService     |
-                    |    Registry       |
-                    +-------------------+
-                            |
-            +---------------+---------------+
-            |               |               |
-            v               v               v
-    +------------+  +------------+  +------------+
-    | GPUMonitor |  | Cleanup    |  | Pipeline   |
-    |            |  | Service    |  | Manager    |
-    +------------+  +------------+  +------------+
-            |               |               |
-            v               v               v
-    +------------+  +------------+  +------------+
-    | File       |  | System     |  | Batch      |
-    | Watcher    |  | Broadcaster|  | Aggregator |
-    +------------+  +------------+  +------------+
-            |               |               |
-            v               v               v
-    +------------+  +------------+  +------------+
-    | Degradation|  | Health     |  | Performance|
-    | Manager    |  | Monitor    |  | Collector  |
-    +------------+  +------------+  +------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph DI["DI Container"]
+        Container[Container]
+    end
+
+    subgraph Registry["Service Registry"]
+        HSR[HealthServiceRegistry]
+    end
+
+    subgraph Layer1["Core Services"]
+        GPU[GPUMonitor]
+        Cleanup[CleanupService]
+        Pipeline[PipelineManager]
+    end
+
+    subgraph Layer2["Supporting Services"]
+        FW[FileWatcher]
+        SB[SystemBroadcaster]
+        BA[BatchAggregator]
+    end
+
+    subgraph Layer3["Monitoring Services"]
+        DM[DegradationManager]
+        HM[HealthMonitor]
+        PC[PerformanceCollector]
+    end
+
+    Container -->|registers| HSR
+    HSR --> GPU
+    HSR --> Cleanup
+    HSR --> Pipeline
+    GPU --> FW
+    Cleanup --> SB
+    Pipeline --> BA
+    FW --> DM
+    SB --> HM
+    BA --> PC
 ```
 
 ## Service Initialization Order

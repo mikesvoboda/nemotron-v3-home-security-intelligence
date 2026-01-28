@@ -14,7 +14,7 @@
 | ----------------------- | ------------------------------- | --------- | ---- | ----------- | ------------------- |
 | Nemotron-3-Nano-30B-A3B | Risk reasoning (production)     | ~14.7 GB  | 8091 | llama.cpp   | 131,072 tokens      |
 | Nemotron Mini 4B        | Risk reasoning (development)    | ~3 GB     | 8091 | llama.cpp   | 4,096 tokens        |
-| YOLO26m                 | Object detection                | ~0.1 GB   | 8090 | Ultralytics | -                   |
+| YOLO26m                 | Object detection                | ~0.1 GB   | 8095 | Ultralytics | -                   |
 | Florence-2-Large        | Dense captioning, OCR           | ~1.2 GB   | 8092 | HuggingFace | -                   |
 | CLIP ViT-L              | Entity re-ID, anomaly detection | ~0.8 GB   | 8093 | HuggingFace | 768-dim embedding   |
 | FashionCLIP             | Clothing classification         | ~0.8 GB   | 8094 | OpenCLIP    | Zero-shot           |

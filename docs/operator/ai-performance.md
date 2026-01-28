@@ -76,7 +76,7 @@ For high-throughput scenarios (multiple cameras):
 
 ```bash
 # Send multiple images per request
-curl -X POST http://localhost:8090/detect/batch \
+curl -X POST http://localhost:8095/detect/batch \
   -F "images=@image1.jpg" \
   -F "images=@image2.jpg" \
   -F "images=@image3.jpg"

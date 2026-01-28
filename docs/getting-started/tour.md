@@ -14,7 +14,7 @@ The product tour automatically starts the first time you visit the dashboard. It
 
 The tour starts automatically for first-time users. If you want to restart it later:
 
-1. Open the **Settings** page (press `g ,` or click Settings in the sidebar)
+1. Open the **Settings** page (press `g s` or click Settings in the sidebar)
 2. The tour can be restarted by clearing your browser's localStorage for the site
 3. You can also restart by opening the browser console and running:
    ```javascript
@@ -209,12 +209,12 @@ After setup, here is what each part of the dashboard shows:
 | ----------- | ----------------- | --------------------------------- |
 | Dashboard   | `g d`             | Main overview with risk gauge     |
 | Timeline    | `g t`             | Historical event browser          |
-| Analytics   | `g a`             | Charts and statistics             |
-| Alerts      | `g l`             | Active alerts requiring attention |
+| Analytics   | `g n`             | Charts and statistics             |
+| Alerts      | `g a`             | Active alerts requiring attention |
 | Entities    | `g e`             | Tracked people and vehicles       |
 | Logs        | `g o`             | System logs for troubleshooting   |
-| System      | `g s`             | System health monitoring          |
-| Settings    | `g ,`             | Configuration options             |
+| System      | `g y`             | System health monitoring          |
+| Settings    | `g s`             | Configuration options             |
 
 ### Quick Stats Row
 
@@ -247,12 +247,12 @@ Learn these shortcuts to navigate faster. Press `?` anywhere to see the full lis
 | ----- | ----------- |
 | `g d` | Dashboard   |
 | `g t` | Timeline    |
-| `g a` | Analytics   |
-| `g l` | Alerts      |
+| `g n` | Analytics   |
+| `g a` | Alerts      |
 | `g e` | Entities    |
 | `g o` | Logs        |
-| `g s` | System      |
-| `g ,` | Settings    |
+| `g y` | System      |
+| `g s` | Settings    |
 
 ### List Navigation (when viewing event lists)
 

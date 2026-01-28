@@ -7,7 +7,7 @@
 #   AI_MODELS_PATH=./models ./ai/download_models.sh  # Use custom path
 #
 # Models downloaded (~42GB total):
-#   - Nemotron-3-Nano-30B (Q4_K_M) - ~18GB - Risk reasoning LLM
+#   - Nemotron-3-Nano-30B (Q4_K_M) - ~14.7GB - Risk reasoning LLM
 #   - YOLO26v2 - Auto-downloaded by HuggingFace on first run
 #   - Florence-2-Large - ~3GB - Vision-language captions
 #   - CLIP-ViT-L - ~1.7GB - Entity re-identification
@@ -65,7 +65,7 @@ echo ""
 # Checksums here are primarily for direct file downloads (wget/curl).
 
 declare -A MODEL_CHECKSUMS=(
-    # Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf (~18GB)
+    # Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf (~14.7GB)
     # From: https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF
     # Verified from known-good download on 2026-01-18
     ["Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"]="0e7f6e51fdd9039928749d07eed9e846dbfd97681646544c5406bcdd788e5940"  # pragma: allowlist secret
@@ -407,7 +407,7 @@ else
             echo "[OK] Nemotron model linked"
         fi
     else
-        echo "[DOWNLOAD] Nemotron-3-Nano-30B-A3B (Q4_K_M) - ~18GB"
+        echo "[DOWNLOAD] Nemotron-3-Nano-30B-A3B (Q4_K_M) - ~14.7GB"
         echo "           This may take 10-30 minutes depending on connection speed"
         echo "           URL: $NEMOTRON_URL"
         wget --progress=bar:force -O "$NEMOTRON_MODEL" "$NEMOTRON_URL" || {

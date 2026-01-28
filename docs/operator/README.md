@@ -62,11 +62,129 @@ curl http://localhost:8000/api/system/health/ready
 
 ```
 Camera uploads --> backend FileWatcher --> detection_queue
-  --> YOLO26 (8090) --> detections (DB)
+  --> YOLO26 (8095) --> detections (DB)
   --> batching + enrichment
   --> Nemotron (8091) --> events (DB)
   --> WebSocket dashboard
 ```
+
+### Deployment Architecture Diagram
+
+The following diagram shows the complete container topology, network connections, and data flows:
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph External["External Access"]
+        Browser["Browser<br/>:5173 / :8443"]
+        Camera["Foscam Cameras<br/>FTP Upload"]
+    end
+
+    subgraph Frontend["Frontend Layer"]
+        FE["frontend<br/>nginx :8080<br/>Ports: 5173, 8443"]
+    end
+
+    subgraph Backend["Backend Layer"]
+        BE["backend<br/>FastAPI :8000<br/>Port: 8000"]
+    end
+
+    subgraph AI["AI Services (GPU)"]
+        YOLO["ai-yolo26<br/>TensorRT :8095<br/>GPU: YOLO26"]
+        LLM["ai-llm<br/>Nemotron :8091<br/>GPU: LLM"]
+        FLOR["ai-florence<br/>Florence-2 :8092<br/>GPU: Florence"]
+        CLIP["ai-clip<br/>CLIP :8093<br/>GPU: CLIP"]
+        ENR["ai-enrichment<br/>Heavy Models :8094<br/>GPU: Enrichment"]
+        ENRL["ai-enrichment-light<br/>Light Models :8096<br/>GPU: CLIP"]
+    end
+
+    subgraph Data["Data Layer"]
+        PG[("postgres<br/>PostgreSQL :5432")]
+        RD[("redis<br/>Redis :6379")]
+        ES[("elasticsearch<br/>ES :9200")]
+    end
+
+    subgraph Monitoring["Monitoring Stack"]
+        PROM["prometheus<br/>:9090"]
+        GRAF["grafana<br/>:3002"]
+        JAEG["jaeger<br/>:16686"]
+        LOKI["loki<br/>:3100"]
+        PYRO["pyroscope<br/>:4040"]
+        ALLOY["alloy<br/>:12345"]
+        AM["alertmanager<br/>:9093"]
+        BB["blackbox-exporter<br/>:9115"]
+        RE["redis-exporter<br/>:9121"]
+        JE["json-exporter<br/>:7979"]
+    end
+
+    %% External connections
+    Browser --> FE
+    Camera --> BE
+
+    %% Frontend to Backend
+    FE -->|"HTTP/WS"| BE
+
+    %% Backend to Data
+    BE -->|"asyncpg"| PG
+    BE -->|"aioredis"| RD
+
+    %% Backend to AI Services
+    BE -->|"HTTP"| YOLO
+    BE -->|"HTTP"| LLM
+    BE -->|"HTTP"| FLOR
+    BE -->|"HTTP"| CLIP
+    BE -->|"HTTP"| ENR
+    BE -->|"HTTP"| ENRL
+
+    %% Monitoring connections
+    PROM --> BE
+    PROM --> YOLO
+    PROM --> LLM
+    PROM --> RE
+    PROM --> JE
+    PROM --> BB
+    PROM --> AM
+    GRAF --> PROM
+    GRAF --> LOKI
+    GRAF --> JAEG
+    GRAF --> PYRO
+    JAEG --> ES
+    ALLOY --> LOKI
+    ALLOY --> PYRO
+    BE -->|"OTLP"| ALLOY
+```
+
+**Network:** All services connect via the `security-net` bridge network for internal DNS resolution.
+
+**Volume Mounts:**
+
+| Service                    | Volume                            | Purpose                 |
+| -------------------------- | --------------------------------- | ----------------------- |
+| postgres                   | `postgres_data`                   | Database persistence    |
+| redis                      | `redis_data`                      | Cache persistence       |
+| elasticsearch              | `elasticsearch_data`              | Trace storage           |
+| prometheus                 | `prometheus_data`                 | Metrics storage         |
+| grafana                    | `grafana_data`                    | Dashboard persistence   |
+| loki                       | `loki_data`                       | Log storage             |
+| pyroscope                  | `pyroscope_data`                  | Profile storage         |
+| alertmanager               | `alertmanager_data`               | Alert state             |
+| frontend                   | `frontend_certs`                  | SSL certificates        |
+| ai-clip                    | `clip-tensorrt-cache`             | TensorRT engine cache   |
+| ai-enrichment-light        | `enrichment-light-tensorrt-cache` | TensorRT engine cache   |
+| ai-florence, ai-enrichment | `hf_cache`                        | HuggingFace model cache |
+| backend                    | `/cameras` (bind mount)           | Camera FTP directory    |
+| backend                    | `/models/model-zoo` (bind)        | AI model files          |
 
 ### Ports Reference
 
@@ -75,7 +193,7 @@ Camera uploads --> backend FileWatcher --> detection_queue
 | Frontend   | 80   | Web dashboard (production)            |
 | Frontend   | 5173 | Web dashboard (development)           |
 | Backend    | 8000 | REST API + WebSocket                  |
-| YOLO26     | 8090 | Object detection service              |
+| YOLO26     | 8095 | Object detection service              |
 | Nemotron   | 8091 | LLM risk analysis service             |
 | Florence-2 | 8092 | Vision extraction (optional)          |
 | CLIP       | 8093 | Re-identification (optional)          |
@@ -114,7 +232,7 @@ curl http://localhost:8000/api/system/health
 curl http://localhost:8000/api/system/health/full
 
 # AI services
-curl http://localhost:8090/health   # YOLO26
+curl http://localhost:8095/health   # YOLO26
 curl http://localhost:8091/health   # Nemotron
 
 # Database

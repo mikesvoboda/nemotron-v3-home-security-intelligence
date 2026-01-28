@@ -177,5 +177,5 @@ All list endpoints use a standardized response envelope:
 ## Related Documentation
 
 - [Architecture Overview](../overview.md) - System architecture and design
-- [Data Models](../data-models/) - Database schema documentation
-- [Background Services](../background-services/) - Worker and service documentation
+- [Data Model](../data-model/README.md) - Database schema documentation
+- [Background Services](../background-services/README.md) - Worker and service documentation

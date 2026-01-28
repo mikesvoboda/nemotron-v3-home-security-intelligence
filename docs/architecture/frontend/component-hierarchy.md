@@ -4,11 +4,11 @@
 
 ## Key Files
 
-- `frontend/src/App.tsx:24-95` - Lazy-loaded page component definitions
-- `frontend/src/components/layout/Layout.tsx:25-127` - Main layout component
-- `frontend/src/components/layout/Sidebar.tsx:10-100` - Navigation sidebar
-- `frontend/src/components/layout/Header.tsx:1-80` - Application header
-- `frontend/src/components/dashboard/DashboardPage.tsx:61-507` - Main dashboard
+- `frontend/src/App.tsx:29-111` - Lazy-loaded page component definitions
+- `frontend/src/components/layout/Layout.tsx:1-140` - Main layout component
+- `frontend/src/components/layout/Sidebar.tsx:1-321` - Navigation sidebar
+- `frontend/src/components/layout/Header.tsx:1-386` - Application header
+- `frontend/src/components/dashboard/DashboardPage.tsx:1-533` - Main dashboard
 
 ## Overview
 
@@ -73,12 +73,12 @@ graph TB
 
 ## Layout Component
 
-The `Layout` component (`frontend/src/components/layout/Layout.tsx:25-127`) provides the main application structure:
+The `Layout` component (`frontend/src/components/layout/Layout.tsx:34-140`) provides the main application structure:
 
 ### Props Interface
 
 ```typescript
-// frontend/src/components/layout/Layout.tsx:21-23
+// frontend/src/components/layout/Layout.tsx:30-32
 interface LayoutProps {
   children: ReactNode;
 }
@@ -113,16 +113,16 @@ The Layout component provides two React contexts:
 
 ## Page Components
 
-Page components are lazy-loaded for code splitting (`frontend/src/App.tsx:24-95`):
+Page components are lazy-loaded for code splitting (`frontend/src/App.tsx:29-111`):
 
 ### Lazy Loading Pattern
 
 ```typescript
-// frontend/src/App.tsx:27-28
+// frontend/src/App.tsx:32-34
 // Dashboard is loaded eagerly since it's the landing page
 const DashboardPage = lazy(() => import('./components/dashboard/DashboardPage'));
 
-// frontend/src/App.tsx:33-35
+// frontend/src/App.tsx:39-42
 // Module re-export pattern for barrel exports
 const AnalyticsPage = lazy(() =>
   import('./components/analytics').then((module) => ({ default: module.AnalyticsPage }))
@@ -170,7 +170,7 @@ function PageComponent() {
 
 ![Dashboard Layout Wireframe](../../images/architecture/dashboard-wireframe.png)
 
-The `DashboardPage` (`frontend/src/components/dashboard/DashboardPage.tsx:61-507`) is the main entry point:
+The `DashboardPage` (`frontend/src/components/dashboard/DashboardPage.tsx:55-504`) is the main entry point:
 
 ### Component Composition
 
@@ -221,7 +221,7 @@ graph TB
 The `DashboardLayout` uses render props for widget customization:
 
 ```typescript
-// frontend/src/components/dashboard/DashboardPage.tsx:409-476
+// frontend/src/components/dashboard/DashboardPage.tsx:365-501
 <DashboardLayout
   widgetProps={{
     statsRow: { /* props */ },
@@ -236,7 +236,7 @@ The `DashboardLayout` uses render props for widget customization:
 
 ## Sidebar Navigation
 
-The `Sidebar` component (`frontend/src/components/layout/Sidebar.tsx:1-100`) provides hierarchical navigation:
+The `Sidebar` component (`frontend/src/components/layout/Sidebar.tsx:1-321`) provides hierarchical navigation:
 
 ### Navigation Groups
 
@@ -262,16 +262,17 @@ export const navGroups: NavGroup[] = [
 Sidebar expansion state is persisted to localStorage:
 
 ```typescript
-// frontend/src/components/layout/Sidebar.tsx:10-29
-const STORAGE_KEY = 'sidebar_expansion_state';
-
+// frontend/src/components/layout/Sidebar.tsx:14-24
 function loadExpansionState(): Record<string, boolean> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : {};
+    if (stored) {
+      return JSON.parse(stored) as Record<string, boolean>;
+    }
   } catch {
-    return {};
+    // Ignore parse errors
   }
+  return {};
 }
 ```
 
@@ -314,19 +315,17 @@ Shared components in `frontend/src/components/common/`:
 Components use `FeatureErrorBoundary` for graceful degradation:
 
 ```typescript
-// frontend/src/components/dashboard/DashboardPage.tsx:487-505
+// frontend/src/components/dashboard/DashboardPage.tsx:513-531
 function DashboardPageWithErrorBoundary() {
   return (
     <FeatureErrorBoundary
       feature="Dashboard"
       fallback={
-        <div className="flex min-h-screen flex-col items-center justify-center">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#121212] p-8">
           <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
-          <h3 className="mb-2 text-lg font-semibold text-red-400">
-            Dashboard Unavailable
-          </h3>
-          <p className="text-sm text-gray-400">
-            Unable to load the security dashboard.
+          <h3 className="mb-2 text-lg font-semibold text-red-400">Dashboard Unavailable</h3>
+          <p className="max-w-md text-center text-sm text-gray-400">
+            Unable to load the security dashboard. Please refresh the page or try again later.
           </p>
         </div>
       }
@@ -401,7 +400,7 @@ Components adapt to mobile viewports:
 - Sidebar transforms to overlay on mobile
 
 ```typescript
-// frontend/src/components/layout/Layout.tsx:76-86
+// frontend/src/components/layout/Layout.tsx:88-99
 {/* Hide sidebar on mobile, show MobileBottomNav instead */}
 {!isMobile && <Sidebar />}
 
@@ -410,6 +409,8 @@ Components adapt to mobile viewports:
   <div
     className="fixed inset-0 z-30 bg-black/50 md:hidden"
     onClick={() => setMobileMenuOpen(false)}
+    aria-hidden="true"
+    data-testid="mobile-overlay"
   />
 )}
 ```

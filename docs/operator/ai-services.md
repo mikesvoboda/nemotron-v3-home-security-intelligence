@@ -11,7 +11,7 @@
 
 > [!IMPORTANT]
 > This doc covers **host-run AI** (useful for development) and **containerized AI** (recommended for production).
-> In production, `docker-compose.prod.yml` defines _all_ AI services (8090–8094).
+> In production, `docker-compose.prod.yml` defines _all_ AI services (8091–8096).
 >
 > For “which URL should I use?” (container DNS vs host vs remote), start with: [Deployment Modes & AI Networking](deployment-modes.md).
 
@@ -41,7 +41,7 @@ Starting AI Services
 
 [INFO] Starting YOLO26 detection server...
 [OK] YOLO26 detection server started successfully
-  Port: 8090
+  Port: 8095
   PID: 12345
   Log: /tmp/yolo26-detector.log
   Expected VRAM: ~4GB
