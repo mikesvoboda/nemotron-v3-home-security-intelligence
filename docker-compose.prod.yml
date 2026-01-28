@@ -1185,9 +1185,11 @@ services:
   # Provides detailed container-level resource usage metrics
   # Access UI at http://localhost:8088
   cadvisor:
+    # cAdvisor requires privileged mode to access container metrics from /sys and cgroups
+    # This is a documented requirement: https://github.com/google/cadvisor#quick-start-running-cadvisor-in-a-docker-container
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
-    privileged: true
+    privileged: true # nosemgrep: yaml.docker-compose.security.privileged-service.privileged-service
     devices:
       - /dev/kmsg:/dev/kmsg
     volumes:
