@@ -249,6 +249,24 @@ scrape_configs:
       - target_label: ai_model
         replacement: 'nemotron-3-nano-30b'
 
+  # ==========================================================================
+  # Node Exporter - Host System Metrics (NEM-3931)
+  # ==========================================================================
+  # Collects hardware and OS metrics from the host system including:
+  # - CPU usage, load averages, context switches
+  # - Memory usage, buffers, cache
+  # - Disk I/O, filesystem usage
+  # - Network interface statistics
+  # - System uptime, boot time
+  - job_name: 'node-exporter'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'node-exporter:9100'
+        labels:
+          service: node
+          instance_type: host
+
   # Redis metrics via redis_exporter
   - job_name: 'redis'
     scrape_interval: 15s
@@ -408,6 +426,28 @@ scrape_configs:
         regex: 'http://([^:]+):.*'
         target_label: ai_service
         replacement: '${1}'
+
+  # =============================================================================
+  # cAdvisor - Container Resource Metrics (NEM-3930)
+  # =============================================================================
+  # Container-level CPU, memory, network, and filesystem metrics
+  # Key metrics:
+  # - container_cpu_usage_seconds_total: CPU usage by container
+  # - container_memory_usage_bytes: Memory usage by container
+  # - container_network_receive_bytes_total: Network receive bytes
+  # - container_network_transmit_bytes_total: Network transmit bytes
+  # - container_fs_usage_bytes: Filesystem usage
+  - job_name: 'cadvisor'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'cadvisor:8080'
+    # Filter to only include containers from this compose project
+    # and add helpful labels
+    relabel_configs:
+      - target_label: source
+        replacement: 'cadvisor'
 
   # TCP connectivity probes - database and cache connections
   - job_name: 'blackbox-tcp'

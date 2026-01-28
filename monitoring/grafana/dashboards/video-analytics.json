@@ -428,6 +428,415 @@
       },
       "id": 8,
       "panels": [],
+      "title": "Re-ID & Cross-Camera Tracking",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Percentage of successful re-identification matches across camera views",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 70
+              },
+              {
+                "color": "#73BF69",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 14
+      },
+      "id": 31,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "hsi_reid_matches_total / hsi_reid_attempts_total * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Re-ID Match Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Time to match entities across cameras (P50, P95, P99 latency)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Latency",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 14
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": ["mean"],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.50, hsi_reid_match_duration_seconds_bucket)",
+          "legendFormat": "P50",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, hsi_reid_match_duration_seconds_bucket)",
+          "legendFormat": "P95",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, hsi_reid_match_duration_seconds_bucket)",
+          "legendFormat": "P99",
+          "refId": "C"
+        }
+      ],
+      "title": "Re-ID Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Number of currently active tracked entities across all cameras",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#8AB8FF",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#8AB8FF",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 12,
+        "y": 14
+      },
+      "id": 33,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "hsi_active_tracks_count",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Tracks",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Successful camera-to-camera handoffs per minute",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Handoffs/min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 14
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(hsi_cross_camera_handoffs_total[5m]) * 60",
+          "legendFormat": "Handoffs",
+          "refId": "A"
+        }
+      ],
+      "title": "Cross-Camera Handoffs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Average lifetime of tracked entities",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#73BF69",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 14
+      },
+      "id": 35,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg(hsi_track_duration_seconds)",
+          "refId": "A"
+        }
+      ],
+      "title": "Track Duration",
+      "type": "stat"
+    },
+    {
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 36,
+      "options": {
+        "mode": "markdown",
+        "content": "### Re-ID & Cross-Camera Tracking\n\nPerson re-identification (Re-ID) enables tracking individuals across multiple camera views using visual appearance features.\n\n**Key Metrics:**\n- **Re-ID Match Rate**: Percentage of successful matches. >85% is excellent, 70-85% is acceptable, <70% indicates issues.\n- **Re-ID Latency**: Time to compute matches. P95 should stay under 500ms for real-time tracking.\n- **Cross-Camera Handoffs**: Successful transitions when a person moves between camera views.\n\n**When matches fail:**\n- Significant lighting changes between cameras\n- Partial occlusions or different viewing angles\n- Clothing changes or similar-looking individuals"
+      },
+      "title": "Documentation",
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 37,
+      "panels": [],
       "title": "Zone Monitoring",
       "type": "row"
     },
@@ -460,7 +869,7 @@
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 14
+        "y": 25
       },
       "id": 9,
       "options": {
@@ -518,7 +927,7 @@
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 14
+        "y": 25
       },
       "id": 10,
       "options": {
@@ -576,7 +985,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 14
+        "y": 25
       },
       "id": 11,
       "options": {
@@ -664,7 +1073,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 29
       },
       "id": 12,
       "options": {
@@ -753,7 +1162,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 29
       },
       "id": 13,
       "options": {
@@ -784,12 +1193,27 @@
       "type": "timeseries"
     },
     {
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "id": 38,
+      "options": {
+        "mode": "markdown",
+        "content": "### Zone Monitoring\n\nZones define areas of interest within camera views for targeted monitoring and event detection.\n\n**Key Metrics:**\n- **Zone Entries/Exits**: Counts when entities cross zone boundaries (directional line crossing).\n- **Zone Intrusions**: Unauthorized entries into restricted zones.\n- **Dwell Time**: How long entities stay within a zone.\n\n**Configuration:**\n- Zones are configured per camera via the Settings page\n- Set dwell time thresholds to trigger loitering alerts\n- Line crossing can detect direction (enter/exit)\n\n**Best Practices:**\n- Keep zones non-overlapping for accurate counting\n- Use separate zones for high-traffic vs restricted areas"
+      },
+      "title": "Documentation",
+      "type": "text"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 41
       },
       "id": 14,
       "panels": [],
@@ -825,7 +1249,7 @@
         "h": 4,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 42
       },
       "id": 15,
       "options": {
@@ -884,7 +1308,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 42
       },
       "id": 16,
       "options": {
@@ -972,7 +1396,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 46
       },
       "id": 17,
       "options": {
@@ -1008,7 +1432,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 54
       },
       "id": 18,
       "panels": [],
@@ -1044,7 +1468,7 @@
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 40
+        "y": 55
       },
       "id": 19,
       "options": {
@@ -1113,7 +1537,7 @@
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 40
+        "y": 55
       },
       "id": 20,
       "options": {
@@ -1179,7 +1603,7 @@
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 40
+        "y": 55
       },
       "id": 21,
       "options": {
@@ -1234,7 +1658,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 59
       },
       "id": 22,
       "options": {
@@ -1330,7 +1754,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 59
       },
       "id": 23,
       "options": {
@@ -1361,12 +1785,27 @@
       "type": "timeseries"
     },
     {
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "id": 39,
+      "options": {
+        "mode": "markdown",
+        "content": "### Action Recognition\n\nAI-powered detection of specific human actions and behaviors in video feeds.\n\n**Supported Actions:**\n- **Loitering**: Person staying in one area longer than threshold\n- **Falls**: Sudden vertical movement indicating a fall event\n- **Aggression**: Fighting or aggressive physical behavior\n- **Running**: Rapid movement that may indicate urgency\n\n**Confidence Interpretation:**\n- >80%: High confidence, likely accurate detection\n- 60-80%: Moderate confidence, review recommended\n- <60%: Low confidence, may be false positive\n\n**Reducing False Positives:**\n- Adjust minimum confidence thresholds per action type\n- Configure excluded zones where certain actions are normal"
+      },
+      "title": "Documentation",
+      "type": "text"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 71
       },
       "id": 24,
       "panels": [],
@@ -1402,7 +1841,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 53
+        "y": 72
       },
       "id": 25,
       "options": {
@@ -1460,7 +1899,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 53
+        "y": 72
       },
       "id": 26,
       "options": {
@@ -1518,7 +1957,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 53
+        "y": 72
       },
       "id": 27,
       "options": {
@@ -1587,7 +2026,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 53
+        "y": 72
       },
       "id": 28,
       "options": {
@@ -1675,7 +2114,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 76
       },
       "id": 29,
       "options": {
@@ -1766,7 +2205,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 76
       },
       "id": 30,
       "options": {
