@@ -25,10 +25,15 @@ services:
     image: redis:7-alpine
     # Security: Read-only root filesystem with tmpfs for temp files
     read_only: true
+    # Redis tuning for connection handling
+    sysctls:
+      - net.core.somaxconn=511
     tmpfs:
       - /tmp
     ports:
       - '6380:6379'
+    # Disable persistence failures blocking writes in tests (ephemeral environment)
+    command: redis-server --stop-writes-on-bgsave-error no
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
