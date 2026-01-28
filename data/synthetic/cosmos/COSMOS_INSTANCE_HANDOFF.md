@@ -10,21 +10,21 @@
 
 ### What Was Generated
 
-| Metric             | Count        |
-| ------------------ | ------------ |
-| Total video files  | 496          |
-| Unique videos      | 207          |
+| Metric | Count |
+|--------|-------|
+| Total video files | 496 |
+| Unique videos | 207 |
 | Duration per video | ~5.8 seconds |
-| Resolution         | 1280x704     |
-| Frame rate         | 16 fps       |
+| Resolution | 1280x704 |
+| Frame rate | 16 fps |
 
 ### What Was NOT Generated (Due to Pipeline Bug)
 
-| Missing                  | Expected   | Actual                      |
-| ------------------------ | ---------- | --------------------------- |
-| 10-second variants       | 240 frames | 93 frames (duplicate of 5s) |
-| 30-second variants       | 720 frames | 93 frames (duplicate of 5s) |
-| Autoregressive sequences | 6×5s clips | Not implemented             |
+| Missing | Expected | Actual |
+|---------|----------|--------|
+| 10-second variants | 240 frames | 93 frames (duplicate of 5s) |
+| 30-second variants | 720 frames | 93 frames (duplicate of 5s) |
+| Autoregressive sequences | 6×5s clips | Not implemented |
 
 ### Quality Assessment
 
@@ -270,27 +270,26 @@ git push origin main
 
 ## Hardware Requirements
 
-| GPU  | VRAM  | Generation Time (per 5s video) |
-| ---- | ----- | ------------------------------ |
-| B300 | 267GB | ~45 seconds                    |
-| H200 | 141GB | ~60 seconds                    |
-| H100 | 80GB  | ~90 seconds                    |
+| GPU | VRAM | Generation Time (per 5s video) |
+|-----|------|-------------------------------|
+| B300 | 267GB | ~45 seconds |
+| H200 | 141GB | ~60 seconds |
+| H100 | 80GB | ~90 seconds |
 
 ### For 30-Second Videos (Autoregressive)
 
 Multiply by 6x for autoregressive generation:
-
 - B300: ~4.5 minutes per 30s video
 - H200: ~6 minutes per 30s video
 
 ### Total Time Estimates
 
-| Task                  | Video Count | Time (8×B300) |
-| --------------------- | ----------- | ------------- |
-| Regenerate all 5s     | 167         | ~16 minutes   |
-| Generate all 10s      | 167         | ~16 minutes   |
-| Generate all 30s      | 167         | ~1.5 hours    |
-| **Full regeneration** | **501**     | **~2 hours**  |
+| Task | Video Count | Time (8×B300) |
+|------|-------------|---------------|
+| Regenerate all 5s | 167 | ~16 minutes |
+| Generate all 10s | 167 | ~16 minutes |
+| Generate all 30s | 167 | ~1.5 hours |
+| **Full regeneration** | **501** | **~2 hours** |
 
 ---
 
