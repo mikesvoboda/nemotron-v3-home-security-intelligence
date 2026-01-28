@@ -16,11 +16,13 @@ GRAFANA_UPSTREAM="${GRAFANA_INTERNAL_URL:-http://grafana:3000}"
 
 if [ -n "$RESOLVER" ]; then
     echo "Configuring nginx with DNS resolver: $RESOLVER"
-    sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" "$NGINX_CONF"
 else
     echo "Warning: Could not determine DNS resolver, using default"
-    sed -i "s/__DNS_RESOLVER__/127.0.0.11/g" "$NGINX_CONF"
+    RESOLVER="127.0.0.11"
 fi
+
+# Replace DNS resolver placeholder in main config
+sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" "$NGINX_CONF"
 
 # =============================================================================
 # HTTP Location Blocks (for non-SSL mode)
@@ -336,6 +338,8 @@ if [ "${SSL_ENABLED:-false}" = "true" ]; then
         # Replace HTTP locations with HTTPS redirect
         # Using a temp file approach for multiline replacement
         printf '%s' "$HTTPS_REDIRECT" > /tmp/https_redirect.conf
+        # Replace DNS resolver placeholder in the injected content
+        sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" /tmp/https_redirect.conf
         sed -i "/__HTTP_LOCATIONS__/r /tmp/https_redirect.conf" "$NGINX_CONF"
         sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
         rm -f /tmp/https_redirect.conf
@@ -521,6 +525,8 @@ server {
 
         # Use HTTP locations (no redirect)
         printf '%s' "$HTTP_LOCATIONS" > /tmp/http_locations.conf
+        # Replace DNS resolver placeholder in the injected content
+        sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" /tmp/http_locations.conf
         sed -i "/__HTTP_LOCATIONS__/r /tmp/http_locations.conf" "$NGINX_CONF"
         sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
         rm -f /tmp/http_locations.conf
@@ -532,6 +538,8 @@ else
 
     # Use HTTP locations (no redirect)
     printf '%s' "$HTTP_LOCATIONS" > /tmp/http_locations.conf
+    # Replace DNS resolver placeholder in the injected content
+    sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" /tmp/http_locations.conf
     sed -i "/__HTTP_LOCATIONS__/r /tmp/http_locations.conf" "$NGINX_CONF"
     sed -i "/__HTTP_LOCATIONS__/d" "$NGINX_CONF"
     rm -f /tmp/http_locations.conf
