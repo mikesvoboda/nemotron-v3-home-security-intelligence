@@ -5883,7 +5883,9 @@ class TestFormatThreatDetectionContext:
 
         # Should be sorted by confidence (gun, bat, knife)
         lines = result.split("\n")
-        threat_lines = [l for l in lines if "%" in l and "Highest confidence" not in l]
+        threat_lines = [
+            letter for letter in lines if "%" in letter and "Highest confidence" not in letter
+        ]
         assert "gun (90%)" in threat_lines[0]
         assert "bat (75%)" in threat_lines[1]
         assert "knife (60%)" in threat_lines[2]
@@ -5913,7 +5915,7 @@ class TestFormatThreatDetectionContext:
         result = format_threat_detection_context(MockThreatResult(threats=threats))
 
         # Count individual threat entries (excluding header and summary lines)
-        threat_entries = [l for l in result.split("\n") if "weapon_" in l]
+        threat_entries = [letter for letter in result.split("\n") if "weapon_" in letter]
         assert len(threat_entries) == 5  # Only top 5
 
 
@@ -6280,7 +6282,7 @@ class TestFormatPersonDemographicsContext:
         result = format_person_demographics_context(age_classifications, gender_classifications)
 
         lines = result.split("\n")
-        person_lines = [l for l in lines if l.strip().startswith("Person det_")]
+        person_lines = [letter for letter in lines if letter.strip().startswith("Person det_")]
         # Should be sorted: det_018, det_020
         assert "det_018" in person_lines[0]
         assert "det_020" in person_lines[1]
