@@ -331,6 +331,8 @@ services:
 
   # Heavy enrichment service for large transformer models (GPU 0)
   # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
+  # WARNING: This service uses ~6GB VRAM and MUST run on GPU 0.
+  # Do NOT assign to GPU 1 (A400, 4GB) - will cause OOM errors (NEM-3900)
   ai-enrichment:
     tmpfs:
       - /tmp
@@ -379,9 +381,11 @@ services:
       resources:
         reservations:
           devices:
-            # GPU assignment from .env (GPU_ENRICHMENT, defaults to 1)
+            # GPU assignment from .env (GPU_ENRICHMENT, defaults to 0)
+            # Heavy enrichment (~6GB models) must be on GPU 0 (A5500)
+            # Do NOT default to 1 - A400 (4GB) cannot hold these models (NEM-3900)
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT:-1}']
+              device_ids: ['${GPU_ENRICHMENT:-0}']
               capabilities: [gpu]
 
   backend:
