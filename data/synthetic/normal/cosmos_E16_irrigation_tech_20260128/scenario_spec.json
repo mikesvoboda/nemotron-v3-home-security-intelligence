@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_E16_irrigation_tech",
+  "category": "normal",
+  "name": "Irrigation Tech",
+  "description": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Two well-dressed people carrying pamphlets and a book walk up together, ring doorbell, wait patiently, then leave literature at the door and walk to next house. Religious outreach. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Two well-dressed people carrying pamphlets and a book walk up together, ring doorbell, wait patiently, then leave literature at the door and walk to next house. Religious outreach. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

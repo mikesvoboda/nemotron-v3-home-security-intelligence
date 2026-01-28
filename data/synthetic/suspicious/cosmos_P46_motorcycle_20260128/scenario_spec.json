@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P46_motorcycle",
+  "category": "suspicious",
+  "name": "Motorcycle",
+  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A motorcycle with helmeted rider. Motorcycle pulls into driveway, rider dismounts, removes helmet revealing face. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality footage with sharp details. Real-time speed",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A motorcycle with helmeted rider. Motorcycle pulls into driveway, rider dismounts, removes helmet revealing face. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality footage with sharp details. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

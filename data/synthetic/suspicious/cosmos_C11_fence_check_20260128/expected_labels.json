@@ -1,0 +1,41 @@
+{
+  "source": "cosmos",
+  "video_id": "C11",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "approaching",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "risk": {
+    "min_score": 26,
+    "max_score": 60,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch at night in rain, viewed from an elevated vantage point near the door. A person approaches holding a large umbrella that completely hides their face and upper body from the e..."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T31_tracking_21",
+  "category": "threats",
+  "name": "Tracking 21",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Pure infrared night vision rendering - everything in grayscale. Person approaching door, illuminated by invisible IR light. Static elevated viewpoint, grayscale IR footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Pure infrared night vision rendering - everything in grayscale. Person approaching door, illuminated by invisible IR light. Static elevated viewpoint, grayscale IR footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

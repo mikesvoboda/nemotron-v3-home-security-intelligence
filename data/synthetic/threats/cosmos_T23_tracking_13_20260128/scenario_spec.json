@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T23_tracking_13",
+  "category": "threats",
+  "name": "Tracking 13",
+  "description": "Suburban home driveway at midday, viewed from an elevated position on the garage. Different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

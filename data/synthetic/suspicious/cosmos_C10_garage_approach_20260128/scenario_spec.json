@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C10_garage_approach",
+  "category": "suspicious",
+  "name": "Garage Approach",
+  "description": "Suburban home driveway at sunrise, viewed from an elevated position on the garage. Light rapidly changing from dark to bright as sun rises, auto-exposure struggling to adjust, person walking through the scene as lighting shifts dramatically. Dawn transition. Static elevated viewpoint, warm changing light. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "dawn",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at sunrise, viewed from an elevated position on the garage. Light rapidly changing from dark to bright as sun rises, auto-exposure struggling to adjust, person walking through the scene as lighting shifts dramatically. Dawn transition. Static elevated viewpoint, warm changing light. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

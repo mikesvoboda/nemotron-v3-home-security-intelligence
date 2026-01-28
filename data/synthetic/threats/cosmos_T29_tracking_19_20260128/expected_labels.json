@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "T29",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "running",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "backyard",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. St..."
+  }
+}

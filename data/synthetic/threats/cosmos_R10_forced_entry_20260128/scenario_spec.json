@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_R10_forced_entry",
+  "category": "threats",
+  "name": "Forced Entry",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple teenagers run past throwing eggs at the house, eggs splattering on door and windows, teens laughing and running away. Vandalism in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple teenagers run past throwing eggs at the house, eggs splattering on door and windows, teens laughing and running away. Vandalism in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

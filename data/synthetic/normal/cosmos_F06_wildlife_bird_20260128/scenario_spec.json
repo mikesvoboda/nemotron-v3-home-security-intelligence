@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_F06_wildlife_bird",
+  "category": "normal",
+  "name": "Wildlife Bird",
+  "description": "Suburban home driveway on overcast day, viewed from an elevated position on the garage. A plastic shopping bag blows across the driveway in gusts of wind, tumbling and rolling erratically. Inanimate object wind movement. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway on overcast day, viewed from an elevated position on the garage. A plastic shopping bag blows across the driveway in gusts of wind, tumbling and rolling erratically. Inanimate object wind movement. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "E08",
+  "category": "normal",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "backyard",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 25,
+    "level": "low"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. A landscaper in work clothes pushes a lawn mower across the grass, making neat rows. Work truck visible at edge o..."
+  }
+}

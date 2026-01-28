@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C05_night_loiter",
+  "category": "suspicious",
+  "name": "Night Loiter",
+  "description": "Suburban home driveway on very windy day, viewed from an elevated position on the garage. A person walks toward the house leaning into strong wind gusts, clothes and hair blowing wildly, struggling to maintain balance. Unusual body posture from wind. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway on very windy day, viewed from an elevated position on the garage. A person walks toward the house leaning into strong wind gusts, clothes and hair blowing wildly, struggling to maintain balance. Unusual body posture from wind. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

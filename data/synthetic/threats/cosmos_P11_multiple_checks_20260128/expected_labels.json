@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "P11",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
+  }
+}

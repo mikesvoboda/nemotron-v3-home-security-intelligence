@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P09_forced_entry",
+  "category": "threats",
+  "name": "Forced Entry",
+  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark clothing with face covered by ski mask, face fully concealed, wearing gloves, crouched posture, moving stealthily. They aggressively try the door handle and shake it hard. Quick forceful movements, rattling the handle aggressively, pushing against door. Static downward-angled viewpoint, wide-ang",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark clothing with face covered by ski mask, face fully concealed, wearing gloves, crouched posture, moving stealthily. They aggressively try the door handle and shake it hard. Quick forceful movements, rattling the handle aggressively, pushing against door. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

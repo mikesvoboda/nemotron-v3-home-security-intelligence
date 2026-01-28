@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_R09_lock_picking",
+  "category": "threats",
+  "name": "Lock Picking",
+  "description": "Suburban home driveway at night, viewed from an elevated position on the garage. A person runs up to the mailbox at the end of the driveway and smashes it with a bat or kicks it over, then runs away. Mailbox vandalism. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. A person runs up to the mailbox at the end of the driveway and smashes it with a bat or kicks it over, then runs away. Mailbox vandalism. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

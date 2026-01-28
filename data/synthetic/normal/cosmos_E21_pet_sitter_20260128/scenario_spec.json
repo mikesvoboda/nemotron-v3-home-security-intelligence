@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_E21_pet_sitter",
+  "category": "normal",
+  "name": "Pet Sitter",
+  "description": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A real estate agent in professional attire walks up with a couple, opens lockbox on door, unlocks door, and gestures for clients to enter. Property showing. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A real estate agent in professional attire walks up with a couple, opens lockbox on door, unlocks door, and gestures for clients to enter. Property showing. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

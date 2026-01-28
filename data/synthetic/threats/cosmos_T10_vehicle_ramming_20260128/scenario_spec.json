@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T10_vehicle_ramming",
+  "category": "threats",
+  "name": "Vehicle Ramming",
+  "description": "Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. Static viewpoint, night footage with headlights. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. Static viewpoint, night footage with headlights. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

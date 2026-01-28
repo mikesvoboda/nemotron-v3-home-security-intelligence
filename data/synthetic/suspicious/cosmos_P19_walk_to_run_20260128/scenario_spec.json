@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P19_walk_to_run",
+  "category": "suspicious",
+  "name": "Walk To Run",
+  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They start walking normally then suddenly break into a run toward the house. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distorti",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "dusk",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They start walking normally then suddenly break into a run toward the house. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Transitional lighting quality, warm tones, automatic exposure adjusting. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

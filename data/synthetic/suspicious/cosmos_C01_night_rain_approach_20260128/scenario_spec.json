@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C01_night_rain_approach",
+  "category": "suspicious",
+  "name": "Night Rain Approach",
+  "description": "Suburban home front porch at night during heavy rain, viewed from an elevated vantage point near the door. A person in rain jacket approaches through the downpour, rain streaking across the view, water droplets on lens, reduced visibility. Static elevated viewpoint, IR-tinted footage with rain effects. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night during heavy rain, viewed from an elevated vantage point near the door. A person in rain jacket approaches through the downpour, rain streaking across the view, water droplets on lens, reduced visibility. Static elevated viewpoint, IR-tinted footage with rain effects. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

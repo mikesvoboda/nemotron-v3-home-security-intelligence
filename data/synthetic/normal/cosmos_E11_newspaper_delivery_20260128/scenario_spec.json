@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_E11_newspaper_delivery",
+  "category": "normal",
+  "name": "Newspaper Delivery",
+  "description": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A pest control technician in uniform with a spray tank walks along the house foundation, spraying treatment at the base of walls. Scheduled pest service. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "side_yard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A pest control technician in uniform with a spray tank walks along the house foundation, spraying treatment at the base of walls. Scheduled pest service. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

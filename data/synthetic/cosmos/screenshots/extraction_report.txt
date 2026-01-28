@@ -1,0 +1,24 @@
+Screenshot Extraction Report
+============================
+Generated: Wed Jan 28 11:35:14 AM EST 2026
+
+Summary
+-------
+Total videos processed: 496
+Successful: 496
+Failed: 0
+Total screenshots created: 1488
+
+Extraction Parameters
+--------------------
+- Frame 1: 0.5 seconds from start
+- Frame 2: Middle of video duration
+- Frame 3: 0.5 seconds before end
+- Quality: -q:v 2 (high quality JPEG)
+- Parallel jobs: 8
+
+Source Directory: data/synthetic/cosmos/videos/
+Output Directory: data/synthetic/cosmos/screenshots/
+Naming Format: {video_name}_frame{1,2,3}.jpg
+
+No failures recorded.

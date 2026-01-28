@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "P42",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 26,
+    "max_score": 60,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "source": "cosmos",
+  "video_id": "T37",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "unknown",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple light sources: porch light, car headlights, streetlamp all creating overlapping shadows. Complex light..."
+  }
+}
