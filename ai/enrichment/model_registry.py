@@ -179,7 +179,7 @@ def load_threat_detector(model_path: str, device: str = "cuda:0") -> Any:
 
 def load_demographics(
     age_model_path: str,
-    gender_model_path: str | None = None,  # noqa: ARG001 - Reserved for future gender-specific model
+    _gender_model_path: str | None = None,
     device: str = "cuda:0",
 ) -> tuple[Any, Any]:
     """Load age and gender classification models.
@@ -188,8 +188,8 @@ def load_demographics(
 
     Args:
         age_model_path: Path to the age classifier model.
-        gender_model_path: Path to the gender classifier model (reserved for future use).
-                          Currently not used as age model handles both.
+        _gender_model_path: Path to the gender classifier model (reserved for future use).
+                           Currently not used as age model handles both.
         device: CUDA device string for model placement.
 
     Returns:
@@ -197,7 +197,7 @@ def load_demographics(
 
     Note:
         Requires transformers package with vision support.
-        gender_model_path is reserved for future use when separate models are needed.
+        _gender_model_path is reserved for future use when separate models are needed.
     """
     try:
         from transformers import AutoImageProcessor, AutoModelForImageClassification

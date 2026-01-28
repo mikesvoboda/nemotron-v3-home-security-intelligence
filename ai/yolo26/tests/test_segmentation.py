@@ -23,8 +23,8 @@ if str(_yolo26_dir) not in sys.path:
 
 # Import test dependencies
 # Import module to test (after path setup)
-import model as model_module  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import model as model_module
+from fastapi.testclient import TestClient
 
 MODEL_MODULE_PATH = "model"
 

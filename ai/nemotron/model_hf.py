@@ -55,19 +55,19 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from flash_attention_config import (  # noqa: E402
+from flash_attention_config import (
     FlashAttentionSettings,
     get_attention_implementation,
     is_flash_attention_available,
     log_attention_info,
 )
-from quantization_config import (  # noqa: E402
+from quantization_config import (
     QuantizationSettings,
     get_memory_estimate,
     get_quantization_config,
     log_memory_info,
 )
-from torch_optimizations import compile_model, is_compile_supported  # noqa: E402
+from torch_optimizations import compile_model, is_compile_supported
 
 # Configure logging
 logging.basicConfig(
@@ -498,7 +498,7 @@ def get_vram_usage() -> float | None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Lifespan context manager for FastAPI app."""
-    global model  # noqa: PLW0603
+    global model
 
     # Startup
     logger.info("Starting Nemotron HuggingFace Server...")
@@ -729,6 +729,6 @@ async def chat_completions(request: ChatCompletionRequest) -> ChatCompletionResp
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8091"))
     uvicorn.run(app, host=host, port=port, log_level="info")

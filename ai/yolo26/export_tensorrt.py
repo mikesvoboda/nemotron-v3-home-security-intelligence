@@ -424,7 +424,7 @@ def validate_accuracy(
     return metrics
 
 
-def main() -> int:  # noqa: PLR0911
+def main() -> int:  # noqa: PLR0911 - CLI with multiple exit paths for different operations
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         description="Export YOLO26m to TensorRT engine with INT8 or FP16 precision",

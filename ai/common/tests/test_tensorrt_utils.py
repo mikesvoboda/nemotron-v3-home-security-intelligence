@@ -35,7 +35,7 @@ class TestIsTensorRTAvailable:
 
             def mock_available() -> bool:
                 try:
-                    import tensorrt  # noqa: F401
+                    import tensorrt
 
                     return True
                 except (ImportError, TypeError):

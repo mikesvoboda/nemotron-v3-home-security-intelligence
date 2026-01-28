@@ -71,7 +71,7 @@ def is_tensorrt_available() -> bool:
         True if TensorRT can be used.
     """
     try:
-        import tensorrt  # noqa: F401
+        import tensorrt
 
         return torch.cuda.is_available()
     except ImportError:
@@ -491,10 +491,10 @@ def validate_tensorrt_output(
     similarities = []
 
     for i in range(num_samples):
-        # Create random test image
-        r = random.randint  # noqa: S311(0, 255)
-        g = random.randint  # noqa: S311(0, 255)
-        b = random.randint  # noqa: S311(0, 255)
+        # Create random test image (non-security: random colors for testing)
+        r = random.randint(0, 255)  # noqa: S311 # nosemgrep: insecure-random
+        g = random.randint(0, 255)  # noqa: S311 # nosemgrep: insecure-random
+        b = random.randint(0, 255)  # noqa: S311 # nosemgrep: insecure-random
         test_image = Image.new("RGB", CLIP_INPUT_SIZE, color=(r, g, b))
 
         # Get PyTorch embedding

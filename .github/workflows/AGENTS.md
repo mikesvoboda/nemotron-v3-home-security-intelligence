@@ -79,7 +79,7 @@ workflows/
 
 **Environment:**
 
-- Python 3.14
+- Python 3.11
 - Node.js 20
 - PostgreSQL 16 (service container)
 - Redis 7 (service container for integration tests)
@@ -649,7 +649,7 @@ Backend Changes
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    python-version: '3.14'
+    python-version: '3.11'
     cache: 'pip'
     cache-dependency-path: pyproject.toml
 ```
