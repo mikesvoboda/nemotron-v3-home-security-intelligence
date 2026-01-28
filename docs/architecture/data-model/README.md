@@ -189,6 +189,48 @@ Events support PostgreSQL full-text search via `search_vector` TSVECTOR column:
 | `logs`       | Application logs        | `id` (int)  | `backend/models/log.py`       |
 | `jobs`       | Background job tracking | `id` (str)  | `backend/models/job.py`       |
 
+### Zone Intelligence Tables
+
+| Table                     | Purpose                                | Primary Key | Source                                    |
+| ------------------------- | -------------------------------------- | ----------- | ----------------------------------------- |
+| `zone_activity_baselines` | Zone activity patterns and statistics  | `id` (uuid) | `backend/models/zone_baseline.py`         |
+| `zone_anomalies`          | Detected zone activity anomalies       | `id` (str)  | `backend/models/zone_anomaly.py`          |
+| `zone_household_configs`  | Zone-household linkage and permissions | `id` (int)  | `backend/models/zone_household_config.py` |
+
+### Tracking Tables
+
+| Table                | Purpose                           | Primary Key | Source                         |
+| -------------------- | --------------------------------- | ----------- | ------------------------------ |
+| `tracks`             | Object movement trajectories      | `id` (int)  | `backend/models/track.py`      |
+| `entities`           | Unique persons/objects for re-ID  | `id` (uuid) | `backend/models/entity.py`     |
+| `dwell_time_records` | Object presence duration in zones | `id` (int)  | `backend/models/dwell_time.py` |
+
+### Face Recognition Tables
+
+| Table                   | Purpose                        | Primary Key | Source                            |
+| ----------------------- | ------------------------------ | ----------- | --------------------------------- |
+| `known_persons`         | Registered persons for face ID | `id` (int)  | `backend/models/face_identity.py` |
+| `face_embeddings`       | ArcFace embeddings per person  | `id` (int)  | `backend/models/face_identity.py` |
+| `face_detection_events` | Face detection event records   | `id` (int)  | `backend/models/face_identity.py` |
+
+### Action Recognition Tables
+
+| Table           | Purpose                           | Primary Key | Source                           |
+| --------------- | --------------------------------- | ----------- | -------------------------------- |
+| `action_events` | X-CLIP action recognition results | `id` (int)  | `backend/models/action_event.py` |
+
+### Visualization Tables
+
+| Table          | Purpose                      | Primary Key | Source                      |
+| -------------- | ---------------------------- | ----------- | --------------------------- |
+| `heatmap_data` | Aggregated activity heatmaps | `id` (int)  | `backend/models/heatmap.py` |
+
+### Configuration Tables
+
+| Table             | Purpose                    | Primary Key | Source                             |
+| ----------------- | -------------------------- | ----------- | ---------------------------------- |
+| `prompt_versions` | AI prompt version tracking | `id` (int)  | `backend/models/prompt_version.py` |
+
 ## Related Documentation
 
 - [Database Configuration](../../../backend/core/database.py) - Connection pooling, async setup

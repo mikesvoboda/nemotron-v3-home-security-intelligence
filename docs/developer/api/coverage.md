@@ -82,14 +82,18 @@ Interactive documentation is available at runtime:
 
 ### Alerts & Alert Rules
 
-| Endpoint                | Method | Consumer(s)                              | Purpose            |
-| ----------------------- | ------ | ---------------------------------------- | ------------------ |
-| `/api/alerts`           | GET    | `useAlerts.ts`                           | List active alerts |
-| `/api/alerts/{id}`      | DELETE | `AlertCenter.tsx`                        | Dismiss alert      |
-| `/api/alert-rules`      | GET    | `useAlertRules.ts`, `AlertRulesList.tsx` | List alert rules   |
-| `/api/alert-rules`      | POST   | `AlertRuleEditor.tsx`                    | Create alert rule  |
-| `/api/alert-rules/{id}` | PUT    | `AlertRuleEditor.tsx`                    | Update alert rule  |
-| `/api/alert-rules/{id}` | DELETE | `AlertRulesList.tsx`                     | Delete alert rule  |
+| Endpoint                       | Method | Consumer(s)                              | Purpose                             |
+| ------------------------------ | ------ | ---------------------------------------- | ----------------------------------- |
+| `/api/alerts`                  | GET    | `useAlerts.ts`                           | List active alerts                  |
+| `/api/alerts/{id}`             | DELETE | `AlertCenter.tsx`                        | Dismiss alert                       |
+| `/api/alerts/{id}/acknowledge` | POST   | `AlertCenter.tsx`                        | Acknowledge an alert                |
+| `/api/alerts/{id}/dismiss`     | POST   | `AlertCenter.tsx`                        | Dismiss an alert                    |
+| `/api/alerts/rules`            | GET    | `useAlertRules.ts`, `AlertRulesList.tsx` | List alert rules                    |
+| `/api/alerts/rules`            | POST   | `AlertRuleEditor.tsx`                    | Create alert rule                   |
+| `/api/alerts/rules/{id}`       | GET    | `AlertRuleDetail.tsx`                    | Get single alert rule               |
+| `/api/alerts/rules/{id}`       | PUT    | `AlertRuleEditor.tsx`                    | Update alert rule                   |
+| `/api/alerts/rules/{id}`       | DELETE | `AlertRulesList.tsx`                     | Delete alert rule                   |
+| `/api/alerts/rules/{id}/test`  | POST   | `AlertRuleEditor.tsx`                    | Test rule against historical events |
 
 ### Zones
 
@@ -153,6 +157,23 @@ Interactive documentation is available at runtime:
 
 See `docs/WEBSOCKET_CONTRACTS.md` for detailed WebSocket message format specifications.
 
+### Dead Letter Queue (DLQ) Management
+
+| Endpoint                            | Method | Consumer(s)      | Purpose                                        |
+| ----------------------------------- | ------ | ---------------- | ---------------------------------------------- |
+| `/api/dlq/stats`                    | GET    | `DLQMonitor.tsx` | Get DLQ statistics (queue counts)              |
+| `/api/dlq/jobs/{queue_name}`        | GET    | `DLQViewer.tsx`  | List jobs in a specific DLQ with context       |
+| `/api/dlq/requeue/{queue_name}`     | POST   | `DLQViewer.tsx`  | Requeue oldest job from DLQ (requires API key) |
+| `/api/dlq/requeue-all/{queue_name}` | POST   | `DLQViewer.tsx`  | Requeue all jobs from DLQ (requires API key)   |
+| `/api/dlq/{queue_name}`             | DELETE | `DLQViewer.tsx`  | Clear all jobs from a DLQ (requires API key)   |
+
+**Queue Names:**
+
+- `dlq:detection` - Failed detection processing jobs
+- `dlq:analysis` - Failed analysis processing jobs
+
+**Authentication:** Destructive operations (requeue, clear) require API key via `X-API-Key` header or `api_key` query parameter when `api_key_enabled` is true.
+
 ## Missing Implementations
 
 Endpoints defined in backend but not yet consumed by frontend (intentional or future work):
@@ -160,16 +181,15 @@ Endpoints defined in backend but not yet consumed by frontend (intentional or fu
 | Endpoint                         | Reason                       | Priority               |
 | -------------------------------- | ---------------------------- | ---------------------- |
 | `/api/prompt-management/{model}` | Admin-only prompt management | Low - Future phase     |
-| `/api/dlq/stats`                 | Dead letter queue monitoring | Medium - Operational   |
 | `/api/entities`                  | Entity relationship tracking | Low - Advanced feature |
 
 ## Coverage Reports
 
 ### Latest Validation
 
-- **Total Endpoints:** 142
-- **Documented Categories:** 19
-- **Last Updated:** 2026-01-09
+- **Total Endpoints:** 151
+- **Documented Categories:** 20
+- **Last Updated:** 2026-01-28
 - **CI Status:** Passing
 
 Run locally:
@@ -257,4 +277,4 @@ When adding a new API endpoint:
 ---
 
 **Maintained by:** Deployment Engineering Team
-**Last Updated:** 2026-01-08
+**Last Updated:** 2026-01-28

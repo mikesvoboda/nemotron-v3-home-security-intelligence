@@ -1,0 +1,138 @@
+# [Directory Name] - Agent Guide
+
+## Purpose
+
+[One or two sentences describing what this directory contains and its role in the project.]
+
+## Directory Structure
+
+```
+directory-name/
+├── file1.py          # [Brief description]
+├── file2.ts          # [Brief description]
+├── subdirectory/     # [Brief description]
+│   ├── subfile1.py   # [Brief description]
+│   └── subfile2.py   # [Brief description]
+└── another-dir/      # [Brief description]
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `main_file.py` | [Primary entry point or main functionality] |
+| `config.py` | [Configuration and settings] |
+| `utils.py` | [Utility functions] |
+
+## Entry Points
+
+### [Primary Entry Point Name]
+
+**File:** `path/to/entry.py`
+
+[Description of when/how this entry point is used.]
+
+```bash
+# Example command to run/use this entry point
+python -m module.name
+```
+
+### [Secondary Entry Point Name]
+
+**File:** `path/to/other_entry.py`
+
+[Description of when/how this entry point is used.]
+
+## Patterns
+
+### [Pattern Name 1]
+
+[Description of a coding pattern, architectural pattern, or convention used in this directory.]
+
+```python
+# Example code demonstrating the pattern
+def example_pattern():
+    pass
+```
+
+### [Pattern Name 2]
+
+[Description of another pattern used in this directory.]
+
+## Dependencies
+
+### Internal Dependencies
+
+- `../other_module/` - [What this directory depends on from other parts of the codebase]
+- `../shared/` - [Shared utilities or models]
+
+### External Dependencies
+
+- `library_name` - [Purpose of this external dependency]
+- `another_lib` - [Purpose]
+
+## Testing
+
+```bash
+# Run tests for this directory
+uv run pytest path/to/tests/ -v
+
+# Run specific test file
+uv run pytest path/to/tests/test_file.py -v
+```
+
+## Common Tasks
+
+### [Task Name 1]
+
+[Description of a common task and how to accomplish it.]
+
+```bash
+# Command or steps to accomplish the task
+```
+
+### [Task Name 2]
+
+[Description of another common task.]
+
+## Related Documentation
+
+- [Link to Related Doc](../docs/related.md) - [Brief description]
+- [Another Related Doc](../docs/another.md) - [Brief description]
+
+---
+
+## Template Instructions (DELETE THIS SECTION)
+
+When creating a new AGENTS.md file:
+
+1. **Replace all bracketed placeholders** with actual content
+2. **Delete sections that don't apply** to your directory
+3. **Add sections as needed** for your specific use case
+4. **Keep it concise** - AGENTS.md files are for AI agents to quickly understand a directory
+5. **Update the directory tree** to reflect actual file structure
+6. **Include real examples** from the codebase when showing patterns
+
+### Required Sections
+
+At minimum, include:
+- Purpose
+- Key Files (or Directory Structure)
+- Entry Points (if applicable)
+
+### Optional Sections
+
+Include if relevant:
+- Patterns
+- Dependencies
+- Testing
+- Common Tasks
+- Related Documentation
+
+### Style Guidelines
+
+- Use tables for listing files with descriptions
+- Use code blocks for file trees and commands
+- Keep descriptions brief but informative
+- Link to related AGENTS.md files in subdirectories
+- Reference external documentation when appropriate

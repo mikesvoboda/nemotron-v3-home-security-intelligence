@@ -1,7 +1,11 @@
 # Decision: Python 3.14 Adoption
 
 **Date:** 2026-01-21
-**Status:** Decided
+**Status:** Implemented
+
+> **Implementation Status (Updated 2026-01-28):** Python 3.14 is now the primary runtime.
+> The `pyproject.toml` specifies `requires-python = ">=3.14"` and all tooling
+> (ruff, mypy) is configured for Python 3.14. Phase 1 is complete.
 
 ---
 
@@ -168,7 +172,7 @@ We can adopt incrementally:
 - [x] Create benchmark suite (`scripts/benchmark_py314.py`)
 - [x] Document features (`docs/development/python-3.14-features.md`)
 - [x] Create this ADR
-- [ ] Update `pyproject.toml` for Python 3.14 compatibility
+- [x] Update `pyproject.toml` for Python 3.14 compatibility
 
 ### Phase 2: Compatibility (Week 2)
 

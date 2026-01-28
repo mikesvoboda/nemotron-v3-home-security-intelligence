@@ -63,6 +63,7 @@ The system exposes multiple health endpoints for monitoring and orchestration.
 | GET    | `/health`                      | Liveness probe               |
 | GET    | `/ready`                       | Simple readiness probe       |
 | GET    | `/api/system/health`           | Detailed health check        |
+| GET    | `/api/system/health/live`      | Fast liveness probe (<10ms)  |
 | GET    | `/api/system/health/ready`     | Readiness probe with details |
 | GET    | `/api/system/health/full`      | Comprehensive health check   |
 | GET    | `/api/system/health/websocket` | WebSocket broadcaster health |
@@ -82,6 +83,25 @@ GET /health
 ```
 
 Always returns `200 OK` if the HTTP server is responding.
+
+### Fast Liveness Probe
+
+Ultra-fast liveness check for Kubernetes (responds in under 10ms):
+
+```bash
+GET /api/system/health/live
+```
+
+**Response:**
+
+```json
+{
+  "status": "alive",
+  "timestamp": "2025-12-23T10:30:00Z"
+}
+```
+
+This endpoint performs NO external checks - it immediately returns "alive" to indicate the process is running. Use this for Kubernetes liveness probes that need to detect hung processes quickly without waiting for dependency checks.
 
 ### Simple Readiness Probe
 

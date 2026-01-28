@@ -2,6 +2,50 @@
 
 This document describes the modern JavaScript and TypeScript patterns used in this codebase. These patterns promote type safety, explicit error handling, and clean functional composition.
 
+## Pattern Overview
+
+```mermaid
+flowchart TB
+    subgraph ErrorHandling["Error Handling Layer"]
+        direction LR
+        Result["Result Type<br/>Ok | Err"]
+        Match["Pattern Matching<br/>match()"]
+        Async["Async Conversion<br/>fromPromise()"]
+    end
+
+    subgraph RequestManagement["Request Management"]
+        direction LR
+        Abort["AbortController<br/>Cancellation"]
+        Timeout["Timeout Handling<br/>fetchWithTimeout()"]
+        Signal["Signal Combining<br/>anySignal()"]
+    end
+
+    subgraph DataFetching["Data Fetching Patterns"]
+        direction LR
+        Polling["usePolling Hook<br/>Interval refresh"]
+        AllSettled["Promise.allSettled<br/>Partial failures"]
+        Events["Typed EventEmitter<br/>WebSocket messages"]
+    end
+
+    subgraph Composition["Functional Composition"]
+        direction LR
+        Pipe["pipe()<br/>Left to right"]
+        Curry["curry()<br/>Partial application"]
+        Utils["debounce / throttle<br/>Rate limiting"]
+    end
+
+    ErrorHandling --> RequestManagement
+    RequestManagement --> DataFetching
+    DataFetching --> Composition
+
+    style ErrorHandling fill:#1e3a5f,stroke:#76B900,color:#fff
+    style RequestManagement fill:#2d4a3e,stroke:#76B900,color:#fff
+    style DataFetching fill:#4a3a2d,stroke:#76B900,color:#fff
+    style Composition fill:#1e3a5f,stroke:#76B900,color:#fff
+```
+
+_Frontend patterns are organized into four layers: error handling, request management, data fetching, and functional composition._
+
 ## Table of Contents
 
 - [Result Type for Error Handling](#result-type-for-error-handling)
@@ -582,6 +626,54 @@ always42(); // 42
 // identity - Return input unchanged
 identity(42); // 42
 ```
+
+---
+
+## Data Flow Visualization
+
+```mermaid
+flowchart LR
+    subgraph UserAction["User Action"]
+        Click["Click / Input"]
+    end
+
+    subgraph FetchLayer["Fetch Layer"]
+        direction TB
+        Controller["AbortController"]
+        Fetch["fetch() with signal"]
+        Timeout["Timeout check"]
+    end
+
+    subgraph ResultLayer["Result Handling"]
+        direction TB
+        FromPromise["fromPromise()"]
+        ResultType["Result&lt;T, E&gt;"]
+        Match2["match() or isOk()"]
+    end
+
+    subgraph StateLayer["State Update"]
+        direction TB
+        SetState["setState()"]
+        Render["Re-render"]
+    end
+
+    Click --> Controller
+    Controller --> Fetch
+    Fetch --> Timeout
+    Timeout --> FromPromise
+    FromPromise --> ResultType
+    ResultType --> Match2
+    Match2 -->|"Success"| SetState
+    Match2 -->|"Error"| ErrorUI["Error UI"]
+    SetState --> Render
+
+    style UserAction fill:#1e3a5f,stroke:#76B900,color:#fff
+    style FetchLayer fill:#2d4a3e,stroke:#76B900,color:#fff
+    style ResultLayer fill:#4a3a2d,stroke:#76B900,color:#fff
+    style StateLayer fill:#1e3a5f,stroke:#76B900,color:#fff
+```
+
+_Data flows from user action through fetch with cancellation, Result type handling, and finally state update._
 
 ---
 

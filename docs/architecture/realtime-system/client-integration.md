@@ -81,74 +81,57 @@ const { isConnected, send, lastMessage } = useWebSocket({
 
 ### useEventStream
 
-Specialized hook for the `/ws/events` channel with event-specific handling.
+Specialized hook for the `/ws/events` channel with built-in event deduplication and sequence validation.
 
 ```typescript
 // frontend/src/hooks/useEventStream.ts
-export function useEventStream({
-  onEvent,
-  onAlert,
-  onCameraStatus,
-  onSceneChange,
-  onDetection,
-  enabled = true,
-}: UseEventStreamOptions): UseEventStreamResult;
+export function useEventStream(): UseEventStreamReturn;
 ```
 
-**Options**:
-
-| Option           | Type     | Description             |
-| ---------------- | -------- | ----------------------- |
-| `onEvent`        | function | Security event callback |
-| `onAlert`        | function | Alert event callback    |
-| `onCameraStatus` | function | Camera status callback  |
-| `onSceneChange`  | function | Scene change callback   |
-| `onDetection`    | function | Detection callback      |
-| `enabled`        | boolean  | Enable/disable stream   |
-
-**Message Routing**:
+**Return Value**:
 
 ```typescript
-// Automatically routes messages by type
-switch (message.type) {
-  case 'event':
-    onEvent?.(message.data);
-    break;
-  case 'alert_created':
-  case 'alert_acknowledged':
-  case 'alert_dismissed':
-    onAlert?.(message.data, message.type);
-    break;
-  case 'camera_status':
-    onCameraStatus?.(message.data);
-    break;
-  case 'scene_change':
-    onSceneChange?.(message.data);
-    break;
-  case 'detection.new':
-  case 'detection.batch':
-    onDetection?.(message.data, message.type);
-    break;
+interface UseEventStreamReturn {
+  events: SecurityEvent[]; // Array of received events (max 100, newest first)
+  isConnected: boolean; // WebSocket connection status
+  latestEvent: SecurityEvent | null; // Most recent event
+  clearEvents: () => void; // Clear all events and reset state
+  sequenceStats: SequenceStatistics; // Sequence validation metrics (NEM-1999)
 }
 ```
+
+**Features**:
+
+| Feature                 | Description                                             |
+| ----------------------- | ------------------------------------------------------- |
+| **Deduplication**       | LRU cache prevents duplicate events (max 10,000 IDs)    |
+| **Sequence Validation** | Detects gaps and requests resync from server (NEM-1999) |
+| **Memory Bounded**      | Keeps only last 100 events, evicts old IDs from cache   |
+| **Auto-reconnect**      | Built-in via underlying useWebSocket                    |
 
 **Usage Example**:
 
 ```typescript
-const { connectionState, lastEventTime } = useEventStream({
-  onEvent: (event) => {
-    setEvents((prev) => [event, ...prev]);
-  },
-  onAlert: (alert, type) => {
-    if (type === 'alert_created') {
-      showNotification(alert);
-    }
-  },
-  onCameraStatus: (status) => {
-    updateCameraStatus(status.camera_id, status.status);
-  },
-});
+function EventList() {
+  const { events, isConnected, latestEvent, clearEvents, sequenceStats } = useEventStream();
+
+  return (
+    <div>
+      <p>Connected: {isConnected ? 'Yes' : 'No'}</p>
+      <p>Events: {events.length}</p>
+      <p>Duplicates blocked: {sequenceStats.duplicateCount}</p>
+      <button onClick={clearEvents}>Clear</button>
+      <ul>
+        {events.map(event => (
+          <li key={event.event_id ?? event.id}>{event.summary}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 ```
+
+**Note**: This hook does not accept callback options. For custom message handling or routing by message type, use the lower-level `useWebSocket` hook directly.
 
 ## WebSocketManager
 
@@ -196,6 +179,8 @@ unsubscribe(); // Removes subscriber, closes connection if last
 
 ## Reconnection Flow
 
+### Basic Reconnection Sequence
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -230,6 +215,111 @@ sequenceDiagram
         Manager-->>Client: connectionState = 'failed'
     end
 ```
+
+### Detailed Reconnection Flow with Backoff and State Resync
+
+The following diagram shows the complete reconnection flow including disconnect detection mechanisms, exponential backoff calculation, and full state resynchronization.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as WebSocketManager
+    participant S as Server
+    participant EB as EventBroadcaster
+
+    Note over C,EB: Active Connection State
+    C->>M: Receiving events (seq: 40, 41, 42...)
+    M->>M: Track lastSequence = 42
+
+    Note over C,EB: Disconnect Detection
+    alt Server-initiated close
+        S--xM: WebSocket close event
+        M->>M: onClose triggered
+    else Network failure
+        M->>M: Heartbeat timeout (no pong)
+        M->>M: Mark connection dead
+    else Ping timeout
+        S->>M: {"type": "ping", "lastSeq": 45}
+        M--xS: No response (network issue)
+        M->>M: Socket error detected
+    end
+
+    M->>M: Set connectionState = 'disconnected'
+    M-->>C: onClose callback
+    M->>M: Store disconnectedAt timestamp
+
+    Note over C,EB: Exponential Backoff Loop
+    rect rgb(255, 245, 230)
+        M->>M: attempt = 0
+        loop Until connected OR attempt >= maxReconnectAttempts
+            M->>M: Set connectionState = 'reconnecting'
+            M-->>C: Update UI (attempt X/Y)
+
+            M->>M: Calculate delay = 3000 * 2^attempt
+            Note right of M: attempt 0: 3s<br/>attempt 1: 6s<br/>attempt 2: 12s<br/>attempt 3: 24s<br/>attempt 4: 48s
+
+            M->>M: Wait delay milliseconds
+
+            M->>S: WebSocket upgrade request
+            alt Connection succeeds
+                S-->>M: Connection accepted
+                M->>M: Set connectionState = 'connected'
+                M->>M: Reset attempt = 0
+            else Connection fails
+                S--xM: Connection refused/timeout
+                M->>M: attempt++
+                M-->>C: Reconnect failed (attempt X/Y)
+            end
+        end
+    end
+
+    alt Connection established
+        Note over C,EB: State Resynchronization
+        M->>S: {"type": "resync", "data": {"channel": "events", "last_sequence": 42}}
+        S->>EB: get_messages_since(42, mark_as_replay=true)
+        EB-->>S: [msg 43, msg 44, msg 45] with replay=true
+
+        loop For each missed message
+            S-->>M: {"type": "event", "seq": 43, "replay": true, "data": {...}}
+            M->>M: Process replayed message
+            M->>M: Update lastSequence
+        end
+
+        S-->>M: {"type": "resync_ack", "channel": "events", "last_sequence": 42}
+        M-->>C: onOpen callback
+        M-->>C: Deliver replayed events
+
+        Note over C,EB: Resume Normal Operation
+        S-->>M: {"type": "event", "seq": 46, "data": {...}}
+        M-->>C: New event (seq: 46)
+
+    else All attempts exhausted
+        M->>M: Set connectionState = 'failed'
+        M-->>C: Connection failed permanently
+        Note right of C: UI shows "Connection Failed"<br/>with manual retry button
+    end
+```
+
+### Reconnection Flow States
+
+| State          | Description                           | User Indication              |
+| -------------- | ------------------------------------- | ---------------------------- |
+| `connected`    | Active WebSocket connection           | Green status indicator       |
+| `disconnected` | Connection lost, not yet reconnecting | Brief transition state       |
+| `reconnecting` | Actively attempting to reconnect      | Yellow banner with attempt # |
+| `failed`       | All reconnect attempts exhausted      | Red banner with retry button |
+
+### Backoff Timing
+
+| Attempt | Delay    | Cumulative Time |
+| ------- | -------- | --------------- |
+| 0       | 3,000ms  | 3s              |
+| 1       | 6,000ms  | 9s              |
+| 2       | 12,000ms | 21s             |
+| 3       | 24,000ms | 45s             |
+| 4       | 48,000ms | 93s (~1.5 min)  |
+
+Total maximum reconnection time before failure: ~1.5 minutes
 
 ### Exponential Backoff
 
@@ -403,29 +493,17 @@ const { data: events } = useQuery({
 
 ```typescript
 function Dashboard() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
+  const { events, isConnected, latestEvent, clearEvents } = useEventStream();
 
-  const {
-    connectionState: wsState,
-    reconnectAttempts,
-    connect,
-  } = useEventStream({
-    onEvent: (event) => {
-      setEvents((prev) => [event, ...prev.slice(0, 99)]);
-    },
-    onAlert: (alert) => {
-      toast.warning(`New alert: ${alert.severity}`);
-    },
-  });
+  // Handle alerts separately via useAlertWebSocket or REST polling
+  const { alerts } = useAlerts();
 
   return (
     <div>
       <ConnectionStatusBanner
-        connectionState={wsState}
-        disconnectedSince={wsState !== 'connected' ? new Date() : null}
-        reconnectAttempts={reconnectAttempts}
-        onRetry={connect}
+        connectionState={isConnected ? 'connected' : 'disconnected'}
+        disconnectedSince={!isConnected ? new Date() : null}
+        onRetry={() => window.location.reload()}
       />
       <EventList events={events} />
     </div>

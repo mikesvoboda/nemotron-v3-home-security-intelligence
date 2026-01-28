@@ -6,16 +6,30 @@
 
 - `frontend/src/services/queryClient.ts:1-848` - TanStack Query configuration
 - `frontend/src/hooks/useLocalStorage.ts:1-45` - Local storage persistence
-- `frontend/src/stores/rate-limit-store.ts:1-80` - Zustand rate limit store
+- `frontend/src/stores/index.ts` - Centralized Zustand store exports
+- `frontend/src/stores/middleware.ts` - Zustand middleware utilities (Immer, DevTools)
 - `frontend/src/contexts/AnnouncementContext.tsx:1-60` - ARIA announcement context
+
+### Zustand Stores
+
+| Store                       | Purpose                                             |
+| --------------------------- | --------------------------------------------------- |
+| `rate-limit-store.ts`       | Rate limit info from API headers, auto-clear timers |
+| `settings-store.ts`         | User preferences (audio, notifications, favicon)    |
+| `dashboard-config-store.ts` | Dashboard widget visibility, order, theme settings  |
+| `prometheus-alert-store.ts` | Prometheus alert state for monitoring dashboard     |
+| `realtime-metrics-store.ts` | GPU metrics, pipeline metrics, inference metrics    |
+| `storage-status-store.ts`   | Storage usage warnings and status                   |
+| `worker-status-store.ts`    | AI pipeline worker health status                    |
 
 ## Overview
 
-The frontend separates state into three categories:
+The frontend separates state into four categories:
 
 1. **Server State**: Managed by TanStack Query (React Query) for API data with caching, background refetching, and optimistic updates
 2. **Client State**: React's useState/useReducer for UI state (modals, filters, form inputs)
-3. **Persistent State**: localStorage for user preferences with custom hooks
+3. **Global Client State**: Managed by Zustand stores for cross-component state (rate limits, settings, metrics)
+4. **Persistent State**: localStorage for user preferences via Zustand persist middleware or custom hooks
 
 This separation ensures predictable data flow and prevents common pitfalls like stale data, race conditions, and unnecessary re-renders.
 
@@ -329,26 +343,99 @@ export function useDateRangeState(options?: UseDateRangeStateOptions) {
 }
 ```
 
-## Context Patterns
+## Zustand Store Patterns
 
-### Rate Limit Store (Zustand)
+The project uses Zustand 5 with middleware for global client state. All stores follow consistent patterns:
+
+- **DevTools middleware** for debugging in development
+- **useShallow hooks** for selective subscriptions and re-render optimization
+- **Immer middleware** for immutable updates (where needed)
+- **Persist middleware** for localStorage persistence (settings, dashboard config)
+
+### Rate Limit Store
+
+Tracks API rate limit headers with auto-clear behavior:
 
 ```typescript
 // frontend/src/stores/rate-limit-store.ts
-interface RateLimitState {
-  info: RateLimitInfo | null;
-  isRateLimited: boolean;
-  update: (info: RateLimitInfo) => void;
-  clear: () => void;
-}
+export const useRateLimitStore = create<RateLimitState>()(
+  devtools(
+    (set, get) => ({
+      current: null,
+      isLimited: false,
+      secondsUntilReset: 0,
+      update: (info: RateLimitInfo) => {
+        // Auto-schedules clear when reset time passes
+        set({ current: info, isLimited: info.remaining === 0 });
+      },
+      clear: () => set({ current: null, isLimited: false }),
+    }),
+    { name: 'rate-limit-store', enabled: import.meta.env.DEV }
+  )
+);
 
-export const useRateLimitStore = create<RateLimitState>((set) => ({
-  info: null,
-  isRateLimited: false,
-  update: (info) => set({ info, isRateLimited: info.remaining === 0 }),
-  clear: () => set({ info: null, isRateLimited: false }),
-}));
+// Shallow hooks for selective subscriptions
+export function useRateLimitStatus() {
+  return useRateLimitStore(
+    useShallow((state) => ({
+      isLimited: state.isLimited,
+      secondsUntilReset: state.secondsUntilReset,
+    }))
+  );
+}
 ```
+
+### Real-time Metrics Store
+
+Receives WebSocket events for GPU and pipeline metrics:
+
+```typescript
+// frontend/src/stores/realtime-metrics-store.ts
+export const useRealtimeMetricsStore = create<RealtimeMetricsState>()(
+  devtools(
+    subscribeWithSelector((set) => ({
+      gpu: null,
+      pipeline: null,
+      inference: null,
+      // WebSocket event handlers update slices independently
+      updateGPU: (metrics) => set({ gpu: metrics }),
+      updatePipeline: (metrics) => set({ pipeline: metrics }),
+    })),
+    { name: 'realtime-metrics-store' }
+  )
+);
+```
+
+### Settings Store (with Persistence)
+
+User preferences persisted to localStorage:
+
+```typescript
+// frontend/src/stores/settings-store.ts
+export const useSettingsStore = create<SettingsStore>()(
+  devtools(
+    persist(
+      (set) => ({
+        ambient: { enabled: true, color: 'blue' },
+        audio: { enabled: false, volume: 0.5 },
+        // Actions
+        updateAmbient: (settings) =>
+          set((state) => ({
+            ambient: { ...state.ambient, ...settings },
+          })),
+      }),
+      {
+        name: SETTINGS_STORAGE_KEY,
+        version: SETTINGS_VERSION,
+        storage: createJSONStorage(() => localStorage),
+      }
+    ),
+    { name: 'settings-store' }
+  )
+);
+```
+
+## Context Patterns
 
 ### Announcement Context (ARIA)
 
@@ -378,22 +465,27 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
 
 ```mermaid
 flowchart TB
-    subgraph Server["Server State (React Query)"]
+    subgraph Server["Server State (TanStack Query)"]
         API[API Calls]
         Cache[Query Cache]
         BG[Background Refetch]
     end
 
-    subgraph Client["Client State"]
+    subgraph Client["Component State"]
         useState[useState]
         useReducer[useReducer]
         useMemo[Derived State]
     end
 
+    subgraph Global["Global Client State (Zustand)"]
+        ZS[Zustand Stores]
+        ZP[Persist Middleware]
+        WS[WebSocket Events]
+    end
+
     subgraph Persistent["Persistent State"]
         LS[localStorage]
         URL[URL SearchParams]
-        Zustand[Zustand Stores]
     end
 
     API --> Cache
@@ -403,16 +495,18 @@ flowchart TB
     useState --> useMemo
     useReducer --> useMemo
 
-    LS --> useState
+    ZP --> LS
+    WS --> ZS
+    LS --> ZS
     URL --> useState
-    Zustand --> useState
 
     Cache --> Components[React Components]
     useMemo --> Components
-    Zustand --> Components
+    ZS --> Components
 
     style Server fill:#c8e6c9
     style Client fill:#fff9c4
+    style Global fill:#e1bee7
     style Persistent fill:#ffcdd2
 ```
 

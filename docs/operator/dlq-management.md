@@ -30,28 +30,31 @@ Jobs move to the DLQ when they fail repeatedly. Common causes include:
 
 _Dead Letter Queue flow showing message lifecycle, retry mechanism, and manual review path._
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  File Watcher   │────▶│ detection_queue │────▶│    YOLO26      │
-└─────────────────┘     └─────────────────┘     │   Detector      │
-                                │               └─────────────────┘
-                                │ (after 3 failed retries)
-                                ▼
-                        ┌─────────────────┐
-                        │ dlq:detection_  │
-                        │ queue           │
-                        └─────────────────┘
+```mermaid
+flowchart TD
+    subgraph Detection["Detection Pipeline"]
+        FW[File Watcher] --> DQ[detection_queue]
+        DQ --> YOLO[YOLO26 Detector]
+        DQ -->|"3 failed retries"| DLQ_D[dlq:detection_queue]
+    end
 
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ Batch           │────▶│ analysis_queue  │────▶│   Nemotron      │
-│ Aggregator      │     └─────────────────┘     │     LLM         │
-└─────────────────┘             │               └─────────────────┘
-                                │ (after 3 failed retries)
-                                ▼
-                        ┌─────────────────┐
-                        │ dlq:analysis_   │
-                        │ queue           │
-                        └─────────────────┘
+    subgraph Analysis["Analysis Pipeline"]
+        BA[Batch Aggregator] --> AQ[analysis_queue]
+        AQ --> NEM[Nemotron LLM]
+        AQ -->|"3 failed retries"| DLQ_A[dlq:analysis_queue]
+    end
+
+    subgraph Recovery["Manual Recovery"]
+        DLQ_D --> REVIEW[Dashboard Review]
+        DLQ_A --> REVIEW
+        REVIEW -->|Requeue| DQ
+        REVIEW -->|Requeue| AQ
+        REVIEW -->|Clear| TRASH[Delete]
+    end
+
+    style DLQ_D fill:#EF4444,color:#fff
+    style DLQ_A fill:#EF4444,color:#fff
+    style REVIEW fill:#3B82F6,color:#fff
 ```
 
 ---
@@ -59,6 +62,26 @@ _Dead Letter Queue flow showing message lifecycle, retry mechanism, and manual r
 ## Retry Behavior
 
 Before a job reaches the DLQ, the system attempts processing with exponential backoff:
+
+```mermaid
+sequenceDiagram
+    participant Q as Queue
+    participant W as Worker
+    participant S as AI Service
+    participant D as DLQ
+
+    Q->>W: Dequeue job
+    W->>S: Process (attempt 1)
+    S-->>W: Error
+    Note over W: Wait 1s + jitter
+    W->>S: Process (attempt 2)
+    S-->>W: Error
+    Note over W: Wait 2s + jitter
+    W->>S: Process (attempt 3)
+    S-->>W: Error
+    W->>D: Move to DLQ
+    Note over D: Job awaits manual review
+```
 
 | Setting          | Default | Description                                |
 | ---------------- | ------- | ------------------------------------------ |
@@ -274,14 +297,16 @@ The DLQ has circuit breaker protection to prevent cascading failures when Redis 
 | OPEN      | DLQ writes skipped, jobs logged as DATA LOSS |
 | HALF_OPEN | Testing recovery, limited writes             |
 
-**Configuration:**
+**Configuration (environment variables):**
 
-| Variable                                  | Default | Description                   |
-| ----------------------------------------- | ------- | ----------------------------- |
-| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | Failures before circuit opens |
-| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60s     | Wait before testing recovery  |
-| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | Test calls in half-open state |
-| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | Successes needed to close     |
+| Variable                                  | Default | Range      | Description                                                            |
+| ----------------------------------------- | ------- | ---------- | ---------------------------------------------------------------------- |
+| `DLQ_CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | 1-50       | Number of DLQ write failures before opening circuit breaker            |
+| `DLQ_CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 60.0    | 10.0-600.0 | Seconds to wait before attempting DLQ writes again after circuit opens |
+| `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | 1-10       | Maximum test calls allowed when circuit is half-open                   |
+| `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | 1-10       | Successful DLQ writes needed to close circuit from half-open state     |
+
+These settings are defined in `backend/core/config.py` (lines 1596-1619) and can be overridden via environment variables.
 
 When the circuit is open, check logs for `CRITICAL DATA LOSS` entries.
 

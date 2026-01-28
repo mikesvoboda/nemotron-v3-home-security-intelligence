@@ -447,14 +447,14 @@ with (
 
 ## Configuration
 
-| Setting                           | Default                 | Description                |
-| --------------------------------- | ----------------------- | -------------------------- |
-| `nemotron_url`                    | `http://localhost:8081` | LLM server URL             |
-| `nemotron_max_retries`            | `3`                     | Max retry attempts         |
-| `nemotron_read_timeout`           | `120.0`                 | Response timeout (seconds) |
-| `ai_max_concurrent_inferences`    | `4`                     | Concurrent inference limit |
-| `ai_warmup_enabled`               | `true`                  | Enable model warmup        |
-| `ai_cold_start_threshold_seconds` | `300`                   | Cold model threshold       |
+| Setting                           | Default                                     | Description                |
+| --------------------------------- | ------------------------------------------- | -------------------------- |
+| `nemotron_url`                    | `http://localhost:8091/v1/chat/completions` | LLM server URL             |
+| `nemotron_max_retries`            | `3`                                         | Max retry attempts         |
+| `nemotron_read_timeout`           | `120.0`                                     | Response timeout (seconds) |
+| `ai_max_concurrent_inferences`    | `4`                                         | Concurrent inference limit |
+| `ai_warmup_enabled`               | `true`                                      | Enable model warmup        |
+| `ai_cold_start_threshold_seconds` | `300`                                       | Cold model threshold       |
 
 ## Related Documentation
 

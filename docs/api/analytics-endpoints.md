@@ -14,17 +14,18 @@ The Analytics API provides access to aggregated detection data, risk analysis, c
 
 All analytics endpoints accept these query parameters:
 
-| Parameter    | Type   | Required | Description                         |
-| ------------ | ------ | -------- | ----------------------------------- |
-| `start_date` | Date   | Yes      | Start date (ISO format: YYYY-MM-DD) |
-| `end_date`   | Date   | Yes      | End date (ISO format: YYYY-MM-DD)   |
-| `camera_id`  | String | No       | Filter by camera ID                 |
+| Parameter    | Type | Required | Description                         |
+| ------------ | ---- | -------- | ----------------------------------- |
+| `start_date` | Date | Yes      | Start date (ISO format: YYYY-MM-DD) |
+| `end_date`   | Date | Yes      | End date (ISO format: YYYY-MM-DD)   |
 
 **Date Validation:**
 
 - `start_date` must be before or equal to `end_date`
 - Maximum range: 365 days
 - Dates are inclusive
+
+**Note:** The `camera_id` filter parameter is planned for a future release but is not currently implemented. Analytics currently aggregate data across all cameras.
 
 ---
 

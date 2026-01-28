@@ -333,7 +333,7 @@ For secure local development or production deployment, you can enable HTTPS:
 
 ```bash
 # Generate self-signed certificate for development
-./scripts/generate-ssl-cert.sh
+./scripts/generate-certs.sh
 
 # Enable HTTPS
 echo "SSL_ENABLED=true" >> .env

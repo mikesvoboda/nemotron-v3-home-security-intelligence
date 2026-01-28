@@ -74,7 +74,7 @@ class ModelConfig:
 | `fashion-clip`                   | classification | 500       | Clothing classification      |
 | `brisque-quality`                | quality        | 0         | Image quality (CPU-based)    |
 | `vehicle-segment-classification` | classification | 1500      | Vehicle type                 |
-| `vehicle-damage-detection`       | detection      | 2000      | Vehicle damage               |
+| `vehicle-damage-detection`       | detection      | 2000      | Vehicle damage segmentation  |
 | `pet-classifier`                 | classification | 200       | Cat/dog classification       |
 | `osnet-x0-25`                    | embedding      | 100       | Person re-identification     |
 | `threat-detection-yolov8n`       | detection      | 300       | Weapon detection             |
