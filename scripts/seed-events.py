@@ -540,12 +540,10 @@ async def ensure_synthetic_camera(camera_name: str = "synthetic_cosmos") -> Came
         if camera:
             return camera
 
-        # Create new synthetic camera
-        camera = Camera(
-            name=camera_name,
-            rtsp_url=f"synthetic://{camera_name}",
-            is_active=True,
-            created_at=datetime.now(UTC),
+        # Create new synthetic camera using the factory method
+        camera = Camera.from_folder_name(
+            folder_name=camera_name,
+            folder_path=f"/export/foscam/{camera_name}",
         )
         session.add(camera)
         await session.commit()

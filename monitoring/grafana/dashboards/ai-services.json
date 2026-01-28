@@ -2016,7 +2016,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(hsi_clip_inference_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
           "refId": "A"
         },
@@ -2025,7 +2025,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(hsi_clip_inference_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
           "refId": "B"
         },
@@ -2034,7 +2034,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(hsi_clip_inference_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -2122,7 +2122,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(hsi_florence2_inference_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
           "refId": "A"
         },
@@ -2131,7 +2131,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(hsi_florence2_inference_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
           "refId": "B"
         },
@@ -2140,7 +2140,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(hsi_florence2_inference_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -2228,7 +2228,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "rate(hsi_enrichment_total[5m])",
+          "expr": "sum(rate(enrichment_inference_latency_seconds_count[5m]))",
           "legendFormat": "Enrichment Rate",
           "refId": "A"
         }
@@ -2294,7 +2294,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "hsi_enrichment_queue_depth",
+          "expr": "hsi_analysis_queue_depth",
           "legendFormat": "Queue Depth",
           "refId": "A"
         }
