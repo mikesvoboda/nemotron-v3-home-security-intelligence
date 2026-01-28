@@ -419,14 +419,25 @@ start_ai_containers_podman() {
 
     cd "$PROJECT_ROOT"
 
+    # Clean up any existing AI containers first to prevent conflicts
+    print_step "Cleaning up any existing AI containers..."
+    stop_ai_containers_podman
+
     # Get network name - podman-compose creates networks with project prefix
-    local network_name="nemotron-v3-home-security-intelligence_security-net"
+    local network_name="${PROJECT_NAME}_security-net"
 
     # Ensure network exists (may have been created by GHCR compose)
     if ! $CONTAINER_CMD network exists "$network_name" 2>/dev/null; then
         print_step "Creating network $network_name..."
         run_cmd $CONTAINER_CMD network create "$network_name" || true
     fi
+
+    # Port configuration from .env (with defaults matching .env.example)
+    local yolo26_port="${YOLO26_PORT:-8095}"
+    local llm_port="${LLM_PORT:-8091}"
+    local florence_port="${FLORENCE_PORT:-8092}"
+    local clip_port="${CLIP_PORT:-8093}"
+    local enrichment_port="${ENRICHMENT_PORT:-8094}"
 
     # GPU and security flags for podman
     # CDI device specification for specific GPU access
@@ -441,12 +452,12 @@ start_ai_containers_podman() {
     local gpu_enrichment="${GPU_ENRICHMENT:-$gpu_ai}"
 
     # ai-yolo26 (YOLO26 TensorRT)
-    print_step "Starting ai-yolo26 on GPU ${gpu_yolo26}..."
+    print_step "Starting ai-yolo26 on GPU ${gpu_yolo26} (port ${yolo26_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-yolo26 \
         --network "$network_name" \
         --device "nvidia.com/gpu=${gpu_yolo26}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
-        -p 8095:8095 \
+        -p "${yolo26_port}:${yolo26_port}" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro,z" \
         -e "YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}" \
         -e "YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine" \
@@ -455,12 +466,12 @@ start_ai_containers_podman() {
     print_success "ai-yolo26 started"
 
     # ai-llm (Nemotron)
-    print_step "Starting ai-llm on GPU ${gpu_llm}..."
+    print_step "Starting ai-llm on GPU ${gpu_llm} (port ${llm_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-llm \
         --network "$network_name" \
         --device "nvidia.com/gpu=${gpu_llm}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
-        -p 8091:8091 \
+        -p "${llm_port}:${llm_port}" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro,z" \
         -e "GPU_LAYERS=${GPU_LAYERS:-40}" \
         -e "CTX_SIZE=${CTX_SIZE:-65536}" \
@@ -469,46 +480,46 @@ start_ai_containers_podman() {
     print_success "ai-llm started"
 
     # ai-florence (shares GPU with LLM by default)
-    print_step "Starting ai-florence on GPU ${gpu_florence}..."
+    print_step "Starting ai-florence on GPU ${gpu_florence} (port ${florence_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-florence \
         --network "$network_name" \
         --device "nvidia.com/gpu=${gpu_florence}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
-        -p 8092:8092 \
+        -p "${florence_port}:${florence_port}" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
-        -e "MODEL_PATH=/models/florence-2-large" \  # pragma: allowlist secret
+        -e "MODEL_PATH=/models/florence-2-large" \
         --restart unless-stopped \
         ai-florence
     print_success "ai-florence started"
 
     # ai-clip
-    print_step "Starting ai-clip on GPU ${gpu_clip}..."
+    print_step "Starting ai-clip on GPU ${gpu_clip} (port ${clip_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-clip \
         --network "$network_name" \
         --device "nvidia.com/gpu=${gpu_clip}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
-        -p 8093:8093 \
+        -p "${clip_port}:${clip_port}" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
-        -e "CLIP_MODEL_PATH=/models/clip-vit-l" \  # pragma: allowlist secret
+        -e "CLIP_MODEL_PATH=/models/clip-vit-l" \
         --restart unless-stopped \
         ai-clip
     print_success "ai-clip started"
 
     # ai-enrichment
-    print_step "Starting ai-enrichment on GPU ${gpu_enrichment}..."
+    print_step "Starting ai-enrichment on GPU ${gpu_enrichment} (port ${enrichment_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-enrichment \
         --network "$network_name" \
         --device "nvidia.com/gpu=${gpu_enrichment}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
-        -p 8094:8094 \
+        -p "${enrichment_port}:${enrichment_port}" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro,z" \
-        -e "VEHICLE_MODEL_PATH=/models/vehicle-segment-classification" \  # pragma: allowlist secret
-        -e "PET_MODEL_PATH=/models/pet-classifier" \  # pragma: allowlist secret
-        -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \  # pragma: allowlist secret
-        -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \  # pragma: allowlist secret
+        -e "VEHICLE_MODEL_PATH=/models/vehicle-segment-classification" \
+        -e "PET_MODEL_PATH=/models/pet-classifier" \
+        -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \
+        -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \
         --restart unless-stopped \
         ai-enrichment
     print_success "ai-enrichment started"
@@ -529,6 +540,21 @@ restart_backend_with_internal_urls() {
     local backend_name="nemotron-v3-home-security-intelligence_backend_1"
     local frontend_name="nemotron-v3-home-security-intelligence_frontend_1"
 
+    # Port configuration from .env (with defaults matching .env.example)
+    local api_port="${API_PORT:-8000}"
+    local frontend_port="${FRONTEND_PORT:-5173}"
+    local frontend_https_port="${FRONTEND_HTTPS_PORT:-8444}"
+    local frontend_internal_port="${FRONTEND_INTERNAL_PORT:-8080}"
+    local yolo26_port="${YOLO26_PORT:-8095}"
+    local llm_port="${LLM_PORT:-8091}"
+    local florence_port="${FLORENCE_PORT:-8092}"
+    local clip_port="${CLIP_PORT:-8093}"
+    local enrichment_port="${ENRICHMENT_PORT:-8094}"
+
+    # SSL configuration from .env (HTTPS only - no HTTP)
+    local ssl_enabled="${SSL_ENABLED:-true}"
+    local ssl_san_extra="${SSL_SAN_EXTRA:-}"
+
     # Stop frontend first (depends on backend)
     print_step "Stopping frontend..."
     run_cmd $CONTAINER_CMD stop "$frontend_name" 2>/dev/null || true
@@ -540,24 +566,24 @@ restart_backend_with_internal_urls() {
     run_cmd $CONTAINER_CMD rm -f "$backend_name" 2>/dev/null || true
 
     # Start backend with internal network URLs
-    print_step "Starting backend with internal AI URLs..."
+    print_step "Starting backend on port ${api_port} with internal AI URLs..."
     run_cmd $CONTAINER_CMD run -d \
         --name "$backend_name" \
         --network "$network_name" \
         --network-alias backend \
-        -p 8000:8000 \
+        -p "${api_port}:${api_port}" \
         -v "./backend/data:/app/data:z" \
         -v "${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z" \
         -e "DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}" \
         -e "REDIS_URL=redis://redis:6379" \
         -e "REDIS_PASSWORD=${REDIS_PASSWORD:-}" \
-        -e "YOLO26_URL=http://ai-yolo26:8095" \
-        -e "NEMOTRON_URL=http://ai-llm:8091" \
-        -e "FLORENCE_URL=http://ai-florence:8092" \
-        -e "CLIP_URL=http://ai-clip:8093" \
-        -e "ENRICHMENT_URL=http://ai-enrichment:8094" \
-        -e "FRONTEND_URL=http://frontend:80" \
+        -e "YOLO26_URL=http://ai-yolo26:${yolo26_port}" \
+        -e "NEMOTRON_URL=http://ai-llm:${llm_port}" \
+        -e "FLORENCE_URL=http://ai-florence:${florence_port}" \
+        -e "CLIP_URL=http://ai-clip:${clip_port}" \
+        -e "ENRICHMENT_URL=http://ai-enrichment:${enrichment_port}" \
+        -e "FRONTEND_URL=http://frontend:${frontend_internal_port}" \
         -e "FOSCAM_BASE_PATH=/cameras" \
         -e "DEBUG=${DEBUG:-false}" \
         -e "FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}" \
@@ -565,16 +591,139 @@ restart_backend_with_internal_urls() {
         "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}"
     print_success "Backend started with internal AI URLs"
 
-    # Restart frontend
-    print_step "Starting frontend..."
+    # Ensure frontend_certs volume exists for SSL certificate storage
+    local certs_volume="nemotron-v3-home-security-intelligence_frontend_certs"
+    if ! $CONTAINER_CMD volume exists "$certs_volume" 2>/dev/null; then
+        print_step "Creating frontend_certs volume..."
+        run_cmd $CONTAINER_CMD volume create "$certs_volume" || true
+    fi
+
+    # Restart frontend with SSL enabled (HTTPS only)
+    print_step "Starting frontend on HTTPS port ${frontend_https_port}..."
     run_cmd $CONTAINER_CMD run -d \
         --name "$frontend_name" \
         --network "$network_name" \
         --network-alias frontend \
-        -p "${FRONTEND_PORT:-5173}:8080" \
+        -p "${frontend_https_port}:8443" \
+        -v "${certs_volume}:/etc/nginx/certs:U" \
+        -e "SSL_ENABLED=${ssl_enabled}" \
+        -e "SSL_SAN_EXTRA=${ssl_san_extra}" \
+        -e "SSL_CERT_PATH=/etc/nginx/certs/cert.pem" \
+        -e "SSL_KEY_PATH=/etc/nginx/certs/key.pem" \
+        -e "FRONTEND_HTTPS_PORT=${frontend_https_port}" \
         --restart unless-stopped \
         "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}"
-    print_success "Frontend started"
+    print_success "Frontend started (HTTPS on port ${frontend_https_port})"
+
+    return 0
+}
+
+# Start backend and frontend using podman run for local mode
+# Uses locally built images (falls back to GHCR if local not found)
+start_backend_frontend_podman() {
+    print_header "Starting Backend and Frontend (podman run - local)"
+
+    cd "$PROJECT_ROOT"
+    source .env 2>/dev/null || true
+
+    # Clean up any existing backend/frontend containers first
+    print_step "Cleaning up any existing backend/frontend containers..."
+    for container in "backend" "frontend"; do
+        if $CONTAINER_CMD container exists "$container" 2>/dev/null; then
+            run_cmd $CONTAINER_CMD stop "$container" 2>/dev/null || true
+            run_cmd $CONTAINER_CMD rm -f "$container" 2>/dev/null || true
+        fi
+    done
+
+    local network_name="${PROJECT_NAME}_security-net"
+    local postgres_container="${PROJECT_NAME}_postgres_1"
+    local redis_container="${PROJECT_NAME}_redis_1"
+
+    # Port configuration from .env (with defaults matching .env.example)
+    local api_port="${API_PORT:-8000}"
+    local frontend_port="${FRONTEND_PORT:-5173}"
+    local frontend_https_port="${FRONTEND_HTTPS_PORT:-8444}"
+    local frontend_internal_port="${FRONTEND_INTERNAL_PORT:-8080}"
+    local yolo26_port="${YOLO26_PORT:-8095}"
+    local llm_port="${LLM_PORT:-8091}"
+    local florence_port="${FLORENCE_PORT:-8092}"
+    local clip_port="${CLIP_PORT:-8093}"
+    local enrichment_port="${ENRICHMENT_PORT:-8094}"
+
+    # SSL configuration from .env (HTTPS only - no HTTP)
+    local ssl_enabled="${SSL_ENABLED:-true}"
+    local ssl_san_extra="${SSL_SAN_EXTRA:-}"
+
+    # Determine which images to use (prefer locally built, fall back to GHCR)
+    local backend_image="${PROJECT_NAME}_backend"
+    local frontend_image="${PROJECT_NAME}_frontend"
+    local ghcr_backend="ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}"
+    local ghcr_frontend="ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}"
+
+    # Check if locally built images exist, otherwise use GHCR
+    if ! $CONTAINER_CMD image exists "$backend_image" 2>/dev/null; then
+        print_info "Local backend image not found, using GHCR"
+        backend_image="$ghcr_backend"
+    fi
+    if ! $CONTAINER_CMD image exists "$frontend_image" 2>/dev/null; then
+        print_info "Local frontend image not found, using GHCR"
+        frontend_image="$ghcr_frontend"
+    fi
+
+    # Ensure network exists
+    if ! $CONTAINER_CMD network exists "$network_name" 2>/dev/null; then
+        print_step "Creating network $network_name..."
+        run_cmd $CONTAINER_CMD network create "$network_name" || true
+    fi
+
+    # Start backend
+    print_step "Starting backend on port ${api_port} with image: $backend_image"
+    run_cmd $CONTAINER_CMD run -d \
+        --name backend \
+        --network "$network_name" \
+        --network-alias backend \
+        -p "${api_port}:${api_port}" \
+        -v "./backend/data:/app/data:z" \
+        -v "${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro,z" \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z" \
+        -e "DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD}@${postgres_container}:5432/${POSTGRES_DB:-security}" \
+        -e "REDIS_URL=redis://${redis_container}:6379" \
+        -e "REDIS_PASSWORD=${REDIS_PASSWORD:-}" \
+        -e "YOLO26_URL=http://ai-yolo26:${yolo26_port}" \
+        -e "NEMOTRON_URL=http://ai-llm:${llm_port}" \
+        -e "FLORENCE_URL=http://ai-florence:${florence_port}" \
+        -e "CLIP_URL=http://ai-clip:${clip_port}" \
+        -e "ENRICHMENT_URL=http://ai-enrichment:${enrichment_port}" \
+        -e "FRONTEND_URL=http://frontend:${frontend_internal_port}" \
+        -e "FOSCAM_BASE_PATH=/cameras" \
+        -e "DEBUG=${DEBUG:-false}" \
+        -e "FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}" \
+        --restart unless-stopped \
+        "$backend_image"
+    print_success "Backend started"
+
+    # Ensure frontend_certs volume exists for SSL certificate storage
+    if ! $CONTAINER_CMD volume exists "${PROJECT_NAME}_frontend_certs" 2>/dev/null; then
+        print_step "Creating frontend_certs volume..."
+        run_cmd $CONTAINER_CMD volume create "${PROJECT_NAME}_frontend_certs" || true
+    fi
+
+    # Start frontend with SSL enabled (HTTPS only)
+    print_step "Starting frontend on HTTPS port ${frontend_https_port} with image: $frontend_image"
+    run_cmd $CONTAINER_CMD run -d \
+        --name frontend \
+        --network "$network_name" \
+        --network-alias frontend \
+        -p "${frontend_https_port}:8443" \
+        -v "${PROJECT_NAME}_frontend_certs:/etc/nginx/certs:U" \
+        -e "SSL_ENABLED=${ssl_enabled}" \
+        -e "SSL_SAN_EXTRA=${ssl_san_extra}" \
+        -e "SSL_CERT_PATH=/etc/nginx/certs/cert.pem" \
+        -e "SSL_KEY_PATH=/etc/nginx/certs/key.pem" \
+        -e "FRONTEND_HTTPS_PORT=${frontend_https_port}" \
+        --restart unless-stopped \
+        "$frontend_image"
+    print_success "Frontend started (HTTPS on port ${frontend_https_port})"
 
     return 0
 }
@@ -873,15 +1022,21 @@ stop_and_clean() {
         print_step "Stopping AI containers..."
         stop_ai_containers_podman
 
-        # Stop GHCR compose containers (this works with podman-compose)
+        # Stop PROD compose containers (for local mode builds)
+        print_step "Stopping prod compose containers..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" down $down_flags --remove-orphans 2>/dev/null; then
+            print_success "Stopped prod compose containers"
+        else
+            print_info "No prod containers were running"
+        fi
+
+        # Stop GHCR compose containers (for hybrid mode)
+        print_step "Stopping GHCR compose containers..."
         if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
             print_success "Stopped GHCR compose containers"
         else
             print_info "No GHCR containers were running"
         fi
-
-        # Note: We use hybrid mode (GHCR compose + direct podman for AI) for optimal performance
-        # This approach provides better network routing and service initialization control
 
         # Final cleanup of any remaining pods and containers
         print_step "Cleaning up pods and orphaned containers..."
@@ -982,12 +1137,12 @@ build_images() {
 
         # Build all 9 services locally
         if [ "$CONTAINER_CMD" = "podman" ]; then
-            # Podman: Build core services with compose, AI services directly
-            print_step "Building core service images..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" build --no-cache 2>/dev/null; then
+            # Podman: Build core services (backend, frontend) from prod compose
+            print_step "Building core service images (backend, frontend)..."
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache backend frontend 2>/dev/null; then
                 print_success "Core images built"
             else
-                print_info "Core services use pre-built images"
+                print_warn "Core image build failed, will use GHCR images as fallback"
             fi
             # Build AI services with podman build (bypasses compose parser bug)
             if ! build_ai_images_podman; then
@@ -1151,22 +1306,59 @@ start_containers() {
     cd "$PROJECT_ROOT"
 
     if [ "$DEPLOY_MODE" = "local" ]; then
-        # Start all 9 services from locally built images using prod compose
-        # Use timeout to prevent hanging on health check waits (depends_on conditions)
-        print_step "Starting all containers from prod compose (local build)..."
-        print_info "Timeout: ${COMPOSE_UP_TIMEOUT}s (health checks may continue in background)"
-        if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d --no-build; then
-            print_success "All containers started from local build"
+        # Start services in phases to handle dependencies properly
+        # Phase 1: Infrastructure (postgres, redis)
+        print_step "Phase 1: Starting infrastructure services..."
+        if run_cmd timeout 60 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d postgres redis; then
+            print_success "Infrastructure services started"
         else
-            local exit_code=$?
-            if [ $exit_code -eq 124 ]; then
-                print_warn "Compose up timed out after ${COMPOSE_UP_TIMEOUT}s - containers may still be starting"
-                print_info "Health checks will continue in background"
+            print_fail "Failed to start infrastructure services"
+            return 1
+        fi
+        sleep 5
+
+        # Phase 2: Monitoring stack (without AI dependencies)
+        print_step "Phase 2: Starting monitoring services..."
+        run_cmd timeout 120 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d \
+            elasticsearch jaeger prometheus loki pyroscope \
+            grafana alertmanager blackbox-exporter redis-exporter json-exporter \
+            node-exporter dcgm-exporter 2>/dev/null || true
+        # cadvisor and alloy often have permission issues, try but don't fail
+        run_cmd timeout 30 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d cadvisor alloy 2>/dev/null || true
+        print_info "Monitoring services started (some may have warnings)"
+
+        # Phase 3: AI services using direct podman run (bypasses compose dependency issues)
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            if ! start_ai_containers_podman; then
+                print_warn "Some AI containers failed to start"
+            fi
+        else
+            print_step "Phase 3: Starting AI containers..."
+            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d \
+                ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment ai-enrichment-light; then
+                print_success "AI containers started"
             else
-                print_fail "Failed to start containers (exit code: $exit_code)"
+                print_warn "Some AI containers may have failed"
+            fi
+        fi
+
+        # Phase 4: Backend and frontend
+        print_step "Phase 4: Starting backend and frontend..."
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            # Use direct podman run for backend/frontend with correct network URLs
+            if ! start_backend_frontend_podman; then
+                print_fail "Failed to start backend/frontend"
+                return 1
+            fi
+        else
+            if run_cmd timeout 120 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d backend frontend; then
+                print_success "Backend and frontend started"
+            else
+                print_fail "Failed to start backend/frontend"
                 return 1
             fi
         fi
+        print_success "All services started from local build"
     elif [ "$DEPLOY_MODE" = "ghcr" ]; then
         # Start only 4 services from GHCR compose (works with both docker and podman)
         print_step "Starting GHCR containers..."
