@@ -17,11 +17,14 @@ Synthetic data provides:
   - Detection accuracy and risk score calibration metrics
 
 Usage:
-    # Default: Process synthetic videos from data/synthetic/
+    # Default: Process 10 scenarios per category (~30 total)
     uv run python scripts/seed-events.py
 
-    # Process specific number of synthetic scenarios
-    uv run python scripts/seed-events.py --scenarios 50
+    # Process all available synthetic scenarios
+    uv run python scripts/seed-events.py --all
+
+    # Process specific number of scenarios per category
+    uv run python scripts/seed-events.py --scenarios 20
 
     # Process only specific categories
     uv run python scripts/seed-events.py --categories normal,suspicious
@@ -362,15 +365,15 @@ def _safe_write_json(file_path: Path, data: dict[str, Any], base_path: Path) -> 
 
 def discover_synthetic_scenarios(
     categories: list[str] | None = None,
-    source_filter: str | None = "cosmos",
-    limit: int | None = None,
+    source_filter: str | None = None,
+    per_category_limit: int | None = None,
 ) -> list[SyntheticScenario]:
     """Discover all synthetic scenarios in data/synthetic/.
 
     Args:
         categories: Optional list of categories to filter (normal, suspicious, threats)
         source_filter: Optional source filter (e.g., "cosmos" for Cosmos-generated videos)
-        limit: Optional limit on number of scenarios to return
+        per_category_limit: Optional limit on scenarios with video per category (None = unlimited)
 
     Returns:
         List of SyntheticScenario objects with loaded metadata
@@ -388,6 +391,8 @@ def discover_synthetic_scenarios(
         if not category_path.exists():
             continue
 
+        # Count only scenarios with actual video files toward the limit
+        category_with_video_count = 0
         for scenario_dir in sorted(category_path.iterdir()):
             if not scenario_dir.is_dir():
                 continue
@@ -421,6 +426,14 @@ def discover_synthetic_scenarios(
                 if videos:
                     video_path = videos[0]
 
+            # When there's a limit, only include scenarios with actual video files
+            if per_category_limit:
+                if not video_path:
+                    continue  # Skip scenarios without videos when limiting
+                if category_with_video_count >= per_category_limit:
+                    break  # Got enough for this category
+                category_with_video_count += 1
+
             scenario = SyntheticScenario(
                 path=scenario_dir,
                 category=category,
@@ -432,9 +445,6 @@ def discover_synthetic_scenarios(
                 video_path=video_path,
             )
             scenarios.append(scenario)
-
-            if limit and len(scenarios) >= limit:
-                return scenarios
 
     return scenarios
 
@@ -4518,7 +4528,7 @@ async def seed_face_recognition_metrics(num_samples: int = 50) -> dict[str, int]
 
         # 80% of detections generate embeddings
         if random.random() < 0.8:  # noqa: S311
-            FACE_EMBEDDINGS_GENERATED_TOTAL.inc()
+            FACE_EMBEDDINGS_GENERATED_TOTAL.labels(match_status=match_status).inc()
             counts["face_embeddings"] += 1
 
         # Known faces match to a person_id
@@ -4759,6 +4769,9 @@ async def seed_dlq_metrics(num_items: int = 15) -> dict[str, int]:
         "items_moved_to_dlq": 0,
     }
 
+    # Reasons for DLQ movement
+    dlq_reasons = ["max_retries", "timeout", "invalid_payload", "service_unavailable"]
+
     # Distribute items across queues
     for queue_name in queue_names:
         # Random DLQ depth (0 to 10 items)
@@ -4769,7 +4782,8 @@ async def seed_dlq_metrics(num_items: int = 15) -> dict[str, int]:
         # Simulate historical items moved to DLQ
         moved = random.randint(0, num_items // len(queue_names))  # noqa: S311
         for _ in range(moved):
-            QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name).inc()
+            reason = random.choice(dlq_reasons)  # noqa: S311
+            QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name, reason=reason).inc()
             counts["items_moved_to_dlq"] += 1
 
     print(f"  Seeded {counts['dlq_depth_updates']} DLQ depth updates")
@@ -4946,7 +4960,8 @@ async def seed_track_metrics(num_samples: int = 40) -> dict[str, int]:
 
     cameras = await get_cameras()
     camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
-    entity_types = ["person", "vehicle", "animal", "package"]
+    object_classes = ["person", "vehicle", "animal", "package"]
+    loss_reasons = ["timeout", "out_of_frame", "occlusion"]
 
     counts = {
         "tracks_created": 0,
@@ -4960,23 +4975,27 @@ async def seed_track_metrics(num_samples: int = 40) -> dict[str, int]:
 
     for _ in range(num_samples):
         camera_id = random.choice(camera_ids)  # noqa: S311
-        entity_type = random.choice(entity_types)  # noqa: S311
+        object_class = random.choice(object_classes)  # noqa: S311
 
-        # Simulate track creation
-        TRACKS_CREATED_TOTAL.labels(camera_id=camera_id, entity_type=entity_type).inc()
+        # Simulate track creation (labels: camera_id, object_class)
+        TRACKS_CREATED_TOTAL.labels(camera_id=camera_id, object_class=object_class).inc()
         counts["tracks_created"] += 1
         active_tracks_per_camera[camera_id] += 1
 
         # 80% of tracks are eventually lost (completed naturally)
         if random.random() < 0.8:  # noqa: S311
-            # Track duration: 1 second to 10 minutes
+            # Track duration: 1 second to 10 minutes (labels: camera_id, entity_type)
             duration = random.uniform(1.0, 600.0)  # noqa: S311
-            TRACK_DURATION_SECONDS.labels(camera_id=camera_id, entity_type=entity_type).observe(
+            TRACK_DURATION_SECONDS.labels(camera_id=camera_id, entity_type=object_class).observe(
                 duration
             )
             counts["track_durations"] += 1
 
-            TRACKS_LOST_TOTAL.labels(camera_id=camera_id, entity_type=entity_type).inc()
+            # Track lost (labels: camera_id, object_class, reason)
+            reason = random.choice(loss_reasons)  # noqa: S311
+            TRACKS_LOST_TOTAL.labels(
+                camera_id=camera_id, object_class=object_class, reason=reason
+            ).inc()
             counts["tracks_lost"] += 1
             active_tracks_per_camera[camera_id] = max(0, active_tracks_per_camera[camera_id] - 1)
 
@@ -5024,6 +5043,7 @@ async def seed_zone_metrics(num_samples: int = 50) -> dict[str, int]:
         zone_ids = ["zone_default_1", "zone_default_2"]
 
     directions = ["enter", "exit"]
+    entity_types = ["person", "vehicle", "animal", "package"]
     severities = ["low", "medium", "high", "critical"]
     severity_weights = [0.60, 0.25, 0.10, 0.05]
 
@@ -5039,11 +5059,13 @@ async def seed_zone_metrics(num_samples: int = 50) -> dict[str, int]:
 
     for _ in range(num_samples):
         zone_id = random.choice(zone_ids)  # noqa: S311
-        camera_id = random.choice(camera_ids)  # noqa: S311
+        entity_type = random.choice(entity_types)  # noqa: S311
 
-        # Zone crossing events
+        # Zone crossing events (labels: zone_id, direction, entity_type)
         direction = random.choice(directions)  # noqa: S311
-        ZONE_CROSSINGS_TOTAL.labels(zone_id=zone_id, camera_id=camera_id, direction=direction).inc()
+        ZONE_CROSSINGS_TOTAL.labels(
+            zone_id=zone_id, direction=direction, entity_type=entity_type
+        ).inc()
         counts["zone_crossings"] += 1
 
         # Update occupancy based on direction
@@ -5119,6 +5141,12 @@ async def seed_worker_metrics(num_samples: int = 20) -> dict[str, int]:
         "event_creator",
         "notification_sender",
     ]
+    # Worker types for different categories
+    worker_types = ["detection", "analysis", "notification", "export"]
+    # Restart reasons
+    restart_reasons = ["scheduled", "config_change", "error_recovery", "health_check_failed"]
+    # Exit codes for crashes
+    exit_codes = ["1", "137", "139", "255"]
 
     counts = {
         "worker_restarts": 0,
@@ -5139,18 +5167,25 @@ async def seed_worker_metrics(num_samples: int = 20) -> dict[str, int]:
     # Simulate some worker events
     for _ in range(num_samples):
         worker = random.choice(worker_names)  # noqa: S311
+        worker_type = random.choice(worker_types)  # noqa: S311
 
-        # 30% chance of restart
+        # 30% chance of restart (labels: worker_name, worker_type, reason)
         if random.random() < 0.3:  # noqa: S311
-            WORKER_RESTARTS_TOTAL.labels(worker_name=worker).inc()
+            reason = random.choice(restart_reasons)  # noqa: S311
+            WORKER_RESTARTS_TOTAL.labels(
+                worker_name=worker, worker_type=worker_type, reason=reason
+            ).inc()
             counts["worker_restarts"] += 1
 
-        # 5% chance of crash
+        # 5% chance of crash (labels: worker_name, worker_type, exit_code)
         if random.random() < 0.05:  # noqa: S311
-            WORKER_CRASHES_TOTAL.labels(worker_name=worker).inc()
+            exit_code = random.choice(exit_codes)  # noqa: S311
+            WORKER_CRASHES_TOTAL.labels(
+                worker_name=worker, worker_type=worker_type, exit_code=exit_code
+            ).inc()
             counts["worker_crashes"] += 1
 
-            # 10% of crashes exceed max restarts
+            # 10% of crashes exceed max restarts (labels: worker_name)
             if random.random() < 0.1:  # noqa: S311
                 WORKER_MAX_RESTARTS_EXCEEDED_TOTAL.labels(worker_name=worker).inc()
 
@@ -5240,25 +5275,26 @@ async def seed_detection_metrics(num_samples: int = 50) -> dict[str, int]:
     }
 
     for _ in range(num_samples):
-        camera_id = random.choice(camera_ids)  # noqa: S311
         object_class = random.choices(object_classes, weights=class_weights, k=1)[0]  # noqa: S311
 
         # Detection confidence: 0.3 to 0.99
         confidence = random.uniform(0.3, 0.99)  # noqa: S311
 
-        # Record detection
-        DETECTIONS_PROCESSED_TOTAL.labels(camera_id=camera_id).inc()
+        # Record detection (no labels)
+        DETECTIONS_PROCESSED_TOTAL.inc()
         counts["detections_processed"] += 1
 
+        # Confidence histogram (no labels)
         DETECTION_CONFIDENCE.observe(confidence)
         counts["detection_confidences"] += 1
 
-        DETECTIONS_BY_CLASS_TOTAL.labels(camera_id=camera_id, object_class=object_class).inc()
+        # Detection by class (labels: object_class only)
+        DETECTIONS_BY_CLASS_TOTAL.labels(object_class=object_class).inc()
         counts["detections_by_class"] += 1
 
-        # Low confidence detections (< 0.5) get filtered
+        # Low confidence detections (< 0.5) get filtered (no labels)
         if confidence < 0.5:
-            DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL.labels(camera_id=camera_id).inc()
+            DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL.inc()
             counts["detections_filtered"] += 1
 
     # Set queue depth (current number of items waiting)
@@ -5301,7 +5337,8 @@ async def seed_event_metrics(num_samples: int = 30) -> dict[str, int]:
     )
 
     cameras = await get_cameras()
-    camera_ids = [c.id for c in cameras] if cameras else ["cam_default"]
+    # Build camera info with both id and name
+    camera_info = [(c.id, c.name) for c in cameras] if cameras else [("cam_default", "Default")]
 
     risk_levels = ["low", "medium", "high", "critical"]
     risk_weights = [0.50, 0.30, 0.15, 0.05]
@@ -5318,30 +5355,32 @@ async def seed_event_metrics(num_samples: int = 30) -> dict[str, int]:
     total_cost = 0.0
 
     for _ in range(num_samples):
-        camera_id = random.choice(camera_ids)  # noqa: S311
+        camera_id, camera_name = random.choice(camera_info)  # noqa: S311
         risk_level = random.choices(risk_levels, weights=risk_weights, k=1)[0]  # noqa: S311
 
-        # Event creation
-        EVENTS_CREATED_TOTAL.labels(camera_id=camera_id).inc()
+        # Event creation (no labels)
+        EVENTS_CREATED_TOTAL.inc()
         counts["events_created"] += 1
 
-        EVENTS_BY_RISK_LEVEL.labels(risk_level=risk_level).inc()
+        # Events by risk level (labels: level)
+        EVENTS_BY_RISK_LEVEL.labels(level=risk_level).inc()
         counts["events_by_risk"] += 1
 
-        EVENTS_BY_CAMERA_TOTAL.labels(camera_id=camera_id).inc()
+        # Events by camera (labels: camera_id, camera_name)
+        EVENTS_BY_CAMERA_TOTAL.labels(camera_id=camera_id, camera_name=camera_name).inc()
         counts["events_by_camera"] += 1
 
-        # 60% of events are reviewed
+        # 60% of events are reviewed (no labels)
         if random.random() < 0.6:  # noqa: S311
-            EVENTS_REVIEWED_TOTAL.labels(camera_id=camera_id).inc()
+            EVENTS_REVIEWED_TOTAL.inc()
             counts["events_reviewed"] += 1
 
-        # 40% of events are acknowledged
+        # 40% of events are acknowledged (labels: camera_name, risk_level)
         if random.random() < 0.4:  # noqa: S311
-            EVENTS_ACKNOWLEDGED_TOTAL.labels(camera_id=camera_id).inc()
+            EVENTS_ACKNOWLEDGED_TOTAL.labels(camera_name=camera_name, risk_level=risk_level).inc()
             counts["events_acknowledged"] += 1
 
-        # Analysis cost: $0.001 to $0.05 per event (LLM inference cost)
+        # Analysis cost: $0.001 to $0.05 per event (labels: camera_id)
         cost = random.uniform(0.001, 0.05)  # noqa: S311
         EVENT_ANALYSIS_COST_USD.labels(camera_id=camera_id).inc(cost)
         total_cost += cost
@@ -5715,8 +5754,14 @@ This generates real data including:
     parser.add_argument(
         "--scenarios",
         type=int,
-        default=None,
-        help="Number of synthetic scenarios to process (default: all available)",
+        default=10,
+        help="Number of synthetic scenarios per category (default: 10, totaling ~30)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="all_scenarios",
+        help="Process all available synthetic scenarios (overrides --scenarios)",
     )
     parser.add_argument(
         "--categories",
@@ -5822,9 +5867,11 @@ This generates real data including:
                 print(f"  Categories: {', '.join(categories)}")
 
             # Discover synthetic scenarios
+            # --all overrides --scenarios to process everything
+            per_category_limit = None if args.all_scenarios else args.scenarios
             synthetic_scenarios = discover_synthetic_scenarios(
                 categories=categories,
-                limit=args.scenarios,
+                per_category_limit=per_category_limit,
             )
 
             if not synthetic_scenarios:
