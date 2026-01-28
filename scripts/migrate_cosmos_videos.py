@@ -19,7 +19,8 @@ Options:
 import argparse
 import json
 import shutil
-from datetime import UTC, datetime
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Base paths
@@ -194,7 +195,7 @@ SCENARIO_NAMES = {
     "T09": "multiple_intruders",
     "T10": "vehicle_ramming",
     # T11-T40: tracking variations
-    **{f"T{i:02d}": f"tracking_{i - 10:02d}" for i in range(11, 41)},
+    **{f"T{i:02d}": f"tracking_{i-10:02d}" for i in range(11, 41)},
     # P-Series
     "P01": "delivery_baseline",
     "P02": "lingering",
@@ -386,7 +387,7 @@ def generate_expected_labels(video_id: str, prompt: str, category: str) -> dict:
 def generate_metadata(video_id: str, scenario: str, category: str, video_file: str) -> dict:
     """Generate metadata.json content."""
     return {
-        "run_id": datetime.now(UTC).strftime("%Y%m%d_%H%M%S"),
+        "run_id": datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S"),
         "source": "cosmos",
         "video_id": video_id,
         "scenario": scenario,
@@ -395,7 +396,7 @@ def generate_metadata(video_id: str, scenario: str, category: str, video_file: s
         "duration_sec": 5.8,
         "resolution": "1280x704",
         "fps": 16,
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "files": [f"media/{video_file}"],
         "cosmos_metadata": {
             "model": "Cosmos-Predict2.5-14B",
@@ -449,7 +450,6 @@ def load_prompt(video_id: str) -> str:
     """Load prompt text for a video."""
     prompt_file = COSMOS_DIR / "prompts" / "generated" / f"{video_id}_5s.json"
     if prompt_file.exists():
-        # nosemgrep: path-traversal-open - path is constructed from known constants, not user input
         with open(prompt_file) as f:
             data = json.load(f)
             return data.get("prompt", "")
@@ -471,7 +471,7 @@ def migrate_video(
     prompt = load_prompt(video_id)
 
     # Target directory
-    timestamp = datetime.now(UTC).strftime("%Y%m%d")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
     target_dir = SYNTHETIC_DIR / category / f"cosmos_{video_id}_{scenario}_{timestamp}"
     media_dir = target_dir / "media"
 
@@ -496,21 +496,18 @@ def migrate_video(
         shutil.move(video_file, target_video)
 
     # Generate and write metadata
-    # nosemgrep: path-traversal-open - target_dir is built from constants, not user input
     metadata = generate_metadata(video_id, scenario, category, video_file.name)
-    with open(target_dir / "metadata.json", "w") as f:  # nosemgrep: path-traversal-open
+    with open(target_dir / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
     # Generate and write expected_labels
-    # nosemgrep: path-traversal-open - target_dir is built from constants, not user input
     expected_labels = generate_expected_labels(video_id, prompt, category)
-    with open(target_dir / "expected_labels.json", "w") as f:  # nosemgrep: path-traversal-open
+    with open(target_dir / "expected_labels.json", "w") as f:
         json.dump(expected_labels, f, indent=2)
 
     # Generate and write scenario_spec
-    # nosemgrep: path-traversal-open - target_dir is built from constants, not user input
     scenario_spec = generate_scenario_spec(video_id, scenario, category, prompt)
-    with open(target_dir / "scenario_spec.json", "w") as f:  # nosemgrep: path-traversal-open
+    with open(target_dir / "scenario_spec.json", "w") as f:
         json.dump(scenario_spec, f, indent=2)
 
     # Copy screenshot if available
@@ -568,18 +565,13 @@ def main():
 
     if not args.dry_run:
         # Write migration report
-        # nosemgrep: path-traversal-open - COSMOS_DIR is a constant, not user input
         report_file = COSMOS_DIR / "migration_report.json"
-        with open(report_file, "w") as f:  # nosemgrep: path-traversal-open
-            json.dump(
-                {
-                    "migrated_at": datetime.now(UTC).isoformat(),
-                    "mode": "copy" if args.copy else "move",
-                    "results": results,
-                },
-                f,
-                indent=2,
-            )
+        with open(report_file, "w") as f:
+            json.dump({
+                "migrated_at": datetime.now(timezone.utc).isoformat(),
+                "mode": "copy" if args.copy else "move",
+                "results": results,
+            }, f, indent=2)
         print(f"\nMigration report saved to: {report_file}")
 
 
