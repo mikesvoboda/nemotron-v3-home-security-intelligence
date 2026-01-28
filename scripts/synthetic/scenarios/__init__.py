@@ -63,7 +63,8 @@ class ModifierNotFoundError(Exception):
 def _load_json_file(path: Path) -> dict[str, Any]:
     """Load and parse a JSON file."""
     with open(path, encoding="utf-8") as f:  # nosemgrep
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
 def _discover_scenarios() -> dict[str, Path]:

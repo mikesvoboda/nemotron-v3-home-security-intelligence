@@ -74,6 +74,59 @@ class HealthCheckServiceStatus(BaseModel):
     )
 
 
+class ProcessMemoryResponse(BaseModel):
+    """Process memory metrics for the backend service (NEM-3890).
+
+    Tracks memory usage of the backend Python process and container limits
+    to help diagnose memory pressure issues before OOM kills.
+    """
+
+    rss_mb: float = Field(
+        ...,
+        description="Resident Set Size in megabytes (actual physical memory used)",
+        ge=0,
+    )
+    vms_mb: float = Field(
+        ...,
+        description="Virtual Memory Size in megabytes (total virtual memory allocated)",
+        ge=0,
+    )
+    percent: float = Field(
+        ...,
+        description="Memory usage as percentage of system RAM",
+        ge=0,
+        le=100,
+    )
+    container_limit_mb: float | None = Field(
+        None,
+        description="Container memory limit in MB (None if not in container or no limit)",
+        ge=0,
+    )
+    container_usage_percent: float | None = Field(
+        None,
+        description="RSS as percentage of container memory limit",
+        ge=0,
+        le=100,
+    )
+    status: str = Field(
+        ...,
+        description="Memory status: 'healthy', 'warning' (>80%), or 'critical' (>90%)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "rss_mb": 2048.5,
+                "vms_mb": 4096.0,
+                "percent": 25.5,
+                "container_limit_mb": 6144.0,
+                "container_usage_percent": 33.3,
+                "status": "healthy",
+            }
+        }
+    )
+
+
 class HealthResponse(BaseModel):
     """Response schema for health check endpoint."""
 
@@ -92,6 +145,10 @@ class HealthResponse(BaseModel):
     recent_events: list[HealthEventResponse] = Field(
         default_factory=list,
         description="Recent health events for debugging intermittent issues",
+    )
+    memory: ProcessMemoryResponse | None = Field(
+        None,
+        description="Backend process memory metrics (NEM-3890)",
     )
 
     model_config = ConfigDict(
@@ -130,6 +187,14 @@ class HealthResponse(BaseModel):
                         "message": "Health check failed",
                     },
                 ],
+                "memory": {
+                    "rss_mb": 2048.5,
+                    "vms_mb": 4096.0,
+                    "percent": 25.5,
+                    "container_limit_mb": 6144.0,
+                    "container_usage_percent": 33.3,
+                    "status": "healthy",
+                },
             }
         }
     )

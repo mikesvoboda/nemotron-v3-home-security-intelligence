@@ -15927,6 +15927,14 @@
       "HealthResponse": {
         "description": "Response schema for health check endpoint.",
         "example": {
+          "memory": {
+            "container_limit_mb": 6144.0,
+            "container_usage_percent": 33.3,
+            "percent": 25.5,
+            "rss_mb": 2048.5,
+            "status": "healthy",
+            "vms_mb": 4096.0
+          },
           "recent_events": [
             {
               "event_type": "recovery",
@@ -15962,6 +15970,17 @@
           "timestamp": "2025-12-23T10:30:00"
         },
         "properties": {
+          "memory": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessMemoryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Backend process memory metrics (NEM-3890)"
+          },
           "recent_events": {
             "description": "Recent health events for debugging intermittent issues",
             "items": {
@@ -23615,6 +23634,78 @@
           }
         },
         "title": "PoseEnrichment",
+        "type": "object"
+      },
+      "ProcessMemoryResponse": {
+        "description": "Process memory metrics for the backend service (NEM-3890).\n\nTracks memory usage of the backend Python process and container limits\nto help diagnose memory pressure issues before OOM kills.",
+        "example": {
+          "container_limit_mb": 6144.0,
+          "container_usage_percent": 33.3,
+          "percent": 25.5,
+          "rss_mb": 2048.5,
+          "status": "healthy",
+          "vms_mb": 4096.0
+        },
+        "properties": {
+          "container_limit_mb": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Container memory limit in MB (None if not in container or no limit)",
+            "title": "Container Limit Mb"
+          },
+          "container_usage_percent": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RSS as percentage of container memory limit",
+            "title": "Container Usage Percent"
+          },
+          "percent": {
+            "description": "Memory usage as percentage of system RAM",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Percent",
+            "type": "number"
+          },
+          "rss_mb": {
+            "description": "Resident Set Size in megabytes (actual physical memory used)",
+            "minimum": 0.0,
+            "title": "Rss Mb",
+            "type": "number"
+          },
+          "status": {
+            "description": "Memory status: 'healthy', 'warning' (>80%), or 'critical' (>90%)",
+            "title": "Status",
+            "type": "string"
+          },
+          "vms_mb": {
+            "description": "Virtual Memory Size in megabytes (total virtual memory allocated)",
+            "minimum": 0.0,
+            "title": "Vms Mb",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rss_mb",
+          "vms_mb",
+          "percent",
+          "status"
+        ],
+        "title": "ProcessMemoryResponse",
         "type": "object"
       },
       "ProfileStartResponse": {

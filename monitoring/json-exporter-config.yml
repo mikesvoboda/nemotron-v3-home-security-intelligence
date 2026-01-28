@@ -91,8 +91,8 @@ modules:
         help: 'Batch stage P99 latency in milliseconds'
 
       # Analyze stage latencies
-      # Note: These metrics use default values to handle null gracefully when
-      # no analyze jobs have been processed yet (analyze stage may be inactive)
+      # Note: Backend now returns zero values when no data is available (NEM-3904),
+      # so default_value is no longer strictly needed. Kept as defense-in-depth.
       - name: hsi_analyze_latency_avg_ms
         path: '{ .latencies.analyze.avg_ms }'
         type: value

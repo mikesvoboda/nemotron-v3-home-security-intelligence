@@ -291,6 +291,10 @@ class TestAlertingRulesExpressions:
         "hsi_stage_duration_seconds",
         # DLQ monitoring (NEM-3891)
         "hsi_dlq_depth",
+        # Process memory monitoring (NEM-3890)
+        "hsi_process_memory_rss_bytes",
+        "hsi_process_memory_container_limit_bytes",
+        "hsi_process_memory_container_usage_ratio",
         # Prometheus built-in
         "up",
         # Blackbox exporter metrics

@@ -34,6 +34,7 @@ from backend.services.bbox_validation import (
     normalize_bbox_to_float,
     normalize_bbox_to_pixels,
     prepare_bbox_for_crop,
+    scale_bbox_to_image,
     validate_and_clamp_bbox,
     validate_bbox,
 )
@@ -1274,3 +1275,183 @@ class TestBboxValidationProperties:
         assert abs(actual_iou - expected_iou) < 0.01, (
             f"IoU mismatch: actual={actual_iou}, expected={expected_iou}"
         )
+
+
+# =============================================================================
+# Test scale_bbox_to_image (NEM-3903)
+# =============================================================================
+
+
+class TestScaleBboxToImage:
+    """Tests for scale_bbox_to_image function.
+
+    NEM-3903: YOLO detection coordinates may be relative to a different
+    image resolution than what the enrichment pipeline loads. This function
+    scales bboxes proportionally between source and target dimensions.
+    """
+
+    def test_no_scaling_when_dimensions_match(self) -> None:
+        """Test that identical dimensions return the same bbox."""
+        bbox = (100.0, 100.0, 200.0, 200.0)
+        result = scale_bbox_to_image(bbox, 640, 480, 640, 480)
+        assert result == bbox
+
+    def test_downscale_2x(self) -> None:
+        """Test scaling down by factor of 2."""
+        # YOLO returned bbox for 640x480 image, but we loaded 320x240
+        bbox = (100.0, 100.0, 200.0, 200.0)
+        result = scale_bbox_to_image(bbox, 640, 480, 320, 240)
+        assert result == (50.0, 50.0, 100.0, 100.0)
+
+    def test_upscale_2x(self) -> None:
+        """Test scaling up by factor of 2."""
+        # bbox from 320x240 to 640x480
+        bbox = (50.0, 50.0, 100.0, 100.0)
+        result = scale_bbox_to_image(bbox, 320, 240, 640, 480)
+        assert result == (100.0, 100.0, 200.0, 200.0)
+
+    def test_non_uniform_scaling(self) -> None:
+        """Test scaling with different X and Y ratios."""
+        # Source: 640x480, Target: 320x480 (only X scaled)
+        bbox = (100.0, 100.0, 200.0, 200.0)
+        result = scale_bbox_to_image(bbox, 640, 480, 320, 480)
+        assert result == (50.0, 100.0, 100.0, 200.0)
+
+    def test_real_world_scenario_yolo_inference_size(self) -> None:
+        """Test the real-world scenario from NEM-3903.
+
+        YOLO bbox (416, 146, 641, 665) for a 640x640 inference image
+        needs to be scaled to the actual 320x240 image.
+        """
+        # Note: The original bbox (416, 146, 641, 665) exceeds 640x640
+        # so let's use a valid bbox within inference bounds
+        bbox = (416.0, 146.0, 600.0, 600.0)
+        # Scaling from 640x640 (YOLO inference) to 320x240 (actual image)
+        result = scale_bbox_to_image(bbox, 640, 640, 320, 240)
+
+        # Expected: x scaled by 320/640=0.5, y scaled by 240/640=0.375
+        expected_x1 = 416.0 * (320 / 640)  # 208.0
+        expected_y1 = 146.0 * (240 / 640)  # 54.75
+        expected_x2 = 600.0 * (320 / 640)  # 300.0
+        expected_y2 = 600.0 * (240 / 640)  # 225.0
+
+        assert result[0] == pytest.approx(expected_x1)
+        assert result[1] == pytest.approx(expected_y1)
+        assert result[2] == pytest.approx(expected_x2)
+        assert result[3] == pytest.approx(expected_y2)
+
+    def test_invalid_source_dimensions_returns_original(self) -> None:
+        """Test that invalid source dimensions return original bbox."""
+        bbox = (100.0, 100.0, 200.0, 200.0)
+
+        # Zero source width
+        result = scale_bbox_to_image(bbox, 0, 480, 320, 240)
+        assert result == bbox
+
+        # Zero source height
+        result = scale_bbox_to_image(bbox, 640, 0, 320, 240)
+        assert result == bbox
+
+        # Negative source dimensions
+        result = scale_bbox_to_image(bbox, -640, 480, 320, 240)
+        assert result == bbox
+
+    def test_invalid_target_dimensions_returns_original(self) -> None:
+        """Test that invalid target dimensions return original bbox."""
+        bbox = (100.0, 100.0, 200.0, 200.0)
+
+        # Zero target width
+        result = scale_bbox_to_image(bbox, 640, 480, 0, 240)
+        assert result == bbox
+
+        # Zero target height
+        result = scale_bbox_to_image(bbox, 640, 480, 320, 0)
+        assert result == bbox
+
+        # Negative target dimensions
+        result = scale_bbox_to_image(bbox, 640, 480, -320, 240)
+        assert result == bbox
+
+    def test_preserves_aspect_ratio_of_bbox(self) -> None:
+        """Test that uniform scaling preserves bbox aspect ratio."""
+        bbox = (100.0, 100.0, 200.0, 150.0)  # 100x50 bbox (2:1 aspect ratio)
+
+        # Uniform scale 2x
+        result = scale_bbox_to_image(bbox, 640, 480, 1280, 960)
+
+        # Check scaled dimensions
+        original_width = bbox[2] - bbox[0]
+        original_height = bbox[3] - bbox[1]
+        scaled_width = result[2] - result[0]
+        scaled_height = result[3] - result[1]
+
+        original_aspect = original_width / original_height
+        scaled_aspect = scaled_width / scaled_height
+
+        assert original_aspect == pytest.approx(scaled_aspect)
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        source_dims=image_dimensions_strategy(),
+        target_dims=image_dimensions_strategy(),
+    )
+    @hypothesis_settings(max_examples=100)
+    def test_scale_preserves_relative_position(
+        self,
+        bbox: tuple[float, float, float, float],
+        source_dims: tuple[int, int],
+        target_dims: tuple[int, int],
+    ) -> None:
+        """Property: Relative position within image is preserved after scaling."""
+        src_w, src_h = source_dims
+        tgt_w, tgt_h = target_dims
+
+        x1, y1, x2, y2 = bbox
+
+        # Skip if bbox is out of source bounds (can't compute relative position)
+        if x1 >= src_w or y1 >= src_h:
+            return
+
+        result = scale_bbox_to_image(bbox, src_w, src_h, tgt_w, tgt_h)
+        rx1, ry1, rx2, ry2 = result
+
+        # Relative X position should be preserved
+        original_rel_x = x1 / src_w
+        scaled_rel_x = rx1 / tgt_w if tgt_w > 0 else 0
+
+        assert abs(original_rel_x - scaled_rel_x) < 0.01, (
+            f"Relative X position changed: {original_rel_x} -> {scaled_rel_x}"
+        )
+
+    @given(
+        bbox=valid_bbox_xyxy_strategy(),
+        scale_factor=st.floats(
+            min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False
+        ),
+    )
+    @hypothesis_settings(max_examples=50)
+    def test_scale_then_inverse_roundtrip(
+        self,
+        bbox: tuple[float, float, float, float],
+        scale_factor: float,
+    ) -> None:
+        """Property: Scaling then inverse scaling returns approximately original bbox."""
+        src_w, src_h = 640, 480
+        tgt_w = int(src_w * scale_factor)
+        tgt_h = int(src_h * scale_factor)
+
+        # Skip invalid target dimensions
+        if tgt_w <= 0 or tgt_h <= 0:
+            return
+
+        # Scale to target
+        scaled = scale_bbox_to_image(bbox, src_w, src_h, tgt_w, tgt_h)
+
+        # Scale back to source
+        roundtrip = scale_bbox_to_image(scaled, tgt_w, tgt_h, src_w, src_h)
+
+        # Should be approximately equal
+        for i in range(4):
+            assert abs(roundtrip[i] - bbox[i]) < 1.0, (
+                f"Roundtrip error at index {i}: {roundtrip[i]} != {bbox[i]}"
+            )

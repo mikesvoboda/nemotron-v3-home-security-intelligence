@@ -494,7 +494,9 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: 4G
+          # NEM-3890: Increased from 4G to 6G to prevent OOM kills
+          # Backend was at 94.45% memory usage (4.057GB / 4.295GB)
+          memory: 6G
         reservations:
           devices:
             - driver: nvidia

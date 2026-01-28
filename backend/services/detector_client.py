@@ -1151,6 +1151,13 @@ class DetectorClient:
             detections = []
             detected_at = datetime.now(UTC)
 
+            # Extract image dimensions from YOLO response for bbox scaling (NEM-3903)
+            # YOLO returns bounding boxes in pixel coordinates relative to the original
+            # image dimensions. We store these dimensions so the enrichment pipeline
+            # can properly scale bboxes if the image is later loaded at a different resolution.
+            response_image_width = result.get("image_width")
+            response_image_height = result.get("image_height")
+
             # Use video path and file type if this is a video frame detection
             if video_path is not None and video_metadata is not None:
                 detection_file_path = video_path
@@ -1218,6 +1225,15 @@ class DetectorClient:
                         detection.video_codec = video_metadata.get("video_codec")
                         detection.video_width = video_metadata.get("video_width")
                         detection.video_height = video_metadata.get("video_height")
+                    else:
+                        # NEM-3903: Store image dimensions for bbox scaling in enrichment
+                        # This ensures bounding boxes can be properly scaled when the image
+                        # is loaded at a different resolution during enrichment processing.
+                        # Uses the same video_width/video_height fields for consistency.
+                        if response_image_width is not None:
+                            detection.video_width = response_image_width
+                        if response_image_height is not None:
+                            detection.video_height = response_image_height
 
                     session.add(detection)
                     detections.append(detection)

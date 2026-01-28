@@ -4163,3 +4163,46 @@ def record_health_check_cache_miss(endpoint: str) -> None:
         endpoint: Health check endpoint
     """
     HEALTH_CHECK_CACHE_MISSES_TOTAL.labels(endpoint=endpoint).inc()
+
+
+# =============================================================================
+# Process Memory Metrics (NEM-3890)
+# =============================================================================
+
+PROCESS_MEMORY_RSS_BYTES = Gauge(
+    "hsi_process_memory_rss_bytes",
+    "Backend process Resident Set Size (RSS) in bytes - actual physical memory used",
+)
+
+PROCESS_MEMORY_CONTAINER_LIMIT_BYTES = Gauge(
+    "hsi_process_memory_container_limit_bytes",
+    "Container memory limit in bytes (0 if not in container or no limit)",
+)
+
+PROCESS_MEMORY_CONTAINER_USAGE_RATIO = Gauge(
+    "hsi_process_memory_container_usage_ratio",
+    "RSS as ratio of container memory limit (0-1, 0 if no limit)",
+)
+
+
+def update_process_memory_metrics(
+    rss_bytes: int,
+    container_limit_bytes: int | None,
+    container_usage_percent: float | None,
+) -> None:
+    """Update process memory Prometheus metrics.
+
+    Called periodically to export memory usage to Prometheus.
+
+    Args:
+        rss_bytes: Resident Set Size in bytes
+        container_limit_bytes: Container memory limit in bytes (None if no limit)
+        container_usage_percent: RSS as percentage of container limit (None if no limit)
+    """
+    PROCESS_MEMORY_RSS_BYTES.set(rss_bytes)
+    PROCESS_MEMORY_CONTAINER_LIMIT_BYTES.set(
+        container_limit_bytes if container_limit_bytes is not None else 0
+    )
+    PROCESS_MEMORY_CONTAINER_USAGE_RATIO.set(
+        container_usage_percent / 100.0 if container_usage_percent is not None else 0.0
+    )

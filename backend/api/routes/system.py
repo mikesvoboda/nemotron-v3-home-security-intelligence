@@ -94,6 +94,7 @@ from backend.api.schemas.system import (
     PipelineLatencyResponse,
     PipelineStageLatency,
     PipelineStatusResponse,
+    ProcessMemoryResponse,
     QueueDepths,
     ReadinessResponse,
     RestartHistoryEvent,
@@ -585,12 +586,27 @@ def _get_worker_statuses() -> list[WorkerStatus]:
 
 
 def _are_critical_pipeline_workers_healthy() -> bool:
-    """Check if critical pipeline workers (detection and analysis) are running.
+    """Check if critical pipeline workers (detection and analysis) are operational.
+
+    NEM-3901: Workers are considered operational if they are in "running" or "error" state.
+    The "error" state is transient (self-recovers within ~1 second) and indicates the worker
+    is still in its processing loop but encountered a recoverable exception. This prevents
+    false negatives in readiness probes that cause SLO burn rate spikes.
+
+    Workers are considered NOT operational if:
+    - state is "stopped" (worker is not running)
+    - state is "stopping" (worker is shutting down)
+    - state is "starting" (worker hasn't completed initialization)
 
     Returns:
-        True if both detection and analysis workers are running, False otherwise.
+        True if both detection and analysis workers are operational, False otherwise.
         Returns False if pipeline_manager is not registered (system cannot process detections).
     """
+    # Operational states: workers that are actively processing or will resume shortly
+    # "running" - normal operation
+    # "error" - transient error state, worker auto-recovers within 1 second (NEM-3901)
+    OPERATIONAL_STATES = {"running", "error"}
+
     if _pipeline_manager is None:
         # Pipeline manager not registered - system cannot process detections
         logger.warning("Pipeline manager not registered - marking as not ready")
@@ -607,13 +623,13 @@ def _are_critical_pipeline_workers_healthy() -> bool:
     # Check detection worker (critical)
     if "detection" in workers_dict:
         detection_state = workers_dict["detection"].get("state", "stopped")
-        if detection_state != "running":
+        if detection_state not in OPERATIONAL_STATES:
             return False
 
     # Check analysis worker (critical)
     if "analysis" in workers_dict:
         analysis_state = workers_dict["analysis"].get("state", "stopped")
-        if analysis_state != "running":
+        if analysis_state not in OPERATIONAL_STATES:
             return False
 
     return True
@@ -1262,11 +1278,52 @@ async def get_health(
             for event in events
         ]
 
+    # Collect process memory metrics (NEM-3890)
+    memory_response: ProcessMemoryResponse | None = None
+    try:
+        from backend.core.metrics import update_process_memory_metrics
+        from backend.services.process_memory_service import get_process_memory_service
+
+        memory_service = get_process_memory_service()
+        memory_info = memory_service.get_memory_info()
+        memory_response = ProcessMemoryResponse(
+            rss_mb=round(memory_info.rss_mb, 2),
+            vms_mb=round(memory_info.vms_mb, 2),
+            percent=round(memory_info.percent, 2),
+            container_limit_mb=(
+                round(memory_info.container_limit_mb, 2)
+                if memory_info.container_limit_mb is not None
+                else None
+            ),
+            container_usage_percent=(
+                round(memory_info.container_usage_percent, 2)
+                if memory_info.container_usage_percent is not None
+                else None
+            ),
+            status=memory_service.get_status(),
+        )
+
+        # Update Prometheus metrics for process memory
+        container_limit_bytes = (
+            int(memory_info.container_limit_mb * 1024 * 1024)
+            if memory_info.container_limit_mb is not None
+            else None
+        )
+        update_process_memory_metrics(
+            rss_bytes=memory_info.rss_bytes,
+            container_limit_bytes=container_limit_bytes,
+            container_usage_percent=memory_info.container_usage_percent,
+        )
+    except Exception as e:
+        # Don't fail health check if memory metrics fail
+        logger.warning(f"Failed to collect process memory metrics: {e}")
+
     health_response = HealthResponse(
         status=overall_status,
         services=services,
         timestamp=datetime.now(UTC),
         recent_events=recent_events,
+        memory=memory_response,
     )
 
     # Cache the response for future requests
@@ -2751,17 +2808,31 @@ def _calculate_percentile(samples: list[float], percentile: float) -> float:
     return samples[index]
 
 
-def _calculate_stage_latency(samples: list[float]) -> StageLatency | None:
+def _calculate_stage_latency(samples: list[float]) -> StageLatency:
     """Calculate latency statistics for a single stage.
 
     Args:
         samples: List of latency samples in milliseconds
 
     Returns:
-        StageLatency with calculated statistics, or None if no samples
+        StageLatency with calculated statistics. Returns zero values with
+        sample_count=0 if no samples are available. This ensures consistent
+        JSON structure for metrics exporters (e.g., json_exporter) that
+        expect all latency fields to exist even when no data is available.
     """
     if not samples:
-        return None
+        # Return zero values instead of None to ensure consistent JSON structure
+        # for metrics exporters. Fields are still nullable in the schema for
+        # backward compatibility, but we always return values here.
+        return StageLatency(
+            avg_ms=0.0,
+            min_ms=0.0,
+            max_ms=0.0,
+            p50_ms=0.0,
+            p95_ms=0.0,
+            p99_ms=0.0,
+            sample_count=0,
+        )
 
     sorted_samples = sorted(samples)
     count = len(sorted_samples)
@@ -2786,27 +2857,30 @@ async def get_latency_stats(redis: RedisClient) -> PipelineLatencies | None:
         redis: Redis client
 
     Returns:
-        PipelineLatencies with statistics for each stage, or None on error
+        PipelineLatencies with statistics for each stage (always returns
+        StageLatency objects with zero values when no samples available),
+        or None on Redis connection error
     """
     try:
-        latencies: dict[str, StageLatency | None] = {}
+        latencies: dict[str, StageLatency] = {}
 
         for stage in PIPELINE_STAGES:
             key = f"{LATENCY_KEY_PREFIX}{stage}"
             # Get samples from Redis list
             samples_data = await redis.peek_queue(key, 0, MAX_LATENCY_SAMPLES - 1)
 
+            # Convert to floats, filtering out invalid values
+            samples = []
             if samples_data:
-                # Convert to floats, filtering out invalid values
-                samples = []
                 for s in samples_data:
                     try:
                         samples.append(float(s))
                     except (TypeError, ValueError):
                         continue
-                latencies[stage] = _calculate_stage_latency(samples)
-            else:
-                latencies[stage] = None
+
+            # _calculate_stage_latency returns zero values when samples is empty,
+            # ensuring consistent JSON structure for metrics exporters
+            latencies[stage] = _calculate_stage_latency(samples)
 
         return PipelineLatencies(
             watch=latencies.get("watch"),

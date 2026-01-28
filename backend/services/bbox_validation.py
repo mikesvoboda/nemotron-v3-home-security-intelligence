@@ -625,3 +625,67 @@ def prepare_bbox_for_crop(
         return None
 
     return (x1, y1, x2, y2)
+
+
+def scale_bbox_to_image(
+    bbox: tuple[float, float, float, float],
+    source_width: int,
+    source_height: int,
+    target_width: int,
+    target_height: int,
+) -> tuple[float, float, float, float]:
+    """Scale bounding box coordinates from source dimensions to target dimensions.
+
+    This function handles the common case where YOLO returns bounding box coordinates
+    relative to the original image dimensions, but the image is later loaded at a
+    different resolution (e.g., for thumbnail processing or memory optimization).
+
+    NEM-3903: YOLO detection coordinates are always relative to the actual image
+    dimensions at inference time. When the enrichment pipeline loads an image at
+    a different resolution, bboxes must be scaled proportionally.
+
+    Args:
+        bbox: Bounding box as (x1, y1, x2, y2) in source coordinates
+        source_width: Width of the image when bbox was generated
+        source_height: Height of the image when bbox was generated
+        target_width: Width of the image to scale bbox to
+        target_height: Height of the image to scale bbox to
+
+    Returns:
+        Scaled bounding box as (x1, y1, x2, y2) in target coordinates
+
+    Example:
+        >>> # YOLO returned bbox for 640x480 image, but we loaded 320x240
+        >>> scale_bbox_to_image((100, 100, 200, 200), 640, 480, 320, 240)
+        (50.0, 50.0, 100.0, 100.0)
+
+        >>> # Upscaling: bbox from 320x240 to 640x480
+        >>> scale_bbox_to_image((50, 50, 100, 100), 320, 240, 640, 480)
+        (100.0, 100.0, 200.0, 200.0)
+    """
+    if source_width <= 0 or source_height <= 0:
+        logger.warning(
+            f"Invalid source dimensions: {source_width}x{source_height}. Returning original bbox."
+        )
+        return bbox
+
+    if target_width <= 0 or target_height <= 0:
+        logger.warning(
+            f"Invalid target dimensions: {target_width}x{target_height}. Returning original bbox."
+        )
+        return bbox
+
+    # No scaling needed if dimensions match
+    if source_width == target_width and source_height == target_height:
+        return bbox
+
+    x1, y1, x2, y2 = bbox
+    scale_x = target_width / source_width
+    scale_y = target_height / source_height
+
+    return (
+        x1 * scale_x,
+        y1 * scale_y,
+        x2 * scale_x,
+        y2 * scale_y,
+    )
