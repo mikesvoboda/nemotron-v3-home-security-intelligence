@@ -1,262 +1,181 @@
 # Cosmos Video Regeneration Handoff
 
 **Date:** 2026-01-28
-**Status:** ALL VIDEOS REQUIRE REGENERATION
+**Status:** BLOCKED - Videos do not exist
 **Priority:** Critical
 
 ---
 
 ## Executive Summary
 
-Quality analysis of all 496 Cosmos synthetic videos reveals **systemic generation pipeline failures**. Every video has the same issues regardless of series (C/E/F/R/P/T).
-
-| Metric                        | Value               |
-| ----------------------------- | ------------------- |
-| Total videos analyzed         | 496                 |
-| Screenshots extracted         | 1,488 (3 per video) |
-| Videos passing QA             | 0 (0%)              |
-| Videos requiring regeneration | 496 (100%)          |
+Analysis of the `data/synthetic/cosmos/videos/` directory reveals that **no actual video content exists**. All 496 `.mp4` files are Git LFS pointer stubs (~131 bytes each) referencing content that was never uploaded to the LFS server.
 
 ---
 
-## Critical Issues Found
+## Critical Findings
 
-### 1. All Duration Variants Are Identical (100% affected)
+### 1. Videos Do Not Exist
 
-The 5s, 10s, and 30s variants for each video ID are **byte-for-byte identical copies**.
+| Metric | Value |
+|--------|-------|
+| Total files | 496 |
+| Actual videos | 0 |
+| File type | Git LFS pointers |
+| LFS pull result | `404 Object does not exist on the server` |
 
-```
-C01_5s.mp4:  MD5 76e0a163...  (643 KB)
-C01_10s.mp4: MD5 76e0a163...  (643 KB)  <- SAME
-C01_30s.mp4: MD5 76e0a163...  (643 KB)  <- SAME
-```
+### 2. Generation Never Completed
 
-**Impact:** Instead of 496 unique videos, there are only ~167 unique clips copied 3 times each.
-
-### 2. Wrong Duration (100% affected)
-
-All videos are **5.81 seconds (93 frames at 16fps)** regardless of filename:
-
-| Filename    | Expected | Actual | Status   |
-| ----------- | -------- | ------ | -------- |
-| `*_5s.mp4`  | 5.0s     | 5.81s  | WRONG    |
-| `*_10s.mp4` | 10.0s    | 5.81s  | CRITICAL |
-| `*_30s.mp4` | 30.0s    | 5.81s  | CRITICAL |
-
-### 3. Frame Rate Mismatch
-
-| Parameter  | Manifest Config | Actual Output |
-| ---------- | --------------- | ------------- |
-| FPS        | 24              | 16            |
-| 5s frames  | 120             | 93            |
-| 10s frames | 240             | 93            |
-| 30s frames | 720             | 93            |
-
-### 4. Generation Parameters Ignored
-
-The `num_output_frames` values in `prompts/generated/*.json` are not being passed to Cosmos inference:
-
+From `generation_status.json`:
 ```json
-// C01_30s.json specifies:
-"num_output_frames": 720
-
-// But Cosmos outputs 93 frames (default)
+{
+  "total": 88,
+  "completed": 0,
+  "failed": 0,
+  "in_progress": 8
+}
 ```
 
-### 5. Autoregressive Mode Not Functioning
+### 3. Duration Variants Are Duplicates
 
-30-second videos require sliding window autoregressive generation (6 × 5s clips). This is configured in the manifest but not implemented in the generation scripts.
+All duration variants (5s, 10s, 30s) of the same video ID have **identical SHA256 hashes**:
 
----
-
-## Root Cause Analysis
-
-The `batch_generate.sh` script does **not** pass the `--num-output-frames` CLI argument to Cosmos inference. The model uses its default output (93 frames at 16fps = 5.81s).
-
-**Fix required in generation script:**
-
-```bash
-# CURRENT (broken):
-python examples/inference.py -i $prompt_file -o $output_dir
-
-# REQUIRED (fixed):
-num_frames=$(jq -r '.num_output_frames' $prompt_file)
-python examples/inference.py \
-  -i $prompt_file \
-  -o $output_dir \
-  --num-output-frames $num_frames
+```
+C01_5s.mp4:  sha256:e4429563316346c16e5b914b7bd03866fa1b4cbff73db2a3fb4ae274a57fd880
+C01_10s.mp4: sha256:e4429563316346c16e5b914b7bd03866fa1b4cbff73db2a3fb4ae274a57fd880
+C01_30s.mp4: sha256:e4429563316346c16e5b914b7bd03866fa1b4cbff73db2a3fb4ae274a57fd880
 ```
 
----
-
-## Video Series Breakdown
-
-### C-Series: Core Detection (23 IDs × 3 = 69 files)
-
-Basic security scenarios for detection model training.
-
-### E-Series: Everyday Activity (22 IDs × 3 = 66 files)
-
-Routine activities: deliveries, service workers, utility workers.
-Expected risk level: LOW
-
-### F-Series: False Alarms (16 IDs × 3 = 48 files)
-
-Wildlife, weather effects, innocent activity.
-Expected risk level: NONE
-
-### R-Series: Risk/Threat (18 IDs × 3 = 54 files)
-
-Package theft, break-in attempts, suspicious activity.
-Expected risk level: HIGH
-**Note:** R14-R18 missing 30s variants (5 files)
-
-### P-Series: Presentation (48 IDs × 3 = 144 files)
-
-Demo scenarios for threat escalation, cross-camera tracking, household recognition, vehicle+person.
-
-### T-Series: Training (40 IDs × varies = 96+ files)
-
-Weapons, aggression, tracking sequences for model training.
+**Expected:** Different hashes for different durations
+**Actual:** 207 unique hashes across 496 files
 
 ---
 
-## Required Pipeline Fixes
+## Required Actions
 
-### Priority 1: Critical (Must Fix)
+### Phase 1: Locate or Generate Videos
 
-1. **Pass `num_output_frames` to Cosmos CLI**
+**Option A: Videos exist elsewhere**
+- Check the Cosmos generation machine for completed videos
+- If found, copy to this directory and push to LFS:
+  ```bash
+  git lfs push --all origin
+  ```
 
-   ```bash
-   --num-output-frames $(jq -r '.num_output_frames' $prompt)
-   ```
+**Option B: Videos need generation**
+- Use the existing infrastructure in `data/synthetic/cosmos/`
+- See generation instructions below
 
-2. **Generate each duration variant separately**
+### Phase 2: Fix Duration Variants
 
-   - Do NOT copy files between 5s/10s/30s
-   - Each must be a unique Cosmos inference run
+Each prompt ID needs **three separate generations**:
+- `{ID}_5s.mp4` - 5 second clip (120 frames @ 24fps)
+- `{ID}_10s.mp4` - 10 second clip (240 frames @ 24fps)
+- `{ID}_30s.mp4` - 30 second clip (720 frames @ 24fps, autoregressive)
 
-3. **Implement autoregressive mode for 30s videos**
-   - Use sliding window: 6 × 5s clips with overlap
-   - Concatenate with seamless transitions
-
-### Priority 2: High
-
-4. **Fix frame rate (24fps target)**
-
-   - Either update Cosmos config or adjust frame calculations
-
-5. **Add unique seeds per duration variant**
-   - Currently all use `seed: 0`
-   - Use deterministic seeds: `seed = hash(video_id + duration)`
-
-### Priority 3: Medium
-
-6. **Add post-generation validation**
-
-   ```bash
-   # Validate each output:
-   actual_duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 $output)
-   expected_duration=${filename%s.mp4}  # Extract from filename
-   if [ "$actual_duration" != "$expected_duration" ]; then
-     echo "FAILED: $output"
-   fi
-   ```
-
-7. **Generate missing R-series 30s variants**
-   - R14_30s.mp4, R15_30s.mp4, R16_30s.mp4, R17_30s.mp4, R18_30s.mp4
+The current prompts in `prompts/generated/` correctly specify different `num_output_frames`, but generation must run separately for each.
 
 ---
 
-## Regeneration Commands
+## Generation Infrastructure (Ready to Use)
 
-### Full Regeneration (All 496 Videos)
+### Files Available
+
+| File | Purpose |
+|------|---------|
+| `generation_manifest.yaml` | 167 video definitions with prompts |
+| `prompts/generated/*.json` | 501 ready-to-use Cosmos input files |
+| `batch_generate.sh` | Batch generation script |
+| `parallel_generate.py` | 8-GPU parallel generation |
+| `monitor.sh` | Progress monitoring |
+| `HANDOFF.md` | Original setup documentation |
+
+### Quick Start
 
 ```bash
-# On Cosmos machine (B300/H200):
+# On B300/H200 machine with Cosmos installed:
 cd /path/to/cosmos-predict2.5
 
-# Copy fixed prompts
+# Copy prompts
 cp -r /path/to/nemotron/data/synthetic/cosmos/prompts/generated/* inputs/
 
-# Run with fixed script (after implementing fixes above)
-./batch_generate_fixed.sh
+# Run generation (single GPU)
+./batch_generate.sh
 
 # Or parallel (8 GPU)
-python parallel_generate.py --gpus 8 --validate
+python parallel_generate.py --gpus 8
 ```
 
-### Validation After Generation
+### Hardware Requirements
 
-```bash
-# Check durations
-for f in outputs/*.mp4; do
-  duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
-  echo "$f: ${duration}s"
-done
-
-# Check for duplicates
-md5sum outputs/*_5s.mp4 outputs/*_10s.mp4 outputs/*_30s.mp4 | sort | uniq -d -w32
-
-# Verify unique hashes per duration variant
-for id in C01 C02 C03; do
-  echo "=== $id ==="
-  md5sum outputs/${id}_*.mp4
-done
-```
+| GPU | VRAM | Notes |
+|-----|------|-------|
+| B300 | 267GB | Docker required (sm_103) |
+| H200 | 141GB | Native or Docker |
+| H100 | 80GB | May need reduced batch size |
 
 ---
 
-## Screenshots Available
+## Video Categories
 
-1,488 screenshots extracted for visual QA review:
+### Presentation Videos (48 total)
 
-```
-data/synthetic/cosmos/screenshots/
-├── C01_5s_frame1.jpg   # 0.5s from start
-├── C01_5s_frame2.jpg   # middle
-├── C01_5s_frame3.jpg   # 0.5s from end
-├── ...
-```
+| Scenario | Count | Purpose |
+|----------|-------|---------|
+| Threat Escalation | 12 | Risk scoring demo (P01-P12) |
+| Cross-Camera Tracking | 12 | ReID demo (P13-P24) |
+| Household Recognition | 12 | Face matching demo (P25-P36) |
+| Vehicle + Person | 12 | Full pipeline demo (P37-P48) |
 
-Use these to verify:
+### Training Videos (40 total)
 
+| Category | Count | Purpose |
+|----------|-------|---------|
+| Threat Patterns | 10 | Weapons, aggression (T01-T10) |
+| Tracking Sequences | 8 | ReID training (T11-T18) |
+| Additional | 22 | Various scenarios |
+
+### Core Detection Videos (119 total)
+
+| Series | Range | Purpose |
+|--------|-------|---------|
+| C-series | C01-C119 | Core detection scenarios |
+
+---
+
+## Prompt Quality Notes
+
+The prompts are well-designed for security camera footage:
+
+**Good:**
+- Perspective-centric (no camera visible in frame)
+- Consistent negative prompts blocking artifacts
+- Proper motion speed (real-time, no slow-mo)
+- IR-tinted night footage
+
+**Verify after generation:**
 - Subject visibility and clarity
-- Action matches prompt description
-- Scene consistency
+- Action completion within duration
+- Scene consistency across frames
 - No Cosmos hallucination artifacts
 
 ---
 
-## Detailed Reports
+## Post-Generation Checklist
 
-| Report                 | Location                            |
-| ---------------------- | ----------------------------------- |
-| Batch 1 (C-series)     | `analysis/batch1_quality_report.md` |
-| Batch 2 (E/F/R-series) | `analysis/batch2_quality_report.md` |
-| Batch 3 (P/T-series)   | `analysis/batch3_quality_report.md` |
-| Screenshots            | `screenshots/extraction_report.txt` |
+After videos are generated:
 
----
-
-## Post-Regeneration Checklist
-
-After videos are regenerated:
-
-- [ ] Verify each video plays correctly with ffprobe
-- [ ] Confirm duration matches filename (5s/10s/30s within 0.5s tolerance)
-- [ ] Check that duration variants have DIFFERENT MD5 hashes
-- [ ] Spot-check screenshots for visual quality
-- [ ] Push to Git LFS: `git lfs push --all origin`
-- [ ] Update `generation_status.json` with completion status
-- [ ] Run security model inference on sample videos to validate training utility
+1. [ ] Verify each video plays correctly with ffprobe
+2. [ ] Confirm duration matches filename (5s/10s/30s)
+3. [ ] Check that duration variants are actually different
+4. [ ] Extract sample frames for visual QA
+5. [ ] Push to Git LFS: `git lfs push --all origin`
+6. [ ] Update `generation_status.json` with completion status
 
 ---
 
 ## Contact
 
 For questions about:
-
 - **Cosmos model issues:** Check NVIDIA Cosmos documentation
 - **Prompt adjustments:** Edit `prompts/templates/` and regenerate with `generate_prompts.py`
 - **This codebase:** See main `CLAUDE.md` and `AGENTS.md`
