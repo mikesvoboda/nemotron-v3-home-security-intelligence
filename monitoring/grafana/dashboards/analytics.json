@@ -1320,7 +1320,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(hsi_rum_page_load_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_rum_page_load_time_seconds_bucket[5m])) by (le))",
           "legendFormat": "P50",
           "refId": "A"
         },
@@ -1329,7 +1329,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(hsi_rum_page_load_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_rum_page_load_time_seconds_bucket[5m])) by (le))",
           "legendFormat": "P95",
           "refId": "B"
         }
@@ -1740,7 +1740,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_fid_milliseconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_inp_seconds_bucket[5m])) by (le))",
           "legendFormat": "FID P75",
           "refId": "A"
         }
@@ -1875,7 +1875,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_inp_milliseconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_inp_seconds_bucket[5m])) by (le))",
           "legendFormat": "INP P75",
           "refId": "A"
         }
@@ -2276,7 +2276,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "increase(hsi_db_slow_queries_total[1m])",
+          "expr": "increase(hsi_slow_queries_total[1m])",
           "legendFormat": "Slow Queries",
           "refId": "A"
         }

@@ -37,6 +37,11 @@ from backend.api.schemas.dwell_time import (
     LoiteringAlert,
 )
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_loitering_dwell_time,
+    record_loitering_alert,
+    record_loitering_event,
+)
 from backend.core.time_utils import utc_now
 from backend.models.dwell_time import DwellTimeRecord
 
@@ -243,6 +248,7 @@ class DwellTimeService:
     async def get_active_dwellers(
         self,
         zone_id: int,
+        load_zone: bool = False,
     ) -> Sequence[DwellTimeRecord]:
         """Get all objects currently dwelling in a zone.
 
@@ -251,6 +257,8 @@ class DwellTimeService:
 
         Args:
             zone_id: The ID of the zone to query.
+            load_zone: Whether to eagerly load the zone relationship
+                (useful for accessing zone.name in metrics).
 
         Returns:
             A sequence of active DwellTimeRecord instances.
@@ -259,6 +267,8 @@ class DwellTimeService:
             dwellers = await service.get_active_dwellers(zone_id=1)
             print(f"{len(dwellers)} objects currently in zone")
         """
+        from sqlalchemy.orm import selectinload
+
         stmt = (
             select(DwellTimeRecord)
             .where(
@@ -269,6 +279,8 @@ class DwellTimeService:
             )
             .order_by(DwellTimeRecord.entry_time)
         )
+        if load_zone:
+            stmt = stmt.options(selectinload(DwellTimeRecord.zone))
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
@@ -355,8 +367,8 @@ class DwellTimeService:
         now = current_time or utc_now()
         alerts: list[LoiteringAlert] = []
 
-        # Get active dwellers
-        active_records = await self.get_active_dwellers(zone_id)
+        # Get active dwellers with zone relationship loaded for metrics
+        active_records = await self.get_active_dwellers(zone_id, load_zone=True)
 
         for record in active_records:
             dwell_seconds = record.calculate_dwell_time(now)
@@ -379,12 +391,22 @@ class DwellTimeService:
                     record.triggered_alert = True
                     await self.db.flush()
 
+                    # Get zone name for metrics (fallback to "unknown" if not loaded)
+                    zone_name = record.zone.name if record.zone is not None else "unknown"
+
+                    # Emit Prometheus metrics for loitering detection (NEM-4142)
+                    record_loitering_alert(record.camera_id, str(zone_id))
+                    observe_loitering_dwell_time(record.camera_id, dwell_seconds)
+                    # Record loitering event with severity='alert' (threshold exceeded)
+                    record_loitering_event(str(zone_id), zone_name, "alert")
+
                     logger.warning(
                         f"Loitering detected: track {record.track_id} in zone {zone_id} "
                         f"for {dwell_seconds:.1f}s (threshold: {threshold_seconds}s)",
                         extra={
                             "record_id": record.id,
                             "zone_id": zone_id,
+                            "zone_name": zone_name,
                             "track_id": record.track_id,
                             "dwell_seconds": dwell_seconds,
                             "threshold_seconds": threshold_seconds,

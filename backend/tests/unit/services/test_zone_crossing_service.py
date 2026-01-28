@@ -1567,3 +1567,433 @@ class TestAdditionalCoverage:
         # Should only emit enter event for new zone (no exit for nonexistent zone)
         assert len(events) == 1
         assert events[0]["type"] == "zone.enter"
+
+
+# =============================================================================
+# Prometheus Metrics Integration Tests (NEM-4141)
+# =============================================================================
+
+
+class TestZoneCrossingMetrics:
+    """Tests for Prometheus metrics emission in zone crossing events."""
+
+    @pytest.mark.asyncio
+    async def test_emit_zone_enter_records_crossing_metric(self) -> None:
+        """Test that _emit_zone_enter records hsi_zone_crossings_total metric."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-001"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch(
+                "backend.services.zone_crossing_service.record_zone_crossing"
+            ) as mock_record_crossing,
+            patch(
+                "backend.services.zone_crossing_service.set_zone_occupancy"
+            ) as mock_set_occupancy,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_enter(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+            )
+
+        # Verify crossing metric was recorded with enter direction
+        mock_record_crossing.assert_called_once_with(
+            zone_id="zone-metrics-001", direction="enter", entity_type="person"
+        )
+        # Verify occupancy was updated
+        mock_set_occupancy.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_emit_zone_exit_records_crossing_metric(self) -> None:
+        """Test that _emit_zone_exit records hsi_zone_crossings_total metric."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-002"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch(
+                "backend.services.zone_crossing_service.record_zone_crossing"
+            ) as mock_record_crossing,
+            patch(
+                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+            ) as mock_observe_dwell,
+            patch(
+                "backend.services.zone_crossing_service.set_zone_occupancy"
+            ) as mock_set_occupancy,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_exit(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="vehicle",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+                dwell_time=45.5,
+            )
+
+        # Verify crossing metric was recorded with exit direction
+        mock_record_crossing.assert_called_once_with(
+            zone_id="zone-metrics-002", direction="exit", entity_type="vehicle"
+        )
+        # Verify dwell time was recorded
+        mock_observe_dwell.assert_called_once_with(
+            zone_id="zone-metrics-002", duration_seconds=45.5
+        )
+        # Verify occupancy was updated
+        mock_set_occupancy.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_emit_zone_exit_skips_dwell_time_when_none(self) -> None:
+        """Test that _emit_zone_exit skips dwell time metric when None."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-003"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch(
+                "backend.services.zone_crossing_service.record_zone_crossing"
+            ) as mock_record_crossing,
+            patch(
+                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+            ) as mock_observe_dwell,
+            patch("backend.services.zone_crossing_service.set_zone_occupancy"),
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_exit(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+                dwell_time=None,  # No dwell time
+            )
+
+        # Crossing metric should still be recorded
+        mock_record_crossing.assert_called_once()
+        # Dwell time should NOT be recorded when None
+        mock_observe_dwell.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_emit_zone_exit_skips_dwell_time_when_zero(self) -> None:
+        """Test that _emit_zone_exit skips dwell time metric when zero."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-004"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing"),
+            patch(
+                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+            ) as mock_observe_dwell,
+            patch("backend.services.zone_crossing_service.set_zone_occupancy"),
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_exit(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+                dwell_time=0.0,  # Zero dwell time
+            )
+
+        # Dwell time should NOT be recorded when zero
+        mock_observe_dwell.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_emit_zone_dwell_records_dwell_time_metric(self) -> None:
+        """Test that _emit_zone_dwell records hsi_zone_dwell_time_seconds metric."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-005"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch(
+                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+            ) as mock_observe_dwell,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_dwell(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url="/thumb.jpg",
+                dwell_time=120.0,
+            )
+
+        # Verify dwell time metric was recorded
+        mock_observe_dwell.assert_called_once_with(
+            zone_id="zone-metrics-005", duration_seconds=120.0
+        )
+
+    @pytest.mark.asyncio
+    async def test_emit_zone_dwell_skips_zero_dwell_time(self) -> None:
+        """Test that _emit_zone_dwell skips metric when dwell_time is zero."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-006"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch(
+                "backend.services.zone_crossing_service.observe_zone_dwell_time"
+            ) as mock_observe_dwell,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_dwell(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+                dwell_time=0.0,
+            )
+
+        # Dwell time should NOT be recorded when zero
+        mock_observe_dwell.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_zone_enter_occupancy_gauge_incremented(self) -> None:
+        """Test that zone occupancy gauge is incremented on zone enter."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        # Pre-populate zone with one occupant
+        service._zone_occupants["zone-metrics-007"].add("existing-entity")
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-007"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing"),
+            patch(
+                "backend.services.zone_crossing_service.set_zone_occupancy"
+            ) as mock_set_occupancy,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_enter(
+                zone=zone,
+                entity_id="new-entity",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+            )
+
+        # Occupancy should be set to 2 (existing + new)
+        mock_set_occupancy.assert_called_once_with(zone_id="zone-metrics-007", count=2)
+
+    @pytest.mark.asyncio
+    async def test_zone_exit_occupancy_gauge_decremented(self) -> None:
+        """Test that zone occupancy gauge is decremented on zone exit."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        # Pre-populate zone with two occupants
+        service._zone_occupants["zone-metrics-008"].add("entity-001")
+        service._zone_occupants["zone-metrics-008"].add("entity-002")
+
+        zone = MagicMock()
+        zone.id = "zone-metrics-008"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing"),
+            patch("backend.services.zone_crossing_service.observe_zone_dwell_time"),
+            patch(
+                "backend.services.zone_crossing_service.set_zone_occupancy"
+            ) as mock_set_occupancy,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_exit(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+                dwell_time=30.0,
+            )
+
+        # Occupancy should be set to 1 (2 - 1)
+        mock_set_occupancy.assert_called_once_with(zone_id="zone-metrics-008", count=1)
+
+    @pytest.mark.asyncio
+    async def test_zone_exit_occupancy_does_not_go_negative(self) -> None:
+        """Test that zone occupancy gauge does not go below zero."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        # Empty zone (edge case)
+        zone = MagicMock()
+        zone.id = "zone-metrics-009"
+        zone.name = "Test Zone"
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch("backend.services.zone_crossing_service.record_zone_crossing"),
+            patch("backend.services.zone_crossing_service.observe_zone_dwell_time"),
+            patch(
+                "backend.services.zone_crossing_service.set_zone_occupancy"
+            ) as mock_set_occupancy,
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+            await service._emit_zone_exit(
+                zone=zone,
+                entity_id="entity-001",
+                entity_type="person",
+                detection_id="123",
+                timestamp=datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC),
+                thumbnail_url=None,
+                dwell_time=10.0,
+            )
+
+        # Occupancy should be 0, not negative
+        mock_set_occupancy.assert_called_once_with(zone_id="zone-metrics-009", count=0)
+
+    @pytest.mark.asyncio
+    async def test_full_enter_exit_flow_emits_all_metrics(self) -> None:
+        """Test that a full enter-exit flow emits all expected metrics."""
+        from backend.services.zone_crossing_service import ZoneCrossingService
+
+        mock_redis = AsyncMock()
+        service = ZoneCrossingService(redis_client=mock_redis)
+
+        zone = MagicMock()
+        zone.id = "zone-flow-test"
+        zone.name = "Flow Test Zone"
+        zone.enabled = True
+        zone.priority = 1
+        zone.coordinates = [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5], [0.0, 0.5]]
+
+        base_time = datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC)
+
+        def make_detection(det_id: int, seconds_offset: int, inside_zone: bool) -> MagicMock:
+            det = MagicMock()
+            det.id = det_id
+            det.object_type = "person"
+            det.enrichment_data = {"entity_id": "flow-entity"}
+            det.detected_at = base_time + timedelta(seconds=seconds_offset)
+            det.thumbnail_path = None
+            # Inside zone: (100, 100) -> normalized (0.05, 0.09) -> inside [0,0.5]x[0,0.5]
+            # Outside zone: (1200, 800) -> normalized (0.625, 0.74) -> outside
+            if inside_zone:
+                det.bbox_x = 100
+                det.bbox_y = 100
+            else:
+                det.bbox_x = 1200
+                det.bbox_y = 800
+            det.bbox_width = 100
+            det.bbox_height = 100
+            return det
+
+        crossing_calls = []
+        occupancy_calls = []
+        dwell_calls = []
+
+        def capture_crossing(*args, **kwargs):
+            crossing_calls.append(kwargs)
+
+        def capture_occupancy(*args, **kwargs):
+            occupancy_calls.append(kwargs)
+
+        def capture_dwell(*args, **kwargs):
+            dwell_calls.append(kwargs)
+
+        with (
+            patch("backend.core.config.get_settings") as mock_settings,
+            patch(
+                "backend.services.zone_crossing_service.record_zone_crossing",
+                side_effect=capture_crossing,
+            ),
+            patch(
+                "backend.services.zone_crossing_service.set_zone_occupancy",
+                side_effect=capture_occupancy,
+            ),
+            patch(
+                "backend.services.zone_crossing_service.observe_zone_dwell_time",
+                side_effect=capture_dwell,
+            ),
+        ):
+            mock_settings.return_value.redis_event_channel = "hsi:events"
+
+            # Detection 1: Outside zone (no events)
+            await service.process_detection(make_detection(1, 0, inside_zone=False), zones=[zone])
+
+            # Detection 2: Enter zone
+            await service.process_detection(make_detection(2, 10, inside_zone=True), zones=[zone])
+
+            # Detection 3: Still in zone (dwell event after threshold)
+            await service.process_detection(make_detection(3, 45, inside_zone=True), zones=[zone])
+
+            # Detection 4: Exit zone
+            await service.process_detection(make_detection(4, 60, inside_zone=False), zones=[zone])
+
+        # Verify crossing metrics: 1 enter + 1 exit
+        assert len(crossing_calls) == 2
+        assert crossing_calls[0]["direction"] == "enter"
+        assert crossing_calls[1]["direction"] == "exit"
+
+        # Verify occupancy updates: enter sets to 1, exit sets to 0
+        assert len(occupancy_calls) == 2
+        assert occupancy_calls[0]["count"] == 1  # Enter
+        assert occupancy_calls[1]["count"] == 0  # Exit
+
+        # Verify dwell time metrics: dwell event + exit dwell time
+        assert len(dwell_calls) >= 1  # At least exit dwell time

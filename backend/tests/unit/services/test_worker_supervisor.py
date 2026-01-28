@@ -704,6 +704,10 @@ class TestWorkerInfoDataclass:
         assert result["last_crashed_at"] is None
         assert result["error"] is None
         assert result["circuit_open"] is True
+        # NEM-4148: Heartbeat fields
+        assert result["last_heartbeat_at"] is None
+        assert result["heartbeat_timeout"] == 30.0  # default
+        assert result["missed_heartbeat_count"] == 0  # default
 
 
 # ============================================================================
@@ -1482,3 +1486,158 @@ class TestUnregisterRunningWorker:
         # Task should have been cancelled
         await asyncio.wait_for(task_cancelled.wait(), timeout=1.0)
         assert "test_worker" not in supervisor._workers
+
+
+# ============================================================================
+# Heartbeat Monitoring Tests (NEM-4148)
+# ============================================================================
+
+
+class TestHeartbeatMonitoring:
+    """Tests for heartbeat monitoring functionality (NEM-4148)."""
+
+    async def test_record_heartbeat_success(self, supervisor: WorkerSupervisor) -> None:
+        """Test recording a heartbeat for a registered worker."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+
+        result = supervisor.record_heartbeat("test_worker")
+        assert result is True
+
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.last_heartbeat_at is not None
+
+    async def test_record_heartbeat_unknown_worker(self, supervisor: WorkerSupervisor) -> None:
+        """Test recording heartbeat for unknown worker returns False."""
+        result = supervisor.record_heartbeat("unknown")
+        assert result is False
+
+    async def test_record_heartbeat_resets_missed_count(self, supervisor: WorkerSupervisor) -> None:
+        """Test that recording heartbeat resets missed count."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Manually set missed heartbeat count
+        supervisor._workers["test_worker"].missed_heartbeat_count = 5
+
+        supervisor.record_heartbeat("test_worker")
+
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.missed_heartbeat_count == 0
+
+    async def test_get_missed_heartbeat_count(self, supervisor: WorkerSupervisor) -> None:
+        """Test getting missed heartbeat count for a worker."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Initially should be 0
+        assert supervisor.get_missed_heartbeat_count("test_worker") == 0
+
+        # Set a value
+        supervisor._workers["test_worker"].missed_heartbeat_count = 3
+        assert supervisor.get_missed_heartbeat_count("test_worker") == 3
+
+    async def test_get_missed_heartbeat_count_unknown_worker(
+        self, supervisor: WorkerSupervisor
+    ) -> None:
+        """Test getting missed heartbeat count for unknown worker returns 0."""
+        assert supervisor.get_missed_heartbeat_count("unknown") == 0
+
+    async def test_worker_info_to_dict_includes_heartbeat_fields(
+        self, supervisor: WorkerSupervisor
+    ) -> None:
+        """Test that to_dict includes heartbeat fields."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker, heartbeat_timeout=60.0)
+        supervisor.record_heartbeat("test_worker")
+
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+
+        result = info.to_dict()
+        assert "last_heartbeat_at" in result
+        assert result["last_heartbeat_at"] is not None
+        assert "heartbeat_timeout" in result
+        assert result["heartbeat_timeout"] == 60.0
+        assert "missed_heartbeat_count" in result
+        assert result["missed_heartbeat_count"] == 0
+
+    async def test_register_worker_with_custom_heartbeat_timeout(
+        self, supervisor: WorkerSupervisor
+    ) -> None:
+        """Test registering a worker with custom heartbeat timeout."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("test_worker", worker, heartbeat_timeout=120.0)
+
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.heartbeat_timeout == 120.0
+
+    async def test_start_worker_initializes_heartbeat(self, supervisor: WorkerSupervisor) -> None:
+        """Test that starting a worker initializes the heartbeat timestamp."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start_worker("test_worker")
+
+        try:
+            await asyncio.sleep(0.1)  # Let it start
+
+            info = supervisor.get_worker_info("test_worker")
+            assert info is not None
+            assert info.last_heartbeat_at is not None
+            assert info.missed_heartbeat_count == 0
+        finally:
+            await supervisor.stop_worker("test_worker")
+
+    async def test_heartbeat_check_disabled(
+        self,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that heartbeat check can be disabled."""
+        from datetime import timedelta
+
+        config = SupervisorConfig(
+            check_interval=0.1,
+            heartbeat_check_enabled=False,
+            default_heartbeat_timeout=0.1,  # Very short
+        )
+        supervisor = WorkerSupervisor(config=config, broadcaster=mock_broadcaster)
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Manually set old heartbeat
+        from datetime import UTC, datetime
+
+        supervisor._workers["test_worker"].last_heartbeat_at = datetime.now(UTC) - timedelta(
+            hours=1
+        )
+
+        # Check heartbeat - should not increment missed count when disabled
+        supervisor._check_worker_heartbeat("test_worker")
+
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.missed_heartbeat_count == 0  # Should remain 0 because disabled

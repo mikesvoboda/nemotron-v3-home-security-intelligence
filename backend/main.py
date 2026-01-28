@@ -32,6 +32,7 @@ from backend.api.middleware import (
     DeprecationMiddleware,
     IdempotencyMiddleware,
     ProfilingMiddleware,
+    PrometheusMiddleware,
     RequestLoggingMiddleware,
     RequestRecorderMiddleware,
     RequestTimingMiddleware,
@@ -1101,6 +1102,12 @@ app.add_middleware(BaggageMiddleware)
 # Enables debugging slow requests by viewing their exact CPU profiles
 # Added after BaggageMiddleware to capture full request lifecycle
 app.add_middleware(ProfilingMiddleware)
+
+# Add Prometheus HTTP metrics middleware (NEM-4149)
+# Records http_request_duration_seconds histogram for Grafana dashboards
+# Added early to capture full request lifecycle including other middleware
+# Excludes health/metrics endpoints to avoid skewing latency distribution
+app.add_middleware(PrometheusMiddleware)
 
 # Add request timing middleware for API latency tracking (NEM-1469)
 # Added early so it measures the full request lifecycle including other middleware

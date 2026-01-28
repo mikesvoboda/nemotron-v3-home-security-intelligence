@@ -12,6 +12,11 @@ Error Handling:
     All errors are logged but do not raise exceptions, allowing the pipeline
     to continue processing other detections.
 
+Metrics (NEM-4143):
+    - hsi_face_detections_total: Counter of face detections by camera_id and match_status
+    - hsi_face_embedding_duration_seconds: Histogram of embedding generation time
+    - hsi_face_recognition_confidence: Histogram of recognition confidence scores
+
 Example:
     faces = await detect_faces(model, person_detections, images)
     if faces:
@@ -20,6 +25,7 @@ Example:
 """
 
 import asyncio
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -27,6 +33,11 @@ from typing import TYPE_CHECKING, Any
 from PIL import Image
 
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_face_embedding_duration,
+    observe_face_recognition_confidence,
+    record_face_detection,
+)
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
@@ -233,6 +244,7 @@ async def detect_faces(
     confidence_threshold: float = 0.3,
     head_ratio: float = HEAD_REGION_RATIO,
     padding: float = 0.2,
+    camera_id: str | None = None,
 ) -> list[FaceDetection]:
     """Detect faces in person regions.
 
@@ -248,6 +260,7 @@ async def detect_faces(
         confidence_threshold: Minimum confidence for face detections
         head_ratio: Fraction of person bbox height for head region (default 0.4)
         padding: Padding ratio to add around head bbox (0.2 = 20%)
+        camera_id: Optional camera ID for metrics labeling
 
     Returns:
         List of FaceDetection objects for detected faces.
@@ -262,6 +275,7 @@ async def detect_faces(
 
     results: list[FaceDetection] = []
     loaded_images: dict[str, PILImage] = images.copy() if images else {}
+    effective_camera_id = camera_id or "unknown"
 
     for detection in person_detections:
         try:
@@ -294,15 +308,20 @@ async def detect_faces(
             crop = _crop_bbox_with_padding(image, head_bbox, padding)
             crop_size = crop.size
 
-            # Run inference in thread pool
+            # Run inference in thread pool with timing for metrics (NEM-4143)
+            start_time = time.perf_counter()
             face_results = await asyncio.to_thread(
                 _run_face_detection_sync,
                 model,
                 crop,
                 confidence_threshold,
             )
+            inference_duration = time.perf_counter() - start_time
 
-            # Convert results to FaceDetection objects
+            # Record embedding/inference duration metric
+            observe_face_embedding_duration(effective_camera_id, inference_duration)
+
+            # Convert results to FaceDetection objects and record metrics
             for bbox_norm, conf in face_results:
                 original_bbox = _convert_crop_bbox_to_original(
                     bbox_norm,
@@ -319,9 +338,16 @@ async def detect_faces(
                     )
                 )
 
+                # Record face detection metric (match_status is "unknown" at detection time,
+                # will be updated to "known" by face recognition service if matched)
+                record_face_detection(effective_camera_id, "unknown")
+
+                # Record confidence score metric
+                observe_face_recognition_confidence(effective_camera_id, conf)
+
             logger.debug(
                 f"Detected {len(face_results)} faces in person detection "
-                f"{detection.id} from {file_path}"
+                f"{detection.id} from {file_path} (took {inference_duration * 1000:.1f}ms)"
             )
 
         except Exception as e:

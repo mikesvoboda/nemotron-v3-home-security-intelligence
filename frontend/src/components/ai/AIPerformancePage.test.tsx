@@ -255,7 +255,7 @@ describe('AIPerformancePage', () => {
         const iframe = screen.getByTestId('grafana-iframe');
         expect(iframe).toHaveAttribute(
           'src',
-          'http://grafana.example.com/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s'
+          'http://grafana.example.com/d/ai-services/ai-services?orgId=1&kiosk=1&theme=dark&refresh=30s'
         );
       });
     });
@@ -273,7 +273,7 @@ describe('AIPerformancePage', () => {
         const iframe = screen.getByTestId('grafana-iframe');
         expect(iframe).toHaveAttribute(
           'src',
-          '/grafana/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s'
+          '/grafana/d/ai-services/ai-services?orgId=1&kiosk=1&theme=dark&refresh=30s'
         );
       });
 
@@ -316,7 +316,7 @@ describe('AIPerformancePage', () => {
         const externalLink = screen.getByTestId('grafana-external-link');
         expect(externalLink).toHaveAttribute(
           'href',
-          'http://grafana.example.com/d/hsi-consolidated?orgId=1'
+          'http://grafana.example.com/d/ai-services/ai-services?orgId=1'
         );
       });
     });

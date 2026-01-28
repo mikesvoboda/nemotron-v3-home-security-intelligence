@@ -190,16 +190,9 @@ pyroscope.ebpf "native_profiling" {
   // C++ symbol demangling for llama.cpp stack traces
   demangle = "simplified"
 
-  // Enable profiling for interpreted languages (for completeness)
-  // These are already profiled via SDK but eBPF provides complementary data
-  python_enabled = true
-
-  // Disable interpreters not used in this stack
-  hotspot_enabled = false  // No JVM services
-  ruby_enabled    = false  // No Ruby services
-  php_enabled     = false  // No PHP services
-  dotnet_enabled  = false  // No .NET services
-  v8_enabled      = false  // No Node.js services
+  // Note: Interpreter-specific flags (hotspot_enabled, ruby_enabled, etc.)
+  // were removed as they are not supported in Alloy v1.0.0's pyroscope.ebpf component.
+  // The eBPF profiler profiles native code; Python profiling is handled by pyroscope-io SDK.
 }
 
 // Write profiles to Pyroscope server

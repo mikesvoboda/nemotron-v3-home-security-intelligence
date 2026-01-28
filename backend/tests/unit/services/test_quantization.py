@@ -901,6 +901,7 @@ def test_get_optimal_backend_cpuinfo_import_error():
 
 def test_get_bnb_4bit_config_transformers_import_error(monkeypatch):
     """Test get_bnb_4bit_config raises ImportError when transformers unavailable."""
+    import builtins
     import sys
 
     with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
@@ -908,12 +909,16 @@ def test_get_bnb_4bit_config_transformers_import_error(monkeypatch):
         mock_torch = MagicMock()
         mock_torch.float16 = "float16"
 
+        _original_import = builtins.__import__
+
         def mock_import(name, *args, **kwargs):
-            if name == "transformers":
+            if name == "transformers" or name.startswith("transformers."):
                 raise ImportError("No transformers")
-            return MagicMock()
+            return _original_import(name, *args, **kwargs)
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        # Remove transformers from cache to force re-import
+        monkeypatch.delitem(sys.modules, "transformers", raising=False)
 
         with patch("builtins.__import__", side_effect=mock_import):
             with pytest.raises(ImportError, match="transformers package"):
@@ -927,13 +932,19 @@ def test_get_bnb_4bit_config_transformers_import_error(monkeypatch):
 
 def test_get_bnb_8bit_config_transformers_import_error(monkeypatch):
     """Test get_bnb_8bit_config raises ImportError when transformers unavailable."""
+    import builtins
+    import sys
 
     with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+        _original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
-            if name == "transformers":
+            if name == "transformers" or name.startswith("transformers."):
                 raise ImportError("No transformers")
-            return MagicMock()
+            return _original_import(name, *args, **kwargs)
+
+        # Remove transformers from cache to force re-import
+        monkeypatch.delitem(sys.modules, "transformers", raising=False)
 
         with patch("builtins.__import__", side_effect=mock_import):
             with pytest.raises(ImportError, match="transformers package"):

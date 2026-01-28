@@ -1253,10 +1253,11 @@ services:
       - 'prometheus.scrape=true'
       - 'prometheus.port=9100'
 
-  # NVIDIA DCGM Exporter for GPU hardware metrics (NEM-4132)
-  # Provides low-level GPU metrics: SM utilization, memory bandwidth, temperature, power
+  # NVIDIA DCGM Exporter for GPU hardware metrics (NEM-4132, NEM-4150)
+  # Provides low-level GPU metrics: SM utilization, memory bandwidth, temperature, power, PCIe throughput
   # Essential for understanding compute-bound vs memory-bound workloads
   # Metrics exposed at :9400/metrics, scraped by Prometheus
+  # Custom counters enable PCIe throughput metrics for the GPU dashboard
   dcgm-exporter:
     image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
     container_name: dcgm-exporter
@@ -1268,6 +1269,9 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    volumes:
+      # Custom counters CSV to enable PCIe throughput metrics (NEM-4150)
+      - ./monitoring/dcgm/custom-counters.csv:/etc/dcgm-exporter/default-counters.csv:ro,z
     environment:
       - DCGM_EXPORTER_LISTEN=:9400
       - DCGM_EXPORTER_KUBERNETES=false

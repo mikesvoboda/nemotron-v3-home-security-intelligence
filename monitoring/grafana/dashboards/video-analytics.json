@@ -1490,7 +1490,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_action_recognition_total[1h]))",
+          "expr": "sum(increase(hsi_enrichment_model_calls_total{model=\"action\"}[1h]))",
           "refId": "A"
         }
       ],
@@ -1559,7 +1559,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(hsi_action_recognition_confidence_bucket[1h])) by (le))",
+          "expr": "0",
           "refId": "A"
         }
       ],
@@ -1685,8 +1685,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_action_recognition_total[1h])) by (action_type)",
-          "legendFormat": "{{action_type}}",
+          "expr": "sum(increase(hsi_enrichment_model_calls_total{model=\"action\"}[1h]))",
+          "legendFormat": "Action Recognition",
           "refId": "A"
         }
       ],
@@ -1776,8 +1776,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(hsi_action_recognition_confidence_bucket[5m])) by (le, action_type))",
-          "legendFormat": "{{action_type}}",
+          "expr": "0",
+          "legendFormat": "Not Available",
           "refId": "A"
         }
       ],
@@ -1863,7 +1863,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_face_detections_total[1h]))",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total[1h]))",
           "refId": "A"
         }
       ],
@@ -1921,7 +1921,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_face_detections_total{match_status=\"known\"}[1h]))",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total{match_status=\"known\"}[1h]))",
           "refId": "A"
         }
       ],
@@ -1979,7 +1979,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_face_detections_total{match_status=\"unknown\"}[1h]))",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total{match_status=\"unknown\"}[1h]))",
           "refId": "A"
         }
       ],
@@ -2136,8 +2136,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_face_detections_total[5m])) by (match_status)",
-          "legendFormat": "{{match_status}}",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total[5m]))",
+          "legendFormat": "Face Embeddings",
           "refId": "A"
         }
       ],

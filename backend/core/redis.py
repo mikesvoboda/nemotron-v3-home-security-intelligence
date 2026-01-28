@@ -784,7 +784,7 @@ class RedisClient:
                 )
                 # Record metrics for queue overflow
                 record_queue_overflow(queue_name, overflow_policy.value)
-                record_queue_items_rejected(queue_name)
+                record_queue_items_rejected(queue_name, reason="queue_full")
                 return QueueAddResult(
                     success=False,
                     queue_length=current_length,
@@ -823,7 +823,7 @@ class RedisClient:
                     )
                     # Record metrics for queue overflow
                     record_queue_overflow(queue_name, overflow_policy.value)
-                    record_queue_items_moved_to_dlq(queue_name, moved_count)
+                    record_queue_items_moved_to_dlq(queue_name, moved_count, reason="overflow")
 
                 # Now add the new item
                 new_length = cast("int", await client.rpush(queue_name, payload))  # type: ignore[misc]

@@ -567,6 +567,256 @@ class TestModelManager:
             assert len(manager.loaded_models) == 1
 
 
+class TestModelManagerMetrics:
+    """Tests for ModelManager metrics instrumentation (NEM-4145)."""
+
+    def setup_method(self) -> None:
+        """Reset managers before each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        """Reset managers after each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    async def test_load_duration_metric_recorded(self) -> None:
+        """Test that load duration metric is recorded when model loads."""
+        from backend.core.metrics import MODEL_LOAD_DURATION
+
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            # Simulate some load time
+            await asyncio.sleep(0.01)
+            return mock_model
+
+        with patch.object(
+            get_model_config("yolo11-license-plate"),
+            "load_fn",
+            mock_load,
+        ):
+            async with manager.load("yolo11-license-plate"):
+                pass
+
+        # Verify load duration was recorded (should be at least 10ms)
+        value = MODEL_LOAD_DURATION.labels(model="yolo11-license-plate")._value.get()
+        assert value >= 0.01
+
+    @pytest.mark.asyncio
+    async def test_restart_metric_not_recorded_on_first_load(self) -> None:
+        """Test that restart metric is not recorded on first model load."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL
+
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        # Get initial restart count
+        initial_count = MODEL_RESTARTS_TOTAL.labels(
+            model="yolo11-face", reason="manual"
+        )._value.get()
+
+        with patch.object(
+            get_model_config("yolo11-face"),
+            "load_fn",
+            mock_load,
+        ):
+            async with manager.load("yolo11-face"):
+                pass
+
+        # Restart count should not have changed
+        final_count = MODEL_RESTARTS_TOTAL.labels(model="yolo11-face", reason="manual")._value.get()
+        assert final_count == initial_count
+
+    @pytest.mark.asyncio
+    async def test_restart_metric_recorded_on_reload(self) -> None:
+        """Test that restart metric is recorded when model is reloaded."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL
+
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        with patch.object(
+            get_model_config("yolo11-license-plate"),
+            "load_fn",
+            mock_load,
+        ):
+            # First load
+            async with manager.load("yolo11-license-plate"):
+                pass
+
+            # Get restart count after first load
+            initial_count = MODEL_RESTARTS_TOTAL.labels(
+                model="yolo11-license-plate", reason="manual"
+            )._value.get()
+
+            # Second load (reload) - model was previously loaded
+            async with manager.load("yolo11-license-plate"):
+                pass
+
+        # Restart count should have incremented
+        final_count = MODEL_RESTARTS_TOTAL.labels(
+            model="yolo11-license-plate", reason="manual"
+        )._value.get()
+        assert final_count == initial_count + 1
+
+    @pytest.mark.asyncio
+    async def test_reload_with_specific_reason(self) -> None:
+        """Test reload method records restart with specific reason."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL
+
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        with patch.object(
+            get_model_config("yolo11-face"),
+            "load_fn",
+            mock_load,
+        ):
+            # First load
+            await manager.preload("yolo11-face")
+
+            # Get initial counts for different reasons
+            initial_oom = MODEL_RESTARTS_TOTAL.labels(
+                model="yolo11-face", reason="oom"
+            )._value.get()
+            initial_crash = MODEL_RESTARTS_TOTAL.labels(
+                model="yolo11-face", reason="crash"
+            )._value.get()
+
+            # Reload with OOM reason
+            await manager.reload("yolo11-face", "oom")
+
+            # OOM count should have incremented
+            assert (
+                MODEL_RESTARTS_TOTAL.labels(model="yolo11-face", reason="oom")._value.get()
+                == initial_oom + 1
+            )
+
+            # Crash count should not have changed
+            assert (
+                MODEL_RESTARTS_TOTAL.labels(model="yolo11-face", reason="crash")._value.get()
+                == initial_crash
+            )
+
+            await manager.unload("yolo11-face")
+
+    @pytest.mark.asyncio
+    async def test_reload_with_invalid_reason_raises(self) -> None:
+        """Test that reload with invalid reason raises ValueError."""
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        with patch.object(
+            get_model_config("yolo11-license-plate"),
+            "load_fn",
+            mock_load,
+        ):
+            await manager.preload("yolo11-license-plate")
+
+            with pytest.raises(ValueError, match="Invalid restart reason"):
+                await manager.reload("yolo11-license-plate", "invalid_reason")
+
+            await manager.unload("yolo11-license-plate")
+
+    @pytest.mark.asyncio
+    async def test_reload_all_valid_reasons(self) -> None:
+        """Test reload works with all valid restart reasons."""
+        from backend.core.metrics import MODEL_RESTART_REASONS
+
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        with patch.object(
+            get_model_config("yolo11-license-plate"),
+            "load_fn",
+            mock_load,
+        ):
+            # First load
+            await manager.preload("yolo11-license-plate")
+
+            # Test all valid reasons
+            for reason in MODEL_RESTART_REASONS:
+                model = await manager.reload("yolo11-license-plate", reason)
+                assert model is mock_model
+
+            await manager.unload("yolo11-license-plate")
+
+    @pytest.mark.asyncio
+    async def test_previously_loaded_tracking(self) -> None:
+        """Test that previously_loaded set tracks models correctly."""
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        # Initially empty
+        assert len(manager._previously_loaded) == 0
+
+        with patch.object(
+            get_model_config("yolo11-license-plate"),
+            "load_fn",
+            mock_load,
+        ):
+            async with manager.load("yolo11-license-plate"):
+                pass
+
+        # Should be tracked after load
+        assert "yolo11-license-plate" in manager._previously_loaded
+
+        # Should still be tracked even after unload
+        assert "yolo11-license-plate" in manager._previously_loaded
+
+    @pytest.mark.asyncio
+    async def test_load_duration_updates_on_reload(self) -> None:
+        """Test that load duration metric updates on reload."""
+        from backend.core.metrics import MODEL_LOAD_DURATION
+
+        manager = ModelManager()
+        mock_model = MagicMock()
+        load_times = [0.05, 0.03]  # Different load times
+        load_index = [0]
+
+        async def mock_load(path: str) -> Any:
+            await asyncio.sleep(load_times[load_index[0]])
+            load_index[0] = min(load_index[0] + 1, len(load_times) - 1)
+            return mock_model
+
+        with patch.object(
+            get_model_config("yolo11-face"),
+            "load_fn",
+            mock_load,
+        ):
+            # First load
+            async with manager.load("yolo11-face"):
+                first_duration = MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get()
+                assert first_duration >= 0.05
+
+            # Second load
+            async with manager.load("yolo11-face"):
+                second_duration = MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get()
+                # Should be updated to the new (shorter) load time
+                assert second_duration >= 0.03
+
+
 class TestBoundingBox:
     """Tests for BoundingBox dataclass."""
 

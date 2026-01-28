@@ -3114,3 +3114,259 @@ class TestFormatEntityMatchWithVqaArtifacts:
 
         assert "wearing red shirt" in result
         assert "carrying shopping bag" in result
+
+
+# =============================================================================
+# Re-ID Prometheus Metrics Tests (NEM-4140)
+# =============================================================================
+
+
+class TestReIDServiceMetrics:
+    """Tests for Re-ID service Prometheus metrics instrumentation (NEM-4140)."""
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_records_attempt_metric(self) -> None:
+        """Test that find_matching_entities records a Re-ID attempt metric."""
+        from unittest.mock import patch
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        service = ReIdentificationService()
+        embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.record_reid_attempt") as mock_record_attempt:
+            await service.find_matching_entities(
+                mock_redis, embedding, entity_type="person", camera_id="test_cam"
+            )
+
+            mock_record_attempt.assert_called_once_with("person", "test_cam")
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_records_attempt_with_unknown_camera(
+        self,
+    ) -> None:
+        """Test that find_matching_entities uses 'unknown' when no camera_id provided."""
+        from unittest.mock import patch
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        service = ReIdentificationService()
+        embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.record_reid_attempt") as mock_record_attempt:
+            await service.find_matching_entities(mock_redis, embedding, entity_type="vehicle")
+
+            mock_record_attempt.assert_called_once_with("vehicle", "unknown")
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_records_match_duration_metric(self) -> None:
+        """Test that find_matching_entities records match duration metric."""
+        from unittest.mock import patch
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = None
+
+        service = ReIdentificationService()
+        embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.observe_reid_match_duration") as mock_observe:
+            await service.find_matching_entities(
+                mock_redis, embedding, entity_type="person", camera_id="cam1"
+            )
+
+            # Should have been called with entity_type and some duration
+            mock_observe.assert_called_once()
+            call_args = mock_observe.call_args
+            assert call_args[0][0] == "person"  # entity_type
+            assert isinstance(call_args[0][1], float)  # duration_seconds
+            assert call_args[0][1] >= 0  # Duration should be non-negative
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_records_match_metrics_on_success(self) -> None:
+        """Test that find_matching_entities records match metrics when matches found."""
+        from unittest.mock import patch
+
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_stored",
+        )
+
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.record_reid_match") as mock_record_match:
+            matches = await service.find_matching_entities(
+                mock_redis,
+                query_embedding,
+                entity_type="person",
+                threshold=0.9,
+                camera_id="back_door",
+            )
+
+            # Should have matches
+            assert len(matches) >= 1
+
+            # record_reid_match should be called for each match
+            assert mock_record_match.call_count >= 1
+            # First call should be for the match from front_door camera
+            mock_record_match.assert_any_call("person", "front_door")
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_records_cross_camera_handoff(self) -> None:
+        """Test that find_matching_entities records cross-camera handoff metrics."""
+        from unittest.mock import patch
+
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",  # Different from query camera
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_stored",
+        )
+
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff:
+            matches = await service.find_matching_entities(
+                mock_redis,
+                query_embedding,
+                entity_type="person",
+                threshold=0.9,
+                camera_id="back_door",  # Different camera - should trigger handoff
+            )
+
+            # Should have matches
+            assert len(matches) >= 1
+
+            # Cross-camera handoff should be recorded
+            assert mock_handoff.call_count >= 1
+            mock_handoff.assert_any_call("front_door", "back_door", "person")
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_no_handoff_same_camera(self) -> None:
+        """Test that no cross-camera handoff is recorded for same camera matches."""
+        from unittest.mock import patch
+
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",  # Same as query camera
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_stored",
+        )
+
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff:
+            await service.find_matching_entities(
+                mock_redis,
+                query_embedding,
+                entity_type="person",
+                threshold=0.9,
+                camera_id="front_door",  # Same camera - no handoff
+            )
+
+            # No cross-camera handoff should be recorded for same camera
+            mock_handoff.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_find_matching_entities_no_handoff_unknown_camera(self) -> None:
+        """Test that no cross-camera handoff is recorded when camera_id is unknown."""
+        from unittest.mock import patch
+
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * EMBEDDING_DIMENSION,
+            camera_id="front_door",
+            timestamp=now - timedelta(minutes=5),
+            detection_id="det_stored",
+        )
+
+        stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()
+        query_embedding = [0.1] * EMBEDDING_DIMENSION
+
+        with patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff:
+            # No camera_id provided - should use "unknown"
+            await service.find_matching_entities(
+                mock_redis,
+                query_embedding,
+                entity_type="person",
+                threshold=0.9,
+            )
+
+            # No cross-camera handoff should be recorded when camera is unknown
+            mock_handoff.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_find_matching_vehicle_records_metrics(self) -> None:
+        """Test that vehicle matching also records metrics correctly."""
+        from unittest.mock import patch
+
+        now = datetime.now(UTC)
+        stored_embedding = EntityEmbedding(
+            entity_type="vehicle",
+            embedding=[0.5] * EMBEDDING_DIMENSION,
+            camera_id="garage_cam",
+            timestamp=now - timedelta(minutes=2),
+            detection_id="det_vehicle",
+        )
+
+        stored_data = {"persons": [], "vehicles": [stored_embedding.to_dict()]}
+
+        mock_redis = AsyncMock()
+        mock_redis.get.return_value = json.dumps(stored_data)
+
+        service = ReIdentificationService()
+        query_embedding = [0.5] * EMBEDDING_DIMENSION
+
+        with (
+            patch("backend.services.reid_service.record_reid_attempt") as mock_attempt,
+            patch("backend.services.reid_service.record_reid_match") as mock_match,
+            patch("backend.services.reid_service.observe_reid_match_duration") as mock_duration,
+            patch("backend.services.reid_service.record_cross_camera_handoff") as mock_handoff,
+        ):
+            await service.find_matching_entities(
+                mock_redis,
+                query_embedding,
+                entity_type="vehicle",
+                threshold=0.9,
+                camera_id="driveway_cam",
+            )
+
+            # Verify all metrics are called with correct entity_type
+            mock_attempt.assert_called_once_with("vehicle", "driveway_cam")
+            mock_match.assert_any_call("vehicle", "garage_cam")
+            mock_duration.assert_called_once()
+            assert mock_duration.call_args[0][0] == "vehicle"
+            mock_handoff.assert_any_call("garage_cam", "driveway_cam", "vehicle")

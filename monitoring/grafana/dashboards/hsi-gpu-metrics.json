@@ -1115,7 +1115,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "DCGM_FI_DEV_PCIE_TX_THROUGHPUT{gpu=~\"$gpu\"}",
+          "expr": "DCGM_FI_PROF_PCIE_TX_BYTES{gpu=~\"$gpu\"}",
           "legendFormat": "GPU {{gpu}} TX",
           "range": true,
           "refId": "A"
@@ -1126,7 +1126,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "DCGM_FI_DEV_PCIE_RX_THROUGHPUT{gpu=~\"$gpu\"}",
+          "expr": "DCGM_FI_PROF_PCIE_RX_BYTES{gpu=~\"$gpu\"}",
           "legendFormat": "GPU {{gpu}} RX",
           "range": true,
           "refId": "B"

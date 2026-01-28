@@ -545,3 +545,218 @@ async def test_detect_faces_uses_thread_pool(temp_test_image, mock_yolo_face_mod
 
         mock_to_thread.assert_called_once()
         assert len(faces) == 1
+
+
+# =============================================================================
+# Metrics Tests (NEM-4143)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_detect_faces_records_metrics(temp_test_image, mock_yolo_face_model):
+    """Test that face detection records Prometheus metrics."""
+    detections = [
+        PersonDetection(
+            id=1,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=200,
+            bbox_height=500,
+            file_path=temp_test_image,
+        )
+    ]
+
+    with (
+        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration"
+        ) as mock_observe_duration,
+        patch(
+            "backend.services.face_detector.observe_face_recognition_confidence"
+        ) as mock_observe_confidence,
+    ):
+        faces = await detect_faces(
+            model=mock_yolo_face_model,
+            person_detections=detections,
+            camera_id="front_door",
+        )
+
+        assert len(faces) == 1
+
+        # Verify face detection metric was recorded
+        mock_record_detection.assert_called_once_with("front_door", "unknown")
+
+        # Verify embedding duration metric was recorded
+        mock_observe_duration.assert_called_once()
+        call_args = mock_observe_duration.call_args
+        assert call_args[0][0] == "front_door"
+        assert isinstance(call_args[0][1], float)
+        assert call_args[0][1] >= 0  # Duration should be non-negative
+
+        # Verify confidence metric was recorded
+        mock_observe_confidence.assert_called_once_with("front_door", 0.89)
+
+
+@pytest.mark.asyncio
+async def test_detect_faces_metrics_with_multiple_faces(temp_test_image):
+    """Test that metrics are recorded for each detected face."""
+    detections = [
+        PersonDetection(
+            id=1,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=400,
+            bbox_height=600,
+            file_path=temp_test_image,
+        )
+    ]
+
+    # Mock model that returns 2 faces
+    mock_model = MagicMock()
+    mock_box1 = MagicMock()
+    mock_box1.xyxyn = [MagicMock()]
+    mock_box1.xyxyn[0].tolist.return_value = [0.1, 0.2, 0.4, 0.6]
+    mock_box1.conf = [0.92]
+
+    mock_box2 = MagicMock()
+    mock_box2.xyxyn = [MagicMock()]
+    mock_box2.xyxyn[0].tolist.return_value = [0.6, 0.2, 0.9, 0.6]
+    mock_box2.conf = [0.85]
+
+    mock_result = MagicMock()
+    mock_result.boxes = [mock_box1, mock_box2]
+    mock_model.predict.return_value = [mock_result]
+
+    with (
+        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration"
+        ) as mock_observe_duration,
+        patch(
+            "backend.services.face_detector.observe_face_recognition_confidence"
+        ) as mock_observe_confidence,
+    ):
+        faces = await detect_faces(
+            model=mock_model,
+            person_detections=detections,
+            camera_id="back_yard",
+        )
+
+        assert len(faces) == 2
+
+        # Each face should record detection and confidence metrics
+        assert mock_record_detection.call_count == 2
+        assert mock_observe_confidence.call_count == 2
+
+        # Duration is recorded once per person detection processed
+        mock_observe_duration.assert_called_once()
+
+        # Verify confidence values
+        confidence_calls = mock_observe_confidence.call_args_list
+        assert confidence_calls[0][0] == ("back_yard", 0.92)
+        assert confidence_calls[1][0] == ("back_yard", 0.85)
+
+
+@pytest.mark.asyncio
+async def test_detect_faces_metrics_default_camera_id(temp_test_image, mock_yolo_face_model):
+    """Test that 'unknown' camera_id is used when not provided."""
+    detections = [
+        PersonDetection(
+            id=1,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=200,
+            bbox_height=500,
+            file_path=temp_test_image,
+        )
+    ]
+
+    with (
+        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
+        patch("backend.services.face_detector.observe_face_embedding_duration"),
+        patch("backend.services.face_detector.observe_face_recognition_confidence"),
+    ):
+        faces = await detect_faces(
+            model=mock_yolo_face_model,
+            person_detections=detections,
+            # camera_id not provided
+        )
+
+        assert len(faces) == 1
+
+        # Verify "unknown" is used as default camera_id
+        mock_record_detection.assert_called_once_with("unknown", "unknown")
+
+
+@pytest.mark.asyncio
+async def test_detect_faces_no_metrics_on_empty_detections():
+    """Test that no metrics are recorded when no person detections provided."""
+    mock_model = MagicMock()
+
+    with (
+        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration"
+        ) as mock_observe_duration,
+        patch(
+            "backend.services.face_detector.observe_face_recognition_confidence"
+        ) as mock_observe_confidence,
+    ):
+        faces = await detect_faces(
+            model=mock_model,
+            person_detections=[],
+            camera_id="test_camera",
+        )
+
+        assert faces == []
+
+        # No metrics should be recorded
+        mock_record_detection.assert_not_called()
+        mock_observe_duration.assert_not_called()
+        mock_observe_confidence.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_detect_faces_no_metrics_on_no_faces_found(temp_test_image):
+    """Test that duration metric is still recorded even when no faces found."""
+    detections = [
+        PersonDetection(
+            id=1,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=200,
+            bbox_height=500,
+            file_path=temp_test_image,
+        )
+    ]
+
+    # Mock model that returns no faces
+    mock_model = MagicMock()
+    mock_result = MagicMock()
+    mock_result.boxes = []
+    mock_model.predict.return_value = [mock_result]
+
+    with (
+        patch("backend.services.face_detector.record_face_detection") as mock_record_detection,
+        patch(
+            "backend.services.face_detector.observe_face_embedding_duration"
+        ) as mock_observe_duration,
+        patch(
+            "backend.services.face_detector.observe_face_recognition_confidence"
+        ) as mock_observe_confidence,
+    ):
+        faces = await detect_faces(
+            model=mock_model,
+            person_detections=detections,
+            camera_id="garage",
+        )
+
+        assert faces == []
+
+        # Duration metric should still be recorded (inference ran, just found no faces)
+        mock_observe_duration.assert_called_once()
+        assert mock_observe_duration.call_args[0][0] == "garage"
+
+        # No face detection or confidence metrics (no faces found)
+        mock_record_detection.assert_not_called()
+        mock_observe_confidence.assert_not_called()

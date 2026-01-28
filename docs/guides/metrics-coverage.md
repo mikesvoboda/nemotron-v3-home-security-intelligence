@@ -231,12 +231,13 @@ Metrics are defined in `/backend/core/metrics.py` (Prometheus) and `/backend/cor
 
 ## Video Analytics - Face Recognition Metrics
 
-| Metric                                | Type      | Labels                      | Dashboard       | Panel                                                          | Description                        |
-| ------------------------------------- | --------- | --------------------------- | --------------- | -------------------------------------------------------------- | ---------------------------------- |
-| `hsi_face_detections_total`           | Counter   | `camera_id`, `match_status` | Video Analytics | Faces Detected, Known/Unknown Faces, Face Detections Over Time | Total faces detected               |
-| `hsi_face_quality_score`              | Histogram | -                           | Video Analytics | Median Face Quality, Face Quality Score Distribution           | Face quality scores                |
-| `hsi_face_embeddings_generated_total` | Counter   | -                           | -               | -                                                              | Face embeddings generated          |
-| `hsi_face_matches_total`              | Counter   | `person_id`                 | -               | -                                                              | Face matches against known persons |
+| Metric                                | Type      | Labels                      | Dashboard           | Panel                                                          | Description                                   |
+| ------------------------------------- | --------- | --------------------------- | ------------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| `hsi_face_detections_total`           | Counter   | `camera_id`, `match_status` | Video Analytics     | Faces Detected, Known/Unknown Faces, Face Detections Over Time | Total faces detected                          |
+| `hsi_face_quality_score`              | Histogram | -                           | Video Analytics     | Median Face Quality, Face Quality Score Distribution           | Face quality scores                           |
+| `hsi_face_embeddings_generated_total` | Counter   | `match_status`              | Video Analytics, AI | Known Faces (1h), Unknown Faces (1h), Known vs Unknown Faces   | Face embeddings generated (NEM-4143)          |
+| `hsi_face_recognition_confidence`     | Histogram | -                           | AI Services         | Recognition Confidence Distribution                            | Face recognition confidence scores (NEM-4143) |
+| `hsi_face_matches_total`              | Counter   | `person_id`                 | -                   | -                                                              | Face matches against known persons            |
 
 **Match Status:** `known`, `unknown`
 
@@ -348,7 +349,7 @@ The following metrics exist in the codebase but do not have dedicated dashboard 
 | `hsi_budget_exceeded_total`                    | Alert-based monitoring only                      |
 | `hsi_cache_*`                                  | Detailed operational metrics                     |
 | `hsi_redis_pool_*`                             | Detailed operational metrics                     |
-| `hsi_face_embeddings_generated_total`          | Detailed operational metric                      |
+| `hsi_face_embeddings_generated_total`          | Now dashboarded (NEM-4143) - Known/Unknown faces |
 | `hsi_face_matches_total`                       | Detailed operational metric                      |
 | All OpenTelemetry metrics                      | Exported to OTel backend (Tempo/Jaeger)          |
 

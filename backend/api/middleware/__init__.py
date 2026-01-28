@@ -46,6 +46,12 @@ from .idempotency import (
     compute_request_fingerprint,
 )
 from .profiling import ProfilingMiddleware
+from .prometheus import (
+    EXCLUDED_PATHS,
+    HTTP_REQUEST_DURATION_BUCKETS,
+    PrometheusMiddleware,
+    http_request_duration_seconds,
+)
 from .rate_limit import (
     RateLimiter,
     RateLimitTier,
@@ -76,6 +82,8 @@ from .websocket_auth import validate_websocket_token
 
 __all__ = [
     "DEPRECATED_CALLS_TOTAL",
+    "EXCLUDED_PATHS",
+    "HTTP_REQUEST_DURATION_BUCKETS",
     "MAGIC_SIGNATURES",
     "SUPPORTED_MEDIA_TYPES",
     "VALID_PRIORITIES",
@@ -91,6 +99,7 @@ __all__ = [
     "DeprecationMiddleware",
     "IdempotencyMiddleware",
     "ProfilingMiddleware",
+    "PrometheusMiddleware",
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",
@@ -115,6 +124,7 @@ __all__ = [
     "get_correlation_id",
     "get_event_priority_from_baggage",
     "get_request_source_from_baggage",
+    "http_request_duration_seconds",
     "load_recording",
     "merge_headers_with_correlation",
     "parse_accept_header",

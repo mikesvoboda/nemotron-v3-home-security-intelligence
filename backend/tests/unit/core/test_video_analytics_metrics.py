@@ -18,10 +18,13 @@ from backend.core.metrics import (
     FACE_EMBEDDINGS_GENERATED_TOTAL,
     FACE_MATCHES_TOTAL,
     FACE_QUALITY_SCORE,
+    FACE_RECOGNITION_CONFIDENCE,
+    FACE_RECOGNITION_CONFIDENCE_BUCKETS,
     # Loitering metrics
     LOITERING_ALERTS_TOTAL,
     LOITERING_DURATION_BUCKETS,
     LOITERING_DWELL_TIME_SECONDS,
+    LOITERING_EVENTS_TOTAL,
     TRACK_ACTIVE_COUNT,
     TRACK_DURATION_SECONDS,
     # Tracking metrics
@@ -37,6 +40,7 @@ from backend.core.metrics import (
     observe_action_recognition_confidence,
     observe_action_recognition_duration,
     observe_face_quality_score,
+    observe_face_recognition_confidence,
     observe_loitering_dwell_time,
     observe_track_duration,
     observe_zone_dwell_time,
@@ -45,6 +49,7 @@ from backend.core.metrics import (
     record_face_embedding_generated,
     record_face_match,
     record_loitering_alert,
+    record_loitering_event,
     # Helper functions
     record_track_created,
     record_track_lost,
@@ -149,6 +154,15 @@ class TestLoiteringMetricsDefinitions:
         assert 600 in LOITERING_DURATION_BUCKETS  # 10 minutes
         assert 1800 in LOITERING_DURATION_BUCKETS  # 30 minutes
 
+    def test_loitering_events_counter_exists(self) -> None:
+        """LOITERING_EVENTS_TOTAL counter should be defined with zone and severity labels."""
+        assert LOITERING_EVENTS_TOTAL is not None
+        # prometheus_client strips _total suffix from counter names internally
+        assert LOITERING_EVENTS_TOTAL._name == "hsi_loitering_events"
+        assert "zone_id" in LOITERING_EVENTS_TOTAL._labelnames
+        assert "zone_name" in LOITERING_EVENTS_TOTAL._labelnames
+        assert "severity" in LOITERING_EVENTS_TOTAL._labelnames
+
 
 class TestActionRecognitionMetricsDefinitions:
     """Test action recognition metric definitions and registrations."""
@@ -190,9 +204,10 @@ class TestFaceRecognitionMetricsDefinitions:
         assert FACE_QUALITY_SCORE._name == "hsi_face_quality_score"
 
     def test_face_embeddings_counter_exists(self) -> None:
-        """FACE_EMBEDDINGS_GENERATED_TOTAL counter should be defined."""
+        """FACE_EMBEDDINGS_GENERATED_TOTAL counter should be defined with match_status label."""
         assert FACE_EMBEDDINGS_GENERATED_TOTAL is not None
         assert FACE_EMBEDDINGS_GENERATED_TOTAL._name == "hsi_face_embeddings_generated"
+        assert "match_status" in FACE_EMBEDDINGS_GENERATED_TOTAL._labelnames
 
     def test_face_matches_counter_exists(self) -> None:
         """FACE_MATCHES_TOTAL counter should be defined with person_id label."""
@@ -200,21 +215,33 @@ class TestFaceRecognitionMetricsDefinitions:
         assert FACE_MATCHES_TOTAL._name == "hsi_face_matches"
         assert "person_id" in FACE_MATCHES_TOTAL._labelnames
 
+    def test_face_recognition_confidence_histogram_exists(self) -> None:
+        """FACE_RECOGNITION_CONFIDENCE histogram should be defined (NEM-4143)."""
+        assert FACE_RECOGNITION_CONFIDENCE is not None
+        assert FACE_RECOGNITION_CONFIDENCE._name == "hsi_face_recognition_confidence"
+
+    def test_face_recognition_confidence_buckets_defined(self) -> None:
+        """FACE_RECOGNITION_CONFIDENCE_BUCKETS should have appropriate thresholds (NEM-4143)."""
+        # Should include common face recognition thresholds
+        assert 0.68 in FACE_RECOGNITION_CONFIDENCE_BUCKETS  # Default threshold
+        assert 0.85 in FACE_RECOGNITION_CONFIDENCE_BUCKETS  # High confidence
+        assert 0.95 in FACE_RECOGNITION_CONFIDENCE_BUCKETS  # Near perfect
+
 
 class TestTrackingMetricHelpers:
     """Test tracking metric helper functions."""
 
     def test_record_track_created(self) -> None:
-        """record_track_created should increment counter with camera_id."""
-        record_track_created("camera-001")
-        record_track_created("camera-002")
+        """record_track_created should increment counter with camera_id and object_class."""
+        record_track_created("camera-001", "person")
+        record_track_created("camera-002", "car")
         # No assertion needed - no exception means success
 
     def test_record_track_lost(self) -> None:
-        """record_track_lost should increment counter with camera_id and reason."""
-        record_track_lost("camera-001", "timeout")
-        record_track_lost("camera-001", "out_of_frame")
-        record_track_lost("camera-002", "occlusion")
+        """record_track_lost should increment counter with camera_id, object_class, and reason."""
+        record_track_lost("camera-001", "person", "timeout")
+        record_track_lost("camera-001", "car", "out_of_frame")
+        record_track_lost("camera-002", "dog", "occlusion")
 
     def test_record_track_reidentified(self) -> None:
         """record_track_reidentified should increment counter with camera_id."""
@@ -277,6 +304,23 @@ class TestLoiteringMetricHelpers:
         observe_loitering_dwell_time("camera-001", 600.0)  # 10 minutes
         observe_loitering_dwell_time("camera-002", 45.0)  # 45 seconds
 
+    def test_record_loitering_event(self) -> None:
+        """record_loitering_event should increment counter with zone and severity labels."""
+        # Test with alert severity
+        record_loitering_event("zone-001", "Front Yard", "alert")
+        record_loitering_event("zone-002", "Driveway", "alert")
+        # Test with warning severity
+        record_loitering_event("zone-001", "Front Yard", "warning")
+        record_loitering_event("zone-003", "Back Porch", "warning")
+
+    def test_record_loitering_event_sanitizes_labels(self) -> None:
+        """record_loitering_event should sanitize all label values."""
+        # Labels with special characters should be sanitized
+        record_loitering_event("zone/with/slashes", "Zone Name With <script>", "alert")
+        # Very long zone name should be truncated
+        long_name = "A" * 200
+        record_loitering_event("zone-001", long_name, "warning")
+
 
 class TestActionRecognitionMetricHelpers:
     """Test action recognition metric helper functions."""
@@ -316,9 +360,16 @@ class TestFaceRecognitionMetricHelpers:
         observe_face_quality_score(0.95)
 
     def test_record_face_embedding_generated(self) -> None:
-        """record_face_embedding_generated should increment counter."""
-        record_face_embedding_generated()
-        record_face_embedding_generated()
+        """record_face_embedding_generated should increment counter with match_status (NEM-4143)."""
+        record_face_embedding_generated("known")
+        record_face_embedding_generated("unknown")
+        record_face_embedding_generated()  # Defaults to "unknown"
+
+    def test_observe_face_recognition_confidence(self) -> None:
+        """observe_face_recognition_confidence should record histogram observation (NEM-4143)."""
+        observe_face_recognition_confidence("cam1", 0.72)  # Above default threshold
+        observe_face_recognition_confidence("cam2", 0.55)  # Below threshold
+        observe_face_recognition_confidence("cam1", 0.95)  # High confidence
 
     def test_record_face_match(self) -> None:
         """record_face_match should increment counter with person_id."""
@@ -352,6 +403,7 @@ class TestVideoAnalyticsMetricsExposure:
         response = get_metrics_response().decode("utf-8")
         assert "hsi_loitering_alerts_total" in response
         assert "hsi_loitering_dwell_time_seconds" in response
+        assert "hsi_loitering_events_total" in response
 
     def test_metrics_response_contains_action_recognition_metrics(self) -> None:
         """Metrics response should contain action recognition metrics."""
@@ -367,3 +419,4 @@ class TestVideoAnalyticsMetricsExposure:
         assert "hsi_face_quality_score" in response
         assert "hsi_face_embeddings_generated_total" in response
         assert "hsi_face_matches_total" in response
+        assert "hsi_face_recognition_confidence" in response  # NEM-4143

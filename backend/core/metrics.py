@@ -144,20 +144,27 @@ DLQ_DEPTH = Gauge(
 )
 
 # =============================================================================
-# Worker Supervisor Metrics (NEM-2457, NEM-2459)
+# Worker Supervisor Metrics (NEM-2457, NEM-2459, NEM-4148)
 # =============================================================================
 
 WORKER_RESTARTS_TOTAL = Counter(
     "hsi_worker_restarts_total",
-    "Total number of worker restarts by worker name",
-    labelnames=["worker_name"],
+    "Total number of worker restarts by worker type and reason",
+    labelnames=["worker_name", "worker_type", "reason"],
     registry=_registry,
 )
 
 WORKER_CRASHES_TOTAL = Counter(
     "hsi_worker_crashes_total",
-    "Total number of worker crashes by worker name",
-    labelnames=["worker_name"],
+    "Total number of worker crashes by worker type and exit code",
+    labelnames=["worker_name", "worker_type", "exit_code"],
+    registry=_registry,
+)
+
+WORKER_HEARTBEAT_MISSED_TOTAL = Counter(
+    "hsi_worker_heartbeat_missed_total",
+    "Total number of missed worker heartbeats by worker type",
+    labelnames=["worker_name", "worker_type"],
     registry=_registry,
 )
 
@@ -613,8 +620,8 @@ QUEUE_OVERFLOW_TOTAL = Counter(
 
 QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL = Counter(
     "hsi_queue_items_moved_to_dlq_total",
-    "Total number of items moved to dead-letter queue due to overflow",
-    labelnames=["queue_name"],
+    "Total number of items moved to dead-letter queue",
+    labelnames=["queue_name", "reason"],
     registry=_registry,
 )
 
@@ -627,8 +634,8 @@ QUEUE_ITEMS_DROPPED_TOTAL = Counter(
 
 QUEUE_ITEMS_REJECTED_TOTAL = Counter(
     "hsi_queue_items_rejected_total",
-    "Total number of items rejected due to full queue (reject policy)",
-    labelnames=["queue_name"],
+    "Total number of items rejected by queue or consumer",
+    labelnames=["queue_name", "reason"],
     registry=_registry,
 )
 
@@ -803,14 +810,14 @@ COST_PER_EVENT_USD = Gauge(
 TRACKS_CREATED_TOTAL = Counter(
     "hsi_tracks_created_total",
     "Total number of object tracks created",
-    labelnames=["camera_id"],
+    labelnames=["camera_id", "object_class"],
     registry=_registry,
 )
 
 TRACKS_LOST_TOTAL = Counter(
     "hsi_tracks_lost_total",
     "Total number of object tracks lost",
-    labelnames=["camera_id", "reason"],  # reason: timeout, out_of_frame, occlusion
+    labelnames=["camera_id", "object_class", "reason"],  # reason: timeout, out_of_frame, occlusion
     registry=_registry,
 )
 
@@ -928,6 +935,16 @@ LOITERING_DWELL_TIME_SECONDS = Histogram(
     registry=_registry,
 )
 
+# Counter for ALL loitering events with severity label (NEM-4142)
+# This tracks both warning and alert severity events, unlike hsi_loitering_alerts_total
+# which only tracks alerts. The severity label allows filtering by event type.
+LOITERING_EVENTS_TOTAL = Counter(
+    "hsi_loitering_events_total",
+    "Total loitering events detected",
+    labelnames=["zone_id", "zone_name", "severity"],  # severity: warning, alert
+    registry=_registry,
+)
+
 # -----------------------------------------------------------------------------
 # Action Recognition Metrics
 # -----------------------------------------------------------------------------
@@ -992,6 +1009,19 @@ FACE_QUALITY_SCORE = Histogram(
 FACE_EMBEDDINGS_GENERATED_TOTAL = Counter(
     "hsi_face_embeddings_generated_total",
     "Total number of face embeddings generated",
+    labelnames=["match_status"],  # match_status: known, unknown (NEM-4143)
+    registry=_registry,
+)
+
+# Buckets for face recognition confidence scores (0.0 to 1.0) (NEM-4143)
+# Lower threshold (0.3) for poor quality matches, up to near-perfect (0.99)
+FACE_RECOGNITION_CONFIDENCE_BUCKETS = (0.3, 0.5, 0.6, 0.68, 0.75, 0.85, 0.9, 0.95, 0.99)
+
+FACE_RECOGNITION_CONFIDENCE = Histogram(
+    "hsi_face_recognition_confidence",
+    "Confidence scores for face recognition matches",
+    labelnames=["camera_id"],
+    buckets=FACE_RECOGNITION_CONFIDENCE_BUCKETS,
     registry=_registry,
 )
 
@@ -999,6 +1029,85 @@ FACE_MATCHES_TOTAL = Counter(
     "hsi_face_matches_total",
     "Total number of face matches against known persons",
     labelnames=["person_id"],
+    registry=_registry,
+)
+
+# Buckets for face embedding generation duration (in seconds) (NEM-4143)
+# Fast inference on GPU: ~10ms typical, up to 500ms under load
+FACE_EMBEDDING_DURATION_BUCKETS = (
+    0.01,  # 10ms - minimum expected latency
+    0.025,  # 25ms - fast path
+    0.05,  # 50ms - typical P50
+    0.1,  # 100ms - normal range
+    0.25,  # 250ms - approaching P95
+    0.5,  # 500ms - timeout threshold
+)
+
+FACE_EMBEDDING_DURATION_SECONDS = Histogram(
+    "hsi_face_embedding_duration_seconds",
+    "Time to generate face embedding in seconds",
+    labelnames=["camera_id"],
+    buckets=FACE_EMBEDDING_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+KNOWN_FACES_DATABASE_SIZE = Gauge(
+    "hsi_known_faces_database_size",
+    "Number of known faces in the recognition database",
+    registry=_registry,
+)
+
+# -----------------------------------------------------------------------------
+# Re-Identification Metrics (NEM-4140)
+# -----------------------------------------------------------------------------
+
+REID_MATCHES_TOTAL = Counter(
+    "hsi_reid_matches_total",
+    "Total number of successful re-identification matches",
+    labelnames=["entity_type", "camera_id"],  # entity_type: person, vehicle
+    registry=_registry,
+)
+
+REID_ATTEMPTS_TOTAL = Counter(
+    "hsi_reid_attempts_total",
+    "Total number of re-identification attempts",
+    labelnames=["entity_type", "camera_id"],  # entity_type: person, vehicle
+    registry=_registry,
+)
+
+# Buckets for Re-ID match duration (in seconds)
+# Covers fast matches (10ms) to slow matches (5s)
+REID_MATCH_DURATION_BUCKETS = (
+    0.01,  # 10ms
+    0.025,  # 25ms
+    0.05,  # 50ms
+    0.1,  # 100ms
+    0.25,  # 250ms
+    0.5,  # 500ms
+    1.0,  # 1s
+    2.5,  # 2.5s
+    5.0,  # 5s
+)
+
+REID_MATCH_DURATION_SECONDS = Histogram(
+    "hsi_reid_match_duration_seconds",
+    "Duration of re-identification match operations in seconds",
+    labelnames=["entity_type"],  # entity_type: person, vehicle
+    buckets=REID_MATCH_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+CROSS_CAMERA_HANDOFFS_TOTAL = Counter(
+    "hsi_cross_camera_handoffs_total",
+    "Total number of cross-camera track handoffs",
+    labelnames=["source_camera", "target_camera", "entity_type"],
+    registry=_registry,
+)
+
+ACTIVE_TRACKS_COUNT = Gauge(
+    "hsi_active_tracks_count",
+    "Current number of active tracks across cameras",
+    labelnames=["entity_type"],  # entity_type: person, vehicle
     registry=_registry,
 )
 
@@ -1080,14 +1189,18 @@ class MetricsService:
         """
         QUEUE_OVERFLOW_TOTAL.labels(queue_name=queue_name, policy=policy).inc()
 
-    def record_queue_items_moved_to_dlq(self, queue_name: str, count: int = 1) -> None:
-        """Record items moved to dead-letter queue due to overflow.
+    def record_queue_items_moved_to_dlq(
+        self, queue_name: str, count: int = 1, reason: str = "overflow"
+    ) -> None:
+        """Record items moved to dead-letter queue.
 
         Args:
             queue_name: Name of the source queue
             count: Number of items moved (default 1)
+            reason: Reason for moving to DLQ (e.g., "overflow", "processing_failed",
+                    "max_retries", "timeout"). Defaults to "overflow".
         """
-        QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name).inc(count)
+        QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name, reason=reason).inc(count)
 
     def record_queue_items_dropped(self, queue_name: str, count: int = 1) -> None:
         """Record items dropped due to queue overflow (drop_oldest policy).
@@ -1098,14 +1211,18 @@ class MetricsService:
         """
         QUEUE_ITEMS_DROPPED_TOTAL.labels(queue_name=queue_name).inc(count)
 
-    def record_queue_items_rejected(self, queue_name: str, count: int = 1) -> None:
-        """Record items rejected due to full queue (reject policy).
+    def record_queue_items_rejected(
+        self, queue_name: str, count: int = 1, reason: str = "queue_full"
+    ) -> None:
+        """Record items rejected by queue or consumer.
 
         Args:
             queue_name: Name of the queue
             count: Number of items rejected (default 1)
+            reason: Reason for rejection (e.g., "queue_full", "invalid_payload",
+                    "validation_failed", "consumer_rejected"). Defaults to "queue_full".
         """
-        QUEUE_ITEMS_REJECTED_TOTAL.labels(queue_name=queue_name).inc(count)
+        QUEUE_ITEMS_REJECTED_TOTAL.labels(queue_name=queue_name, reason=reason).inc(count)
 
     # -------------------------------------------------------------------------
     # Stage Duration Metrics
@@ -2173,14 +2290,18 @@ def record_queue_overflow(queue_name: str, policy: str) -> None:
     QUEUE_OVERFLOW_TOTAL.labels(queue_name=queue_name, policy=policy).inc()
 
 
-def record_queue_items_moved_to_dlq(queue_name: str, count: int = 1) -> None:
-    """Record items moved to dead-letter queue due to overflow.
+def record_queue_items_moved_to_dlq(
+    queue_name: str, count: int = 1, reason: str = "overflow"
+) -> None:
+    """Record items moved to dead-letter queue.
 
     Args:
         queue_name: Name of the source queue
         count: Number of items moved (default 1)
+        reason: Reason for moving to DLQ (e.g., "overflow", "processing_failed",
+                "max_retries", "timeout"). Defaults to "overflow".
     """
-    QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name).inc(count)
+    QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name, reason=reason).inc(count)
 
 
 def record_queue_items_dropped(queue_name: str, count: int = 1) -> None:
@@ -2193,14 +2314,18 @@ def record_queue_items_dropped(queue_name: str, count: int = 1) -> None:
     QUEUE_ITEMS_DROPPED_TOTAL.labels(queue_name=queue_name).inc(count)
 
 
-def record_queue_items_rejected(queue_name: str, count: int = 1) -> None:
-    """Record items rejected due to full queue (reject policy).
+def record_queue_items_rejected(
+    queue_name: str, count: int = 1, reason: str = "queue_full"
+) -> None:
+    """Record items rejected by queue or consumer.
 
     Args:
         queue_name: Name of the queue
         count: Number of items rejected (default 1)
+        reason: Reason for rejection (e.g., "queue_full", "invalid_payload",
+                "validation_failed", "consumer_rejected"). Defaults to "queue_full".
     """
-    QUEUE_ITEMS_REJECTED_TOTAL.labels(queue_name=queue_name).inc(count)
+    QUEUE_ITEMS_REJECTED_TOTAL.labels(queue_name=queue_name, reason=reason).inc(count)
 
 
 # =============================================================================
@@ -2988,6 +3113,118 @@ def set_model_last_inference_ago(model: str, seconds_ago: float | None) -> None:
 
 
 # =============================================================================
+# AI Model Load Duration, Cold Start Latency, and Restart Metrics (NEM-4145)
+# =============================================================================
+# Metrics for tracking:
+# - Model load duration (time to load model weights into memory/GPU)
+# - First inference latency after model load (cold start)
+# - Model restart events with reasons (OOM, crash, manual, health check)
+
+MODEL_LOAD_DURATION = Gauge(
+    "hsi_model_load_duration_seconds",
+    "Time taken to load AI model weights into memory/GPU",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+
+def set_model_load_duration(model: str, duration_seconds: float) -> None:
+    """Set the load duration for an AI model.
+
+    This should be called immediately after a model is loaded from disk or
+    downloaded. It captures the time from starting the load operation to
+    having the model ready for inference (excluding first inference warmup).
+
+    Args:
+        model: Model identifier (e.g., 'yolo26', 'nemotron', 'florence', 'clip',
+               'yolo11-license-plate', 'yolo11-face', 'paddleocr')
+        duration_seconds: Load duration in seconds
+    """
+    MODEL_LOAD_DURATION.labels(model=model).set(duration_seconds)
+
+
+# Cold start latency buckets (in seconds)
+# Covers range from 50ms to 120s for first inference after model load
+# First inference often includes JIT compilation, CUDA graph capture, etc.
+COLD_START_LATENCY_BUCKETS = (
+    0.05,  # 50ms - extremely fast (cached/pre-compiled)
+    0.1,  # 100ms - fast models
+    0.25,  # 250ms - typical lightweight models
+    0.5,  # 500ms - typical models
+    1.0,  # 1s - heavier models
+    2.5,  # 2.5s - large models
+    5.0,  # 5s - very large models
+    10.0,  # 10s - LLMs, multi-model pipelines
+    30.0,  # 30s - complex initialization
+    60.0,  # 60s - heavy LLMs with compilation
+    120.0,  # 120s - extreme cases
+)
+
+MODEL_COLD_START_LATENCY = Gauge(
+    "hsi_model_cold_start_latency_seconds",
+    "First inference latency after model load (cold start) in seconds",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+MODEL_RESTARTS_TOTAL = Counter(
+    "hsi_model_restarts_total",
+    "Total number of AI model restarts by model and reason",
+    labelnames=["model", "reason"],
+    registry=_registry,
+)
+
+# Valid restart reasons for documentation and validation
+# oom: Out of memory error triggered restart
+# crash: Unexpected crash/exception triggered restart
+# manual: User or admin manually triggered restart
+# health_check: Health check failure triggered restart
+MODEL_RESTART_REASONS = frozenset({"oom", "crash", "manual", "health_check"})
+
+
+def set_model_cold_start_latency(model: str, latency_seconds: float) -> None:
+    """Set the cold start latency (first inference after load) for an AI model.
+
+    This should be called after the first successful inference following a model
+    load or restart. The latency captures the time taken for the first inference,
+    which typically includes JIT compilation, CUDA graph capture, and other
+    one-time initialization costs.
+
+    Args:
+        model: Model identifier (e.g., 'yolo26', 'nemotron', 'florence', 'clip',
+               'enrichment-pose', 'enrichment-threat')
+        latency_seconds: First inference latency in seconds
+    """
+    MODEL_COLD_START_LATENCY.labels(model=model).set(latency_seconds)
+
+
+def record_model_restart(model: str, reason: str) -> None:
+    """Record a model restart event with the reason.
+
+    This should be called when an AI model is reloaded/restarted. The reason
+    helps identify patterns in model restarts for operational monitoring.
+
+    Args:
+        model: Model identifier (e.g., 'yolo26', 'nemotron', 'florence', 'clip',
+               'enrichment-pose', 'enrichment-threat')
+        reason: Restart reason, one of:
+            - 'oom': Out of memory error triggered restart
+            - 'crash': Unexpected crash/exception triggered restart
+            - 'manual': User or admin manually triggered restart
+            - 'health_check': Health check failure triggered restart
+
+    Raises:
+        ValueError: If reason is not a valid restart reason
+    """
+    if reason not in MODEL_RESTART_REASONS:
+        raise ValueError(
+            f"Invalid restart reason '{reason}'. "
+            f"Valid reasons are: {', '.join(sorted(MODEL_RESTART_REASONS))}"
+        )
+    MODEL_RESTARTS_TOTAL.labels(model=model, reason=reason).inc()
+
+
+# =============================================================================
 # Real User Monitoring (RUM) Metrics (NEM-1635)
 # =============================================================================
 
@@ -3574,25 +3811,193 @@ WORKER_STATUS_VALUES = {
     "failed": 4,
 }
 
+# Valid restart reasons for categorization (NEM-4148)
+WORKER_RESTART_REASONS = {"oom", "crash", "timeout", "manual", "unknown"}
 
-def record_worker_restart(worker_name: str) -> None:
-    """Record a worker restart event.
+# Valid worker types (NEM-4148)
+WORKER_TYPES = {"pipeline", "detection", "analysis", "enrichment", "background", "unknown"}
+
+
+def _categorize_restart_reason_worker(reason: str | None) -> str:
+    """Categorize a restart reason into a known category (NEM-4148).
+
+    Args:
+        reason: The raw restart reason string, or None.
+
+    Returns:
+        A categorized reason: "oom", "crash", "timeout", "manual", or "unknown".
+    """
+    if reason is None:
+        return "manual"
+
+    reason_lower = reason.lower()
+
+    # Check for OOM-related reasons
+    if any(term in reason_lower for term in ["oom", "out of memory", "memory", "killed"]):
+        return "oom"
+
+    # Check for timeout-related reasons
+    if any(term in reason_lower for term in ["timeout", "timed out", "deadline"]):
+        return "timeout"
+
+    # Check for crash-related reasons
+    if any(
+        term in reason_lower
+        for term in [
+            "crash",
+            "exception",
+            "error",
+            "failed",
+            "failure",
+            "segfault",
+            "segmentation",
+            "panic",
+        ]
+    ):
+        return "crash"
+
+    return "unknown"
+
+
+def _extract_exit_code(error: str | None) -> str:
+    """Extract exit code from an error message (NEM-4148).
+
+    Args:
+        error: The error message, or None.
+
+    Returns:
+        A string representation of the exit code, or "unknown".
+    """
+    if error is None:
+        return "unknown"
+
+    error_lower = error.lower()
+    result = "unknown"
+
+    # Check for common exit codes in error messages
+    import re
+
+    # Look for explicit exit codes
+    exit_code_match = re.search(r"exit[_\s]?code[:\s]*(\d+)", error_lower)
+    if exit_code_match:
+        result = exit_code_match.group(1)
+    # Look for signal numbers (supports "signal: 9", "signal 9", "signal:9")
+    elif signal_match := re.search(r"signal[:\s]+(\d+)", error_lower):
+        result = f"signal_{signal_match.group(1)}"
+    # Check for timeout first (before OOM check which could match "killed")
+    elif "timeout" in error_lower or "timed out" in error_lower:
+        result = "timeout"
+    # Check for common error patterns
+    elif "oom" in error_lower or "out of memory" in error_lower or "killed" in error_lower:
+        result = "137"  # OOM kill signal
+    elif "segfault" in error_lower or "segmentation fault" in error_lower:
+        result = "139"  # Segfault signal
+
+    return result
+
+
+def _determine_worker_type(worker_name: str) -> str:
+    """Determine the worker type from its name (NEM-4148).
+
+    Args:
+        worker_name: Name of the worker.
+
+    Returns:
+        A categorized worker type.
+    """
+    name_lower = worker_name.lower()
+
+    if "detection" in name_lower or "yolo" in name_lower:
+        return "detection"
+    if "analysis" in name_lower or "nemotron" in name_lower or "llm" in name_lower:
+        return "analysis"
+    if "enrich" in name_lower or "context" in name_lower:
+        return "enrichment"
+    if "pipeline" in name_lower:
+        return "pipeline"
+    if "background" in name_lower or "task" in name_lower or "job" in name_lower:
+        return "background"
+
+    return "unknown"
+
+
+def record_worker_restart(
+    worker_name: str,
+    worker_type: str | None = None,
+    reason: str | None = None,
+) -> None:
+    """Record a worker restart event (NEM-4148).
 
     Args:
         worker_name: Name of the worker that was restarted.
+        worker_type: Type of worker (e.g., "pipeline", "detection"). Auto-detected if None.
+        reason: Reason for restart (e.g., "oom", "crash", "timeout", "manual").
+            Auto-categorized if a raw error string is provided.
     """
     safe_name = sanitize_metric_label(worker_name, max_length=64)
-    WORKER_RESTARTS_TOTAL.labels(worker_name=safe_name).inc()
+    safe_type = sanitize_metric_label(
+        worker_type if worker_type else _determine_worker_type(worker_name),
+        max_length=32,
+    )
+    categorized_reason = (
+        reason if reason in WORKER_RESTART_REASONS else _categorize_restart_reason_worker(reason)
+    )
+    WORKER_RESTARTS_TOTAL.labels(
+        worker_name=safe_name,
+        worker_type=safe_type,
+        reason=categorized_reason,
+    ).inc()
 
 
-def record_worker_crash(worker_name: str) -> None:
-    """Record a worker crash event.
+def record_worker_crash(
+    worker_name: str,
+    worker_type: str | None = None,
+    exit_code: str | None = None,
+    error: str | None = None,
+) -> None:
+    """Record a worker crash event (NEM-4148).
 
     Args:
         worker_name: Name of the worker that crashed.
+        worker_type: Type of worker (e.g., "pipeline", "detection"). Auto-detected if None.
+        exit_code: Exit code of the crash. Auto-extracted from error if None.
+        error: Error message from the crash (used to extract exit code if not provided).
     """
     safe_name = sanitize_metric_label(worker_name, max_length=64)
-    WORKER_CRASHES_TOTAL.labels(worker_name=safe_name).inc()
+    safe_type = sanitize_metric_label(
+        worker_type if worker_type else _determine_worker_type(worker_name),
+        max_length=32,
+    )
+    safe_exit_code = sanitize_metric_label(
+        exit_code if exit_code else _extract_exit_code(error),
+        max_length=16,
+    )
+    WORKER_CRASHES_TOTAL.labels(
+        worker_name=safe_name,
+        worker_type=safe_type,
+        exit_code=safe_exit_code,
+    ).inc()
+
+
+def record_worker_heartbeat_missed(
+    worker_name: str,
+    worker_type: str | None = None,
+) -> None:
+    """Record a missed worker heartbeat event (NEM-4148).
+
+    Args:
+        worker_name: Name of the worker that missed a heartbeat.
+        worker_type: Type of worker (e.g., "pipeline", "detection"). Auto-detected if None.
+    """
+    safe_name = sanitize_metric_label(worker_name, max_length=64)
+    safe_type = sanitize_metric_label(
+        worker_type if worker_type else _determine_worker_type(worker_name),
+        max_length=32,
+    )
+    WORKER_HEARTBEAT_MISSED_TOTAL.labels(
+        worker_name=safe_name,
+        worker_type=safe_type,
+    ).inc()
 
 
 def record_worker_max_restarts_exceeded(worker_name: str) -> None:
@@ -3855,26 +4260,32 @@ def set_pipeline_worker_uptime(worker_name: str, uptime_seconds: float) -> None:
 # -----------------------------------------------------------------------------
 
 
-def record_track_created(camera_id: str) -> None:
+def record_track_created(camera_id: str, object_class: str) -> None:
     """Record a new object track being created.
 
     Args:
         camera_id: ID of the camera where the track was created.
+        object_class: Class of the tracked object (e.g., person, car, dog).
     """
     safe_camera_id = sanitize_camera_id(camera_id)
-    TRACKS_CREATED_TOTAL.labels(camera_id=safe_camera_id).inc()
+    safe_object_class = sanitize_metric_label(object_class, max_length=32)
+    TRACKS_CREATED_TOTAL.labels(camera_id=safe_camera_id, object_class=safe_object_class).inc()
 
 
-def record_track_lost(camera_id: str, reason: str) -> None:
+def record_track_lost(camera_id: str, object_class: str, reason: str) -> None:
     """Record an object track being lost.
 
     Args:
         camera_id: ID of the camera where the track was lost.
+        object_class: Class of the tracked object (e.g., person, car, dog).
         reason: Reason for track loss (timeout, out_of_frame, occlusion).
     """
     safe_camera_id = sanitize_camera_id(camera_id)
+    safe_object_class = sanitize_metric_label(object_class, max_length=32)
     safe_reason = sanitize_metric_label(reason, max_length=32)
-    TRACKS_LOST_TOTAL.labels(camera_id=safe_camera_id, reason=safe_reason).inc()
+    TRACKS_LOST_TOTAL.labels(
+        camera_id=safe_camera_id, object_class=safe_object_class, reason=safe_reason
+    ).inc()
 
 
 def record_track_reidentified(camera_id: str) -> None:
@@ -3996,6 +4407,26 @@ def observe_loitering_dwell_time(camera_id: str, duration_seconds: float) -> Non
     LOITERING_DWELL_TIME_SECONDS.labels(camera_id=safe_camera_id).observe(duration_seconds)
 
 
+def record_loitering_event(zone_id: str, zone_name: str, severity: str) -> None:
+    """Record a loitering event with severity level.
+
+    This records ALL loitering events (both warning and alert severity) to the
+    hsi_loitering_events_total counter. This is distinct from record_loitering_alert()
+    which only tracks alerts using hsi_loitering_alerts_total.
+
+    Args:
+        zone_id: ID of the zone where loitering was detected.
+        zone_name: Human-readable name of the zone.
+        severity: Event severity - should be 'warning' or 'alert'.
+    """
+    safe_zone_id = sanitize_metric_label(zone_id, max_length=64)
+    safe_zone_name = sanitize_metric_label(zone_name, max_length=64)
+    safe_severity = sanitize_metric_label(severity, max_length=16)
+    LOITERING_EVENTS_TOTAL.labels(
+        zone_id=safe_zone_id, zone_name=safe_zone_name, severity=safe_severity
+    ).inc()
+
+
 # -----------------------------------------------------------------------------
 # Action Recognition Metric Helpers
 # -----------------------------------------------------------------------------
@@ -4059,9 +4490,26 @@ def observe_face_quality_score(quality_score: float) -> None:
     FACE_QUALITY_SCORE.observe(quality_score)
 
 
-def record_face_embedding_generated() -> None:
-    """Record a face embedding being generated."""
-    FACE_EMBEDDINGS_GENERATED_TOTAL.inc()
+def record_face_embedding_generated(match_status: str = "unknown") -> None:
+    """Record a face embedding being generated.
+
+    Args:
+        match_status: Whether face matched a known person ("known" or "unknown").
+                      Defaults to "unknown" for backward compatibility.
+    """
+    safe_match_status = sanitize_metric_label(match_status, max_length=16)
+    FACE_EMBEDDINGS_GENERATED_TOTAL.labels(match_status=safe_match_status).inc()
+
+
+def observe_face_recognition_confidence(camera_id: str, confidence: float) -> None:
+    """Record the confidence score for a face recognition match.
+
+    Args:
+        camera_id: ID of the camera where the face was recognized.
+        confidence: Recognition confidence score (0.0 to 1.0).
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    FACE_RECOGNITION_CONFIDENCE.labels(camera_id=safe_camera_id).observe(confidence)
 
 
 def record_face_match(person_id: str) -> None:
@@ -4072,6 +4520,93 @@ def record_face_match(person_id: str) -> None:
     """
     safe_person_id = sanitize_metric_label(person_id, max_length=64)
     FACE_MATCHES_TOTAL.labels(person_id=safe_person_id).inc()
+
+
+def observe_face_embedding_duration(camera_id: str, duration_seconds: float) -> None:
+    """Record the duration of face embedding generation.
+
+    Args:
+        camera_id: ID of the camera where the face was detected.
+        duration_seconds: Time to generate the embedding in seconds.
+    """
+    safe_camera_id = sanitize_camera_id(camera_id)
+    FACE_EMBEDDING_DURATION_SECONDS.labels(camera_id=safe_camera_id).observe(duration_seconds)
+
+
+def set_known_faces_database_size(count: int) -> None:
+    """Set the current number of known faces in the database.
+
+    Args:
+        count: Number of known faces currently in the recognition database.
+    """
+    KNOWN_FACES_DATABASE_SIZE.set(count)
+
+
+# -----------------------------------------------------------------------------
+# Re-Identification Metric Helpers (NEM-4140)
+# -----------------------------------------------------------------------------
+
+
+def record_reid_match(entity_type: str, camera_id: str) -> None:
+    """Record a successful re-identification match.
+
+    Args:
+        entity_type: Type of entity matched (person, vehicle).
+        camera_id: ID of the camera where the match occurred.
+    """
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    safe_camera_id = sanitize_camera_id(camera_id)
+    REID_MATCHES_TOTAL.labels(entity_type=safe_entity_type, camera_id=safe_camera_id).inc()
+
+
+def record_reid_attempt(entity_type: str, camera_id: str) -> None:
+    """Record a re-identification attempt.
+
+    Args:
+        entity_type: Type of entity being matched (person, vehicle).
+        camera_id: ID of the camera where the attempt occurred.
+    """
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    safe_camera_id = sanitize_camera_id(camera_id)
+    REID_ATTEMPTS_TOTAL.labels(entity_type=safe_entity_type, camera_id=safe_camera_id).inc()
+
+
+def observe_reid_match_duration(entity_type: str, duration_seconds: float) -> None:
+    """Record the duration of a re-identification match operation.
+
+    Args:
+        entity_type: Type of entity being matched (person, vehicle).
+        duration_seconds: Duration of the match operation in seconds.
+    """
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    REID_MATCH_DURATION_SECONDS.labels(entity_type=safe_entity_type).observe(duration_seconds)
+
+
+def record_cross_camera_handoff(source_camera: str, target_camera: str, entity_type: str) -> None:
+    """Record a cross-camera track handoff.
+
+    Args:
+        source_camera: ID of the source camera.
+        target_camera: ID of the target camera.
+        entity_type: Type of entity being handed off (person, vehicle).
+    """
+    safe_source = sanitize_camera_id(source_camera)
+    safe_target = sanitize_camera_id(target_camera)
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    CROSS_CAMERA_HANDOFFS_TOTAL.labels(
+        source_camera=safe_source, target_camera=safe_target, entity_type=safe_entity_type
+    ).inc()
+
+
+def set_active_tracks_count(entity_type: str, count: int) -> None:
+    """Set the current number of active tracks for an entity type.
+
+    Args:
+        entity_type: Type of entity (person, vehicle).
+        count: Number of active tracks.
+    """
+    safe_entity_type = sanitize_metric_label(entity_type, max_length=32)
+    ACTIVE_TRACKS_COUNT.labels(entity_type=safe_entity_type).set(count)
 
 
 # =============================================================================
