@@ -59,9 +59,10 @@ These guides help you understand and use the main dashboard.
 
 When the system detects something important, you will want to know about it.
 
-| Guide                     | Description                                           | Time    |
-| ------------------------- | ----------------------------------------------------- | ------- |
-| [Alerts](../ui/alerts.md) | What causes alerts, how to respond, and notifications | ~15 min |
+| Guide                                       | Description                                           | Time    |
+| ------------------------------------------- | ----------------------------------------------------- | ------- |
+| [Alerts](../ui/alerts.md)                   | What causes alerts, how to respond, and notifications | ~15 min |
+| [Notification Setup](notification-setup.md) | Configure how and when you receive alerts             | ~12 min |
 
 ### Quick Reference: Risk Levels
 
