@@ -1120,3 +1120,85 @@ groups:
           summary: 'Database P95 latency critically high (>10s)'
           description: 'P95 database query latency is {{ $value }}s. Database is severely degraded.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/database-latency-extreme'
+
+  # =============================================================================
+  # Pyroscope Continuous Profiling Alerts (NEM-3925)
+  # =============================================================================
+  # Monitor Pyroscope server health and profiling data ingestion.
+  # Pyroscope provides continuous profiling for CPU and memory analysis across
+  # all AI services (YOLO26, Nemotron, Florence, CLIP, Enrichment) and backend.
+  - name: profiling_alerts
+    rules:
+      # Critical: Pyroscope server not available
+      # This alert fires when the Pyroscope server cannot be scraped by Prometheus.
+      # Without Pyroscope, continuous profiling data will not be collected.
+      - alert: ProfilingDataMissing
+        expr: absent(up{job="pyroscope"}) or up{job="pyroscope"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: profiling
+          service: pyroscope
+        annotations:
+          summary: 'Pyroscope server not available'
+          description: 'Pyroscope profiling server has been unavailable for more than 10 minutes. Continuous profiling data is not being collected.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/pyroscope-unavailable'
+
+      # Warning: Unusually high profile ingestion rate
+      # May indicate a profiling misconfiguration or runaway profiling agent.
+      # Normal rate depends on number of services and sample rate, but >10000/5m is excessive.
+      - alert: HighProfileIngestionRate
+        expr: rate(pyroscope_distributor_received_samples_total[5m]) > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: profiling
+          service: pyroscope
+        annotations:
+          summary: 'Unusually high profiling data rate'
+          description: 'Pyroscope is receiving {{ $value | printf "%.0f" }} samples/sec, which is unusually high. Check for misconfigured sample rates or runaway profiling agents.'
+
+      # Warning: No profiles being received
+      # This indicates that profiling agents may not be sending data to Pyroscope.
+      # May occur if PYROSCOPE_ENABLED=false or network connectivity issues.
+      - alert: NoProfilesReceived
+        expr: |
+          up{job="pyroscope"} == 1
+          and
+          rate(pyroscope_distributor_received_samples_total[10m]) == 0
+        for: 15m
+        labels:
+          severity: warning
+          component: profiling
+          service: pyroscope
+        annotations:
+          summary: 'Pyroscope receiving no profiling data'
+          description: 'Pyroscope server is up but has not received any profiling samples for 15 minutes. Check that PYROSCOPE_ENABLED=true and services can reach pyroscope:4040.'
+
+      # Critical: Pyroscope storage issues
+      # Monitors for ingester errors which may indicate disk or storage problems.
+      - alert: PyroscopeIngesterErrors
+        expr: increase(pyroscope_ingester_tsdb_wal_corruptions_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: profiling
+          service: pyroscope
+        annotations:
+          summary: 'Pyroscope storage corruption detected'
+          description: 'Pyroscope has detected WAL corruptions. Profiling data may be lost. Check disk health and available space.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/pyroscope-storage-corruption'
+
+      # Warning: Pyroscope disk usage high
+      # Monitor Pyroscope's storage consumption to prevent disk full conditions.
+      - alert: PyroscopeDiskUsageHigh
+        expr: |
+          pyroscope_tsdb_size_bytes / (1024 * 1024 * 1024) > 10
+        for: 30m
+        labels:
+          severity: warning
+          component: profiling
+          service: pyroscope
+        annotations:
+          summary: 'Pyroscope storage exceeds 10GB'
+          description: 'Pyroscope storage is using {{ $value | printf "%.1f" }}GB. Consider adjusting retention or increasing disk space.'

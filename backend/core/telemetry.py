@@ -1450,6 +1450,7 @@ def init_profiling() -> None:
     - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
     - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
       (PYROSCOPE_SERVER is also accepted for backward compatibility)
+    - PYROSCOPE_SAMPLE_RATE: Profiling sample rate in Hz (default: 100)
     - ENVIRONMENT: Environment tag for profiles (default: production)
 
     The function gracefully handles:
@@ -1482,9 +1483,14 @@ def init_profiling() -> None:
             "PYROSCOPE_SERVER", "http://pyroscope:4040"
         )
 
+        # Get sample rate from environment (default: 100 Hz)
+        # Higher values = more detail but higher overhead
+        sample_rate = int(os.getenv("PYROSCOPE_SAMPLE_RATE", "100"))
+
         pyroscope.configure(
             application_name="nemotron-backend",
             server_address=pyroscope_server,
+            sample_rate=sample_rate,
             tags={
                 "service": "backend",
                 "environment": os.getenv("ENVIRONMENT", "development"),
@@ -1493,7 +1499,9 @@ def init_profiling() -> None:
             gil_only=False,  # Profile all threads, not just GIL-holding threads
             enable_logging=True,
         )
-        logger.info(f"Pyroscope profiling initialized: server={pyroscope_server}")
+        logger.info(
+            f"Pyroscope profiling initialized: server={pyroscope_server}, sample_rate={sample_rate}Hz"
+        )
     except ImportError:
         # pyroscope-io not installed, skip profiling
         logger.debug("Pyroscope profiling skipped: pyroscope-io not installed")

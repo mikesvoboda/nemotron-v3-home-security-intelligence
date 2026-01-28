@@ -192,9 +192,9 @@ def compile_model(
 
 
 def get_optimal_device_map(
-    model_name_or_path: str,  # noqa: ARG001 - reserved for future use
+    model_name_or_path: str,
     max_memory: dict[int | str, str] | None = None,
-    offload_folder: str | None = None,  # noqa: ARG001 - reserved for future use
+    offload_folder: str | None = None,
 ) -> dict[str, Any] | str:
     """Get optimal device_map configuration for a model.
 

@@ -48,7 +48,7 @@ sys.modules["ai.enrichment"] = _mock_ai_enrichment
 sys.modules["ai.enrichment.vitpose"] = _mock_vitpose
 
 # Now import from the local model module
-from model import (  # noqa: E402, I001
+from model import (
     AUTHORITY_CATEGORIES,
     CARRYING_CATEGORIES,
     CLOTHING_CATEGORY_THRESHOLDS,
@@ -734,7 +734,7 @@ class TestModelNotLoadedErrors:
 
 
 # Import schema models for testing
-from model import (  # noqa: E402
+from model import (
     BoundingBox,
     ClothingResult,
     DemographicsResult,

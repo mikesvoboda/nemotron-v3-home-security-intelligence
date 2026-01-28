@@ -41,3 +41,6 @@ pydantic>=2.4.0
 nvidia-ml-py>=12.560.30
 prometheus-client>=0.21.0
 safetensors>=0.4.0
+
+# Continuous profiling (NEM-3921)
+pyroscope-io>=0.8.7

@@ -27,7 +27,7 @@ if str(_enrichment_dir) not in sys.path:
     sys.path.insert(0, str(_enrichment_dir))
 
 # Now import from the local models module
-from models.demographics import (  # noqa: E402
+from models.demographics import (
     AGE_RANGES,
     DEFAULT_AGE_CONFIDENCE_THRESHOLD,
     DEFAULT_GENDER_CONFIDENCE_THRESHOLD,

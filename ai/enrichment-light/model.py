@@ -37,6 +37,60 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+# =============================================================================
+# Pyroscope Continuous Profiling (NEM-3921)
+# =============================================================================
+def init_profiling() -> None:
+    """Initialize Pyroscope continuous profiling for ai-enrichment-light service.
+
+    This function configures Pyroscope for continuous CPU profiling of the
+    lightweight enrichment service. It enables identification of performance
+    bottlenecks in model inference and request handling.
+
+    Configuration is via environment variables:
+    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
+    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
+    - SERVICE_NAME: Service name in Pyroscope (default: ai-enrichment-light)
+    - GPU_TIER: GPU tier tag for filtering (default: light)
+    - ENVIRONMENT: Environment tag (default: production)
+
+    The function gracefully handles:
+    - Missing pyroscope-io package (ImportError)
+    - Configuration errors (logs warning, doesn't fail startup)
+    """
+    if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
+        logger.info("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
+        return
+
+    try:
+        import pyroscope
+
+        service_name = os.getenv("SERVICE_NAME", "ai-enrichment-light")
+        pyroscope_server = os.getenv("PYROSCOPE_URL", "http://pyroscope:4040")
+
+        pyroscope.configure(
+            application_name=service_name,
+            server_address=pyroscope_server,
+            tags={
+                "service": service_name,
+                "environment": os.getenv("ENVIRONMENT", "production"),
+                "gpu_tier": os.getenv("GPU_TIER", "light"),
+            },
+            oncpu=True,
+            gil_only=False,  # Profile all threads, not just GIL-holding threads
+            enable_logging=True,
+        )
+        logger.info(f"Pyroscope profiling initialized: {service_name} -> {pyroscope_server}")
+    except ImportError:
+        logger.debug("Pyroscope profiling skipped: pyroscope-io not installed")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Pyroscope profiling: {e}")
+
+
+# Initialize profiling early (before model loading)
+init_profiling()
+
 # Track service start time for uptime calculation
 SERVICE_START_TIME = datetime.now(UTC)
 
@@ -316,7 +370,7 @@ def load_all_models() -> None:
 
     Only models assigned to 'light' AND listed in ENRICHMENT_PRELOAD_MODELS will be loaded.
     """
-    global pose_estimator, threat_detector, person_reid, pet_classifier, depth_estimator  # noqa: PLW0603
+    global pose_estimator, threat_detector, person_reid, pet_classifier, depth_estimator
 
     device = get_device()
     preload_config = os.environ.get("ENRICHMENT_PRELOAD_MODELS", "")
@@ -777,7 +831,7 @@ async def estimate_depth(request: ImageRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.environ.get("HOST", "0.0.0.0")  # noqa: S104 - bind to all interfaces for container
+    host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8096"))
 
     logger.info(f"Starting Lightweight Enrichment Service on {host}:{port}")

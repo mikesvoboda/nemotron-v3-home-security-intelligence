@@ -235,7 +235,7 @@ class TestMetricsExport:
 
     def test_metrics_can_be_exported(self):
         """Test that metrics can be exported in Prometheus format."""
-        import metrics  # noqa: F401
+        import metrics
         from prometheus_client import generate_latest
 
         # Generate metrics output

@@ -12,6 +12,7 @@ This directory contains all project documentation organized into role-based hubs
 | `getting-started/` | Installation and first-run setup          | [README](getting-started/README.md) |
 | `developer/`       | Architecture, API, patterns, contributing | [README](developer/README.md)       |
 | `guides/`          | Feature guides (video analytics, zones)   | [AGENTS.md](guides/AGENTS.md)       |
+| `operations/`      | Operational runbooks for production       | [AGENTS.md](operations/AGENTS.md)   |
 | `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
 | `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
 | `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
@@ -83,13 +84,18 @@ docs/
 │   ├── AGENTS.md                # Guides navigation
 │   ├── video-analytics.md       # AI pipeline and detection features
 │   ├── zone-configuration.md    # Detection zone setup
-│   └── face-recognition.md      # Face detection and re-ID
+│   ├── face-recognition.md      # Face detection and re-ID
+│   └── profiling.md             # Continuous profiling guide
 │
 ├── images/                      # Diagrams and screenshots
 │   ├── AGENTS.md                # Images navigation
 │   ├── style-guide.md           # SVG diagram style guide
 │   ├── SCREENSHOT_GUIDE.md      # Screenshot capture guide
 │   └── */                       # Organized subdirectories
+│
+├── operations/                  # Operational runbooks
+│   ├── AGENTS.md                # Operations navigation
+│   └── profiling-runbook.md     # Pyroscope profiling operations
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin
@@ -187,6 +193,7 @@ Each major directory has its own AGENTS.md:
 | `development/AGENTS.md`               | Development workflow           |
 | `getting-started/AGENTS.md`           | Installation navigation        |
 | `images/AGENTS.md`                    | Visual assets                  |
+| `operations/AGENTS.md`                | Operational runbooks           |
 | `operator/AGENTS.md`                  | Operator documentation         |
 | `operator/admin/AGENTS.md`            | Administration guides          |
 | `operator/deployment/AGENTS.md`       | Deployment guides              |

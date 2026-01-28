@@ -129,7 +129,7 @@ def is_tensorrt_available() -> bool:
         True if TensorRT is installed and importable, False otherwise.
     """
     try:
-        import tensorrt as trt  # noqa: F401
+        import tensorrt as trt
 
         return True
     except ImportError:
@@ -464,9 +464,9 @@ class TensorRTConverter:
 
     def _create_calibrator(
         self,
-        input_shapes: dict[str, tuple[int, ...]],  # noqa: ARG002 - reserved for future use
+        input_shapes: dict[str, tuple[int, ...]],
         calibration_data: NDArray[np.float32] | None,
-        network: Any,  # noqa: ARG002 - reserved for future use
+        network: Any,
     ) -> Any:
         """Create INT8 calibrator for quantization.
 
@@ -502,7 +502,7 @@ class TensorRTConverter:
             def get_batch_size(self) -> int:
                 return self.batch_size  # type: ignore[no-any-return]
 
-            def get_batch(self, names: list[str]) -> list[int] | None:  # noqa: ARG002
+            def get_batch(self, names: list[str]) -> list[int] | None:
                 if self.current_index >= len(self.data):
                     return None
 

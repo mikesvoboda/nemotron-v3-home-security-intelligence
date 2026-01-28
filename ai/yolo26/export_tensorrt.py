@@ -120,7 +120,7 @@ def extract_frames_from_videos(
 
         try:
             # S603: Safe - all inputs are validated paths from our controlled source directory
-            subprocess.run(cmd, check=True, capture_output=True)  # noqa: S603
+            subprocess.run(cmd, check=True, capture_output=True)
             # Count extracted frames
             extracted = list(output_dir.glob(f"{parent_name}_{video_name}_*.jpg"))
             total_frames += len(extracted)
@@ -424,7 +424,7 @@ def validate_accuracy(
     return metrics
 
 
-def main() -> int:  # noqa: PLR0911
+def main() -> int:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         description="Export YOLO26m to TensorRT engine with INT8 or FP16 precision",

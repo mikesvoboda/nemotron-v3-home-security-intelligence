@@ -92,7 +92,7 @@ def is_static_cache_supported() -> bool:
         return False
 
     try:
-        from transformers import StaticCache  # noqa: F401
+        from transformers import StaticCache
 
         return True
     except ImportError:

@@ -489,7 +489,7 @@ def get_loitering_detector(
     Returns:
         The shared LoiteringDetector instance.
     """
-    global _loitering_detector  # noqa: PLW0603
+    global _loitering_detector
     if _loitering_detector is None:
         _loitering_detector = LoiteringDetector(
             default_threshold_seconds=default_threshold_seconds,
@@ -503,5 +503,5 @@ def reset_loitering_detector() -> None:
 
     Used primarily for testing to ensure clean state between tests.
     """
-    global _loitering_detector  # noqa: PLW0603
+    global _loitering_detector
     _loitering_detector = None

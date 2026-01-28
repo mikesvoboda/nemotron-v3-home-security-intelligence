@@ -109,7 +109,7 @@ POSE_BEHAVIOR_ALERTS_TOTAL = Counter(
 )
 
 
-def record_pose_detection(pose_class: str, confidence: float = 0.0) -> None:  # noqa: ARG001
+def record_pose_detection(pose_class: str, confidence: float = 0.0) -> None:
     """Record a pose detection metric.
 
     Args:
@@ -912,7 +912,7 @@ def initialize_pose_model() -> YOLO26PoseModel:
     Returns:
         Initialized YOLO26PoseModel instance
     """
-    global pose_model  # noqa: PLW0603
+    global pose_model
 
     model_path = os.environ.get("YOLO26_POSE_MODEL_PATH", "yolo11n-pose.pt")
     confidence = float(os.environ.get("YOLO26_POSE_CONFIDENCE", "0.5"))

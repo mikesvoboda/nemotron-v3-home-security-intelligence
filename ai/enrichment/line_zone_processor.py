@@ -414,7 +414,7 @@ class LineZoneProcessorConfig:
 
 
 def create_line_zone_processor(
-    config: LineZoneProcessorConfig | None = None,  # noqa: ARG001
+    config: LineZoneProcessorConfig | None = None,
 ) -> LineZoneProcessor:
     """Factory function for creating a LineZoneProcessor.
 

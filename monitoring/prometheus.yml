@@ -285,6 +285,27 @@ scrape_configs:
       - targets:
           - 'blackbox-exporter:9115'
 
+  # ==========================================================================
+  # Pyroscope Continuous Profiling Metrics (NEM-3925)
+  # ==========================================================================
+  # Scrapes internal metrics from Pyroscope server for monitoring profiling health.
+  # Key metrics:
+  #   - pyroscope_distributor_received_samples_total: Total samples received
+  #   - pyroscope_ingester_profiles_received_total: Total profiles ingested
+  #   - pyroscope_distributor_bytes_received_total: Bytes received from agents
+  #   - up{job="pyroscope"}: Server availability (1 = healthy, 0 = down)
+  - job_name: 'pyroscope'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'pyroscope:4040'
+        labels:
+          service: pyroscope
+          component: profiling
+    honor_labels: true
+
   # HTTP Health probes - validates JSON health response body
   - job_name: 'blackbox-http-health'
     metrics_path: /probe

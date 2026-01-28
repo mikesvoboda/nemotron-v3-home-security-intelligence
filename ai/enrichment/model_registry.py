@@ -179,7 +179,7 @@ def load_threat_detector(model_path: str, device: str = "cuda:0") -> Any:
 
 def load_demographics(
     age_model_path: str,
-    gender_model_path: str | None = None,  # noqa: ARG001 - Reserved for future gender-specific model
+    gender_model_path: str | None = None,
     device: str = "cuda:0",
 ) -> tuple[Any, Any]:
     """Load age and gender classification models.
