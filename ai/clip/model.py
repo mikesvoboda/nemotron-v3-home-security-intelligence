@@ -18,13 +18,64 @@ Environment Variables:
     CLIP_ENGINE_PATH: Path to TensorRT engine (auto-generated if not exists)
     HOST: Bind address (default: 0.0.0.0)
     PORT: Server port (default: 8093)
+    PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
+    PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
 """
+
+import os
+
+
+def init_profiling() -> None:
+    """Initialize Pyroscope continuous profiling for CLIP embedding service.
+
+    This function configures Pyroscope for continuous profiling of the CLIP
+    service. It enables CPU profiling to identify performance bottlenecks
+    in embedding extraction and image processing.
+
+    Configuration is via environment variables:
+    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
+    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
+    - ENVIRONMENT: Environment tag for profiles (default: production)
+
+    The function gracefully handles:
+    - Missing pyroscope-io package (ImportError)
+    - Unsupported Python versions (pyroscope-io native lib requires Python 3.9-3.12)
+    - Configuration errors (logs warning, doesn't fail startup)
+    """
+    if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
+        print("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
+        return
+
+    try:
+        import pyroscope
+
+        pyroscope_server = os.getenv("PYROSCOPE_URL", "http://pyroscope:4040")
+
+        pyroscope.configure(
+            application_name="ai-clip",
+            server_address=pyroscope_server,
+            tags={
+                "service": "ai-clip",
+                "environment": os.getenv("ENVIRONMENT", "production"),
+            },
+            oncpu=True,
+            gil_only=False,  # Profile all threads, not just GIL-holding threads
+            enable_logging=True,
+        )
+        print(f"Pyroscope profiling initialized: server={pyroscope_server}")
+    except ImportError:
+        print("Pyroscope profiling skipped: pyroscope-io not installed")
+    except Exception as e:
+        print(f"Failed to initialize Pyroscope profiling: {e}")
+
+
+# Initialize profiling before any other imports to capture startup overhead
+init_profiling()
 
 import base64
 import binascii
 import io
 import logging
-import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -1083,7 +1134,7 @@ def get_vram_usage() -> float | None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Lifespan context manager for FastAPI app."""
-    global model  # noqa: PLW0603
+    global model
 
     # Startup
     logger.info("Starting CLIP Embedding Server...")
@@ -1486,6 +1537,6 @@ if __name__ == "__main__":
     # Default to 0.0.0.0 to allow connections from Docker/Podman containers.
     # When AI servers run natively on host while backend runs in containers,
     # binding to 127.0.0.1 would prevent container-to-host connectivity.
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8093"))
     uvicorn.run(app, host=host, port=port, log_level="info")

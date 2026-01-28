@@ -28,8 +28,8 @@ if str(_clip_dir) not in sys.path:
     sys.path.insert(0, str(_clip_dir))
 
 # Now import from the local model module
-import model as model_module  # noqa: E402
-from model import (  # noqa: E402
+import model as model_module
+from model import (
     CAMERA_TYPE_TEMPLATES,
     EMBEDDING_DIMENSION,
     MAX_BATCH_TEXTS_SIZE,
@@ -816,7 +816,7 @@ class TestClassifyWithEnsembleMethod:
             )
 
             # Mock get_text_features to return dynamic number of embeddings based on input
-            def mock_text_features(**kwargs):  # noqa: ARG001
+            def mock_text_features(**kwargs):
                 # Return embeddings for the number of labels that were processed
                 num_labels = call_context.get("num_labels", 1)
                 return torch.randn(num_labels, EMBEDDING_DIMENSION)
@@ -1203,11 +1203,11 @@ class TestEnsembleVsSinglePromptComparison:
         mock_instance.classify_call_count = 0
         mock_instance.ensemble_call_count = 0
 
-        def track_classify(*args, **kwargs):  # noqa: ARG001
+        def track_classify(*args, **kwargs):
             mock_instance.classify_call_count += 1
             return ({"person": 0.7, "car": 0.3}, "person", 8.0)
 
-        def track_ensemble(*args, **kwargs):  # noqa: ARG001
+        def track_ensemble(*args, **kwargs):
             mock_instance.ensemble_call_count += 1
             return (
                 {"person": 0.75, "car": 0.25},
@@ -1244,7 +1244,7 @@ class TestEnsembleVsSinglePromptComparison:
         self,
         client,
         dummy_image_base64,
-        mock_model_with_tracking,  # noqa: ARG002
+        mock_model_with_tracking,
     ) -> None:
         """Document that ensemble typically has higher latency than simple classify."""
         # Call with ensemble (default)

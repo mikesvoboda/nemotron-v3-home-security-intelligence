@@ -24,3 +24,6 @@ pydantic>=2.4.0
 # Monitoring
 nvidia-ml-py>=12.560.30
 prometheus-client>=0.21.0
+
+# Continuous profiling (SDK-based profiling for Pyroscope)
+pyroscope-io>=0.8.7

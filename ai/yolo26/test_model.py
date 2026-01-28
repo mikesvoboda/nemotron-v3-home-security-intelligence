@@ -17,8 +17,8 @@ if str(_yolo26_dir) not in sys.path:
     sys.path.insert(0, str(_yolo26_dir))
 
 # Now import from the local model module
-import model as model_module  # noqa: E402
-from model import (  # noqa: E402
+import model as model_module
+from model import (
     MAX_IMAGE_SIZE_BYTES,
     SECURITY_CLASSES,
     SUPPORTED_IMAGE_EXTENSIONS,
@@ -31,7 +31,7 @@ from model import (  # noqa: E402
     validate_file_extension,
     validate_image_magic_bytes,
 )
-from PIL import Image  # noqa: E402
+from PIL import Image
 
 MODEL_MODULE_PATH = "model"
 
@@ -355,7 +355,7 @@ class TestImageValidation:
     def test_validate_image_magic_bytes_invalid(self):
         """Test rejection of invalid magic bytes."""
         invalid_bytes = b"NOT_AN_IMAGE" + b"\x00" * 10
-        is_valid, error_msg = validate_image_magic_bytes(invalid_bytes)
+        is_valid, _error_msg = validate_image_magic_bytes(invalid_bytes)
         assert is_valid is False
 
 

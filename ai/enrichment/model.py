@@ -19,6 +19,7 @@ import binascii
 import io
 import logging
 import os
+import sys
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -50,6 +51,61 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Pyroscope Continuous Profiling (NEM-3921)
+# =============================================================================
+def init_profiling() -> None:
+    """Initialize Pyroscope continuous profiling for ai-enrichment service.
+
+    This function configures Pyroscope for continuous CPU profiling of the
+    heavy enrichment service. It enables identification of performance
+    bottlenecks in model inference and request handling.
+
+    Configuration is via environment variables:
+    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
+    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
+    - SERVICE_NAME: Service name in Pyroscope (default: ai-enrichment)
+    - GPU_TIER: GPU tier tag for filtering (default: heavy)
+    - ENVIRONMENT: Environment tag (default: production)
+
+    The function gracefully handles:
+    - Missing pyroscope-io package (ImportError)
+    - Unsupported Python versions (pyroscope-io native lib requires Python 3.9-3.12)
+    - Configuration errors (logs warning, doesn't fail startup)
+    """
+    if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
+        logger.info("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
+        return
+
+    try:
+        import pyroscope
+
+        service_name = os.getenv("SERVICE_NAME", "ai-enrichment")
+        pyroscope_server = os.getenv("PYROSCOPE_URL", "http://pyroscope:4040")
+
+        pyroscope.configure(
+            application_name=service_name,
+            server_address=pyroscope_server,
+            tags={
+                "service": service_name,
+                "environment": os.getenv("ENVIRONMENT", "production"),
+                "gpu_tier": os.getenv("GPU_TIER", "heavy"),
+            },
+            oncpu=True,
+            gil_only=False,  # Profile all threads, not just GIL-holding threads
+            enable_logging=True,
+        )
+        logger.info(f"Pyroscope profiling initialized: {service_name} -> {pyroscope_server}")
+    except ImportError:
+        logger.debug("Pyroscope profiling skipped: pyroscope-io not installed")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Pyroscope profiling: {e}")
+
+
+# Initialize profiling early (before model loading)
+init_profiling()
 
 # Track service start time for uptime calculation
 SERVICE_START_TIME = datetime.now(UTC)
@@ -158,7 +214,7 @@ IMAGE_MAGIC_BYTES: dict[bytes, str] = {
 }
 
 
-def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911
+def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911 - Multiple validation checks require multiple returns
     """Validate image data by checking magic bytes (file signature).
 
     This provides an early check before passing to PIL, catching obvious
@@ -1717,7 +1773,7 @@ async def lifespan(_app: FastAPI):
     This now uses on-demand model loading instead of loading all models at startup.
     Models are registered with the OnDemandModelManager and loaded when first requested.
     """
-    global model_manager  # noqa: PLW0603
+    global model_manager
 
     logger.info("Starting Combined Enrichment Service with on-demand model loading...")
 
@@ -2764,6 +2820,6 @@ async def readiness_probe() -> ReadinessResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8094"))
     uvicorn.run(app, host=host, port=port, log_level="info")

@@ -6,6 +6,7 @@ Supports attribute extraction from security camera images.
 Supports torch.compile() for optimized inference (NEM-3375).
 Supports Accelerate device_map for automatic device placement (NEM-3378).
 Implements true batch inference for vision models (NEM-3377).
+Supports Pyroscope continuous profiling (NEM-3920).
 
 Port: 8092 (configurable via PORT env var)
 Expected VRAM: ~1.2GB
@@ -39,7 +40,7 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from torch_optimizations import (  # noqa: E402
+from torch_optimizations import (
     BatchConfig,
     BatchProcessor,
     compile_model,
@@ -670,6 +671,45 @@ class Florence2Model:
 model: Florence2Model | None = None
 
 
+def init_profiling() -> None:
+    """Initialize Pyroscope continuous profiling for ai-florence service.
+
+    Configuration is via environment variables:
+    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
+    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
+    - ENVIRONMENT: Environment tag for profiles (default: production)
+
+    The function gracefully handles:
+    - Missing pyroscope-io package (ImportError)
+    - Unsupported Python versions (pyroscope-io native lib requires Python 3.9-3.12)
+    - Configuration errors (logs warning, doesn't fail startup)
+    """
+    if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
+        logger.info("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
+        return
+
+    try:
+        import pyroscope
+
+        pyroscope_server = os.getenv("PYROSCOPE_URL", "http://pyroscope:4040")
+        pyroscope.configure(
+            application_name="ai-florence",
+            server_address=pyroscope_server,
+            tags={
+                "service": "ai-florence",
+                "environment": os.getenv("ENVIRONMENT", "production"),
+            },
+            oncpu=True,
+            gil_only=False,
+            enable_logging=True,
+        )
+        logger.info(f"Pyroscope profiling initialized: server={pyroscope_server}")
+    except ImportError:
+        logger.debug("Pyroscope profiling skipped: pyroscope-io not installed")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Pyroscope profiling: {e}")
+
+
 def get_vram_usage() -> float | None:
     """Get VRAM usage in GB."""
     try:
@@ -683,7 +723,11 @@ def get_vram_usage() -> float | None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Lifespan context manager for FastAPI app."""
-    global model  # noqa: PLW0603
+    global model
+
+    # Initialize Pyroscope continuous profiling (NEM-3920)
+    # Must be done early to capture profiling data from the entire startup
+    init_profiling()
 
     # Startup
     logger.info("Starting Florence-2 Vision-Language Server...")
@@ -1431,6 +1475,6 @@ if __name__ == "__main__":
     # Default to 0.0.0.0 to allow connections from Docker/Podman containers.
     # When AI servers run natively on host while backend runs in containers,
     # binding to 127.0.0.1 would prevent container-to-host connectivity.
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8092"))
     uvicorn.run(app, host=host, port=port, log_level="info")

@@ -268,6 +268,9 @@ if result.anomaly_score > 0.5:
 | `HF_HOME`           | `/cache/huggingface`                            | HuggingFace cache dir                   |
 | `CLIP_USE_TENSORRT` | `true`                                          | Enable TensorRT backend (true/false)    |
 | `CLIP_ENGINE_PATH`  | `/models/clip-vit-l/vision_encoder_fp16.engine` | Path to TensorRT engine (auto-exported) |
+| `PYROSCOPE_ENABLED` | `true`                                          | Enable/disable continuous profiling     |
+| `PYROSCOPE_URL`     | `http://pyroscope:4040`                         | Pyroscope server address                |
+| `ENVIRONMENT`       | `production`                                    | Environment tag for profiles            |
 
 ## TensorRT Acceleration (NEM-3838)
 

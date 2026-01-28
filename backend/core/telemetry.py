@@ -1439,21 +1439,86 @@ def set_ai_response_attributes(
 # =============================================================================
 
 
+@contextmanager
+def profile_with_trace_context() -> Iterator[None]:
+    """Tag profiling data with current trace ID for correlation.
+
+    This context manager tags Pyroscope profiling data with the current
+    OpenTelemetry trace_id and span_id. This enables correlation between
+    profiles and distributed traces, allowing you to view the exact CPU
+    profile for a specific slow request.
+
+    Use cases:
+    - Debugging slow requests by viewing their exact profiles
+    - Correlating performance bottlenecks with specific traces
+    - Root cause analysis combining tracing and profiling data
+
+    The function gracefully handles:
+    - No active trace (yields without tagging)
+    - Pyroscope not installed (yields without tagging)
+    - Invalid span context (yields without tagging)
+
+    Example:
+        >>> from backend.core.telemetry import profile_with_trace_context
+        >>> with profile_with_trace_context():
+        ...     # Code here will have profiling data tagged with trace context
+        ...     process_request()
+
+    NEM-4127: Added for profile-to-trace correlation in observability stack.
+    """
+    # Try to get trace context and pyroscope tag_wrapper
+    tag_wrapper_ctx = None
+
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        span_context = span.get_span_context()
+
+        if span_context.is_valid:
+            trace_id = format(span_context.trace_id, "032x")
+            span_id = format(span_context.span_id, "016x")
+
+            try:
+                import pyroscope
+
+                tag_wrapper_ctx = pyroscope.tag_wrapper({"trace_id": trace_id, "span_id": span_id})
+            except ImportError:
+                # Pyroscope not installed, continue without tagging
+                pass
+    except ImportError:
+        # OpenTelemetry not installed, continue without tagging
+        pass
+    except Exception as e:
+        # Log but don't fail on unexpected errors
+        logger.debug(f"Failed to tag profiling with trace context: {e}")
+
+    # Single yield point with optional tag wrapper
+    if tag_wrapper_ctx is not None:
+        with tag_wrapper_ctx:
+            yield
+    else:
+        yield
+
+
 def init_profiling() -> None:
     """Initialize Pyroscope continuous profiling for backend service.
 
     This function configures Pyroscope for continuous profiling of the backend
-    service. It enables CPU and GIL profiling to identify performance bottlenecks
-    in both synchronous and asynchronous code paths.
+    service. It enables CPU, GIL, and memory allocation profiling to identify
+    performance bottlenecks in both synchronous and asynchronous code paths.
 
     Configuration is via environment variables:
     - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
     - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
       (PYROSCOPE_SERVER is also accepted for backward compatibility)
+    - PYROSCOPE_SAMPLE_RATE: Profiling sample rate in Hz (default: 100)
+    - PYROSCOPE_MEMORY_ENABLED: Enable memory allocation profiling (default: true)
     - ENVIRONMENT: Environment tag for profiles (default: production)
 
     The function gracefully handles:
     - Missing pyroscope-io package (ImportError)
+    - Unsupported Python versions (pyroscope-io native lib requires Python 3.9-3.12)
     - Configuration errors (logs warning, doesn't fail startup)
 
     Compatibility Notes (NEM-3514):
@@ -1482,9 +1547,18 @@ def init_profiling() -> None:
             "PYROSCOPE_SERVER", "http://pyroscope:4040"
         )
 
+        # Get sample rate from environment (default: 100 Hz)
+        # Higher values = more detail but higher overhead
+        sample_rate = int(os.getenv("PYROSCOPE_SAMPLE_RATE", "100"))
+
+        # Memory profiling: captures alloc_objects and alloc_space data
+        # Enabled by default for comprehensive memory leak detection
+        memory_profiling = os.getenv("PYROSCOPE_MEMORY_ENABLED", "true").lower() == "true"
+
         pyroscope.configure(
             application_name="nemotron-backend",
             server_address=pyroscope_server,
+            sample_rate=sample_rate,
             tags={
                 "service": "backend",
                 "environment": os.getenv("ENVIRONMENT", "development"),
@@ -1492,8 +1566,15 @@ def init_profiling() -> None:
             oncpu=True,
             gil_only=False,  # Profile all threads, not just GIL-holding threads
             enable_logging=True,
+            # Memory allocation profiling (NEM-4126)
+            # Captures alloc_objects (allocation count) and alloc_space (bytes allocated)
+            alloc_objects=memory_profiling,
+            alloc_space=memory_profiling,
         )
-        logger.info(f"Pyroscope profiling initialized: server={pyroscope_server}")
+        logger.info(
+            f"Pyroscope profiling initialized: server={pyroscope_server}, "
+            f"sample_rate={sample_rate}Hz, memory_profiling={memory_profiling}"
+        )
     except ImportError:
         # pyroscope-io not installed, skip profiling
         logger.debug("Pyroscope profiling skipped: pyroscope-io not installed")

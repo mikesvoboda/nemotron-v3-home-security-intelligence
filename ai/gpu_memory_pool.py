@@ -664,7 +664,7 @@ def get_global_pool(config: PoolConfig | None = None) -> GPUMemoryPool:
     Returns:
         The global GPUMemoryPool instance.
     """
-    global _global_pool  # noqa: PLW0603
+    global _global_pool
 
     with _global_pool_lock:
         if _global_pool is None:

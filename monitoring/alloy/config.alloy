@@ -118,12 +118,102 @@ loki.write "local" {
 }
 
 // ============================================
-// EBPF PROFILING PIPELINE (AI Services)
-// NOTE: Disabled in rootless Podman - eBPF requires elevated privileges
+// EBPF PROFILING PIPELINE (Native AI Services)
 // ============================================
-// The eBPF profiler requires CAP_SYS_ADMIN and kernel access which
-// is not available in rootless container environments.
-// Backend SDK profiling via init_profiling() works as an alternative.
+// Profiles native (C/C++) applications like llama.cpp (ai-llm) using eBPF.
+// Python services use SDK-based profiling via init_profiling() instead.
+//
+// Requirements (configured in docker-compose.prod.yml):
+// - Alloy runs privileged with CAP_SYS_ADMIN, CAP_BPF, CAP_PERFMON
+// - pid: host for process namespace access
+// - /sys/kernel/debug, /sys/fs/cgroup, /proc mounted
+//
+// Target Selection:
+// - Containers with label pyroscope.profile=true are profiled
+// - service_name derived from pyroscope.service label
+
+// Discover containers for eBPF profiling
+// Uses Podman socket (same as log collection)
+discovery.docker "profiling_targets" {
+  host = "unix:///run/user/1000/podman/podman.sock"
+}
+
+// Relabel to filter and configure profiling targets
+discovery.relabel "ebpf_targets" {
+  targets = discovery.docker.profiling_targets.targets
+
+  // Only profile containers with pyroscope.profile=true label
+  rule {
+    source_labels = ["__meta_docker_container_label_pyroscope_profile"]
+    regex         = "true"
+    action        = "keep"
+  }
+
+  // Extract service name from pyroscope.service label
+  rule {
+    source_labels = ["__meta_docker_container_label_pyroscope_service"]
+    target_label  = "service_name"
+  }
+
+  // Fallback: use container name if no service label
+  rule {
+    source_labels = ["service_name", "__meta_docker_container_name"]
+    regex         = "^;(.+)$"
+    replacement   = "${1}"
+    target_label  = "service_name"
+  }
+
+  // Add container name as additional label
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  // Add image name for context
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+}
+
+// eBPF profiler for native applications (C/C++, Rust, Go)
+// Profiles ai-llm (llama.cpp), ai-yolo26 (TensorRT), and other native services
+pyroscope.ebpf "native_profiling" {
+  forward_to = [pyroscope.write.default.receiver]
+  targets    = discovery.relabel.ebpf_targets.output
+
+  // Sampling configuration
+  // 97 samples/sec is prime to avoid aliasing with periodic processes
+  sample_rate      = 97
+  collect_interval = "15s"
+
+  // C++ symbol demangling for llama.cpp stack traces
+  demangle = "simplified"
+
+  // Enable profiling for interpreted languages (for completeness)
+  // These are already profiled via SDK but eBPF provides complementary data
+  python_enabled = true
+
+  // Disable interpreters not used in this stack
+  hotspot_enabled = false  // No JVM services
+  ruby_enabled    = false  // No Ruby services
+  php_enabled     = false  // No PHP services
+  dotnet_enabled  = false  // No .NET services
+  v8_enabled      = false  // No Node.js services
+}
+
+// Write profiles to Pyroscope server
+pyroscope.write "default" {
+  endpoint {
+    url = "http://pyroscope:4040"
+  }
+
+  // Add environment labels for filtering in Pyroscope UI
+  external_labels = {
+    "env"      = "production",
+    "platform" = "nemotron-security",
+  }
+}
 
 // ============================================
 // OTLP TRACE PIPELINE (Backend Services)

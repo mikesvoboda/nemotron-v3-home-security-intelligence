@@ -20,6 +20,9 @@ pydantic>=2.4.0
 nvidia-ml-py>=12.560.30
 prometheus-client>=0.21.0
 
+# Continuous profiling
+pyroscope-io>=0.8.7
+
 # ONNX Export Support (TensorRT is included in base image)
 onnx>=1.14.0
 onnxruntime-gpu>=1.16.0

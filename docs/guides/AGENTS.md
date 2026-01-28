@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains comprehensive feature guides for video analytics, zone configuration, and face recognition capabilities in Home Security Intelligence.
+This directory contains comprehensive feature guides for video analytics, zone configuration, face recognition, and observability capabilities in Home Security Intelligence.
 
 ## Directory Contents
 
@@ -12,6 +12,7 @@ docs/guides/
   video-analytics.md     # AI pipeline overview, detection, scene understanding
   zone-configuration.md  # Zone setup, dwell time, line crossing, household integration
   face-recognition.md    # Face detection, person re-ID, household matching
+  profiling.md           # Pyroscope continuous profiling guide
 ```
 
 ## Guide Overview
@@ -21,6 +22,7 @@ docs/guides/
 | [Video Analytics](video-analytics.md)       | Complete AI pipeline documentation             | Developers, operators |
 | [Zone Configuration](zone-configuration.md) | Detection zone setup and intelligence features | Users, operators      |
 | [Face Recognition](face-recognition.md)     | Face detection and person identification       | Users, operators      |
+| [Profiling](profiling.md)                   | Continuous profiling with Pyroscope            | Developers, operators |
 
 ## Key Topics by Guide
 

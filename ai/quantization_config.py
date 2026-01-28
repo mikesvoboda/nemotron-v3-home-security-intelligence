@@ -156,7 +156,7 @@ def _check_bitsandbytes_available() -> bool:
         True if bitsandbytes can be imported, False otherwise.
     """
     try:
-        import bitsandbytes  # noqa: F401
+        import bitsandbytes
 
         return True
     except ImportError:

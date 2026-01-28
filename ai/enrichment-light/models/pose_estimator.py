@@ -50,7 +50,7 @@ _ai_dir = Path(__file__).parent.parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from torch_optimizations import BatchConfig, BatchProcessor  # noqa: E402
+from torch_optimizations import BatchConfig, BatchProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ def _is_tensorrt_available() -> bool:
         return False
 
     try:
-        import tensorrt  # noqa: F401
+        import tensorrt
 
         return True
     except ImportError:
@@ -728,7 +728,7 @@ class PoseEstimator:
         leg_spread = abs(left_ankle.x - right_ankle.x)
         return leg_spread > 100
 
-    def _classify_pose(self, keypoints: list[Keypoint]) -> str:  # noqa: PLR0911
+    def _classify_pose(self, keypoints: list[Keypoint]) -> str:  # noqa: PLR0911 - Sequential pose checks require multiple returns
         """Classify pose based on keypoint positions.
 
         Uses geometric relationships between keypoints to determine body posture.

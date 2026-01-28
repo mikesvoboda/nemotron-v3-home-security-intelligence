@@ -18,7 +18,7 @@ _ai_dir = Path(__file__).resolve().parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from flash_attention_config import (  # noqa: E402
+from flash_attention_config import (
     FLASH_ATTENTION_ENV_VAR,
     MIN_FLASH_ATTENTION_COMPUTE_CAPABILITY,
     FlashAttentionSettings,

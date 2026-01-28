@@ -87,7 +87,7 @@ def check_requirements() -> bool:
     # Check ultralytics
     try:
         import ultralytics
-        from ultralytics import YOLO  # noqa: F401
+        from ultralytics import YOLO
 
         logger.info(f"Ultralytics version: {ultralytics.__version__}")
     except ImportError:

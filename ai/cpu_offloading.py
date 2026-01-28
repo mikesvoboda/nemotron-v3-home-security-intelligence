@@ -94,7 +94,7 @@ def is_cpu_offloading_supported() -> bool:
         return False
 
     try:
-        import accelerate  # noqa: F401
+        import accelerate
 
         return True
     except ImportError:
@@ -514,7 +514,7 @@ class OffloadingModelWrapper:
 
         return any(str(device) in ("cpu", "disk") for device in self.device_map.values())
 
-    def pin_layers(self, layer_names: list[str], device: str = "cuda:0") -> None:  # noqa: ARG002
+    def pin_layers(self, layer_names: list[str], device: str = "cuda:0") -> None:
         """Pin specific layers to a device (prevents offloading).
 
         Note: This requires reloading the model with a custom device_map.
