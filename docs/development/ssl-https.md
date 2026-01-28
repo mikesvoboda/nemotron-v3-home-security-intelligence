@@ -4,7 +4,7 @@ source_refs:
   - frontend/nginx.conf:1
   - frontend/docker-entrypoint.sh:1
   - docker-compose.prod.yml:350
-  - scripts/generate-ssl-cert.sh:1
+  - scripts/generate-certs.sh:1
 ---
 
 # SSL/HTTPS Configuration
@@ -15,10 +15,10 @@ This guide covers enabling HTTPS for the frontend nginx server, including certif
 
 The frontend nginx server supports both HTTP and HTTPS modes:
 
-- **HTTP mode (default):** For development and local testing
-- **HTTPS mode:** For production or secure local development
+- **HTTPS mode (default):** SSL is enabled by default with auto-generated self-signed certificates
+- **HTTP mode:** Can be used by setting `SSL_ENABLED=false`
 
-HTTPS is conditionally enabled at container startup based on environment variables and certificate availability.
+HTTPS is conditionally enabled at container startup based on environment variables and certificate availability. When `SSL_ENABLED=true` (the default), nginx will auto-generate a self-signed certificate if none is provided.
 
 ## Quick Start (Development)
 
@@ -26,7 +26,7 @@ Generate a self-signed certificate and enable HTTPS:
 
 ```bash
 # Generate self-signed certificate
-./scripts/generate-ssl-cert.sh
+./scripts/generate-certs.sh
 
 # Enable HTTPS in .env
 echo "SSL_ENABLED=true" >> .env
@@ -41,14 +41,16 @@ Access the application at `https://localhost:443` (or your configured HTTPS port
 
 ### Environment Variables
 
-| Variable              | Default                     | Description                            |
-| --------------------- | --------------------------- | -------------------------------------- |
-| `SSL_ENABLED`         | `false`                     | Enable/disable HTTPS server            |
-| `SSL_CERT_DIR`        | `./certs`                   | Host directory containing certificates |
-| `SSL_CERT_PATH`       | `/etc/nginx/certs/cert.pem` | Container path to certificate          |
-| `SSL_KEY_PATH`        | `/etc/nginx/certs/key.pem`  | Container path to private key          |
-| `FRONTEND_PORT`       | `5173`                      | HTTP port mapping (host:8080)          |
-| `FRONTEND_HTTPS_PORT` | `443`                       | HTTPS port mapping (host:8443)         |
+| Variable              | Default                     | Description                                    |
+| --------------------- | --------------------------- | ---------------------------------------------- |
+| `SSL_ENABLED`         | `true`                      | Enable/disable HTTPS server (default: enabled) |
+| `SSL_CERT_DIR`        | `./certs`                   | Host directory containing certificates         |
+| `SSL_CERT_PATH`       | `/etc/nginx/certs/cert.pem` | Container path to certificate                  |
+| `SSL_KEY_PATH`        | `/etc/nginx/certs/key.pem`  | Container path to private key                  |
+| `FRONTEND_PORT`       | `5173`                      | HTTP port mapping (host:8080)                  |
+| `FRONTEND_HTTPS_PORT` | `8443`                      | HTTPS port mapping (host:8443)                 |
+
+> **Note:** The default HTTPS port is 8443 (not 443) to avoid requiring root/sudo privileges. Non-root users cannot bind to ports below 1024.
 
 ### Example .env Configuration
 
@@ -72,10 +74,10 @@ Use the provided script to generate a self-signed certificate:
 
 ```bash
 # Default output to ./certs directory
-./scripts/generate-ssl-cert.sh
+./scripts/generate-certs.sh
 
 # Custom output directory
-./scripts/generate-ssl-cert.sh /path/to/certs
+./scripts/generate-certs.sh /path/to/certs
 ```
 
 The script generates:
@@ -176,7 +178,9 @@ The frontend uses unprivileged ports inside the container (non-root cannot bind 
 | Protocol | External (Host) | Internal (Container) |
 | -------- | --------------- | -------------------- |
 | HTTP     | 5173 (default)  | 8080                 |
-| HTTPS    | 443 (default)   | 8443                 |
+| HTTPS    | 8443 (default)  | 8443                 |
+
+> **Why 8443?** The default HTTPS port is 8443 (not 443) because non-root users cannot bind to ports below 1024. Rootless containers (Podman, Docker with --userns) require unprivileged ports. If you need port 443, set `FRONTEND_HTTPS_PORT=443` and run with appropriate privileges.
 
 ## Behavior by Mode
 

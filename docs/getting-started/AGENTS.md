@@ -2,7 +2,14 @@
 
 ## Purpose
 
-This directory contains quick start guides for getting the Home Security Intelligence system up and running. These guides focus on installation, first-run experience, and upgrading.
+This directory contains guides for getting the Home Security Intelligence system up and running. These guides focus on installation, first-run experience, initial user onboarding, and upgrading.
+
+> **Relationship with docs/user/:**
+>
+> - `docs/getting-started/` covers **installation and initial setup** (one-time tasks)
+> - `docs/user/` covers **ongoing usage** (day-to-day operations)
+> - The quick-start and tour guides here are referenced from the user hub
+> - Detailed UI feature documentation lives in `docs/ui/` and is linked from both hubs
 
 ## Directory Contents
 
@@ -121,10 +128,22 @@ getting-started/
 
 ## Related Documentation
 
-- **docs/AGENTS.md:** Documentation directory overview
-- **docs/ui/:** UI page documentation
-- **docs/user/:** User documentation hub
-- **docs/operator/admin/:** Administrator documentation
-- **docs/operator/ai-installation.md:** AI services setup
-- **docs/operator/deployment/README.md:** Docker deployment details
-- **docs/reference/config/env-reference.md:** Configuration reference
+| Resource                                   | Description                      | Relationship                           |
+| ------------------------------------------ | -------------------------------- | -------------------------------------- |
+| **docs/AGENTS.md**                         | Documentation directory overview | Parent index                           |
+| **docs/user/**                             | User documentation hub           | Links here for onboarding guides       |
+| **docs/ui/**                               | UI page documentation            | Detailed feature docs (linked by both) |
+| **docs/operator/**                         | Operator/admin documentation     | Post-setup system administration       |
+| **docs/reference/config/env-reference.md** | Configuration reference          | Detailed config options                |
+
+### Content Ownership
+
+To avoid duplication between docs/getting-started/ and docs/user/:
+
+| Content Type               | Location              | Reason                        |
+| -------------------------- | --------------------- | ----------------------------- |
+| Installation/prerequisites | Here                  | One-time setup tasks          |
+| Quick start/product tour   | Here                  | First-time user onboarding    |
+| Upgrading                  | Here                  | Version update procedures     |
+| Day-to-day usage hub       | `docs/user/README.md` | Ongoing reference for users   |
+| Detailed UI guides         | `docs/ui/`            | Shared by both hubs via links |

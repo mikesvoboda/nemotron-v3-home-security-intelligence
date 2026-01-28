@@ -8,23 +8,32 @@ Database migrations are managed using Alembic with PostgreSQL-specific features.
 
 ### Migration Directory Structure
 
+> **Note:** The codebase uses `mutants/backend/alembic/` as the active migration directory. The revision IDs shown below are the actual values from the codebase.
+
 ```
-backend/alembic/
+mutants/backend/alembic/
 ├── env.py                 # Alembic environment configuration
 ├── script.py.mako         # Migration template
 ├── README                  # Alembic readme
 └── versions/              # Migration files
-    ├── e36700c35af6_initial_schema.py
-    ├── a1b2c3d4e5f6_add_household_organization_model.py
-    ├── b2c3d4e5f6g7_add_property_and_area_models.py
-    ├── c3d4e5f6g7h8_add_zone_activity_baselines.py
-    ├── c3d4e5f6g7h8_add_zone_household_config.py
-    ├── d4e5f6g7h8i9_add_zone_anomalies.py
-    ├── e5f6g7h8i9j0_enhance_event_feedback_model.py
-    ├── f1231ed7e32d_rename_zones_to_camera_zones.py
-    ├── f6g7h8i9j0k1_add_dashboard_materialized_views.py
-    ├── g7h8i9j0k1l2_add_json_table_enrichment_views.py
-    └── h8i9j0k1l2m3_add_pg_notify_triggers_and_partitioning.py
+    ├── 968b0dff6a9b_initial_schema.py      # revision: 968b0dff6a9b
+    ├── add_alerts_and_alert_rules.py       # revision: add_alerts_rules
+    ├── add_alerts_deduplication_indexes.py # revision: add_alerts_dedup_indexes
+    ├── add_baseline_tables.py              # revision: add_baselines
+    ├── add_camera_unique_constraints.py    # revision: add_camera_unique_constraints
+    ├── add_clip_path_column.py             # revision: add_clip_path
+    ├── add_enrichment_data_column.py       # revision: add_enrichment_data
+    ├── add_event_audits_table.py           # revision: add_event_audits
+    ├── add_llm_prompt_column.py            # revision: add_llm_prompt
+    ├── add_object_types_gin_trgm_index.py  # revision: add_object_types_gin_trgm
+    ├── add_prompt_configs_table.py         # revision: add_prompt_configs
+    ├── add_prompt_versions_table.py        # revision: add_prompt_versions
+    ├── add_zones_table.py                  # revision: add_zones_001
+    ├── audit_logs_table.py                 # revision: add_audit_logs
+    ├── d4cdaa821492_merge_heads.py         # revision: d4cdaa821492
+    ├── fix_datetime_timezone.py            # revision: fix_datetime_tz
+    ├── fix_search_vector_backfill.py       # revision: fix_search_vector_backfill
+    └── 20251228_add_fts_search_vector.py   # revision: 20251228_fts
 ```
 
 ---
@@ -99,7 +108,7 @@ uv run alembic upgrade head
 ### Apply Specific Migration
 
 ```bash
-uv run alembic upgrade e36700c35af6
+uv run alembic upgrade 968b0dff6a9b
 ```
 
 ### Rollback One Migration
@@ -111,7 +120,7 @@ uv run alembic downgrade -1
 ### Rollback to Specific Revision
 
 ```bash
-uv run alembic downgrade e36700c35af6
+uv run alembic downgrade 968b0dff6a9b
 ```
 
 ### Show Current Revision
@@ -142,7 +151,7 @@ uv run alembic revision -m "add_custom_migration"
 
 ### Pattern 1: Creating Tables with Indexes
 
-**Example:** `backend/alembic/versions/e36700c35af6_initial_schema.py:73-93`
+**Example:** `mutants/backend/alembic/versions/968b0dff6a9b_initial_schema.py`
 
 ```python
 def upgrade() -> None:
@@ -179,7 +188,7 @@ def downgrade() -> None:
 
 ### Pattern 2: Creating Enum Types
 
-**Example:** `backend/alembic/versions/e36700c35af6_initial_schema.py:46-67`
+**Example:** Enum types are typically created in initial schema migrations.
 
 ```python
 def upgrade() -> None:
@@ -205,7 +214,7 @@ def downgrade() -> None:
 
 ### Pattern 3: Creating GIN Indexes for JSONB
 
-**Example:** `backend/alembic/versions/e36700c35af6_initial_schema.py:812-817`
+**Example:** See `mutants/backend/alembic/versions/add_object_types_gin_trgm_index.py` for GIN index patterns.
 
 ```python
 def upgrade() -> None:
@@ -226,7 +235,7 @@ def downgrade() -> None:
 
 ### Pattern 4: Creating BRIN Indexes
 
-**Example:** `backend/alembic/versions/e36700c35af6_initial_schema.py:819-820`
+**Example:** BRIN indexes are useful for time-series data.
 
 ```python
 def upgrade() -> None:
@@ -246,7 +255,7 @@ def downgrade() -> None:
 
 ### Pattern 5: Creating Partial Indexes
 
-**Example:** `backend/alembic/versions/e36700c35af6_initial_schema.py:879-880`
+**Example:** Partial indexes optimize queries on filtered subsets.
 
 ```python
 def upgrade() -> None:
@@ -266,42 +275,33 @@ def downgrade() -> None:
 
 ### Pattern 6: Renaming Tables and Constraints
 
-**Example:** `backend/alembic/versions/f1231ed7e32d_rename_zones_to_camera_zones.py:25-48`
+**Example:** See `mutants/backend/alembic/versions/add_zones_table.py` for zone-related schema.
 
 ```python
 def upgrade() -> None:
-    """Rename zones table to camera_zones with all constraints and indexes."""
+    """Rename tables or constraints when needed."""
 
     # Step 1: Rename the table
-    op.rename_table("zones", "camera_zones")
+    op.rename_table("old_table_name", "new_table_name")
 
     # Step 2: Rename indexes
-    op.execute("ALTER INDEX idx_zones_camera_id RENAME TO idx_camera_zones_camera_id")
-    op.execute("ALTER INDEX idx_zones_enabled RENAME TO idx_camera_zones_enabled")
-    op.execute("ALTER INDEX idx_zones_camera_enabled RENAME TO idx_camera_zones_camera_enabled")
+    op.execute("ALTER INDEX idx_old_name RENAME TO idx_new_name")
 
     # Step 3: Rename CHECK constraints
     op.execute(
-        "ALTER TABLE camera_zones "
-        "RENAME CONSTRAINT ck_zones_priority_non_negative "
-        "TO ck_camera_zones_priority_non_negative"
+        "ALTER TABLE new_table_name "
+        "RENAME CONSTRAINT ck_old_constraint "
+        "TO ck_new_constraint"
     )
-    op.execute(
-        "ALTER TABLE camera_zones "
-        "RENAME CONSTRAINT ck_zones_color_hex "
-        "TO ck_camera_zones_color_hex"
-    )
-
-    # Step 4: Rename the enum types
-    op.execute("ALTER TYPE zone_type_enum RENAME TO camera_zone_type_enum")
-    op.execute("ALTER TYPE zone_shape_enum RENAME TO camera_zone_shape_enum")
 
 def downgrade() -> None:
     # Reverse all operations in reverse order
-    op.execute("ALTER TYPE camera_zone_type_enum RENAME TO zone_type_enum")
-    op.execute("ALTER TYPE camera_zone_shape_enum RENAME TO zone_shape_enum")
-    # ... (remaining reversals)
-    op.rename_table("camera_zones", "zones")
+    op.execute(
+        "ALTER TABLE new_table_name "
+        "RENAME CONSTRAINT ck_new_constraint "
+        "TO ck_old_constraint"
+    )
+    op.rename_table("new_table_name", "old_table_name")
 ```
 
 ---
@@ -329,7 +329,7 @@ def downgrade() -> None:
 
 ### Pattern 8: Creating Junction Tables
 
-**Example:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1299-1315`
+**Example:** Junction tables link entities with many-to-many relationships.
 
 ```python
 def upgrade() -> None:
@@ -460,17 +460,16 @@ uv run alembic upgrade head
 ### 6. Document Complex Migrations
 
 ```python
-"""rename zones to camera_zones
+"""add zones table
 
-Revision ID: f1231ed7e32d
-Revises: a1b2c3d4e5f6
-Create Date: 2026-01-20 11:37:20.414157
+Revision ID: add_zones_001
+Revises: 968b0dff6a9b
+Create Date: 2025-12-28 10:30:00.000000
 
-This migration renames the 'zones' table to 'camera_zones' and updates all
-related indexes, constraints, and enum types to distinguish detection polygons
-from logical Areas in the organizational hierarchy.
+This migration adds the zones table for configuring camera detection zones.
+Zones define polygonal regions for filtering and categorizing detections.
 
-Related: NEM-3130, NEM-3113 (Orphaned Infrastructure Integration)
+Related: Zone configuration feature
 """
 ```
 

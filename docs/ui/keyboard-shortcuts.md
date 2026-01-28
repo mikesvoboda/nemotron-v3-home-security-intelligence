@@ -78,12 +78,12 @@ Navigation uses "chord" shortcuts - press `g` followed by another key within 1 s
 | ----- | ----------- |
 | `g d` | Dashboard   |
 | `g t` | Timeline    |
-| `g a` | Analytics   |
-| `g l` | Alerts      |
+| `g n` | Analytics   |
+| `g a` | Alerts      |
 | `g e` | Entities    |
 | `g o` | Logs        |
-| `g s` | System      |
-| `g ,` | Settings    |
+| `g y` | System      |
+| `g s` | Settings    |
 
 **How to use:** Press `g`, release it, then press the second key. Both keys must be pressed within 1 second.
 
@@ -192,12 +192,12 @@ COMMAND PALETTE           NAVIGATION (g + key)
 -----------------         --------------------
 Cmd/Ctrl + K  Open        g d  Dashboard
                           g t  Timeline
-GLOBAL                    g a  Analytics
-------                    g l  Alerts
+GLOBAL                    g n  Analytics
+------                    g a  Alerts
 ?       Help modal        g e  Entities
 Escape  Close modal       g o  Logs
-                          g s  System
-LIST NAVIGATION           g ,  Settings
+                          g y  System
+LIST NAVIGATION           g s  Settings
 ---------------
 j / Arrow Down  Next
 k / Arrow Up    Previous

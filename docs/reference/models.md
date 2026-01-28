@@ -10,18 +10,33 @@
 
 ### Summary Table
 
-| Model                   | Purpose                         | VRAM      | Port | Framework   | Context/Embedding   |
-| ----------------------- | ------------------------------- | --------- | ---- | ----------- | ------------------- |
-| Nemotron-3-Nano-30B-A3B | Risk reasoning (production)     | ~14.7 GB  | 8091 | llama.cpp   | 131,072 tokens      |
-| Nemotron Mini 4B        | Risk reasoning (development)    | ~3 GB     | 8091 | llama.cpp   | 4,096 tokens        |
-| YOLO26m                 | Object detection                | ~0.1 GB   | 8090 | Ultralytics | -                   |
-| Florence-2-Large        | Dense captioning, OCR           | ~1.2 GB   | 8092 | HuggingFace | -                   |
-| CLIP ViT-L              | Entity re-ID, anomaly detection | ~0.8 GB   | 8093 | HuggingFace | 768-dim embedding   |
-| FashionCLIP             | Clothing classification         | ~0.8 GB   | 8094 | OpenCLIP    | Zero-shot           |
-| Vehicle Classifier      | Vehicle type classification     | ~1.5 GB   | 8094 | HuggingFace | 11 classes          |
-| Pet Classifier          | Pet detection (dogs, cats)      | ~0.2 GB   | 8094 | HuggingFace | 2 classes           |
-| Depth Anything V2       | Depth estimation                | ~0.15 GB  | 8094 | HuggingFace | Monocular depth     |
-| ViTPose+ Small          | Human pose estimation           | On-demand | 8094 | HuggingFace | 17 keypoints (COCO) |
+| Model                    | Purpose                         | VRAM     | Port | Framework    | Context/Embedding   |
+| ------------------------ | ------------------------------- | -------- | ---- | ------------ | ------------------- |
+| Nemotron-3-Nano-30B-A3B  | Risk reasoning (production)     | ~14.7 GB | 8091 | llama.cpp    | 131,072 tokens      |
+| Nemotron Mini 4B         | Risk reasoning (development)    | ~3 GB    | 8091 | llama.cpp    | 4,096 tokens        |
+| YOLO26m                  | Object detection                | ~0.1 GB  | 8090 | Ultralytics  | -                   |
+| Florence-2-Large         | Dense captioning, OCR           | ~1.2 GB  | 8092 | HuggingFace  | -                   |
+| CLIP ViT-L               | Entity re-ID, anomaly detection | ~0.8 GB  | 8093 | HuggingFace  | 768-dim embedding   |
+| FashionSigLIP            | Clothing classification         | ~0.5 GB  | 8094 | OpenCLIP     | Zero-shot           |
+| Vehicle Classifier       | Vehicle type classification     | ~1.5 GB  | 8094 | HuggingFace  | 11 classes          |
+| Pet Classifier           | Pet detection (dogs, cats)      | ~0.2 GB  | 8094 | HuggingFace  | 2 classes           |
+| Depth Anything V2        | Depth estimation                | ~0.15 GB | 8094 | HuggingFace  | Monocular depth     |
+| ViTPose+ Small           | Human pose estimation           | ~1.5 GB  | 8094 | HuggingFace  | 17 keypoints (COCO) |
+| YOLO11 License Plate     | License plate detection         | ~0.3 GB  | 8094 | Ultralytics  | -                   |
+| YOLO11 Face              | Face detection                  | ~0.2 GB  | 8094 | Ultralytics  | -                   |
+| PaddleOCR                | OCR text extraction             | ~0.1 GB  | 8094 | PaddlePaddle | -                   |
+| YOLO-World-S             | Open-vocabulary detection       | ~1.5 GB  | 8094 | Ultralytics  | Zero-shot           |
+| Violence Detection       | Violence classification         | ~0.5 GB  | 8094 | HuggingFace  | Binary              |
+| Weather Classification   | Weather condition detection     | ~0.2 GB  | 8094 | HuggingFace  | 5 classes           |
+| SegFormer B2 Clothes     | Clothing segmentation           | ~1.5 GB  | 8094 | HuggingFace  | 18 categories       |
+| X-CLIP Base              | Temporal action recognition     | ~2.0 GB  | 8094 | HuggingFace  | Video sequences     |
+| BRISQUE Quality          | Image quality assessment        | 0 (CPU)  | 8094 | piq          | No-reference        |
+| Vehicle Damage Detection | Vehicle damage segmentation     | ~2.0 GB  | 8094 | Ultralytics  | 6 damage types      |
+| OSNet-x0-25              | Person re-identification        | ~0.1 GB  | 8094 | torchreid    | 512-dim embedding   |
+| Threat Detection YOLOv8n | Weapon/threat detection         | ~0.3 GB  | 8094 | Ultralytics  | -                   |
+| ViT Age Classifier       | Age estimation                  | ~0.2 GB  | 8094 | HuggingFace  | 7 age ranges        |
+| ViT Gender Classifier    | Gender classification           | ~0.2 GB  | 8094 | HuggingFace  | Binary              |
+| YOLOv8n Pose             | Alternative pose estimation     | ~0.2 GB  | 8094 | Ultralytics  | 17 keypoints        |
 
 ---
 
@@ -219,17 +234,23 @@ Generates 768-dimensional embeddings for entity re-identification and scene anom
 
 ---
 
-### FashionCLIP (Clothing Classification)
+### FashionSigLIP (Clothing Classification)
 
-Zero-shot clothing classifier for identifying suspicious clothing patterns (hoodies, face coverings) and service uniforms.
+Zero-shot clothing classifier for identifying suspicious clothing patterns (hoodies, face coverings) and service uniforms. Uses Marqo FashionSigLIP for 57% improved accuracy over FashionCLIP.
 
-| Specification     | Value                                                                             |
-| ----------------- | --------------------------------------------------------------------------------- |
-| **HuggingFace**   | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip) |
-| **Architecture**  | CLIP fine-tuned on fashion dataset                                                |
-| **VRAM Required** | ~0.8 GB                                                                           |
-| **Port**          | 8094 (Enrichment service)                                                         |
-| **Framework**     | OpenCLIP                                                                          |
+| Specification     | Value                                                                         |
+| ----------------- | ----------------------------------------------------------------------------- |
+| **HuggingFace**   | [Marqo/marqo-fashionSigLIP](https://huggingface.co/Marqo/marqo-fashionSigLIP) |
+| **Architecture**  | SigLIP fine-tuned on fashion dataset                                          |
+| **VRAM Required** | ~0.5 GB                                                                       |
+| **Port**          | 8094 (Enrichment service)                                                     |
+| **Framework**     | OpenCLIP                                                                      |
+
+**Performance Improvement over FashionCLIP:**
+
+- Text-to-Image MRR: 0.239 vs 0.165 (45% improvement)
+- Text-to-Image Recall@1: 0.121 vs 0.077 (57% improvement)
+- Text-to-Image Recall@10: 0.340 vs 0.249 (37% improvement)
 
 **Security-Focused Clothing Prompts:**
 
@@ -374,18 +395,475 @@ COCO_KEYPOINT_NAMES = [
 
 ---
 
+### YOLO11 License Plate Detection
+
+Detects license plates on vehicles for OCR text extraction.
+
+| Specification     | Value                                       |
+| ----------------- | ------------------------------------------- |
+| **Model**         | Custom YOLO11 fine-tuned for license plates |
+| **Architecture**  | YOLOv11n detection                          |
+| **VRAM Required** | ~0.3 GB                                     |
+| **Port**          | 8094 (Enrichment service)                   |
+| **Framework**     | Ultralytics                                 |
+
+**Purpose in Pipeline:**
+
+- Detect license plate regions on vehicle detections
+- Extract plate crops for OCR processing
+- Provide plate locations for downstream text extraction
+
+---
+
+### YOLO11 Face Detection
+
+Detects faces on person detections for demographic analysis and re-identification.
+
+| Specification     | Value                                       |
+| ----------------- | ------------------------------------------- |
+| **Model**         | Custom YOLO11 fine-tuned for face detection |
+| **Architecture**  | YOLOv11n detection                          |
+| **VRAM Required** | ~0.2 GB                                     |
+| **Port**          | 8094 (Enrichment service)                   |
+| **Framework**     | Ultralytics                                 |
+
+**Purpose in Pipeline:**
+
+- Detect face regions on person detections
+- Extract face crops for age/gender classification
+- Enable face-based re-identification across cameras
+
+---
+
+### PaddleOCR
+
+Optical Character Recognition for extracting text from license plates and signs.
+
+| Specification     | Value                                                         |
+| ----------------- | ------------------------------------------------------------- |
+| **Model**         | [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)        |
+| **Architecture**  | PP-OCRv4 (detection + recognition + direction classification) |
+| **VRAM Required** | ~0.1 GB                                                       |
+| **Port**          | 8094 (Enrichment service)                                     |
+| **Framework**     | PaddlePaddle                                                  |
+
+**Purpose in Pipeline:**
+
+- Extract text from detected license plates
+- Read text on signs and packages (delivery identification)
+- Provide textual context for Nemotron analysis
+
+**Note:** Optional dependency. OCR features disabled if PaddlePaddle not installed.
+
+---
+
+### YOLO-World-S (Open-Vocabulary Detection)
+
+Zero-shot object detection using text prompts for security-relevant objects not in COCO.
+
+| Specification     | Value                                                   |
+| ----------------- | ------------------------------------------------------- |
+| **Model**         | [YOLO-World-S](https://github.com/AILab-CVC/YOLO-World) |
+| **Architecture**  | YOLO with vision-language pre-training                  |
+| **VRAM Required** | ~1.5 GB                                                 |
+| **Port**          | 8094 (Enrichment service)                               |
+| **Framework**     | Ultralytics                                             |
+
+**Purpose in Pipeline:**
+
+- Detect objects not in COCO dataset (knives, packages, tools)
+- Enable text-prompt-based detection for custom security scenarios
+- Zero-shot detection without model retraining
+
+**Security Prompts:**
+
+```python
+SECURITY_PROMPTS = [
+    "knife", "gun", "weapon", "package", "box",
+    "backpack", "suitcase", "crowbar", "flashlight"
+]
+```
+
+---
+
+### Violence Detection
+
+Binary classification for detecting violent content in video frames.
+
+| Specification     | Value                                      |
+| ----------------- | ------------------------------------------ |
+| **Model**         | Custom ViT violence classifier             |
+| **Architecture**  | Vision Transformer (ViT) binary classifier |
+| **VRAM Required** | ~0.5 GB                                    |
+| **Accuracy**      | 98.80% reported                            |
+| **Port**          | 8094 (Enrichment service)                  |
+| **Framework**     | HuggingFace Transformers                   |
+
+**Purpose in Pipeline:**
+
+- Detect violent activity when 2+ persons detected
+- Trigger high-priority alerts for physical altercations
+- Provide violence context for Nemotron risk analysis
+
+**Output:**
+
+```json
+{
+  "is_violent": true,
+  "confidence": 0.94,
+  "label": "violence"
+}
+```
+
+---
+
+### Weather Classification
+
+Classifies weather conditions for environmental context in risk assessment.
+
+| Specification     | Value                                        |
+| ----------------- | -------------------------------------------- |
+| **Model**         | SigLIP-based weather classifier              |
+| **Architecture**  | Vision-language model fine-tuned for weather |
+| **VRAM Required** | ~0.2 GB                                      |
+| **Port**          | 8094 (Enrichment service)                    |
+| **Framework**     | HuggingFace Transformers                     |
+
+**Weather Classes (5):**
+
+```python
+WEATHER_CLASSES = [
+    "cloudy/overcast",
+    "foggy/hazy",
+    "rain/storm",
+    "snow/frosty",
+    "sun/clear"
+]
+```
+
+**Purpose in Pipeline:**
+
+- Provide environmental context for risk calibration
+- Adjust visibility expectations (foggy = reduced detection confidence)
+- Runs once per batch on full frame (not per detection)
+
+---
+
+### SegFormer B2 Clothes
+
+Semantic segmentation of clothing and body parts for person description and re-identification.
+
+| Specification     | Value                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| **HuggingFace**   | [mattmdjaga/segformer_b2_clothes](https://huggingface.co/mattmdjaga/segformer_b2_clothes) |
+| **Architecture**  | SegFormer B2 semantic segmentation                                                        |
+| **VRAM Required** | ~1.5 GB                                                                                   |
+| **Port**          | 8094 (Enrichment service)                                                                 |
+| **Framework**     | HuggingFace Transformers                                                                  |
+
+**Clothing Categories (18):**
+
+```python
+CLOTHING_CATEGORIES = [
+    "Background", "Hat", "Hair", "Sunglasses", "Upper-clothes",
+    "Skirt", "Pants", "Dress", "Belt", "Left-shoe", "Right-shoe",
+    "Face", "Left-leg", "Right-leg", "Left-arm", "Right-arm",
+    "Bag", "Scarf"
+]
+```
+
+**Purpose in Pipeline:**
+
+- Enable clothing-based person matching across cameras
+- Detect suspicious attire (masks, gloves, all-black)
+- Provide detailed person descriptions for Nemotron
+
+---
+
+### X-CLIP Base (Temporal Action Recognition)
+
+Video-based action classification using multiple frames for temporal understanding.
+
+| Specification     | Value                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| **HuggingFace**   | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32) |
+| **Architecture**  | X-CLIP (CLIP extended for video understanding)                                      |
+| **VRAM Required** | ~2.0 GB                                                                             |
+| **Port**          | 8094 (Enrichment service)                                                           |
+| **Framework**     | HuggingFace Transformers                                                            |
+
+**Purpose in Pipeline:**
+
+- Classify security-relevant actions from video sequences
+- Detect loitering, approaching door, running away
+- Analyze behavior patterns over multiple frames
+
+**Security Actions:**
+
+```python
+SECURITY_ACTIONS = [
+    "loitering", "approaching door", "running away",
+    "suspicious behavior", "fighting", "falling",
+    "walking normally", "standing still"
+]
+```
+
+---
+
+### BRISQUE Image Quality Assessment
+
+No-reference image quality metric for detecting camera tampering or motion blur.
+
+| Specification     | Value                                               |
+| ----------------- | --------------------------------------------------- |
+| **Library**       | [piq](https://github.com/photosynthesis-team/piq)   |
+| **Architecture**  | BRISQUE (Blind/Referenceless Image Spatial Quality) |
+| **VRAM Required** | 0 (CPU-based)                                       |
+| **Port**          | 8094 (Enrichment service)                           |
+| **Framework**     | piq (NumPy-based)                                   |
+
+**Purpose in Pipeline:**
+
+- Detect camera obstruction or tampering (sudden quality drop)
+- Identify motion blur (fast movement detection)
+- Monitor general quality degradation (noise, artifacts)
+
+**Output:**
+
+```json
+{
+  "brisque_score": 23.5,
+  "quality_label": "good",
+  "is_degraded": false
+}
+```
+
+**Score Interpretation:**
+
+- 0-20: Excellent quality
+- 20-40: Good quality
+- 40-60: Fair quality
+- 60+: Poor quality (potential tampering)
+
+---
+
+### Vehicle Damage Detection
+
+Segmentation model for detecting various types of vehicle damage.
+
+| Specification     | Value                                  |
+| ----------------- | -------------------------------------- |
+| **Model**         | Custom YOLOv11x-seg for vehicle damage |
+| **Architecture**  | YOLOv11x instance segmentation         |
+| **VRAM Required** | ~2.0 GB                                |
+| **Port**          | 8094 (Enrichment service)              |
+| **Framework**     | Ultralytics                            |
+
+**Damage Classes (6):**
+
+```python
+DAMAGE_CLASSES = [
+    "cracks",
+    "dents",
+    "glass_shatter",
+    "lamp_broken",
+    "scratches",
+    "tire_flat"
+]
+```
+
+**Purpose in Pipeline:**
+
+- Detect suspicious vehicle damage (glass_shatter + lamp_broken at night = break-in)
+- Monitor for vandalism or accidents in parking areas
+- Provide damage context for security incidents
+
+---
+
+### OSNet-x0-25 (Person Re-identification)
+
+Lightweight model for generating person embeddings for cross-camera tracking.
+
+| Specification     | Value                                 |
+| ----------------- | ------------------------------------- |
+| **Model**         | OSNet-x0.25 (Omni-Scale Network)      |
+| **Architecture**  | Lightweight CNN for re-identification |
+| **VRAM Required** | ~0.1 GB                               |
+| **Embedding Dim** | 512 floats (L2-normalized)            |
+| **Port**          | 8094 (Enrichment service)             |
+| **Framework**     | torchreid                             |
+
+**Purpose in Pipeline:**
+
+- Generate 512-dimensional embeddings for person tracking
+- Match individuals across multiple cameras
+- Enable temporal tracking of persons throughout property
+
+**Output:**
+
+```json
+{
+  "embedding": [0.123, -0.456, ...],
+  "embedding_dimension": 512,
+  "model": "osnet_x0_25"
+}
+```
+
+---
+
+### Threat Detection YOLOv8n
+
+Weapon and threat object detection for high-priority security alerts.
+
+| Specification     | Value                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| **HuggingFace**   | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n) |
+| **Architecture**  | YOLOv8n detection                                                                           |
+| **VRAM Required** | ~0.3 GB                                                                                     |
+| **Port**          | 8094 (Enrichment service)                                                                   |
+| **Framework**     | Ultralytics                                                                                 |
+
+**Threat Classes:**
+
+```python
+THREAT_CLASSES = [
+    "knife", "gun", "pistol", "rifle",
+    "bat", "hammer", "crowbar"
+]
+```
+
+**Purpose in Pipeline:**
+
+- Detect weapons on full frame when suspicious activity detected
+- Trigger immediate critical-priority alerts
+- Highest priority model (never evicted from memory)
+
+---
+
+### ViT Age Classifier
+
+Age range estimation from face or person crops.
+
+| Specification     | Value                                 |
+| ----------------- | ------------------------------------- |
+| **Model**         | ViT-based age classifier              |
+| **Architecture**  | Vision Transformer for classification |
+| **VRAM Required** | ~0.2 GB                               |
+| **Port**          | 8094 (Enrichment service)             |
+| **Framework**     | HuggingFace Transformers              |
+
+**Age Range Brackets (7):**
+
+```python
+AGE_RANGES = [
+    "0-12",   # child
+    "13-17",  # teenager
+    "18-24",  # young adult
+    "25-35",  # adult
+    "36-50",  # middle-aged
+    "51-65",  # mature adult
+    "65+"     # senior
+]
+```
+
+**Purpose in Pipeline:**
+
+- Provide demographic context for person descriptions
+- Combined with gender for comprehensive person profiles
+- Support security analysis (child alone, unusual age for time)
+
+---
+
+### ViT Gender Classifier
+
+Gender classification from face or person crops.
+
+| Specification     | Value                                        |
+| ----------------- | -------------------------------------------- |
+| **Model**         | ViT-based gender classifier                  |
+| **Architecture**  | Vision Transformer for binary classification |
+| **VRAM Required** | ~0.2 GB                                      |
+| **Port**          | 8094 (Enrichment service)                    |
+| **Framework**     | HuggingFace Transformers                     |
+
+**Output:**
+
+```json
+{
+  "gender": "male",
+  "confidence": 0.94
+}
+```
+
+**Purpose in Pipeline:**
+
+- Complete demographic profile for person descriptions
+- Support cross-camera person matching
+- Provide gender context for security reports
+
+---
+
+### YOLOv8n Pose (Alternative Pose Estimation)
+
+Alternative pose estimation model for backup or faster inference scenarios.
+
+| Specification     | Value                            |
+| ----------------- | -------------------------------- |
+| **Model**         | YOLOv8n-pose                     |
+| **Architecture**  | YOLOv8 with pose estimation head |
+| **VRAM Required** | ~0.2 GB                          |
+| **Keypoints**     | 17 COCO keypoints                |
+| **Port**          | 8094 (Enrichment service)        |
+| **Framework**     | Ultralytics                      |
+
+**Purpose in Pipeline:**
+
+- Backup to ViTPose+ for pose detection
+- Faster inference when ViTPose unavailable
+- Same 17 COCO keypoint output format
+
+---
+
 ## VRAM Requirements Summary
 
 ### Production Configuration (All Services)
 
-| Service    | Models                           | VRAM       |
-| ---------- | -------------------------------- | ---------- |
-| Nemotron   | Nemotron-3-Nano-30B-A3B          | ~14.7 GB   |
-| YOLO26     | YOLO26m (TensorRT FP16)          | ~0.1 GB    |
-| Florence-2 | Florence-2-Large                 | ~1.2 GB    |
-| CLIP       | CLIP ViT-L                       | ~0.8 GB    |
-| Enrichment | FashionCLIP, Vehicle, Pet, Depth | ~2.65 GB   |
-| **Total**  |                                  | **~19 GB** |
+| Service    | Models                       | VRAM       |
+| ---------- | ---------------------------- | ---------- |
+| Nemotron   | Nemotron-3-Nano-30B-A3B      | ~14.7 GB   |
+| YOLO26     | YOLO26m (TensorRT FP16)      | ~0.1 GB    |
+| Florence-2 | Florence-2-Large             | ~1.2 GB    |
+| CLIP       | CLIP ViT-L                   | ~0.8 GB    |
+| Enrichment | On-demand models (see below) | ~6.8 GB    |
+| **Total**  |                              | **~24 GB** |
+
+### Enrichment Service Model VRAM (On-Demand)
+
+Models are loaded on-demand with LRU eviction. Maximum concurrent VRAM: ~6.8 GB.
+
+| Model                          | VRAM (MB) | Category         | Priority |
+| ------------------------------ | --------- | ---------------- | -------- |
+| yolo11-license-plate           | 300       | detection        | MEDIUM   |
+| yolo11-face                    | 200       | detection        | HIGH     |
+| paddleocr                      | 100       | ocr              | MEDIUM   |
+| clip-vit-l                     | 800       | embedding        | HIGH     |
+| yolo-world-s                   | 1500      | detection        | MEDIUM   |
+| vitpose-small                  | 1500      | pose             | HIGH     |
+| depth-anything-v2-small        | 150       | depth-estimation | LOW      |
+| violence-detection             | 500       | classification   | HIGH     |
+| weather-classification         | 200       | classification   | LOW      |
+| segformer-b2-clothes           | 1500      | segmentation     | MEDIUM   |
+| xclip-base                     | 2000      | action           | LOW      |
+| fashion-clip (FashionSigLIP)   | 500       | classification   | HIGH     |
+| brisque-quality                | 0 (CPU)   | quality          | LOW      |
+| vehicle-segment-classification | 1500      | classification   | MEDIUM   |
+| vehicle-damage-detection       | 2000      | detection        | MEDIUM   |
+| pet-classifier                 | 200       | classification   | MEDIUM   |
+| osnet-x0-25                    | 100       | embedding        | MEDIUM   |
+| threat-detection-yolov8n       | 300       | detection        | CRITICAL |
+| vit-age-classifier             | 200       | classification   | HIGH     |
+| vit-gender-classifier          | 200       | classification   | HIGH     |
+| yolov8n-pose                   | 200       | pose             | MEDIUM   |
 
 ### Development Configuration (Minimal)
 
@@ -482,24 +960,36 @@ For manual downloads or air-gapped environments:
 
 ## Architecture Overview
 
-```
-Camera Images
-      │
-      ▼
-┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-│  YOLO26  │─────▶│  Enrichment │─────▶│  Florence-2 │
-│   (8090)    │      │   (8094)    │      │   (8092)    │
-└─────────────┘      └─────────────┘      └─────────────┘
-      │                    │                    │
-      │   Detections       │  Classifications   │  Captions
-      ▼                    ▼                    ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Nemotron (8091)                      │
-│              Risk Analysis & Scoring                    │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-                    Risk Events
+```mermaid
+flowchart TD
+    CAM[Camera Images] --> YOLO
+
+    subgraph Detection["Detection Layer"]
+        YOLO["YOLO26<br/>:8095"]
+    end
+
+    subgraph Enrichment["Enrichment Layer"]
+        ENR["Enrichment<br/>:8094"]
+        FLO["Florence-2<br/>:8092"]
+    end
+
+    YOLO -->|Detections| ENR
+    ENR -->|Classifications| FLO
+
+    subgraph Analysis["Analysis Layer"]
+        NEM["Nemotron LLM<br/>:8091<br/>Risk Analysis & Scoring"]
+    end
+
+    YOLO -->|Detections| NEM
+    ENR -->|Classifications| NEM
+    FLO -->|Captions| NEM
+
+    NEM --> OUT[Risk Events]
+
+    style YOLO fill:#22C55E,color:#fff
+    style ENR fill:#3B82F6,color:#fff
+    style FLO fill:#3B82F6,color:#fff
+    style NEM fill:#A855F7,color:#fff
 ```
 
 ### Pipeline Flow

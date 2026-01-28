@@ -936,3 +936,426 @@ async def test_set_redis_client_updates_client() -> None:
     emitter.set_redis_client(mock_redis)
 
     assert emitter._redis_client is mock_redis
+
+
+# =============================================================================
+# Additional Coverage Tests for Uncovered Lines
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_validate_event_payload_with_validation_disabled(
+    emitter_no_validation: WebSocketEmitterService,
+) -> None:
+    """Test _validate_event_payload returns None when validation is disabled (line 164)."""
+    result = emitter_no_validation._validate_event_payload(
+        WebSocketEventType.ALERT_CREATED,
+        {"invalid": "payload"},
+    )
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_emit_batch_with_emission_failure(
+    mock_event_broadcaster: AsyncMock,
+    mock_system_broadcaster: AsyncMock,
+    mock_redis_client: AsyncMock,
+) -> None:
+    """Test emit_batch continues and returns count when emission fails (line 349)."""
+    emitter = WebSocketEmitterService(
+        event_broadcaster=mock_event_broadcaster,
+        system_broadcaster=mock_system_broadcaster,
+        redis_client=mock_redis_client,
+        validate_payloads=False,
+    )
+
+    # Make the first emission fail
+    mock_event_broadcaster.broadcast_camera_status.side_effect = [
+        Exception("Broadcast failed"),
+        None,  # Second call succeeds
+    ]
+
+    events = [
+        (
+            WebSocketEventType.CAMERA_STATUS_CHANGED,
+            {
+                "camera_id": "camera1",
+                "camera_name": "Camera 1",
+                "status": "online",
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        ),
+        (
+            WebSocketEventType.CAMERA_STATUS_CHANGED,
+            {
+                "camera_id": "camera2",
+                "camera_name": "Camera 2",
+                "status": "online",
+                "timestamp": datetime.now(UTC).isoformat(),
+            },
+        ),
+    ]
+
+    success_count = await emitter.emit_batch(events)
+
+    # Only second event should succeed
+    assert success_count == 1
+    assert emitter.emit_errors == 1
+
+
+@pytest.mark.asyncio
+async def test_dispatch_to_event_broadcaster_when_none() -> None:
+    """Test _dispatch_to_event_broadcaster logs warning when broadcaster is None (lines 405-406)."""
+    emitter = WebSocketEmitterService(
+        event_broadcaster=None,
+        system_broadcaster=None,
+        redis_client=None,
+        validate_payloads=False,
+    )
+
+    message = {
+        "type": "camera.status_changed",
+        "payload": {"camera_id": "front_door"},
+        "timestamp": datetime.now(UTC).isoformat(),
+        "correlation_id": "test-123",
+        "channel": "events",
+    }
+
+    # Should not raise, just log warning
+    await emitter._dispatch_to_event_broadcaster(
+        WebSocketEventType.CAMERA_STATUS_CHANGED,
+        message,
+    )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_service_status_event(
+    mock_event_broadcaster: AsyncMock,
+    mock_system_broadcaster: AsyncMock,
+    mock_redis_client: AsyncMock,
+) -> None:
+    """Test dispatch of SERVICE_STATUS_CHANGED event (line 462).
+
+    Note: SERVICE_STATUS_CHANGED uses the 'system' channel but is still
+    handled by the event broadcaster's broadcast_service_status method.
+    We need to emit to the 'events' channel explicitly to trigger this path.
+    """
+    # Create emitter that will route to event broadcaster
+    emitter = WebSocketEmitterService(
+        event_broadcaster=mock_event_broadcaster,
+        system_broadcaster=mock_system_broadcaster,
+        redis_client=mock_redis_client,
+        validate_payloads=True,
+    )
+
+    payload = {
+        "service": "yolo26",
+        "status": "healthy",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+    # Emit with room="events" to force event broadcaster path
+    result = await emitter.emit(WebSocketEventType.SERVICE_STATUS_CHANGED, payload, room="events")
+
+    assert result is True
+    mock_event_broadcaster.broadcast_service_status.assert_called_once()
+
+    # Verify the call structure
+    call_args = mock_event_broadcaster.broadcast_service_status.call_args[0][0]
+    assert call_args["type"] == "service_status"
+    assert call_args["data"] == payload
+
+
+@pytest.mark.asyncio
+async def test_dispatch_to_system_broadcaster_when_none() -> None:
+    """Test _dispatch_to_system_broadcaster logs warning when broadcaster is None (lines 509-510)."""
+    emitter = WebSocketEmitterService(
+        event_broadcaster=None,
+        system_broadcaster=None,
+        redis_client=None,
+        validate_payloads=False,
+    )
+
+    message = {
+        "type": "system.status",
+        "payload": {"health": "healthy"},
+        "timestamp": datetime.now(UTC).isoformat(),
+        "correlation_id": "test-123",
+        "channel": "system",
+    }
+
+    # Should not raise, just log warning
+    await emitter._dispatch_to_system_broadcaster(
+        WebSocketEventType.SYSTEM_STATUS,
+        message,
+    )
+
+
+@pytest.mark.asyncio
+async def test_publish_to_redis_when_none() -> None:
+    """Test _publish_to_redis logs warning when Redis client is None (lines 534-535)."""
+    emitter = WebSocketEmitterService(
+        event_broadcaster=None,
+        system_broadcaster=None,
+        redis_client=None,
+        validate_payloads=False,
+    )
+
+    message = {
+        "type": "test.event",
+        "payload": {"data": "test"},
+        "timestamp": datetime.now(UTC).isoformat(),
+        "correlation_id": "test-123",
+        "channel": "events",
+    }
+
+    # Should not raise, just log warning
+    await emitter._publish_to_redis(message, "events")
+
+
+@pytest.mark.asyncio
+async def test_publish_to_redis_with_exception(
+    mock_redis_client: AsyncMock,
+) -> None:
+    """Test _publish_to_redis handles exceptions during publish (lines 540-541)."""
+    emitter = WebSocketEmitterService(
+        event_broadcaster=None,
+        system_broadcaster=None,
+        redis_client=mock_redis_client,
+        validate_payloads=False,
+    )
+
+    # Make Redis publish fail
+    mock_redis_client.publish.side_effect = Exception("Redis connection failed")
+
+    message = {
+        "type": "test.event",
+        "payload": {"data": "test"},
+        "timestamp": datetime.now(UTC).isoformat(),
+        "correlation_id": "test-123",
+        "channel": "events",
+    }
+
+    # Should not raise, just log error
+    await emitter._publish_to_redis(message, "events")
+
+    mock_redis_client.publish.assert_called_once_with("events", message)
+
+
+@pytest.mark.asyncio
+async def test_get_websocket_emitter_updates_system_broadcaster_on_existing_singleton() -> None:
+    """Test get_websocket_emitter updates system_broadcaster on existing instance (line 627)."""
+    # Create singleton first without broadcasters
+    emitter1 = await get_websocket_emitter()
+    assert emitter1._system_broadcaster is None
+
+    # Call again with system broadcaster
+    mock_system_bc = AsyncMock()
+    emitter2 = await get_websocket_emitter(system_broadcaster=mock_system_bc)
+
+    assert emitter1 is emitter2
+    assert emitter2._system_broadcaster is mock_system_bc
+
+
+@pytest.mark.asyncio
+async def test_get_websocket_emitter_updates_redis_client_on_existing_singleton() -> None:
+    """Test get_websocket_emitter updates redis_client on existing instance (line 629)."""
+    # Create singleton first without Redis
+    emitter1 = await get_websocket_emitter()
+    assert emitter1._redis_client is None
+
+    # Call again with Redis client
+    mock_redis = AsyncMock()
+    emitter2 = await get_websocket_emitter(redis_client=mock_redis)
+
+    assert emitter1 is emitter2
+    assert emitter2._redis_client is mock_redis
+
+
+@pytest.mark.asyncio
+async def test_get_websocket_emitter_with_lock_contention() -> None:
+    """Test get_websocket_emitter updates broadcasters after lock acquisition (lines 645-650)."""
+    # Reset state to test initialization path
+    reset_emitter_state()
+
+    # Create singleton with all dependencies
+    mock_event_bc = AsyncMock()
+    mock_system_bc = AsyncMock()
+    mock_redis = AsyncMock()
+
+    emitter = await get_websocket_emitter(
+        event_broadcaster=mock_event_bc,
+        system_broadcaster=mock_system_bc,
+        redis_client=mock_redis,
+    )
+
+    # Verify all dependencies were set
+    assert emitter._event_broadcaster is mock_event_bc
+    assert emitter._system_broadcaster is mock_system_bc
+    assert emitter._redis_client is mock_redis
+
+    # Call again with new dependencies to test the else branch (lines 645-650)
+    new_event_bc = AsyncMock()
+    new_system_bc = AsyncMock()
+    new_redis = AsyncMock()
+
+    emitter2 = await get_websocket_emitter(
+        event_broadcaster=new_event_bc,
+        system_broadcaster=new_system_bc,
+        redis_client=new_redis,
+    )
+
+    # Should be same instance with updated dependencies
+    assert emitter is emitter2
+    assert emitter2._event_broadcaster is new_event_bc
+    assert emitter2._system_broadcaster is new_system_bc
+    assert emitter2._redis_client is new_redis
+
+
+@pytest.mark.asyncio
+async def test_dispatch_scene_change_event(
+    emitter: WebSocketEmitterService,
+    mock_event_broadcaster: AsyncMock,
+) -> None:
+    """Test dispatch of SCENE_CHANGE_DETECTED event."""
+    payload = {
+        "id": 1,
+        "camera_id": "front_door",
+        "detected_at": datetime.now(UTC).isoformat(),
+        "change_type": "angle_changed",
+        "similarity_score": 0.65,
+    }
+
+    result = await emitter.emit(WebSocketEventType.SCENE_CHANGE_DETECTED, payload)
+
+    assert result is True
+    mock_event_broadcaster.broadcast_scene_change.assert_called_once()
+
+    # Verify the call structure
+    call_args = mock_event_broadcaster.broadcast_scene_change.call_args[0][0]
+    assert call_args["type"] == "scene_change"
+    assert call_args["data"] == payload
+
+
+@pytest.mark.asyncio
+async def test_dispatch_event_created_and_updated(
+    emitter: WebSocketEmitterService,
+    mock_event_broadcaster: AsyncMock,
+) -> None:
+    """Test dispatch of EVENT_CREATED and EVENT_UPDATED events."""
+    # Test EVENT_CREATED
+    payload_created = {
+        "id": 123,
+        "event_id": 123,
+        "batch_id": "batch-456",
+        "camera_id": "front_door",
+        "risk_score": 75,
+        "risk_level": "high",
+        "summary": "Person detected at front door",
+        "reasoning": "Detection shows a person at the door",
+    }
+
+    result = await emitter.emit(WebSocketEventType.EVENT_CREATED, payload_created)
+    assert result is True
+
+    # Test EVENT_UPDATED
+    payload_updated = {
+        "id": 123,
+        "updated_fields": ["risk_score", "risk_level"],
+        "risk_score": 80,
+        "risk_level": "high",
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
+
+    result = await emitter.emit(WebSocketEventType.EVENT_UPDATED, payload_updated)
+    assert result is True
+
+    # Both should call broadcast_event
+    assert mock_event_broadcaster.broadcast_event.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_dispatch_event_with_redis_fallback(
+    mock_redis_client: AsyncMock,
+) -> None:
+    """Test dispatch falls back to Redis for unmapped event types."""
+    emitter = WebSocketEmitterService(
+        event_broadcaster=AsyncMock(),
+        system_broadcaster=None,
+        redis_client=mock_redis_client,
+        validate_payloads=False,
+    )
+
+    # Use an event type that doesn't have a specific broadcaster method
+    # Create a custom payload that would fallback to Redis
+    payload = {
+        "test_field": "test_value",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+    # Emit a job event which should fallback to Redis publish
+    result = await emitter.emit(WebSocketEventType.JOB_PROGRESS, payload)
+
+    assert result is True
+    # Should have published to Redis as fallback
+    mock_redis_client.publish.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_validate_event_without_schema(
+    emitter: WebSocketEmitterService,
+    mock_redis_client: AsyncMock,
+) -> None:
+    """Test validation skips events without schemas (lines 169-170)."""
+    # JOB_PROGRESS has a schema - provide valid payload
+    payload = {
+        "job_id": str(uuid.uuid4()),
+        "job_type": "detection",
+        "progress": 50,
+        "status": "processing",
+    }
+
+    # This should succeed with valid payload
+    result = await emitter.emit(WebSocketEventType.JOB_PROGRESS, payload)
+
+    assert result is True
+    assert emitter.emit_count == 1
+    # Event should fallback to Redis since it has no specific broadcaster method
+    mock_redis_client.publish.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_websocket_emitter_concurrent_initialization() -> None:
+    """Test concurrent initialization with double-check locking (lines 645-650)."""
+    reset_emitter_state()
+
+    mock_event_bc = AsyncMock()
+    mock_system_bc = AsyncMock()
+    mock_redis = AsyncMock()
+
+    # Simulate concurrent calls to get_websocket_emitter
+    # The first call will create the instance
+    emitter1 = await get_websocket_emitter(
+        event_broadcaster=mock_event_bc,
+        system_broadcaster=mock_system_bc,
+        redis_client=mock_redis,
+    )
+
+    # Subsequent calls with different dependencies should update the singleton
+    new_event_bc = AsyncMock()
+    new_system_bc = AsyncMock()
+    new_redis = AsyncMock()
+
+    # This should hit the else branch in lines 645-650
+    # where the emitter already exists after lock acquisition
+    emitter2 = await get_websocket_emitter(
+        event_broadcaster=new_event_bc,
+        system_broadcaster=new_system_bc,
+        redis_client=new_redis,
+    )
+
+    # Should be same instance with updated dependencies
+    assert emitter1 is emitter2
+    assert emitter2._event_broadcaster is new_event_bc
+    assert emitter2._system_broadcaster is new_system_bc
+    assert emitter2._redis_client is new_redis

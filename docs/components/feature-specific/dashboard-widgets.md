@@ -29,12 +29,12 @@ Main dashboard orchestrating all widgets.
 
 **Data Dependencies:**
 
-- `useSystemStatus()` - System health
-- `useHealthStatus()` - Service health
-- `useEvents()` - Recent events
-- `useCameras()` - Camera status
-- `useGpuStats()` - GPU metrics
-- `usePipelineTelemetry()` - Pipeline metrics
+- `useSystemStatus()` - System health (WebSocket-based real-time updates)
+- `useHealthStatusQuery()` - Service health (TanStack Query with caching)
+- `useRecentEventsQuery()` - Recent events list
+- `useCamerasQuery()` - Camera status and list
+- `useGpuStatsQuery()` - GPU metrics (polling)
+- `useGpuStatsWebSocket()` - GPU metrics (real-time WebSocket updates)
 
 ---
 
@@ -94,19 +94,31 @@ Key metrics cards with integrated sparklines.
 
 **Displays:**
 
-- Total cameras (online/offline)
-- Events in last 24h (with trend)
+- Active cameras count
+- Events today count
 - Current risk level (with sparkline)
 - System status indicator
+
+**Props:**
+
+| Prop             | Type                                                  | Default | Description                                            |
+| ---------------- | ----------------------------------------------------- | ------- | ------------------------------------------------------ |
+| activeCameras    | `number`                                              | -       | Number of active cameras                               |
+| eventsToday      | `number`                                              | -       | Total number of events today                           |
+| currentRiskScore | `number`                                              | -       | Current risk score (0-100)                             |
+| systemStatus     | `'healthy' \| 'degraded' \| 'unhealthy' \| 'unknown'` | -       | System health status                                   |
+| riskHistory      | `number[]`                                            | -       | Optional array of historical risk values for sparkline |
+| className        | `string`                                              | `''`    | Additional CSS classes                                 |
 
 **Usage:**
 
 ```tsx
 <StatsRow
-  cameras={{ total: 8, online: 7 }}
-  events={{ count: 156, trend: 'up' }}
-  riskLevel="medium"
+  activeCameras={7}
+  eventsToday={156}
+  currentRiskScore={45}
   systemStatus="healthy"
+  riskHistory={[30, 35, 42, 38, 45]}
 />
 ```
 

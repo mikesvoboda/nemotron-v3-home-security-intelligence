@@ -125,27 +125,18 @@ async def stop(self) -> None:
 
 The main cleanup loop (`backend/services/cleanup_service.py:555-577`) runs continuously:
 
-```
-+------------------+
-|  Wait until      |
-|  cleanup_time    |
-+--------+---------+
-         |
-         v
-+--------+---------+
-|  Running check   |
-+--------+---------+
-         |
-    Yes  v
-+--------+---------+
-|  run_cleanup()   |
-+--------+---------+
-         |
-         v
-+--------+---------+
-|  Loop back to    |
-|  wait            |
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    WaitUntil["Wait until cleanup_time"]
+    RunCheck{Running?}
+    RunCleanup["run_cleanup()"]
+    LoopBack["Loop back to wait"]
+
+    WaitUntil --> RunCheck
+    RunCheck -->|Yes| RunCleanup
+    RunCleanup --> LoopBack
+    LoopBack --> WaitUntil
 ```
 
 ### Schedule Calculation

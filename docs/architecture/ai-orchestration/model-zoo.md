@@ -15,12 +15,26 @@ The system has two model management layers:
 1. **Backend Model Zoo** (`model_zoo.py`): Defines available models and their configurations for the backend service
 2. **Enrichment Model Manager** (`model_manager.py`): Manages actual model loading/unloading in the enrichment container
 
-```
-+-------------------+     +----------------------+     +------------------+
-| Backend Service   |     | Enrichment Client    |     | Enrichment Svc   |
-| model_zoo.py      |---->| enrichment_client.py |---->| model_manager.py |
-| ModelConfig       |     | HTTP requests        |     | OnDemandManager  |
-+-------------------+     +----------------------+     +------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    BS["Backend Service<br/>model_zoo.py<br/>ModelConfig"]
+    EC["Enrichment Client<br/>enrichment_client.py<br/>HTTP requests"]
+    ES["Enrichment Svc<br/>model_manager.py<br/>OnDemandManager"]
+
+    BS --> EC --> ES
 ```
 
 ## Backend Model Registry
@@ -60,7 +74,7 @@ class ModelConfig:
 | `fashion-clip`                   | classification | 500       | Clothing classification      |
 | `brisque-quality`                | quality        | 0         | Image quality (CPU-based)    |
 | `vehicle-segment-classification` | classification | 1500      | Vehicle type                 |
-| `vehicle-damage-detection`       | detection      | 2000      | Vehicle damage               |
+| `vehicle-damage-detection`       | detection      | 2000      | Vehicle damage segmentation  |
 | `pet-classifier`                 | classification | 200       | Cat/dog classification       |
 | `osnet-x0-25`                    | embedding      | 100       | Person re-identification     |
 | `threat-detection-yolov8n`       | detection      | 300       | Weapon detection             |
@@ -143,35 +157,36 @@ async def _evict_lru_model(self) -> bool:
 
 ## Model Loading Flow
 
-```
-           get_model("vehicle_classifier")
-                        |
-                        v
-              +------------------+
-              | Is model loaded? |
-              +--------+---------+
-                       |
-           +-----------+-----------+
-           |                       |
-          Yes                     No
-           |                       |
-           v                       v
-    Update last_used      Check VRAM available
-    Return model                   |
-                          +--------v--------+
-                          | Enough VRAM?    |
-                          +--------+--------+
-                                   |
-                       +-----------+-----------+
-                       |                       |
-                      Yes                     No
-                       |                       |
-                       v                       v
-                 Load model            Evict LRU model
-                       |                       |
-                       v                       v
-                 Return model            Loop until
-                                         space available
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    START["get_model('vehicle_classifier')"]
+    START --> CHECK{Is model loaded?}
+
+    CHECK -->|Yes| UPDATE[Update last_used]
+    UPDATE --> RET1[Return model]
+
+    CHECK -->|No| VRAM[Check VRAM available]
+    VRAM --> ENOUGH{Enough VRAM?}
+
+    ENOUGH -->|Yes| LOAD[Load model]
+    LOAD --> RET2[Return model]
+
+    ENOUGH -->|No| EVICT[Evict LRU model]
+    EVICT --> LOOP[Loop until space available]
+    LOOP --> VRAM
 ```
 
 ## Reference Counting

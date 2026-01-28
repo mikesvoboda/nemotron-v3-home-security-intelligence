@@ -1,6 +1,6 @@
 # Detection Zones
 
-![Zones Screenshot](../images/screenshots/zones.png)
+<!-- Screenshot pending: zones.png - Zone Editor interface showing detection zones on a camera view -->
 
 Configure detection zones to focus AI analysis on specific areas within each camera view.
 
@@ -232,19 +232,21 @@ Click a zone in the list or on the canvas to select it:
 
 ### Example 1: Front Door Camera
 
-```
 Camera View: Front porch with door, walkway, and part of street
 
-Recommended Zones:
-+------------------+
-|   STREET (skip)  |
-|==================|
-| WALKWAY (sidewalk) - Priority 50, Blue
-|==================|
-| PORCH (entry_point) - Priority 80, Red
-|==================|
-| DOOR (entry_point) - Priority 95, Red
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph CameraView["Front Door Camera View"]
+        Street["STREET (skip)<br/>Not monitored"]
+        Walkway["WALKWAY (sidewalk)<br/>Priority 50, Blue"]
+        Porch["PORCH (entry_point)<br/>Priority 80, Red"]
+        Door["DOOR (entry_point)<br/>Priority 95, Red"]
+
+        Street --- Walkway
+        Walkway --- Porch
+        Porch --- Door
+    end
 ```
 
 | Zone Name   | Type        | Priority | Color | Rationale                    |
@@ -256,19 +258,19 @@ Recommended Zones:
 
 ### Example 2: Driveway Camera
 
-```
 Camera View: Driveway, garage door, and side of house
 
-Recommended Zones:
-+------------------+
-| GARAGE DOOR      |
-| (entry_point)    | Priority 90, Red
-|------------------|
-| DRIVEWAY         |
-| (driveway)       | Priority 60, Amber
-|------------------|
-| STREET (skip)    |
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph CameraView["Driveway Camera View"]
+        Garage["GARAGE DOOR (entry_point)<br/>Priority 90, Red"]
+        Driveway["DRIVEWAY (driveway)<br/>Priority 60, Amber"]
+        Street["STREET (skip)<br/>Not monitored"]
+
+        Garage --- Driveway
+        Driveway --- Street
+    end
 ```
 
 | Zone Name   | Type        | Priority | Color | Rationale                 |
@@ -279,23 +281,21 @@ Recommended Zones:
 
 ### Example 3: Backyard Camera
 
-```
 Camera View: Backyard with patio, fence, and pool
 
-Recommended Zones:
-+------------------+
-| FENCE LINE       |
-| (yard)           | Priority 75, Green (perimeter watch)
-|------------------|
-| POOL AREA        |
-| (other)          | Priority 90, Red (safety critical)
-|------------------|
-| PATIO            |
-| (sidewalk)       | Priority 40, Blue (casual use)
-|------------------|
-| BACK DOOR        |
-| (entry_point)    | Priority 95, Red (critical)
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph CameraView["Backyard Camera View"]
+        Fence["FENCE LINE (yard)<br/>Priority 75, Green<br/>Perimeter watch"]
+        Pool["POOL AREA (other)<br/>Priority 90, Red<br/>Safety critical"]
+        Patio["PATIO (sidewalk)<br/>Priority 40, Blue<br/>Casual use"]
+        BackDoor["BACK DOOR (entry_point)<br/>Priority 95, Red<br/>Critical"]
+
+        Fence --- Pool
+        Pool --- Patio
+        Patio --- BackDoor
+    end
 ```
 
 | Zone Name  | Type        | Priority | Color | Rationale                  |
@@ -359,13 +359,21 @@ The Event Detail Modal shows:
 
 Zones use **normalized coordinates** (0.0 to 1.0):
 
-```
-(0.0, 0.0) -------- (1.0, 0.0)
-    |                    |
-    |      (0.5, 0.5)    |
-    |         X          |
-    |                    |
-(0.0, 1.0) -------- (1.0, 1.0)
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph Frame["Camera Frame - Normalized Coordinates"]
+        TL["(0.0, 0.0)<br/>Top-Left"]
+        TR["(1.0, 0.0)<br/>Top-Right"]
+        C["(0.5, 0.5)<br/>Center"]
+        BL["(0.0, 1.0)<br/>Bottom-Left"]
+        BR["(1.0, 1.0)<br/>Bottom-Right"]
+
+        TL ---|top edge| TR
+        BL ---|bottom edge| BR
+        TL ---|left edge| BL
+        TR ---|right edge| BR
+    end
 ```
 
 | Position     | Coordinates |

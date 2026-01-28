@@ -136,5 +136,5 @@ frontend/
 ## Related Documentation
 
 - [Real-Time Architecture Overview](../real-time.md)
-- [Resilience Patterns](../resilience.md)
-- [API Reference](../api-reference/)
+- [Resilience Patterns](../resilience-patterns/README.md)
+- [API Reference](../api-reference/README.md)

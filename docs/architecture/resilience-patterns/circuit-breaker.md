@@ -1,16 +1,26 @@
 # Circuit Breaker Pattern
 
-The circuit breaker pattern protects external services from cascading failures by monitoring failure rates and temporarily blocking calls to unhealthy services.
+The circuit breaker pattern protects external services from cascading failures by monitoring failure rates and temporarily blocking calls to unhealthy services. This prevents cascade failures where one failing service overwhelms downstream services.
 
 **Source:** `backend/services/circuit_breaker.py`
 
 ## Overview
 
-The `CircuitBreaker` class (`backend/services/circuit_breaker.py:258-982`) implements a thread-safe async circuit breaker with three states:
+The `CircuitBreaker` class (`backend/services/circuit_breaker.py:270-1016`) implements a thread-safe async circuit breaker with three states:
 
 - **CLOSED**: Normal operation, calls pass through
 - **OPEN**: Service failing, calls rejected immediately with `CircuitBreakerError`
 - **HALF_OPEN**: Testing recovery, limited calls allowed
+
+### Key Features
+
+- Configurable failure thresholds and recovery timeouts
+- Half-open state for gradual recovery testing
+- Excluded exceptions that don't count as failures
+- Thread-safe async implementation using `asyncio.Lock`
+- Global registry for managing multiple circuit breakers
+- Prometheus metrics integration for monitoring
+- OpenTelemetry tracing support
 
 ## State Diagram
 
@@ -18,39 +28,39 @@ The `CircuitBreaker` class (`backend/services/circuit_breaker.py:258-982`) imple
 
 ![Circuit Breaker State Machine - CLOSED, OPEN, and HALF_OPEN transitions](../../images/architecture/circuit-breaker-states.png)
 
-```
-                    +-------------------+
-                    |      CLOSED       |
-                    |  Normal Operation |
-                    |  Track failures   |
-                    +--------+----------+
-                             |
-                 failures >= threshold
-                             |
-                             v
-                    +--------+----------+
-                    |       OPEN        |
-                    | Circuit Tripped   |
-                    | Calls rejected    |
-                    +--------+----------+
-                             |
-              recovery_timeout elapsed
-                             |
-                             v
-                    +--------+----------+
-                    |    HALF_OPEN      |
-                    | Testing recovery  |
-                    | Limited calls     |
-                    +--------+----------+
-                            /\
-                           /  \
-            success_threshold   any failure
-                   met           occurs
-                  /                \
-                 v                  v
-            +----+----+      +------+-----+
-            | CLOSED  |      |    OPEN    |
-            +---------+      +------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> CLOSED: Initial State
+
+    CLOSED --> OPEN: failures >= threshold
+    OPEN --> HALF_OPEN: recovery_timeout elapsed
+    HALF_OPEN --> CLOSED: success_threshold met
+    HALF_OPEN --> OPEN: any failure occurs
+
+    CLOSED: Normal Operation
+    CLOSED: Calls pass through
+    CLOSED: Track failures
+
+    OPEN: Circuit Tripped
+    OPEN: Calls rejected immediately
+    OPEN: CircuitBreakerError raised
+
+    HALF_OPEN: Testing Recovery
+    HALF_OPEN: Limited calls allowed
+    HALF_OPEN: Track successes
 ```
 
 ## Configuration
@@ -80,6 +90,36 @@ class CircuitBreakerConfig:
 | `success_threshold`   | int   | 2       | Consecutive successes needed in HALF_OPEN to close circuit  |
 | `excluded_exceptions` | tuple | ()      | Exception types that do not count as failures               |
 
+### Pre-Registered Circuit Breakers
+
+The application pre-registers circuit breakers at startup for all known external services (`backend/main.py:266-315`):
+
+| Service      | Type           | Configuration                              |
+| ------------ | -------------- | ------------------------------------------ |
+| `yolo26`     | AI Service     | failure_threshold=5, recovery_timeout=30s  |
+| `nemotron`   | AI Service     | failure_threshold=5, recovery_timeout=30s  |
+| `postgresql` | Infrastructure | failure_threshold=10, recovery_timeout=60s |
+| `redis`      | Infrastructure | failure_threshold=10, recovery_timeout=60s |
+
+**AI Service Configuration** (quick failure detection):
+
+```python
+ai_service_config = CircuitBreakerConfig(
+    failure_threshold=5,      # Open after 5 consecutive failures
+    recovery_timeout=30.0,    # Try recovery after 30 seconds
+    half_open_max_calls=3,    # Allow 3 test calls in half-open
+)
+```
+
+**Infrastructure Configuration** (more tolerant for transient issues):
+
+````python
+infrastructure_config = CircuitBreakerConfig(
+    failure_threshold=10,     # Open after 10 consecutive failures
+    recovery_timeout=60.0,    # Try recovery after 60 seconds
+    half_open_max_calls=5,    # Allow 5 test calls in half-open
+)
+
 ## CircuitState Enum
 
 The `CircuitState` enum (`backend/services/circuit_breaker.py:118-123`) defines the three states:
@@ -92,7 +132,7 @@ class CircuitState(StrEnum):
     CLOSED = auto()
     OPEN = auto()
     HALF_OPEN = auto()
-```
+````
 
 ## Usage Patterns
 
@@ -400,12 +440,164 @@ Sync methods (for compatibility) operate without locks:
 4. **Monitor metrics**: Set up Grafana alerts on `hsi_circuit_breaker_state` changes
 5. **Implement fallbacks**: Always have a degraded response when circuit is open
 
+## Integration with Other Patterns
+
+### Circuit Breaker + Retry Pattern
+
+The circuit breaker works with the retry handler (`backend/services/retry_handler.py`) to provide comprehensive failure handling:
+
+```python
+from backend.services.circuit_breaker import get_circuit_breaker
+from backend.services.retry_handler import with_retry
+
+breaker = get_circuit_breaker("ai_service")
+
+@with_retry(max_attempts=3, backoff_factor=2.0)
+async def call_ai_service():
+    async with breaker:
+        return await ai_client.analyze(data)
+```
+
+**Flow:**
+
+1. Retry handler attempts the operation
+2. Circuit breaker checks if service is healthy
+3. If circuit is open, immediately fails (no retry)
+4. If circuit is closed, executes operation
+5. Success/failure recorded for circuit state management
+
+### Circuit Breaker + Graceful Degradation
+
+When circuit is open, use fallback responses:
+
+```python
+from backend.services.circuit_breaker import CircuitBreakerError
+
+async def get_risk_analysis(detection):
+    try:
+        async with nemotron_breaker:
+            return await nemotron_client.analyze(detection)
+    except CircuitBreakerError:
+        # Fallback: use rule-based risk scoring
+        return await rule_based_scorer.score(detection)
+```
+
+### WebSocket Circuit Breaker
+
+A specialized circuit breaker exists for WebSocket connections (`backend/core/websocket_circuit_breaker.py`):
+
+```python
+from backend.core.websocket_circuit_breaker import WebSocketCircuitBreaker
+
+ws_breaker = WebSocketCircuitBreaker(
+    name="event_ws",
+    max_failures=3,
+    recovery_timeout=10.0,
+)
+
+async with ws_breaker.protect():
+    await websocket.send_json(event)
+```
+
+## Observability
+
+### Grafana Dashboard Queries
+
+Monitor circuit breaker state:
+
+```promql
+# Current state (0=closed, 1=open, 2=half_open)
+hsi_circuit_breaker_state{service="yolo26"}
+
+# Trip rate (circuit opening events)
+rate(hsi_circuit_breaker_trips_total[5m])
+
+# Rejection rate (calls blocked by open circuit)
+rate(circuit_breaker_rejected_total[5m])
+```
+
+### Alerting Rules
+
+```yaml
+# Alert when circuit opens
+- alert: CircuitBreakerOpen
+  expr: hsi_circuit_breaker_state > 0
+  for: 1m
+  labels:
+    severity: warning
+  annotations:
+    summary: 'Circuit breaker {{ $labels.service }} is open'
+
+# Alert on high failure rate
+- alert: CircuitBreakerHighFailureRate
+  expr: rate(circuit_breaker_failures_total[5m]) > 0.1
+  for: 5m
+  labels:
+    severity: warning
+```
+
+## Testing Circuit Breakers
+
+### Unit Test Example
+
+```python
+import pytest
+from backend.services.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitState,
+    reset_circuit_breaker_registry,
+)
+
+@pytest.fixture(autouse=True)
+def reset_registry():
+    reset_circuit_breaker_registry()
+    yield
+    reset_circuit_breaker_registry()
+
+async def test_circuit_opens_after_threshold():
+    config = CircuitBreakerConfig(failure_threshold=3)
+    breaker = CircuitBreaker(name="test", config=config)
+
+    # Record failures
+    for _ in range(3):
+        breaker.record_failure()
+
+    assert breaker.state == CircuitState.OPEN
+
+async def test_circuit_recovers():
+    config = CircuitBreakerConfig(
+        failure_threshold=3,
+        recovery_timeout=0.1,  # 100ms for testing
+        success_threshold=2,
+    )
+    breaker = CircuitBreaker(name="test", config=config)
+
+    # Open the circuit
+    for _ in range(3):
+        breaker.record_failure()
+    assert breaker.state == CircuitState.OPEN
+
+    # Wait for recovery timeout
+    await asyncio.sleep(0.15)
+
+    # Trigger transition to half-open
+    assert breaker.allow_request() is True
+    assert breaker.state == CircuitState.HALF_OPEN
+
+    # Record successes to close
+    breaker.record_success()
+    breaker.record_success()
+    assert breaker.state == CircuitState.CLOSED
+```
+
 ## Related Documentation
 
 - [Retry Handler](retry-handler.md) - Works with circuit breakers for retry logic
 - [Graceful Degradation](graceful-degradation.md) - Fallback strategies when circuit is open
 - [Health Monitoring](health-monitoring.md) - Service health checks that feed circuit breaker state
+- [Dead Letter Queue](dead-letter-queue.md) - Failed messages when circuit is open
 
 ---
 
-_Source: NEM-3458 - Circuit Breaker Documentation_
+_Source: NEM-3458 - Circuit Breaker Documentation, NEM-4119 - Circuit Breaker Pattern Documentation_

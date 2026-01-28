@@ -23,7 +23,7 @@ GIN (Generalized Inverted Index) indexes are used for JSONB queries and full-tex
 
 **Index:** `ix_detections_enrichment_data_gin`
 
-**Source:** `backend/models/detection.py:116-121`
+**Source:** `backend/models/detection.py:122-127`
 
 ```sql
 CREATE INDEX ix_detections_enrichment_data_gin
@@ -71,7 +71,7 @@ ON entities USING gin (entity_metadata jsonb_path_ops);
 
 **Index:** `idx_events_search_vector`
 
-**Source:** `backend/models/event.py:110`
+**Source:** `backend/models/event.py:180`
 
 ```sql
 CREATE INDEX idx_events_search_vector
@@ -122,7 +122,7 @@ BRIN (Block Range Index) indexes are highly efficient for time-series data where
 
 **Index:** `ix_detections_detected_at_brin`
 
-**Source:** `backend/models/detection.py:124-128`
+**Source:** `backend/models/detection.py:130-134`
 
 ```sql
 CREATE INDEX ix_detections_detected_at_brin
@@ -144,7 +144,7 @@ ORDER BY detected_at DESC;
 
 **Index:** `ix_events_started_at_brin`
 
-**Source:** `backend/models/event.py:150-154`
+**Source:** `backend/models/event.py:225-229`
 
 ```sql
 CREATE INDEX ix_events_started_at_brin
@@ -194,7 +194,7 @@ Partial indexes only index rows that match a WHERE condition, reducing size and 
 
 **Index:** `idx_events_unreviewed`
 
-**Source:** `backend/models/event.py:130-134`
+**Source:** `backend/models/event.py:200-204`
 
 ```sql
 CREATE INDEX idx_events_unreviewed
@@ -246,7 +246,7 @@ Composite indexes cover multiple columns to optimize multi-condition queries.
 
 **Export Covering Index:**
 
-**Source:** `backend/models/event.py:117-127`
+**Source:** `backend/models/event.py:187-197`
 
 ```sql
 CREATE INDEX idx_events_export_covering ON events (
@@ -273,7 +273,7 @@ CREATE INDEX idx_events_export_covering ON events (
 | `idx_detections_camera_object_type`     | `camera_id, object_type`   | Camera + class filter |
 | `ix_detections_object_type_detected_at` | `object_type, detected_at` | Class-based analytics |
 
-**Source:** `backend/models/detection.py:106-113`
+**Source:** `backend/models/detection.py:112-119`
 
 ---
 

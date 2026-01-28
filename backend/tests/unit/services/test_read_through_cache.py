@@ -343,3 +343,502 @@ class TestStampedeProtection:
         # Should have loaded directly after timeout
         assert result.value == {"id": "key1"}
         assert result.from_cache is False
+
+
+# ===========================================================================
+# Test: Additional Coverage - Error Handling and Edge Cases
+# ===========================================================================
+
+
+class TestReadThroughCacheErrorHandling:
+    """Additional tests for error handling and edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_get_redis_initialization(self, mock_settings):
+        """Test that _get_redis initializes Redis client."""
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            with patch("backend.services.read_through_cache.init_redis") as mock_init:
+                mock_redis_client = AsyncMock()
+                mock_init.return_value = mock_redis_client
+
+                cache = ReadThroughCache(
+                    cache_prefix="test",
+                    loader=AsyncMock(),
+                )
+
+                redis = await cache._get_redis()
+
+                assert redis is mock_redis_client
+                mock_init.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_uses_custom_ttl(self, mock_settings, mock_redis):
+        """Test get uses custom TTL when provided."""
+
+        async def simple_loader(key: str) -> dict:
+            return {"id": key}
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=simple_loader,
+                ttl=600,  # Custom TTL
+                stampede_protection=False,
+            )
+            cache._redis = mock_redis
+
+            await cache.get("key1")
+
+        # Verify set was called with custom TTL
+        set_call = mock_redis.set.call_args
+        assert set_call[1]["expire"] == 600
+
+    @pytest.mark.asyncio
+    async def test_get_uses_default_ttl_when_none(self, mock_settings, mock_redis):
+        """Test get uses default TTL from settings when ttl=None."""
+
+        async def simple_loader(key: str) -> dict:
+            return {"id": key}
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=simple_loader,
+                ttl=None,  # Use default from settings
+                stampede_protection=False,
+            )
+            cache._redis = mock_redis
+
+            await cache.get("key1")
+
+        # Verify set was called with default TTL from settings
+        set_call = mock_redis.set.call_args
+        assert set_call[1]["expire"] == 300  # From mock_settings
+
+    @pytest.mark.asyncio
+    async def test_load_with_lock_double_check_finds_cached(self, mock_settings, mock_redis):
+        """Test _load_with_lock loads from source when cache is empty after lock."""
+
+        async def slow_loader(key: str) -> dict:
+            return {"id": key, "from": "loader"}
+
+        # Lock acquired, cache still empty after double-check, loader is called
+        mock_redis.set.return_value = True  # Lock acquired
+        mock_redis.get.return_value = None  # Cache still empty after double-check
+        mock_redis.delete.return_value = 1
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=slow_loader,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            result = await cache._load_with_lock(
+                "key1",
+                "hsi:cache:test:key1",
+                300,
+                mock_redis,
+            )
+
+        # Should load from loader and cache the result
+        assert result.value == {"id": "key1", "from": "loader"}
+        assert result.from_cache is False
+        # Value should be cached (set called twice: once for lock, once for cache)
+        assert mock_redis.set.call_count == 2
+        # Lock should be released
+        mock_redis.delete.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_load_with_lock_loads_and_caches_none(self, mock_settings, mock_redis):
+        """Test _load_with_lock when loader returns None."""
+
+        async def none_loader(key: str) -> None:
+            return None
+
+        mock_redis.set.return_value = True  # Lock acquired
+        mock_redis.get.return_value = None
+        mock_redis.delete.return_value = 1
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=none_loader,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            result = await cache._load_with_lock(
+                "nonexistent",
+                "hsi:cache:test:nonexistent",
+                300,
+                mock_redis,
+            )
+
+        # Should return None without caching
+        assert result.value is None
+        assert result.from_cache is False
+        # set should only be called for lock, not for None value
+        assert mock_redis.set.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_load_with_lock_releases_lock_on_exception(self, mock_settings, mock_redis):
+        """Test _load_with_lock releases lock even when loader raises exception."""
+
+        async def failing_loader(key: str) -> dict:
+            raise ValueError("Loader failed")
+
+        mock_redis.set.return_value = True  # Lock acquired
+        mock_redis.get.return_value = None
+        mock_redis.delete.return_value = 1
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=failing_loader,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            with pytest.raises(ValueError, match="Loader failed"):
+                await cache._load_with_lock(
+                    "key1",
+                    "hsi:cache:test:key1",
+                    300,
+                    mock_redis,
+                )
+
+        # Lock should still be released
+        mock_redis.delete.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_invalidate_handles_redis_error(self, mock_settings, mock_redis):
+        """Test invalidate handles Redis errors gracefully."""
+        from redis.exceptions import TimeoutError as RedisTimeoutError
+
+        async def simple_loader(key: str) -> dict:
+            return {"id": key}
+
+        mock_redis.delete.side_effect = RedisTimeoutError("Timeout")
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=simple_loader,
+            )
+            cache._redis = mock_redis
+
+            result = await cache.invalidate("key1")
+
+        # Should return False on error
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_load_with_lock_waits_when_lock_not_acquired(self, mock_settings, mock_redis):
+        """Test _load_with_lock waits when another request holds the lock."""
+
+        async def simple_loader(key: str) -> dict:
+            return {"id": key}
+
+        # Lock not acquired (another request holds it)
+        mock_redis.set.return_value = False
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = ReadThroughCache(
+                cache_prefix="test",
+                loader=simple_loader,
+                stampede_protection=True,
+            )
+            cache._redis = mock_redis
+
+            # Mock _wait_for_cache to return immediately
+            with patch.object(cache, "_wait_for_cache") as mock_wait:
+                mock_wait.return_value = ReadThroughResult(
+                    value={"id": "key1"},
+                    from_cache=True,
+                    cache_key="hsi:cache:test:key1",
+                )
+
+                result = await cache._load_with_lock(
+                    "key1",
+                    "hsi:cache:test:key1",
+                    300,
+                    mock_redis,
+                )
+
+        # Should call _wait_for_cache
+        mock_wait.assert_called_once()
+        assert result.value == {"id": "key1"}
+
+
+class TestPreConfiguredCachesExtended:
+    """Extended tests for pre-configured caches."""
+
+    @pytest.mark.asyncio
+    async def test_get_event_cache_singleton(self, mock_settings):
+        """Test event cache is a singleton."""
+        from backend.services.read_through_cache import get_event_read_through_cache
+
+        await reset_read_through_caches()
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache1 = await get_event_read_through_cache()
+            cache2 = await get_event_read_through_cache()
+
+        assert cache1 is cache2
+        await reset_read_through_caches()
+
+    @pytest.mark.asyncio
+    async def test_get_alert_cache_singleton(self, mock_settings):
+        """Test alert cache is a singleton."""
+        from backend.services.read_through_cache import get_alert_read_through_cache
+
+        await reset_read_through_caches()
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache1 = await get_alert_read_through_cache()
+            cache2 = await get_alert_read_through_cache()
+
+        assert cache1 is cache2
+        await reset_read_through_caches()
+
+    @pytest.mark.asyncio
+    async def test_event_cache_uses_short_ttl(self, mock_settings):
+        """Test event cache uses short TTL."""
+        from backend.services.read_through_cache import get_event_read_through_cache
+
+        await reset_read_through_caches()
+
+        with patch("backend.services.read_through_cache.get_settings", return_value=mock_settings):
+            cache = await get_event_read_through_cache()
+
+        assert cache._ttl == 60  # Short TTL from settings
+        await reset_read_through_caches()
+
+    @pytest.mark.asyncio
+    async def test_camera_loader_returns_none_for_nonexistent(self, mock_settings):
+        """Test _load_camera returns None for nonexistent camera."""
+        from backend.services.read_through_cache import _load_camera
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_camera("nonexistent")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_camera_loader_returns_dict(self, mock_settings):
+        """Test _load_camera returns camera dict."""
+        from datetime import datetime
+
+        from backend.services.read_through_cache import _load_camera
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_camera = MagicMock()
+            mock_camera.id = "cam1"
+            mock_camera.name = "Front Door"
+            mock_camera.folder_path = "/export/foscam/front_door"
+            mock_camera.status = "online"
+            mock_camera.created_at = datetime(2024, 1, 1)
+
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = mock_camera
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_camera("cam1")
+
+        assert result is not None
+        assert result["id"] == "cam1"
+        assert result["name"] == "Front Door"
+
+    @pytest.mark.asyncio
+    async def test_event_loader_returns_none_for_invalid_uuid(self, mock_settings):
+        """Test _load_event returns None for invalid UUID."""
+        from backend.services.read_through_cache import _load_event
+
+        # Mock get_session to avoid database initialization
+        with patch("backend.core.database.get_session"):
+            result = await _load_event("not-a-uuid")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_event_loader_returns_dict(self, mock_settings):
+        """Test _load_event returns event dict."""
+        from datetime import datetime
+        from uuid import uuid4
+
+        from backend.services.read_through_cache import _load_event
+
+        event_id = str(uuid4())
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_event = MagicMock()
+            mock_event.id = uuid4()
+            mock_event.camera_id = "cam1"
+            mock_event.risk_score = 85
+            mock_event.risk_level = "high"
+            mock_event.summary = "Test event"
+            mock_event.reviewed = False
+            mock_event.started_at = datetime(2024, 1, 1)
+
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = mock_event
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_event(event_id)
+
+        assert result is not None
+        assert result["camera_id"] == "cam1"
+        assert result["risk_score"] == 85
+
+    @pytest.mark.asyncio
+    async def test_alert_loader_returns_none_for_invalid_uuid(self, mock_settings):
+        """Test _load_alert_rule returns None for invalid UUID."""
+        from backend.services.read_through_cache import _load_alert_rule
+
+        # Mock get_session to avoid database initialization
+        with patch("backend.core.database.get_session"):
+            result = await _load_alert_rule("not-a-uuid")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_alert_loader_returns_dict(self, mock_settings):
+        """Test _load_alert_rule returns alert dict."""
+        from datetime import datetime
+        from uuid import uuid4
+
+        from backend.services.read_through_cache import _load_alert_rule
+
+        alert_id = str(uuid4())
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_severity = MagicMock()
+            mock_severity.value = "high"
+
+            mock_alert = MagicMock()
+            mock_alert.id = uuid4()
+            mock_alert.name = "High Risk Alert"
+            mock_alert.severity = mock_severity
+            mock_alert.enabled = True
+            mock_alert.created_at = datetime(2024, 1, 1)
+
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = mock_alert
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_alert_rule(alert_id)
+
+        assert result is not None
+        assert result["name"] == "High Risk Alert"
+        assert result["severity"] == "high"
+
+    @pytest.mark.asyncio
+    async def test_camera_loader_handles_none_created_at(self, mock_settings):
+        """Test _load_camera handles None created_at."""
+        from backend.services.read_through_cache import _load_camera
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_camera = MagicMock()
+            mock_camera.id = "cam1"
+            mock_camera.name = "Front Door"
+            mock_camera.folder_path = "/export/foscam/front_door"
+            mock_camera.status = "online"
+            mock_camera.created_at = None  # No created_at
+
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = mock_camera
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_camera("cam1")
+
+        assert result is not None
+        assert result["created_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_event_loader_handles_none_started_at(self, mock_settings):
+        """Test _load_event handles None started_at."""
+        from uuid import uuid4
+
+        from backend.services.read_through_cache import _load_event
+
+        event_id = str(uuid4())
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_event = MagicMock()
+            mock_event.id = uuid4()
+            mock_event.camera_id = "cam1"
+            mock_event.risk_score = 85
+            mock_event.risk_level = "high"
+            mock_event.summary = "Test event"
+            mock_event.reviewed = False
+            mock_event.started_at = None  # No started_at
+
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = mock_event
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_event(event_id)
+
+        assert result is not None
+        assert result["started_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_alert_loader_handles_none_severity(self, mock_settings):
+        """Test _load_alert_rule handles None severity."""
+        from datetime import datetime
+        from uuid import uuid4
+
+        from backend.services.read_through_cache import _load_alert_rule
+
+        alert_id = str(uuid4())
+
+        with patch("backend.core.database.get_session") as mock_get_session:
+            mock_alert = MagicMock()
+            mock_alert.id = uuid4()
+            mock_alert.name = "Test Alert"
+            mock_alert.severity = None  # No severity
+            mock_alert.enabled = True
+            mock_alert.created_at = datetime(2024, 1, 1)
+
+            mock_session = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = mock_alert
+            mock_session.execute = AsyncMock(return_value=mock_result)
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session
+
+            result = await _load_alert_rule(alert_id)
+
+        assert result is not None
+        assert result["severity"] is None

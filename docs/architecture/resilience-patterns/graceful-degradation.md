@@ -172,35 +172,42 @@ async def _evaluate_mode_transition(self) -> None:
 
 ### State Transition Diagram
 
-```
-                    +------------------+
-                    |      NORMAL      |
-                    | All services OK  |
-                    +--------+---------+
-                             |
-              non-critical service fails
-                             |
-                             v
-                    +--------+---------+
-                    |     DEGRADED     |
-                    | Using fallbacks  |
-                    +--------+---------+
-                             |
-              critical service fails
-                             |
-                             v
-                    +--------+---------+
-                    |     MINIMAL      |
-                    | Basic only       |
-                    +--------+---------+
-                             |
-              all critical services fail
-                             |
-                             v
-                    +--------+---------+
-                    |      OFFLINE     |
-                    | Queueing only    |
-                    +------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> NORMAL
+
+    NORMAL --> DEGRADED: non-critical service fails
+    DEGRADED --> MINIMAL: critical service fails
+    MINIMAL --> OFFLINE: all critical services fail
+
+    DEGRADED --> NORMAL: services recover
+    MINIMAL --> DEGRADED: critical service recovers
+    OFFLINE --> MINIMAL: some service recovers
+
+    NORMAL: All Services OK
+    NORMAL: Full functionality
+
+    DEGRADED: Using Fallbacks
+    DEGRADED: events, media (read-only)
+
+    MINIMAL: Basic Only
+    MINIMAL: media serving only
+
+    OFFLINE: Queueing Only
+    OFFLINE: Jobs queued for later
 ```
 
 ## Fallback Queues

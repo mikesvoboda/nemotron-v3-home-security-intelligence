@@ -657,3 +657,386 @@ class TestGetDetectionStreamService:
 
         # Clean up
         module._detection_stream_service = None
+
+
+# ===========================================================================
+# Test: Additional Coverage - Error Handling and Edge Cases
+# ===========================================================================
+
+
+class TestDetectionStreamServiceErrorHandling:
+    """Additional tests for error handling and edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_consume_detections_raises_when_not_connected(self, mock_redis_client):
+        """Test consume_detections raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.consume_detections("worker-1")
+
+    @pytest.mark.asyncio
+    async def test_acknowledge_raises_when_not_connected(self, mock_redis_client):
+        """Test acknowledge raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.acknowledge("123-0")
+
+    @pytest.mark.asyncio
+    async def test_claim_stale_messages_raises_when_not_connected(self, mock_redis_client):
+        """Test claim_stale_messages raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.claim_stale_messages("worker-1")
+
+    @pytest.mark.asyncio
+    async def test_move_to_dlq_raises_when_not_connected(self, mock_redis_client):
+        """Test move_to_dlq raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        message = DetectionStreamMessage(
+            id="123-0",
+            camera_id="cam1",
+            detection_id=1,
+            file_path="/path",
+        )
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.move_to_dlq(message)
+
+    @pytest.mark.asyncio
+    async def test_get_stream_info_raises_when_not_connected(self, mock_redis_client):
+        """Test get_stream_info raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.get_stream_info()
+
+    @pytest.mark.asyncio
+    async def test_get_consumer_group_info_raises_when_not_connected(self, mock_redis_client):
+        """Test get_consumer_group_info raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.get_consumer_group_info()
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_raises_when_not_connected(self, mock_redis_client):
+        """Test get_pending_count raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.get_pending_count()
+
+    @pytest.mark.asyncio
+    async def test_trim_stream_raises_when_not_connected(self, mock_redis_client):
+        """Test trim_stream raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = DetectionStreamService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.trim_stream()
+
+    @pytest.mark.asyncio
+    async def test_consume_detections_raises_on_error(self, stream_service, mock_redis_client):
+        """Test consume_detections raises exception on error."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xreadgroup = AsyncMock(side_effect=Exception("Stream read error"))
+
+        with pytest.raises(Exception, match="Stream read error"):
+            await stream_service.consume_detections("worker-1")
+
+    @pytest.mark.asyncio
+    async def test_claim_stale_messages_raises_on_error(self, stream_service, mock_redis_client):
+        """Test claim_stale_messages raises exception on error."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xautoclaim = AsyncMock(side_effect=Exception("Claim failed"))
+
+        with pytest.raises(Exception, match="Claim failed"):
+            await stream_service.claim_stale_messages("worker-1")
+
+    @pytest.mark.asyncio
+    async def test_claim_stale_messages_handles_deleted_messages(
+        self, stream_service, mock_redis_client
+    ):
+        """Test claim_stale_messages skips deleted messages (data=None)."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xautoclaim = AsyncMock(
+            return_value=(
+                "0-0",  # next_id
+                [
+                    ("1234567890123-0", None),  # Deleted message
+                    (
+                        "1234567890123-1",
+                        {
+                            "camera_id": "front_door",
+                            "detection_id": "42",
+                            "file_path": "/path/to/image.jpg",
+                        },
+                    ),
+                ],
+                [],  # deleted_ids
+            )
+        )
+        mock_redis_client._client.xpending_range = AsyncMock(
+            return_value=[
+                ("1234567890123-1", "worker-1", 120000, 2),
+            ]
+        )
+
+        messages = await stream_service.claim_stale_messages("worker-2")
+
+        # Should only return the non-deleted message
+        assert len(messages) == 1
+        assert messages[0].id == "1234567890123-1"
+
+    @pytest.mark.asyncio
+    async def test_claim_stale_messages_handles_parse_error(
+        self, stream_service, mock_redis_client
+    ):
+        """Test claim_stale_messages raises exception when xpending_range fails."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xautoclaim = AsyncMock(
+            return_value=(
+                "0-0",
+                [
+                    ("1234567890123-0", {"camera_id": "front_door"}),  # Missing required fields
+                ],
+                [],
+            )
+        )
+        # xpending_range fails - this should propagate as an exception
+        mock_redis_client._client.xpending_range = AsyncMock(
+            side_effect=Exception("Pending info error")
+        )
+
+        # Should raise the exception
+        with pytest.raises(Exception, match="Pending info error"):
+            await stream_service.claim_stale_messages("worker-2")
+
+    @pytest.mark.asyncio
+    async def test_claim_stale_messages_handles_empty_pending_info(
+        self, stream_service, mock_redis_client
+    ):
+        """Test claim_stale_messages handles empty pending info."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xautoclaim = AsyncMock(
+            return_value=(
+                "0-0",
+                [
+                    (
+                        "1234567890123-0",
+                        {
+                            "camera_id": "front_door",
+                            "detection_id": "42",
+                            "file_path": "/path/to/image.jpg",
+                        },
+                    ),
+                ],
+                [],
+            )
+        )
+        mock_redis_client._client.xpending_range = AsyncMock(return_value=[])  # Empty list
+
+        messages = await stream_service.claim_stale_messages("worker-2")
+
+        # Should default to delivery_count=1
+        assert len(messages) == 1
+        assert messages[0].delivery_count == 1
+
+    @pytest.mark.asyncio
+    async def test_get_consumer_group_info_stream_not_found(
+        self, stream_service, mock_redis_client
+    ):
+        """Test get_consumer_group_info when stream doesn't exist."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xinfo_groups = AsyncMock(side_effect=Exception("no such key"))
+
+        info = await stream_service.get_consumer_group_info()
+
+        assert info["name"] == DETECTION_CONSUMER_GROUP
+        assert info["consumers"] == 0
+        assert info["pending"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_consumer_group_info_group_not_found(self, stream_service, mock_redis_client):
+        """Test get_consumer_group_info when group doesn't exist in list."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xinfo_groups = AsyncMock(
+            return_value=[
+                {
+                    "name": "other-group",
+                    "consumers": 2,
+                    "pending": 5,
+                    "last-delivered-id": "123-0",
+                }
+            ]
+        )
+
+        info = await stream_service.get_consumer_group_info()
+
+        # Should return default values for our group
+        assert info["name"] == DETECTION_CONSUMER_GROUP
+        assert info["consumers"] == 0
+        assert info["pending"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_consumer_group_info_raises_on_other_error(
+        self, stream_service, mock_redis_client
+    ):
+        """Test get_consumer_group_info raises on non-key-not-found error."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xinfo_groups = AsyncMock(side_effect=Exception("Other error"))
+
+        with pytest.raises(Exception, match="Other error"):
+            await stream_service.get_consumer_group_info()
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_stream_not_found(self, stream_service, mock_redis_client):
+        """Test get_pending_count when stream doesn't exist."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xpending = AsyncMock(side_effect=Exception("no such key"))
+
+        count = await stream_service.get_pending_count()
+
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_empty_pending(self, stream_service, mock_redis_client):
+        """Test get_pending_count when pending is None or empty."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xpending = AsyncMock(return_value=None)
+
+        count = await stream_service.get_pending_count()
+
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_for_specific_consumer(self, stream_service, mock_redis_client):
+        """Test get_pending_count for a specific consumer."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xpending = AsyncMock(
+            return_value={
+                "pending": 10,
+                "consumers": [
+                    {"name": "worker-1", "pending": 3},
+                    {"name": "worker-2", "pending": 7},
+                ],
+            }
+        )
+
+        count = await stream_service.get_pending_count("worker-2")
+
+        assert count == 7
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_consumer_not_found(self, stream_service, mock_redis_client):
+        """Test get_pending_count when consumer doesn't exist."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xpending = AsyncMock(
+            return_value={
+                "pending": 10,
+                "consumers": [
+                    {"name": "worker-1", "pending": 10},
+                ],
+            }
+        )
+
+        count = await stream_service.get_pending_count("nonexistent-worker")
+
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_get_pending_count_raises_on_other_error(self, stream_service, mock_redis_client):
+        """Test get_pending_count raises on non-key-not-found error."""
+        mock_redis_client._client.xgroup_create = AsyncMock()
+        mock_redis_client._client.xpending = AsyncMock(side_effect=Exception("Other error"))
+
+        with pytest.raises(Exception, match="Other error"):
+            await stream_service.get_pending_count()
+
+    @pytest.mark.asyncio
+    async def test_trim_stream_handles_xinfo_error(self, stream_service, mock_redis_client):
+        """Test trim_stream handles xinfo_stream error gracefully."""
+        # xinfo_stream fails both times (before and after trim)
+        mock_redis_client._client.xinfo_stream = AsyncMock(side_effect=Exception("Info error"))
+        mock_redis_client._client.xtrim = AsyncMock()
+
+        removed = await stream_service.trim_stream()
+
+        # Should return 0 when can't get length info
+        assert removed == 0
+
+    @pytest.mark.asyncio
+    async def test_trim_stream_handles_xinfo_error_after_trim(
+        self, stream_service, mock_redis_client
+    ):
+        """Test trim_stream handles xinfo_stream error after trim."""
+        mock_redis_client._client.xinfo_stream = AsyncMock(
+            side_effect=[
+                {"length": 15000},  # Before trim succeeds
+                Exception("Info error"),  # After trim fails
+            ]
+        )
+        mock_redis_client._client.xtrim = AsyncMock()
+
+        removed = await stream_service.trim_stream()
+
+        # Should return 0 when can't get new length
+        assert removed == 0
+
+    @pytest.mark.asyncio
+    async def test_trim_stream_uses_custom_maxlen(self, stream_service, mock_redis_client):
+        """Test trim_stream uses custom maxlen parameter."""
+        mock_redis_client._client.xinfo_stream = AsyncMock(
+            side_effect=[
+                {"length": 7000},  # Before trim
+                {"length": 5000},  # After trim
+            ]
+        )
+        mock_redis_client._client.xtrim = AsyncMock()
+
+        removed = await stream_service.trim_stream(maxlen=5000)
+
+        assert removed == 2000
+        # Verify xtrim was called with custom maxlen
+        mock_redis_client._client.xtrim.assert_called_once()
+        call_kwargs = mock_redis_client._client.xtrim.call_args[1]
+        assert call_kwargs["maxlen"] == 5000
+
+    @pytest.mark.asyncio
+    async def test_get_stream_info_raises_on_other_error(self, stream_service, mock_redis_client):
+        """Test get_stream_info raises on non-key-not-found error."""
+        mock_redis_client._client.xinfo_stream = AsyncMock(side_effect=Exception("Other error"))
+
+        with pytest.raises(Exception, match="Other error"):
+            await stream_service.get_stream_info()
+
+    @pytest.mark.asyncio
+    async def test_get_stream_info_handles_missing_first_entry(
+        self, stream_service, mock_redis_client
+    ):
+        """Test get_stream_info when first-entry is None."""
+        mock_redis_client._client.xinfo_stream = AsyncMock(
+            return_value={
+                "length": 0,
+                "radix-tree-keys": 0,
+                "radix-tree-nodes": 0,
+                "groups": 0,
+                "last-generated-id": "",
+                "first-entry": None,  # No first entry
+            }
+        )
+
+        info = await stream_service.get_stream_info()
+
+        assert info["first_entry_id"] == ""

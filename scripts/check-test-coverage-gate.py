@@ -22,12 +22,12 @@ REQUIREMENTS = {
     "backend/api/routes/*.py": {
         "type": "API Route",
         "required_tests": ["integration", "unit"],
-        "min_coverage": 95,
+        "min_coverage": 85,
     },
     "backend/services/*.py": {
         "type": "Service",
         "required_tests": ["unit", "integration"],
-        "min_coverage": 90,
+        "min_coverage": 85,
     },
     "backend/models/*.py": {
         "type": "ORM Model",

@@ -9,14 +9,17 @@ This directory contains all project documentation organized into role-based hubs
 | Directory          | Purpose                                   | Entry Point                         |
 | ------------------ | ----------------------------------------- | ----------------------------------- |
 | `ai/`              | AI model zoo and pipeline architecture    | [AGENTS.md](ai/AGENTS.md)           |
+| `archive/`         | Archived working documents (historical)   | [AGENTS.md](archive/AGENTS.md)      |
 | `getting-started/` | Installation and first-run setup          | [README](getting-started/README.md) |
 | `developer/`       | Architecture, API, patterns, contributing | [README](developer/README.md)       |
 | `guides/`          | Feature guides (video analytics, zones)   | [AGENTS.md](guides/AGENTS.md)       |
 | `operations/`      | Operational runbooks for production       | [AGENTS.md](operations/AGENTS.md)   |
 | `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
+| `templates/`       | Document templates (AGENTS.md, etc.)      | [AGENTS.md](templates/AGENTS.md)    |
 | `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
 | `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
 | `deployment/`      | Container orchestration documentation     | [AGENTS.md](deployment/AGENTS.md)   |
+| `style-guides/`    | Documentation style guides                | [AGENTS.md](style-guides/AGENTS.md) |
 
 ## Directory Structure
 
@@ -35,6 +38,10 @@ docs/
 ├── api/                         # API governance documentation
 │   ├── AGENTS.md                # API docs navigation
 │   └── migrations/              # Migration guides
+│
+├── archive/                     # Archived working documents
+│   ├── AGENTS.md                # Archive navigation
+│   └── *.md                     # Historical documents
 │
 ├── architecture/                # System design documentation
 │   ├── AGENTS.md                # Architecture navigation
@@ -61,12 +68,13 @@ docs/
 │   ├── AGENTS.md                # Developer docs navigation
 │   ├── api/                     # API guides
 │   ├── architecture/            # Architecture guides
-│   ├── contributing/            # Contribution guides
+│   ├── contributing/            # Developer tool guides (redirects to development/)
 │   ├── patterns/                # Code patterns
 │   └── *.md                     # Topic-specific docs
 │
 ├── development/                 # Development workflow docs
 │   ├── AGENTS.md                # Development navigation
+│   ├── contributing.md          # **Canonical** contributing guide
 │   ├── testing.md               # Testing guide
 │   ├── hooks.md                 # Git hooks
 │   ├── code-quality.md          # Code quality tools
@@ -89,13 +97,17 @@ docs/
 │
 ├── images/                      # Diagrams and screenshots
 │   ├── AGENTS.md                # Images navigation
-│   ├── style-guide.md           # SVG diagram style guide
+│   ├── style-guide.md           # Visual style guide
 │   ├── SCREENSHOT_GUIDE.md      # Screenshot capture guide
 │   └── */                       # Organized subdirectories
 │
 ├── operations/                  # Operational runbooks
 │   ├── AGENTS.md                # Operations navigation
 │   └── profiling-runbook.md     # Pyroscope profiling operations
+│
+├── style-guides/                # Documentation style guides
+│   ├── AGENTS.md                # Style guides navigation
+│   └── diagrams.md              # Mermaid diagram style guide
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin
@@ -122,6 +134,10 @@ docs/
 │   ├── stability.md             # API stability
 │   ├── config/                  # Configuration reference
 │   └── troubleshooting/         # Troubleshooting guides
+│
+├── templates/                   # Document templates
+│   ├── AGENTS.md                # Templates navigation
+│   └── AGENTS.md.template       # AGENTS.md file template
 │
 ├── testing/                     # Testing documentation
 │   └── INTEGRATION_TEST_COVERAGE_ANALYSIS.md
@@ -178,6 +194,7 @@ Each major directory has its own AGENTS.md:
 | Path                                  | Purpose                        |
 | ------------------------------------- | ------------------------------ |
 | `docs/AGENTS.md`                      | This file - documentation root |
+| `archive/AGENTS.md`                   | Archived working documents     |
 | `ai/AGENTS.md`                        | AI model zoo documentation     |
 | `api/AGENTS.md`                       | API governance documentation   |
 | `guides/AGENTS.md`                    | Feature guides documentation   |
@@ -204,6 +221,8 @@ Each major directory has its own AGENTS.md:
 | `reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
 | `ui/AGENTS.md`                        | UI page documentation          |
 | `user/AGENTS.md`                      | End-user documentation         |
+| `style-guides/AGENTS.md`              | Documentation style guides     |
+| `templates/AGENTS.md`                 | Document templates             |
 
 ## Visual Assets
 

@@ -699,3 +699,445 @@ class TestGetBatchMetadataService:
 
         # Clean up
         module._batch_metadata_service = None
+
+
+# ===========================================================================
+# Test: Additional Coverage - Error Handling and Edge Cases
+# ===========================================================================
+
+
+class TestBatchMetadataServiceErrorHandling:
+    """Additional tests for error handling and edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_check_json_available_returns_false_when_client_none(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test JSON availability check when Redis client is None."""
+        mock_redis_client._client = None
+
+        result = await metadata_service._check_json_available()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_check_json_available_handles_transient_errors(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test JSON availability check handles transient errors."""
+        mock_redis_client._client.execute_command = AsyncMock(
+            side_effect=Exception("Transient error")
+        )
+
+        result = await metadata_service._check_json_available()
+
+        assert result is False
+        assert metadata_service._json_available is False
+
+    @pytest.mark.asyncio
+    async def test_set_batch_metadata_json_fallback_on_error(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test fallback to string storage when JSON.SET fails."""
+        metadata_service._json_available = True
+        # First call (JSON.SET) fails, then setex succeeds
+        mock_redis_client._client.execute_command = AsyncMock(
+            side_effect=Exception("JSON SET failed")
+        )
+        mock_redis_client._client.setex = AsyncMock()
+
+        metadata = BatchMetadata(batch_id="batch-fallback", camera_id="cam1")
+        result = await metadata_service.set_batch_metadata("batch-fallback", metadata)
+
+        assert result is True
+        mock_redis_client._client.setex.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_batch_metadata_json_fallback_on_error(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test fallback to string storage when JSON.GET fails."""
+        metadata_service._json_available = True
+        data = {
+            "batch_id": "batch-fallback-get",
+            "camera_id": "cam1",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+
+        # JSON.GET fails, fall back to string GET
+        mock_redis_client._client.execute_command = AsyncMock(
+            side_effect=Exception("JSON GET failed")
+        )
+        mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
+
+        result = await metadata_service.get_batch_metadata("batch-fallback-get")
+
+        assert result is not None
+        assert result.batch_id == "batch-fallback-get"
+        mock_redis_client._client.get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_batch_field_handles_missing_field_in_fallback(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test get_batch_field returns None for missing nested field."""
+        metadata_service._json_available = False
+        data = {
+            "batch_id": "batch-no-nested",
+            "camera_id": "cam1",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+        mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
+
+        # Try to access nested field that doesn't exist
+        result = await metadata_service.get_batch_field(
+            "batch-no-nested", "$.processing_metadata.nonexistent"
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_update_batch_field_fallback_missing_nested_path(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test update_batch_field fallback returns False for invalid path."""
+        metadata_service._json_available = False
+        data = {
+            "batch_id": "batch-invalid-path",
+            "camera_id": "cam1",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+        mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
+
+        # Try to update nested field that doesn't exist
+        result = await metadata_service.update_batch_field(
+            "batch-invalid-path", "$.nonexistent.field", "value"
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_update_batch_field_fallback_with_refresh_ttl_none(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test update_batch_field fallback with None TTL when refresh_ttl is False."""
+        metadata_service._json_available = False
+        data = {
+            "batch_id": "batch-no-refresh",
+            "camera_id": "cam1",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+        mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
+        mock_redis_client._client.setex = AsyncMock()
+
+        result = await metadata_service.update_batch_field(
+            "batch-no-refresh", "$.status", "closing", refresh_ttl=False
+        )
+
+        assert result is True
+        # Verify setex was called with None TTL (will use default)
+        call_args = mock_redis_client._client.setex.call_args
+        assert call_args is not None
+
+    @pytest.mark.asyncio
+    async def test_append_detection_id_fallback_not_found(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test append_detection_id fallback returns -1 for missing batch."""
+        metadata_service._json_available = False
+        mock_redis_client._client.get = AsyncMock(return_value=None)
+
+        result = await metadata_service.append_detection_id("batch-nonexistent", 42)
+
+        assert result == -1
+
+    @pytest.mark.asyncio
+    async def test_close_batch_json_not_exists(self, metadata_service, mock_redis_client):
+        """Test close_batch with RedisJSON when batch doesn't exist."""
+        metadata_service._json_available = True
+        mock_redis_client._client.exists = AsyncMock(return_value=0)
+
+        result = await metadata_service.close_batch("batch-nonexistent")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_close_batch_json_fallback_on_error(self, metadata_service, mock_redis_client):
+        """Test close_batch falls back on error."""
+        metadata_service._json_available = True
+        mock_redis_client._client.exists = AsyncMock(return_value=1)
+
+        # Mock pipeline to raise error
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute_command = MagicMock()
+        mock_pipeline.execute = AsyncMock(side_effect=Exception("Pipeline failed"))
+        mock_pipeline.__aenter__ = AsyncMock(return_value=mock_pipeline)
+        mock_pipeline.__aexit__ = AsyncMock()
+        mock_redis_client._client.pipeline = MagicMock(return_value=mock_pipeline)
+
+        # Fallback to string get/set
+        data = {
+            "batch_id": "batch-pipeline-error",
+            "camera_id": "cam1",
+            "status": "open",
+            "detection_ids": [1, 2],
+            "detection_count": 2,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+        mock_redis_client._client.get = AsyncMock(return_value=json.dumps(data))
+        mock_redis_client._client.setex = AsyncMock()
+
+        result = await metadata_service.close_batch("batch-pipeline-error", reason="error")
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_get_open_batches_for_camera_handles_decode_error(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test get_open_batches_for_camera handles errors gracefully."""
+        metadata_service._json_available = False
+
+        # Mock scan_iter to return a key that causes an error
+        async def mock_scan_iter(**kwargs):
+            yield b"batch:meta:batch-error"
+            yield b"batch:meta:batch-valid"
+
+        mock_redis_client._client.scan_iter = mock_scan_iter
+
+        # First batch causes error, second batch is valid
+        data_valid = {
+            "batch_id": "batch-valid",
+            "camera_id": "front_door",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+
+        mock_redis_client._client.get = AsyncMock(
+            side_effect=[Exception("Decode error"), json.dumps(data_valid)]
+        )
+
+        batches = await metadata_service.get_open_batches_for_camera("front_door")
+
+        # Should only return the valid batch, error batch skipped
+        assert len(batches) == 1
+        assert batches[0].batch_id == "batch-valid"
+
+    @pytest.mark.asyncio
+    async def test_get_open_batches_filters_by_camera_and_status(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test get_open_batches_for_camera filters correctly."""
+        metadata_service._json_available = False
+
+        # Mock scan_iter to return multiple keys
+        async def mock_scan_iter(**kwargs):
+            yield b"batch:meta:batch-1"
+            yield b"batch:meta:batch-2"
+            yield b"batch:meta:batch-3"
+
+        mock_redis_client._client.scan_iter = mock_scan_iter
+
+        # Different scenarios: right camera+open, wrong camera, right camera+closed
+        data_1 = {
+            "batch_id": "batch-1",
+            "camera_id": "front_door",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+        data_2 = {
+            "batch_id": "batch-2",
+            "camera_id": "backyard",
+            "status": "open",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": None,
+            "pipeline_start_time": None,
+            "close_reason": None,
+            "processing_metadata": {},
+        }
+        data_3 = {
+            "batch_id": "batch-3",
+            "camera_id": "front_door",
+            "status": "closed",
+            "detection_ids": [],
+            "detection_count": 0,
+            "started_at": 1700000000.0,
+            "last_activity": 1700000000.0,
+            "closed_at": 1700000060.0,
+            "pipeline_start_time": None,
+            "close_reason": "timeout",
+            "processing_metadata": {},
+        }
+
+        mock_redis_client._client.get = AsyncMock(
+            side_effect=[json.dumps(data_1), json.dumps(data_2), json.dumps(data_3)]
+        )
+
+        batches = await metadata_service.get_open_batches_for_camera("front_door")
+
+        # Should only return batch-1 (correct camera and open)
+        assert len(batches) == 1
+        assert batches[0].batch_id == "batch-1"
+        assert batches[0].camera_id == "front_door"
+        assert batches[0].status == "open"
+
+    @pytest.mark.asyncio
+    async def test_get_open_batches_raises_when_not_connected(self, mock_redis_client):
+        """Test get_open_batches raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.get_open_batches_for_camera("cam1")
+
+    @pytest.mark.asyncio
+    async def test_delete_batch_metadata_raises_when_not_connected(self, mock_redis_client):
+        """Test delete raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.delete_batch_metadata("batch-1")
+
+    @pytest.mark.asyncio
+    async def test_get_batch_metadata_raises_when_not_connected(self, mock_redis_client):
+        """Test get_batch_metadata raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.get_batch_metadata("batch-1")
+
+    @pytest.mark.asyncio
+    async def test_get_batch_field_raises_when_not_connected(self, mock_redis_client):
+        """Test get_batch_field raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.get_batch_field("batch-1", "$.status")
+
+    @pytest.mark.asyncio
+    async def test_update_batch_field_raises_when_not_connected(self, mock_redis_client):
+        """Test update_batch_field raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.update_batch_field("batch-1", "$.status", "closed")
+
+    @pytest.mark.asyncio
+    async def test_append_detection_id_raises_when_not_connected(self, mock_redis_client):
+        """Test append_detection_id raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.append_detection_id("batch-1", 42)
+
+    @pytest.mark.asyncio
+    async def test_close_batch_raises_when_not_connected(self, mock_redis_client):
+        """Test close_batch raises when Redis not connected."""
+        mock_redis_client._client = None
+        service = BatchMetadataService(redis_client=mock_redis_client)
+
+        with pytest.raises(RuntimeError, match="Redis client not connected"):
+            await service.close_batch("batch-1")
+
+    @pytest.mark.asyncio
+    async def test_append_detection_id_json_get_count_returns_empty_list(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test append_detection_id when JSON.GET returns empty list for count."""
+        metadata_service._json_available = True
+        mock_redis_client._client.execute_command = AsyncMock(
+            side_effect=[
+                None,  # JSON.ARRAPPEND
+                None,  # JSON.NUMINCRBY
+                None,  # JSON.SET last_activity
+                "[]",  # JSON.GET detection_count - empty list
+            ]
+        )
+        mock_redis_client._client.expire = AsyncMock()
+
+        result = await metadata_service.append_detection_id("batch-empty-count", 42)
+
+        assert result == -1
+
+    @pytest.mark.asyncio
+    async def test_get_batch_field_json_returns_non_list_result(
+        self, metadata_service, mock_redis_client
+    ):
+        """Test get_batch_field when JSON.GET returns non-list result."""
+        metadata_service._json_available = True
+        # Return a dict instead of list
+        mock_redis_client._client.execute_command = AsyncMock(return_value='{"status": "open"}')
+
+        result = await metadata_service.get_batch_field("batch-dict", "$.status")
+
+        # Should return the dict as-is (not extract first element)
+        assert result == {"status": "open"}
+
+    @pytest.mark.asyncio
+    async def test_get_batch_field_json_returns_none(self, metadata_service, mock_redis_client):
+        """Test get_batch_field when JSON.GET returns None."""
+        metadata_service._json_available = True
+        mock_redis_client._client.execute_command = AsyncMock(return_value=None)
+
+        result = await metadata_service.get_batch_field("batch-none", "$.status")
+
+        assert result is None

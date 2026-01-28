@@ -143,7 +143,6 @@ Each scenario folder contains:
 - `expected_labels.json` - Ground truth with risk score ranges
 - `scenario_spec.json` - Full scenario specification
 - `metadata.json` - Generation metadata
-- `media/` - Generated images/videos (optional)
 
 ## Usage
 

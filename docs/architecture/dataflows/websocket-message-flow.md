@@ -50,7 +50,7 @@ sequenceDiagram
 
 ## Authentication
 
-**Source:** `backend/api/routes/websocket.py:1-39`
+**Source:** `backend/api/routes/websocket.py:1-39` (module docstring)
 
 ### Authentication Methods
 
@@ -84,39 +84,45 @@ if not await check_websocket_rate_limit(websocket, redis):
 
 ## Message Validation
 
-**Source:** `backend/api/routes/websocket.py:79-121`
+**Source:** `backend/api/routes/websocket.py:79-133`
 
 ### Validation Flow
 
 ```python
-# backend/api/routes/websocket.py:79-120
+# backend/api/routes/websocket.py:79-133
 async def validate_websocket_message(
     websocket: WebSocket, raw_data: str
 ) -> WebSocketMessage | None:
-    """Validate an incoming WebSocket message."""
+    """Validate an incoming WebSocket message.
 
-    # Try to parse as JSON
+    Uses Pydantic's model_validate_json() for single-pass JSON parsing and
+    validation, powered by jiter for 10-30% better performance compared to
+    the two-step json.loads() + model_validate() approach.
+    """
+    # Use single-pass JSON parsing + validation with jiter (NEM-3396)
     try:
-        message_data: dict[str, Any] = json.loads(raw_data)
-    except json.JSONDecodeError as e:
-        error_response = WebSocketErrorResponse(
-            error=WebSocketErrorCode.INVALID_JSON,
-            message="Message must be valid JSON",
-            details={"raw_data_preview": raw_data[:100] if raw_data else None},
-        )
-        await websocket.send_text(error_response.model_dump_json())
-        return None
-
-    # Validate message structure
-    try:
-        message = WebSocketMessage.model_validate(message_data)
+        message = WebSocketMessage.model_validate_json(raw_data)
         return message
     except ValidationError as e:
-        error_response = WebSocketErrorResponse(
-            error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
-            message="Message does not match expected schema",
-            details={"validation_errors": e.errors()},
+        # Check if any error is a JSON parsing error
+        errors = e.errors()
+        is_json_error = any(
+            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
         )
+
+        if is_json_error:
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.INVALID_JSON,
+                message="Message must be valid JSON",
+                details={"raw_data_preview": raw_data[:100] if raw_data else None},
+            )
+        else:
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+                message="Message does not match expected schema",
+                details={"validation_errors": errors},
+            )
+
         await websocket.send_text(error_response.model_dump_json())
         return None
 ```
@@ -134,12 +140,12 @@ async def validate_websocket_message(
 
 ![WebSocket Message Types](../../images/architecture/dataflows/concept-websocket-message-types.png)
 
-**Source:** `backend/api/routes/websocket.py:140-231`
+**Source:** `backend/api/routes/websocket.py:136-243`
 
 ### Client-to-Server Messages
 
 ```python
-# backend/api/routes/websocket.py:140-231
+# backend/api/routes/websocket.py:136-243
 match message_type:
     case WebSocketMessageType.PING.value:
         # Client keepalive - respond with pong
@@ -169,10 +175,10 @@ match message_type:
 
 ### Subscribe
 
-**Source:** `backend/api/routes/websocket.py:20-29`
+**Source:** `backend/api/routes/websocket.py:20-28`
 
 ```python
-# backend/api/routes/websocket.py:20-29
+# backend/api/routes/websocket.py:20-28
 # WebSocket Event Filtering (NEM-2383):
 #     Clients can subscribe to specific event patterns to reduce bandwidth:
 #     - Send: {"action": "subscribe", "events": ["alert.*", "camera.status_changed"]}
@@ -255,12 +261,12 @@ match message_type:
 
 ## Heartbeat
 
-**Source:** `backend/api/routes/websocket.py:267-311`
+**Source:** `backend/api/routes/websocket.py:280-323`
 
 ### Server-Initiated Heartbeat
 
 ```python
-# backend/api/routes/websocket.py:267-311
+# backend/api/routes/websocket.py:280-323
 async def send_heartbeat(
     websocket: WebSocket,
     interval: int,
@@ -295,12 +301,12 @@ async def send_heartbeat(
 
 ## Message Sequencing
 
-**Source:** `backend/api/routes/websocket.py:233-264`
+**Source:** `backend/api/routes/websocket.py:246-277`
 
 ### Sequence Tracking
 
 ```python
-# backend/api/routes/websocket.py:233-264
+# backend/api/routes/websocket.py:246-277
 async def send_sequenced_message(
     websocket: WebSocket,
     connection_id: str,
@@ -353,17 +359,20 @@ ws.onmessage = (event) => {
 
 ![WebSocket Broadcast](../../images/architecture/dataflows/flow-websocket-broadcast.png)
 
-**Source:** `backend/services/event_broadcaster.py:335-400`
+**Source:** `backend/services/event_broadcaster.py:345-400`
 
 ### EventBroadcaster Class
 
 ```python
-# backend/services/event_broadcaster.py:335-362
+# backend/services/event_broadcaster.py:345-372
 class EventBroadcaster:
     """Manages WebSocket connections and broadcasts events via Redis pub/sub.
 
     This class acts as a bridge between Redis pub/sub events and WebSocket
     connections, allowing multiple backend instances to share event notifications.
+
+    Includes a supervision task that monitors listener health and automatically
+    restarts dead listeners to ensure reliability.
 
     Message Delivery Guarantees (NEM-1688):
     - All messages include monotonically increasing sequence numbers
@@ -380,9 +389,14 @@ class EventBroadcaster:
 ### Message Buffer
 
 ```python
-# backend/services/event_broadcaster.py:479-498
+# backend/services/event_broadcaster.py:493-513
 def _add_sequence_and_buffer(self, message: dict[str, Any]) -> dict[str, Any]:
-    """Add sequence number and buffer the message for replay."""
+    """Add sequence number and buffer the message for replay.
+
+    Creates a copy of the message with sequence and requires_ack fields,
+    then adds it to the message buffer.
+    """
+    # Create a copy to avoid modifying the original
     sequenced = dict(message)
     sequenced["sequence"] = self._next_sequence()
     sequenced["requires_ack"] = requires_ack(message)
@@ -395,12 +409,12 @@ def _add_sequence_and_buffer(self, message: dict[str, Any]) -> dict[str, Any]:
 
 ## Broadcast Retry
 
-**Source:** `backend/services/event_broadcaster.py:145-244`
+**Source:** `backend/services/event_broadcaster.py:155-254`
 
 ### Retry Logic
 
 ```python
-# backend/services/event_broadcaster.py:145-182
+# backend/services/event_broadcaster.py:155-192
 async def broadcast_with_retry[T](
     broadcast_func: Callable[[], Awaitable[T]],
     message_type: str,
@@ -423,7 +437,7 @@ async def broadcast_with_retry[T](
 ### Backoff Calculation
 
 ```python
-# backend/services/event_broadcaster.py:204-209
+# backend/services/event_broadcaster.py:215-219
 # Calculate exponential backoff with jitter
 delay = min(base_delay * (2**attempt), max_delay)
 jitter = delay * random.uniform(0.1, 0.3)
@@ -440,10 +454,10 @@ total_delay = delay + jitter
 
 ### Full Endpoint Handler
 
-**Source:** `backend/api/routes/websocket.py:313-400`
+**Source:** `backend/api/routes/websocket.py:326-543`
 
 ```python
-# backend/api/routes/websocket.py:313-400
+# backend/api/routes/websocket.py:326-412 (excerpt)
 @router.websocket("/ws/events")
 async def websocket_events_endpoint(
     websocket: WebSocket,
@@ -496,38 +510,52 @@ async def websocket_events_endpoint(
 
 ## Complete Message Flow Diagram
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        WebSocket Message Flow                           │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  Client                   Backend                      Redis           │
-│    │                        │                            │             │
-│    │─── Upgrade Request ───>│                            │             │
-│    │                        │─── Auth Check             │             │
-│    │<── Connection OK ──────│                            │             │
-│    │                        │                            │             │
-│    │<── Heartbeat Ping ─────│                            │             │
-│    │─── Pong ──────────────>│                            │             │
-│    │                        │                            │             │
-│    │─── Subscribe ─────────>│                            │             │
-│    │<── Subscribed ─────────│                            │             │
-│    │                        │                            │             │
-│    │                        │<─────── Event Published ───│             │
-│    │                        │─── Add seq, buffer        │             │
-│    │<── Event (seq=1) ──────│                            │             │
-│    │                        │                            │             │
-│    │<── Event (seq=2) ──────│                            │             │
-│    │                        │                            │             │
-│    │  (gap detected)        │                            │             │
-│    │─── Resync ────────────>│                            │             │
-│    │<── Resync ACK ─────────│                            │             │
-│    │<── Buffered Messages ──│                            │             │
-│    │                        │                            │             │
-│    │─── Close ─────────────>│                            │             │
-│    │<── Close ACK ──────────│                            │             │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant Client as WebSocket Client
+    participant Backend as Backend Server
+    participant Redis as Redis Pub/Sub
+
+    rect rgb(30, 58, 95)
+        Note over Client,Backend: Connection Phase
+        Client->>Backend: Upgrade Request
+        Backend->>Backend: Auth Check
+        Backend-->>Client: Connection OK
+    end
+
+    rect rgb(45, 74, 62)
+        Note over Client,Backend: Heartbeat
+        Backend->>Client: Heartbeat Ping
+        Client-->>Backend: Pong
+    end
+
+    rect rgb(30, 58, 95)
+        Note over Client,Backend: Subscription
+        Client->>Backend: Subscribe
+        Backend-->>Client: Subscribed
+    end
+
+    rect rgb(74, 58, 45)
+        Note over Client,Redis: Event Delivery
+        Redis-->>Backend: Event Published
+        Backend->>Backend: Add seq, buffer
+        Backend-->>Client: Event (seq=1)
+        Backend-->>Client: Event (seq=2)
+    end
+
+    rect rgb(45, 74, 62)
+        Note over Client,Backend: Gap Recovery
+        Note right of Client: Gap detected
+        Client->>Backend: Resync
+        Backend-->>Client: Resync ACK
+        Backend-->>Client: Buffered Messages
+    end
+
+    rect rgb(30, 58, 95)
+        Note over Client,Backend: Disconnect
+        Client->>Backend: Close
+        Backend-->>Client: Close ACK
+    end
 ```
 
 ## Related Documents

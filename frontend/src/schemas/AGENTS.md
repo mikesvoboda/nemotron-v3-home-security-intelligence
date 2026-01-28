@@ -253,7 +253,7 @@ z.string().min(5, { error: (issue) => `Min length is ${issue.minimum}` })
 | `alertRuleResponseSchema`  | `backend/api/schemas/alerts.py`    |
 | `eventResponseSchema`      | `backend/api/schemas/events.py`    |
 | `detectionResponseSchema`  | `backend/api/schemas/detections.py`|
-| `zoneResponseSchema`       | `backend/api/schemas/zones.py`     |
+| `zoneResponseSchema`       | `backend/api/schemas/zone.py`      |
 
 ### Validation Rules Mapping
 

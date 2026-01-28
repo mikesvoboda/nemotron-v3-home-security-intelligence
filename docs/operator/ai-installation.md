@@ -223,10 +223,10 @@ Key dependencies (defined in `pyproject.toml`):
 
 This project supports two Nemotron LLM models for different deployment scenarios:
 
-| Model                         | Size   | VRAM  | Use Case                   | Location                                                   |
-| ----------------------------- | ------ | ----- | -------------------------- | ---------------------------------------------------------- |
-| **Nemotron Mini 4B Instruct** | ~2.5GB | ~3GB  | Development (host-run)     | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`        |
-| **Nemotron-3-Nano-30B-A3B**   | ~18GB  | ~14GB | Production (containerized) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` |
+| Model                         | Size    | VRAM    | Use Case                   | Location                                                   |
+| ----------------------------- | ------- | ------- | -------------------------- | ---------------------------------------------------------- |
+| **Nemotron Mini 4B Instruct** | ~2.5GB  | ~3GB    | Development (host-run)     | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`        |
+| **Nemotron-3-Nano-30B-A3B**   | ~14.7GB | ~14.7GB | Production (containerized) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` |
 
 **When to use each:**
 
@@ -270,7 +270,7 @@ For production deployments with better reasoning quality, download from the offi
 # Create production model directory
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 
-# Download the model (large download, ~18GB)
+# Download the model (large download, ~14.7GB)
 cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 wget https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
   -O Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
@@ -287,7 +287,7 @@ ls -lh ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 
 # Check production model (if downloaded)
 ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
-# Expected: ~18GB file
+# Expected: ~14.7GB file
 
 # YOLO26 downloads automatically on first inference
 ```

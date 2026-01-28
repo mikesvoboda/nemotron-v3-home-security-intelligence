@@ -770,6 +770,371 @@ def test_is_quantization_supported_false():
 
 
 # =============================================================================
+# Test QuantizableModel Protocol
+# =============================================================================
+
+
+def test_quantizable_model_protocol():
+    """Test QuantizableModel protocol is satisfied by mock model."""
+    from backend.services.quantization import QuantizableModel
+
+    mock_model = MagicMock(spec=QuantizableModel)
+    mock_model.eval.return_value = mock_model
+
+    result = mock_model.eval()
+    assert result is mock_model
+    mock_model.eval.assert_called_once()
+
+
+# =============================================================================
+# Test _is_bitsandbytes_available edge cases
+# =============================================================================
+
+
+def test_is_bitsandbytes_available_import_error():
+    """Test _is_bitsandbytes_available handles ImportError."""
+    with patch("importlib.util.find_spec", side_effect=ImportError("Module not found")):
+        assert _is_bitsandbytes_available() is False
+
+
+def test_is_bitsandbytes_available_module_not_found_error():
+    """Test _is_bitsandbytes_available handles ModuleNotFoundError."""
+    with patch("importlib.util.find_spec", side_effect=ModuleNotFoundError("No module")):
+        assert _is_bitsandbytes_available() is False
+
+
+# =============================================================================
+# Test _get_model_size_mb edge cases
+# =============================================================================
+
+
+def test_get_model_size_mb_int8():
+    """Test _get_model_size_mb for INT8 model."""
+    import sys
+
+    mock_torch = MagicMock()
+    mock_torch.float16 = "float16"
+    mock_torch.int8 = "int8"
+
+    # Create mock parameters with int8 dtype
+    mock_param = MagicMock()
+    mock_param.numel.return_value = 1000000  # 1M parameters
+    mock_param.dtype = "int8"
+
+    mock_model = MagicMock()
+    mock_model.parameters.return_value = [mock_param]
+
+    with patch.dict(sys.modules, {"torch": mock_torch}):
+        size = _get_model_size_mb(mock_model)
+        # 1M params * 1 byte / 1024 / 1024 = ~0.95 MB
+        assert size == pytest.approx(0.95, rel=0.1)
+
+
+# =============================================================================
+# Test get_optimal_backend edge cases
+# =============================================================================
+
+
+def test_get_optimal_backend_intel_cpu(monkeypatch):
+    """Test get_optimal_backend returns ONEDNN for Intel CPUs."""
+    import sys
+
+    mock_cpuinfo = MagicMock()
+    mock_cpuinfo.get_cpu_info.return_value = {"vendor_id_raw": "GenuineIntel"}
+
+    with patch("platform.machine", return_value="x86_64"):
+        monkeypatch.setitem(sys.modules, "cpuinfo", mock_cpuinfo)
+
+        backend = get_optimal_backend()
+        assert backend == QuantizationBackend.ONEDNN
+
+
+def test_get_optimal_backend_amd_cpu():
+    """Test get_optimal_backend returns X86 for AMD CPUs."""
+    import sys
+
+    mock_cpuinfo = MagicMock()
+    mock_cpuinfo.get_cpu_info.return_value = {"vendor_id_raw": "AuthenticAMD"}
+
+    with patch("platform.machine", return_value="x86_64"):
+        with patch.dict(sys.modules, {"cpuinfo": mock_cpuinfo}):
+            backend = get_optimal_backend()
+            assert backend == QuantizationBackend.X86
+
+
+def test_get_optimal_backend_cpuinfo_import_error():
+    """Test get_optimal_backend handles cpuinfo import error."""
+    import sys
+
+    # Mock x86_64 platform
+    with patch("platform.machine", return_value="x86_64"):
+        # Remove cpuinfo from sys.modules to force ImportError
+        original_cpuinfo = sys.modules.get("cpuinfo")
+        if "cpuinfo" in sys.modules:
+            del sys.modules["cpuinfo"]
+
+        try:
+            # Use a mock import that raises ImportError when cpuinfo is imported
+            import builtins
+
+            original_import = builtins.__import__
+
+            def mock_import(name, *args, **kwargs):
+                if name == "cpuinfo":
+                    raise ImportError("No cpuinfo module")
+                return original_import(name, *args, **kwargs)
+
+            with patch("builtins.__import__", side_effect=mock_import):
+                backend = get_optimal_backend()
+                # Should fall back to X86 when cpuinfo is not available
+                assert backend == QuantizationBackend.X86
+        finally:
+            # Restore original cpuinfo module if it existed
+            if original_cpuinfo is not None:
+                sys.modules["cpuinfo"] = original_cpuinfo
+
+
+# =============================================================================
+# Test get_bnb_4bit_config error paths
+# =============================================================================
+
+
+def test_get_bnb_4bit_config_transformers_import_error(monkeypatch):
+    """Test get_bnb_4bit_config raises ImportError when transformers unavailable."""
+    import sys
+
+    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+        # Mock torch but make transformers import fail
+        mock_torch = MagicMock()
+        mock_torch.float16 = "float16"
+
+        def mock_import(name, *args, **kwargs):
+            if name == "transformers":
+                raise ImportError("No transformers")
+            return MagicMock()
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(ImportError, match="transformers package"):
+                get_bnb_4bit_config()
+
+
+# =============================================================================
+# Test get_bnb_8bit_config error paths
+# =============================================================================
+
+
+def test_get_bnb_8bit_config_transformers_import_error(monkeypatch):
+    """Test get_bnb_8bit_config raises ImportError when transformers unavailable."""
+
+    with patch("backend.services.quantization._is_bitsandbytes_available", return_value=True):
+
+        def mock_import(name, *args, **kwargs):
+            if name == "transformers":
+                raise ImportError("No transformers")
+            return MagicMock()
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(ImportError, match="transformers package"):
+                get_bnb_8bit_config()
+
+
+# =============================================================================
+# Test apply_dynamic_int8_quantization error paths
+# =============================================================================
+
+
+def test_apply_dynamic_int8_quantization_runtime_error(monkeypatch):
+    """Test apply_dynamic_int8_quantization handles quantization failure."""
+    import sys
+
+    mock_torch = MagicMock()
+    mock_torch.nn.Linear = MagicMock()
+    mock_torch.nn.LSTM = MagicMock()
+    mock_torch.qint8 = "qint8"
+    mock_torch.backends = MagicMock()
+
+    mock_quant = MagicMock()
+    # Simulate quantization failure
+    mock_quant.quantize_dynamic.side_effect = RuntimeError("Quantization failed")
+
+    # Set up torch.ao.quantization namespace
+    mock_torch.ao = MagicMock()
+    mock_torch.ao.quantization = mock_quant
+
+    mock_model = MagicMock()
+    mock_model.parameters.return_value = []
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "torch.ao.quantization", mock_quant)
+
+    with pytest.raises(RuntimeError, match="Failed to apply INT8 quantization"):
+        apply_dynamic_int8_quantization(mock_model)
+
+
+# =============================================================================
+# Test apply_static_int8_quantization error paths
+# =============================================================================
+
+
+def test_apply_static_int8_quantization_import_error():
+    """Test apply_static_int8_quantization raises ImportError."""
+    with patch.dict("sys.modules", {"torch": None}):
+        with pytest.raises((ImportError, RuntimeError)):
+            apply_static_int8_quantization(MagicMock(), MagicMock())
+
+
+def test_apply_static_int8_quantization_runtime_error(monkeypatch):
+    """Test apply_static_int8_quantization handles quantization failure."""
+    import sys
+
+    mock_torch = MagicMock()
+    mock_torch.no_grad = MagicMock(
+        return_value=MagicMock(__enter__=MagicMock(), __exit__=MagicMock())
+    )
+    mock_torch.backends = MagicMock()
+
+    mock_quant = MagicMock()
+    # Simulate prepare failure
+    mock_quant.get_default_qconfig.return_value = MagicMock()
+    mock_quant.prepare.side_effect = RuntimeError("Prepare failed")
+
+    # Set up torch.ao.quantization namespace
+    mock_torch.ao = MagicMock()
+    mock_torch.ao.quantization = mock_quant
+
+    mock_model = MagicMock()
+    mock_model.parameters.return_value = []
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "torch.ao.quantization", mock_quant)
+
+    calibration_fn = MagicMock()
+
+    with pytest.raises(RuntimeError, match="Failed to apply static INT8 quantization"):
+        apply_static_int8_quantization(mock_model, calibration_fn)
+
+
+# =============================================================================
+# Test apply_int8_quantization_async edge cases
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_apply_int8_quantization_async_with_calibration_data_no_static():
+    """Test apply_int8_quantization_async with calibration_data but use_static=False."""
+    mock_result = QuantizationResult(
+        model=MagicMock(),
+        original_size_mb=100.0,
+        quantized_size_mb=25.0,
+        compression_ratio=4.0,
+        quantization_type=QuantizationType.INT8,
+        backend="x86",
+    )
+
+    with patch(
+        "backend.services.quantization.apply_dynamic_int8_quantization",
+        return_value=mock_result,
+    ):
+        # Even with calibration_data, should use dynamic if use_static=False
+        calibration_data = [MagicMock(), MagicMock()]
+        result = await apply_int8_quantization_async(
+            MagicMock(),
+            calibration_data=calibration_data,
+            use_static=False,
+        )
+
+        assert result == mock_result
+
+
+@pytest.mark.asyncio
+async def test_apply_int8_quantization_async_static_no_calibration_data():
+    """Test apply_int8_quantization_async with use_static=True but no calibration_data."""
+    mock_result = QuantizationResult(
+        model=MagicMock(),
+        original_size_mb=100.0,
+        quantized_size_mb=25.0,
+        compression_ratio=4.0,
+        quantization_type=QuantizationType.INT8,
+        backend="x86",
+    )
+
+    with patch(
+        "backend.services.quantization.apply_dynamic_int8_quantization",
+        return_value=mock_result,
+    ):
+        # Should fall back to dynamic if no calibration_data
+        result = await apply_int8_quantization_async(
+            MagicMock(),
+            calibration_data=None,
+            use_static=True,
+        )
+
+        assert result == mock_result
+
+
+@pytest.mark.asyncio
+async def test_apply_int8_quantization_async_static_calibration_called():
+    """Test apply_int8_quantization_async calls calibration function with samples."""
+    import sys
+
+    mock_torch = MagicMock()
+    mock_torch.no_grad = MagicMock(
+        return_value=MagicMock(__enter__=MagicMock(), __exit__=MagicMock())
+    )
+    mock_torch.backends = MagicMock()
+
+    # Mock quantization result
+    mock_param = MagicMock()
+    mock_param.numel.return_value = 500000
+    mock_param.dtype = "int8"
+
+    mock_prepared_model = MagicMock()
+    mock_prepared_model.parameters.return_value = [mock_param]
+
+    mock_converted_model = MagicMock()
+    mock_converted_model.parameters.return_value = [mock_param]
+
+    mock_quant = MagicMock()
+    mock_quant.get_default_qconfig.return_value = MagicMock()
+    mock_quant.prepare.return_value = mock_prepared_model
+    mock_quant.convert.return_value = mock_converted_model
+
+    # Set up torch.ao.quantization namespace
+    mock_torch.ao = MagicMock()
+    mock_torch.ao.quantization = mock_quant
+
+    mock_original_model = MagicMock()
+    mock_original_param = MagicMock()
+    mock_original_param.numel.return_value = 1000000
+    mock_original_param.dtype = "float32"
+    mock_original_model.parameters.return_value = [mock_original_param]
+
+    # Create calibration samples
+    sample1 = MagicMock()
+    sample2 = MagicMock()
+    calibration_data = [sample1, sample2]
+
+    with patch.dict(sys.modules, {"torch": mock_torch}):
+        with patch.dict(sys.modules, {"torch.ao.quantization": mock_quant}):
+            result = await apply_int8_quantization_async(
+                mock_original_model,
+                calibration_data=calibration_data,
+                use_static=True,
+            )
+
+            # Verify the prepared model was called with each sample
+            assert mock_prepared_model.call_count == 2
+            mock_prepared_model.assert_any_call(sample1)
+            mock_prepared_model.assert_any_call(sample2)
+
+            # Verify result
+            assert isinstance(result, QuantizationResult)
+            assert result.quantization_type == QuantizationType.INT8
+
+
+# =============================================================================
 # Test integration with Model Zoo
 # =============================================================================
 

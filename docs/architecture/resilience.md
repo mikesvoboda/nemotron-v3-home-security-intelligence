@@ -3,10 +3,10 @@ title: Resilience Architecture
 description: Circuit breakers, retry logic, dead-letter queues, health monitoring, and graceful degradation patterns
 last_updated: 2026-01-18
 source_refs:
-  - backend/services/circuit_breaker.py:CircuitBreaker:259
-  - backend/services/circuit_breaker.py:CircuitBreakerConfig:127
-  - backend/services/circuit_breaker.py:CircuitBreakerRegistry:957
-  - backend/services/circuit_breaker.py:CircuitState:119
+  - backend/services/circuit_breaker.py:CircuitBreaker:270
+  - backend/services/circuit_breaker.py:CircuitBreakerConfig:139
+  - backend/services/circuit_breaker.py:CircuitBreakerRegistry:1018
+  - backend/services/circuit_breaker.py:CircuitState:130
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreaker:96
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitState:39
   - backend/core/websocket_circuit_breaker.py:WebSocketCircuitBreakerMetrics:47
@@ -18,11 +18,11 @@ source_refs:
   - backend/services/health_monitor.py:ServiceHealthMonitor:44
   - backend/services/degradation_manager.py:DegradationManager
   - backend/services/service_managers.py:ServiceManager
-  - frontend/src/hooks/useWebSocket.ts:useWebSocket:52
-  - frontend/src/hooks/useWebSocket.ts:WebSocketOptions:11
-  - frontend/src/hooks/useWebSocket.ts:UseWebSocketReturn:38
-  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:136
-  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:99
+  - frontend/src/hooks/useWebSocket.ts:useWebSocket:56
+  - frontend/src/hooks/useWebSocket.ts:WebSocketOptions:13
+  - frontend/src/hooks/useWebSocket.ts:UseWebSocketReturn:40
+  - frontend/src/hooks/webSocketManager.ts:WebSocketManager:187
+  - frontend/src/hooks/webSocketManager.ts:calculateBackoffDelay:150
 ---
 
 # Resilience Architecture
@@ -116,7 +116,7 @@ flowchart TB
 
 | Component                                                        | Location                                  | Responsibility                              |
 | ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
-| [CircuitBreaker](../../backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:259` | Prevents cascading failures by failing fast |
+| [CircuitBreaker](../../backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:270` | Prevents cascading failures by failing fast |
 | [RetryHandler](../../backend/services/retry_handler.py)          | `backend/services/retry_handler.py:184`   | Exponential backoff with DLQ support        |
 | [ServiceHealthMonitor](../../backend/services/health_monitor.py) | `backend/services/health_monitor.py:44`   | Periodic health checks and auto-recovery    |
 | DegradationManager                                               | `backend/services/degradation_manager.py` | Graceful degradation during outages         |
@@ -162,10 +162,10 @@ stateDiagram-v2
 
 ### Implementation Details
 
-The [CircuitBreaker](../../backend/services/circuit_breaker.py) class at line 259 implements the pattern:
+The [CircuitBreaker](../../backend/services/circuit_breaker.py) class at line 270 implements the pattern:
 
 ```python
-# backend/services/circuit_breaker.py:259
+# backend/services/circuit_breaker.py:270
 class CircuitBreaker:
     """Circuit breaker for protecting external service calls.
 
@@ -189,7 +189,7 @@ class CircuitBreaker:
 
 ### Circuit Breaker Configuration
 
-The [CircuitBreakerConfig](../../backend/services/circuit_breaker.py) at line 127 defines behavior:
+The [CircuitBreakerConfig](../../backend/services/circuit_breaker.py) at line 139 defines behavior:
 
 | Parameter             | Default | Description                                  |
 | --------------------- | ------- | -------------------------------------------- |
@@ -223,7 +223,7 @@ except CircuitBreakerError:
 
 ### Circuit Breaker Registry
 
-The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 957 manages multiple breakers:
+The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 1018 manages multiple breakers:
 
 ![Circuit Breaker Registry](../images/resilience/circuit-breaker-registry.svg)
 

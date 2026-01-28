@@ -10,11 +10,52 @@ When you first open the dashboard, an interactive product tour guides you throug
 
 The product tour automatically starts the first time you visit the dashboard. It walks you through each main feature with highlighted explanations.
 
+### Tour Flow Overview
+
+```mermaid
+flowchart TB
+    subgraph TourSteps["Product Tour Progression"]
+        direction TB
+        S1["Step 1: Welcome<br/>Introduction message"]
+        S2["Step 2: Risk Gauge<br/>Security status at a glance"]
+        S3["Step 3: Camera Grid<br/>Live camera status"]
+        S4["Step 4: Activity Feed<br/>Real-time events"]
+        S5["Step 5: Event Timeline<br/>Historical browsing"]
+        S6["Step 6: Settings<br/>Configuration options"]
+        S7["Step 7: Complete<br/>Enable notifications"]
+    end
+
+    subgraph Actions["User Actions"]
+        direction TB
+        NEXT["Next"]
+        BACK["Back"]
+        SKIP["Skip Tour"]
+    end
+
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+    S5 --> S6
+    S6 --> S7
+
+    NEXT -.-> |"Progress"| S2
+    BACK -.-> |"Return"| S1
+    SKIP -.-> |"Exit early"| S7
+
+    style TourSteps fill:#1e3a5f,stroke:#76B900,color:#fff
+    style Actions fill:#2d4a3e,stroke:#76B900,color:#fff
+    style S1 fill:#4a3a2d,stroke:#76B900,color:#fff
+    style S7 fill:#4a3a2d,stroke:#76B900,color:#fff
+```
+
+_The tour progresses through 7 steps, highlighting each major feature of the dashboard._
+
 ### Starting the Tour
 
 The tour starts automatically for first-time users. If you want to restart it later:
 
-1. Open the **Settings** page (press `g ,` or click Settings in the sidebar)
+1. Open the **Settings** page (press `g s` or click Settings in the sidebar)
 2. The tour can be restarted by clearing your browser's localStorage for the site
 3. You can also restart by opening the browser console and running:
    ```javascript
@@ -116,10 +157,12 @@ The tour consists of 7 steps that introduce you to the dashboard:
 
 - Camera configuration and management
 - Notification preferences
-- AI detection settings
-- Option to restart this tour
+- AI detection settings and calibration
+- Storage management and cleanup
 
 **Why it matters:** Customize how the system works for your specific needs.
+
+> **Note:** To restart the tour, clear the tour-related localStorage keys (see "Starting the Tour" section above) and refresh the page. There is no restart button in the Settings UI.
 
 ---
 
@@ -209,12 +252,12 @@ After setup, here is what each part of the dashboard shows:
 | ----------- | ----------------- | --------------------------------- |
 | Dashboard   | `g d`             | Main overview with risk gauge     |
 | Timeline    | `g t`             | Historical event browser          |
-| Analytics   | `g a`             | Charts and statistics             |
-| Alerts      | `g l`             | Active alerts requiring attention |
+| Analytics   | `g n`             | Charts and statistics             |
+| Alerts      | `g a`             | Active alerts requiring attention |
 | Entities    | `g e`             | Tracked people and vehicles       |
 | Logs        | `g o`             | System logs for troubleshooting   |
-| System      | `g s`             | System health monitoring          |
-| Settings    | `g ,`             | Configuration options             |
+| System      | `g y`             | System health monitoring          |
+| Settings    | `g s`             | Configuration options             |
 
 ### Quick Stats Row
 
@@ -247,12 +290,12 @@ Learn these shortcuts to navigate faster. Press `?` anywhere to see the full lis
 | ----- | ----------- |
 | `g d` | Dashboard   |
 | `g t` | Timeline    |
-| `g a` | Analytics   |
-| `g l` | Alerts      |
+| `g n` | Analytics   |
+| `g a` | Alerts      |
 | `g e` | Entities    |
 | `g o` | Logs        |
-| `g s` | System      |
-| `g ,` | Settings    |
+| `g y` | System      |
+| `g s` | Settings    |
 
 ### List Navigation (when viewing event lists)
 

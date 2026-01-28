@@ -16,7 +16,7 @@ The middleware architecture follows defense-in-depth principles, with multiple l
 | ------------------------------------------------ | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | [request-logging.md](./request-logging.md)       | Structured request/response logging for observability | `backend/api/middleware/request_logging.py`                                                     |
 | [error-handling.md](./error-handling.md)         | Global exception handlers and error response formats  | `backend/api/exception_handlers.py`, `backend/api/middleware/error_handler.py`                  |
-| [cors-configuration.md](./cors-configuration.md) | CORS settings for frontend integration                | `backend/main.py:1041-1053`, `backend/core/config.py:572-585`                                   |
+| [cors-configuration.md](./cors-configuration.md) | CORS settings for frontend integration                | `backend/main.py:1127-1139`, `backend/core/config.py:752-765`                                   |
 | [request-validation.md](./request-validation.md) | Pydantic validation, path parameter parsing           | `backend/api/middleware/content_type_validator.py`, `backend/api/exception_handlers.py:305-374` |
 | [rate-limiting.md](./rate-limiting.md)           | Rate limit configuration and tiers                    | `backend/api/middleware/rate_limit.py`                                                          |
 
@@ -29,23 +29,25 @@ graph TD
     end
 
     subgraph "Middleware Stack (Execution Order)"
-        AUTH[AuthMiddleware<br/>backend/api/middleware/auth.py:129] --> CT
-        CT[ContentTypeValidationMiddleware<br/>backend/api/middleware/content_type_validator.py:28] --> RID
-        RID[RequestIDMiddleware<br/>backend/api/middleware/request_id.py:45] --> RT
-        RT[RequestTimingMiddleware<br/>backend/api/middleware/request_timing.py:26] --> RL
-        RL[RequestLoggingMiddleware<br/>backend/api/middleware/request_logging.py:136] --> RR
+        AUTH[AuthMiddleware<br/>backend/api/middleware/auth.py] --> CT
+        CT[ContentTypeValidationMiddleware<br/>backend/api/middleware/content_type_validator.py] --> RID
+        RID[RequestIDMiddleware<br/>backend/api/middleware/request_id.py] --> BAG
+        BAG[BaggageMiddleware<br/>backend/api/middleware/baggage.py] --> RT
+        RT[RequestTimingMiddleware<br/>backend/api/middleware/request_timing.py] --> RL
+        RL[RequestLoggingMiddleware<br/>backend/api/middleware/request_logging.py] --> RR
         RR[RequestRecorderMiddleware<br/>backend/api/middleware/request_recorder.py] --> DEP
         DEP[DeprecationMiddleware<br/>backend/api/middleware/deprecation.py] --> DEPL
         DEPL[DeprecationLoggerMiddleware<br/>backend/api/middleware/deprecation_logger.py] --> CORS
         CORS[CORSMiddleware<br/>FastAPI builtin] --> SEC
-        SEC[SecurityHeadersMiddleware<br/>backend/api/middleware/security_headers.py:23] --> BL
-        BL[BodySizeLimitMiddleware<br/>backend/api/middleware/body_limit.py:40] --> IDEM
-        IDEM[IdempotencyMiddleware<br/>backend/api/middleware/idempotency.py:107] --> ROUTE
+        SEC[SecurityHeadersMiddleware<br/>backend/api/middleware/security_headers.py] --> BL
+        BL[BodySizeLimitMiddleware<br/>backend/api/middleware/body_limit.py] --> GZIP
+        GZIP[GZipMiddleware<br/>FastAPI builtin] --> IDEM
+        IDEM[IdempotencyMiddleware<br/>backend/api/middleware/idempotency.py] --> ROUTE
     end
 
     subgraph "Route Processing"
         ROUTE[Route Handler] --> EH
-        EH[Exception Handlers<br/>backend/api/exception_handlers.py:695]
+        EH[Exception Handlers<br/>backend/api/exception_handlers.py]
     end
 
     subgraph "Response"
@@ -60,25 +62,29 @@ graph TD
 
 ## Quick Reference
 
-| Component                       | File                                                      | Purpose                        |
-| ------------------------------- | --------------------------------------------------------- | ------------------------------ |
-| AuthMiddleware                  | `backend/api/middleware/auth.py:129-307`                  | API key authentication         |
-| ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py:28-195` | Validate Content-Type headers  |
-| RequestIDMiddleware             | `backend/api/middleware/request_id.py:45-90`              | Generate/propagate request IDs |
-| RequestTimingMiddleware         | `backend/api/middleware/request_timing.py:26-156`         | Measure request duration       |
-| RequestLoggingMiddleware        | `backend/api/middleware/request_logging.py:136-321`       | Structured request logging     |
-| DeprecationMiddleware           | `backend/api/middleware/deprecation.py`                   | RFC 8594 deprecation headers   |
-| CORSMiddleware                  | FastAPI builtin                                           | Cross-Origin Resource Sharing  |
-| SecurityHeadersMiddleware       | `backend/api/middleware/security_headers.py:23-176`       | Security response headers      |
-| BodySizeLimitMiddleware         | `backend/api/middleware/body_limit.py:40-103`             | Request body size limits       |
-| IdempotencyMiddleware           | `backend/api/middleware/idempotency.py:107-593`           | Idempotency-Key support        |
-| RateLimiter                     | `backend/api/middleware/rate_limit.py:266-435`            | Rate limiting (dependency)     |
+| Component                       | File                                               | Purpose                           |
+| ------------------------------- | -------------------------------------------------- | --------------------------------- |
+| AuthMiddleware                  | `backend/api/middleware/auth.py`                   | API key authentication            |
+| ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py` | Validate Content-Type headers     |
+| RequestIDMiddleware             | `backend/api/middleware/request_id.py`             | Generate/propagate request IDs    |
+| BaggageMiddleware               | `backend/api/middleware/baggage.py`                | OpenTelemetry context propagation |
+| RequestTimingMiddleware         | `backend/api/middleware/request_timing.py`         | Measure request duration          |
+| RequestLoggingMiddleware        | `backend/api/middleware/request_logging.py`        | Structured request logging        |
+| RequestRecorderMiddleware       | `backend/api/middleware/request_recorder.py`       | Debug request recording           |
+| DeprecationMiddleware           | `backend/api/middleware/deprecation.py`            | RFC 8594 deprecation headers      |
+| DeprecationLoggerMiddleware     | `backend/api/middleware/deprecation_logger.py`     | Log deprecated endpoint usage     |
+| CORSMiddleware                  | FastAPI builtin                                    | Cross-Origin Resource Sharing     |
+| SecurityHeadersMiddleware       | `backend/api/middleware/security_headers.py`       | Security response headers         |
+| BodySizeLimitMiddleware         | `backend/api/middleware/body_limit.py`             | Request body size limits          |
+| GZipMiddleware                  | FastAPI builtin                                    | Response compression              |
+| IdempotencyMiddleware           | `backend/api/middleware/idempotency.py`            | Idempotency-Key support           |
+| RateLimiter                     | `backend/api/middleware/rate_limit.py`             | Rate limiting (route dependency)  |
 
 ## Key Concepts
 
 ### Middleware Execution Order
 
-![Middleware Processing Chain - Request and response flow through middleware stack](../../images/architecture/middleware/middleware-chain.png)
+![Middleware Processing Chain - Request and response flow through middleware stack](../../images/architecture/middleware-chain.png)
 
 Middleware in Starlette/FastAPI executes in **reverse registration order** for requests and **registration order** for responses. The middleware registered first wraps all subsequent middleware:
 
@@ -87,7 +93,7 @@ Request:  Client -> Last Registered -> ... -> First Registered -> Route
 Response: Route -> First Registered -> ... -> Last Registered -> Client
 ```
 
-This means `AuthMiddleware` (registered first in `backend/main.py:1003`) processes requests first and responses last.
+This means `AuthMiddleware` (registered first in `backend/main.py:1084`) processes requests first and responses last.
 
 ### Exception Handlers vs Middleware
 
@@ -106,7 +112,7 @@ Several middleware components use Python context variables to share state across
 | Setting                          | Location                         | Default             | Description                   |
 | -------------------------------- | -------------------------------- | ------------------- | ----------------------------- |
 | `api_key_enabled`                | `backend/core/config.py`         | `false`             | Enable API key authentication |
-| `cors_origins`                   | `backend/core/config.py:575-585` | Development origins | Allowed CORS origins          |
+| `cors_origins`                   | `backend/core/config.py:752-765` | Development origins | Allowed CORS origins          |
 | `rate_limit_enabled`             | `backend/core/config.py:1328`    | `true`              | Enable rate limiting          |
 | `rate_limit_requests_per_minute` | `backend/core/config.py:1332`    | `60`                | Default rate limit            |
 | `request_logging_enabled`        | `backend/core/config.py:1821`    | `true`              | Enable request logging        |
@@ -116,20 +122,42 @@ Several middleware components use Python context variables to share state across
 
 ## Middleware Registration
 
-Middleware is registered in `backend/main.py:1003-1070`:
+Middleware is registered in `backend/main.py:1083-1162`:
 
 ```python
-# From backend/main.py:1003-1070
+# From backend/main.py:1083-1162
+# Add authentication middleware (if enabled in settings)
 app.add_middleware(AuthMiddleware)
+
+# Add Content-Type validation middleware for request body validation (NEM-1617)
 app.add_middleware(ContentTypeValidationMiddleware)
+
+# Add request ID middleware for log correlation
 app.add_middleware(RequestIDMiddleware)
+
+# Add OpenTelemetry Baggage middleware for cross-service context propagation (NEM-3796)
+app.add_middleware(BaggageMiddleware)
+
+# Add request timing middleware for API latency tracking (NEM-1469)
 app.add_middleware(RequestTimingMiddleware)
+
+# Add request logging middleware for structured observability (NEM-1963)
 if get_settings().request_logging_enabled:
     app.add_middleware(RequestLoggingMiddleware)
+
+# Add request recording middleware for debugging production issues (NEM-1964)
 if get_settings().request_recording_enabled:
     app.add_middleware(RequestRecorderMiddleware)
+
+# Add RFC 8594 deprecation headers middleware (NEM-2089)
 app.add_middleware(DeprecationMiddleware, config=_get_deprecation_config())
+
+# Add deprecation logger middleware for tracking deprecated endpoint usage (NEM-2090)
 app.add_middleware(DeprecationLoggerMiddleware)
+
+# Security: Restrict CORS methods to only what's needed
+_cors_origins = get_settings().cors_origins
+_allow_credentials = "*" not in _cors_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -137,8 +165,17 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Add security headers middleware for defense-in-depth
 app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_preload)
+
+# Add body size limit middleware to prevent DoS attacks (NEM-1614)
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
+
+# Add GZip compression middleware for response compression (NEM-3741)
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
+
+# Add idempotency middleware for mutation endpoints (NEM-1999)
 if get_settings().idempotency_enabled:
     app.add_middleware(IdempotencyMiddleware)
 ```

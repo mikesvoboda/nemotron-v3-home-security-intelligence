@@ -24,6 +24,7 @@ from backend.api.exception_handlers import (
     generic_exception_handler,
     register_exception_handlers,
 )
+from backend.api.middleware.exception_handler import create_safe_error_message
 from backend.core.sanitization import sanitize_error_for_response
 
 # Mark as unit tests - no database required
@@ -524,3 +525,266 @@ class TestErrorResponseFormat:
         body = response.json()
         # request_id may or may not be present depending on middleware order
         assert "error" in body
+
+
+# =============================================================================
+# create_safe_error_message Tests
+# =============================================================================
+
+
+class TestCreateSafeErrorMessage:
+    """Tests for create_safe_error_message function."""
+
+    def test_basic_error_sanitization(self):
+        """Test basic error message sanitization without options."""
+        error = ValueError("Invalid input value")
+        result = create_safe_error_message(error)
+
+        assert result == "Invalid input value"
+        assert isinstance(result, str)
+
+    def test_error_with_file_path(self):
+        """Test that file paths are sanitized in error messages."""
+        error = FileNotFoundError("/home/user/secrets/config.yaml not found")
+        result = create_safe_error_message(error)
+
+        # Directory path should be removed
+        assert "/home/user/secrets" not in result
+        # Filename should remain
+        assert "config.yaml" in result
+
+    def test_error_with_context(self):
+        """Test error message with context parameter."""
+        error = ValueError("Database timeout")
+        result = create_safe_error_message(error, context="processing image")
+
+        # Context should be included
+        assert "Error processing image:" in result
+        assert "timeout" in result.lower()
+
+    def test_error_with_context_and_exception_type(self):
+        """Test that context takes precedence when both options are provided."""
+        error = ValueError("Something failed")
+        result = create_safe_error_message(
+            error, context="loading data", include_exception_type=True
+        )
+
+        # Context should be present (takes precedence)
+        assert "Error loading data:" in result
+        # Exception type should NOT be added when context is present
+        assert "ValueError:" not in result
+        assert "Something failed" in result
+
+    def test_error_with_exception_type_no_context(self):
+        """Test error message with exception type but no context."""
+        error = RuntimeError("Operation failed")
+        result = create_safe_error_message(error, include_exception_type=True)
+
+        # Exception type should be included
+        assert result.startswith("RuntimeError:")
+        assert "Operation failed" in result
+
+    def test_error_with_sensitive_data(self):
+        """Test that sensitive data is redacted."""
+        error = Exception("Failed to connect: password=secret123 at 192.168.1.100")
+        result = create_safe_error_message(error)
+
+        # Sensitive data should be redacted
+        assert "secret123" not in result
+        assert "192.168.1.100" not in result
+        assert "REDACTED" in result
+
+    def test_error_with_api_key(self):
+        """Test that API keys are redacted."""
+        error = ValueError("Request failed with api_key=sk-test12345")
+        result = create_safe_error_message(error)
+
+        assert "sk-test12345" not in result
+        assert "REDACTED" in result
+
+    def test_error_with_url_credentials(self):
+        """Test that URL credentials are redacted."""
+        error = ConnectionError("Cannot connect to postgres://user:pass@host/db")
+        result = create_safe_error_message(error)
+
+        # Password should be redacted - either completely removed or replaced with REDACTED
+        assert "pass" not in result or "REDACTED" in result
+        # The credentials part (user:pass@) should be removed or redacted
+        assert "user:pass@" not in result
+
+    def test_very_long_error_message(self):
+        """Test that very long error messages are truncated."""
+        error = Exception("Error: " + "x" * 500)
+        result = create_safe_error_message(error)
+
+        # Message should be truncated
+        assert len(result) <= 210
+        assert "..." in result
+
+    def test_empty_error_message(self):
+        """Test handling of empty error message."""
+        error = ValueError("")
+        result = create_safe_error_message(error)
+
+        # Should return something, not crash
+        assert result is not None
+        assert isinstance(result, str)
+
+    def test_exception_with_none_message(self):
+        """Test handling of exception with None as message."""
+        error = Exception(None)
+        result = create_safe_error_message(error)
+
+        assert result is not None
+        assert isinstance(result, str)
+
+    def test_multiple_file_paths(self):
+        """Test handling of multiple file paths in error."""
+        error = OSError("Cannot copy /src/secret/file.txt to /dst/private/backup.txt")
+        result = create_safe_error_message(error)
+
+        # Paths should be sanitized
+        assert "/src/secret" not in result
+        assert "/dst/private" not in result
+        # Filenames should be present
+        assert "file.txt" in result
+        assert "backup.txt" in result
+
+    def test_windows_path_sanitization(self):
+        """Test Windows paths are sanitized."""
+        error = FileNotFoundError(r"C:\Users\Admin\AppData\secret.key not found")
+        result = create_safe_error_message(error)
+
+        # Windows path should be sanitized
+        assert "Admin" not in result or "AppData" not in result
+        assert "secret.key" in result
+
+    def test_context_with_special_characters(self):
+        """Test context parameter with special characters."""
+        error = ValueError("Bad value")
+        result = create_safe_error_message(error, context="parsing JSON")
+
+        assert "Error parsing JSON:" in result
+        assert "Bad value" in result
+
+    def test_include_exception_type_false(self):
+        """Test that exception type is not included when flag is False."""
+        error = TypeError("Type mismatch")
+        result = create_safe_error_message(error, include_exception_type=False)
+
+        # Exception type should NOT be in result
+        assert "TypeError:" not in result
+        assert "Type mismatch" in result
+
+    def test_include_exception_type_true(self):
+        """Test that exception type is included when flag is True."""
+        error = TypeError("Type mismatch")
+        result = create_safe_error_message(error, include_exception_type=True)
+
+        # Exception type should be in result
+        assert "TypeError:" in result
+        assert "Type mismatch" in result
+
+    def test_different_exception_types(self):
+        """Test handling of different exception types."""
+        exceptions = [
+            ValueError("value error"),
+            TypeError("type error"),
+            RuntimeError("runtime error"),
+            KeyError("key error"),
+            AttributeError("attribute error"),
+        ]
+
+        for exc in exceptions:
+            result = create_safe_error_message(exc)
+            assert result is not None
+            assert isinstance(result, str)
+            # Error message should be preserved
+            assert str(exc).lower() in result.lower()
+
+    def test_bearer_token_redaction(self):
+        """Test that Bearer tokens are redacted."""
+        error = ValueError("Auth failed: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
+        result = create_safe_error_message(error)
+
+        assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in result
+        assert "REDACTED" in result
+
+    def test_password_in_json_redaction(self):
+        """Test that passwords in JSON-like structures are redacted."""
+        error = ValueError('{"username": "admin", "password": "secret123"}')
+        result = create_safe_error_message(error)
+
+        # Password value should be redacted
+        assert "secret123" not in result
+
+    def test_context_empty_string(self):
+        """Test that empty context string is handled correctly."""
+        error = ValueError("test error")
+        result = create_safe_error_message(error, context="")
+
+        # Should behave like no context
+        assert "Error :" not in result
+        assert "test error" in result
+
+    def test_whitespace_in_error_message(self):
+        """Test handling of whitespace in error messages."""
+        error = Exception("  Error with spaces  ")
+        result = create_safe_error_message(error)
+
+        assert result is not None
+        assert "Error with spaces" in result
+
+    def test_newlines_in_error_message(self):
+        """Test handling of newlines in error messages."""
+        error = Exception("Line 1\nLine 2\nLine 3")
+        result = create_safe_error_message(error)
+
+        assert result is not None
+        # Message should be sanitized but content preserved
+        assert "Line" in result
+
+    def test_unicode_characters(self):
+        """Test handling of unicode characters."""
+        error = ValueError("Error: \u4e2d\u6587 characters")
+        result = create_safe_error_message(error)
+
+        assert result is not None
+        # Unicode should be preserved
+        assert "\u4e2d\u6587" in result or "characters" in result
+
+    def test_ip_address_redaction(self):
+        """Test that IP addresses are redacted."""
+        error = ConnectionError("Failed to connect to 10.0.0.5:5432")
+        result = create_safe_error_message(error)
+
+        assert "10.0.0.5" not in result
+        assert "IP_REDACTED" in result or "[IP_REDACTED]" in result
+
+    def test_multiple_sensitive_patterns(self):
+        """Test error with multiple types of sensitive information."""
+        error = Exception("Error at /home/user/app.py: api_key=sk-123 password=secret 192.168.1.1")
+        result = create_safe_error_message(error)
+
+        # All sensitive data should be sanitized
+        assert "/home/user" not in result
+        assert "sk-123" not in result
+        assert "secret" not in result
+        assert "192.168.1.1" not in result
+
+    def test_path_traversal_attempt(self):
+        """Test handling of path traversal patterns."""
+        error = FileNotFoundError("../../../../../../etc/passwd not found")
+        result = create_safe_error_message(error)
+
+        # Path traversal should be handled
+        assert "../" not in result
+        assert "passwd" in result
+
+    def test_context_with_punctuation(self):
+        """Test context parameter with various punctuation."""
+        error = ValueError("Invalid")
+        result = create_safe_error_message(error, context="processing user's data")
+
+        assert "Error processing user's data:" in result
+        assert "Invalid" in result

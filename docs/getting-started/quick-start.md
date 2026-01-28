@@ -70,7 +70,9 @@ That's it! The dashboard should appear automatically.
 
 When you open the dashboard, you'll see several sections:
 
-_Caption: This is what you will see when you first open the dashboard._
+![Dashboard Overview showing the main layout with stats row, risk gauge, camera grid, and activity feed](../images/dashboard-full.png)
+
+_The main dashboard view showing all key components at a glance._
 
 ### The Main Dashboard
 
@@ -86,17 +88,46 @@ This is your home base. Here's what each part shows you:
 
 ### The Sidebar Menu
 
-On the left side, you'll see navigation options:
+On the left side, you'll see navigation options organized into collapsible groups:
+
+**MONITORING**
 
 | Menu Item     | What's There                                                          |
 | ------------- | --------------------------------------------------------------------- |
 | **Dashboard** | The main overview (where you start)                                   |
 | **Timeline**  | History of all events - you can filter by camera, date, or risk level |
-| **Entities**  | (Work in progress) Will show recognized people and vehicles           |
+| **Entities**  | Recognized people, vehicles, and tracked objects                      |
 | **Alerts**    | Events that need your attention                                       |
-| **Logs**      | Technical system logs (for troubleshooting)                           |
-| **System**    | System health and performance                                         |
-| **Settings**  | Camera configuration and preferences                                  |
+
+**ANALYTICS**
+
+| Menu Item          | What's There                                |
+| ------------------ | ------------------------------------------- |
+| **Analytics**      | Charts and statistics about security events |
+| **AI Audit**       | Review AI decision-making and accuracy      |
+| **AI Performance** | Monitor AI model performance metrics        |
+| **Profiling**      | System performance profiling tools          |
+
+**OPERATIONS** (collapsed by default)
+
+| Menu Item    | What's There                            |
+| ------------ | --------------------------------------- |
+| **Jobs**     | Background job status and management    |
+| **Pipeline** | AI processing pipeline operations       |
+| **Tracing**  | Request tracing for debugging           |
+| **Logs**     | Technical system logs (troubleshooting) |
+
+**ADMIN** (collapsed by default)
+
+| Menu Item             | What's There                               |
+| --------------------- | ------------------------------------------ |
+| **Audit Log**         | Security audit trail                       |
+| **Data Management**   | Data import/export operations              |
+| **Scheduled Reports** | Configure automated report generation      |
+| **Webhooks**          | Manage webhook integrations                |
+| **Trash**             | Recover deleted events                     |
+| **GPU Settings**      | Configure GPU allocation for AI processing |
+| **Settings**          | Camera configuration and preferences       |
 
 ---
 
@@ -117,7 +148,9 @@ Once your cameras are connected and active, real events will start appearing aut
 
 ## Quick Tips for Getting Started
 
-_Caption: The Risk Gauge shows your current security status at a glance._
+![Risk Gauge component showing the current security status with color-coded risk level indicator](../images/info-risk-scoring.png)
+
+_The Risk Gauge shows your current security status at a glance._
 
 1. **Check the Risk Gauge first** - If it's green (0-29), everything is calm. Yellow (30-59) means take a look. Orange/Red (60-100) deserves prompt attention. See [Risk Levels Reference](../reference/config/risk-levels.md) for details.
 

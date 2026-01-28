@@ -11,59 +11,99 @@ The architecture separates models into two categories:
 
 ## Architecture Diagram
 
-```
-+---------------------------------------------------------------------+
-|                        Detection Pipeline                            |
-+---------------------------------------------------------------------+
-|  Camera Frame -> YOLO26 -> Detections -> Enrichment -> Nemotron  |
-+---------------------------------------------------------------------+
-                                  |
-                                  v
-+---------------------------------------------------------------------+
-|                  Enrichment Service (ai-enrichment:8094)            |
-+-----------------------+-----------------------------------------+---+
-|   Always Loaded       |        On-Demand (LRU managed)              |
-|   (~2.65GB)           |        (~6.8GB budget)                      |
-+-----------------------+---------------------------------------------+
-| - Florence-2          | CRITICAL: Threat Detection                  |
-| - CLIP ViT-L/14       | HIGH: Pose, Demographics, Clothing          |
-|                       | MEDIUM: Vehicle, Pet, Re-ID                 |
-|                       | LOW: Depth, Action Recognition              |
-+-----------------------+---------------------------------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Pipeline["Detection Pipeline"]
+        CAM[Camera Frame] --> YOLO[YOLO26]
+        YOLO --> DET[Detections]
+        DET --> ENR[Enrichment]
+        ENR --> NEM[Nemotron]
+    end
+
+    subgraph EnrichmentHeavy["Enrichment Heavy (ai-enrichment:8094) - GPU 0"]
+        subgraph HeavyModels["Heavy Models (~6.8GB budget)"]
+            VEHICLE[Vehicle Classification]
+            FASHION[Fashion Analysis]
+            DEMO[Demographics]
+            ACTION[Action Recognition]
+        end
+    end
+
+    subgraph EnrichmentLight["Enrichment Light (ai-enrichment-light:8096) - GPU 1"]
+        subgraph LightModels["Light Models (~1.2GB)"]
+            POSE[Pose Estimation]
+            THREAT[Threat Detection]
+            REID[Person Re-ID]
+            PET[Pet Classifier]
+            DEPTH[Depth Estimation]
+        end
+    end
+
+    Pipeline --> EnrichmentHeavy
+    Pipeline --> EnrichmentLight
 ```
 
 ## Service Architecture
 
 ### Core Services (Containerized)
 
-| Service    | Container     | Port | Model                | VRAM    | Purpose                       |
-| ---------- | ------------- | ---- | -------------------- | ------- | ----------------------------- |
-| YOLO26     | ai-yolo26     | 8095 | YOLO26 R101vd        | ~650MB  | Primary object detection      |
-| Nemotron   | ai-nemotron   | 8091 | Nemotron-3-Nano-30B  | ~18GB   | Risk reasoning and analysis   |
-| Florence-2 | ai-florence   | 8092 | Florence-2-Large     | ~1.2GB  | Scene understanding, OCR      |
-| CLIP       | ai-clip       | 8093 | CLIP ViT-L/14        | ~800MB  | Embeddings, anomaly detection |
-| Enrichment | ai-enrichment | 8094 | Multiple (on-demand) | ~2.65GB | Classification enrichment     |
+| Service            | Container           | Port | Model                    | VRAM    | Purpose                               |
+| ------------------ | ------------------- | ---- | ------------------------ | ------- | ------------------------------------- |
+| YOLO26             | ai-yolo26           | 8095 | YOLO26m (TensorRT FP16)  | ~2GB    | Primary object detection              |
+| Nemotron           | ai-nemotron         | 8091 | Nemotron-3-Nano-30B-A3B  | ~14.7GB | Risk reasoning and analysis           |
+| Florence-2         | ai-florence         | 8092 | Florence-2-Large         | ~1.2GB  | Scene understanding, OCR              |
+| CLIP               | ai-clip             | 8093 | CLIP ViT-L/14            | ~800MB  | Embeddings, anomaly detection         |
+| Enrichment (Heavy) | ai-enrichment       | 8094 | Transformers (on-demand) | ~6.8GB  | Heavy models (vehicle, fashion, etc.) |
+| Enrichment (Light) | ai-enrichment-light | 8096 | Small models (on-demand) | ~1.2GB  | Light models (pose, threat, reid)     |
+
+### Enrichment Service Split
+
+The enrichment models are split across two services based on GPU requirements:
+
+| Service                 | Port | Target GPU   | Models                                |
+| ----------------------- | ---- | ------------ | ------------------------------------- |
+| **ai-enrichment**       | 8094 | GPU 0 (24GB) | Vehicle, fashion, age, gender, action |
+| **ai-enrichment-light** | 8096 | GPU 1 (4GB)  | Pose, threat, reid, pet, depth        |
+
+The backend routes requests to the appropriate service based on `ENRICHMENT_*_SERVICE` environment variables. See [AI Enrichment Light Service](../operator/services/ai-enrichment-light.md) for detailed documentation.
 
 ### Data Flow
 
-```
-Camera Images
-      |
-      v
-+-------------+      +-------------+
-|  YOLO26  |----->|  Enrichment |
-|   (8095)    |      |   (8094)    |
-+-------------+      +-------------+
-      |                    |
-      |   Detections       |  Classified Detections
-      v                    v
-+------------------------------------+
-|         Nemotron (8091)            |
-|     Risk Analysis & Scoring        |
-+------------------------------------+
-                |
-                v
-          Risk Events
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    CAM[Camera Images]
+    CAM --> YOLO["YOLO26<br/>(8095)"]
+    YOLO --> ENR["Enrichment<br/>(8094)"]
+    YOLO -->|Detections| NEM
+    ENR -->|Classified Detections| NEM
+    NEM["Nemotron (8091)<br/>Risk Analysis & Scoring"]
+    NEM --> EVT[Risk Events]
 ```
 
 ## Model Details
@@ -72,9 +112,9 @@ Camera Images
 
 #### YOLO26 (ai-yolo26:8095)
 
-- **Model**: PekingU/yolo26_r50vd_coco_o365
-- **Architecture**: Real-Time Detection Transformer v2
-- **VRAM**: ~650MB
+- **Model**: YOLO26m (Ultralytics with TensorRT)
+- **Architecture**: YOLO26 object detection with TensorRT FP16 optimization
+- **VRAM**: ~2GB (with TensorRT FP16 engine)
 - **Inference Time**: 30-50ms per image
 - **Output**: Bounding boxes with class labels and confidence scores
 
@@ -144,11 +184,21 @@ SECURITY_CLASSES = {
 
 #### Nemotron (ai-nemotron:8091)
 
+**Production Model:**
+
 - **Model**: nvidia/Nemotron-3-Nano-30B-A3B-GGUF (Q4_K_M quantization)
-- **Architecture**: Large Language Model via llama.cpp
-- **VRAM**: ~18GB
-- **Context Window**: 131,072 tokens
+- **Architecture**: Large Language Model via llama.cpp with Mixture-of-Experts (MoE) routing
+- **Parameters**: 30 billion (A3B active routing variant)
+- **VRAM**: ~14.7GB
+- **Context Window**: 131,072 tokens (128K)
 - **Purpose**: Risk reasoning, threat analysis, natural language generation
+
+**Development Model (resource-constrained environments):**
+
+- **Model**: bartowski/nemotron-mini-4b-instruct-GGUF (Q4_K_M quantization)
+- **Parameters**: 4 billion
+- **VRAM**: ~3GB
+- **Context Window**: 4,096 tokens
 
 **Risk Score Ranges**:
 | Score | Level | Description |
@@ -158,14 +208,19 @@ SECURITY_CLASSES = {
 | 60-84 | High | Suspicious activity |
 | 85-100 | Critical | Potential security threat |
 
-### On-Demand Models (Enrichment Service)
+### On-Demand Models (Enrichment Services)
 
-The enrichment service (`ai-enrichment:8094`) manages these models with LRU eviction within a 6.8GB VRAM budget.
+The enrichment models are split across two services:
+
+- **ai-enrichment** (port 8094): Heavy transformer models running on GPU 0 (~6.8GB budget)
+- **ai-enrichment-light** (port 8096): Small efficient models running on GPU 1 (~1.2GB budget)
+
+The backend routes requests to the appropriate service based on the `ENRICHMENT_*_SERVICE` environment variables (e.g., `ENRICHMENT_POSE_SERVICE=light`).
 
 #### Threat Detection (CRITICAL Priority)
 
 - **Model**: Subh775/Threat-Detection-YOLOv8n
-- **VRAM**: ~400MB
+- **VRAM**: ~300MB (per model_zoo.py)
 - **Purpose**: Detect weapons (knives, guns, etc.)
 - **Trigger**: All person detections in security-sensitive contexts
 - **Eviction**: Never evicted if possible
@@ -184,8 +239,8 @@ The enrichment service (`ai-enrichment:8094`) manages these models with LRU evic
 
 #### Pose Estimation (HIGH Priority)
 
-- **Model**: YOLOv8n-pose
-- **VRAM**: ~300MB
+- **Model**: ViTPose+ Small (primary, ~1.5GB), YOLOv8n-pose (fallback, ~200MB)
+- **VRAM**: ~1.5GB (ViTPose) or ~200MB (YOLOv8n-pose)
 - **Purpose**: Body pose detection, posture classification
 - **Trigger**: Person detections
 - **Output**: 17 COCO keypoints per person
@@ -212,8 +267,8 @@ COCO_KEYPOINT_NAMES = [
 
 #### Demographics (HIGH Priority)
 
-- **Model**: ViT Age + Gender classifiers
-- **VRAM**: ~500MB
+- **Model**: ViT Age Classifier (~200MB) + ViT Gender Classifier (~200MB)
+- **VRAM**: ~400MB total (200MB each, loaded separately)
 - **Purpose**: Age range and gender estimation from face crops
 - **Trigger**: Person detections with visible face
 
@@ -231,8 +286,8 @@ COCO_KEYPOINT_NAMES = [
 
 #### Clothing Analysis (HIGH Priority)
 
-- **Model**: patrickjohncyh/fashion-clip (FashionCLIP)
-- **VRAM**: ~800MB
+- **Model**: Marqo/marqo-fashionSigLIP (FashionSigLIP) - upgraded from FashionCLIP for 57% accuracy improvement
+- **VRAM**: ~500MB
 - **Purpose**: Identify clothing types, uniforms, suspicious attire
 - **Trigger**: Person detections
 
@@ -324,6 +379,87 @@ VEHICLE_SEGMENT_CLASSES = [
 }
 ```
 
+#### Vehicle Damage Detection (MEDIUM Priority)
+
+- **Model**: harpreetsahota/car-dd-segmentation-yolov11 (YOLOv11x-seg)
+- **VRAM**: ~2GB
+- **Purpose**: Detect and segment vehicle damage for security analysis
+- **Trigger**: Vehicle detections (car, truck, bus, motorcycle)
+- **License**: AGPL-3.0
+
+**Damage Classes**:
+
+```python
+DAMAGE_CLASSES = [
+    "crack",         # Surface cracks in paint/body
+    "dent",          # Impact dents on body panels
+    "glass_shatter", # Broken/shattered glass (HIGH SECURITY)
+    "lamp_broken",   # Damaged headlights/taillights (HIGH SECURITY)
+    "scratch",       # Surface scratches on paint
+    "tire_flat",     # Flat or damaged tires
+]
+```
+
+**High-Security Damage Types**:
+
+| Damage Type     | Security Implication                                  |
+| --------------- | ----------------------------------------------------- |
+| `glass_shatter` | Possible break-in attempt, vandalism, or collision    |
+| `lamp_broken`   | Possible vandalism, hit-and-run, or deliberate damage |
+
+**Input**: Cropped vehicle image from YOLO26 detection
+
+**Output**:
+
+```json
+{
+  "detections": [
+    {
+      "damage_type": "glass_shatter",
+      "confidence": 0.87,
+      "bbox": {
+        "x1": 120.5,
+        "y1": 80.2,
+        "x2": 180.3,
+        "y2": 150.8
+      },
+      "has_mask": true,
+      "mask_area": 2450
+    }
+  ],
+  "damage_types": ["glass_shatter", "dent"],
+  "has_high_security_damage": true,
+  "total_damage_count": 2,
+  "highest_confidence": 0.87
+}
+```
+
+**Security Alert Pattern Detection**:
+
+The model includes pattern analysis for identifying suspicious damage:
+
+```python
+# Suspicious patterns that trigger elevated alerts
+- glass_shatter + lamp_broken = "break-in pattern"
+- Night time (22:00-06:00) + any damage = "elevated risk"
+- Multiple damage types (>=2) = "likely incident"
+- High-security damage at night = "critical alert"
+```
+
+**Context String for LLM**:
+
+```
+Vehicle Damage Detected (2 instances):
+  - glass_shatter: 1 instance(s) (avg conf: 87%)
+  - dent: 1 instance(s) (avg conf: 72%)
+  **HIGH SECURITY ALERT**: Suspicious damage types detected
+```
+
+**Source Files**:
+
+- Loader: `backend/services/vehicle_damage_loader.py`
+- Model Zoo Entry: `backend/services/model_zoo.py`
+
 #### Depth Estimation (LOW Priority)
 
 - **Model**: depth-anything/Depth-Anything-V2-Small-hf
@@ -345,7 +481,7 @@ VEHICLE_SEGMENT_CLASSES = [
 #### Action Recognition (LOW Priority)
 
 - **Model**: microsoft/xclip-base-patch32 (X-CLIP)
-- **VRAM**: ~1.5GB
+- **VRAM**: ~2GB (with float16)
 - **Purpose**: Video-based action classification
 - **Trigger**: Person detected >3 seconds with multiple frames, unusual pose detected
 
@@ -412,11 +548,41 @@ candidates = sorted(
 
 ### VRAM Budget Calculation
 
-| Category             | Budget      | Models                             |
-| -------------------- | ----------- | ---------------------------------- |
-| Always Loaded        | ~2.65GB     | Florence-2, CLIP, base classifiers |
-| On-Demand            | ~6.8GB      | All enrichment models              |
-| **Total Enrichment** | **~9.45GB** | Combined budget                    |
+Based on actual values from `backend/services/model_zoo.py`:
+
+| Category               | Budget     | Models                                                   |
+| ---------------------- | ---------- | -------------------------------------------------------- |
+| Always Loaded          | ~21.7GB    | Nemotron LLM (production)                                |
+| Primary Detection      | ~2GB       | YOLO26 (TensorRT)                                        |
+| Model Zoo Budget       | ~1.65GB    | On-demand models (loaded sequentially, not concurrently) |
+| **Total (Production)** | **~25GB+** | Full stack with all models                               |
+
+**On-Demand Model VRAM (from model_zoo.py):**
+
+| Model                          | VRAM      |
+| ------------------------------ | --------- |
+| yolo11-license-plate           | 300MB     |
+| yolo11-face                    | 200MB     |
+| paddleocr                      | 100MB     |
+| clip-vit-l                     | 800MB     |
+| florence-2-large               | 1.2GB     |
+| yolo-world-s                   | 1.5GB     |
+| vitpose-small                  | 1.5GB     |
+| depth-anything-v2-small        | 150MB     |
+| violence-detection             | 500MB     |
+| weather-classification         | 200MB     |
+| segformer-b2-clothes           | 1.5GB     |
+| xclip-base                     | 2GB       |
+| fashion-clip (FashionSigLIP)   | 500MB     |
+| brisque-quality                | 0MB (CPU) |
+| vehicle-segment-classification | 1.5GB     |
+| vehicle-damage-detection       | 2GB       |
+| pet-classifier                 | 200MB     |
+| osnet-x0-25                    | 100MB     |
+| threat-detection-yolov8n       | 300MB     |
+| vit-age-classifier             | 200MB     |
+| vit-gender-classifier          | 200MB     |
+| yolov8n-pose                   | 200MB     |
 
 ## API Reference
 

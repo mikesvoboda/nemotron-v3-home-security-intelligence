@@ -6,8 +6,8 @@
 
 ## Key Files
 
-- `backend/core/config.py:572-585` - CORS origins configuration
-- `backend/main.py:1051-1056` - CORS middleware setup
+- `backend/core/config.py:752-765` - CORS origins configuration
+- `backend/main.py:1127-1139` - CORS middleware setup
 - `backend/core/url_validation.py:1-450` - SSRF protection utilities
 - `backend/core/sanitization.py:515-657` - URL validation for monitoring services
 - `backend/api/middleware/rate_limit.py` - Rate limiting configuration
@@ -71,7 +71,7 @@ flowchart TB
 CORS is configured to allow common local development origins:
 
 ```python
-# From backend/core/config.py:572-585
+# From backend/core/config.py:752-765
 cors_origins: list[str] = Field(
     default=[
         "http://localhost:3000",
@@ -81,33 +81,39 @@ cors_origins: list[str] = Field(
         "http://0.0.0.0:3000",
         "http://0.0.0.0:5173",
     ],
-    description="Allowed CORS origins. Set CORS_ORIGINS env var to override.",
+    description="Allowed CORS origins. Set CORS_ORIGINS env var to override for your network.",
 )
 ```
 
 ### CORS Middleware Configuration
 
-The FastAPI CORS middleware is configured with sensible defaults:
+The FastAPI CORS middleware is configured with security-conscious defaults:
 
 ```python
-# From backend/main.py:1051-1056
+# From backend/main.py:1127-1139
+# Security: Restrict CORS methods to only what's needed
+# Using explicit methods instead of wildcard "*" to follow least-privilege principle
+# Note: When allow_credentials=True, allow_origins cannot be ["*"]
+# If "*" is in origins, we disable credentials to allow any origin
+_cors_origins = get_settings().cors_origins
+_allow_credentials = "*" not in _cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 ```
 
 **Configuration Options:**
 
-| Setting             | Value             | Rationale                              |
-| ------------------- | ----------------- | -------------------------------------- |
-| `allow_origins`     | Configurable list | Restrict to known frontends            |
-| `allow_credentials` | `True`            | Support API key cookies                |
-| `allow_methods`     | `["*"]`           | All HTTP methods allowed               |
-| `allow_headers`     | `["*"]`           | Accept custom headers (API keys, etc.) |
+| Setting             | Value                                                  | Rationale                                            |
+| ------------------- | ------------------------------------------------------ | ---------------------------------------------------- |
+| `allow_origins`     | Configurable list                                      | Restrict to known frontends                          |
+| `allow_credentials` | `True` (unless origins contain `*`)                    | Support API key cookies; disabled if wildcard origin |
+| `allow_methods`     | `["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]` | Explicit methods (least-privilege principle)         |
+| `allow_headers`     | `["*"]`                                                | Accept custom headers (API keys, etc.)               |
 
 ### Custom CORS Configuration
 

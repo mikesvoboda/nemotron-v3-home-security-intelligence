@@ -8,27 +8,37 @@ This directory contains developer documentation for contributing to the Home Sec
 
 ```
 development/
-  AGENTS.md                  # This file
-  AGENT_COORDINATION.md      # Parallel agent coordination protocol
-  code-quality.md            # Code quality tooling and standards
-  contributing.md            # Contribution guidelines
-  coverage.md                # Coverage reporting and analysis
-  docs-maintenance.md        # Documentation drift detection system
-  git-workflow.md            # Git safety protocols and pre-commit rules
-  git-worktree-workflow.md   # Git worktree patterns for parallel development
-  health-monitoring-di.md    # Health monitoring dependency injection patterns
-  hooks.md                   # Git hooks configuration
-  linear-integration.md      # Linear MCP tools and workflow states
-  migration-rollback.md      # Database migration rollback procedures
-  model-testing.md           # AI model testing and validation guide
-  multi-gpu.md               # Multi-GPU support and configuration guide
-  patterns.md                # Code patterns and conventions
-  setup.md                   # Development environment setup
-  ssl-https.md               # SSL/HTTPS configuration for development
-  testing.md                 # Testing guide
-  testing-workflow.md        # TDD workflow and test patterns by layer
-  test-optimization-guide.md # Test suite optimization and parallelization
-  validation-alignment.md    # Frontend/backend validation alignment guide
+  AGENTS.md                       # This file
+  AGENT_COORDINATION.md           # Parallel agent coordination protocol
+  api-breaking-change-detection.md # API breaking change detection guide
+  buildkit-secrets.md             # BuildKit secrets for Docker builds
+  code-quality.md                 # Code quality tooling and standards
+  contributing.md                 # Contribution guidelines
+  coverage.md                     # Coverage reporting and analysis
+  docs-maintenance.md             # Documentation drift detection system
+  end-to-end-development-metrics.md # Development metrics tracking
+  flaky-test-detection.md         # Flaky test detection and remediation
+  git-workflow.md                 # Git safety protocols and pre-commit rules
+  git-worktree-workflow.md        # Git worktree patterns for parallel development
+  health-monitoring-di.md         # Health monitoring dependency injection patterns
+  hooks.md                        # Git hooks configuration
+  linear-integration.md           # Linear MCP tools and workflow states
+  migration-rollback.md           # Database migration rollback procedures
+  model-testing.md                # AI model testing and validation guide
+  multi-gpu.md                    # Multi-GPU support and configuration guide
+  nemo-data-designer.md           # NeMo Data Designer integration for synthetic data
+  nemotron-buildkit-secrets.md    # Nemotron BuildKit secrets guide
+  nemotron-prompting.md           # Nemotron prompting strategies and patterns
+  patterns.md                     # Code patterns and conventions
+  PORT_STANDARDIZATION.md         # Port standardization reference
+  prompt-evaluation-results.md    # Prompt evaluation results and analysis
+  python-3.14-features.md         # Python 3.14 features used in project
+  setup.md                        # Development environment setup
+  ssl-https.md                    # SSL/HTTPS configuration for development
+  synthetic-data-quality.md       # Synthetic data quality metrics
+  testing.md                      # Testing guide
+  testing-workflow.md             # TDD workflow and test patterns by layer
+  validation-alignment.md         # Frontend/backend validation alignment guide
 ```
 
 ## Key Files
@@ -127,6 +137,32 @@ development/
 
 **When to use:** Understanding git workflow rules, setting up pre-commit hooks, troubleshooting hook issues.
 
+### git-worktree-workflow.md
+
+**Purpose:** Git worktree patterns for parallel development.
+
+**Topics Covered:**
+
+- Creating and managing git worktrees
+- Parallel development workflows
+- Worktree cleanup and maintenance
+- Integration with claude-squad
+
+**When to use:** Setting up parallel development environments, working on multiple branches simultaneously.
+
+### health-monitoring-di.md
+
+**Purpose:** Health monitoring dependency injection patterns.
+
+**Topics Covered:**
+
+- Health check service architecture
+- Dependency injection patterns
+- Service health status tracking
+- Integration with monitoring systems
+
+**When to use:** Implementing health checks, understanding DI patterns for monitoring.
+
 ### linear-integration.md
 
 **Purpose:** Linear MCP tools, workflow state UUIDs, and usage examples.
@@ -139,6 +175,19 @@ development/
 - Querying workflow states via GraphQL API
 
 **When to use:** Working with Linear issues, updating issue status, creating new issues.
+
+### migration-rollback.md
+
+**Purpose:** Database migration rollback procedures.
+
+**Topics Covered:**
+
+- Rollback strategies and best practices
+- Alembic migration rollback commands
+- Data migration considerations
+- Troubleshooting failed migrations
+
+**When to use:** Rolling back database migrations, recovering from migration failures.
 
 ### model-testing.md
 
@@ -189,20 +238,6 @@ development/
 
 **When to use:** Following TDD practices, writing tests before implementation, understanding test patterns.
 
-### test-optimization-guide.md
-
-**Purpose:** Guide for optimizing test suite performance and parallelization.
-
-**Topics Covered:**
-
-- Test suite parallelization strategies
-- Slow test identification and optimization
-- CI/CD test pipeline optimization
-- pytest-xdist configuration
-- Test isolation best practices
-
-**When to use:** Debugging slow tests, optimizing CI pipeline, improving test suite performance.
-
 ### hooks.md
 
 **Purpose:** Git hooks configuration and troubleshooting.
@@ -247,6 +282,20 @@ development/
 
 **When to use:** Setting up a new development environment.
 
+### ssl-https.md
+
+**Purpose:** SSL/HTTPS configuration for development and production.
+
+**Topics Covered:**
+
+- Certificate generation for development
+- Let's Encrypt for production
+- nginx SSL configuration
+- TLS protocol and cipher settings
+- HSTS configuration
+
+**When to use:** Enabling HTTPS, configuring SSL certificates.
+
 ### testing.md
 
 **Purpose:** Comprehensive testing guide.
@@ -263,6 +312,156 @@ development/
 - CI test pipeline
 
 **When to use:** Writing tests, understanding testing requirements.
+
+### api-breaking-change-detection.md
+
+**Purpose:** Detect and manage API breaking changes.
+
+**Topics Covered:**
+
+- Breaking change detection workflow
+- OpenAPI diff tooling
+- CI integration for API contracts
+- Migration strategies
+
+**When to use:** Making API changes, reviewing PRs with endpoint changes.
+
+### buildkit-secrets.md
+
+**Purpose:** Docker BuildKit secrets for secure builds.
+
+**Topics Covered:**
+
+- BuildKit secrets syntax
+- Secret mounting patterns
+- CI/CD secret injection
+
+**When to use:** Configuring Docker builds with secrets.
+
+### end-to-end-development-metrics.md
+
+**Purpose:** Development metrics tracking and analysis.
+
+**Topics Covered:**
+
+- Metrics collection
+- Performance tracking
+- Development cycle analysis
+
+**When to use:** Analyzing development workflow efficiency.
+
+### flaky-test-detection.md
+
+**Purpose:** Detecting and fixing flaky tests.
+
+**Topics Covered:**
+
+- Flaky test identification
+- Root cause analysis
+- Remediation strategies
+- CI integration
+
+**When to use:** Debugging intermittent test failures.
+
+### nemo-data-designer.md
+
+**Purpose:** NeMo Data Designer integration for synthetic test data.
+
+**Topics Covered:**
+
+- Synthetic scenario generation
+- Ground truth validation
+- Test fixture creation
+- Prompt evaluation data
+
+**When to use:** Generating test data for AI pipelines.
+
+### nemotron-buildkit-secrets.md
+
+**Purpose:** Nemotron-specific BuildKit secrets configuration.
+
+**Topics Covered:**
+
+- NGC API key handling
+- Model download authentication
+- Container build patterns
+
+**When to use:** Building Nemotron containers with authenticated model access.
+
+### nemotron-prompting.md
+
+**Purpose:** Nemotron prompting strategies and best practices.
+
+**Topics Covered:**
+
+- Prompt engineering patterns
+- Risk assessment prompts
+- Context enrichment
+- Response parsing
+
+**When to use:** Developing or tuning Nemotron prompts.
+
+### PORT_STANDARDIZATION.md
+
+**Purpose:** Port standardization reference for all services.
+
+**Topics Covered:**
+
+- Service port assignments
+- Port conflict resolution
+- Development vs production ports
+
+**When to use:** Configuring service ports, debugging connection issues.
+
+### prompt-evaluation-results.md
+
+**Purpose:** Prompt evaluation results and analysis.
+
+**Topics Covered:**
+
+- Evaluation metrics
+- Benchmark results
+- Improvement tracking
+
+**When to use:** Analyzing prompt performance.
+
+### python-3.14-features.md
+
+**Purpose:** Python 3.14 features used in the project.
+
+**Topics Covered:**
+
+- New language features
+- Type system improvements
+- Performance enhancements
+- Migration notes
+
+**When to use:** Understanding Python 3.14 usage in codebase.
+
+### synthetic-data-quality.md
+
+**Purpose:** Synthetic data quality metrics and validation.
+
+**Topics Covered:**
+
+- Quality metrics
+- Validation workflows
+- Data diversity analysis
+
+**When to use:** Evaluating synthetic test data quality.
+
+### validation-alignment.md
+
+**Purpose:** Frontend/backend validation alignment guide.
+
+**Topics Covered:**
+
+- Pydantic schema patterns
+- Zod schema alignment
+- Validation consistency checks
+- Error message standardization
+
+**When to use:** Ensuring frontend and backend validation rules are consistent.
 
 ## Development Workflow
 

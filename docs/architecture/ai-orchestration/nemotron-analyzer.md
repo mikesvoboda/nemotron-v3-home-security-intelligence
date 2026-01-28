@@ -9,20 +9,43 @@ The `NemotronAnalyzer` service uses the Nemotron 70B LLM (via llama.cpp server) 
 
 ## Architecture Overview
 
-```
-+------------------+     +--------------------+     +------------------+
-| Detection Batch  |     | NemotronAnalyzer   |     | Nemotron LLM     |
-| (from Redis)     |---->| Context Enrichment |---->| Port 8091        |
-|                  |     | Prompt Building    |     | llama.cpp server |
-|                  |     | Response Parsing   |     | /completion      |
-+------------------+     +--------------------+     +------------------+
-                                  |
-                                  v
-                         +------------------+
-                         | Event Creation   |
-                         | Risk Score 0-100 |
-                         | Summary + Reason |
-                         +------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph Input
+        DB["Detection Batch<br/>(from Redis)"]
+    end
+
+    subgraph Analyzer["NemotronAnalyzer"]
+        CE[Context Enrichment]
+        PB[Prompt Building]
+        RP[Response Parsing]
+    end
+
+    subgraph LLM["Nemotron LLM"]
+        NEM["Port 8091<br/>llama.cpp server<br/>/completion"]
+    end
+
+    subgraph Output["Event Creation"]
+        RS["Risk Score 0-100"]
+        SR["Summary + Reason"]
+    end
+
+    DB --> Analyzer
+    Analyzer --> LLM
+    LLM --> Output
 ```
 
 ## Class Definition

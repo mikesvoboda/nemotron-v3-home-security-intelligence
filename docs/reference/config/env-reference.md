@@ -99,7 +99,7 @@ REDIS_URL=rediss://redis-host:6379/0
 
 | Variable         | Required | Default                 | Description                             |
 | ---------------- | -------- | ----------------------- | --------------------------------------- |
-| `YOLO26_URL`     | No       | `http://localhost:8090` | YOLO26 detection service URL            |
+| `YOLO26_URL`     | No       | `http://localhost:8095` | YOLO26 detection service URL            |
 | `NEMOTRON_URL`   | No       | `http://localhost:8091` | Nemotron LLM service URL                |
 | `FLORENCE_URL`   | No       | `http://localhost:8092` | Florence-2 vision-language service URL  |
 | `CLIP_URL`       | No       | `http://localhost:8093` | CLIP embedding service URL              |

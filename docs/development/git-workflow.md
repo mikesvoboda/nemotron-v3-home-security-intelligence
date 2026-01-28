@@ -2,6 +2,131 @@
 
 This document covers git safety protocols, pre-commit hook configuration, and the critical testing policy. For detailed hook documentation, see [hooks.md](hooks.md).
 
+## Development Workflow Overview
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph Local["Local Development"]
+        BRANCH["Create branch"]
+        CODE["Write code"]
+        COMMIT["git commit"]
+        PUSH["git push"]
+    end
+
+    subgraph Hooks["Automated Checks"]
+        PRECOMMIT["Pre-commit hooks<br/>lint, format, types"]
+        PREPUSH["Pre-push hooks<br/>unit tests, rebase"]
+    end
+
+    subgraph Remote["Remote Repository"]
+        CI["CI Pipeline<br/>full test suite"]
+        REVIEW["Code Review"]
+        MERGE["Merge to main"]
+    end
+
+    BRANCH --> CODE --> COMMIT
+    COMMIT --> PRECOMMIT
+    PRECOMMIT -->|"pass"| PUSH
+    PRECOMMIT -->|"fail"| CODE
+    PUSH --> PREPUSH
+    PREPUSH -->|"pass"| CI
+    PREPUSH -->|"fail"| CODE
+    CI -->|"pass"| REVIEW
+    CI -->|"fail"| CODE
+    REVIEW -->|"approved"| MERGE
+    REVIEW -->|"changes requested"| CODE
+
+    style BRANCH fill:#3B82F6,stroke:#60A5FA
+    style PRECOMMIT fill:#A855F7,stroke:#C084FC
+    style PREPUSH fill:#A855F7,stroke:#C084FC
+    style CI fill:#009688,stroke:#14B8A6
+    style MERGE fill:#16A34A,stroke:#22C55E
+```
+
+## PR Workflow (Branch to Merge)
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+sequenceDiagram
+    participant DEV as Developer
+    participant LOCAL as Local Repo
+    participant HOOKS as Pre-commit/Push
+    participant REMOTE as GitHub
+    participant CI as CI Pipeline
+    participant REVIEWER as Reviewer
+
+    DEV->>LOCAL: git checkout -b feature/name
+    DEV->>LOCAL: Write code + tests
+    DEV->>LOCAL: git add <files>
+    DEV->>HOOKS: git commit -m "feat: ..."
+
+    alt Pre-commit fails
+        HOOKS-->>DEV: Lint/format/type errors
+        DEV->>DEV: Fix issues
+        DEV->>HOOKS: git commit (retry)
+    end
+
+    HOOKS-->>LOCAL: Commit created
+
+    DEV->>HOOKS: git push -u origin feature/name
+
+    alt Pre-push fails
+        HOOKS-->>DEV: Test failures / rebase needed
+        DEV->>DEV: Fix issues
+        DEV->>HOOKS: git push (retry)
+    end
+
+    HOOKS-->>REMOTE: Push successful
+
+    DEV->>REMOTE: gh pr create
+    REMOTE->>CI: Trigger CI pipeline
+
+    alt CI fails
+        CI-->>DEV: Test/build failures
+        DEV->>DEV: Fix issues
+        DEV->>REMOTE: git push (updates PR)
+    end
+
+    CI-->>REMOTE: All checks pass
+    REMOTE->>REVIEWER: Request review
+
+    alt Changes requested
+        REVIEWER-->>DEV: Feedback
+        DEV->>DEV: Address feedback
+        DEV->>REMOTE: git push (updates PR)
+        REMOTE->>REVIEWER: Re-request review
+    end
+
+    REVIEWER-->>REMOTE: Approve PR
+    REMOTE->>REMOTE: Merge to main
+    Note right of REMOTE: Squash and merge
+```
+
 ## Git Safety Protocol
 
 **CRITICAL: Never bypass git pre-commit hooks.** All commits must pass pre-commit checks including:

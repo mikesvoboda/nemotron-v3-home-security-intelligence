@@ -207,6 +207,7 @@ The API is organized into domain-specific guides:
 | GET    | `/api/detections/{id}/image`      | Get thumbnail       |
 | GET    | `/api/detections/{id}/video`      | Stream video        |
 | GET    | `/api/detections/{id}/enrichment` | Get enrichment data |
+| GET    | `/api/detections/export`          | Export as CSV/JSON  |
 
 ### System
 
@@ -221,10 +222,12 @@ The API is organized into domain-specific guides:
 
 ### Real-time
 
-| Protocol | Endpoint     | Description           |
-| -------- | ------------ | --------------------- |
-| WS       | `/ws/events` | Security event stream |
-| WS       | `/ws/system` | System status stream  |
+| Protocol | Endpoint                 | Description                   |
+| -------- | ------------------------ | ----------------------------- |
+| WS       | `/ws/events`             | Security event stream         |
+| WS       | `/ws/system`             | System status stream          |
+| WS       | `/ws/detections`         | Real-time AI detection stream |
+| WS       | `/ws/jobs/{job_id}/logs` | Job log streaming             |
 
 ### Calibration
 

@@ -125,27 +125,44 @@ New events are published via Redis pub/sub to all connected WebSocket clients.
 
 ## Data Flow Diagram
 
-```
-+--------+     +------------+     +---------------+
-| Camera |---->| FileWatcher|---->| detection_queue|
-+--------+     +------------+     +-------+-------+
-                                          |
-                                          v
-+----------------+     +-------------+   +-----------------+
-| analysis_queue |<----| BatchAggre- |<--| YOLO26       |
-+-------+--------+     | gator       |   | (Port 8090)     |
-        |              +-------------+   +-----------------+
-        v                    |
-+----------------+           | Fast Path (>90% person)
-| Nemotron LLM   |<----------+
-| (Port 8091)    |
-+-------+--------+
-        |
-        v
-+----------------+     +-------------+     +----------+
-| PostgreSQL     |---->| Redis       |---->| WebSocket|
-| (events table) |     | (pub/sub)   |     | clients  |
-+----------------+     +-------------+     +----------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+    subgraph Input["Image Capture"]
+        Camera[Camera]
+        FW[FileWatcher]
+    end
+
+    subgraph Detection["Object Detection"]
+        DQ[detection_queue]
+        YOLO["YOLO26<br/>(Port 8090)"]
+    end
+
+    subgraph Batching["Batch Aggregation"]
+        BA[BatchAggregator]
+        AQ[analysis_queue]
+    end
+
+    subgraph Analysis["Risk Analysis"]
+        NEM["Nemotron LLM<br/>(Port 8091)"]
+    end
+
+    subgraph Storage["Event Storage"]
+        DB[(PostgreSQL<br/>events table)]
+        Redis[(Redis<br/>pub/sub)]
+        WS[WebSocket clients]
+    end
+
+    Camera --> FW
+    FW --> DQ
+    DQ --> YOLO
+    YOLO --> BA
+    BA --> AQ
+    BA -.->|Fast Path<br/>>90% person| NEM
+    AQ --> NEM
+    NEM --> DB
+    DB --> Redis
+    Redis --> WS
 ```
 
 ---

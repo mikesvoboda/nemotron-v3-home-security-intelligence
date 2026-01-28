@@ -13,6 +13,10 @@ Test cases cover:
 - get_or_404_factory: Generic factory for entity lookups (with optional UUID validation)
 - AI service dependencies (NEM-2003): FaceDetectorService, PlateDetectorService,
   OCRService, YOLOWorldService via DI container
+- NullCache: Graceful degradation pattern (NEM-2538)
+- Cache availability tracking
+- Service dependency injection functions
+- Transaction management utilities (NEM-3346)
 
 Note: Camera, Zone, and AlertRule use STRING IDs (not UUIDs). UUID validation
 is available via get_or_404_factory's validate_uuid_format parameter for models
@@ -21,7 +25,7 @@ that do use UUID primary keys.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -524,7 +528,6 @@ class TestAIServiceDependencies:
     @pytest.mark.asyncio
     async def test_get_face_detector_service_dep_uses_container(self) -> None:
         """Test that get_face_detector_service_dep retrieves from DI container."""
-        from unittest.mock import patch
 
         from backend.api.dependencies import get_face_detector_service_dep
 
@@ -547,7 +550,6 @@ class TestAIServiceDependencies:
     @pytest.mark.asyncio
     async def test_get_plate_detector_service_dep_uses_container(self) -> None:
         """Test that get_plate_detector_service_dep retrieves from DI container."""
-        from unittest.mock import patch
 
         from backend.api.dependencies import get_plate_detector_service_dep
 
@@ -570,7 +572,6 @@ class TestAIServiceDependencies:
     @pytest.mark.asyncio
     async def test_get_ocr_service_dep_uses_container(self) -> None:
         """Test that get_ocr_service_dep retrieves from DI container."""
-        from unittest.mock import patch
 
         from backend.api.dependencies import get_ocr_service_dep
 
@@ -593,7 +594,6 @@ class TestAIServiceDependencies:
     @pytest.mark.asyncio
     async def test_get_yolo_world_service_dep_uses_container(self) -> None:
         """Test that get_yolo_world_service_dep retrieves from DI container."""
-        from unittest.mock import patch
 
         from backend.api.dependencies import get_yolo_world_service_dep
 

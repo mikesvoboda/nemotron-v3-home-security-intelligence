@@ -6,37 +6,55 @@ This hub documents the AI model infrastructure that powers the home security int
 
 | Model              | Port | Container       | VRAM            | Purpose                     |
 | ------------------ | ---- | --------------- | --------------- | --------------------------- |
-| YOLO26             | 8090 | `ai-yolo26`     | ~650MB          | Primary object detection    |
-| Nemotron 70B       | 8091 | `ai-nemotron`   | ~21.7GB         | Risk analysis and reasoning |
+| YOLO26             | 8095 | `ai-yolo26`     | ~650MB          | Primary object detection    |
+| Nemotron 30B       | 8091 | `ai-nemotron`   | ~14.7GB         | Risk analysis and reasoning |
 | Florence-2         | 8092 | `ai-florence`   | ~1.2GB          | Vision-language captioning  |
 | Enrichment Service | 8094 | `ai-enrichment` | ~6.8GB (budget) | Multi-model enrichment      |
 
 ## Architecture Overview
 
-```
-                                    +------------------+
-                                    |   YOLO26     |
-                                    |   Port 8090     |
-        +-------------------+       | Object Detection |
-        |                   |       +--------+---------+
-        |   Backend API     |                |
-        |                   |       +--------v---------+
-        | detector_client   +------>| DetectorClient   |
-        | nemotron_analyzer +------>| NemotronAnalyzer |
-        | enrichment_client +------>| EnrichmentClient |
-        | ai_fallback       |       +--------+---------+
-        |                   |                |
-        +-------------------+       +--------v---------+
-                                    |   Nemotron 70B   |
-                                    |   Port 8091      |
-                                    | Risk Analysis    |
-                                    +--------+---------+
-                                             |
-                                    +--------v---------+
-                                    | Enrichment Svc   |
-                                    | Port 8094        |
-                                    | Multi-model Zoo  |
-                                    +------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Backend["Backend API"]
+        DC[detector_client]
+        NA[nemotron_analyzer]
+        EC[enrichment_client]
+        AF[ai_fallback]
+    end
+
+    subgraph Clients["Client Layer"]
+        DCL[DetectorClient]
+        NAL[NemotronAnalyzer]
+        ECL[EnrichmentClient]
+    end
+
+    subgraph AI["AI Services"]
+        YOLO["YOLO26<br/>Port 8095<br/>Object Detection"]
+        NEM["Nemotron 70B<br/>Port 8091<br/>Risk Analysis"]
+        ENR["Enrichment Svc<br/>Port 8094<br/>Multi-model Zoo"]
+    end
+
+    DC --> DCL
+    NA --> NAL
+    EC --> ECL
+
+    DCL --> YOLO
+    YOLO --> NAL
+    NAL --> NEM
+    NEM --> ENR
 ```
 
 ## VRAM Budget Allocation
@@ -56,7 +74,7 @@ The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction f
 | Document                                           | Purpose                                       |
 | -------------------------------------------------- | --------------------------------------------- |
 | [model-zoo.md](./model-zoo.md)                     | Model registry, VRAM management, LRU eviction |
-| [yolo26-client.md](./yolo26-client.md)             | YOLO26 detector client implementation         |
+| [yolo26-client.md](./yolo26-client.md)             | YOLO26 detection client interface             |
 | [nemotron-analyzer.md](./nemotron-analyzer.md)     | LLM-based risk analysis service               |
 | [enrichment-pipeline.md](./enrichment-pipeline.md) | Multi-model enrichment flow                   |
 | [fallback-strategies.md](./fallback-strategies.md) | Graceful degradation patterns                 |

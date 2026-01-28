@@ -16,7 +16,7 @@ Run these commands first to identify the issue:
 ./scripts/start-ai.sh status
 
 # Test service health endpoints
-curl http://localhost:8090/health   # YOLO26
+curl http://localhost:8095/health   # YOLO26
 curl http://localhost:8091/health   # Nemotron
 curl http://localhost:8092/health   # Florence-2 (optional)
 curl http://localhost:8093/health   # CLIP (optional)
@@ -145,7 +145,7 @@ Service running but health check fails.
 
 ```bash
 # Check if service is responding
-curl -v http://localhost:8090/health
+curl -v http://localhost:8095/health
 curl -v http://localhost:8091/health
 
 # Check process status
@@ -310,7 +310,7 @@ llama-server --version
 ./scripts/start-ai.sh status
 
 # Health checks
-curl http://localhost:8090/health 2>&1
+curl http://localhost:8095/health 2>&1
 curl http://localhost:8091/health 2>&1
 
 # Recent logs

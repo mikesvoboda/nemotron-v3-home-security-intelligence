@@ -298,7 +298,7 @@ Only expose necessary ports:
 | 8000      | Backend API | User access       |
 | 5432      | PostgreSQL  | **Internal only** |
 | 6379      | Redis       | **Internal only** |
-| 8090-8094 | AI Services | **Internal only** |
+| 8091-8096 | AI Services | **Internal only** |
 
 ```bash
 # UFW example (Linux)

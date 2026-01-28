@@ -32,7 +32,7 @@ docs/developer/api/
 | [System Monitoring](system-monitoring.md) | System monitoring and telemetry endpoints                 |
 | [Real-time](realtime.md)                  | WebSocket streams for events and system status            |
 | [Calibration](calibration.md)             | Camera calibration API endpoints                          |
-| [Webhooks](webhooks.md)                   | Webhook configuration and event delivery                  |
+| [Webhooks](webhooks.md)                   | Inbound (Alertmanager) and outbound webhook configuration |
 
 ## Supporting Documentation
 

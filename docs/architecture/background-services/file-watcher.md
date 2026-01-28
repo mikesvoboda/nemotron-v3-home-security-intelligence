@@ -58,24 +58,21 @@ def __init__(
 
 The FileWatcher selects the best observer for the platform (`backend/services/file_watcher.py:414-420`):
 
-```
-+------------------+
-| use_polling set? |
-+--------+---------+
-         |
-    Yes  |  No
-    |    |
-    v    v
-+--------+----------+
-|Polling | Native   |
-|Observer| Observer |
-+--------+----------+
-           |
-   +-------+-------+
-   |       |       |
-   v       v       v
-inotify FSEvents Windows
-(Linux) (macOS)  (API)
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    Check{use_polling set?}
+    Polling["Polling Observer"]
+    Native["Native Observer"]
+    Inotify["inotify<br/>(Linux)"]
+    FSEvents["FSEvents<br/>(macOS)"]
+    Windows["Windows API"]
+
+    Check -->|Yes| Polling
+    Check -->|No| Native
+    Native --> Inotify
+    Native --> FSEvents
+    Native --> Windows
 ```
 
 - **Native Observer**: Uses inotify (Linux), FSEvents (macOS), or Windows API
@@ -163,69 +160,34 @@ async def stop(self) -> None:
 
 ## File Processing Flow
 
-```
-+-------------------+
-| Watchdog Event    |
-| (create/modify)   |
-+--------+----------+
-         |
-         v
-+--------+----------+
-| is_supported_     |
-| media_file?       |
-+--------+----------+
-         |
-    Yes  v
-+--------+----------+
-| _schedule_file_   |
-| processing        |
-+--------+----------+
-         |
-         v
-+--------+----------+
-| Debounce delay    |
-| (0.5s default)    |
-+--------+----------+
-         |
-         v
-+--------+----------+
-| _process_file     |
-+--------+----------+
-         |
-    +----+----+
-    |         |
-    v         v
-+---+---+ +---+---+
-| Wait  | |Validate|
-|stable | |media   |
-+---+---+ +---+---+
-    |         |
-    +----+----+
-         |
-         v
-+--------+----------+
-| Extract camera_id |
-+--------+----------+
-         |
-         v
-+--------+----------+
-| Auto-create       |
-| camera (if new)   |
-+--------+----------+
-         |
-         v
-+--------+----------+
-| _queue_for_       |
-| detection         |
-+--------+----------+
-         |
-    +----+----+
-    |         |
-    v         v
-+---+---+ +---+---+
-|Dedupe | |Redis  |
-|check  | |queue  |
-+-------+ +-------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    WatchdogEvent["Watchdog Event<br/>(create/modify)"]
+    IsSupported{"is_supported_<br/>media_file?"}
+    ScheduleProc["_schedule_file_<br/>processing"]
+    Debounce["Debounce delay<br/>(0.5s default)"]
+    ProcessFile["_process_file"]
+    WaitStable["Wait stable"]
+    ValidateMedia["Validate media"]
+    ExtractCam["Extract camera_id"]
+    AutoCreate["Auto-create<br/>camera (if new)"]
+    QueueDetect["_queue_for_<br/>detection"]
+    DedupeCheck["Dedupe check"]
+    RedisQueue["Redis queue"]
+
+    WatchdogEvent --> IsSupported
+    IsSupported -->|Yes| ScheduleProc
+    ScheduleProc --> Debounce
+    Debounce --> ProcessFile
+    ProcessFile --> WaitStable
+    ProcessFile --> ValidateMedia
+    WaitStable --> ExtractCam
+    ValidateMedia --> ExtractCam
+    ExtractCam --> AutoCreate
+    AutoCreate --> QueueDetect
+    QueueDetect --> DedupeCheck
+    QueueDetect --> RedisQueue
 ```
 
 ## Debounce Logic

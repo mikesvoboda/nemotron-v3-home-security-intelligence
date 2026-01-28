@@ -174,6 +174,8 @@ For developers wanting to understand the underlying soft-delete implementation.
 
 ### Related Code
 
+Trash-related frontend components are organized by domain (pages, events, hooks) rather than having a dedicated `components/trash/` directory.
+
 | Component            | Location                                                                                  |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | Frontend Page        | `frontend/src/pages/TrashPage.tsx`                                                        |

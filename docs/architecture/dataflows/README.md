@@ -6,77 +6,35 @@ This hub documents the end-to-end data flows within the Home Security Intelligen
 
 ## End-to-End Flow Summary
 
-```
-Camera Upload (FTP)
-       |
-       v
-+------------------+
-|   File Watcher   |  <-- backend/services/file_watcher.py:330-400
-|  (inotify/poll)  |      Debounce: 0.5s, Stability: 2s
-+------------------+
-       |
-       v
-+------------------+
-| Detection Queue  |  <-- backend/core/constants.py (DETECTION_QUEUE)
-|     (Redis)      |      Max size: configurable via settings
-+------------------+
-       |
-       v
-+------------------+
-| Detection Worker |  <-- backend/services/pipeline_workers.py
-+------------------+
-       |
-       v
-+------------------+
-|  YOLO26 API   |  <-- backend/services/detector_client.py:151-332
-|  (Circuit Breaker)|     Timeout: 60s, Retries: 3
-+------------------+
-       |
-       v
-+------------------+
-| Batch Aggregator |  <-- backend/services/batch_aggregator.py:122-160
-|  (90s window)    |      Idle timeout: 30s
-+------------------+
-       |
-       v
-+------------------+
-| Analysis Queue   |  <-- backend/core/constants.py (ANALYSIS_QUEUE)
-|     (Redis)      |
-+------------------+
-       |
-       v
-+------------------+
-| Analysis Worker  |  <-- backend/services/pipeline_workers.py
-+------------------+
-       |
-       v
-+------------------+
-|   Enrichment     |  <-- backend/services/enrichment_pipeline.py:1-147
-| Pipeline (opt.)  |      Florence-2, CLIP, Depth, Pose
-+------------------+
-       |
-       v
-+------------------+
-|Nemotron Analyzer |  <-- backend/services/nemotron_analyzer.py:135-237
-|    (LLM API)     |      Timeout: 120s, Retries: 3
-+------------------+
-       |
-       v
-+------------------+
-|  Event Creation  |  <-- Database INSERT
-|   (PostgreSQL)   |
-+------------------+
-       |
-       v
-+------------------+
-|Event Broadcaster |  <-- backend/services/event_broadcaster.py:335-400
-| (Redis Pub/Sub)  |      Message buffer: 100
-+------------------+
-       |
-       v
-+------------------+
-| WebSocket Clients|  <-- backend/api/routes/websocket.py:313-400
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    Camera["Camera Upload (FTP)"]
+    FW["File Watcher<br/>(inotify/poll)<br/>Debounce: 0.5s, Stability: 2s"]
+    DQ["Detection Queue<br/>(Redis)<br/>Max size: configurable"]
+    DW["Detection Worker"]
+    YOLO["YOLO26 API<br/>(Circuit Breaker)<br/>Timeout: 60s, Retries: 3"]
+    BA["Batch Aggregator<br/>(90s window)<br/>Idle timeout: 30s"]
+    AQ["Analysis Queue<br/>(Redis)"]
+    AW["Analysis Worker"]
+    EP["Enrichment Pipeline (opt.)<br/>Florence-2, CLIP, Depth, Pose"]
+    NEM["Nemotron Analyzer<br/>(LLM API)<br/>Timeout: 120s, Retries: 3"]
+    DB[("Event Creation<br/>(PostgreSQL)")]
+    EB["Event Broadcaster<br/>(Redis Pub/Sub)<br/>Message buffer: 100"]
+    WS["WebSocket Clients"]
+
+    Camera --> FW
+    FW --> DQ
+    DQ --> DW
+    DW --> YOLO
+    YOLO --> BA
+    BA --> AQ
+    AQ --> AW
+    AW --> EP
+    EP --> NEM
+    NEM --> DB
+    DB --> EB
+    EB --> WS
 ```
 
 ## Quick Reference
@@ -149,4 +107,4 @@ Source: `backend/services/enrichment_pipeline.py:170-189`
 
 - [AI Pipeline Architecture](../ai-pipeline.md) - Detailed AI processing documentation
 - [Real-time Architecture](../real-time.md) - WebSocket and event system details
-- [Resilience Patterns](../resilience-patterns/) - Circuit breakers and fault tolerance
+- [Resilience Patterns](../resilience-patterns/README.md) - Circuit breakers and fault tolerance

@@ -11,6 +11,7 @@ Implements NEM-2018 acceptance criteria:
 Tests follow TDD methodology.
 """
 
+import base64
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -19,8 +20,10 @@ from fastapi import FastAPI, Request, Response
 from starlette.datastructures import Headers
 
 from backend.api.middleware.idempotency import (
+    IDEMPOTENCY_KEY_MAX_LENGTH,
     IdempotencyMiddleware,
     compute_request_fingerprint,
+    validate_idempotency_key,
 )
 
 # Mark all tests in this file as unit tests
@@ -845,3 +848,712 @@ class TestIdempotencyMiddlewareLogging:
 
             # Check that mismatch was logged
             assert "mismatch" in caplog.text.lower() or "collision" in caplog.text.lower()
+
+
+class TestValidateIdempotencyKey:
+    """Tests for validate_idempotency_key function (NEM-2593)."""
+
+    def test_valid_key_alphanumeric(self):
+        """Test that valid alphanumeric keys pass validation."""
+        is_valid, error = validate_idempotency_key("abc123")
+        assert is_valid is True
+        assert error is None
+
+    def test_valid_key_uuid_format(self):
+        """Test that UUID-formatted keys pass validation."""
+        is_valid, error = validate_idempotency_key("550e8400-e29b-41d4-a716-446655440000")
+        assert is_valid is True
+        assert error is None
+
+    def test_valid_key_with_underscores(self):
+        """Test that keys with underscores pass validation."""
+        is_valid, error = validate_idempotency_key("request_key_123")
+        assert is_valid is True
+        assert error is None
+
+    def test_valid_key_with_hyphens(self):
+        """Test that keys with hyphens pass validation."""
+        is_valid, error = validate_idempotency_key("request-key-123")
+        assert is_valid is True
+        assert error is None
+
+    def test_valid_key_max_length(self):
+        """Test that keys at maximum length pass validation."""
+        key = "a" * IDEMPOTENCY_KEY_MAX_LENGTH
+        is_valid, error = validate_idempotency_key(key)
+        assert is_valid is True
+        assert error is None
+
+    def test_invalid_key_empty(self):
+        """Test that empty keys fail validation."""
+        is_valid, error = validate_idempotency_key("")
+        assert is_valid is False
+        assert "cannot be empty" in error.lower()
+
+    def test_invalid_key_too_long(self):
+        """Test that keys exceeding maximum length fail validation."""
+        key = "a" * (IDEMPOTENCY_KEY_MAX_LENGTH + 1)
+        is_valid, error = validate_idempotency_key(key)
+        assert is_valid is False
+        assert "maximum length" in error.lower()
+        assert str(IDEMPOTENCY_KEY_MAX_LENGTH) in error
+
+    def test_invalid_key_special_characters(self):
+        """Test that keys with special characters fail validation."""
+        is_valid, error = validate_idempotency_key("key@with#special$chars")
+        assert is_valid is False
+        assert "invalid characters" in error.lower()
+
+    def test_invalid_key_spaces(self):
+        """Test that keys with spaces fail validation."""
+        is_valid, error = validate_idempotency_key("key with spaces")
+        assert is_valid is False
+        assert "invalid characters" in error.lower()
+
+    def test_invalid_key_unicode(self):
+        """Test that keys with unicode characters fail validation."""
+        is_valid, error = validate_idempotency_key("key-with-émojis-😀")
+        assert is_valid is False
+        assert "invalid characters" in error.lower()
+
+
+class TestIdempotencyMiddlewareChunking:
+    """Tests for chunked response handling (NEM-2592)."""
+
+    def test_init_default_max_payload_size(self, mock_settings):
+        """Test default max payload size from settings."""
+        app = FastAPI()
+        mock_settings.idempotency_max_payload_size = 10485760  # 10MB
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+            assert middleware.max_payload_size == 10485760
+
+    def test_init_custom_max_payload_size(self, mock_settings):
+        """Test custom max payload size parameter."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, max_payload_size=5242880)  # 5MB
+            assert middleware.max_payload_size == 5242880
+
+    def test_init_default_chunk_size(self, mock_settings):
+        """Test default chunk size from settings."""
+        app = FastAPI()
+        mock_settings.idempotency_chunk_size = 65536  # 64KB
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+            assert middleware.chunk_size == 65536
+
+    def test_init_custom_chunk_size(self, mock_settings):
+        """Test custom chunk size parameter."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, chunk_size=131072)  # 128KB
+            assert middleware.chunk_size == 131072
+
+    def test_make_chunks_key(self, mock_settings):
+        """Test chunks key generation for chunked responses."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, key_prefix="idem")
+            chunks_key = middleware._make_chunks_key("test-key-123")
+            assert chunks_key == "idem:chunks:test-key-123"
+
+    @pytest.mark.asyncio
+    async def test_cache_response_exceeds_max_payload_size(self, mock_redis_client, mock_settings):
+        """Test that responses exceeding max_payload_size are not cached."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, max_payload_size=100)  # Very small limit
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/cameras"
+
+            # Create a large response
+            large_body = b"x" * 200  # Exceeds limit
+            response = Response(content=large_body, status_code=201)
+
+            cache_key = "idempotency:test-key"
+            fingerprint = "test-fingerprint"
+
+            result = await middleware._cache_response(
+                mock_redis_client, cache_key, response, fingerprint, "test-key", mock_request
+            )
+
+            # Response should be returned but not cached
+            assert result.status_code == 201
+            mock_redis_client.setex.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_replay_chunked_response(self, mock_redis_client, mock_settings):
+        """Test replaying a cached chunked response."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/cameras"
+
+            # Simulate chunked data in Redis
+            chunk1 = b"First chunk"
+            chunk2 = b"Second chunk"
+            cached_data = {
+                "status_code": 200,
+                "media_type": "application/json",
+                "is_chunked": True,
+                "chunk_count": 2,
+                "total_size": len(chunk1) + len(chunk2),
+            }
+
+            # Mock Redis lrange to return base64-encoded chunks
+            mock_redis_client.lrange = AsyncMock(
+                return_value=[
+                    base64.b64encode(chunk1).decode("ascii"),
+                    base64.b64encode(chunk2).decode("ascii"),
+                ]
+            )
+
+            response = await middleware._replay_chunked_response(
+                mock_redis_client, cached_data, "test-key", mock_request
+            )
+
+            assert response.status_code == 200
+            assert response.body == chunk1 + chunk2
+            assert response.headers.get("Idempotency-Replayed") == "true"
+
+    @pytest.mark.asyncio
+    async def test_replay_chunked_response_error(self, mock_redis_client, mock_settings):
+        """Test error handling when replaying chunked response fails."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/cameras"
+
+            cached_data = {
+                "status_code": 200,
+                "media_type": "application/json",
+                "is_chunked": True,
+                "chunk_count": 2,
+            }
+
+            # Simulate Redis error
+            mock_redis_client.lrange = AsyncMock(side_effect=Exception("Redis read error"))
+
+            response = await middleware._replay_chunked_response(
+                mock_redis_client, cached_data, "test-key", mock_request
+            )
+
+            assert response.status_code == 500
+            body = json.loads(response.body)
+            assert "Failed to replay" in body["detail"]
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_with_chunked_response(self, mock_redis_client, mock_settings):
+        """Test cache hit handling for chunked responses."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            mock_request.url.path = "/api/cameras"
+            request_body = b'{"name": "camera1"}'
+            fingerprint = compute_request_fingerprint("POST", "/api/cameras", request_body)
+
+            # Simulate chunked response in cache
+            cached_data = {
+                "status_code": 201,
+                "media_type": "application/json",
+                "fingerprint": fingerprint,
+                "is_chunked": True,
+                "chunk_count": 2,
+                "total_size": 100,
+            }
+
+            chunk1 = b'{"id": "'
+            chunk2 = b'cam-123"}'
+            mock_redis_client.lrange = AsyncMock(
+                return_value=[
+                    base64.b64encode(chunk1).decode("ascii"),
+                    base64.b64encode(chunk2).decode("ascii"),
+                ]
+            )
+
+            response = await middleware._handle_cache_hit(
+                mock_redis_client, cached_data, fingerprint, "test-key", mock_request
+            )
+
+            assert response.status_code == 201
+            assert response.body == chunk1 + chunk2
+            assert response.headers.get("Idempotency-Replayed") == "true"
+
+
+class TestIdempotencyMiddlewareStreamingResponse:
+    """Tests for streaming response caching."""
+
+    @pytest.mark.asyncio
+    async def test_cache_streaming_response_success(self, mock_redis_client, mock_settings):
+        """Test caching a streaming response with chunked storage."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, chunk_size=10, max_payload_size=100)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/cameras"
+
+            # Create streaming response
+            async def body_iterator():
+                yield b"chunk1"
+                yield b"chunk2"
+                yield b"chunk3"
+
+            response = Response(status_code=200, media_type="application/json")
+            response.body_iterator = body_iterator()
+
+            mock_redis_client.rpush = AsyncMock(return_value=1)
+            mock_redis_client.setex = AsyncMock(return_value=True)
+            mock_redis_client.expire = AsyncMock(return_value=True)
+
+            result = await middleware._cache_streaming_response(
+                mock_redis_client,
+                "cache-key",
+                response,
+                "fingerprint",
+                "idem-key",
+                mock_request,
+            )
+
+            # Should cache chunks
+            assert mock_redis_client.rpush.call_count > 0
+            mock_redis_client.setex.assert_called_once()
+            mock_redis_client.expire.assert_called_once()
+
+            # Result should contain all chunks
+            assert result.status_code == 200
+            assert b"chunk1" in result.body
+            assert b"chunk2" in result.body
+            assert b"chunk3" in result.body
+
+    @pytest.mark.asyncio
+    async def test_cache_streaming_response_exceeds_limit(self, mock_redis_client, mock_settings):
+        """Test streaming response that exceeds max_payload_size is not cached."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, chunk_size=10, max_payload_size=10)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/cameras"
+
+            # Create streaming response that exceeds limit
+            async def body_iterator():
+                yield b"x" * 5
+                yield b"x" * 10  # This will exceed the limit
+
+            response = Response(status_code=200, media_type="application/json")
+            response.body_iterator = body_iterator()
+
+            mock_redis_client.rpush = AsyncMock(return_value=1)
+            mock_redis_client.setex = AsyncMock(return_value=True)
+            mock_redis_client.delete = AsyncMock(return_value=1)
+
+            result = await middleware._cache_streaming_response(
+                mock_redis_client,
+                "cache-key",
+                response,
+                "fingerprint",
+                "idem-key",
+                mock_request,
+            )
+
+            # Should not cache metadata (setex not called)
+            mock_redis_client.setex.assert_not_called()
+            # Should clean up partial chunks
+            mock_redis_client.delete.assert_called_once()
+
+            # Result should still be returned
+            assert result.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_cache_streaming_response_error_cleanup(self, mock_redis_client, mock_settings):
+        """Test that streaming response errors trigger cleanup."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app, chunk_size=10)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/cameras"
+
+            # Create streaming response that raises error
+            async def body_iterator():
+                yield b"chunk1"
+                raise Exception("Stream error")
+
+            response = Response(status_code=200, media_type="application/json")
+            response.body_iterator = body_iterator()
+
+            mock_redis_client.rpush = AsyncMock(return_value=1)
+            mock_redis_client.delete = AsyncMock(return_value=1)
+
+            result = await middleware._cache_streaming_response(
+                mock_redis_client,
+                "cache-key",
+                response,
+                "fingerprint",
+                "idem-key",
+                mock_request,
+            )
+
+            # Should attempt cleanup
+            mock_redis_client.delete.assert_called()
+
+            # Result should contain chunk before error
+            assert b"chunk1" in result.body
+
+
+class TestIdempotencyMiddlewareBinaryContent:
+    """Tests for binary content handling."""
+
+    @pytest.mark.asyncio
+    async def test_cache_binary_response(self, mock_redis_client, mock_settings):
+        """Test caching binary content (base64 encoded)."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.url.path = "/api/media"
+
+            # Binary content that can't be decoded as UTF-8
+            binary_body = bytes([0xFF, 0xD8, 0xFF, 0xE0])  # JPEG header
+            response = Response(content=binary_body, status_code=200, media_type="image/jpeg")
+
+            mock_redis_client.setex = AsyncMock(return_value=True)
+
+            result = await middleware._cache_simple_response(
+                mock_redis_client,
+                "cache-key",
+                binary_body,
+                response,
+                "fingerprint",
+                "idem-key",
+                mock_request,
+            )
+
+            # Should cache with is_binary flag
+            setex_call = mock_redis_client.setex.call_args
+            cached_json = setex_call[0][2]
+            cached_data = json.loads(cached_json)
+            assert cached_data["is_binary"] is True
+            # Content should be base64 encoded
+            assert cached_data["content"] == base64.b64encode(binary_body).decode("ascii")
+
+            # Result should return original binary
+            assert result.body == binary_body
+
+    @pytest.mark.asyncio
+    async def test_replay_binary_response(self, mock_redis_client, mock_settings):
+        """Test replaying cached binary response."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            mock_request.url.path = "/api/media"
+            request_body = b'{"upload": "data"}'
+            fingerprint = compute_request_fingerprint("POST", "/api/media", request_body)
+
+            # Binary content in cache
+            binary_content = bytes([0xFF, 0xD8, 0xFF, 0xE0])
+            cached_data = {
+                "status_code": 200,
+                "content": base64.b64encode(binary_content).decode("ascii"),
+                "media_type": "image/jpeg",
+                "fingerprint": fingerprint,
+                "is_binary": True,
+            }
+
+            response = await middleware._handle_cache_hit(
+                mock_redis_client, cached_data, fingerprint, "test-key", mock_request
+            )
+
+            assert response.status_code == 200
+            assert response.body == binary_content
+            assert response.headers.get("Idempotency-Replayed") == "true"
+
+
+class TestIdempotencyMiddlewareDispatchEdgeCases:
+    """Tests for dispatch edge cases and error handling."""
+
+    @pytest.mark.asyncio
+    async def test_dispatch_invalid_key_format(self, mock_redis_client, mock_settings):
+        """Test that invalid key format returns 400."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            mock_request.headers = Headers({"Idempotency-Key": "invalid key with spaces"})
+            mock_request.url.path = "/api/cameras"
+
+            async def mock_call_next(request):
+                return Response(content=b"should not be called")
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response = await middleware.dispatch(mock_request, mock_call_next)
+
+            assert response.status_code == 400
+            body = json.loads(response.body)
+            assert "invalid characters" in body["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_key_too_long(self, mock_redis_client, mock_settings):
+        """Test that overly long key returns 400."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            long_key = "a" * (IDEMPOTENCY_KEY_MAX_LENGTH + 1)
+            mock_request.headers = Headers({"Idempotency-Key": long_key})
+            mock_request.url.path = "/api/cameras"
+
+            async def mock_call_next(request):
+                return Response(content=b"should not be called")
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response = await middleware.dispatch(mock_request, mock_call_next)
+
+            assert response.status_code == 400
+            body = json.loads(response.body)
+            assert "maximum length" in body["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_dispatch_empty_key_skips_idempotency(self, mock_redis_client, mock_settings):
+        """Test that empty key skips idempotency processing and proceeds normally."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            mock_request.headers = Headers({"Idempotency-Key": ""})
+            mock_request.url.path = "/api/cameras"
+
+            async def mock_call_next(request):
+                return Response(content=b"normal response", status_code=200)
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response = await middleware.dispatch(mock_request, mock_call_next)
+
+            # Empty key is treated as no key - skips idempotency, proceeds normally
+            assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_dispatch_request_body_read_error(self, mock_redis_client, mock_settings):
+        """Test that request body read errors fall back to normal processing."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            mock_request.headers = Headers({"Idempotency-Key": "test-key"})
+            mock_request.url.path = "/api/cameras"
+            mock_request.body = AsyncMock(side_effect=Exception("Body read error"))
+
+            call_next_called = False
+
+            async def mock_call_next(request):
+                nonlocal call_next_called
+                call_next_called = True
+                return Response(content=b'{"id": "cam-123"}', status_code=201)
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response = await middleware.dispatch(mock_request, mock_call_next)
+
+            # Should fall back to normal processing
+            assert call_next_called
+            assert response.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_get_redis_client_exception(self, mock_redis_client, mock_settings):
+        """Test _get_redis_client handles exceptions gracefully."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def failing_redis():
+                    raise Exception("Redis connection failed")
+
+                mock_get_redis.return_value = failing_redis()
+
+                result = await middleware._get_redis_client("test-key")
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_dispatch_with_unknown_response_type(self, mock_redis_client, mock_settings):
+        """Test that unknown response types are handled gracefully."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            mock_request = MagicMock(spec=Request)
+            mock_request.method = "POST"
+            mock_request.headers = Headers({"Idempotency-Key": "test-key"})
+            mock_request.url.path = "/api/cameras"
+            mock_request.body = AsyncMock(return_value=b'{"name": "camera1"}')
+
+            mock_redis_client.get = AsyncMock(return_value=None)
+
+            # Create response without body or body_iterator
+            async def mock_call_next(request):
+                response = Response(status_code=201)
+                # Remove body attribute to simulate unknown response type
+                if hasattr(response, "body"):
+                    delattr(response, "body")
+                return response
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response = await middleware.dispatch(mock_request, mock_call_next)
+
+            # Should return response without caching
+            assert response.status_code == 201
+            mock_redis_client.setex.assert_not_called()
+
+
+class TestIdempotencyMiddlewareIntegrationScenarios:
+    """Integration-style tests for complete scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_complete_idempotent_flow_cache_miss_then_hit(
+        self, mock_redis_client, mock_settings
+    ):
+        """Test complete flow: cache miss, then cache hit with replay."""
+        app = FastAPI()
+
+        with patch("backend.api.middleware.idempotency.get_settings", return_value=mock_settings):
+            middleware = IdempotencyMiddleware(app)
+
+            # First request - cache miss
+            mock_request1 = MagicMock(spec=Request)
+            mock_request1.method = "POST"
+            mock_request1.headers = Headers({"Idempotency-Key": "test-flow-key"})
+            mock_request1.url.path = "/api/cameras"
+            request_body = b'{"name": "camera1"}'
+            mock_request1.body = AsyncMock(return_value=request_body)
+
+            mock_redis_client.get = AsyncMock(return_value=None)
+            mock_redis_client.setex = AsyncMock(return_value=True)
+
+            response_body = b'{"id": "cam-123", "name": "camera1"}'
+
+            async def mock_call_next(request):
+                return Response(content=response_body, status_code=201)
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response1 = await middleware.dispatch(mock_request1, mock_call_next)
+
+            assert response1.status_code == 201
+            assert "Idempotency-Replayed" not in response1.headers
+            mock_redis_client.setex.assert_called_once()
+
+            # Second request - cache hit
+            mock_request2 = MagicMock(spec=Request)
+            mock_request2.method = "POST"
+            mock_request2.headers = Headers({"Idempotency-Key": "test-flow-key"})
+            mock_request2.url.path = "/api/cameras"
+            mock_request2.body = AsyncMock(return_value=request_body)
+
+            # Setup cached response
+            fingerprint = compute_request_fingerprint("POST", "/api/cameras", request_body)
+            cached_data = {
+                "status_code": 201,
+                "content": response_body.decode("utf-8"),
+                "media_type": "application/json",
+                "fingerprint": fingerprint,
+            }
+            mock_redis_client.get = AsyncMock(return_value=json.dumps(cached_data))
+
+            call_next_called = False
+
+            async def mock_call_next_should_not_run(request):
+                nonlocal call_next_called
+                call_next_called = True
+                return Response(content=b"should not be called")
+
+            with patch("backend.api.middleware.idempotency.get_redis_optional") as mock_get_redis:
+
+                async def get_redis():
+                    yield mock_redis_client
+
+                mock_get_redis.return_value = get_redis()
+
+                response2 = await middleware.dispatch(mock_request2, mock_call_next_should_not_run)
+
+            assert not call_next_called  # Request not processed
+            assert response2.status_code == 201
+            assert response2.body == response_body
+            assert response2.headers.get("Idempotency-Replayed") == "true"

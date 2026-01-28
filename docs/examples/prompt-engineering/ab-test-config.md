@@ -161,12 +161,12 @@ Interpretation:
 
 Cohen's d measures practical significance:
 
-| Range     | Interpretation                      |
-| --------- | ----------------------------------- | ------ | ------------------------------------------- |
-|           | d                                   | < 0.2  | Negligible - probably not worth rolling out |
-| 0.2 - 0.5 | Small - consider if low-cost change |
-| 0.5 - 0.8 | Medium - meaningful improvement     |
-|           | d                                   | >= 0.8 | Large - strong case for rolling out         |
+| Range     | Interpretation                              |
+| --------- | ------------------------------------------- |
+| d < 0.2   | Negligible - probably not worth rolling out |
+| 0.2 - 0.5 | Small - consider if low-cost change         |
+| 0.5 - 0.8 | Medium - meaningful improvement             |
+| d >= 0.8  | Large - strong case for rolling out         |
 
 ## Complete Workflow Example
 

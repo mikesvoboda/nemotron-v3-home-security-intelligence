@@ -89,7 +89,7 @@ flowchart TB
 | XSS Prevention   | React automatic escaping + CSP headers    | `backend/api/middleware/security_headers.py` |
 | SSRF Protection  | URL validation with IP range blocking     | `backend/core/url_validation.py`             |
 | Rate Limiting    | Tiered rate limits per endpoint type      | `backend/api/middleware/rate_limit.py`       |
-| Body Size Limits | 10MB request body limit                   | `backend/main.py:1059-1061`                  |
+| Body Size Limits | 10MB request body limit                   | `backend/main.py:1145-1147`                  |
 | Security Headers | Defense-in-depth HTTP headers             | `backend/api/middleware/security_headers.py` |
 
 ### Optional Security Features
@@ -122,14 +122,14 @@ flowchart TB
 
 | File                                         | Purpose                        |
 | -------------------------------------------- | ------------------------------ |
-| `backend/main.py:1002-1068`                  | Middleware stack configuration |
+| `backend/main.py:1083-1162`                  | Middleware stack configuration |
 | `backend/api/middleware/auth.py`             | API key authentication         |
 | `backend/api/middleware/security_headers.py` | HTTP security headers          |
 | `backend/core/sanitization.py`               | Input and error sanitization   |
 | `backend/core/url_validation.py`             | SSRF protection                |
 | `backend/api/schemas/camera.py`              | Camera input validation        |
 | `backend/api/routes/media.py`                | Path traversal protection      |
-| `backend/core/config.py:1090-1098`           | Authentication settings        |
+| `backend/core/config.py`                     | Authentication settings        |
 
 ## Related Documentation
 

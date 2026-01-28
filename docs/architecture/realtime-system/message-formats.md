@@ -598,6 +598,7 @@ Sent on `/ws/system` channel every 5 seconds.
 | `subscribe`            | Client    | Subscribe to patterns     |
 | `unsubscribe`          | Client    | Unsubscribe from patterns |
 | `resync`               | Client    | Request replay            |
+| `resync_ack`           | Server    | Resync acknowledgment     |
 | `ack`                  | Client    | Acknowledge message       |
 | `connected`            | Server    | Connection established    |
 | `error`                | Server    | Error notification        |

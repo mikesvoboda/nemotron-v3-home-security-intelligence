@@ -14,31 +14,50 @@ The Dashboard is your central hub for home security monitoring. When you open th
 
 ### Layout Overview
 
-```
-+--------------------------------------------------+
-|  HEADER: Logo | Live Status | GPU Stats          |
-+--------+---------------------------------------+
-| SIDEBAR| MAIN CONTENT                          |
-|        |                                       |
-| [Dash] | Security Dashboard                    |
-| [Time] | +----+ +----+ +----+ +----+           |
-| [Ent]  | | Cam | | Evts| | Risk| | Sys |       |
-| [Alrt] | +----+ +----+ +----+ +----+           |
-| [Logs] |                                       |
-| [Syst] | +------------+ +--------------+       |
-| [Sett] | | RISK GAUGE | | GPU STATS    |       |
-|        | +------------+ +--------------+       |
-|        |                                       |
-|        | CAMERA GRID                           |
-|        | +------+ +------+ +------+            |
-|        | | Cam1 | | Cam2 | | Cam3 |            |
-|        | +------+ +------+ +------+            |
-|        |                                       |
-|        | LIVE ACTIVITY FEED                    |
-|        | +--------------------------------+    |
-|        | | Event 1 | Event 2 | Event 3    |    |
-|        | +--------------------------------+    |
-+--------+---------------------------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph Header["HEADER"]
+        Logo["Logo"]
+        LiveStatus["Live Status"]
+        GPUStats["GPU Stats"]
+    end
+
+    subgraph Main["MAIN LAYOUT"]
+        subgraph Sidebar["SIDEBAR"]
+            Dash["[Dash]"]
+            Time["[Time]"]
+            Ent["[Ent]"]
+            Alrt["[Alrt]"]
+            Logs["[Logs]"]
+            Syst["[Syst]"]
+            Sett["[Sett]"]
+        end
+
+        subgraph Content["MAIN CONTENT"]
+            Title["Security Dashboard"]
+            subgraph Stats["STATS ROW"]
+                Cam["Cameras"]
+                Evts["Events"]
+                Risk["Risk"]
+                Sys["System"]
+            end
+            subgraph Widgets["WIDGETS"]
+                RiskGauge["RISK GAUGE"]
+                GPUWidget["GPU STATS"]
+            end
+            subgraph CameraGrid["CAMERA GRID"]
+                Cam1["Cam1"]
+                Cam2["Cam2"]
+                Cam3["Cam3"]
+            end
+            subgraph ActivityFeed["LIVE ACTIVITY FEED"]
+                Event1["Event 1"]
+                Event2["Event 2"]
+                Event3["Event 3"]
+            end
+        end
+    end
 ```
 
 It provides a customizable layout with these default widgets:

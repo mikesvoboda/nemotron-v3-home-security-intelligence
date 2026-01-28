@@ -461,3 +461,325 @@ def test_clean_plate_text_with_numbers_only():
 def test_clean_plate_text_with_letters_only():
     """Test plate text that is only letters."""
     assert clean_plate_text("ABCDEF") == "ABCDEF"
+
+
+def test_find_image_for_plate_sync_fallback_to_loaded():
+    """Test sync image finding falls back to any loaded image (covers line 262)."""
+    from backend.services.ocr_service import _find_image_for_plate
+
+    test_image = Image.new("RGB", (100, 100), color=(0, 0, 255))
+    loaded_images = {"some_cached.jpg": test_image}
+
+    # No matching paths, should fall back to loaded images
+    result = _find_image_for_plate(
+        image_paths=["/path/does/not/exist.jpg"],
+        loaded_images=loaded_images,
+    )
+
+    # Should fall back to any available loaded image
+    assert result is test_image
+
+
+def test_find_image_for_plate_sync_load_from_disk(temp_test_image):
+    """Test sync image finding loads from disk (covers line 253->262 branch)."""
+    from backend.services.ocr_service import _find_image_for_plate
+
+    loaded_images = {}
+
+    # Should load from disk
+    result = _find_image_for_plate(
+        image_paths=[temp_test_image],
+        loaded_images=loaded_images,
+    )
+
+    assert result is not None
+    assert isinstance(result, Image.Image)
+    # Should cache it
+    assert temp_test_image in loaded_images
+
+
+def test_crop_plate_region_invalid_bbox_returns_none():
+    """Test that invalid bbox returns None (covers lines 128-131)."""
+    image = Image.new("RGB", (1000, 800), color=(255, 0, 0))
+    # Completely invalid bbox (negative coordinates after normalization)
+    invalid_bbox = (-100.0, -100.0, -50.0, -50.0)
+
+    cropped = _crop_plate_region(image, invalid_bbox, padding=0.05)
+
+    # Should return None for invalid bbox
+    assert cropped is None
+
+
+def test_crop_plate_region_zero_size_bbox():
+    """Test that zero-size bbox is handled properly."""
+    image = Image.new("RGB", (1000, 800), color=(255, 0, 0))
+    # Zero width bbox
+    zero_bbox = (100.0, 200.0, 100.0, 250.0)
+
+    cropped = _crop_plate_region(image, zero_bbox, padding=0.05)
+
+    # Should be None or handle gracefully
+    # Based on the code, prepare_bbox_for_crop should return None for min_size=1
+    assert cropped is None or cropped.size[0] > 0
+
+
+def test_run_ocr_sync_empty_text_lines():
+    """Test OCR with empty text in results (covers line 173)."""
+    model = MagicMock()
+    # Return structure with empty text strings
+    model.ocr.return_value = [
+        [
+            [[[0, 0], [100, 0], [100, 50], [0, 50]], ("", 0.95)],  # Empty text
+            [[[0, 50], [100, 50], [100, 100], [0, 100]], ("", 0.90)],  # Empty text
+        ]
+    ]
+
+    image = Image.new("RGB", (200, 100), color=(255, 255, 255))
+
+    text, confidence = _run_ocr_sync(model, image)
+
+    # Should return None when all texts are empty
+    assert text is None
+    assert confidence == 0.0
+
+
+def test_run_ocr_sync_malformed_line_structure():
+    """Test OCR with malformed line structure."""
+    model = MagicMock()
+    # Malformed structure (missing tuple element)
+    model.ocr.return_value = [
+        [
+            [[[0, 0], [100, 0], [100, 50], [0, 50]]],  # Missing text/confidence tuple
+        ]
+    ]
+
+    image = Image.new("RGB", (200, 50), color=(255, 255, 255))
+
+    text, confidence = _run_ocr_sync(model, image)
+
+    # Should handle gracefully
+    assert text is None
+    assert confidence == 0.0
+
+
+def test_run_ocr_sync_mixed_valid_and_empty_texts():
+    """Test OCR with mix of valid and empty text lines."""
+    model = MagicMock()
+    model.ocr.return_value = [
+        [
+            [[[0, 0], [100, 0], [100, 25], [0, 25]], ("", 0.95)],  # Empty text
+            [[[0, 25], [100, 25], [100, 50], [0, 50]], ("ABC", 0.90)],  # Valid text
+        ]
+    ]
+
+    image = Image.new("RGB", (200, 50), color=(255, 255, 255))
+
+    text, confidence = _run_ocr_sync(model, image)
+
+    # Should only include non-empty text
+    assert text == "ABC"
+    assert confidence == 0.90
+
+
+@pytest.mark.asyncio
+async def test_read_plates_invalid_bbox_skips_plate(temp_test_image):
+    """Test that plates with invalid bboxes are skipped (covers lines 318-322)."""
+    detections = [
+        PlateDetection(
+            bbox=(-100.0, -100.0, -50.0, -50.0),  # Invalid bbox
+            confidence=0.95,
+            vehicle_detection_id=1,
+        ),
+    ]
+    images = {temp_test_image: Image.open(temp_test_image).convert("RGB")}
+
+    results = await read_plates(
+        ocr_model=MagicMock(),
+        plate_detections=detections,
+        images=images,
+    )
+
+    # Should skip the plate with invalid bbox
+    assert len(results) == 0
+
+
+@pytest.mark.asyncio
+async def test_read_single_plate_empty_cleaned_text():
+    """Test single plate with text that becomes empty after cleaning (covers line 406)."""
+    plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
+
+    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+        # Return single character that will be filtered by clean_plate_text
+        mock_to_thread.return_value = ("@", 0.95)
+
+        result = await read_single_plate(
+            ocr_model=MagicMock(),
+            plate_image=plate_image,
+        )
+
+    # Should return None when cleaned text is too short
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_find_image_for_plate_async_from_cache():
+    """Test async image finding from cache."""
+    from backend.services.ocr_service import _find_image_for_plate_async
+
+    test_image = Image.new("RGB", (100, 100), color=(255, 0, 0))
+    loaded_images = {"cached_path.jpg": test_image}
+
+    result = await _find_image_for_plate_async(
+        image_paths=["cached_path.jpg"],
+        loaded_images=loaded_images,
+    )
+
+    assert result is test_image
+
+
+@pytest.mark.asyncio
+async def test_find_image_for_plate_async_load_from_file(temp_test_image):
+    """Test async image finding by loading from file (covers lines 218-232)."""
+    from backend.services.ocr_service import _find_image_for_plate_async
+
+    loaded_images = {}
+
+    result = await _find_image_for_plate_async(
+        image_paths=[temp_test_image],
+        loaded_images=loaded_images,
+    )
+
+    # Should load the image
+    assert result is not None
+    assert isinstance(result, Image.Image)
+    # Should cache it
+    assert temp_test_image in loaded_images
+
+
+@pytest.mark.asyncio
+async def test_find_image_for_plate_async_nonexistent_file():
+    """Test async image finding with nonexistent file."""
+    from backend.services.ocr_service import _find_image_for_plate_async
+
+    loaded_images = {}
+
+    result = await _find_image_for_plate_async(
+        image_paths=["/nonexistent/path.jpg"],
+        loaded_images=loaded_images,
+    )
+
+    # Should return None when file doesn't exist
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_find_image_for_plate_async_fallback_to_loaded():
+    """Test async image finding falls back to any loaded image (covers line 230)."""
+    from backend.services.ocr_service import _find_image_for_plate_async
+
+    test_image = Image.new("RGB", (100, 100), color=(0, 255, 0))
+    loaded_images = {"some_other_image.jpg": test_image}
+
+    # No matching paths, but has loaded images
+    result = await _find_image_for_plate_async(
+        image_paths=["/nonexistent.jpg"],
+        loaded_images=loaded_images,
+    )
+
+    # Should fall back to any available loaded image
+    assert result is test_image
+
+
+@pytest.mark.asyncio
+async def test_find_image_for_plate_async_no_paths_no_loaded():
+    """Test async image finding with no paths and no loaded images."""
+    from backend.services.ocr_service import _find_image_for_plate_async
+
+    result = await _find_image_for_plate_async(
+        image_paths=None,
+        loaded_images={},
+    )
+
+    # Should return None when nothing available
+    assert result is None
+
+
+def test_load_image_sync(temp_test_image):
+    """Test synchronous image loading (covers line 198)."""
+    from backend.services.ocr_service import _load_image_sync
+
+    path_obj = Path(temp_test_image)
+    result = _load_image_sync(path_obj)
+
+    # Should load and convert to RGB
+    assert isinstance(result, Image.Image)
+    assert result.mode == "RGB"
+
+
+@pytest.mark.asyncio
+async def test_read_plates_uses_image_paths_loading(temp_test_image):
+    """Test read_plates with image_paths that need loading."""
+    detections = [
+        PlateDetection(
+            bbox=(100.0, 200.0, 300.0, 250.0),
+            confidence=0.95,
+            vehicle_detection_id=1,
+        ),
+    ]
+
+    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+        mock_to_thread.return_value = ("XYZ999", 0.88)
+
+        # Pass image_paths instead of pre-loaded images
+        results = await read_plates(
+            ocr_model=MagicMock(),
+            plate_detections=detections,
+            image_paths=[temp_test_image],
+        )
+
+    # Should successfully load and process
+    assert len(results) == 1
+    assert results[0].text == "XYZ999"
+
+
+@pytest.mark.asyncio
+async def test_read_plates_none_ocr_result():
+    """Test read_plates when OCR returns None."""
+    detections = [
+        PlateDetection(
+            bbox=(100.0, 200.0, 300.0, 250.0),
+            confidence=0.95,
+            vehicle_detection_id=1,
+        ),
+    ]
+    test_image = Image.new("RGB", (1920, 1080), color=(100, 150, 200))
+    images = {"test.jpg": test_image}
+
+    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+        mock_to_thread.return_value = (None, 0.0)
+
+        results = await read_plates(
+            ocr_model=MagicMock(),
+            plate_detections=detections,
+            images=images,
+        )
+
+    # Should skip plates with None OCR results
+    assert len(results) == 0
+
+
+@pytest.mark.asyncio
+async def test_read_single_plate_none_ocr_result():
+    """Test read_single_plate when OCR returns None."""
+    plate_image = Image.new("RGB", (200, 50), color=(255, 255, 255))
+
+    with patch("backend.services.ocr_service.asyncio.to_thread") as mock_to_thread:
+        mock_to_thread.return_value = (None, 0.0)
+
+        result = await read_single_plate(
+            ocr_model=MagicMock(),
+            plate_image=plate_image,
+        )
+
+    # Should return None when OCR returns None
+    assert result is None

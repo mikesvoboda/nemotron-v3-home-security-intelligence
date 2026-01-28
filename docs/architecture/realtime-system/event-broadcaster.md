@@ -54,6 +54,69 @@ def __init__(self, redis_client: RedisClient, channel_name: str | None = None):
     self._client_acks: dict[WebSocket, int] = {}
 ```
 
+## WebSocket Message Flow
+
+The following sequence diagram shows the complete flow of WebSocket communication, including client connection, subscription, event broadcasting, and acknowledgment.
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant WS as WebSocket Server
+    participant EB as EventBroadcaster
+    participant R as Redis Pub/Sub
+    participant AI as AI Pipeline
+
+    Note over C,AI: Connection Phase
+    C->>WS: WebSocket upgrade request
+    WS->>WS: Validate auth token
+    WS-->>C: Connection accepted
+    WS->>EB: register(websocket)
+    EB->>EB: Add to _connections set
+
+    Note over C,AI: Subscription Phase
+    C->>WS: {"type": "subscribe", "data": {"events": ["alert.*", "detection.*"]}}
+    WS->>WS: Validate message format
+    WS-->>C: {"action": "subscribed", "events": ["alert.*", "detection.*"]}
+
+    Note over C,AI: Event Broadcast Phase
+    AI->>EB: broadcast_event(event_data)
+    EB->>EB: Validate with WebSocketEventMessage
+    EB->>R: PUBLISH event_channel event_data
+    R-->>EB: subscriber_count
+    EB->>EB: _listen_for_events() receives message
+    EB->>EB: _add_sequence_and_buffer(message)
+    EB->>EB: Add to _message_buffer (max 100)
+
+    loop For each connected client
+        EB->>EB: Check subscription filter
+        alt Client subscribed to event type
+            EB->>WS: _send_to_all_clients(sequenced_message)
+            WS-->>C: {"type": "event", "seq": 42, "data": {...}}
+        else Not subscribed
+            EB->>EB: Skip client
+        end
+    end
+
+    Note over C,AI: Acknowledgment Phase
+    C->>WS: {"type": "ack", "data": {"sequence": 42}}
+    WS->>EB: record_ack(websocket, sequence=42)
+    EB->>EB: Update _client_acks[websocket] = 42
+
+    Note over C,AI: Heartbeat (maintains connection)
+    WS-->>C: {"type": "ping", "lastSeq": 42}
+    C->>WS: {"type": "pong"}
+```
+
+### Flow Description
+
+| Phase              | Description                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| **Connection**     | Client upgrades to WebSocket, server validates auth, registers with broadcaster                  |
+| **Subscription**   | Client subscribes to event patterns (e.g., `alert.*`), server confirms                           |
+| **Broadcast**      | AI pipeline publishes events via Redis, broadcaster sequences and delivers to subscribed clients |
+| **Acknowledgment** | Client acknowledges received sequence numbers for gap detection                                  |
+| **Heartbeat**      | Server sends periodic pings with latest sequence for connection health                           |
+
 ## Redis Pub/Sub Integration
 
 ### Starting the Broadcaster

@@ -29,7 +29,7 @@ Camera uploads arrive via FTP to watched directories. The FileWatcher monitors t
 - **Debouncing:** 0.5s delay to ensure file writes complete (line 355, `debounce_delay`)
 - **File stability:** 2.0s stability check for FTP uploads (lines 560-621)
 - **Validation:** Image integrity via PIL verification (lines 159-205, 207-254)
-- **Deduplication:** SHA256 content hashing with Redis TTL (lines 809-819)
+- **Deduplication:** SHA256 content hashing with Redis TTL (lines 809-818)
 
 **Source:** `backend/services/file_watcher.py`
 
@@ -37,21 +37,21 @@ Camera uploads arrive via FTP to watched directories. The FileWatcher monitors t
 
 The `DetectionQueueWorker` continuously polls `detection_queue` using Redis BLPOP with timeout. For each item:
 
-1. Validates payload using Pydantic schemas (line 406)
-2. Routes to image or video processing (lines 439-446)
+1. Validates payload using Pydantic schemas (line 407)
+2. Routes to image or video processing (lines 443-450)
 3. Calls `DetectorClient.detect_objects()` with retry logic
 4. Adds detections to `BatchAggregator`
 
-**Source:** `backend/services/pipeline_workers.py` (lines 208-689)
+**Source:** `backend/services/pipeline_workers.py` (lines 209-692)
 
 ### Stage 3: Object Detection (YOLO26)
 
 The `DetectorClient` sends images to the YOLO26 service:
 
-- **Concurrency control:** Semaphore limits concurrent GPU requests (line 1006-1007)
-- **Circuit breaker:** Prevents retry storms when detector is down (lines 300-309)
-- **Retry logic:** Exponential backoff for transient failures (lines 592-831)
-- **Confidence filtering:** Configurable threshold (line 1051)
+- **Concurrency control:** Semaphore limits concurrent GPU requests (lines 649-652)
+- **Circuit breaker:** Prevents retry storms when detector is down (lines 319-334)
+- **Retry logic:** Exponential backoff for transient failures (lines 585-908)
+- **Confidence filtering:** Configurable threshold (lines 1299-1308)
 
 **Source:** `backend/services/detector_client.py`
 
@@ -70,11 +70,11 @@ The `BatchAggregator` groups detections by camera before analysis:
 
 The `AnalysisQueueWorker` processes completed batches:
 
-1. Validates payload using Pydantic schemas (line 839)
+1. Validates payload using Pydantic schemas (line 863)
 2. Calls `NemotronAnalyzer.analyze_batch()`
 3. Records pipeline latency metrics
 
-**Source:** `backend/services/pipeline_workers.py` (lines 691-939)
+**Source:** `backend/services/pipeline_workers.py` (lines 695-1056)
 
 ### Stage 6: LLM Risk Analysis (Nemotron)
 
@@ -86,7 +86,7 @@ The `NemotronAnalyzer` performs risk assessment:
 4. Formats prompt and calls llama.cpp endpoint
 5. Parses JSON response and creates Event
 
-**Source:** `backend/services/nemotron_analyzer.py` (lines 135-236)
+**Source:** `backend/services/nemotron_analyzer.py` (class starts at line 220)
 
 ### Stage 7: Event Broadcasting
 
@@ -127,18 +127,18 @@ DetectionQueueWorker --> YOLO26 --> BatchAggregator
 | `DETECTION_QUEUE`          | `"detection_queue"` | `backend/core/constants.py:146`            |
 | `ANALYSIS_QUEUE`           | `"analysis_queue"`  | `backend/core/constants.py:149`            |
 | `BATCH_KEY_TTL_SECONDS`    | 3600 (1 hour)       | `backend/services/batch_aggregator.py:133` |
-| `MIN_DETECTION_IMAGE_SIZE` | 10KB                | `backend/services/detector_client.py:92`   |
+| `MIN_DETECTION_IMAGE_SIZE` | 10KB                | `backend/services/detector_client.py:103`  |
 
 ## Worker Management
 
 The `PipelineWorkerManager` provides unified lifecycle management:
 
-- **Start/stop:** Coordinated worker lifecycle (lines 1489-1627)
-- **Signal handling:** SIGTERM/SIGINT graceful shutdown (lines 1629-1651)
-- **Status reporting:** Worker stats and health (lines 1463-1487)
-- **Queue draining:** Graceful shutdown with timeout (lines 1384-1461)
+- **Start/stop:** Coordinated worker lifecycle (lines 1607-1745)
+- **Signal handling:** SIGTERM/SIGINT graceful shutdown (lines 1747-1769)
+- **Status reporting:** Worker stats and health (lines 1581-1605)
+- **Queue draining:** Graceful shutdown with timeout (lines 1502-1579)
 
-**Source:** `backend/services/pipeline_workers.py` (lines 1207-1766)
+**Source:** `backend/services/pipeline_workers.py` (lines 1325-1769)
 
 ## Metrics and Observability
 
@@ -153,4 +153,4 @@ Pipeline stages record metrics via Prometheus:
 
 - **[AI Pipeline Overview](../ai-pipeline.md):** Broader AI processing context
 - **[Real-time Architecture](../real-time.md):** WebSocket and pub/sub details
-- **[Resilience Patterns](../resilience.md):** Circuit breakers and retry handlers
+- **[Resilience Patterns](../resilience-patterns/README.md):** Circuit breakers and retry handlers

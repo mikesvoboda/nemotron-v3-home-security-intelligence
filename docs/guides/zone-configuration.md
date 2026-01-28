@@ -33,20 +33,46 @@ Each zone has a type that affects AI behavior and alert prioritization:
 
 ### Zone Type Decision Tree
 
-```
-What is the primary purpose of this area?
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TD
+    START["What is the primary<br/>purpose of this area?"]
 
-Entry/Exit to property?
-  |
-  +-- Entry door/gate     --> entry_point
-  +-- Exit-only           --> exit_point
-  +-- Both ways           --> entry_point
+    START --> ENTRY{"Entry/Exit<br/>to property?"}
+    START --> RESTRICTED{"Restricted<br/>access?"}
+    START --> GENERAL{"General<br/>monitoring?"}
+    START --> OTHER["None of<br/>the above"]
 
-Restricted access?        --> restricted
+    ENTRY --> DOOR["Entry door/gate"]
+    ENTRY --> EXIT["Exit-only"]
+    ENTRY --> BOTH["Both ways"]
 
-General monitoring?       --> monitored
+    DOOR --> EP1[entry_point]
+    EXIT --> EX[exit_point]
+    BOTH --> EP2[entry_point]
 
-None of the above?        --> other
+    RESTRICTED --> REST[restricted]
+    GENERAL --> MON[monitored]
+    OTHER --> OTH[other]
+
+    style EP1 fill:#EF4444,color:#fff
+    style EP2 fill:#EF4444,color:#fff
+    style EX fill:#F97316,color:#fff
+    style REST fill:#EF4444,color:#fff
+    style MON fill:#3B82F6,color:#fff
+    style OTH fill:#6B7280,color:#fff
 ```
 
 ---
@@ -106,9 +132,41 @@ For irregular areas:
 
 The system tracks how long objects remain in zones:
 
-```
-Detection enters zone -> Timer starts
-Detection leaves zone -> Dwell time recorded
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    ENTER["Detection<br/>enters zone"]
+    TIMER["Timer<br/>starts"]
+    LEAVE["Detection<br/>leaves zone"]
+    RECORD["Dwell time<br/>recorded"]
+    ALERT{"Dwell<br/>threshold?"}
+    NORMAL["Normal<br/>activity"]
+    EXTENDED["Extended<br/>dwell alert"]
+    PROLONGED["Prolonged<br/>dwell alert"]
+
+    ENTER --> TIMER
+    TIMER --> LEAVE
+    LEAVE --> RECORD
+    RECORD --> ALERT
+    ALERT -->|"< 2x baseline"| NORMAL
+    ALERT -->|"2-5x baseline"| EXTENDED
+    ALERT -->|"> 5x baseline"| PROLONGED
+
+    style NORMAL fill:#22C55E,color:#fff
+    style EXTENDED fill:#F59E0B,color:#fff
+    style PROLONGED fill:#EF4444,color:#fff
 ```
 
 **Dwell Time Alerts:**
@@ -327,13 +385,15 @@ PUT /api/zones/{zone_id}/household
 
 ## Zone Baseline API
 
-### Get Zone Baseline
+> **Note:** The Zone Baseline API is not yet implemented. The database model (`zone_activity_baselines` table) exists, but the REST API endpoints are planned for a future release. See NEM-4064 for tracking.
+
+### Get Zone Baseline (Planned)
 
 ```bash
 GET /api/zones/{zone_id}/baseline
 ```
 
-**Response:**
+**Planned Response:**
 
 ```json
 {
@@ -346,7 +406,7 @@ GET /api/zones/{zone_id}/baseline
 }
 ```
 
-### Zone Anomalies
+### Zone Anomalies (Planned)
 
 ```bash
 GET /api/zones/{zone_id}/anomalies
@@ -375,13 +435,40 @@ GET /api/zones/{zone_id}/anomalies
 
 Zones use **normalized coordinates** (0.0 to 1.0):
 
-```
-(0.0, 0.0) -------- (1.0, 0.0)
-    |                    |
-    |      (0.5, 0.5)    |
-    |         X          |
-    |                    |
-(0.0, 1.0) -------- (1.0, 1.0)
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e'
+  }
+}}%%
+graph TD
+    subgraph Frame["Camera Frame (Normalized)"]
+        TL["(0.0, 0.0)<br/>Top Left"]
+        TR["(1.0, 0.0)<br/>Top Right"]
+        CTR["(0.5, 0.5)<br/>Center"]
+        BL["(0.0, 1.0)<br/>Bottom Left"]
+        BR["(1.0, 1.0)<br/>Bottom Right"]
+    end
+
+    TL --- TR
+    TL --- BL
+    TR --- BR
+    BL --- BR
+    TL -.-> CTR
+    TR -.-> CTR
+    BL -.-> CTR
+    BR -.-> CTR
+
+    style TL fill:#3B82F6,color:#fff
+    style TR fill:#3B82F6,color:#fff
+    style BL fill:#3B82F6,color:#fff
+    style BR fill:#3B82F6,color:#fff
+    style CTR fill:#A855F7,color:#fff
 ```
 
 **Why Normalized?**

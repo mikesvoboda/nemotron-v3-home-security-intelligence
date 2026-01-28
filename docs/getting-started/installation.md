@@ -108,11 +108,11 @@ The model download script ([`ai/download_models.sh`](../../ai/download_models.sh
 
 ### Models Downloaded
 
-| Model                   | Size   | Purpose              | Location                                                        |
-| ----------------------- | ------ | -------------------- | --------------------------------------------------------------- |
-| **Nemotron-3-Nano-30B** | ~18GB  | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`      |
-| **Nemotron Mini 4B**    | ~2.5GB | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
-| **YOLO26**              | varies | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
+| Model                   | Size    | Purpose              | Location                                                        |
+| ----------------------- | ------- | -------------------- | --------------------------------------------------------------- |
+| **Nemotron-3-Nano-30B** | ~14.7GB | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`      |
+| **Nemotron Mini 4B**    | ~2.5GB  | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
+| **YOLO26**              | varies  | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
 
 ### Using Pre-downloaded Models
 

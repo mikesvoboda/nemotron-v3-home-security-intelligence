@@ -15,27 +15,48 @@ Jobs that fail after all retry attempts are moved to dead-letter queues for:
 
 ## DLQ Architecture
 
-```
-Processing Queues                    Dead-Letter Queues
-+-------------------+               +----------------------+
-| detection_queue   | ----fail----> | dlq:detection_queue  |
-+-------------------+               +----------------------+
-        |                                    |
-        v                                    v
-+-------------------+               +----------------------+
-| analysis_queue    | ----fail----> | dlq:analysis_queue   |
-+-------------------+               +----------------------+
-                                            |
-                                            v
-                                   +----------------------+
-                                   |  DLQ Management API  |
-                                   |  /api/dlq/*          |
-                                   +----------------------+
-                                            |
-                    +-------+-------+-------+-------+
-                    |       |       |       |       |
-                    v       v       v       v       v
-                 Stats   List   Requeue  Clear  Requeue-all
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Processing["Processing Queues"]
+        DQ[detection_queue]
+        AQ[analysis_queue]
+    end
+
+    subgraph DLQs["Dead-Letter Queues"]
+        DLQ1[dlq:detection_queue]
+        DLQ2[dlq:analysis_queue]
+    end
+
+    DQ -->|fail| DLQ1
+    AQ -->|fail| DLQ2
+
+    DLQ1 --> API
+    DLQ2 --> API
+
+    subgraph API["DLQ Management API<br/>/api/dlq/*"]
+        STATS[Stats]
+        LIST[List]
+        REQUEUE[Requeue]
+        CLEAR[Clear]
+        REQUEUE_ALL[Requeue-all]
+    end
+
+    style DLQ1 fill:#E74856,color:#fff
+    style DLQ2 fill:#E74856,color:#fff
+    style API fill:#3B82F6,color:#fff
 ```
 
 ## Queue Names
@@ -279,11 +300,37 @@ async def verify_api_key(
 
 When the DLQ becomes unavailable, a circuit breaker prevents cascading failures (`backend/services/retry_handler.py:24-28`):
 
-```
-Circuit Breaker for DLQ:
-    - CLOSED: Normal operation, DLQ writes proceed
-    - OPEN: DLQ failing, writes are skipped to prevent resource exhaustion
-    - HALF_OPEN: Testing recovery, limited writes allowed
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> CLOSED
+
+    CLOSED --> OPEN: DLQ write failures
+    OPEN --> HALF_OPEN: recovery_timeout elapsed
+    HALF_OPEN --> CLOSED: write succeeds
+    HALF_OPEN --> OPEN: write fails
+
+    CLOSED: Normal Operation
+    CLOSED: DLQ writes proceed
+
+    OPEN: DLQ Failing
+    OPEN: Writes skipped to prevent
+    OPEN: resource exhaustion
+
+    HALF_OPEN: Testing Recovery
+    HALF_OPEN: Limited writes allowed
 ```
 
 ### Data Loss Risk
