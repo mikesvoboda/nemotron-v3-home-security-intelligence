@@ -20,22 +20,24 @@ ai/common/tests/
 
 Tests for the abstract base classes used by TensorRT-accelerated model implementations.
 
-| Test Class                            | Purpose                                      |
-| ------------------------------------- | -------------------------------------------- |
-| `TestTensorRTInferenceBase`           | Backend selection and statistics tracking    |
-| `TestTensorRTInferenceBaseAbstractMethods` | Abstract method requirements            |
-| `TestTensorRTDetectionModel`          | Detection model specialized class            |
-| `TestTensorRTClassificationModel`     | Classification model specialized class       |
-| `TestEnvironmentVariableDefaults`     | TENSORRT_ENABLED, TENSORRT_PRECISION defaults|
-| `TestNMSPostprocessing`               | Non-Maximum Suppression filtering            |
-| `TestConcreteImplementation`          | Creating concrete model implementations      |
+| Test Class                                 | Purpose                                       |
+| ------------------------------------------ | --------------------------------------------- |
+| `TestTensorRTInferenceBase`                | Backend selection and statistics tracking     |
+| `TestTensorRTInferenceBaseAbstractMethods` | Abstract method requirements                  |
+| `TestTensorRTDetectionModel`               | Detection model specialized class             |
+| `TestTensorRTClassificationModel`          | Classification model specialized class        |
+| `TestEnvironmentVariableDefaults`          | TENSORRT_ENABLED, TENSORRT_PRECISION defaults |
+| `TestNMSPostprocessing`                    | Non-Maximum Suppression filtering             |
+| `TestConcreteImplementation`               | Creating concrete model implementations       |
 
 **Mock Classes:**
+
 - `MockTensorRTInferenceModel`: Simulates TensorRT/PyTorch backend selection
 - `MockDetectionModel`: Tests `format_detections()` and `apply_nms()`
 - `MockClassificationModel`: Tests `get_top_predictions()` with softmax
 
 **Key Tests:**
+
 - Backend selection (PyTorch vs TensorRT)
 - Inference statistics tracking
 - Detection formatting with class names
@@ -46,19 +48,20 @@ Tests for the abstract base classes used by TensorRT-accelerated model implement
 
 Tests for TensorRT conversion utilities and engine management.
 
-| Test Class                  | Purpose                                        |
-| --------------------------- | ---------------------------------------------- |
-| `TestIsTensorRTAvailable`   | TensorRT installation detection                |
-| `TestGetGpuComputeCapability` | GPU SM version detection (e.g., sm_86)       |
-| `TestGetGpuName`            | GPU name string retrieval                      |
-| `TestTensorRTConfig`        | Configuration dataclass and from_env()         |
-| `TestTensorRTPrecision`     | Precision enum (FP32, FP16, INT8)              |
-| `TestTensorRTConverter`     | ONNX to TensorRT conversion                    |
-| `TestTensorRTEngine`        | Engine loading and inference wrapper           |
-| `TestEnvironmentVariables`  | Environment variable defaults                  |
-| `TestPackageExports`        | ai.common package __all__ exports              |
+| Test Class                    | Purpose                                |
+| ----------------------------- | -------------------------------------- |
+| `TestIsTensorRTAvailable`     | TensorRT installation detection        |
+| `TestGetGpuComputeCapability` | GPU SM version detection (e.g., sm_86) |
+| `TestGetGpuName`              | GPU name string retrieval              |
+| `TestTensorRTConfig`          | Configuration dataclass and from_env() |
+| `TestTensorRTPrecision`       | Precision enum (FP32, FP16, INT8)      |
+| `TestTensorRTConverter`       | ONNX to TensorRT conversion            |
+| `TestTensorRTEngine`          | Engine loading and inference wrapper   |
+| `TestEnvironmentVariables`    | Environment variable defaults          |
+| `TestPackageExports`          | ai.common package **all** exports      |
 
 **Key Tests:**
+
 - Graceful handling when TensorRT not installed
 - GPU compute capability format (sm_XX)
 - Config dataclass default and custom values
@@ -151,13 +154,13 @@ class ConcreteModel(TensorRTInferenceBase[np.ndarray, np.ndarray]):
 
 Tests verify these environment variable defaults:
 
-| Variable                      | Default                   | Description                        |
-| ----------------------------- | ------------------------- | ---------------------------------- |
-| `TENSORRT_ENABLED`            | `True`                    | Global TensorRT toggle             |
-| `TENSORRT_PRECISION`          | `"fp16"`                  | Default precision mode             |
-| `TENSORRT_CACHE_DIR`          | `"models/tensorrt_cache"` | Engine cache directory             |
-| `TENSORRT_MAX_WORKSPACE_SIZE` | `1073741824` (1GB)        | Max workspace memory               |
-| `TENSORRT_VERBOSE`            | `False`                   | Enable verbose logging             |
+| Variable                      | Default                   | Description            |
+| ----------------------------- | ------------------------- | ---------------------- |
+| `TENSORRT_ENABLED`            | `True`                    | Global TensorRT toggle |
+| `TENSORRT_PRECISION`          | `"fp16"`                  | Default precision mode |
+| `TENSORRT_CACHE_DIR`          | `"models/tensorrt_cache"` | Engine cache directory |
+| `TENSORRT_MAX_WORKSPACE_SIZE` | `1073741824` (1GB)        | Max workspace memory   |
+| `TENSORRT_VERBOSE`            | `False`                   | Enable verbose logging |
 
 ## Conditional Tests
 
