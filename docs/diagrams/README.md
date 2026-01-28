@@ -278,19 +278,18 @@ Use these consistent abbreviations across all diagrams:
 
 Current standard ports for all services:
 
-| Service            | Port | Container           |
-| ------------------ | ---- | ------------------- |
-| Frontend HTTP      | 5173 | frontend            |
-| Frontend HTTPS     | 8443 | frontend            |
-| Backend API        | 8000 | backend             |
-| PostgreSQL         | 5432 | postgres            |
-| Redis              | 6379 | redis               |
-| Nemotron           | 8091 | ai-llm              |
-| Florence-2         | 8092 | ai-florence         |
-| CLIP               | 8093 | ai-clip             |
-| Enrichment (Heavy) | 8094 | ai-enrichment       |
-| YOLO26             | 8095 | ai-yolo26           |
-| Enrichment (Light) | 8096 | ai-enrichment-light |
+| Service        | Port | Container     |
+| -------------- | ---- | ------------- |
+| Frontend HTTP  | 5173 | frontend      |
+| Frontend HTTPS | 8443 | frontend      |
+| Backend API    | 8000 | backend       |
+| PostgreSQL     | 5432 | postgres      |
+| Redis          | 6379 | redis         |
+| Nemotron       | 8091 | ai-llm        |
+| Florence-2     | 8092 | ai-florence   |
+| CLIP           | 8093 | ai-clip       |
+| Enrichment     | 8094 | ai-enrichment |
+| YOLO26         | 8095 | ai-yolo26     |
 
 ---
 

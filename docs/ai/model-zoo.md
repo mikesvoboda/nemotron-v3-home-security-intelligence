@@ -56,7 +56,7 @@ flowchart TB
 | Service    | Container     | Port | Model                | VRAM    | Purpose                       |
 | ---------- | ------------- | ---- | -------------------- | ------- | ----------------------------- |
 | YOLO26     | ai-yolo26     | 8095 | YOLO26 R101vd        | ~650MB  | Primary object detection      |
-| Nemotron   | ai-nemotron   | 8091 | Nemotron-3-Nano-30B  | ~18GB   | Risk reasoning and analysis   |
+| Nemotron   | ai-nemotron   | 8091 | Nemotron-3-Nano-30B  | ~14.7GB | Risk reasoning and analysis   |
 | Florence-2 | ai-florence   | 8092 | Florence-2-Large     | ~1.2GB  | Scene understanding, OCR      |
 | CLIP       | ai-clip       | 8093 | CLIP ViT-L/14        | ~800MB  | Embeddings, anomaly detection |
 | Enrichment | ai-enrichment | 8094 | Multiple (on-demand) | ~2.65GB | Classification enrichment     |
@@ -167,7 +167,7 @@ SECURITY_CLASSES = {
 
 - **Model**: nvidia/Nemotron-3-Nano-30B-A3B-GGUF (Q4_K_M quantization)
 - **Architecture**: Large Language Model via llama.cpp
-- **VRAM**: ~18GB
+- **VRAM**: ~14.7GB
 - **Context Window**: 131,072 tokens
 - **Purpose**: Risk reasoning, threat analysis, natural language generation
 
