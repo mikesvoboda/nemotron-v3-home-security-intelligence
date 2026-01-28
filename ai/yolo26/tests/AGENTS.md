@@ -23,27 +23,28 @@ ai/yolo26/tests/
 
 Shared pytest fixtures for YOLO26 tests.
 
-| Fixture                | Purpose                                              |
-| ---------------------- | ---------------------------------------------------- |
-| `dummy_image`          | Random PIL Image (480x640) for testing               |
-| `dummy_image_bytes`    | JPEG bytes of dummy image                            |
-| `dummy_image_base64`   | Base64-encoded dummy image                           |
-| `mock_yolo_model`      | Mock YOLO model returning single person detection    |
-| `mock_empty_yolo_model`| Mock YOLO model returning no detections              |
+| Fixture                 | Purpose                                           |
+| ----------------------- | ------------------------------------------------- |
+| `dummy_image`           | Random PIL Image (480x640) for testing            |
+| `dummy_image_bytes`     | JPEG bytes of dummy image                         |
+| `dummy_image_base64`    | Base64-encoded dummy image                        |
+| `mock_yolo_model`       | Mock YOLO model returning single person detection |
+| `mock_empty_yolo_model` | Mock YOLO model returning no detections           |
 
 ### test_metrics.py
 
 Tests for Prometheus metrics instrumentation (monitoring/observability).
 
-| Test Class                  | Purpose                                        |
-| --------------------------- | ---------------------------------------------- |
-| `TestMetricsDefinition`     | Verify metrics exist with correct types        |
-| `TestMetricsRecording`      | Test recording values to metrics               |
-| `TestMetricsHelperFunctions`| Test helper functions for metrics recording    |
-| `TestMetricsExport`         | Test Prometheus export format                  |
-| `TestBackwardsCompatibility`| Ensure legacy metric names still work          |
+| Test Class                   | Purpose                                     |
+| ---------------------------- | ------------------------------------------- |
+| `TestMetricsDefinition`      | Verify metrics exist with correct types     |
+| `TestMetricsRecording`       | Test recording values to metrics            |
+| `TestMetricsHelperFunctions` | Test helper functions for metrics recording |
+| `TestMetricsExport`          | Test Prometheus export format               |
+| `TestBackwardsCompatibility` | Ensure legacy metric names still work       |
 
 Metrics tested:
+
 - `yolo26_inference_duration_seconds` (histogram)
 - `yolo26_requests_total` (counter)
 - `yolo26_detections_total` (counter by class)
@@ -55,42 +56,43 @@ Metrics tested:
 
 Comprehensive tests for the YOLO26Model class and FastAPI endpoints.
 
-| Test Class                          | Purpose                                       |
-| ----------------------------------- | --------------------------------------------- |
-| `TestBoundingBox`                   | BoundingBox Pydantic model                    |
-| `TestDetection`                     | Detection schema with class alias             |
-| `TestDetectionResponse`             | Full detection response format                |
-| `TestYOLO26Model`                   | Model initialization, detect, batch detect    |
-| `TestAPIEndpoints`                  | /health, /detect, /detect/batch endpoints     |
-| `TestSizeLimits`                    | DoS protection (10MB max file size)           |
-| `TestInvalidImageHandling`          | Corrupted/invalid image error handling        |
-| `TestMagicByteValidation`           | File format detection via magic bytes         |
-| `TestFileExtensionValidation`       | Supported image extension validation          |
-| `TestHealthResponse`                | Health check response with GPU metrics        |
-| `TestGetGpuMetrics`                 | pynvml GPU metrics collection                 |
-| `TestTensorRTVersionUtilities`      | TensorRT version mismatch detection (NEM-3871)|
-| `TestYOLO26ModelTensorRTVersionHandling` | Auto-rebuild on version mismatch        |
-| `TestInferenceHealthCheck`          | Warmup validation (NEM-3877, NEM-3878)        |
-| `TestTensorRTFallback`              | Fallback to PyTorch on TensorRT failure       |
-| `TestModelInferenceHealthyMetric`   | MODEL_INFERENCE_HEALTHY metric                |
+| Test Class                               | Purpose                                        |
+| ---------------------------------------- | ---------------------------------------------- |
+| `TestBoundingBox`                        | BoundingBox Pydantic model                     |
+| `TestDetection`                          | Detection schema with class alias              |
+| `TestDetectionResponse`                  | Full detection response format                 |
+| `TestYOLO26Model`                        | Model initialization, detect, batch detect     |
+| `TestAPIEndpoints`                       | /health, /detect, /detect/batch endpoints      |
+| `TestSizeLimits`                         | DoS protection (10MB max file size)            |
+| `TestInvalidImageHandling`               | Corrupted/invalid image error handling         |
+| `TestMagicByteValidation`                | File format detection via magic bytes          |
+| `TestFileExtensionValidation`            | Supported image extension validation           |
+| `TestHealthResponse`                     | Health check response with GPU metrics         |
+| `TestGetGpuMetrics`                      | pynvml GPU metrics collection                  |
+| `TestTensorRTVersionUtilities`           | TensorRT version mismatch detection (NEM-3871) |
+| `TestYOLO26ModelTensorRTVersionHandling` | Auto-rebuild on version mismatch               |
+| `TestInferenceHealthCheck`               | Warmup validation (NEM-3877, NEM-3878)         |
+| `TestTensorRTFallback`                   | Fallback to PyTorch on TensorRT failure        |
+| `TestModelInferenceHealthyMetric`        | MODEL_INFERENCE_HEALTHY metric                 |
 
 ### test_pose_estimation.py
 
 Tests for pose estimation with fall/aggression/loitering detection (NEM-3910).
 
-| Test Class                 | Purpose                                      |
-| -------------------------- | -------------------------------------------- |
-| `TestPoseSchemas`          | Keypoint, PoseDetection, BehaviorFlags schemas |
-| `TestFallDetection`        | Fall detection logic from keypoint positions |
-| `TestAggressionDetection`  | Raised arms and rapid movement detection     |
-| `TestLoiteringDetection`   | Stationary person tracking over time         |
-| `TestPoseClassification`   | Pose class determination (standing, crouching) |
-| `TestYOLO26PoseModel`      | YOLO26PoseModel wrapper class                |
-| `TestPoseAPIEndpoints`     | /pose/health, /pose/detect, /pose/analyze    |
-| `TestPoseMetrics`          | Pose-specific Prometheus metrics             |
-| `TestEdgeCases`            | Empty/partial keypoints, multi-frame tracking |
+| Test Class                | Purpose                                        |
+| ------------------------- | ---------------------------------------------- |
+| `TestPoseSchemas`         | Keypoint, PoseDetection, BehaviorFlags schemas |
+| `TestFallDetection`       | Fall detection logic from keypoint positions   |
+| `TestAggressionDetection` | Raised arms and rapid movement detection       |
+| `TestLoiteringDetection`  | Stationary person tracking over time           |
+| `TestPoseClassification`  | Pose class determination (standing, crouching) |
+| `TestYOLO26PoseModel`     | YOLO26PoseModel wrapper class                  |
+| `TestPoseAPIEndpoints`    | /pose/health, /pose/detect, /pose/analyze      |
+| `TestPoseMetrics`         | Pose-specific Prometheus metrics               |
+| `TestEdgeCases`           | Empty/partial keypoints, multi-frame tracking  |
 
 Keypoint fixtures:
+
 - `standing_keypoints` - Normal upright pose
 - `fallen_keypoints` - Person lying horizontal
 - `aggressive_keypoints` - Arms raised above head
@@ -100,14 +102,15 @@ Keypoint fixtures:
 
 Tests for instance segmentation support (NEM-3912).
 
-| Test Class                    | Purpose                                    |
-| ----------------------------- | ------------------------------------------ |
-| `TestSegmentationResponse`    | SegmentationDetection and response schemas |
-| `TestYOLO26ModelSegmentation` | segment() method and mask handling         |
-| `TestSegmentationEndpoint`    | /segment FastAPI endpoint                  |
+| Test Class                    | Purpose                                      |
+| ----------------------------- | -------------------------------------------- |
+| `TestSegmentationResponse`    | SegmentationDetection and response schemas   |
+| `TestYOLO26ModelSegmentation` | segment() method and mask handling           |
+| `TestSegmentationEndpoint`    | /segment FastAPI endpoint                    |
 | `TestMaskEncoding`            | RLE encoding/decoding and polygon conversion |
 
 Segmentation fixtures:
+
 - `mock_yolo_segmentation_model` - Mock with mask data
 - `mock_empty_yolo_segmentation_model` - Mock with no masks
 
@@ -172,6 +175,7 @@ def mock_model(self):
 ### Security Class Filtering
 
 Tests verify only security-relevant COCO classes are returned:
+
 - person (0), car (2), truck (7), dog (16), cat (15), bird (14)
 - bicycle (1), motorcycle (3), bus (5)
 
