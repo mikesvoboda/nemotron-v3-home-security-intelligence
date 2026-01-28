@@ -267,6 +267,83 @@ stop_ai_containers_podman() {
     done
 }
 
+rebuild_tensorrt_engine() {
+    # Rebuild YOLO26 TensorRT engine to match container's TensorRT version
+    # This runs INSIDE the container to ensure version compatibility
+    print_header "Rebuilding YOLO26 TensorRT Engine"
+
+    local ai_models_path="${AI_MODELS_PATH:-/export/ai_models}"
+    local yolo26_dir="${ai_models_path}/model-zoo/yolo26"
+    local pt_model="${yolo26_dir}/yolo26m.pt"
+    local engine_output="${yolo26_dir}/exports/yolo26m_fp16.engine"
+
+    # Check if PyTorch model exists
+    if [ ! -f "$pt_model" ]; then
+        print_fail "PyTorch model not found: $pt_model"
+        print_warn "TensorRT engine will not be rebuilt - using PyTorch fallback"
+        return 0
+    fi
+
+    # Check if ai-yolo26 image exists
+    if ! $CONTAINER_CMD image exists ai-yolo26 2>/dev/null; then
+        print_warn "ai-yolo26 image not built yet - skipping TensorRT rebuild"
+        return 0
+    fi
+
+    # Ensure exports directory exists
+    mkdir -p "$(dirname "$engine_output")"
+
+    print_step "Building TensorRT engine from $pt_model..."
+    print_info "This may take 2-5 minutes..."
+
+    # Run the rebuild inside the container with GPU access and writable mounts
+    local gpu_ai="${GPU_AI_SERVICES:-0}"
+    if run_cmd $CONTAINER_CMD run --rm \
+        --device "nvidia.com/gpu=${gpu_ai}" \
+        --security-opt=label=disable \
+        -e CUDA_VISIBLE_DEVICES=0 \
+        -v "${yolo26_dir}:/models/yolo26:z" \
+        ai-yolo26 \
+        python -c "
+from ultralytics import YOLO
+import os
+
+pt_path = '/models/yolo26/yolo26m.pt'
+engine_path = '/models/yolo26/exports/yolo26m_fp16.engine'
+
+print(f'Loading PyTorch model from {pt_path}...')
+model = YOLO(pt_path)
+
+print('Exporting to TensorRT FP16 engine...')
+os.makedirs('/models/yolo26/exports', exist_ok=True)
+exported = model.export(format='engine', imgsz=640, half=True, device=0)
+print(f'TensorRT engine exported to: {exported}')
+
+# Verify the engine file exists
+import pathlib
+if pathlib.Path(engine_path).exists():
+    size_mb = pathlib.Path(engine_path).stat().st_size / (1024*1024)
+    print(f'Engine file size: {size_mb:.1f} MB')
+    print('TensorRT engine rebuild successful!')
+else:
+    print(f'WARNING: Expected engine at {engine_path} but not found')
+    print(f'Exported path was: {exported}')
+"; then
+        print_success "TensorRT engine rebuilt successfully"
+        # Verify the file exists on host
+        if [ -f "$engine_output" ]; then
+            local size
+            size=$(du -h "$engine_output" | cut -f1)
+            print_info "Engine file: $engine_output ($size)"
+        fi
+    else
+        print_warn "TensorRT engine rebuild failed - will use PyTorch fallback"
+        print_info "The container will auto-fallback to PyTorch model at runtime"
+    fi
+
+    return 0
+}
+
 build_ai_images_podman() {
     print_header "Building AI Images (podman build - parallel)"
 
@@ -354,19 +431,21 @@ start_ai_containers_podman() {
     # GPU and security flags for podman
     # CDI device specification for specific GPU access
     # --security-opt=label=disable: Disable SELinux for GPU device access
-    # GPU assignments read from .env (defaults: GPU 0 for LLM, GPU 1 for other AI models)
+    # GPU assignments read from .env (single source of truth)
     # NOTE: CUDA_VISIBLE_DEVICES=0 because CDI makes the specified GPU appear as device 0 inside the container
     local gpu_llm="${GPU_LLM:-0}"
     local gpu_ai="${GPU_AI_SERVICES:-1}"
-    local gpu_flags_llm="--device nvidia.com/gpu=${gpu_llm} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0"
-    local gpu_flags_other="--device nvidia.com/gpu=${gpu_ai} --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0"
+    local gpu_yolo26="${GPU_YOLO26:-$gpu_ai}"
+    local gpu_florence="${GPU_FLORENCE:-$gpu_llm}"
+    local gpu_clip="${GPU_CLIP:-$gpu_ai}"
+    local gpu_enrichment="${GPU_ENRICHMENT:-$gpu_ai}"
 
-    # ai-yolo26 (YOLO26 TensorRT) - GPU 1
-    print_step "Starting ai-yolo26..."
+    # ai-yolo26 (YOLO26 TensorRT)
+    print_step "Starting ai-yolo26 on GPU ${gpu_yolo26}..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-yolo26 \
         --network "$network_name" \
-        $gpu_flags_other \
+        --device "nvidia.com/gpu=${gpu_yolo26}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
         -p 8095:8095 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro,z" \
         -e "YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}" \
@@ -375,26 +454,26 @@ start_ai_containers_podman() {
         ai-yolo26
     print_success "ai-yolo26 started"
 
-    # ai-llm (Nemotron) - GPU 0 exclusively
-    print_step "Starting ai-llm..."
+    # ai-llm (Nemotron)
+    print_step "Starting ai-llm on GPU ${gpu_llm}..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-llm \
         --network "$network_name" \
-        $gpu_flags_llm \
+        --device "nvidia.com/gpu=${gpu_llm}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
         -p 8091:8091 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro,z" \
-        -e "GPU_LAYERS=${GPU_LAYERS:-35}" \
-        -e "CTX_SIZE=${CTX_SIZE:-131072}" \
+        -e "GPU_LAYERS=${GPU_LAYERS:-40}" \
+        -e "CTX_SIZE=${CTX_SIZE:-65536}" \
         --restart unless-stopped \
         ai-llm
     print_success "ai-llm started"
 
-    # ai-florence - GPU 1
-    print_step "Starting ai-florence..."
+    # ai-florence (shares GPU with LLM by default)
+    print_step "Starting ai-florence on GPU ${gpu_florence}..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-florence \
         --network "$network_name" \
-        $gpu_flags_other \
+        --device "nvidia.com/gpu=${gpu_florence}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
         -p 8092:8092 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
         -e "MODEL_PATH=/models/florence-2-large" \  # pragma: allowlist secret
@@ -402,12 +481,12 @@ start_ai_containers_podman() {
         ai-florence
     print_success "ai-florence started"
 
-    # ai-clip - GPU 1
-    print_step "Starting ai-clip..."
+    # ai-clip
+    print_step "Starting ai-clip on GPU ${gpu_clip}..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-clip \
         --network "$network_name" \
-        $gpu_flags_other \
+        --device "nvidia.com/gpu=${gpu_clip}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
         -p 8093:8093 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
         -e "CLIP_MODEL_PATH=/models/clip-vit-l" \  # pragma: allowlist secret
@@ -415,12 +494,12 @@ start_ai_containers_podman() {
         ai-clip
     print_success "ai-clip started"
 
-    # ai-enrichment - GPU 1
-    print_step "Starting ai-enrichment..."
+    # ai-enrichment
+    print_step "Starting ai-enrichment on GPU ${gpu_enrichment}..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-enrichment \
         --network "$network_name" \
-        $gpu_flags_other \
+        --device "nvidia.com/gpu=${gpu_enrichment}" --security-opt=label=disable -e CUDA_VISIBLE_DEVICES=0 \
         -p 8094:8094 \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro,z" \
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro,z" \
@@ -1463,6 +1542,10 @@ main() {
             print_fail "Failed to build images"
             exit 1
         fi
+
+        # Rebuild TensorRT engine to match container's TensorRT version (NEM-3877)
+        # This ensures the engine file is compatible with the TensorRT runtime in the container
+        rebuild_tensorrt_engine
     fi
 
     # Clean up dangling images and build cache to prevent disk space exhaustion
