@@ -17,6 +17,7 @@ This directory contains all project documentation organized into role-based hubs
 | `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
 | `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
 | `deployment/`      | Container orchestration documentation     | [AGENTS.md](deployment/AGENTS.md)   |
+| `style-guides/`    | Documentation style guides                | [AGENTS.md](style-guides/AGENTS.md) |
 
 ## Directory Structure
 
@@ -61,12 +62,13 @@ docs/
 │   ├── AGENTS.md                # Developer docs navigation
 │   ├── api/                     # API guides
 │   ├── architecture/            # Architecture guides
-│   ├── contributing/            # Contribution guides
+│   ├── contributing/            # Developer tool guides (redirects to development/)
 │   ├── patterns/                # Code patterns
 │   └── *.md                     # Topic-specific docs
 │
 ├── development/                 # Development workflow docs
 │   ├── AGENTS.md                # Development navigation
+│   ├── contributing.md          # **Canonical** contributing guide
 │   ├── testing.md               # Testing guide
 │   ├── hooks.md                 # Git hooks
 │   ├── code-quality.md          # Code quality tools
@@ -89,13 +91,17 @@ docs/
 │
 ├── images/                      # Diagrams and screenshots
 │   ├── AGENTS.md                # Images navigation
-│   ├── style-guide.md           # SVG diagram style guide
+│   ├── style-guide.md           # Visual style guide
 │   ├── SCREENSHOT_GUIDE.md      # Screenshot capture guide
 │   └── */                       # Organized subdirectories
 │
 ├── operations/                  # Operational runbooks
 │   ├── AGENTS.md                # Operations navigation
 │   └── profiling-runbook.md     # Pyroscope profiling operations
+│
+├── style-guides/                # Documentation style guides
+│   ├── AGENTS.md                # Style guides navigation
+│   └── diagrams.md              # Mermaid diagram style guide
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin
@@ -204,6 +210,7 @@ Each major directory has its own AGENTS.md:
 | `reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
 | `ui/AGENTS.md`                        | UI page documentation          |
 | `user/AGENTS.md`                      | End-user documentation         |
+| `style-guides/AGENTS.md`              | Documentation style guides     |
 
 ## Visual Assets
 
