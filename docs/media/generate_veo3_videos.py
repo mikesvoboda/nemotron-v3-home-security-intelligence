@@ -747,6 +747,40 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 0 if failed == 0 else 1
 
 
+def cmd_custom(args: argparse.Namespace) -> int:
+    """Generate a custom video with provided prompt."""
+    output_path = Path(args.output)
+
+    # Load reference image if provided
+    reference_b64 = None
+    if args.reference_image:
+        print(f"Loading reference image: {args.reference_image}")
+        reference_b64 = load_reference_image_base64(args.reference_image)
+        print(f"  Reference: {len(reference_b64)} bytes (base64)")
+
+    print(f"\nGenerating custom video...")
+    print(f"  Output: {output_path}")
+    print(f"  Duration: {args.duration}s")
+    print(f"  Prompt: {args.prompt[:100]}{'...' if len(args.prompt) > 100 else ''}")
+
+    ok = generate_video_with_reference(
+        prompt=args.prompt,
+        output_path=output_path,
+        reference_image_b64=reference_b64,
+        logo_image_b64=None,
+        duration=args.duration,
+        resolution="720p",
+        aspect_ratio="16:9",
+    )
+
+    if ok:
+        print(f"✓ Successfully generated: {output_path}")
+        return 0
+    else:
+        print(f"✗ Failed to generate video", file=sys.stderr)
+        return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate Nano mascot videos using Veo 3.1"
@@ -769,6 +803,13 @@ def main() -> int:
     gen_parser.add_argument("--dry-run", action="store_true", help="Preview without generating")
     gen_parser.add_argument("--parallel", type=int, default=1, help="Number of concurrent jobs (default: 1)")
 
+    # Custom command for ad-hoc video generation
+    custom_parser = subparsers.add_parser("custom", help="Generate custom video with prompt")
+    custom_parser.add_argument("--prompt", required=True, help="Video generation prompt")
+    custom_parser.add_argument("--output", required=True, help="Output video path")
+    custom_parser.add_argument("--duration", type=int, default=8, help="Video duration in seconds (default: 8)")
+    custom_parser.add_argument("--reference-image", help="Optional reference image path")
+
     args = parser.parse_args()
 
     if args.command == "list":
@@ -777,6 +818,8 @@ def main() -> int:
         return cmd_preview(args)
     elif args.command == "generate":
         return cmd_generate(args)
+    elif args.command == "custom":
+        return cmd_custom(args)
 
     return 0
 
