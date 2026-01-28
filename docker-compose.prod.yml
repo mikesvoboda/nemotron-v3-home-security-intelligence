@@ -26,7 +26,7 @@
 # Environment Variables (Optional):
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
 #   - FRONTEND_PORT: Host port for frontend HTTP (default: 5173)
-#   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8443)
+#   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
@@ -741,7 +741,7 @@ services:
       - '${FRONTEND_PORT:-5173}:${FRONTEND_INTERNAL_PORT:-8080}'
       # HTTPS port mapping (only used when SSL_ENABLED=true)
       # Default 8443 to avoid privileged port issues with rootless containers
-      - '${FRONTEND_HTTPS_PORT:-8443}:8443'
+      - '${FRONTEND_HTTPS_PORT:-8444}:8443'
     volumes:
       # SSL certificates - writable for auto-generation, or mount pre-existing certs
       - frontend_certs:/etc/nginx/certs:U
@@ -756,7 +756,7 @@ services:
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
       # HTTPS port for redirect (must match external port mapping)
-      - FRONTEND_HTTPS_PORT=${FRONTEND_HTTPS_PORT:-8443}
+      - FRONTEND_HTTPS_PORT=${FRONTEND_HTTPS_PORT:-8444}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
