@@ -109,18 +109,32 @@ git checkout -b docs/api-reference
 
 ### 3. Make Changes
 
-Follow TDD principles:
+Follow TDD principles (RED-GREEN-REFACTOR):
 
-1. Write tests first (for `tdd` labeled tasks)
-2. Implement the feature
-3. Ensure all tests pass
-4. Refactor if needed
+1. **RED:** Write a failing test first (for `tdd` labeled tasks)
+2. **GREEN:** Write minimum code to pass the test
+3. **REFACTOR:** Improve code while keeping tests green
+
+For complex features, use the `/superpowers:test-driven-development` skill.
+
+See [testing-workflow.md](testing-workflow.md) for detailed TDD patterns by layer.
 
 ### 4. Commit Changes
 
 #### Pre-commit Hooks
 
 All commits must pass pre-commit hooks. **Never bypass them.**
+
+| Hook        | Stage      | Purpose                |
+| ----------- | ---------- | ---------------------- |
+| ruff        | pre-commit | Python linting         |
+| ruff-format | pre-commit | Python formatting      |
+| mypy        | pre-commit | Python type checking   |
+| eslint      | pre-commit | TypeScript linting     |
+| prettier    | pre-commit | Code formatting        |
+| hadolint    | pre-commit | Dockerfile linting     |
+| semgrep     | pre-commit | Security scanning      |
+| fast-test   | pre-push   | Unit tests before push |
 
 ```bash
 # Hooks run automatically on commit
@@ -129,15 +143,18 @@ git commit -m "feat: add camera pagination"
 # If hooks fail, fix the issues
 ruff check --fix backend/
 cd frontend && npm run lint:fix
+
+# Run all pre-commit hooks manually
+pre-commit run --all-files
 ```
 
 **CRITICAL: Do NOT use:**
 
 - `git commit --no-verify`
 - `git push --no-verify`
-- `SKIP=hook-name git commit`
+- `SKIP=hook-name git commit` (except emergencies)
 
-See [CLAUDE.md](../../CLAUDE.md:193) for the complete policy.
+See [CLAUDE.md](../../CLAUDE.md) and [git-workflow.md](git-workflow.md) for the complete policy.
 
 #### Commit Message Format
 
@@ -334,7 +351,8 @@ Key rules:
 - Use Markdown for all documentation
 - Include YAML frontmatter with `source_refs`
 - Link to source code where relevant
-- Keep diagrams vertical for readability
+- Follow [Diagram Style Guide](../style-guides/diagrams.md) for Mermaid conventions
+- See [Visual Style Guide](../images/style-guide.md) for colors and design
 
 ## File Organization
 
@@ -403,6 +421,54 @@ git push
 | `phase-8` | Integration & E2E (P4)             |
 | `tdd`     | Test tasks (write tests alongside) |
 
+## Git Safety
+
+### NEVER DISABLE TESTING
+
+This rule is non-negotiable:
+
+- Do NOT disable test hooks
+- Do NOT lower coverage thresholds
+- Do NOT skip tests without documented reason
+- Do NOT use `--no-verify` flags
+
+**If tests fail, fix the code or fix the tests.**
+
+See [git-workflow.md](git-workflow.md) for the complete Git safety protocol.
+
+## Python Dependencies (uv)
+
+This project uses **uv** for Python dependency management:
+
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Sync dependencies
+uv sync --extra dev              # Install all dev dependencies
+uv sync --group lint             # Install only lint tools
+uv sync --group test             # Install only test tools
+
+# Add dependencies
+uv add httpx                     # Production dependency
+uv add --dev pytest-sugar        # Dev dependency
+
+# Run commands
+uv run pytest backend/tests/     # Run tests
+uv run ruff check backend/       # Run linter
+
+# Update lock file
+uv lock                          # After editing pyproject.toml
+```
+
+**Key Files:**
+
+- `pyproject.toml` - Dependencies and tool configuration
+- `uv.lock` - Locked dependency versions (commit this)
+- `.python-version` - Python version (3.14)
+
+**CI pins uv version `0.9.18`** for reproducibility.
+
 ## Security Guidelines
 
 ### Never Commit
@@ -426,10 +492,30 @@ git push
 - **Issues:** Check existing issues before creating new ones
 - **Discussions:** Use GitHub Discussions for questions
 
+## Developer Tools
+
+Setup guides for AI-assisted development and debugging tools.
+
+| Document                                                            | Purpose                                        |
+| ------------------------------------------------------------------- | ---------------------------------------------- |
+| [Chrome DevTools MCP](../developer/contributing/chrome-devtools.md) | Browser debugging via Chrome DevTools Protocol |
+| [GitHub Copilot Setup](../developer/contributing/copilot-setup.md)  | GitHub Copilot Free tier configuration         |
+| [GitHub Models](../developer/contributing/github-models.md)         | GitHub Models API for AI-powered workflows     |
+| [Linear Setup](../developer/contributing/linear-setup.md)           | Linear MCP server installation                 |
+| [Linear-GitHub Sync](../developer/contributing/linear-github.md)    | Synchronizing Linear and GitHub Issues         |
+
 ## Related Documentation
 
-- [Setup Guide](setup.md) - Development environment setup
-- [Testing Guide](testing.md) - Test strategy and patterns
-- [Code Quality Tools](code-quality.md) - Linting, formatting, and static analysis tools
-- [Code Patterns](patterns.md) - Key patterns and conventions
-- [CLAUDE.md](../../CLAUDE.md) - Project instructions
+| Document                                           | Purpose                              |
+| -------------------------------------------------- | ------------------------------------ |
+| [Setup Guide](setup.md)                            | Development environment setup        |
+| [Testing Guide](testing.md)                        | Test strategy and patterns           |
+| [Testing Workflow](testing-workflow.md)            | TDD workflow and patterns by layer   |
+| [Code Quality Tools](code-quality.md)              | Linting, formatting, static analysis |
+| [Code Patterns](patterns.md)                       | Key patterns and conventions         |
+| [Git Workflow](git-workflow.md)                    | Git safety and pre-commit rules      |
+| [Pre-commit Hooks](hooks.md)                       | Hook configuration and usage         |
+| [Linear Integration](linear-integration.md)        | Linear MCP tools reference           |
+| [Diagram Style Guide](../style-guides/diagrams.md) | Mermaid themes and conventions       |
+| [Visual Style Guide](../images/style-guide.md)     | Colors and design principles         |
+| [CLAUDE.md](../../CLAUDE.md)                       | Project instructions                 |
