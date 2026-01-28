@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C06_dusk_loiter",
+  "category": "suspicious",
+  "name": "Dusk Loiter",
+  "description": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person approaching with harsh direct sunlight behind them, strong backlight causing silhouette effect, face details completely washed out by glare. Challenging exposure. Static elevated viewpoint, overexposed background. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person approaching with harsh direct sunlight behind them, strong backlight causing silhouette effect, face details completely washed out by glare. Challenging exposure. Static elevated viewpoint, overexposed background. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

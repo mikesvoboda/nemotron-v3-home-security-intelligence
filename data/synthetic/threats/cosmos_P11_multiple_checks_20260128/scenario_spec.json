@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P11_multiple_checks",
+  "category": "threats",
+  "name": "Multiple Checks",
+  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They methodically check the front door, peer in windows, then walk to check the garage door. Static elevated viewpoint, wide field of view covering driveway and street approach, ",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They methodically check the front door, peer in windows, then walk to check the garage door. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

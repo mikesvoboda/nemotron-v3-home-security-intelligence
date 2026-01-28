@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_R06_vehicle_theft",
+  "category": "threats",
+  "name": "Vehicle Theft",
+  "description": "Suburban home driveway at night, viewed from an elevated position on the garage. A person breaks into a car, gets in the driver seat, and bends down below the dashboard attempting to start the vehicle. Car theft in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. A person breaks into a car, gets in the driver seat, and bends down below the dashboard attempting to start the vehicle. Car theft in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

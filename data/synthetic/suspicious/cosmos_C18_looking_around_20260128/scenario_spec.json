@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C18_looking_around",
+  "category": "suspicious",
+  "name": "Looking Around",
+  "description": "Suburban home front porch on cold winter day, viewed from an elevated vantage point near the door. A person bundled in heavy coat, hat pulled low, scarf wrapped around face approaches, only eyes barely visible. Cold weather concealment. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch on cold winter day, viewed from an elevated vantage point near the door. A person bundled in heavy coat, hat pulled low, scarf wrapped around face approaches, only eyes barely visible. Cold weather concealment. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

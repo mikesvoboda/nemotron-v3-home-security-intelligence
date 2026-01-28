@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_R05_porch_pirate",
+  "category": "threats",
+  "name": "Porch Pirate",
+  "description": "Suburban home driveway at night, viewed from an elevated position on the garage. A person walks along parked cars, trying each door handle quietly, finds one unlocked, opens it, rummages inside briefly, then moves on. Subtle vehicle crime. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at night, viewed from an elevated position on the garage. A person walks along parked cars, trying each door handle quietly, finds one unlocked, opens it, rummages inside briefly, then moves on. Subtle vehicle crime. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

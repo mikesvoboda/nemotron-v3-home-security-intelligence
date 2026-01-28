@@ -1,0 +1,10 @@
+{
+  "migrated_at": "2026-01-28T17:05:26.710705+00:00",
+  "mode": "move",
+  "results": {
+    "normal": 13,
+    "suspicious": 14,
+    "threats": 58,
+    "skipped": 0
+  }
+}

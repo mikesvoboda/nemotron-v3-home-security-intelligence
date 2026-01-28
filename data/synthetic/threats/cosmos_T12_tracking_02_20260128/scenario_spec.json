@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T12_tracking_02",
+  "category": "threats",
+  "name": "Tracking 02",
+  "description": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. Person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "side_yard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. Person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T19_tracking_09",
+  "category": "threats",
+  "name": "Tracking 09",
+  "description": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Three people standing at the door, full bodies visible from head to toe. Young woman, middle-aged man, elderly person. Wide-angle view showing door and surroundings. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Three people standing at the door, full bodies visible from head to toe. Young woman, middle-aged man, elderly person. Wide-angle view showing door and surroundings. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

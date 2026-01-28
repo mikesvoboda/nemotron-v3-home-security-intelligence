@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_F14_dog_walker",
+  "category": "normal",
+  "name": "Dog Walker",
+  "description": "Suburban home driveway at midday, viewed from an elevated position on the garage. A person walks a dog on a leash along the sidewalk, the dog briefly sniffs toward the yard but they continue walking past. Normal neighbor activity. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A person walks a dog on a leash along the sidewalk, the dog briefly sniffs toward the yard but they continue walking past. Normal neighbor activity. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

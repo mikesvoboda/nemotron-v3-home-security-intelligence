@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_F03_wildlife_squirrel",
+  "category": "normal",
+  "name": "Wildlife Squirrel",
+  "description": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A coyote trots quickly through the yard along the fence line, alert and moving with purpose. Wild canine movement. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "side_yard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A coyote trots quickly through the yard along the fence line, alert and moving with purpose. Wild canine movement. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

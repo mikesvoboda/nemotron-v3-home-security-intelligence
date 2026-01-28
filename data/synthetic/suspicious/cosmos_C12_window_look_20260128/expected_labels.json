@@ -1,0 +1,46 @@
+{
+  "source": "cosmos",
+  "video_id": "C12",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "package",
+      "min_confidence": 0.6,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "delivering",
+    "is_suspicious": false
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 26,
+    "max_score": 60,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A delivery person carries a very large box that blocks their face and torso, only legs visible below the box. ..."
+  }
+}

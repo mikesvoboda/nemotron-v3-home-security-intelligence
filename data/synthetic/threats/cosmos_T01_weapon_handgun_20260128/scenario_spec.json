@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T01_weapon_handgun",
+  "category": "threats",
+  "name": "Weapon Handgun",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person approaches, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person approaches, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

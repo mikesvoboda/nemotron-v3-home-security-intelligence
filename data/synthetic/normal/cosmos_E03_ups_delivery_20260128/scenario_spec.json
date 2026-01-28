@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_E03_ups_delivery",
+  "category": "normal",
+  "name": "Ups Delivery",
+  "description": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A FedEx driver in purple and orange uniform walks up with a package, places it at the door, and walks back to FedEx truck. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A FedEx driver in purple and orange uniform walks up with a package, places it at the door, and walks back to FedEx truck. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

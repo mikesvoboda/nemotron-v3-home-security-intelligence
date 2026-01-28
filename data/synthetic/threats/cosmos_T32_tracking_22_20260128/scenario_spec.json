@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T32_tracking_22",
+  "category": "threats",
+  "name": "Tracking 22",
+  "description": "Suburban home driveway at night during heavy rain, viewed from an elevated position on the garage. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porch light. Static elevated viewpoint, IR-tinted footage with rain effects. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home driveway at night during heavy rain, viewed from an elevated position on the garage. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porch light. Static elevated viewpoint, IR-tinted footage with rain effects. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

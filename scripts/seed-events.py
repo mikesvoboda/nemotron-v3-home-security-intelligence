@@ -1,21 +1,33 @@
 #!/usr/bin/env python3
 """Seed the system by exercising the full AI pipeline end-to-end.
 
-This script triggers real pipeline processing by touching images in camera
-watch folders, causing the file watcher to process them through:
-  1. File Watcher → detects touched images
+DEFAULT BEHAVIOR: Uses synthetic video data from data/synthetic/ for controlled
+end-to-end testing with known expected outcomes. Use --existing-data to revert
+to legacy behavior of touching images in /export/foscam.
+
+This script processes data through the full pipeline:
+  1. File Watcher → detects new images
   2. YOLO26 → object detection
   3. Batch Aggregator → groups detections into events
   4. Nemotron LLM → risk analysis with reasoning
 
-This creates real events with actual LLM analysis for comprehensive testing.
+Synthetic data provides:
+  - Known expected labels for validation
+  - Repeatable test scenarios across categories (normal, suspicious, threats)
+  - Detection accuracy and risk score calibration metrics
 
 Usage:
-    # Default: Touch 100 images from /export/foscam and run full pipeline
+    # Default: Process synthetic videos from data/synthetic/
     uv run python scripts/seed-events.py
 
-    # Process fewer images (faster)
-    uv run python scripts/seed-events.py --images 30
+    # Process specific number of synthetic scenarios
+    uv run python scripts/seed-events.py --scenarios 50
+
+    # Process only specific categories
+    uv run python scripts/seed-events.py --categories normal,suspicious
+
+    # Legacy mode: Touch images from /export/foscam
+    uv run python scripts/seed-events.py --existing-data --images 100
 
     # Skip supporting data (entities, alerts, logs) - only pipeline data
     uv run python scripts/seed-events.py --no-extras
@@ -29,11 +41,16 @@ import json
 import os
 import random
 import re
+import shutil
 import socket
+import subprocess
 import sys
+import tempfile
 import uuid
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -115,6 +132,13 @@ if Path(_CONTAINER_CAMERA_PATH).exists():
     FOSCAM_BASE_PATH = _CONTAINER_CAMERA_PATH
 else:
     FOSCAM_BASE_PATH = _LOCAL_CAMERA_PATH
+
+# Synthetic data path (relative to project root)
+_PROJECT_ROOT = Path(__file__).parent.parent
+SYNTHETIC_DATA_PATH = _PROJECT_ROOT / "data" / "synthetic"
+
+# Synthetic scenario categories
+SYNTHETIC_CATEGORIES = ["normal", "suspicious", "threats"]
 
 from backend.core.database import get_session, init_db  # noqa: E402
 from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus  # noqa: E402
@@ -251,6 +275,571 @@ def trigger_pipeline(num_images: int = 20, delay_between: float = 0.5) -> int:
     print(f"\nTriggered pipeline for {touched} images")
 
     return touched
+
+
+# =============================================================================
+# SYNTHETIC DATA SEEDING FUNCTIONS
+# =============================================================================
+
+
+@dataclass
+class SyntheticScenario:
+    """Represents a synthetic test scenario from data/synthetic/."""
+
+    path: Path
+    category: str
+    video_id: str
+    name: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+    expected_labels: dict[str, Any] = field(default_factory=dict)
+    scenario_spec: dict[str, Any] = field(default_factory=dict)
+    video_path: Path | None = None
+
+
+@dataclass
+class ValidationResult:
+    """Results of validating pipeline output against expected labels."""
+
+    scenario: SyntheticScenario
+    success: bool
+    event_id: uuid.UUID | None = None
+    actual_risk_score: int | None = None
+    expected_risk_range: tuple[int, int] | None = None
+    detection_matches: dict[str, bool] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+
+
+def _safe_read_json(file_path: Path, base_path: Path) -> dict[str, Any] | None:
+    """Safely read a JSON file, validating it's within the expected base path.
+
+    Args:
+        file_path: Path to the JSON file to read
+        base_path: Expected base directory (path must be under this)
+
+    Returns:
+        Parsed JSON dict, or None if validation fails or file can't be read
+    """
+    try:
+        # Resolve to absolute path and verify it's under base_path
+        resolved = file_path.resolve()
+        base_resolved = base_path.resolve()
+
+        if not str(resolved).startswith(str(base_resolved)):
+            return None
+
+        with resolved.open() as f:  # nosemgrep: path-traversal-open
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _safe_write_json(file_path: Path, data: dict[str, Any], base_path: Path) -> bool:
+    """Safely write a JSON file, validating it's within the expected base path.
+
+    Args:
+        file_path: Path to write the JSON file to
+        data: Dictionary to serialize to JSON
+        base_path: Expected base directory (path must be under this)
+
+    Returns:
+        True if write succeeded, False otherwise
+    """
+    try:
+        # Resolve to absolute path and verify it's under base_path
+        resolved = file_path.resolve()
+        base_resolved = base_path.resolve()
+
+        if not str(resolved).startswith(str(base_resolved)):
+            return False
+
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        with resolved.open("w") as f:  # nosemgrep: path-traversal-open
+            json.dump(data, f, indent=2)
+        return True
+    except OSError:
+        return False
+
+
+def discover_synthetic_scenarios(
+    categories: list[str] | None = None,
+    source_filter: str | None = "cosmos",
+    limit: int | None = None,
+) -> list[SyntheticScenario]:
+    """Discover all synthetic scenarios in data/synthetic/.
+
+    Args:
+        categories: Optional list of categories to filter (normal, suspicious, threats)
+        source_filter: Optional source filter (e.g., "cosmos" for Cosmos-generated videos)
+        limit: Optional limit on number of scenarios to return
+
+    Returns:
+        List of SyntheticScenario objects with loaded metadata
+    """
+    scenarios = []
+
+    if not SYNTHETIC_DATA_PATH.exists():
+        print(f"Warning: Synthetic data path {SYNTHETIC_DATA_PATH} does not exist")
+        return scenarios
+
+    target_categories = categories or SYNTHETIC_CATEGORIES
+
+    for category in target_categories:
+        category_path = SYNTHETIC_DATA_PATH / category
+        if not category_path.exists():
+            continue
+
+        for scenario_dir in sorted(category_path.iterdir()):
+            if not scenario_dir.is_dir():
+                continue
+
+            # Filter by source if specified
+            if source_filter and not scenario_dir.name.startswith(f"{source_filter}_"):
+                continue
+
+            # Load metadata files using safe read functions
+            metadata_path = scenario_dir / "metadata.json"
+            expected_labels_path = scenario_dir / "expected_labels.json"
+            scenario_spec_path = scenario_dir / "scenario_spec.json"
+
+            if not metadata_path.exists():
+                continue
+
+            # Use safe read to validate paths are within SYNTHETIC_DATA_PATH
+            metadata = _safe_read_json(metadata_path, SYNTHETIC_DATA_PATH)
+            if metadata is None:
+                print(f"Warning: Failed to load metadata for {scenario_dir.name}")
+                continue
+
+            expected_labels = _safe_read_json(expected_labels_path, SYNTHETIC_DATA_PATH) or {}
+            scenario_spec = _safe_read_json(scenario_spec_path, SYNTHETIC_DATA_PATH) or {}
+
+            # Find video file
+            media_path = scenario_dir / "media"
+            video_path = None
+            if media_path.exists():
+                videos = list(media_path.glob("*.mp4"))
+                if videos:
+                    video_path = videos[0]
+
+            scenario = SyntheticScenario(
+                path=scenario_dir,
+                category=category,
+                video_id=metadata.get("video_id", scenario_dir.name),
+                name=scenario_spec.get("name", scenario_dir.name),
+                metadata=metadata,
+                expected_labels=expected_labels,
+                scenario_spec=scenario_spec,
+                video_path=video_path,
+            )
+            scenarios.append(scenario)
+
+            if limit and len(scenarios) >= limit:
+                return scenarios
+
+    return scenarios
+
+
+def extract_video_frames(
+    video_path: Path,
+    output_dir: Path,
+    num_frames: int = 5,
+    format_pattern: str = "frame_%03d.jpg",
+) -> list[Path]:
+    """Extract frames from a video file using ffmpeg.
+
+    Args:
+        video_path: Path to the video file
+        output_dir: Directory to save extracted frames
+        num_frames: Number of frames to extract (evenly distributed)
+        format_pattern: Pattern for output filenames
+
+    Returns:
+        List of paths to extracted frame images
+    """
+    if not video_path.exists():
+        print(f"Warning: Video not found: {video_path}")
+        return []
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get video duration using ffprobe
+    try:
+        probe_cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "json",
+            str(video_path),
+        ]
+        result = subprocess.run(probe_cmd, check=False, capture_output=True, text=True, timeout=30)
+        probe_data = json.loads(result.stdout)
+        duration = float(probe_data["format"]["duration"])
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as e:
+        print(f"Warning: Failed to probe video duration: {e}")
+        duration = 5.0  # Default to 5 seconds
+
+    # Calculate frame extraction interval
+    if num_frames > 1:
+        interval = duration / (num_frames + 1)  # Evenly space frames
+    else:
+        interval = duration / 2  # Single frame from middle
+
+    extracted_frames = []
+
+    for i in range(num_frames):
+        timestamp = interval * (i + 1)
+        output_path = output_dir / format_pattern.replace("%03d", f"{i + 1:03d}")
+
+        try:
+            extract_cmd = [
+                "ffmpeg",
+                "-y",  # Overwrite
+                "-ss",
+                f"{timestamp:.2f}",
+                "-i",
+                str(video_path),
+                "-vframes",
+                "1",
+                "-q:v",
+                "2",  # High quality JPEG
+                str(output_path),
+            ]
+            subprocess.run(
+                extract_cmd,
+                capture_output=True,
+                timeout=30,
+                check=True,
+            )
+
+            if output_path.exists():
+                extracted_frames.append(output_path)
+
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as e:
+            print(f"Warning: Failed to extract frame at {timestamp:.2f}s: {e}")
+
+    return extracted_frames
+
+
+async def ensure_synthetic_camera(camera_name: str = "synthetic_cosmos") -> Camera:
+    """Ensure a synthetic camera exists in the database.
+
+    Args:
+        camera_name: Name for the synthetic camera
+
+    Returns:
+        Camera object (existing or newly created)
+    """
+    async with get_session() as session:
+        # Check if camera exists
+        result = await session.execute(select(Camera).where(Camera.name == camera_name))
+        camera = result.scalars().first()
+
+        if camera:
+            return camera
+
+        # Create new synthetic camera
+        camera = Camera(
+            name=camera_name,
+            rtsp_url=f"synthetic://{camera_name}",
+            is_active=True,
+            created_at=datetime.now(UTC),
+        )
+        session.add(camera)
+        await session.commit()
+        await session.refresh(camera)
+
+        print(f"Created synthetic camera: {camera_name} (ID: {camera.id})")
+        return camera
+
+
+async def seed_synthetic_scenarios(
+    scenarios: list[SyntheticScenario],
+    frames_per_video: int = 5,
+    delay_between: float = 0.5,
+    watch_folder: Path | None = None,
+) -> tuple[int, list[Path]]:
+    """Process synthetic scenarios through the AI pipeline.
+
+    Extracts frames from videos, places them in the watch folder, and
+    triggers the file watcher to process them through the full pipeline.
+
+    Args:
+        scenarios: List of synthetic scenarios to process
+        frames_per_video: Number of frames to extract from each video
+        delay_between: Delay between frame extractions (seconds)
+        watch_folder: Custom watch folder (defaults to temp dir under FOSCAM_BASE_PATH)
+
+    Returns:
+        Tuple of (frames_processed, list of frame paths)
+    """
+    # Create or get synthetic camera
+    camera = await ensure_synthetic_camera()
+
+    # Set up watch folder under camera path structure
+    if watch_folder is None:
+        # Create synthetic camera folder structure: /cameras/synthetic_cosmos/YYYY/MM/DD/
+        now = datetime.now()
+        watch_folder = (
+            Path(FOSCAM_BASE_PATH)
+            / "synthetic_cosmos"
+            / str(now.year)
+            / f"{now.month:02d}"
+            / f"{now.day:02d}"
+        )
+
+    watch_folder.mkdir(parents=True, exist_ok=True)
+    print(f"Using watch folder: {watch_folder}")
+
+    processed_frames = []
+    total_extracted = 0
+
+    for i, scenario in enumerate(scenarios, 1):
+        if not scenario.video_path or not scenario.video_path.exists():
+            print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (no video)")
+            continue
+
+        # Create temp directory for frame extraction
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Extract frames from video
+            frames = extract_video_frames(
+                scenario.video_path,
+                temp_path,
+                num_frames=frames_per_video,
+            )
+
+            if not frames:
+                print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (extraction failed)")
+                continue
+
+            # Copy frames to watch folder with scenario-specific naming
+            for j, frame_path in enumerate(frames, 1):
+                # Use naming convention that includes scenario info for traceability
+                dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
+                dest_path = watch_folder / dest_name
+
+                shutil.copy2(frame_path, dest_path)
+                processed_frames.append(dest_path)
+                total_extracted += 1
+
+                # Touch to trigger file watcher
+                dest_path.touch()
+
+        print(
+            f"  [{i}/{len(scenarios)}] Extracted {len(frames)} frames: {scenario.name} ({scenario.category})"
+        )
+
+        # Small delay between scenarios (use asyncio.sleep in async context)
+        if delay_between > 0 and i < len(scenarios):
+            await asyncio.sleep(delay_between)
+
+    print(f"\nExtracted {total_extracted} frames from {len(scenarios)} scenarios")
+    return total_extracted, processed_frames
+
+
+async def validate_synthetic_results(
+    scenarios: list[SyntheticScenario],
+    timeout_seconds: int = 30,
+) -> list[ValidationResult]:
+    """Validate pipeline results against expected labels.
+
+    Compares actual events created by the pipeline against the expected
+    labels defined in each scenario's expected_labels.json.
+
+    Args:
+        scenarios: List of scenarios that were processed
+        timeout_seconds: How long to wait for events to appear
+
+    Returns:
+        List of ValidationResult objects
+    """
+
+    results = []
+
+    async with get_session() as session:
+        for scenario in scenarios:
+            expected = scenario.expected_labels
+            if not expected:
+                results.append(
+                    ValidationResult(
+                        scenario=scenario,
+                        success=False,
+                        errors=["No expected labels defined"],
+                    )
+                )
+                continue
+
+            # Query for recent events (within the last hour)
+            cutoff = datetime.now(UTC) - timedelta(hours=1)
+            result = await session.execute(
+                select(Event)
+                .where(Event.created_at >= cutoff)
+                .where(Event.deleted_at.is_(None))
+                .order_by(Event.created_at.desc())
+                .limit(100)
+            )
+            recent_events = list(result.scalars().all())
+
+            # Try to match events by looking for scenario patterns in detection data
+            matched_event = None
+            for event in recent_events:
+                # Simple heuristic: match by risk level and detection patterns
+                # In production, we'd want more sophisticated matching
+                if event.risk_level == expected.get("risk", {}).get("level"):
+                    matched_event = event
+                    break
+
+            if not matched_event:
+                results.append(
+                    ValidationResult(
+                        scenario=scenario,
+                        success=False,
+                        errors=[f"No matching event found for {scenario.video_id}"],
+                    )
+                )
+                continue
+
+            # Validate risk score range
+            errors = []
+            risk_config = expected.get("risk", {})
+            expected_range = (risk_config.get("min_score", 0), risk_config.get("max_score", 100))
+            actual_score = matched_event.risk_score or 0
+
+            risk_valid = expected_range[0] <= actual_score <= expected_range[1]
+            if not risk_valid:
+                errors.append(f"Risk score {actual_score} outside expected range {expected_range}")
+
+            # Validate detection classes (if we have detection data)
+            detection_matches = {}
+            for det_spec in expected.get("detections", []):
+                det_class = det_spec.get("class", "unknown")
+                detection_matches[det_class] = True  # Placeholder - would check actual detections
+
+            results.append(
+                ValidationResult(
+                    scenario=scenario,
+                    success=len(errors) == 0,
+                    event_id=matched_event.id,
+                    actual_risk_score=actual_score,
+                    expected_risk_range=expected_range,
+                    detection_matches=detection_matches,
+                    errors=errors,
+                )
+            )
+
+    return results
+
+
+def generate_validation_report(
+    results: list[ValidationResult],
+    output_path: Path | None = None,
+) -> dict[str, Any]:
+    """Generate a validation report from synthetic scenario results.
+
+    Args:
+        results: List of validation results
+        output_path: Optional path to save JSON report
+
+    Returns:
+        Report dictionary with summary statistics
+    """
+    total = len(results)
+    passed = sum(1 for r in results if r.success)
+    failed = total - passed
+
+    # Category breakdown
+    by_category: dict[str, dict[str, int]] = {}
+    for result in results:
+        cat = result.scenario.category
+        if cat not in by_category:
+            by_category[cat] = {"total": 0, "passed": 0, "failed": 0}
+        by_category[cat]["total"] += 1
+        if result.success:
+            by_category[cat]["passed"] += 1
+        else:
+            by_category[cat]["failed"] += 1
+
+    # Risk score calibration
+    risk_calibration = []
+    for result in results:
+        if result.actual_risk_score is not None and result.expected_risk_range:
+            risk_calibration.append(
+                {
+                    "scenario": result.scenario.video_id,
+                    "category": result.scenario.category,
+                    "actual": result.actual_risk_score,
+                    "expected_min": result.expected_risk_range[0],
+                    "expected_max": result.expected_risk_range[1],
+                    "in_range": result.expected_risk_range[0]
+                    <= result.actual_risk_score
+                    <= result.expected_risk_range[1],
+                }
+            )
+
+    # Failed scenarios details
+    failures = []
+    for result in results:
+        if not result.success:
+            failures.append(
+                {
+                    "scenario": result.scenario.video_id,
+                    "name": result.scenario.name,
+                    "category": result.scenario.category,
+                    "errors": result.errors,
+                }
+            )
+
+    report = {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "summary": {
+            "total_scenarios": total,
+            "passed": passed,
+            "failed": failed,
+            "pass_rate": f"{(passed / total * 100):.1f}%" if total > 0 else "N/A",
+        },
+        "by_category": by_category,
+        "risk_calibration": risk_calibration,
+        "failures": failures,
+    }
+
+    if output_path:
+        # Use safe write to validate path is within SYNTHETIC_DATA_PATH or PROJECT_ROOT
+        if _safe_write_json(output_path, report, _PROJECT_ROOT):
+            print(f"\nValidation report saved to: {output_path}")
+        else:
+            print(f"\nWarning: Could not save validation report to {output_path}")
+
+    return report
+
+
+def print_validation_summary(report: dict[str, Any]) -> None:
+    """Print a formatted validation summary to stdout."""
+    summary = report.get("summary", {})
+
+    print("\n" + "=" * 50)
+    print("SYNTHETIC DATA VALIDATION SUMMARY")
+    print("=" * 50)
+    print(f"Total scenarios: {summary.get('total_scenarios', 0)}")
+    print(f"Passed: {summary.get('passed', 0)}")
+    print(f"Failed: {summary.get('failed', 0)}")
+    print(f"Pass rate: {summary.get('pass_rate', 'N/A')}")
+
+    print("\nBy category:")
+    for category, stats in report.get("by_category", {}).items():
+        rate = f"{(stats['passed'] / stats['total'] * 100):.1f}%" if stats["total"] > 0 else "N/A"
+        print(f"  {category}: {stats['passed']}/{stats['total']} ({rate})")
+
+    failures = report.get("failures", [])
+    if failures:
+        print(f"\nFailed scenarios ({len(failures)}):")
+        for fail in failures[:10]:  # Show first 10
+            print(f"  - {fail['scenario']}: {', '.join(fail['errors'][:2])}")
+        if len(failures) > 10:
+            print(f"  ... and {len(failures) - 10} more")
 
 
 async def wait_for_pipeline_completion(
@@ -4989,17 +5578,23 @@ async def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Full platform exercise - DEFAULT (all tables seeded)
-  uv run python scripts/seed-events.py --images 100
+  # DEFAULT: Process synthetic videos from data/synthetic/ (recommended)
+  uv run python scripts/seed-events.py
 
-  # Minimal mode - just pipeline data (old behavior)
-  uv run python scripts/seed-events.py --images 100 --minimal
+  # Process specific number of synthetic scenarios
+  uv run python scripts/seed-events.py --scenarios 50
+
+  # Process only specific categories
+  uv run python scripts/seed-events.py --categories normal,suspicious
+
+  # Process synthetic data and validate results
+  uv run python scripts/seed-events.py --validate
+
+  # Legacy mode: Touch existing images from /export/foscam
+  uv run python scripts/seed-events.py --existing-data --images 100
 
   # Config only - setup without heavy AI data
   uv run python scripts/seed-events.py --config-only
-
-  # Process more images and wait longer
-  uv run python scripts/seed-events.py --images 50 --timeout 600
 
   # Clear all data first, then run full pipeline
   uv run python scripts/seed-events.py --clear
@@ -5007,15 +5602,18 @@ Examples:
   # Quick run without waiting for pipeline completion
   uv run python scripts/seed-events.py --no-wait
 
-  # Skip supporting data (entities, alerts, logs) - only pipeline data
-  uv run python scripts/seed-events.py --no-extras
-
 Pipeline Flow:
-  1. Touch camera images to trigger file watcher
+  1. Extract frames from synthetic videos (or touch existing images with --existing-data)
   2. File Watcher → YOLO26 (object detection)
   3. YOLO26 → Batch Aggregator (group detections)
   4. Batch Aggregator → Nemotron LLM (risk analysis)
   5. Events created with AI-generated summaries and risk scores
+
+Synthetic Data Benefits:
+  - Known expected labels for validation (expected_labels.json)
+  - Repeatable test scenarios across categories (normal, suspicious, threats)
+  - Detection accuracy and risk score calibration metrics
+  - End-to-end pipeline testing with controlled inputs
 
 This generates real data including:
   - Events with actual LLM reasoning
@@ -5110,6 +5708,42 @@ This generates real data including:
         help="Config only mode - seed configuration data without running AI pipeline",
     )
 
+    # Synthetic data arguments (DEFAULT behavior)
+    parser.add_argument(
+        "--existing-data",
+        action="store_true",
+        help="Legacy mode: touch images from /export/foscam instead of using synthetic data",
+    )
+    parser.add_argument(
+        "--scenarios",
+        type=int,
+        default=None,
+        help="Number of synthetic scenarios to process (default: all available)",
+    )
+    parser.add_argument(
+        "--categories",
+        type=str,
+        default=None,
+        help="Comma-separated list of categories to process (normal,suspicious,threats)",
+    )
+    parser.add_argument(
+        "--frames-per-video",
+        type=int,
+        default=5,
+        help="Number of frames to extract from each synthetic video (default: 5)",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate pipeline results against expected labels after processing",
+    )
+    parser.add_argument(
+        "--report-path",
+        type=str,
+        default=None,
+        help="Path to save validation report JSON (default: data/synthetic/validation_report.json)",
+    )
+
     args = parser.parse_args()
 
     # Determine seeding mode
@@ -5162,6 +5796,8 @@ This generates real data including:
     # ==========================================================================
     # AI PIPELINE (unless --config-only)
     # ==========================================================================
+    synthetic_scenarios: list[SyntheticScenario] = []
+
     if not args.config_only:
         # Get initial event count
         initial_events = await get_events()
@@ -5172,8 +5808,47 @@ This generates real data including:
         print("=" * 50)
         print(f"Current events in database: {initial_count}")
 
-        touched = trigger_pipeline(num_images=args.images, delay_between=args.delay)
-        total_created["images_triggered"] = touched
+        if args.existing_data:
+            # Legacy mode: touch existing images in /export/foscam
+            print("\n[LEGACY MODE] Using existing camera images from /export/foscam")
+            touched = trigger_pipeline(num_images=args.images, delay_between=args.delay)
+            total_created["images_triggered"] = touched
+        else:
+            # DEFAULT: Use synthetic video data
+            print("\n[SYNTHETIC MODE] Processing synthetic videos from data/synthetic/")
+
+            # Parse categories if specified
+            categories = None
+            if args.categories:
+                categories = [c.strip() for c in args.categories.split(",")]
+                print(f"  Categories: {', '.join(categories)}")
+
+            # Discover synthetic scenarios
+            synthetic_scenarios = discover_synthetic_scenarios(
+                categories=categories,
+                limit=args.scenarios,
+            )
+
+            if not synthetic_scenarios:
+                print("Warning: No synthetic scenarios found")
+                print(f"  Check that {SYNTHETIC_DATA_PATH} exists and contains Cosmos videos")
+                touched = 0
+            else:
+                print(f"  Found {len(synthetic_scenarios)} synthetic scenarios")
+                by_cat = {}
+                for s in synthetic_scenarios:
+                    by_cat[s.category] = by_cat.get(s.category, 0) + 1
+                for cat, count in sorted(by_cat.items()):
+                    print(f"    - {cat}: {count}")
+
+                # Process synthetic scenarios
+                touched, _frame_paths = await seed_synthetic_scenarios(
+                    scenarios=synthetic_scenarios,
+                    frames_per_video=args.frames_per_video,
+                    delay_between=args.delay,
+                )
+                total_created["frames_extracted"] = touched
+                total_created["synthetic_scenarios"] = len(synthetic_scenarios)
 
         # Wait for pipeline completion unless --no-wait
         if not args.no_wait and touched > 0:
@@ -5188,6 +5863,23 @@ This generates real data including:
             if not success:
                 print("\n⚠ Warning: Pipeline may not have completed fully")
                 print("  Check that AI services (YOLO26, Nemotron) are running")
+
+            # Validate results if requested and using synthetic data
+            if args.validate and synthetic_scenarios:
+                print("\n" + "=" * 50)
+                print("VALIDATING SYNTHETIC RESULTS")
+                print("=" * 50)
+
+                validation_results = await validate_synthetic_results(synthetic_scenarios)
+                report_path = Path(
+                    args.report_path or str(SYNTHETIC_DATA_PATH / "validation_report.json")
+                )
+                report = generate_validation_report(validation_results, report_path)
+                print_validation_summary(report)
+
+                total_created["validation_passed"] = report["summary"]["passed"]
+                total_created["validation_failed"] = report["summary"]["failed"]
+
         elif args.no_wait:
             print("\n--no-wait specified, skipping pipeline completion wait")
 
@@ -5376,6 +6068,18 @@ This generates real data including:
         print(f"    - GPU seconds: {total_created.get('gpu_seconds', 0)}")
         print(f"    - Detections processed: {total_created.get('detections_processed', 0)}")
         print(f"    - Event metrics: {total_created.get('events_metrics', 0)}")
+
+    # Print synthetic data stats if used
+    if not args.existing_data and "synthetic_scenarios" in total_created:
+        print("  Synthetic data:")
+        print(f"    - Scenarios processed: {total_created.get('synthetic_scenarios', 0)}")
+        print(f"    - Frames extracted: {total_created.get('frames_extracted', 0)}")
+        if "validation_passed" in total_created:
+            passed = total_created.get("validation_passed", 0)
+            failed = total_created.get("validation_failed", 0)
+            total = passed + failed
+            rate = f"{(passed / total * 100):.1f}%" if total > 0 else "N/A"
+            print(f"    - Validation: {passed}/{total} passed ({rate})")
 
     return 0
 

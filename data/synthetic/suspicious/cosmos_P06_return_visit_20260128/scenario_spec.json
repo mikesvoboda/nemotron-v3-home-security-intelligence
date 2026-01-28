@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_P06_return_visit",
+  "category": "suspicious",
+  "name": "Return Visit",
+  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They return to the porch after briefly leaving, looking around more cautiously. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted f",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "rain"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They return to the porch after briefly leaving, looking around more cautiously. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate."
+  }
+}

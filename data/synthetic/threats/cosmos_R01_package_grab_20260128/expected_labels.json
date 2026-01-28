@@ -1,0 +1,46 @@
+{
+  "source": "cosmos",
+  "video_id": "R01",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    },
+    {
+      "class": "package",
+      "min_confidence": 0.6,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": false
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "running",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "front_porch",
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 61,
+    "max_score": 100,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person runs up to the porch, quickly grabs a package sitting by the door, turns and sprints away. Fast theft..."
+  }
+}

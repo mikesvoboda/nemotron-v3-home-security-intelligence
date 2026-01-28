@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_F05_wildlife_cat",
+  "category": "normal",
+  "name": "Wildlife Cat",
+  "description": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Several small birds hop around on the porch, pecking at crumbs near the doormat, fluttering wings occasionally. Small repetitive animal motion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Several small birds hop around on the porch, pecking at crumbs near the doormat, fluttering wings occasionally. Small repetitive animal motion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

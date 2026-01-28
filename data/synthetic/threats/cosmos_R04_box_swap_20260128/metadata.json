@@ -1,0 +1,18 @@
+{
+  "run_id": "20260128_170526",
+  "source": "cosmos",
+  "video_id": "R04",
+  "scenario": "box_swap",
+  "category": "threats",
+  "format": "video",
+  "duration_sec": 5.8,
+  "resolution": "1280x704",
+  "fps": 16,
+  "generated_at": "2026-01-28T17:05:26.684563+00:00",
+  "files": ["media/R04_5s.mp4"],
+  "cosmos_metadata": {
+    "model": "Cosmos-Predict2.5-14B",
+    "seed": 0,
+    "guidance": 7
+  }
+}

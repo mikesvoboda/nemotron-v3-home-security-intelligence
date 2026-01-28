@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_T25_tracking_15",
+  "category": "threats",
+  "name": "Tracking 15",
+  "description": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Large German Shepherd running and playing in the yard. Clearly visible, active movement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "backyard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Large German Shepherd running and playing in the yard. Clearly visible, active movement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

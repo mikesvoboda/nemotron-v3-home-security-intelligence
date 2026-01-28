@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_C07_backyard_night",
+  "category": "suspicious",
+  "name": "Backyard Night",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands at the door as a car turns into the driveway, headlights sweeping dramatically across the scene, causing rapid brightness changes. Dynamic night lighting. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "driveway",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands at the door as a car turns into the driveway, headlights sweeping dramatically across the scene, causing rapid brightness changes. Dynamic night lighting. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "cosmos_F04_wildlife_raccoon",
+  "category": "normal",
+  "name": "Wildlife Raccoon",
+  "description": "Suburban home backyard at night, viewed from an elevated position under the roofline. A cat walks along the top of the fence, pauses to look around, then jumps down and walks away. Small animal on property perimeter. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "source": "cosmos",
+  "scene": {
+    "location": "backyard",
+    "camera_type": "security_camera",
+    "resolution": "720p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 5.8,
+    "cosmos_prompt": "Suburban home backyard at night, viewed from an elevated position under the roofline. A cat walks along the top of the fence, pauses to look around, then jumps down and walks away. Small animal on property perimeter. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate."
+  }
+}
