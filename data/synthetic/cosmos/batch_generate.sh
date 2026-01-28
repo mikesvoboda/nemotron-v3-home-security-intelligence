@@ -71,10 +71,10 @@ generate_single_video() {
     local GPU_ID=$1
     local PROMPT_FILE=$2
     local LOG_FILE="${LOG_DIR}/gpu${GPU_ID}.log"
-    
+
     local FNAME=$(basename "$PROMPT_FILE" .json)
     local OUTPUT_PATH="${OUTPUT_BASE}/${FNAME}.mp4"
-    
+
     # Skip if exists
     if [[ "$SKIP_EXISTING" == "true" && -f "$OUTPUT_PATH" ]]; then
         # Check if it's a real video (not a tiny file)
@@ -84,10 +84,10 @@ generate_single_video() {
             return 0
         fi
     fi
-    
+
     # Extract num_output_frames from JSON
     local NUM_FRAMES=$(jq -r '.num_output_frames' "$PROMPT_FILE")
-    
+
     # Determine if autoregressive mode needed (model native is ~77 frames)
     local EXTRA_ARGS=""
     if [[ $NUM_FRAMES -gt 120 ]]; then
@@ -96,7 +96,7 @@ generate_single_video() {
     else
         echo "[GPU ${GPU_ID}] ${FNAME}: ${NUM_FRAMES} frames (standard mode)" | tee -a "$LOG_FILE"
     fi
-    
+
     # Run Docker for single video
     docker run --rm \
         --gpus "device=${GPU_ID}" \
@@ -116,7 +116,7 @@ generate_single_video() {
         --disable-guardrails \
         $EXTRA_ARGS \
         2>&1 | tee -a "$LOG_FILE"
-    
+
     echo "[GPU ${GPU_ID}] Completed: ${FNAME}" | tee -a "$LOG_FILE"
 }
 
@@ -125,13 +125,13 @@ run_gpu_worker() {
     local GPU_ID=$1
     shift
     local -a FILES=("$@")
-    
+
     echo "[GPU ${GPU_ID}] Starting worker with ${#FILES[@]} videos"
-    
+
     for PROMPT_FILE in "${FILES[@]}"; do
         generate_single_video "$GPU_ID" "$PROMPT_FILE"
     done
-    
+
     echo "[GPU ${GPU_ID}] Worker complete!"
 }
 
@@ -146,14 +146,14 @@ for GPU_ID in $(seq 0 $((NUM_GPUS - 1))); do
     for ((IDX=GPU_ID; IDX<TOTAL_FILES; IDX+=NUM_GPUS)); do
         GPU_FILES+=("${PROMPT_FILES[$IDX]}")
     done
-    
+
     if [[ ${#GPU_FILES[@]} -gt 0 ]]; then
         # Count durations
         COUNT_5S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_5s.json' || true)
         COUNT_10S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_10s.json' || true)
         COUNT_30S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_30s.json' || true)
         echo "[GPU ${GPU_ID}] Assigned ${#GPU_FILES[@]} videos: ${COUNT_5S}x5s + ${COUNT_10S}x10s + ${COUNT_30S}x30s"
-        
+
         # Launch worker in background
         run_gpu_worker ${GPU_ID} "${GPU_FILES[@]}" &
     fi

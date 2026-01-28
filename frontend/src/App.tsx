@@ -70,6 +70,31 @@ const AIAuditPage = lazy(() =>
   import('./components/ai').then((module) => ({ default: module.AIAuditPage }))
 );
 
+// AI Services (Grafana dashboard)
+const AIServicesPage = lazy(() =>
+  import('./components/ai').then((module) => ({ default: module.AIServicesPage }))
+);
+
+// Video Analytics (Grafana dashboard)
+const VideoAnalyticsPage = lazy(() =>
+  import('./components/analytics').then((module) => ({ default: module.VideoAnalyticsPage }))
+);
+
+// Operations Dashboard (Grafana dashboard)
+const OperationsDashboardPage = lazy(() =>
+  import('./components/operations').then((module) => ({ default: module.OperationsDashboardPage }))
+);
+
+// GPU Metrics (Grafana dashboard)
+const GpuMetricsPage = lazy(() =>
+  import('./components/operations').then((module) => ({ default: module.GpuMetricsPage }))
+);
+
+// Request Profiling (Grafana dashboard)
+const RequestProfilingPage = lazy(() =>
+  import('./components/operations').then((module) => ({ default: module.RequestProfilingPage }))
+);
+
 // Pyroscope profiling
 const PyroscopePage = lazy(() =>
   import('./components/pyroscope').then((module) => ({ default: module.PyroscopePage }))
@@ -164,8 +189,13 @@ export default function App() {
                           <Route path="/audit" element={<AuditLogPage />} />
                           <Route path="/ai" element={<AIPerformancePage />} />
                           <Route path="/ai-audit" element={<AIAuditPage />} />
+                          <Route path="/ai-services" element={<AIServicesPage />} />
+                          <Route path="/video-analytics" element={<VideoAnalyticsPage />} />
                           <Route path="/pyroscope" element={<PyroscopePage />} />
                           <Route path="/operations" element={<OperationsPage />} />
+                          <Route path="/operations-dashboard" element={<OperationsDashboardPage />} />
+                          <Route path="/gpu-metrics" element={<GpuMetricsPage />} />
+                          <Route path="/request-profiling" element={<RequestProfilingPage />} />
                           <Route path="/tracing" element={<TracingPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
                           <Route path="/notifications" element={<NotificationPreferencesPage />} />
