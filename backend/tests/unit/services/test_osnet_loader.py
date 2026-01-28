@@ -1,3 +1,4 @@
+# ruff: noqa: ARG005
 """Unit tests for OSNet person re-identification loader.
 
 Tests cover:
@@ -164,7 +165,7 @@ class TestLoadOSNetModel:
         # Mock Path.glob to return empty list (no .pth files)
         mock_path = MagicMock(spec=Path)
         mock_path.glob.return_value = []
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_path
+        mock_path.__truediv__ = lambda self, other: mock_path
         mock_path.exists.return_value = False
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
@@ -172,7 +173,7 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         with pytest.raises(RuntimeError, match="Failed to load OSNet model"):
             await load_osnet_model("/fake/path")
@@ -206,7 +207,7 @@ class TestLoadOSNetModel:
         mock_path = MagicMock(spec=Path)
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
         mock_path.glob.return_value = [mock_weights_file]
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
@@ -214,7 +215,7 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         result = await load_osnet_model("/test/model")
 
@@ -255,14 +256,14 @@ class TestLoadOSNetModel:
         mock_path = MagicMock(spec=Path)
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         result = await load_osnet_model("/test/model")
 
@@ -313,14 +314,14 @@ class TestLoadOSNetModel:
         mock_path = MagicMock(spec=Path)
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         await load_osnet_model("/test/model")
 
@@ -373,14 +374,14 @@ class TestLoadOSNetModel:
         mock_path = MagicMock(spec=Path)
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         await load_osnet_model("/test/model")
 
@@ -413,12 +414,12 @@ class TestLoadOSNetModel:
         mock_path = MagicMock(spec=Path)
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         # Remove torchreid if present
         if "torchreid" in sys.modules:
@@ -445,11 +446,11 @@ class TestLoadOSNetModel:
         mock_path = MagicMock(spec=Path)
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
-        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         # Remove torchreid if present
         if "torchreid" in sys.modules:

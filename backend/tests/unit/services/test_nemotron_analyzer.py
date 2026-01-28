@@ -4635,7 +4635,7 @@ async def test_record_rollout_feedback_control_group(analyzer):
     mock_rollout = MagicMock()
     mock_rollout.get_group_for_camera.return_value = MagicMock()
     mock_rollout.get_group_for_camera.return_value.__eq__ = (
-        lambda self, other: True
+        lambda self, other: True  # noqa: ARG005
     )  # Equals CONTROL
 
     with patch("backend.config.prompt_ab_rollout.ExperimentGroup") as mock_exp_group:

@@ -1,3 +1,4 @@
+# ruff: noqa: ARG005
 """Unit tests for threat detection loader.
 
 Tests cover:
@@ -245,10 +246,10 @@ class TestLoadThreatDetectionModel:
         # Mock Path.glob to return empty list
         mock_path = MagicMock(spec=Path)
         mock_path.glob.return_value = []
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 MagicMock(exists=lambda: False)
+        mock_path.__truediv__ = lambda self, other: MagicMock(exists=lambda: False)
 
         monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x: mock_path)
 
         with pytest.raises(RuntimeError, match="Failed to load threat detection model"):
             await load_threat_detection_model("/fake/path")
@@ -278,10 +279,10 @@ class TestLoadThreatDetectionModel:
         mock_weights_file.exists.return_value = True
 
         mock_path = MagicMock(spec=Path)
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x: mock_path)
 
         result = await load_threat_detection_model("/test/model")
 
@@ -314,10 +315,10 @@ class TestLoadThreatDetectionModel:
         mock_weights_file.exists.return_value = True
 
         mock_path = MagicMock(spec=Path)
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x: mock_path)
 
         result = await load_threat_detection_model("/test/model")
 
@@ -344,10 +345,10 @@ class TestLoadThreatDetectionModel:
         mock_weights_file.exists.return_value = True
 
         mock_path = MagicMock(spec=Path)
-        mock_path.__truediv__ = lambda self, other:  # noqa: ARG005 mock_weights_file
+        mock_path.__truediv__ = lambda self, other: mock_weights_file
 
         monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x: mock_path)
 
         result = await load_threat_detection_model("/test/model")
 
@@ -387,7 +388,7 @@ class TestLoadThreatDetectionModel:
         mock_path.glob.return_value = [MagicMock()]
 
         monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x:  # noqa: ARG005 mock_path)
+        monkeypatch.setattr("backend.services.threat_detection_loader.Path", lambda x: mock_path)
 
         result = await load_threat_detection_model("/test/model")
 
@@ -421,21 +422,21 @@ class TestDetectThreats:
         """Test detect_threats with threats detected."""
         # Create mock boxes
         mock_boxes = MagicMock()
-        mock_boxes.__len__ = lambda _self: 2
+        mock_boxes.__len__ = lambda self: 2
 
         # Mock cls tensor
         mock_cls = MagicMock()
-        mock_cls.__getitem__ = lambda _self, _i: MagicMock(item=lambda: i)
+        mock_cls.__getitem__ = lambda self, i: MagicMock(item=lambda: i)
         mock_boxes.cls = mock_cls
 
         # Mock conf tensor
         mock_conf = MagicMock()
-        mock_conf.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0.85 + i * 0.1)
+        mock_conf.__getitem__ = lambda self, i: MagicMock(item=lambda: 0.85 + i * 0.1)
         mock_boxes.conf = mock_conf
 
         # Mock xyxy tensor
         mock_xyxy = MagicMock()
-        mock_xyxy.__getitem__ = lambda _self, _i: MagicMock(
+        mock_xyxy.__getitem__ = lambda self, i: MagicMock(
             tolist=lambda: [10.0 + i * 10, 20.0 + i * 10, 30.0 + i * 10, 40.0 + i * 10]
         )
         mock_boxes.xyxy = mock_xyxy
@@ -465,18 +466,18 @@ class TestDetectThreats:
         """Test detect_threats marks high-priority threats correctly."""
         # Create mock boxes with gun detection
         mock_boxes = MagicMock()
-        mock_boxes.__len__ = lambda _self: 1
+        mock_boxes.__len__ = lambda self: 1
 
         mock_cls = MagicMock()
-        mock_cls.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0)
+        mock_cls.__getitem__ = lambda self, i: MagicMock(item=lambda: 0)
         mock_boxes.cls = mock_cls
 
         mock_conf = MagicMock()
-        mock_conf.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0.95)
+        mock_conf.__getitem__ = lambda self, i: MagicMock(item=lambda: 0.95)
         mock_boxes.conf = mock_conf
 
         mock_xyxy = MagicMock()
-        mock_xyxy.__getitem__ = lambda _self, _i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
+        mock_xyxy.__getitem__ = lambda self, i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
         mock_boxes.xyxy = mock_xyxy
 
         mock_result = MagicMock()
@@ -499,18 +500,18 @@ class TestDetectThreats:
         """Test detect_threats handles unknown class IDs."""
         # Create mock boxes
         mock_boxes = MagicMock()
-        mock_boxes.__len__ = lambda _self: 1
+        mock_boxes.__len__ = lambda self: 1
 
         mock_cls = MagicMock()
-        mock_cls.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 99)
+        mock_cls.__getitem__ = lambda self, i: MagicMock(item=lambda: 99)
         mock_boxes.cls = mock_cls
 
         mock_conf = MagicMock()
-        mock_conf.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0.85)
+        mock_conf.__getitem__ = lambda self, i: MagicMock(item=lambda: 0.85)
         mock_boxes.conf = mock_conf
 
         mock_xyxy = MagicMock()
-        mock_xyxy.__getitem__ = lambda _self, _i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
+        mock_xyxy.__getitem__ = lambda self, i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
         mock_boxes.xyxy = mock_xyxy
 
         mock_result = MagicMock()
@@ -558,18 +559,18 @@ class TestDetectThreats:
         """Test detect_threats handles model without names attribute."""
         # Create mock boxes
         mock_boxes = MagicMock()
-        mock_boxes.__len__ = lambda _self: 1
+        mock_boxes.__len__ = lambda self: 1
 
         mock_cls = MagicMock()
-        mock_cls.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0)
+        mock_cls.__getitem__ = lambda self, i: MagicMock(item=lambda: 0)
         mock_boxes.cls = mock_cls
 
         mock_conf = MagicMock()
-        mock_conf.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0.85)
+        mock_conf.__getitem__ = lambda self, i: MagicMock(item=lambda: 0.85)
         mock_boxes.conf = mock_conf
 
         mock_xyxy = MagicMock()
-        mock_xyxy.__getitem__ = lambda _self, _i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
+        mock_xyxy.__getitem__ = lambda self, i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
         mock_boxes.xyxy = mock_xyxy
 
         mock_result = MagicMock()
@@ -621,18 +622,18 @@ class TestDetectThreatsBatch:
         mock_result1.boxes = None
 
         mock_boxes2 = MagicMock()
-        mock_boxes2.__len__ = lambda _self: 1
+        mock_boxes2.__len__ = lambda self: 1
 
         mock_cls = MagicMock()
-        mock_cls.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0)
+        mock_cls.__getitem__ = lambda self, i: MagicMock(item=lambda: 0)
         mock_boxes2.cls = mock_cls
 
         mock_conf = MagicMock()
-        mock_conf.__getitem__ = lambda _self, _i: MagicMock(item=lambda: 0.85)
+        mock_conf.__getitem__ = lambda self, i: MagicMock(item=lambda: 0.85)
         mock_boxes2.conf = mock_conf
 
         mock_xyxy = MagicMock()
-        mock_xyxy.__getitem__ = lambda _self, _i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
+        mock_xyxy.__getitem__ = lambda self, i: MagicMock(tolist=lambda: [10.0, 20.0, 30.0, 40.0])
         mock_boxes2.xyxy = mock_xyxy
 
         mock_result2 = MagicMock()
