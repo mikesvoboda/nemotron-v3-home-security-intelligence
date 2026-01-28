@@ -1422,7 +1422,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "rate(hsi_face_detections_total[5m])",
+          "expr": "rate(hsi_face_embeddings_generated_total[5m])",
           "legendFormat": "Face Detections",
           "refId": "A"
         }
@@ -1670,7 +1670,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(increase(hsi_face_detections_total{recognition_status=\"known\"}[1h]))",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total[1h]))",
           "legendFormat": "Known",
           "refId": "A"
         },
@@ -1679,7 +1679,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(increase(hsi_face_detections_total{recognition_status=\"unknown\"}[1h]))",
+          "expr": "0",
           "legendFormat": "Unknown",
           "refId": "B"
         }
@@ -1769,7 +1769,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(rate(hsi_face_detections_total[5m])) by (camera_id)",
+          "expr": "rate(hsi_face_embeddings_generated_total[5m])",
           "legendFormat": "{{camera_id}}",
           "refId": "A"
         }
@@ -2397,7 +2397,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum by (action_type) (hsi_action_detections_total)",
+          "expr": "sum(hsi_enrichment_model_calls_total{model=\"action\"})",
           "legendFormat": "{{action_type}}",
           "refId": "A"
         }
@@ -2933,7 +2933,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "hsi_model_load_duration_seconds",
+          "expr": "enrichment_model_load_time_seconds",
           "legendFormat": "{{model}}",
           "refId": "A"
         }
