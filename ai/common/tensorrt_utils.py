@@ -464,9 +464,9 @@ class TensorRTConverter:
 
     def _create_calibrator(
         self,
-        _input_shapes: dict[str, tuple[int, ...]],
+        input_shapes: dict[str, tuple[int, ...]],
         calibration_data: NDArray[np.float32] | None,
-        _network: Any,
+        network: Any,
     ) -> Any:
         """Create INT8 calibrator for quantization.
 
@@ -502,7 +502,7 @@ class TensorRTConverter:
             def get_batch_size(self) -> int:
                 return self.batch_size  # type: ignore[no-any-return]
 
-            def get_batch(self, _names: list[str]) -> list[int] | None:
+            def get_batch(self, names: list[str]) -> list[int] | None:
                 if self.current_index >= len(self.data):
                     return None
 
