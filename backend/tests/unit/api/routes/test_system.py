@@ -2461,3 +2461,89 @@ class TestMonitoringTargetsEndpoint:
             assert data["down"] == 0
             assert data["targets"] == []
             assert data["jobs"] == []
+
+
+# =============================================================================
+# Test Health Check Liveness Endpoint (NEM-3892)
+# =============================================================================
+
+
+class TestLivenessEndpoint:
+    """Tests for the fast liveness endpoint (/api/system/health/live)."""
+
+    @pytest.mark.asyncio
+    async def test_liveness_returns_alive_status(self, async_client: AsyncClient) -> None:
+        """Test that liveness endpoint returns alive status immediately."""
+        response = await async_client.get("/api/system/health/live")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "alive"
+        assert "timestamp" in data
+
+    @pytest.mark.asyncio
+    async def test_liveness_is_fast(self, async_client: AsyncClient) -> None:
+        """Test that liveness endpoint responds in under 100ms."""
+        import time
+
+        start = time.time()
+        response = await async_client.get("/api/system/health/live")
+        duration_ms = (time.time() - start) * 1000
+
+        assert response.status_code == 200
+        # Should respond in under 100ms (generous limit for test overhead)
+        assert duration_ms < 100, f"Liveness took {duration_ms:.1f}ms, expected < 100ms"
+
+
+# =============================================================================
+# Test Health Check Metrics (NEM-3892)
+# =============================================================================
+
+
+class TestHealthCheckMetrics:
+    """Tests for health check latency metrics."""
+
+    def test_health_check_latency_metric_exists(self) -> None:
+        """Test that health check latency histogram is defined."""
+        from backend.core.metrics import HEALTH_CHECK_LATENCY_SECONDS
+
+        assert HEALTH_CHECK_LATENCY_SECONDS is not None
+        # Check labels are defined
+        assert "endpoint" in str(HEALTH_CHECK_LATENCY_SECONDS._labelnames)
+        assert "check_type" in str(HEALTH_CHECK_LATENCY_SECONDS._labelnames)
+
+    def test_health_check_component_latency_metric_exists(self) -> None:
+        """Test that component latency histogram is defined."""
+        from backend.core.metrics import HEALTH_CHECK_COMPONENT_LATENCY_SECONDS
+
+        assert HEALTH_CHECK_COMPONENT_LATENCY_SECONDS is not None
+        assert "component" in str(HEALTH_CHECK_COMPONENT_LATENCY_SECONDS._labelnames)
+
+    def test_observe_health_check_latency_function(self) -> None:
+        """Test that observe_health_check_latency function works."""
+        from backend.core.metrics import observe_health_check_latency
+
+        # Should not raise any exceptions
+        observe_health_check_latency("health", "cached", 0.001)
+        observe_health_check_latency("health_ready", "full", 0.250)
+        observe_health_check_latency("health_live", "liveness", 0.005)
+
+    def test_observe_health_check_component_latency_function(self) -> None:
+        """Test that observe_health_check_component_latency function works."""
+        from backend.core.metrics import observe_health_check_component_latency
+
+        # Should not raise any exceptions
+        observe_health_check_component_latency("database", 0.050)
+        observe_health_check_component_latency("redis", 0.025)
+        observe_health_check_component_latency("ai_services", 0.100)
+
+    def test_cache_metrics_functions(self) -> None:
+        """Test cache hit/miss metric functions work."""
+        from backend.core.metrics import (
+            record_health_check_cache_hit,
+            record_health_check_cache_miss,
+        )
+
+        # Should not raise any exceptions
+        record_health_check_cache_hit("health")
+        record_health_check_cache_miss("health_ready")

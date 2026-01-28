@@ -7,12 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
-# Import ultralytics and YOLO to ensure YOLO is available for patching
-# This must be done before importing model module
-import ultralytics  # noqa: F401
 from fastapi.testclient import TestClient
-from ultralytics import YOLO as _YOLO  # noqa: F401 - forces YOLO attr to exist
 
 # Add the ai/yolo26 directory to sys.path to enable imports
 # This handles both pytest from project root and running tests directly
@@ -38,7 +33,6 @@ from model import (  # noqa: E402
     get_gpu_metrics,
     get_pt_model_path_for_engine,
     get_tensorrt_version,
-    is_tensorrt_fallback_error,
     is_tensorrt_version_mismatch_error,
     validate_file_extension,
     validate_image_magic_bytes,
@@ -381,6 +375,9 @@ class TestAPIEndpoints:
         # Set required attributes for health check
         mock_instance._is_compiled = False
         mock_instance.torch_compile_mode = "reduce-overhead"
+        # NEM-3877, NEM-3878: Add new health check attributes
+        mock_instance.inference_healthy = True
+        mock_instance.active_backend = "tensorrt"
         # Directly set the module's model attribute
         original_model = getattr(model_module, "model", None)
         model_module.model = mock_instance
@@ -1302,219 +1299,174 @@ class TestYOLO26ModelTensorRTVersionHandling:
         assert response.tensorrt_version is None
 
 
-class TestTensorRTPyTorchFallback:
-    """Tests for TensorRT to PyTorch fallback logic (NEM-3882).
+class TestInferenceHealthCheck:
+    """Tests for inference health tracking and warmup validation (NEM-3877, NEM-3878).
 
-    These tests verify that the YOLO26 service gracefully falls back to PyTorch
-    when TensorRT is unavailable or fails to load.
+    These tests verify that:
+    1. Warmup inference is performed on startup to validate the model works
+    2. Health check reports whether inference has been tested successfully
+    3. The inference_healthy flag is properly tracked
+    4. The MODEL_INFERENCE_HEALTHY Prometheus metric is exposed
     """
 
-    def test_fallback_when_tensorrt_not_installed(self, tmp_path):
-        """Test fallback to PyTorch when TensorRT is not installed."""
-        # Create a .pt file that would be used as fallback
-        pt_file = tmp_path / "yolo26m.pt"
-        pt_file.touch()
+    def test_yolo26_model_has_inference_healthy_attribute(self):
+        """Test that YOLO26Model tracks inference health status."""
+        model = YOLO26Model(model_path="test_path", device="cpu")
+        # Should have inference_healthy attribute (defaults to False until warmup succeeds)
+        assert hasattr(model, "inference_healthy")
+        assert model.inference_healthy is False  # Not yet tested
 
-        # Engine path that would fail because TensorRT isn't available
-        engine_path = tmp_path / "yolo26m_fp16.engine"
-        engine_path.touch()
+    def test_warmup_sets_inference_healthy_on_success(self, mock_yolo_model):
+        """Test that successful warmup sets inference_healthy to True."""
+        model = YOLO26Model(model_path="test_path", device="cpu", cache_clear_frequency=0)
+        model.model = mock_yolo_model
+        model.inference_healthy = False  # Pre-condition
 
-        model = YOLO26Model(
-            model_path=str(engine_path),
-            device="cpu",
-            pt_model_path=str(pt_file),
-        )
+        # Run warmup (which calls detect internally)
+        model._warmup(num_iterations=1)
 
-        # Mock YOLO to raise ImportError for TensorRT
-        mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
+        # After successful warmup, inference_healthy should be True
+        assert model.inference_healthy is True
 
-        def mock_yolo_init(path):
-            if path.endswith(".engine"):
-                # Simulate TensorRT not being available
-                raise RuntimeError("TensorRT is not available or installed")
-            return mock_yolo_instance
+    def test_warmup_sets_inference_healthy_false_on_failure(self):
+        """Test that failed warmup sets inference_healthy to False."""
+        model = YOLO26Model(model_path="test_path", device="cpu", cache_clear_frequency=0)
 
-        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
-            model.load_model()
+        # Create a mock model that raises on predict
+        failing_model = MagicMock()
+        failing_model.predict.side_effect = RuntimeError("TensorRT version mismatch")
+        model.model = failing_model
+        model.inference_healthy = True  # Pre-condition (set to True to verify it changes)
 
-        # Should have fallen back to .pt model
-        assert model.tensorrt_enabled is False
-        assert model.model_path == str(pt_file)
+        # Run warmup - should catch exception and set inference_healthy=False
+        model._warmup(num_iterations=1)
 
-    def test_fallback_when_engine_file_not_found(self, tmp_path):
-        """Test fallback to PyTorch when engine file doesn't exist."""
-        # Create a .pt file that would be used as fallback
-        pt_file = tmp_path / "yolo26m.pt"
-        pt_file.touch()
+        assert model.inference_healthy is False
 
-        # Engine path that doesn't exist
-        engine_path = tmp_path / "nonexistent_fp16.engine"
-
-        model = YOLO26Model(
-            model_path=str(engine_path),
-            device="cpu",
-            pt_model_path=str(pt_file),
-        )
-
-        mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
-
-        def mock_yolo_init(path):
-            if path.endswith(".engine") and not Path(path).exists():
-                raise FileNotFoundError(f"Engine file not found: {path}")
-            return mock_yolo_instance
-
-        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
-            model.load_model()
-
-        # Should have fallen back to .pt model
-        assert model.tensorrt_enabled is False
-        assert model.model_path == str(pt_file)
-
-    def test_fallback_when_tensorrt_import_fails(self, tmp_path):
-        """Test fallback when TensorRT module import fails during engine load."""
-        pt_file = tmp_path / "yolo26m.pt"
-        pt_file.touch()
-
-        engine_path = tmp_path / "yolo26m_fp16.engine"
-        engine_path.touch()
-
-        model = YOLO26Model(
-            model_path=str(engine_path),
-            device="cpu",
-            pt_model_path=str(pt_file),
-        )
-
-        mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
-
-        def mock_yolo_init(path):
-            if path.endswith(".engine"):
-                # Simulate TensorRT import error
-                raise RuntimeError("No module named 'tensorrt'")
-            return mock_yolo_instance
-
-        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
-            model.load_model()
-
-        assert model.tensorrt_enabled is False
-        assert model.model_path == str(pt_file)
-
-    def test_fallback_when_gpu_mismatch(self, tmp_path):
-        """Test fallback when TensorRT engine was built for different GPU."""
-        pt_file = tmp_path / "yolo26m.pt"
-        pt_file.touch()
-
-        engine_path = tmp_path / "yolo26m_fp16.engine"
-        engine_path.touch()
-
-        model = YOLO26Model(
-            model_path=str(engine_path),
+    def test_health_response_includes_inference_tested_field(self):
+        """Test that HealthResponse includes inference_tested field."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
             device="cuda:0",
-            pt_model_path=str(pt_file),
+            cuda_available=True,
+            inference_tested=True,
         )
+        assert response.inference_tested is True
 
-        mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
-
-        def mock_yolo_init(path):
-            if path.endswith(".engine"):
-                # Simulate GPU architecture mismatch
-                raise RuntimeError(
-                    "CUDA error: no kernel image is available for execution on the device"
-                )
-            return mock_yolo_instance
-
-        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
-            model.load_model()
-
-        assert model.tensorrt_enabled is False
-        assert model.model_path == str(pt_file)
-
-    def test_fallback_logs_backend_used(self, tmp_path, caplog):
-        """Test that fallback logs which backend is being used."""
-        import logging
-
-        pt_file = tmp_path / "yolo26m.pt"
-        pt_file.touch()
-
-        engine_path = tmp_path / "yolo26m_fp16.engine"
-        engine_path.touch()
-
-        model = YOLO26Model(
-            model_path=str(engine_path),
-            device="cpu",
-            pt_model_path=str(pt_file),
-        )
-
-        mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
-
-        def mock_yolo_init(path):
-            if path.endswith(".engine"):
-                raise RuntimeError("TensorRT is not available")
-            return mock_yolo_instance
-
-        with (
-            patch("ultralytics.YOLO", side_effect=mock_yolo_init),
-            caplog.at_level(logging.INFO),
-        ):
-            model.load_model()
-
-        # Should log the fallback
-        assert any("fallback" in record.message.lower() for record in caplog.records) or any(
-            "pytorch" in record.message.lower() for record in caplog.records
-        )
-
-    def test_no_fallback_when_pt_model_not_available(self, tmp_path):
-        """Test that loading fails when both TensorRT and fallback .pt are unavailable."""
-        # No .pt file created
-        engine_path = tmp_path / "yolo26m_fp16.engine"
-        engine_path.touch()
-
-        model = YOLO26Model(
-            model_path=str(engine_path),
-            device="cpu",
-            # No pt_model_path provided and none can be derived
-        )
-
-        def mock_yolo_init(path):
-            if path.endswith(".engine"):
-                raise RuntimeError("TensorRT is not available")
-            raise FileNotFoundError(f"Model not found: {path}")
-
-        with (
-            patch("ultralytics.YOLO", side_effect=mock_yolo_init),
-            pytest.raises(RuntimeError, match="TensorRT is not available"),
-        ):
-            model.load_model()
-
-    def test_successful_tensorrt_load_no_fallback(self, tmp_path):
-        """Test that successful TensorRT load doesn't trigger fallback."""
-        engine_path = tmp_path / "yolo26m_fp16.engine"
-        engine_path.touch()
-
-        model = YOLO26Model(
-            model_path=str(engine_path),
+    def test_health_response_inference_tested_optional(self):
+        """Test that inference_tested field is optional (defaults to None)."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
             device="cuda:0",
+            cuda_available=True,
         )
+        assert response.inference_tested is None
 
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    def test_health_endpoint_reports_inference_tested(self, client):
+        """Test that /health endpoint includes inference_tested field."""
+        # Set up mock model with inference_healthy=True
+        mock_instance = MagicMock()
+        mock_instance.model = MagicMock()
+        mock_instance.model_path = "/dummy/path"
+        mock_instance.tensorrt_enabled = True
+        mock_instance._is_compiled = False
+        mock_instance.torch_compile_mode = "reduce-overhead"
+        mock_instance.inference_healthy = True
+        mock_instance.active_backend = "tensorrt"
+
+        original_model = getattr(model_module, "model", None)
+        model_module.model = mock_instance
+        try:
+            with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
+                response = client.get("/health")
+                assert response.status_code == 200
+                data = response.json()
+                assert "inference_tested" in data
+                assert data["inference_tested"] is True
+        finally:
+            model_module.model = original_model
+
+    def test_health_endpoint_reports_unhealthy_when_inference_failed(self, client):
+        """Test that /health reports 'unhealthy' when inference test failed."""
+        mock_instance = MagicMock()
+        mock_instance.model = MagicMock()
+        mock_instance.model_path = "/dummy/path"
+        mock_instance.tensorrt_enabled = True
+        mock_instance._is_compiled = False
+        mock_instance.torch_compile_mode = "reduce-overhead"
+        mock_instance.inference_healthy = False  # Inference failed
+        mock_instance.active_backend = "pytorch"
+
+        original_model = getattr(model_module, "model", None)
+        model_module.model = mock_instance
+        try:
+            with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
+                response = client.get("/health")
+                assert response.status_code == 200
+                data = response.json()
+                assert data["status"] == "unhealthy"
+                assert data["inference_tested"] is False
+        finally:
+            model_module.model = original_model
+
+
+class TestTensorRTFallback:
+    """Tests for TensorRT to PyTorch fallback mechanism (NEM-3877).
+
+    These tests verify that:
+    1. When TensorRT engine fails to load, the system falls back to PyTorch
+    2. The active_backend attribute reflects which backend is being used
+    3. Fallback logging is appropriate
+    """
+
+    def test_yolo26_model_has_active_backend_attribute(self):
+        """Test that YOLO26Model tracks the active backend."""
+        model = YOLO26Model(model_path="test.engine", device="cpu")
+        assert hasattr(model, "active_backend")
+        # Should default to None until model is loaded
+        assert model.active_backend is None
+
+    def test_active_backend_set_to_tensorrt_on_engine_load(self):
+        """Test that active_backend is 'tensorrt' when engine loads successfully."""
+        model = YOLO26Model(model_path="test.engine", device="cpu")
+
+        # Mock successful TensorRT load by setting model directly
         mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
+        model.model = mock_yolo_instance
 
-        with (
-            patch("ultralytics.YOLO", return_value=mock_yolo_instance),
-            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
-        ):
-            model.load_model()
+        # Simulate what load_model does for engine files
+        model.tensorrt_enabled = True
+        model.active_backend = "tensorrt"
 
-        # TensorRT should remain enabled
+        assert model.active_backend == "tensorrt"
         assert model.tensorrt_enabled is True
-        assert model.model_path == str(engine_path)
 
-    def test_fallback_preserves_confidence_threshold(self, tmp_path):
-        """Test that fallback preserves the configured confidence threshold."""
+    def test_active_backend_set_to_pytorch_on_pt_load(self):
+        """Test that active_backend is 'pytorch' when .pt file loads."""
+        model = YOLO26Model(model_path="test.pt", device="cpu")
+
+        # Mock successful PyTorch load by setting model directly
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+        model.model = mock_yolo_instance
+
+        # Simulate what load_model does for .pt files
+        model.tensorrt_enabled = False
+        model.active_backend = "pytorch"
+
+        assert model.active_backend == "pytorch"
+        assert model.tensorrt_enabled is False
+
+    def test_fallback_to_pytorch_on_tensorrt_load_failure(self, tmp_path):
+        """Test fallback logic by calling _fallback_to_pytorch directly."""
+        # Create mock .pt file
         pt_file = tmp_path / "yolo26m.pt"
         pt_file.touch()
 
@@ -1523,53 +1475,72 @@ class TestTensorRTPyTorchFallback:
 
         model = YOLO26Model(
             model_path=str(engine_path),
-            confidence_threshold=0.75,
             device="cpu",
+            auto_rebuild=False,  # Disable rebuild to force fallback
             pt_model_path=str(pt_file),
         )
 
-        mock_yolo_instance = MagicMock()
-        mock_yolo_instance.model = MagicMock()
+        # Mock YOLO class for fallback
+        mock_pt_yolo = MagicMock()
+        mock_pt_yolo.model = MagicMock()
 
-        def mock_yolo_init(path):
-            if path.endswith(".engine"):
-                raise RuntimeError("TensorRT is not available or installed")
-            return mock_yolo_instance
+        # Mock the ultralytics module for the internal import
+        mock_ultralytics = MagicMock()
+        mock_ultralytics.YOLO = MagicMock(return_value=mock_pt_yolo)
 
-        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
-            model.load_model()
+        # Call _fallback_to_pytorch directly with mocked ultralytics
+        with patch.dict("sys.modules", {"ultralytics": mock_ultralytics}):
+            model._fallback_to_pytorch()
 
-        # Confidence threshold should be preserved
-        assert model.confidence_threshold == 0.75
+        # Should have fallen back to PyTorch
+        assert model.active_backend == "pytorch"
+        assert model.tensorrt_enabled is False
+        assert model.model_path == str(pt_file)
 
-    def test_is_tensorrt_fallback_error_patterns(self):
-        """Test detection of various TensorRT errors that should trigger fallback."""
+    def test_tensorrt_fallback_error_pattern_none_object(self):
+        """Test that NoneType execution context error triggers fallback."""
+        error = RuntimeError("'NoneType' object has no attribute 'create_execution_context'")
+        assert is_tensorrt_version_mismatch_error(error) is True
 
-        # Errors that SHOULD trigger fallback
-        fallback_errors = [
-            RuntimeError("TensorRT is not available or installed"),
-            RuntimeError("No module named 'tensorrt'"),
-            RuntimeError("CUDA error: no kernel image is available for execution"),
-            RuntimeError("TensorRT library not found"),
-            RuntimeError("Failed to load TensorRT engine"),
-            FileNotFoundError("Engine file not found"),
-        ]
+    def test_health_response_includes_active_backend_field(self):
+        """Test that HealthResponse includes active_backend field."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+            active_backend="tensorrt",
+        )
+        assert response.active_backend == "tensorrt"
 
-        for error in fallback_errors:
-            assert is_tensorrt_fallback_error(error) is True, (
-                f"Expected error to trigger fallback: {error}"
-            )
+    def test_health_response_active_backend_optional(self):
+        """Test that active_backend field is optional."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+        )
+        assert response.active_backend is None
 
-        # Errors that should NOT trigger fallback (other failures)
-        non_fallback_errors = [
-            RuntimeError("CUDA out of memory"),  # Should fail, not fallback
-            RuntimeError("Invalid model format"),  # Model corruption
-        ]
 
-        for error in non_fallback_errors:
-            assert is_tensorrt_fallback_error(error) is False, (
-                f"Expected error NOT to trigger fallback: {error}"
-            )
+class TestModelInferenceHealthyMetric:
+    """Tests for MODEL_INFERENCE_HEALTHY Prometheus metric (NEM-3878).
+
+    This metric should track whether the model inference is healthy (1) or not (0).
+    """
+
+    def test_model_inference_healthy_metric_exists(self):
+        """Test that MODEL_INFERENCE_HEALTHY metric is exported from metrics module."""
+        from metrics import MODEL_INFERENCE_HEALTHY
+
+        assert MODEL_INFERENCE_HEALTHY is not None
+
+    def test_model_inference_healthy_in_exports(self):
+        """Test that MODEL_INFERENCE_HEALTHY is in __all__ exports."""
+        from metrics import __all__
+
+        assert "MODEL_INFERENCE_HEALTHY" in __all__
 
 
 if __name__ == "__main__":

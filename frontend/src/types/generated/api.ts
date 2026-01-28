@@ -7713,10 +7713,11 @@ export interface paths {
          *     - Redis connectivity
          *     - AI services status
          *
-         *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
-         *     If a health check times out, the service is marked as unhealthy.
+         *     NEM-3892: Health checks run in PARALLEL with short individual timeouts
+         *     to ensure the endpoint responds under 500ms SLO. Each component has a
+         *     300ms timeout and all checks run concurrently via asyncio.gather.
          *
-         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce
          *     load from frequent health probes. Cached responses are returned immediately
          *     without re-checking services.
          *
@@ -7753,6 +7754,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Liveness
+         * @description Fast liveness probe endpoint - responds in under 100ms.
+         *
+         *     NEM-3892: This endpoint performs NO external checks. It immediately returns
+         *     a simple "alive" status to indicate the process is running and can handle
+         *     HTTP requests. This is critical for Kubernetes liveness probes which need
+         *     to detect hung processes quickly without waiting for dependency checks.
+         *
+         *     For detailed health information, use:
+         *     - GET /api/system/health - Full health check with service status
+         *     - GET /api/system/health/ready - Readiness check with dependency status
+         *
+         *     Returns:
+         *         Dict with status "alive" and timestamp.
+         */
+        get: operations["system_get_liveness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/health/ready": {
         parameters: {
             query?: never;
@@ -7778,10 +7811,10 @@ export interface paths {
          *     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
          *     If this endpoint returns not_ready, the instance should not receive new requests.
          *
-         *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
-         *     If a health check times out, the service is marked as unhealthy.
+         *     NEM-3892: Health checks run in PARALLEL with short individual timeouts
+         *     to ensure the endpoint responds under 500ms SLO.
          *
-         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce
          *     load from frequent readiness probes.
          *
          *     Returns:
@@ -10367,6 +10400,49 @@ export interface components {
              * @description Whether the event was saved to the database
              */
             saved: boolean;
+        };
+        /**
+         * ActionEnrichment
+         * @description Action recognition results from X-CLIP temporal analysis.
+         *
+         *     Provides detected actions from video frame sequences, identifying
+         *     security-relevant activities like loitering, climbing, or delivering packages.
+         * @example {
+         *       "action": "delivering package",
+         *       "all_scores": {
+         *         "delivering package": 0.85,
+         *         "loitering": 0.05,
+         *         "walking normally": 0.1
+         *       },
+         *       "confidence": 0.85,
+         *       "is_suspicious": false
+         *     }
+         */
+        ActionEnrichment: {
+            /**
+             * Action
+             * @description Detected action (walking, running, delivering, loitering, etc.)
+             */
+            action?: string | null;
+            /**
+             * All Scores
+             * @description Confidence scores for all candidate actions
+             */
+            all_scores?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Confidence
+             * @description Confidence score for detected action
+             */
+            confidence?: number | null;
+            /**
+             * Is Suspicious
+             * @description Whether the detected action is flagged as security-relevant
+             */
+            is_suspicious?: boolean | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
         };
         /**
          * ActionEventCreate
@@ -16214,6 +16290,11 @@ export interface components {
          *
          *     Contains results from all vision models run during the enrichment pipeline.
          * @example {
+         *       "action": {
+         *         "action": "delivering package",
+         *         "confidence": 0.85,
+         *         "is_suspicious": false
+         *       },
          *       "clothing": {
          *         "lower": "blue jeans",
          *         "upper": "red t-shirt"
@@ -16252,6 +16333,13 @@ export interface components {
          *     }
          */
         EnrichmentResponse: {
+            /**
+             * Action
+             * @description Action recognition results
+             */
+            action?: components["schemas"]["ActionEnrichment"] | {
+                [key: string]: unknown;
+            } | null;
             /**
              * Clothing
              * @description Clothing analysis results
@@ -44492,6 +44580,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    system_get_liveness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
             };
         };
     };

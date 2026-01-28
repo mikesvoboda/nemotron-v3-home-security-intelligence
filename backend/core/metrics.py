@@ -133,6 +133,17 @@ ANALYSIS_QUEUE_DEPTH = Gauge(
 )
 
 # =============================================================================
+# Dead Letter Queue (DLQ) Depth Gauges (NEM-3891)
+# =============================================================================
+
+DLQ_DEPTH = Gauge(
+    "hsi_dlq_depth",
+    "Number of failed jobs in dead letter queue",
+    labelnames=["queue_name"],
+    registry=_registry,
+)
+
+# =============================================================================
 # Worker Supervisor Metrics (NEM-2457, NEM-2459)
 # =============================================================================
 
@@ -1040,6 +1051,26 @@ class MetricsService:
         else:
             self._logger.warning(f"Unknown queue name for metrics: {queue_name}")
 
+    def set_dlq_depth(self, queue_name: str, depth: int) -> None:
+        """Set the current depth of a dead letter queue (NEM-3891).
+
+        Updates the hsi_dlq_depth gauge metric for monitoring and alerting.
+        Logs a warning when DLQ has messages.
+
+        Args:
+            queue_name: Name of the DLQ (e.g., "dlq:detection_queue", "dlq:analysis_queue")
+            depth: Current number of failed jobs in the DLQ
+        """
+        DLQ_DEPTH.labels(queue_name=queue_name).set(depth)
+        if depth > 0:
+            self._logger.warning(
+                f"DLQ contains {depth} messages",
+                extra={
+                    "queue_name": queue_name,
+                    "dlq_depth": depth,
+                },
+            )
+
     def record_queue_overflow(self, queue_name: str, policy: str) -> None:
         """Record a queue overflow event.
 
@@ -1658,6 +1689,27 @@ def set_queue_depth(queue_name: str, depth: int) -> None:
         ANALYSIS_QUEUE_DEPTH.set(depth)
     else:
         logger.warning(f"Unknown queue name for metrics: {queue_name}")
+
+
+def set_dlq_depth(queue_name: str, depth: int) -> None:
+    """Set the current depth of a dead letter queue (NEM-3891).
+
+    Updates the hsi_dlq_depth gauge metric for monitoring and alerting.
+    Logs a warning when DLQ has messages to aid in troubleshooting.
+
+    Args:
+        queue_name: Name of the DLQ (e.g., "dlq:detection_queue", "dlq:analysis_queue")
+        depth: Current number of failed jobs in the DLQ
+    """
+    DLQ_DEPTH.labels(queue_name=queue_name).set(depth)
+    if depth > 0:
+        logger.warning(
+            f"DLQ contains {depth} messages",
+            extra={
+                "queue_name": queue_name,
+                "dlq_depth": depth,
+            },
+        )
 
 
 def observe_stage_duration(stage: str, duration_seconds: float) -> None:
@@ -4020,3 +4072,94 @@ def record_face_match(person_id: str) -> None:
     """
     safe_person_id = sanitize_metric_label(person_id, max_length=64)
     FACE_MATCHES_TOTAL.labels(person_id=safe_person_id).inc()
+
+
+# =============================================================================
+# Health Check Latency Metrics (NEM-3892)
+# =============================================================================
+
+# Health check latency histogram - optimized buckets for <500ms target
+# Buckets focus on the 10-500ms range where most health checks should complete
+HEALTH_CHECK_LATENCY_BUCKETS = (
+    0.010,  # 10ms - fast liveness checks
+    0.025,  # 25ms
+    0.050,  # 50ms
+    0.100,  # 100ms - target for liveness
+    0.200,  # 200ms
+    0.300,  # 300ms
+    0.500,  # 500ms - SLO threshold
+    1.000,  # 1s - degraded
+    2.000,  # 2s - slow
+    5.000,  # 5s - timeout
+)
+
+HEALTH_CHECK_LATENCY_SECONDS = Histogram(
+    "hsi_health_check_latency_seconds",
+    "Latency of health check endpoints in seconds",
+    labelnames=["endpoint", "check_type"],
+    buckets=HEALTH_CHECK_LATENCY_BUCKETS,
+    registry=_registry,
+)
+
+HEALTH_CHECK_COMPONENT_LATENCY_SECONDS = Histogram(
+    "hsi_health_check_component_latency_seconds",
+    "Latency of individual health check components in seconds",
+    labelnames=["component"],
+    buckets=HEALTH_CHECK_LATENCY_BUCKETS,
+    registry=_registry,
+)
+
+HEALTH_CHECK_CACHE_HITS_TOTAL = Counter(
+    "hsi_health_check_cache_hits_total",
+    "Total number of health check cache hits",
+    labelnames=["endpoint"],
+    registry=_registry,
+)
+
+HEALTH_CHECK_CACHE_MISSES_TOTAL = Counter(
+    "hsi_health_check_cache_misses_total",
+    "Total number of health check cache misses (full check required)",
+    labelnames=["endpoint"],
+    registry=_registry,
+)
+
+
+def observe_health_check_latency(endpoint: str, check_type: str, duration_seconds: float) -> None:
+    """Record health check endpoint latency.
+
+    Args:
+        endpoint: Health check endpoint (e.g., 'health', 'ready', 'health_ready')
+        check_type: Type of check ('full', 'cached', 'liveness')
+        duration_seconds: Duration of the health check in seconds
+    """
+    HEALTH_CHECK_LATENCY_SECONDS.labels(endpoint=endpoint, check_type=check_type).observe(
+        duration_seconds
+    )
+
+
+def observe_health_check_component_latency(component: str, duration_seconds: float) -> None:
+    """Record latency for an individual health check component.
+
+    Args:
+        component: Component being checked (e.g., 'database', 'redis', 'ai_services')
+        duration_seconds: Duration of the component check in seconds
+    """
+    HEALTH_CHECK_COMPONENT_LATENCY_SECONDS.labels(component=component).observe(duration_seconds)
+
+
+def record_health_check_cache_hit(endpoint: str) -> None:
+    """Record a health check cache hit.
+
+    Args:
+        endpoint: Health check endpoint
+    """
+    HEALTH_CHECK_CACHE_HITS_TOTAL.labels(endpoint=endpoint).inc()
+
+
+def record_health_check_cache_miss(endpoint: str) -> None:
+    """Record a health check cache miss.
+
+    Args:
+        endpoint: Health check endpoint
+    """
+    HEALTH_CHECK_CACHE_MISSES_TOTAL.labels(endpoint=endpoint).inc()

@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from backend.api.helpers.enrichment_transformers import (
+    ActionExtractor,
     BaseEnrichmentExtractor,
     ClothingExtractor,
     EnrichmentTransformer,
@@ -583,6 +584,234 @@ class TestPoseExtractor:
 
 
 # ============================================================================
+# Test ActionExtractor (NEM-3883)
+# ============================================================================
+
+
+class TestActionExtractor:
+    """Tests for ActionExtractor (X-CLIP action recognition)."""
+
+    def test_extract_with_action_data(self) -> None:
+        """Test extraction with complete action recognition data."""
+        data = {
+            "action_recognition": {
+                "detected_action": "delivering package",
+                "confidence": 0.85,
+                "all_scores": {
+                    "delivering package": 0.85,
+                    "walking normally": 0.10,
+                    "loitering": 0.05,
+                },
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "delivering package"
+        assert result["confidence"] == 0.85
+        assert result["is_suspicious"] is False
+        assert result["all_scores"]["delivering package"] == 0.85
+
+    def test_extract_suspicious_action(self) -> None:
+        """Test extraction with suspicious action detected."""
+        data = {
+            "action_recognition": {
+                "detected_action": "loitering",
+                "confidence": 0.78,
+                "all_scores": {
+                    "loitering": 0.78,
+                    "walking normally": 0.22,
+                },
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "loitering"
+        assert result["is_suspicious"] is True
+
+    def test_extract_climbing_is_suspicious(self) -> None:
+        """Test that climbing action is flagged as suspicious."""
+        data = {
+            "action_recognition": {
+                "detected_action": "climbing",
+                "confidence": 0.88,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "climbing"
+        assert result["is_suspicious"] is True
+
+    def test_extract_breaking_is_suspicious(self) -> None:
+        """Test that breaking window action is suspicious."""
+        data = {
+            "action_recognition": {
+                "detected_action": "breaking window",
+                "confidence": 0.92,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["is_suspicious"] is True
+
+    def test_extract_running_away_is_suspicious(self) -> None:
+        """Test that running away action is suspicious."""
+        data = {
+            "action_recognition": {
+                "detected_action": "running away",
+                "confidence": 0.80,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["is_suspicious"] is True
+
+    def test_extract_walking_normally_not_suspicious(self) -> None:
+        """Test that walking normally is not suspicious."""
+        data = {
+            "action_recognition": {
+                "detected_action": "walking normally",
+                "confidence": 0.90,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "walking normally"
+        assert result["is_suspicious"] is False
+
+    def test_extract_empty_data_no_pose(self) -> None:
+        """Test extraction with no action or pose data returns None."""
+        extractor = ActionExtractor()
+        result = extractor.extract({})
+
+        assert result is None
+
+    def test_fallback_to_pose_inference(self) -> None:
+        """Test pose-based action inference when X-CLIP unavailable."""
+        data = {
+            "pose_estimation": {
+                "posture": "standing",
+                "confidence": 0.85,
+                "keypoints": [],
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "standing"
+        assert result["confidence"] == 0.85
+        assert result["is_suspicious"] is False
+        assert result["all_scores"] is None
+
+    def test_fallback_pose_crouching_is_suspicious(self) -> None:
+        """Test pose-based inference flags crouching as suspicious."""
+        data = {
+            "pose_estimation": {
+                "posture": "crouching",
+                "confidence": 0.80,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "crouching"
+        assert result["is_suspicious"] is True
+
+    def test_fallback_pose_running_is_suspicious(self) -> None:
+        """Test pose-based inference flags running as suspicious."""
+        data = {
+            "pose_estimation": {
+                "posture": "running",
+                "confidence": 0.75,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "running"
+        assert result["is_suspicious"] is True
+
+    def test_fallback_pose_walking_maps_correctly(self) -> None:
+        """Test pose-based inference maps walking to walking normally."""
+        data = {
+            "pose_estimation": {
+                "posture": "walking",
+                "confidence": 0.88,
+            }
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        assert result["action"] == "walking normally"
+        assert result["is_suspicious"] is False
+
+    def test_action_takes_precedence_over_pose(self) -> None:
+        """Test X-CLIP action takes precedence over pose inference."""
+        data = {
+            "action_recognition": {
+                "detected_action": "delivering package",
+                "confidence": 0.85,
+            },
+            "pose_estimation": {
+                "posture": "crouching",  # Would be suspicious if used
+                "confidence": 0.80,
+            },
+        }
+        extractor = ActionExtractor()
+        result = extractor.extract(data)
+
+        assert result is not None
+        # Should use X-CLIP result, not pose inference
+        assert result["action"] == "delivering package"
+        assert result["is_suspicious"] is False
+
+    def test_default_value(self) -> None:
+        """Test default value property."""
+        extractor = ActionExtractor()
+        assert extractor.default_value is None
+
+    def test_enrichment_key(self) -> None:
+        """Test enrichment key property."""
+        extractor = ActionExtractor()
+        assert extractor.enrichment_key == "action_recognition"
+
+    def test_is_suspicious_with_none_action(self) -> None:
+        """Test _is_suspicious handles None action gracefully."""
+        extractor = ActionExtractor()
+        assert extractor._is_suspicious(None) is False
+
+    def test_is_suspicious_case_insensitive(self) -> None:
+        """Test suspicious action detection is case insensitive."""
+        extractor = ActionExtractor()
+        assert extractor._is_suspicious("LOITERING") is True
+        assert extractor._is_suspicious("Loitering") is True
+        assert extractor._is_suspicious("loitering") is True
+
+    def test_is_suspicious_partial_match(self) -> None:
+        """Test suspicious detection works with partial matches."""
+        extractor = ActionExtractor()
+        # These should match the suspicious patterns
+        assert extractor._is_suspicious("a person loitering near door") is True
+        assert extractor._is_suspicious("climbing over fence") is True
+        assert extractor._is_suspicious("person running away quickly") is True
+
+
+# ============================================================================
 # Test EnrichmentTransformer
 # ============================================================================
 
@@ -673,6 +902,63 @@ class TestEnrichmentTransformer:
         # Error should be sanitized
         assert "/export" not in result["errors"][0]
         assert "License Plate Detection" in result["errors"][0]
+
+    def test_transform_includes_action_data(self) -> None:
+        """Test that action recognition data is included in transform (NEM-3883)."""
+        transformer = EnrichmentTransformer(validate_schema=False)
+        data = {
+            "action_recognition": {
+                "detected_action": "delivering package",
+                "confidence": 0.85,
+                "all_scores": {"delivering package": 0.85, "walking normally": 0.15},
+            }
+        }
+
+        result = transformer.transform(
+            detection_id=1,
+            enrichment_data=data,
+            detected_at=datetime.now(UTC),
+        )
+
+        assert result["action"] is not None
+        assert result["action"]["action"] == "delivering package"
+        assert result["action"]["confidence"] == 0.85
+        assert result["action"]["is_suspicious"] is False
+
+    def test_transform_action_fallback_to_pose(self) -> None:
+        """Test action inference from pose when X-CLIP unavailable (NEM-3883)."""
+        transformer = EnrichmentTransformer(validate_schema=False)
+        data = {
+            "pose_estimation": {
+                "posture": "crouching",
+                "confidence": 0.80,
+                "keypoints": [],
+            }
+        }
+
+        result = transformer.transform(
+            detection_id=1,
+            enrichment_data=data,
+            detected_at=datetime.now(UTC),
+        )
+
+        # Action should be inferred from pose
+        assert result["action"] is not None
+        assert result["action"]["action"] == "crouching"
+        assert result["action"]["is_suspicious"] is True
+
+    def test_transform_action_none_when_no_data(self) -> None:
+        """Test action is None when no action or pose data available."""
+        transformer = EnrichmentTransformer(validate_schema=False)
+        data = {"processing_time_ms": 100.0}
+
+        result = transformer.transform(
+            detection_id=1,
+            enrichment_data=data,
+            detected_at=datetime.now(UTC),
+        )
+
+        assert result["action"] is None
 
 
 # ============================================================================
@@ -815,6 +1101,7 @@ class TestCodeDuplicationReduction:
             ImageQualityExtractor,
             PetExtractor,
             PoseExtractor,
+            ActionExtractor,
         ]
 
         for extractor_class in extractors:
@@ -831,6 +1118,7 @@ class TestCodeDuplicationReduction:
             ImageQualityExtractor(),
             PetExtractor(),
             PoseExtractor(),
+            ActionExtractor(),
         ]
 
         for extractor in extractors:
@@ -861,6 +1149,7 @@ class TestSmallerHelperClasses:
             "image_quality": ImageQualityExtractor,
             "pet_classifications": PetExtractor,
             "pose_estimation": PoseExtractor,
+            "action_recognition": ActionExtractor,
         }
 
         for key, extractor_class in enrichment_types.items():
@@ -883,6 +1172,10 @@ class TestSmallerHelperClasses:
             (
                 PoseExtractor(),
                 {"pose_estimation": {"posture": "standing", "alerts": [], "keypoints": []}},
+            ),
+            (
+                ActionExtractor(),
+                {"action_recognition": {"detected_action": "walking", "confidence": 0.85}},
             ),
         ]
 

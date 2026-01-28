@@ -96,7 +96,7 @@ def mock_model_imports():
 
 
 @pytest.fixture
-def registry(mock_model_imports):  # noqa: ARG001 - Fixture dependency required for side effects
+def registry(mock_model_imports):
     """Create a model registry with mocked model classes."""
     return create_model_registry(device="cpu")
 
@@ -260,7 +260,7 @@ class TestEnvironmentVariableSupport:
 
     def test_clothing_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """CLOTHING_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/fashion-clip"
@@ -271,7 +271,7 @@ class TestEnvironmentVariableSupport:
 
     def test_vehicle_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """VEHICLE_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/vehicle"
@@ -281,7 +281,7 @@ class TestEnvironmentVariableSupport:
 
     def test_pose_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """POSE_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/yolov8n-pose"
@@ -291,7 +291,7 @@ class TestEnvironmentVariableSupport:
 
     def test_threat_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """THREAT_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/threat-detection"
@@ -301,7 +301,7 @@ class TestEnvironmentVariableSupport:
 
     def test_age_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """AGE_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/age-classifier"
@@ -311,7 +311,7 @@ class TestEnvironmentVariableSupport:
 
     def test_reid_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """REID_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/osnet"
@@ -321,7 +321,7 @@ class TestEnvironmentVariableSupport:
 
     def test_action_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """ACTION_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/xclip"
@@ -331,7 +331,7 @@ class TestEnvironmentVariableSupport:
 
     def test_yolo26_model_path_env(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """YOLO26_ENRICHMENT_MODEL_PATH environment variable is used."""
         test_path = "/custom/path/yolo26m.pt"
@@ -512,7 +512,7 @@ class TestDeviceConfiguration:
 
     def test_cpu_device_works(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """CPU device can be specified."""
         registry = create_model_registry(device="cpu")
@@ -520,7 +520,7 @@ class TestDeviceConfiguration:
 
     def test_custom_cuda_device(
         self,
-        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+        mock_model_imports,
     ) -> None:
         """Custom CUDA device can be specified."""
         registry = create_model_registry(device="cuda:1")

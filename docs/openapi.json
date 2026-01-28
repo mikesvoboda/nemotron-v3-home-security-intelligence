@@ -508,6 +508,87 @@
         "title": "ActionAnalyzeResponse",
         "type": "object"
       },
+      "ActionEnrichment": {
+        "description": "Action recognition results from X-CLIP temporal analysis.\n\nProvides detected actions from video frame sequences, identifying\nsecurity-relevant activities like loitering, climbing, or delivering packages.",
+        "example": {
+          "action": "delivering package",
+          "all_scores": {
+            "delivering package": 0.85,
+            "loitering": 0.05,
+            "walking normally": 0.1
+          },
+          "confidence": 0.85,
+          "is_suspicious": false
+        },
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detected action (walking, running, delivering, loitering, etc.)",
+            "title": "Action"
+          },
+          "all_scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence scores for all candidate actions",
+            "title": "All Scores"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence score for detected action",
+            "title": "Confidence"
+          },
+          "is_suspicious": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the detected action is flagged as security-relevant",
+            "title": "Is Suspicious"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
+          }
+        },
+        "title": "ActionEnrichment",
+        "type": "object"
+      },
       "ActionEventCreate": {
         "description": "Schema for creating a new action event.\n\nInherits all fields from ActionEventBase. The timestamp will be\nauto-generated if not provided.",
         "example": {
@@ -8814,6 +8895,11 @@
       "EnrichmentResponse": {
         "description": "Structured enrichment data for a single detection.\n\nContains results from all vision models run during the enrichment pipeline.",
         "example": {
+          "action": {
+            "action": "delivering package",
+            "confidence": 0.85,
+            "is_suspicious": false
+          },
           "clothing": {
             "lower": "blue jeans",
             "upper": "red t-shirt"
@@ -8851,6 +8937,22 @@
           }
         },
         "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionEnrichment"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Action recognition results",
+            "title": "Action"
+          },
           "clothing": {
             "anyOf": [
               {
@@ -48609,7 +48711,7 @@
     },
     "/api/system/health": {
       "get": {
-        "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\nload from frequent health probes. Cached responses are returned immediately\nwithout re-checking services.\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
+        "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nNEM-3892: Health checks run in PARALLEL with short individual timeouts\nto ensure the endpoint responds under 500ms SLO. Each component has a\n300ms timeout and all checks run concurrently via asyncio.gather.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce\nload from frequent health probes. Cached responses are returned immediately\nwithout re-checking services.\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
         "operationId": "system_get_health",
         "responses": {
           "200": {
@@ -48654,9 +48756,35 @@
         ]
       }
     },
+    "/api/system/health/live": {
+      "get": {
+        "description": "Fast liveness probe endpoint - responds in under 100ms.\n\nNEM-3892: This endpoint performs NO external checks. It immediately returns\na simple \"alive\" status to indicate the process is running and can handle\nHTTP requests. This is critical for Kubernetes liveness probes which need\nto detect hung processes quickly without waiting for dependency checks.\n\nFor detailed health information, use:\n- GET /api/system/health - Full health check with service status\n- GET /api/system/health/ready - Readiness check with dependency status\n\nReturns:\n    Dict with status \"alive\" and timestamp.",
+        "operationId": "system_get_liveness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response System Get Liveness",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Liveness",
+        "tags": [
+          "system"
+        ]
+      }
+    },
     "/api/system/health/ready": {
       "get": {
-        "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\nload from frequent readiness probes.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
+        "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nNEM-3892: Health checks run in PARALLEL with short individual timeouts\nto ensure the endpoint responds under 500ms SLO.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce\nload from frequent readiness probes.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
         "operationId": "system_get_readiness",
         "responses": {
           "200": {

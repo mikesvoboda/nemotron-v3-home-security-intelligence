@@ -19,6 +19,8 @@ from backend.services.vehicle_damage_loader import (
     HIGH_SECURITY_DAMAGE,
     DamageDetection,
     VehicleDamageResult,
+    _has_meta_tensors,
+    _materialize_meta_tensors,
     detect_vehicle_damage,
     format_damage_context,
     is_suspicious_damage_pattern,
@@ -205,6 +207,80 @@ class TestDamageClasses:
         assert len(HIGH_SECURITY_DAMAGE) == 2
 
 
+class TestMetaTensorHelpers:
+    """Tests for meta tensor detection and materialization helpers."""
+
+    def test_has_meta_tensors_returns_true_for_meta_device(self) -> None:
+        """Test that _has_meta_tensors detects meta tensors."""
+        # Create a mock parameter on meta device
+        mock_param = MagicMock()
+        mock_device = MagicMock()
+        mock_device.type = "meta"
+        mock_param.device = mock_device
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        assert _has_meta_tensors(mock_model) is True
+
+    def test_has_meta_tensors_returns_false_for_cpu_device(self) -> None:
+        """Test that _has_meta_tensors returns False for CPU tensors."""
+        mock_param = MagicMock()
+        mock_device = MagicMock()
+        mock_device.type = "cpu"
+        mock_param.device = mock_device
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        assert _has_meta_tensors(mock_model) is False
+
+    def test_has_meta_tensors_returns_false_for_cuda_device(self) -> None:
+        """Test that _has_meta_tensors returns False for CUDA tensors."""
+        mock_param = MagicMock()
+        mock_device = MagicMock()
+        mock_device.type = "cuda"
+        mock_param.device = mock_device
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        assert _has_meta_tensors(mock_model) is False
+
+    def test_has_meta_tensors_returns_false_for_empty_model(self) -> None:
+        """Test that _has_meta_tensors returns False for models with no parameters."""
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([])
+
+        assert _has_meta_tensors(mock_model) is False
+
+    def test_has_meta_tensors_handles_exception(self) -> None:
+        """Test that _has_meta_tensors returns False on exception."""
+        mock_model = MagicMock()
+        mock_model.parameters.side_effect = RuntimeError("Test error")
+
+        assert _has_meta_tensors(mock_model) is False
+
+    def test_materialize_meta_tensors_calls_to_empty_and_load_state_dict(self) -> None:
+        """Test that _materialize_meta_tensors uses to_empty() + load_state_dict()."""
+        from unittest.mock import patch
+
+        mock_model = MagicMock()
+        mock_state_dict = {"weight": MagicMock()}
+        mock_model.state_dict.return_value = mock_state_dict
+        mock_model.to_empty.return_value = mock_model
+
+        with patch("torch.device") as mock_torch_device:
+            mock_torch_device.return_value = "cpu"
+
+            result = _materialize_meta_tensors(mock_model, "cpu")
+
+            mock_model.state_dict.assert_called_once()
+            mock_model.to_empty.assert_called_once()
+            mock_model.load_state_dict.assert_called_once_with(mock_state_dict, assign=True)
+            assert result == mock_model
+
+
 @pytest.mark.slow
 class TestLoadVehicleDamageModel:
     """Tests for load_vehicle_damage_model function.
@@ -243,6 +319,143 @@ class TestLoadVehicleDamageModel:
             await load_vehicle_damage_model("/nonexistent/path")
 
         assert "Failed to load vehicle damage detection model" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_load_model_handles_meta_tensor_error(self) -> None:
+        """Test that model loading handles meta tensor errors gracefully.
+
+        When models are saved with meta tensors (lazy loading), calling
+        model.to(device) directly raises:
+            NotImplementedError: Cannot copy out of meta tensor; no data!
+
+        The fix should handle this by using to_empty() + load_state_dict(assign=True)
+        or by using the YOLO model's built-in device handling during inference.
+        """
+        from unittest.mock import MagicMock, patch
+
+        model_path = "/models/model-zoo/vehicle-damage-detection"
+
+        # Create a mock model that simulates meta tensor behavior
+        mock_model = MagicMock()
+        mock_model.names = {0: "crack", 1: "dent", 2: "glass_shatter"}
+        # Mock the inner model attribute
+        mock_model.model = MagicMock()
+        # Simulate no meta tensors so we skip the materialization path
+        mock_model.model.parameters.return_value = iter([])
+
+        # Patch YOLO where it's imported
+        with patch("ultralytics.YOLO", return_value=mock_model):
+            with patch("torch.cuda.is_available", return_value=False):
+                # The model should load without calling .to() directly
+                # YOLO models handle device placement during inference via predict(device=...)
+                model = await load_vehicle_damage_model(model_path)
+
+                assert model is not None
+                assert hasattr(model, "names")
+
+    @pytest.mark.asyncio
+    async def test_load_model_materializes_meta_tensors(self) -> None:
+        """Test that models with meta tensors are properly materialized.
+
+        When a model has parameters on the 'meta' device, the loader should
+        call to_empty() + load_state_dict(assign=True) to materialize them.
+        """
+        from unittest.mock import MagicMock, patch
+
+        model_path = "/models/model-zoo/vehicle-damage-detection"
+
+        # Create a mock parameter that appears to be on meta device
+        mock_meta_param = MagicMock()
+        mock_meta_device = MagicMock()
+        mock_meta_device.type = "meta"
+        mock_meta_param.device = mock_meta_device
+
+        # Create the mock inner model with meta tensors
+        mock_inner_model = MagicMock()
+        mock_inner_model.parameters.return_value = iter([mock_meta_param])
+        mock_inner_model.state_dict.return_value = {"weight": MagicMock()}
+        mock_inner_model.to_empty.return_value = mock_inner_model
+        mock_inner_model.load_state_dict.return_value = None
+
+        # Create the mock YOLO model
+        mock_model = MagicMock()
+        mock_model.names = {0: "crack", 1: "dent", 2: "glass_shatter"}
+        mock_model.model = mock_inner_model
+
+        with patch("ultralytics.YOLO", return_value=mock_model):
+            with patch("torch.cuda.is_available", return_value=False):
+                with patch("torch.device") as mock_torch_device:
+                    mock_torch_device.return_value = "cpu"
+
+                    model = await load_vehicle_damage_model(model_path)
+
+                    assert model is not None
+                    # Verify meta tensor handling was triggered
+                    mock_inner_model.to_empty.assert_called_once()
+                    mock_inner_model.load_state_dict.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_load_model_with_task_parameter(self) -> None:
+        """Test that YOLO model is loaded with correct task parameter.
+
+        The YOLO model should be loaded with task='segment' for the
+        vehicle damage segmentation model.
+        """
+        from unittest.mock import MagicMock, patch
+
+        model_path = "/models/model-zoo/vehicle-damage-detection"
+
+        mock_model = MagicMock()
+        mock_model.names = {0: "crack", 1: "dent"}
+        mock_model.model = MagicMock()
+        mock_model.model.parameters.return_value = iter([])
+        mock_yolo_class = MagicMock(return_value=mock_model)
+
+        with patch("ultralytics.YOLO", mock_yolo_class):
+            with patch("torch.cuda.is_available", return_value=False):
+                await load_vehicle_damage_model(model_path)
+
+                # Verify YOLO was called with the correct weights path
+                mock_yolo_class.assert_called_once()
+                call_args = mock_yolo_class.call_args
+                assert "best.pt" in call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_load_model_fallback_to_warmup_inference(self) -> None:
+        """Test that if meta tensor materialization fails, warmup inference is tried.
+
+        When to_empty() + load_state_dict() fails, the loader should attempt
+        a warmup inference with a dummy image to force initialization.
+        """
+        from unittest.mock import MagicMock, patch
+
+        model_path = "/models/model-zoo/vehicle-damage-detection"
+
+        # Create a mock parameter on meta device
+        mock_meta_param = MagicMock()
+        mock_meta_device = MagicMock()
+        mock_meta_device.type = "meta"
+        mock_meta_param.device = mock_meta_device
+
+        # Create the mock inner model that fails on materialization
+        mock_inner_model = MagicMock()
+        mock_inner_model.parameters.return_value = iter([mock_meta_param])
+        mock_inner_model.state_dict.return_value = {"weight": MagicMock()}
+        # Simulate to_empty() failing
+        mock_inner_model.to_empty.side_effect = RuntimeError("to_empty failed")
+
+        # Create the mock YOLO model
+        mock_model = MagicMock()
+        mock_model.names = {0: "crack", 1: "dent"}
+        mock_model.model = mock_inner_model
+
+        with patch("ultralytics.YOLO", return_value=mock_model):
+            with patch("torch.cuda.is_available", return_value=False):
+                model = await load_vehicle_damage_model(model_path)
+
+                assert model is not None
+                # Verify warmup inference was attempted
+                mock_model.predict.assert_called_once()
 
 
 class TestDetectVehicleDamage:

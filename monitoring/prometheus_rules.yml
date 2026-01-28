@@ -180,6 +180,48 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aianalysisqueuebacklog'
 
       # =========================================================================
+      # Dead Letter Queue (DLQ) Alerts (NEM-3891)
+      # =========================================================================
+
+      - alert: AIDLQHasMessages
+        expr: hsi_dlq_depth > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: dlq
+        annotations:
+          summary: 'Dead letter queue has failed messages'
+          description: 'The DLQ {{ $labels.queue_name }} has {{ $value | printf "%.0f" }} failed messages. These messages failed after exhausting all retries and require operator attention.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidlqhasmessages'
+          dashboard_url: 'http://localhost:3000/settings#dlq'
+
+      - alert: AIDLQGrowing
+        expr: |
+          increase(hsi_dlq_depth[15m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: ai
+          service: dlq
+        annotations:
+          summary: 'Dead letter queue is growing rapidly'
+          description: 'The DLQ {{ $labels.queue_name }} has grown by more than 5 messages in the last 15 minutes. This indicates a systemic issue causing repeated failures.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidlqgrowing'
+
+      - alert: AIDLQCritical
+        expr: hsi_dlq_depth > 50
+        for: 2m
+        labels:
+          severity: critical
+          component: ai
+          service: dlq
+        annotations:
+          summary: 'Dead letter queue is critically large'
+          description: 'The DLQ {{ $labels.queue_name }} has {{ $value | printf "%.0f" }} failed messages. Immediate attention required - significant data loss risk.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidlqcritical'
+
+      # =========================================================================
       # System Health Alerts
       # =========================================================================
 

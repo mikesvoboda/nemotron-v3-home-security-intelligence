@@ -35,13 +35,21 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION GUIDELINES:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+DISTRIBUTION: In a typical day, expect:
+- 85% of events to be LOW (0-20): Normal household activity
+- 10% to be ELEVATED (21-40): Worth noting but not alarming
+- 4% to be MODERATE/HIGH (41-80): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (81-100): Immediate threats only
+
+IMPORTANT: Default to LOWER scores without clear threat indicators.
+If you're scoring delivery drivers above 15 or flagging trees/timestamps, you are miscalibrated.
 
 Output ONLY valid JSON. No preamble, no explanation."""
 
@@ -62,19 +70,28 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION GUIDELINES:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+DISTRIBUTION: In a typical day, expect:
+- 85% of events to be LOW (0-20): Normal household activity
+- 10% to be ELEVATED (21-40): Worth noting but not alarming
+- 4% to be MODERATE/HIGH (41-80): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (81-100): Immediate threats only
+
+IMPORTANT: Default to LOWER scores without clear threat indicators.
+If you're scoring delivery drivers above 15 or flagging trees/timestamps, you are miscalibrated.
 
 REASONING INSTRUCTIONS:
 1. First, output your reasoning in <think>...</think> tags
 2. Consider: time of day, location, object types, household context, and behavioral patterns
-3. Evaluate each factor systematically before determining the risk score
-4. After </think>, output ONLY valid JSON with no additional text
+3. Do NOT flag: trees, timestamps, normal presence, weather, or scene elements
+4. Evaluate each factor systematically before determining the risk score
+5. After </think>, output ONLY valid JSON with no additional text
 
 Output format after </think>:
 {"risk_score": N, "risk_level": "level", "summary": "...", "reasoning": "..."}"""
@@ -88,12 +105,46 @@ Output format after </think>:
 SCORING_REFERENCE_TABLE = """## SCORING REFERENCE
 | Scenario | Score | Reasoning |
 |----------|-------|-----------|
-| Resident arriving home | 5-15 | Expected activity |
-| Delivery driver at door | 15-25 | Normal service visit |
-| Unknown person on sidewalk | 20-35 | Public area, passive |
-| Unknown person lingering | 45-60 | Warrants attention |
-| Person testing door handles | 70-85 | Clear suspicious intent |
-| Active break-in or violence | 85-100 | Immediate threat |"""
+| Resident arriving home | 0-10 | Expected activity, known person |
+| Pet (dog/cat) in yard | 0-5 | Normal household activity |
+| Delivery driver at door | 0-15 | Routine service visit, expected |
+| Maintenance/utility worker | 0-15 | Normal service visit |
+| Person walking past on sidewalk | 5-15 | Public area, transient |
+| Unknown person on sidewalk | 10-20 | Public area, passive observation |
+| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
+| Unknown person lingering 5-10 min | 35-50 | Worth monitoring |
+| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
+| Person checking vehicle doors | 65-80 | Clear suspicious intent |
+| Person testing house door handles | 70-85 | Clear suspicious intent |
+| Attempted forced entry | 80-95 | Active threat |
+| Active break-in or violence | 90-100 | Immediate threat |
+| Visible weapon present | 85-100 | Immediate threat |"""
+
+# ==============================================================================
+# Non-Risk Factors (NEM-3880)
+# ==============================================================================
+# Explicit list of items that should NOT be flagged as risk factors.
+# These are commonly misidentified as suspicious by LLMs.
+
+NON_RISK_FACTORS = """## NOT RISK FACTORS - DO NOT INCLUDE IN REASONING
+The following are NEVER suspicious and should NOT contribute to risk score:
+- Trees, bushes, plants, or any vegetation
+- Camera timestamps or time information alone
+- Weather conditions (rain, fog, darkness) unless hiding behavior
+- A person simply being present or walking
+- Normal residential items (trash cans, garden hoses, bikes)
+- Shadows or lighting artifacts
+- Birds, squirrels, or wildlife
+- Parked vehicles (unless unusual context)
+- Presence of multiple objects in frame
+- Camera angle or field of view
+- Image quality or resolution
+
+IMPORTANT DEFAULTS:
+- Without clear threat indicators, DEFAULT to lower scores
+- A person simply standing or walking is NOT suspicious (score 0-15)
+- Presence on property alone does NOT indicate threat
+- Being "unknown" only matters if behavior is also unusual"""
 
 # ==============================================================================
 # Household Context Template (NEM-3019)
@@ -377,25 +428,38 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+IMPORTANT: Default to LOWER scores without clear threat indicators.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
 ## SCORING REFERENCE
 | Scenario | Score | Reasoning |
 |----------|-------|-----------|
-| Resident arriving home | 5-15 | Expected activity |
-| Delivery driver at door | 15-25 | Normal service visit |
-| Unknown person on sidewalk | 20-35 | Public area, passive |
-| Unknown person lingering | 45-60 | Warrants attention |
+| Resident arriving home | 0-10 | Expected activity |
+| Pet in yard | 0-5 | Normal household activity |
+| Delivery driver at door | 0-15 | Routine service visit |
+| Person walking past on sidewalk | 5-15 | Public area, transient |
+| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
+| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
-| Active break-in or violence | 85-100 | Immediate threat |
+| Active break-in or violence | 90-100 | Immediate threat |
+
+## NOT RISK FACTORS - NEVER flag these as suspicious:
+- Trees, bushes, plants, vegetation
+- Camera timestamps or time display
+- Weather conditions alone
+- A person simply being present or walking
+- Normal residential items (trash cans, bikes, hoses)
+- Shadows or lighting artifacts
+- Birds, squirrels, wildlife
+- Parked vehicles (without unusual context)
 
 ## EVENT CONTEXT
 Camera: {camera_name}
@@ -406,11 +470,12 @@ Time: {start_time} to {end_time}
 
 ## YOUR TASK
 1. Start from the scoring reference above
-2. Adjust based on specific threat indicators present
-3. Provide clear reasoning for your score
-4. Remember: most events should score LOW
+2. Adjust based on ACTUAL threat indicators present
+3. Do NOT flag trees, timestamps, or normal presence as risk factors
+4. Provide clear reasoning for your score
+5. Remember: most events should score LOW (0-20)
 
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
+Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
 
 Output JSON:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-sentence explanation of factors considered and why this risk level was assigned"}}<|im_end|>
@@ -425,25 +490,37 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+IMPORTANT: Default to LOWER scores without clear threat indicators.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
 ## SCORING REFERENCE
 | Scenario | Score | Reasoning |
 |----------|-------|-----------|
-| Resident arriving home | 5-15 | Expected activity |
-| Delivery driver at door | 15-25 | Normal service visit |
-| Unknown person on sidewalk | 20-35 | Public area, passive |
-| Unknown person lingering | 45-60 | Warrants attention |
+| Resident arriving home | 0-10 | Expected activity |
+| Pet in yard | 0-5 | Normal household activity |
+| Delivery driver at door | 0-15 | Routine service visit |
+| Person walking past on sidewalk | 5-15 | Public area, transient |
+| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
+| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
-| Active break-in or violence | 85-100 | Immediate threat |
+| Active break-in or violence | 90-100 | Immediate threat |
+
+## NOT RISK FACTORS - NEVER flag these as suspicious:
+- Trees, bushes, plants, vegetation
+- Camera timestamps or time display
+- Weather conditions alone
+- A person simply being present or walking
+- Normal residential items
+- Shadows or lighting artifacts
+- Wildlife (birds, squirrels)
 
 ## EVENT CONTEXT
 Camera: {camera_name}
@@ -470,14 +547,16 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 - Baseline deviation > 0.5: Unusual activity pattern
 - Cross-camera correlation: May indicate coordinated movement
 - Time of day: Late night activity more concerning
+- NOTE: Do NOT flag trees, timestamps, weather, or normal presence
 
 ## YOUR TASK
 1. Start from the scoring reference above
-2. Adjust based on specific threat indicators present
-3. Provide clear reasoning for your score
-4. Remember: most events should score LOW
+2. Adjust based on ACTUAL threat indicators present
+3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
+4. Provide clear reasoning for your score
+5. Remember: most events should score LOW (0-20)
 
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
+Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
 
 Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
 <|im_start|>assistant
@@ -492,25 +571,37 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+IMPORTANT: Default to LOWER scores without clear threat indicators.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
 ## SCORING REFERENCE
 | Scenario | Score | Reasoning |
 |----------|-------|-----------|
-| Resident arriving home | 5-15 | Expected activity |
-| Delivery driver at door | 15-25 | Normal service visit |
-| Unknown person on sidewalk | 20-35 | Public area, passive |
-| Unknown person lingering | 45-60 | Warrants attention |
+| Resident arriving home | 0-10 | Expected activity |
+| Pet in yard | 0-5 | Normal household activity |
+| Delivery driver at door | 0-15 | Routine service visit |
+| Person walking past on sidewalk | 5-15 | Public area, transient |
+| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
+| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
-| Active break-in or violence | 85-100 | Immediate threat |
+| Active break-in or violence | 90-100 | Immediate threat |
+
+## NOT RISK FACTORS - NEVER flag these as suspicious:
+- Trees, bushes, plants, vegetation
+- Camera timestamps or time display
+- Weather conditions alone
+- A person simply being present or walking
+- Normal residential items
+- Shadows or lighting artifacts
+- Wildlife (birds, squirrels)
 
 ## EVENT CONTEXT
 Camera: {camera_name}
@@ -540,16 +631,17 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 - Baseline deviation > 0.5: Unusual activity pattern
 - Cross-camera correlation: May indicate coordinated movement
 - Time of day: Late night activity more concerning
-- License plates: Known vs unknown vehicles, partial plates may indicate evasion
-- Faces detected: Presence of faces helps identify individuals for review
+- License plates: Known vs unknown vehicles
+- NOTE: Do NOT flag trees, timestamps, weather, or normal presence
 
 ## YOUR TASK
 1. Start from the scoring reference above
-2. Adjust based on specific threat indicators present
-3. Provide clear reasoning for your score
-4. Remember: most events should score LOW
+2. Adjust based on ACTUAL threat indicators present
+3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
+4. Provide clear reasoning for your score
+5. Remember: most events should score LOW (0-20)
 
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
+Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
 
 Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
 <|im_start|>assistant
@@ -564,25 +656,37 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+IMPORTANT: Default to LOWER scores without clear threat indicators.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
 ## SCORING REFERENCE
 | Scenario | Score | Reasoning |
 |----------|-------|-----------|
-| Resident arriving home | 5-15 | Expected activity |
-| Delivery driver at door | 15-25 | Normal service visit |
-| Unknown person on sidewalk | 20-35 | Public area, passive |
-| Unknown person lingering | 45-60 | Warrants attention |
+| Resident arriving home | 0-10 | Expected activity |
+| Pet in yard | 0-5 | Normal household activity |
+| Delivery driver at door | 0-15 | Routine service visit |
+| Person walking past on sidewalk | 5-15 | Public area, transient |
+| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
+| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
-| Active break-in or violence | 85-100 | Immediate threat |
+| Active break-in or violence | 90-100 | Immediate threat |
+
+## NOT RISK FACTORS - NEVER flag these as suspicious:
+- Trees, bushes, plants, vegetation
+- Camera timestamps or time display
+- Weather conditions alone
+- A person simply being present or walking
+- Normal residential items
+- Shadows or lighting artifacts
+- Wildlife (birds, squirrels)
 
 ## EVENT CONTEXT
 Camera: {camera_name}
@@ -615,18 +719,20 @@ Deviation score: {deviation_score}
 - entry_point detections: Higher concern
 - Unknown persons/vehicles: Note if not seen before
 - Re-identified entities: Track movement patterns
-- Service workers: Usually lower risk (delivery, utility)
+- Service workers: Usually LOWER risk (delivery, utility) - score 0-15
 - Unusual objects: Tools, abandoned items increase risk
 - Time context: Late night + artificial light = concerning
 - Behavioral cues: Crouching, loitering, repeated passes
+- NOTE: Do NOT flag trees, timestamps, weather, or normal presence
 
 ## YOUR TASK
 1. Start from the scoring reference above
-2. Adjust based on specific threat indicators present
-3. Provide clear reasoning for your score
-4. Remember: most events should score LOW
+2. Adjust based on ACTUAL threat indicators present
+3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
+4. Provide clear reasoning for your score
+5. Remember: most events should score LOW (0-20)
 
-Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
+Risk levels: low (0-20), elevated (21-40), moderate (41-60), high (61-80), critical (81-100)
 
 Output JSON:
 {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "detailed explanation", "entities": [{{"type": "person|vehicle", "description": "text", "threat_level": "low|medium|high"}}], "recommended_action": "text"}}<|im_end|>
@@ -655,25 +761,40 @@ CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
 delivery workers, and pets represent normal household activity. Your job is to
 identify genuine anomalies, not flag everyday life.
 
-CALIBRATION: In a typical day, expect:
-- 80% of events to be LOW risk (0-29): Normal activity
-- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
-- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
-- 1% to be CRITICAL (85-100): Immediate threats only
+SCORE CALIBRATION:
+- 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
+- 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
+- 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
 
-If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+IMPORTANT: Default to LOWER scores without clear threat indicators.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
 ## SCORING REFERENCE
 | Scenario | Score | Reasoning |
 |----------|-------|-----------|
-| Resident arriving home | 5-15 | Expected activity |
-| Delivery driver at door | 15-25 | Normal service visit |
-| Unknown person on sidewalk | 20-35 | Public area, passive |
-| Unknown person lingering | 45-60 | Warrants attention |
+| Resident arriving home | 0-10 | Expected activity |
+| Pet in yard | 0-5 | Normal household activity |
+| Delivery driver at door | 0-15 | Routine service visit |
+| Maintenance/utility worker | 0-15 | Normal service visit |
+| Person walking past on sidewalk | 5-15 | Public area, transient |
+| Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
+| Unknown person lingering 5-10 min | 35-50 | Worth monitoring |
+| Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
-| Active break-in or violence | 85-100 | Immediate threat |
+| Active break-in or violence | 90-100 | Immediate threat |
+
+## NOT RISK FACTORS - NEVER flag these as suspicious:
+- Trees, bushes, plants, vegetation
+- Camera timestamps or time display
+- Weather conditions alone (use only for detection confidence)
+- A person simply being present or walking
+- Normal residential items (trash cans, bikes, hoses)
+- Shadows or lighting artifacts
+- Wildlife (birds, squirrels)
+- Parked vehicles (without unusual context)
 
 ## EVENT CONTEXT
 Camera: {camera_name}
@@ -743,7 +864,8 @@ Deviation score: {deviation_score}
 ### Clothing/Attire Risk Factors
 - All black + face covering (mask/balaclava) = HIGH RISK
 - Dark hoodie + gloves at night = suspicious, warrant attention
-- High-visibility vest or delivery uniform = likely service worker (lower risk)
+- High-visibility vest or delivery uniform = service worker, score 0-15
+- Any delivery/postal uniform = routine activity, score 0-15
 - SegFormer face_covered + suspicious items = elevated risk
 
 ### Vehicle Analysis
@@ -799,16 +921,18 @@ Deviation score: {deviation_score}
 - Weekend + unknown vehicle = note but lower concern
 
 ### Risk Levels
-- low (0-29): Normal activity, no action needed
-- medium (30-59): Notable activity, worth reviewing
-- high (60-84): Suspicious activity, recommend alert
-- critical (85-100): Immediate threat, urgent action required
+- low (0-20): Normal activity, no action needed
+- elevated (21-40): Notable activity, worth reviewing
+- moderate (41-60): Suspicious, requires attention
+- high (61-80): Clear threat indicators, recommend alert
+- critical (81-100): Immediate threat, urgent action required
 
 ## YOUR TASK
 1. Start from the scoring reference above
-2. Adjust based on specific threat indicators present
-3. Provide clear reasoning for your score
-4. Remember: most events should score LOW
+2. Adjust based on ACTUAL threat indicators present
+3. Do NOT flag non-risk factors (trees, timestamps, normal presence)
+4. Provide clear reasoning for your score
+5. Remember: most events should score LOW (0-20)
 
 Output JSON with comprehensive analysis:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-paragraph explanation of all factors considered", "entities": [{{"type": "person|vehicle|pet", "description": "detailed description with attributes", "threat_level": "low|medium|high"}}], "flags": [{{"type": "violence|suspicious_attire|vehicle_damage|unusual_behavior|quality_issue", "description": "text", "severity": "warning|alert|critical"}}], "recommended_action": "specific action to take", "confidence_factors": {{"detection_quality": "good|fair|poor", "weather_impact": "none|minor|significant", "enrichment_coverage": "full|partial|minimal"}}}}<|im_end|>

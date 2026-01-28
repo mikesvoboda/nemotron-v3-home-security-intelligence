@@ -25,7 +25,7 @@ Usage:
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, override
+from typing import Any, ClassVar, override
 
 from backend.api.schemas.enrichment_data import validate_enrichment_data
 from backend.core.logging import get_logger
@@ -484,6 +484,139 @@ class PoseExtractor(BaseEnrichmentExtractor):
         }
 
 
+class ActionExtractor(BaseEnrichmentExtractor):
+    """Extract action recognition data from enrichment.
+
+    Extracts X-CLIP temporal action recognition data including:
+    - action: Detected action (walking, running, delivering, loitering, etc.)
+    - confidence: Confidence score for the detected action
+    - is_suspicious: Whether the action is security-relevant
+    - all_scores: Confidence scores for all candidate actions
+
+    The action recognition system uses pose-based inference when X-CLIP
+    video frames are not available, mapping posture to likely actions.
+    """
+
+    # Suspicious actions that indicate potential security concerns
+    SUSPICIOUS_ACTIONS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "loitering",
+            "climbing",
+            "hiding",
+            "breaking",
+            "vandalizing",
+            "picking lock",
+            "looking around suspiciously",
+            "running away",
+            "trying door handle",
+            "checking windows",
+            "taking photos",
+        }
+    )
+
+    # Mapping from pose postures to likely actions for pose-based inference
+    POSE_TO_ACTION_MAP: ClassVar[dict[str, str]] = {
+        "standing": "standing",
+        "walking": "walking normally",
+        "sitting": "sitting",
+        "crouching": "crouching",
+        "running": "running",
+        "lying_down": "lying down",
+        "bending_over": "bending over",
+        "arms_raised": "arms raised",
+    }
+
+    @property
+    @override
+    def enrichment_key(self) -> str:
+        return "action_recognition"
+
+    @property
+    @override
+    def default_value(self) -> None:
+        return None
+
+    def _is_suspicious(self, action: str | None) -> bool:
+        """Check if an action is considered suspicious.
+
+        Args:
+            action: The detected action string
+
+        Returns:
+            True if the action is security-relevant
+        """
+        if not action:
+            return False
+        action_lower = action.lower()
+        return any(suspicious in action_lower for suspicious in self.SUSPICIOUS_ACTIONS)
+
+    def _infer_action_from_pose(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+        """Infer action from pose data when X-CLIP results are unavailable.
+
+        This provides a lightweight fallback using pose estimation results
+        to infer likely actions based on body posture.
+
+        Args:
+            enrichment_data: The enrichment data dictionary
+
+        Returns:
+            Inferred action data or None if pose data unavailable
+        """
+        pose_data = enrichment_data.get("pose_estimation")
+        if not pose_data:
+            return None
+
+        posture = pose_data.get("posture", "unknown")
+        confidence = pose_data.get("confidence", 0.5)
+
+        # Map posture to action
+        action = self.POSE_TO_ACTION_MAP.get(posture, "unknown")
+
+        # Determine if suspicious based on posture
+        is_suspicious = posture in {"crouching", "running"}
+
+        return {
+            "action": action,
+            "confidence": confidence,
+            "is_suspicious": is_suspicious,
+            "all_scores": None,  # No scores available from pose inference
+        }
+
+    @override
+    def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
+        """Extract action recognition data.
+
+        Returns a structured response with:
+        - action: The detected action type
+        - confidence: Confidence score for the action
+        - is_suspicious: Whether the action is security-relevant
+        - all_scores: Scores for all candidate actions (if available)
+
+        Falls back to pose-based inference if X-CLIP results are unavailable.
+        """
+        # Check for action_recognition key (from X-CLIP analysis)
+        action_data = enrichment_data.get(self.enrichment_key)
+
+        if not action_data:
+            # Fall back to pose-based inference
+            return self._infer_action_from_pose(enrichment_data)
+
+        # Extract action recognition results
+        action = action_data.get("detected_action")
+        confidence = action_data.get("confidence")
+        all_scores = action_data.get("all_scores")
+
+        # Determine if suspicious
+        is_suspicious = self._is_suspicious(action)
+
+        return {
+            "action": action,
+            "confidence": confidence,
+            "is_suspicious": is_suspicious,
+            "all_scores": all_scores,
+        }
+
+
 # ============================================================================
 # Main Transformer Class (NEM-1351: Validates before transformation)
 # ============================================================================
@@ -517,6 +650,7 @@ class EnrichmentTransformer:
         self._image_quality_extractor = ImageQualityExtractor()
         self._pet_extractor = PetExtractor()
         self._pose_extractor = PoseExtractor()
+        self._action_extractor = ActionExtractor()
 
     def transform(
         self,
@@ -569,6 +703,7 @@ class EnrichmentTransformer:
             "violence": self._violence_extractor.extract(enrichment_data),
             "weather": None,  # Placeholder - not currently in enrichment pipeline
             "pose": self._pose_extractor.extract(enrichment_data),
+            "action": self._action_extractor.extract(enrichment_data),
             "depth": None,  # Placeholder for future Depth Anything V2
             "image_quality": self._image_quality_extractor.extract(enrichment_data),
             "pet": self._pet_extractor.extract(enrichment_data),
@@ -591,6 +726,7 @@ class EnrichmentTransformer:
             "violence": self._violence_extractor.default_value,
             "weather": None,
             "pose": self._pose_extractor.default_value,
+            "action": self._action_extractor.default_value,
             "depth": None,
             "image_quality": self._image_quality_extractor.default_value,
             "pet": self._pet_extractor.default_value,

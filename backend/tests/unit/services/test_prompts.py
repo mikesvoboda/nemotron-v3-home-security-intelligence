@@ -26,6 +26,7 @@ from backend.services.prompts import (
     FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
     HOUSEHOLD_CONTEXT_TEMPLATE,
     MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
+    NON_RISK_FACTORS,
     RISK_ANALYSIS_PROMPT,
     SCORING_REFERENCE_TABLE,
     SUMMARY_EMPTY_STATE_INSTRUCTION,
@@ -236,11 +237,12 @@ class TestRiskAnalysisPromptTemplate:
         assert '"reasoning"' in RISK_ANALYSIS_PROMPT
 
     def test_template_has_risk_level_guidance(self) -> None:
-        """Test that the template provides risk level ranges."""
-        assert "low (0-29)" in RISK_ANALYSIS_PROMPT
-        assert "medium (30-59)" in RISK_ANALYSIS_PROMPT
-        assert "high (60-84)" in RISK_ANALYSIS_PROMPT
-        assert "critical (85-100)" in RISK_ANALYSIS_PROMPT
+        """Test that the template provides risk level ranges (NEM-3880 calibrated)."""
+        assert "low (0-20)" in RISK_ANALYSIS_PROMPT
+        assert "elevated (21-40)" in RISK_ANALYSIS_PROMPT
+        assert "moderate (41-60)" in RISK_ANALYSIS_PROMPT
+        assert "high (61-80)" in RISK_ANALYSIS_PROMPT
+        assert "critical (81-100)" in RISK_ANALYSIS_PROMPT
 
     def test_template_variable_substitution(self) -> None:
         """Test that template variables can be properly substituted."""
@@ -350,7 +352,8 @@ class TestFullEnrichedRiskAnalysisPromptTemplate:
     def test_template_has_license_plate_guidance(self) -> None:
         """Test that the template includes license plate guidance."""
         assert "License plates" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
-        assert "Faces detected" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
+        # NEM-3880: Template now focuses on non-risk factors instead of face detection
+        assert "NOT RISK FACTORS" in FULL_ENRICHED_RISK_ANALYSIS_PROMPT
 
 
 class TestVisionEnhancedRiskAnalysisPromptTemplate:
@@ -462,6 +465,140 @@ class TestModelZooEnhancedRiskAnalysisPromptTemplate:
             assert output_field in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT, (
                 f"Missing output field: {output_field}"
             )
+
+
+# =============================================================================
+# Test Classes for Calibration Guidelines (NEM-3880)
+# =============================================================================
+
+
+class TestNonRiskFactors:
+    """Tests for the NON_RISK_FACTORS constant (NEM-3880).
+
+    These tests verify that the prompt includes explicit guidance about
+    items that should NOT be flagged as suspicious.
+    """
+
+    def test_non_risk_factors_exists(self) -> None:
+        """Test that NON_RISK_FACTORS constant is defined."""
+        assert NON_RISK_FACTORS is not None
+        assert isinstance(NON_RISK_FACTORS, str)
+        assert len(NON_RISK_FACTORS) > 0
+
+    def test_non_risk_factors_includes_trees(self) -> None:
+        """Test that trees are explicitly listed as non-risk factors."""
+        assert "tree" in NON_RISK_FACTORS.lower()
+
+    def test_non_risk_factors_includes_timestamps(self) -> None:
+        """Test that timestamps are explicitly listed as non-risk factors."""
+        assert "timestamp" in NON_RISK_FACTORS.lower()
+
+    def test_non_risk_factors_includes_presence(self) -> None:
+        """Test that simple presence is listed as non-risk factor."""
+        lower_text = NON_RISK_FACTORS.lower()
+        assert "simply being present" in lower_text or "simply present" in lower_text
+
+    def test_non_risk_factors_includes_vegetation(self) -> None:
+        """Test that vegetation is listed as non-risk factor."""
+        lower_text = NON_RISK_FACTORS.lower()
+        assert "vegetation" in lower_text or "plants" in lower_text
+
+    def test_non_risk_factors_includes_wildlife(self) -> None:
+        """Test that wildlife is listed as non-risk factor."""
+        lower_text = NON_RISK_FACTORS.lower()
+        has_wildlife = "wildlife" in lower_text
+        has_animals = "bird" in lower_text and "squirrel" in lower_text
+        assert has_wildlife or has_animals
+
+    def test_non_risk_factors_includes_shadows(self) -> None:
+        """Test that shadows are listed as non-risk factor."""
+        assert "shadow" in NON_RISK_FACTORS.lower()
+
+    def test_non_risk_factors_includes_weather(self) -> None:
+        """Test that weather conditions are listed as non-risk factor."""
+        assert "weather" in NON_RISK_FACTORS.lower()
+
+
+class TestCalibrationGuidelines:
+    """Tests for calibration guidelines in prompts (NEM-3880).
+
+    These tests verify that all prompt templates include proper
+    score calibration guidelines to prevent over-alerting.
+    """
+
+    def test_calibrated_system_prompt_has_score_ranges(self) -> None:
+        """Test that CALIBRATED_SYSTEM_PROMPT has explicit score ranges."""
+        assert "0-20" in CALIBRATED_SYSTEM_PROMPT
+        has_elevated = "21-40" in CALIBRATED_SYSTEM_PROMPT or "ELEVATED" in CALIBRATED_SYSTEM_PROMPT
+        assert has_elevated
+        assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
+
+    def test_calibrated_system_prompt_mentions_delivery_drivers(self) -> None:
+        """Test that delivery drivers are mentioned as low risk."""
+        assert "deliver" in CALIBRATED_SYSTEM_PROMPT.lower()
+
+    def test_scoring_reference_has_delivery_driver_low_score(self) -> None:
+        """Test that delivery driver scenario has low score (0-15, not 15-25)."""
+        # The delivery driver score should be 0-15, not the old 15-25
+        assert "Delivery driver" in SCORING_REFERENCE_TABLE
+        # Check that "0-15" appears for delivery driver
+        lines = SCORING_REFERENCE_TABLE.split("\n")
+        delivery_line = next(line for line in lines if "Delivery driver" in line)
+        assert "0-15" in delivery_line, f"Expected '0-15' for delivery driver: {delivery_line}"
+
+    def test_scoring_reference_has_resident_low_score(self) -> None:
+        """Test that resident arriving home has very low score (0-10)."""
+        lines = SCORING_REFERENCE_TABLE.split("\n")
+        resident_line = next(line for line in lines if "Resident arriving" in line)
+        assert "0-10" in resident_line, f"Expected '0-10' for resident: {resident_line}"
+
+    def test_scoring_reference_has_pet_very_low_score(self) -> None:
+        """Test that pet activity has very low score (0-5)."""
+        assert "Pet" in SCORING_REFERENCE_TABLE
+        lines = SCORING_REFERENCE_TABLE.split("\n")
+        pet_lines = [line for line in lines if "Pet" in line]
+        assert len(pet_lines) > 0, "Expected pet scenario in scoring reference"
+        assert "0-5" in pet_lines[0], f"Expected '0-5' for pet: {pet_lines[0]}"
+
+    def test_all_prompts_have_non_risk_factors_guidance(self) -> None:
+        """Test that all prompt templates mention non-risk factors."""
+        prompts_to_check = [
+            ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
+            ("ENRICHED_RISK_ANALYSIS_PROMPT", ENRICHED_RISK_ANALYSIS_PROMPT),
+            ("FULL_ENRICHED_RISK_ANALYSIS_PROMPT", FULL_ENRICHED_RISK_ANALYSIS_PROMPT),
+            ("VISION_ENHANCED_RISK_ANALYSIS_PROMPT", VISION_ENHANCED_RISK_ANALYSIS_PROMPT),
+            ("MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT", MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT),
+        ]
+        for name, prompt in prompts_to_check:
+            has_tree = "tree" in prompt.lower()
+            has_header = "NOT RISK FACTORS" in prompt
+            assert has_tree or has_header, f"{name} should mention non-risk factors"
+
+    def test_all_prompts_have_calibrated_score_ranges(self) -> None:
+        """Test that all prompt templates have calibrated score ranges."""
+        prompts_to_check = [
+            ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
+            ("ENRICHED_RISK_ANALYSIS_PROMPT", ENRICHED_RISK_ANALYSIS_PROMPT),
+            ("FULL_ENRICHED_RISK_ANALYSIS_PROMPT", FULL_ENRICHED_RISK_ANALYSIS_PROMPT),
+            ("VISION_ENHANCED_RISK_ANALYSIS_PROMPT", VISION_ENHANCED_RISK_ANALYSIS_PROMPT),
+            ("MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT", MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT),
+        ]
+        for name, prompt in prompts_to_check:
+            # Each prompt should have the new calibrated LOW range (0-20)
+            has_range = "0-20" in prompt or "(0-20)" in prompt
+            assert has_range, f"{name} should have calibrated LOW range (0-20)"
+
+    def test_prompts_emphasize_lower_scores_as_default(self) -> None:
+        """Test that prompts emphasize defaulting to lower scores."""
+        prompts_to_check = [
+            ("CALIBRATED_SYSTEM_PROMPT", CALIBRATED_SYSTEM_PROMPT),
+            ("RISK_ANALYSIS_PROMPT", RISK_ANALYSIS_PROMPT),
+        ]
+        for name, prompt in prompts_to_check:
+            # Should mention defaulting to lower scores
+            lower_prompt = prompt.lower()
+            has_default = "default" in lower_prompt and "lower" in lower_prompt
+            assert has_default, f"{name} should emphasize defaulting to lower scores"
 
 
 # =============================================================================
@@ -4002,29 +4139,36 @@ class TestCalibratedSystemPrompt:
 
     def test_calibrated_system_prompt_has_calibration_section(self) -> None:
         """Test that the prompt includes calibration distribution expectations."""
-        assert "CALIBRATION" in CALIBRATED_SYSTEM_PROMPT
-        # Should have percentage distribution guidance
-        assert "80%" in CALIBRATED_SYSTEM_PROMPT
-        assert "15%" in CALIBRATED_SYSTEM_PROMPT
+        # NEM-3880: Changed section name from CALIBRATION to DISTRIBUTION
+        has_calibration = "CALIBRATION" in CALIBRATED_SYSTEM_PROMPT
+        has_distribution = "DISTRIBUTION" in CALIBRATED_SYSTEM_PROMPT
+        assert has_calibration or has_distribution
+        # Should have percentage distribution guidance (updated per NEM-3880)
+        assert "85%" in CALIBRATED_SYSTEM_PROMPT
+        assert "10%" in CALIBRATED_SYSTEM_PROMPT
         assert "4%" in CALIBRATED_SYSTEM_PROMPT
         assert "1%" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_has_risk_level_ranges(self) -> None:
         """Test that the prompt includes risk level score ranges."""
         assert "LOW" in CALIBRATED_SYSTEM_PROMPT
-        assert "MEDIUM" in CALIBRATED_SYSTEM_PROMPT
+        # NEM-3880: Updated to use ELEVATED and MODERATE instead of MEDIUM
+        has_elevated = "ELEVATED" in CALIBRATED_SYSTEM_PROMPT
+        has_moderate = "MODERATE" in CALIBRATED_SYSTEM_PROMPT
+        assert has_elevated or has_moderate
         assert "HIGH" in CALIBRATED_SYSTEM_PROMPT
         assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
-        # Score ranges
-        assert "0-29" in CALIBRATED_SYSTEM_PROMPT
-        assert "30-59" in CALIBRATED_SYSTEM_PROMPT
-        assert "60-84" in CALIBRATED_SYSTEM_PROMPT
-        assert "85-100" in CALIBRATED_SYSTEM_PROMPT
+        # Score ranges - updated per NEM-3880
+        assert "0-20" in CALIBRATED_SYSTEM_PROMPT
+        assert "21-40" in CALIBRATED_SYSTEM_PROMPT
+        assert "61-80" in CALIBRATED_SYSTEM_PROMPT
+        assert "81-100" in CALIBRATED_SYSTEM_PROMPT
 
     def test_calibrated_system_prompt_has_miscalibration_warning(self) -> None:
         """Test that the prompt warns about miscalibration."""
         assert "miscalibrated" in CALIBRATED_SYSTEM_PROMPT
-        assert "20%" in CALIBRATED_SYSTEM_PROMPT
+        # NEM-3880: Now warns about scoring delivery drivers above 15
+        assert "15" in CALIBRATED_SYSTEM_PROMPT or "delivery" in CALIBRATED_SYSTEM_PROMPT.lower()
 
     def test_calibrated_system_prompt_has_json_output_instruction(self) -> None:
         """Test that the prompt instructs JSON-only output."""
@@ -4084,16 +4228,22 @@ class TestScoringReferenceTable:
         assert "violence" in SCORING_REFERENCE_TABLE or "Violence" in SCORING_REFERENCE_TABLE
 
     def test_scoring_reference_table_has_score_ranges(self) -> None:
-        """Test that the table includes specific score ranges."""
-        # Low risk scores (5-15, 15-25)
-        assert "5-15" in SCORING_REFERENCE_TABLE
-        assert "15-25" in SCORING_REFERENCE_TABLE
-        # Medium risk scores (20-35, 45-60)
-        assert "20-35" in SCORING_REFERENCE_TABLE or "45-60" in SCORING_REFERENCE_TABLE
-        # High risk scores (70-85)
-        assert "70-85" in SCORING_REFERENCE_TABLE
-        # Critical risk scores (85-100)
-        assert "85-100" in SCORING_REFERENCE_TABLE
+        """Test that the table includes specific score ranges (updated NEM-3880)."""
+        # Low risk scores (0-10, 0-5, 0-15, 5-15) per NEM-3880 calibration
+        assert "0-10" in SCORING_REFERENCE_TABLE
+        assert "0-5" in SCORING_REFERENCE_TABLE
+        assert "0-15" in SCORING_REFERENCE_TABLE
+        # Medium risk scores (20-35 or 35-50 or 50-65)
+        has_medium_range = (
+            "20-35" in SCORING_REFERENCE_TABLE
+            or "35-50" in SCORING_REFERENCE_TABLE
+            or "50-65" in SCORING_REFERENCE_TABLE
+        )
+        assert has_medium_range
+        # High risk scores (70-85 or 65-80)
+        assert "70-85" in SCORING_REFERENCE_TABLE or "65-80" in SCORING_REFERENCE_TABLE
+        # Critical risk scores (90-100 or 85-100)
+        assert "90-100" in SCORING_REFERENCE_TABLE or "85-100" in SCORING_REFERENCE_TABLE
 
 
 class TestHouseholdContextTemplate:

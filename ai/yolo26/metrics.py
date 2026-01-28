@@ -117,6 +117,13 @@ MODEL_LOADED = Gauge(
     "Whether the model is loaded (1) or not (0)",
 )
 
+# Model inference health gauge (1 = inference tested and working, 0 = inference failed/not tested)
+# NEM-3878: This metric tracks whether warmup inference succeeded on startup
+MODEL_INFERENCE_HEALTHY = Gauge(
+    "yolo26_model_inference_healthy",
+    "Whether model inference has been tested and is working (1) or not (0)",
+)
+
 # GPU metrics gauges (legacy)
 GPU_UTILIZATION = Gauge(
     "yolo26_gpu_utilization_percent",
@@ -261,6 +268,7 @@ __all__ = [
     "INFERENCE_DURATION_SECONDS",
     "INFERENCE_LATENCY_SECONDS",
     "INFERENCE_REQUESTS_TOTAL",
+    "MODEL_INFERENCE_HEALTHY",
     "MODEL_LOADED",
     "REQUESTS_TOTAL",
     "VRAM_BYTES",

@@ -136,6 +136,21 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
                     weights_file = pth_files[0]
 
                 state_dict = torch.load(weights_file, map_location="cpu", weights_only=True)
+
+                # Handle 'module.' prefix from DataParallel training (NEM-3888)
+                if any(k.startswith("module.") for k in state_dict):
+                    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+                    logger.debug("Stripped 'module.' prefix from state dict keys")
+
+                # Filter out classifier keys to avoid shape mismatch (NEM-3888)
+                # Pretrained weights may have classifier.weight shape [1000, 512] (ImageNet)
+                # but model is instantiated with num_classes=1, giving [1, 512]
+                classifier_keys = [k for k in state_dict if k.startswith("classifier")]
+                if classifier_keys:
+                    for key in classifier_keys:
+                        del state_dict[key]
+                    logger.debug(f"Filtered out classifier keys: {classifier_keys}")
+
                 model.load_state_dict(state_dict, strict=False)
                 logger.info(f"Loaded OSNet weights from {weights_file}")
 
