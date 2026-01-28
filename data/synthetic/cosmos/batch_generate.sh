@@ -1,8 +1,8 @@
 #!/bin/bash
-# Batch video generation with persistent model per GPU
-# Each GPU loads model once, then processes ~63 videos sequentially
-# Total: 501 videos (167 prompts × 3 durations: 5s, 10s, 30s) across 8 GPUs
-# Distribution: ROUND-ROBIN to balance workload (each GPU gets mix of durations)
+# Fixed batch video generation with proper duration support
+# - Reads num_output_frames from each JSON prompt
+# - Enables autoregressive mode for longer videos (>120 frames)
+# - Processes one file at a time to ensure correct parameters per video
 
 set -e
 
@@ -13,48 +13,91 @@ LOG_DIR="/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/c
 
 NUM_GPUS=8
 
+# Parse arguments
+FILTER_DURATION=""  # e.g., "5s" "10s" "30s" or empty for all
+SKIP_EXISTING=true
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --duration)
+            FILTER_DURATION="$2"
+            shift 2
+            ;;
+        --no-skip)
+            SKIP_EXISTING=false
+            shift
+            ;;
+        --gpus)
+            NUM_GPUS="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
+
 mkdir -p "${OUTPUT_BASE}"
 mkdir -p "${LOG_DIR}"
 
-# Get all prompt files (excluding generation_queue.json)
-# Sort by duration: 5s first, then 10s, then 30s (for quality checking)
-mapfile -t PROMPT_FILES < <(ls ${PROMPTS_DIR}/*.json | grep -v generation_queue | sort -t'_' -k2 -V)
+# Get prompt files, optionally filtered by duration
+if [[ -n "$FILTER_DURATION" ]]; then
+    mapfile -t PROMPT_FILES < <(ls ${PROMPTS_DIR}/*_${FILTER_DURATION}.json 2>/dev/null | sort)
+    echo "Filtered to ${FILTER_DURATION} videos only"
+else
+    mapfile -t PROMPT_FILES < <(ls ${PROMPTS_DIR}/*.json | grep -v generation_queue | sort -t'_' -k2 -V)
+fi
+
 TOTAL_FILES=${#PROMPT_FILES[@]}
-FILES_PER_GPU=$(( (TOTAL_FILES + NUM_GPUS - 1) / NUM_GPUS ))
+
+if [[ $TOTAL_FILES -eq 0 ]]; then
+    echo "No prompt files found!"
+    exit 1
+fi
 
 echo "=========================================="
-echo "Batch Video Generation"
+echo "Fixed Batch Video Generation"
 echo "=========================================="
 echo "Total videos: ${TOTAL_FILES}"
 echo "GPUs: ${NUM_GPUS}"
-echo "Videos per GPU: ~${FILES_PER_GPU}"
+echo "Duration filter: ${FILTER_DURATION:-all}"
+echo "Skip existing: ${SKIP_EXISTING}"
 echo "Output: ${OUTPUT_BASE}"
 echo "=========================================="
 
-# Function to run a batch on a specific GPU
-run_gpu_batch() {
+# Function to generate a single video with correct parameters
+generate_single_video() {
     local GPU_ID=$1
-    shift
-    local -a FILES=("$@")
+    local PROMPT_FILE=$2
+    local LOG_FILE="${LOG_DIR}/gpu${GPU_ID}.log"
     
-    if [ ${#FILES[@]} -eq 0 ]; then
-        echo "[GPU ${GPU_ID}] No files to process"
-        return
+    local FNAME=$(basename "$PROMPT_FILE" .json)
+    local OUTPUT_PATH="${OUTPUT_BASE}/${FNAME}.mp4"
+    
+    # Skip if exists
+    if [[ "$SKIP_EXISTING" == "true" && -f "$OUTPUT_PATH" ]]; then
+        # Check if it's a real video (not a tiny file)
+        local SIZE=$(stat -f%z "$OUTPUT_PATH" 2>/dev/null || stat -c%s "$OUTPUT_PATH" 2>/dev/null)
+        if [[ $SIZE -gt 10000 ]]; then
+            echo "[GPU ${GPU_ID}] Skipping ${FNAME} (already exists, ${SIZE} bytes)" | tee -a "$LOG_FILE"
+            return 0
+        fi
     fi
     
-    echo "[GPU ${GPU_ID}] Processing ${#FILES[@]} videos..."
+    # Extract num_output_frames from JSON
+    local NUM_FRAMES=$(jq -r '.num_output_frames' "$PROMPT_FILE")
     
-    # Build list of input files (space-separated after single -i)
-    local -a INPUT_FILES=()
-    for f in "${FILES[@]}"; do
-        fname=$(basename "$f")
-        INPUT_FILES+=("/prompts/${fname}")
-    done
+    # Determine if autoregressive mode needed (model native is ~77 frames)
+    local EXTRA_ARGS=""
+    if [[ $NUM_FRAMES -gt 120 ]]; then
+        EXTRA_ARGS="--enable-autoregressive"
+        echo "[GPU ${GPU_ID}] ${FNAME}: ${NUM_FRAMES} frames (autoregressive mode)" | tee -a "$LOG_FILE"
+    else
+        echo "[GPU ${GPU_ID}] ${FNAME}: ${NUM_FRAMES} frames (standard mode)" | tee -a "$LOG_FILE"
+    fi
     
-    echo "[GPU ${GPU_ID}] Input files: ${INPUT_FILES[*]}"
-    
-    # Run Docker with all inputs - model loads once, processes all
-    # Note: tyro requires -i file1 file2 file3 (not -i file1 -i file2)
+    # Run Docker for single video
     docker run --rm \
         --gpus "device=${GPU_ID}" \
         --ipc=host \
@@ -66,44 +109,58 @@ run_gpu_batch() {
         -w /workspace \
         cosmos-b300 \
         python examples/inference.py \
-        -i ${INPUT_FILES[*]} \
+        -i "/prompts/${FNAME}.json" \
         -o /workspace/outputs/security_videos \
         --inference-type=text2world \
         --model=14B/post-trained \
         --disable-guardrails \
-        2>&1 | tee "${LOG_DIR}/gpu${GPU_ID}.log"
+        $EXTRA_ARGS \
+        2>&1 | tee -a "$LOG_FILE"
     
-    echo "[GPU ${GPU_ID}] Batch complete!"
+    echo "[GPU ${GPU_ID}] Completed: ${FNAME}" | tee -a "$LOG_FILE"
 }
 
-# Split files across GPUs using ROUND-ROBIN distribution
-# This ensures each GPU gets an equal mix of 5s, 10s, and 30s videos
-# so all GPUs finish at roughly the same time (balanced workload)
+# Function to run a GPU worker
+run_gpu_worker() {
+    local GPU_ID=$1
+    shift
+    local -a FILES=("$@")
+    
+    echo "[GPU ${GPU_ID}] Starting worker with ${#FILES[@]} videos"
+    
+    for PROMPT_FILE in "${FILES[@]}"; do
+        generate_single_video "$GPU_ID" "$PROMPT_FILE"
+    done
+    
+    echo "[GPU ${GPU_ID}] Worker complete!"
+}
+
+# Split files across GPUs using round-robin
 echo ""
-echo "Starting generation on ${NUM_GPUS} GPUs (round-robin distribution)..."
+echo "Starting generation on ${NUM_GPUS} GPUs..."
 echo ""
 
 for GPU_ID in $(seq 0 $((NUM_GPUS - 1))); do
-    # Round-robin: GPU 0 gets files 0,8,16,24... GPU 1 gets 1,9,17,25... etc
+    # Round-robin distribution
     GPU_FILES=()
     for ((IDX=GPU_ID; IDX<TOTAL_FILES; IDX+=NUM_GPUS)); do
         GPU_FILES+=("${PROMPT_FILES[$IDX]}")
     done
     
-    if [ ${#GPU_FILES[@]} -gt 0 ]; then
-        # Count durations in this GPU's batch
+    if [[ ${#GPU_FILES[@]} -gt 0 ]]; then
+        # Count durations
         COUNT_5S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_5s.json' || true)
         COUNT_10S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_10s.json' || true)
         COUNT_30S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_30s.json' || true)
         echo "[GPU ${GPU_ID}] Assigned ${#GPU_FILES[@]} videos: ${COUNT_5S}x5s + ${COUNT_10S}x10s + ${COUNT_30S}x30s"
         
-        # Launch in background
-        run_gpu_batch ${GPU_ID} "${GPU_FILES[@]}" &
+        # Launch worker in background
+        run_gpu_worker ${GPU_ID} "${GPU_FILES[@]}" &
     fi
 done
 
 echo ""
-echo "All GPU jobs launched. Waiting for completion..."
+echo "All GPU workers launched. Waiting for completion..."
 echo "Monitor with: tail -f ${LOG_DIR}/gpu*.log"
 echo ""
 
@@ -117,3 +174,19 @@ echo "=========================================="
 echo "Output videos: ${OUTPUT_BASE}"
 ls "${OUTPUT_BASE}"/*.mp4 2>/dev/null | wc -l
 echo "videos generated"
+
+# Validation summary
+echo ""
+echo "=== Validation Summary ==="
+echo "Checking for proper durations..."
+
+for DURATION in 5s 10s 30s; do
+    COUNT=$(ls "${OUTPUT_BASE}"/*_${DURATION}.mp4 2>/dev/null | wc -l)
+    echo "${DURATION} videos: ${COUNT}"
+done
+
+echo ""
+echo "Checking for duplicates..."
+UNIQUE=$(md5sum "${OUTPUT_BASE}"/*.mp4 2>/dev/null | awk '{print $1}' | sort | uniq | wc -l)
+TOTAL=$(ls "${OUTPUT_BASE}"/*.mp4 2>/dev/null | wc -l)
+echo "Unique videos: ${UNIQUE} / ${TOTAL}"
