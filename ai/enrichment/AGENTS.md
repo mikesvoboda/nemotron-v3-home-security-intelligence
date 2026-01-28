@@ -20,18 +20,18 @@ Combined enrichment service providing on-demand model loading for comprehensive 
 - **Port**: 8094 (configurable via `PORT`)
 - **Total VRAM Budget**: ~6.8 GB (configurable)
 
-| Model                  | VRAM    | Priority | Purpose                           |
-| ---------------------- | ------- | -------- | --------------------------------- |
-| Threat Detector        | ~400 MB | CRITICAL | Weapon detection (gun, knife)     |
-| Pose Estimator         | ~300 MB | HIGH     | Body posture analysis             |
-| Demographics           | ~500 MB | HIGH     | Age/gender estimation             |
-| FashionCLIP            | ~800 MB | HIGH     | Clothing attributes               |
-| Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.)   |
-| Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification            |
-| Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings            |
-| Depth Anything V2      | ~150 MB | LOW      | Distance estimation               |
-| Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition   |
-| YOLO26 Detector        | ~100 MB | LOW      | Secondary object detection (opt.) |
+| Model                  | VRAM    | Priority | Purpose                                 |
+| ---------------------- | ------- | -------- | --------------------------------------- |
+| Threat Detector        | ~400 MB | CRITICAL | Weapon detection (gun, knife)           |
+| Pose Estimator         | ~300 MB | HIGH     | Body posture analysis                   |
+| Demographics           | ~500 MB | HIGH     | Age/gender estimation                   |
+| FashionSigLIP          | ~800 MB | HIGH     | Clothing attributes (57% more accurate) |
+| Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.)         |
+| Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification                  |
+| Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings                  |
+| Depth Anything V2      | ~150 MB | LOW      | Distance estimation                     |
+| Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition         |
+| YOLO26 Detector        | ~100 MB | LOW      | Secondary object detection (opt.)       |
 
 ## Directory Contents
 
@@ -80,12 +80,12 @@ FastAPI server hosting all classification models with unified `/enrich` endpoint
 
 **Classifier Classes:**
 
-| Class                | Model                   | VRAM    | Purpose                           |
-| -------------------- | ----------------------- | ------- | --------------------------------- |
-| `VehicleClassifier`  | ViT-base-patch16-224    | ~1.5 GB | Vehicle type classification       |
-| `PetClassifier`      | ResNet-18               | ~200 MB | Cat/dog classification            |
-| `ClothingClassifier` | FashionCLIP             | ~800 MB | Zero-shot clothing classification |
-| `DepthEstimator`     | Depth Anything V2 Small | ~150 MB | Monocular depth estimation        |
+| Class                | Model                   | VRAM    | Purpose                                               |
+| -------------------- | ----------------------- | ------- | ----------------------------------------------------- |
+| `VehicleClassifier`  | ViT-base-patch16-224    | ~1.5 GB | Vehicle type classification                           |
+| `PetClassifier`      | ResNet-18               | ~200 MB | Cat/dog classification                                |
+| `ClothingClassifier` | FashionSigLIP           | ~800 MB | Zero-shot clothing classification (57% more accurate) |
+| `DepthEstimator`     | Depth Anything V2 Small | ~150 MB | Monocular depth estimation                            |
 
 **Vehicle Classes:**
 
@@ -389,7 +389,7 @@ Classify pet type (cat/dog).
 
 ### POST /clothing-classify
 
-Classify clothing using FashionCLIP zero-shot classification.
+Classify clothing using FashionSigLIP zero-shot classification (57% more accurate than FashionCLIP).
 
 ### POST /depth-estimate
 
@@ -412,7 +412,7 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 | `VRAM_BUDGET_GB`               | `6.8`                                    | VRAM budget for on-demand models       |
 | `VEHICLE_MODEL_PATH`           | `/models/vehicle-segment-classification` | Vehicle classifier path                |
 | `PET_MODEL_PATH`               | `/models/pet-classifier`                 | Pet classifier path                    |
-| `CLOTHING_MODEL_PATH`          | `/models/fashion-clip`                   | FashionCLIP model path                 |
+| `CLOTHING_MODEL_PATH`          | `/models/fashion-siglip`                 | FashionSigLIP model path               |
 | `DEPTH_MODEL_PATH`             | `/models/depth-anything-v2-small`        | Depth estimator path                   |
 | `POSE_MODEL_PATH`              | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path                |
 | `POSE_USE_TENSORRT`            | `false`                                  | Enable TensorRT for pose (2-3x faster) |
@@ -429,19 +429,19 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 
 ## Model Links
 
-| Model                      | HuggingFace URL                                                                                                                                 | Description                          |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| FashionCLIP                | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                                                               | Zero-shot clothing classification    |
-| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)    |
-| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification               |
-| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation           |
-| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints) |
-| YOLOv8n-pose               | [ultralytics/yolov8n-pose](https://docs.ultralytics.com/tasks/pose/)                                                                            | Human pose estimation (17 keypoints) |
-| Threat Detection           | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n)                                                     | Weapon detection                     |
-| Age Classifier             | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier)                                                                 | Age range estimation                 |
-| OSNet                      | [torchreid/osnet_x0_25](https://github.com/KaiyangZhou/deep-person-reid)                                                                        | Person re-identification             |
-| X-CLIP                     | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32)                                                             | Video action recognition             |
-| YOLO26                     | [ultralytics](https://docs.ultralytics.com/models/)                                                                                             | Secondary object detection           |
+| Model                      | HuggingFace URL                                                                                                                                 | Description                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| FashionSigLIP              | [Marqo/marqo-fashionSigLIP](https://huggingface.co/Marqo/marqo-fashionSigLIP)                                                                   | Zero-shot clothing classification (57% more accurate) |
+| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)                     |
+| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification                                |
+| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation                            |
+| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints)                  |
+| YOLOv8n-pose               | [ultralytics/yolov8n-pose](https://docs.ultralytics.com/tasks/pose/)                                                                            | Human pose estimation (17 keypoints)                  |
+| Threat Detection           | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n)                                                     | Weapon detection                                      |
+| Age Classifier             | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier)                                                                 | Age range estimation                                  |
+| OSNet                      | [torchreid/osnet_x0_25](https://github.com/KaiyangZhou/deep-person-reid)                                                                        | Person re-identification                              |
+| X-CLIP                     | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32)                                                             | Video action recognition                              |
+| YOLO26                     | [ultralytics](https://docs.ultralytics.com/models/)                                                                                             | Secondary object detection                            |
 
 ## Backend Integration
 

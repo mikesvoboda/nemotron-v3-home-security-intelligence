@@ -450,7 +450,11 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             enabled=True,
             available=False,
         ),
-        # Marqo-FashionCLIP for zero-shot clothing classification
+        # Marqo-FashionSigLIP for zero-shot clothing classification (57% accuracy improvement)
+        # FashionSigLIP provides superior accuracy over FashionCLIP:
+        # - Text-to-Image MRR: 0.239 vs 0.165 (FashionCLIP2.0)
+        # - Text-to-Image Recall@1: 0.121 vs 0.077 (FashionCLIP2.0)
+        # - Text-to-Image Recall@10: 0.340 vs 0.249 (FashionCLIP2.0)
         # Identifies security-relevant clothing attributes on person crops:
         # - Suspicious attire (dark hoodie, face mask, gloves, all black)
         # - Service uniforms (Amazon, FedEx, UPS, high-vis vest)
@@ -458,9 +462,9 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Runs on person crop bounding boxes from YOLO26v2
         "fashion-clip": ModelConfig(
             name="fashion-clip",
-            path=f"{base_path}/fashion-clip",
+            path=f"{base_path}/fashion-siglip",  # Updated to FashionSigLIP
             category="classification",
-            vram_mb=500,  # ~500MB
+            vram_mb=500,  # ~500MB (unchanged from FashionCLIP)
             load_fn=load_fashion_clip_model,
             enabled=True,
             available=False,
