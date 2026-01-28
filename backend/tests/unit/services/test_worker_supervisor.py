@@ -865,3 +865,620 @@ class TestCalculateBackoffStatic:
         """Test that backoff always returns a float."""
         result = WorkerSupervisor._calculate_backoff_static(3, 1.0, 60.0)
         assert isinstance(result, float)
+
+
+# ============================================================================
+# Restart History Tests (NEM-2462)
+# ============================================================================
+
+
+class TestRestartHistory:
+    """Tests for restart history tracking (NEM-2462)."""
+
+    async def test_get_restart_history_empty(self, supervisor: WorkerSupervisor) -> None:
+        """Test get_restart_history returns empty list initially."""
+        history = supervisor.get_restart_history()
+        assert history == []
+
+    async def test_get_restart_history_after_restart(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test restart events are recorded in history."""
+        call_count = 0
+
+        async def flaky_worker() -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("First crash")
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker(
+            "flaky_worker",
+            flaky_worker,
+            backoff_base=0.05,
+        )
+        await supervisor.start()
+
+        try:
+            # Wait for restart
+            await asyncio.sleep(0.5)
+
+            history = supervisor.get_restart_history()
+            assert len(history) >= 1
+
+            # Check event structure
+            event = history[0]
+            assert event["worker_name"] == "flaky_worker"
+            assert event["status"] == "success"
+            assert event["attempt"] >= 1
+            assert "timestamp" in event
+        finally:
+            await supervisor.stop()
+
+    async def test_get_restart_history_filter_by_worker(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test filtering restart history by worker name."""
+
+        async def crashing_worker1() -> None:
+            raise RuntimeError("Crash 1")
+
+        async def crashing_worker2() -> None:
+            raise RuntimeError("Crash 2")
+
+        await supervisor.register_worker(
+            "worker1",
+            crashing_worker1,
+            max_restarts=1,
+            backoff_base=0.05,
+        )
+        await supervisor.register_worker(
+            "worker2",
+            crashing_worker2,
+            max_restarts=1,
+            backoff_base=0.05,
+        )
+        await supervisor.start()
+
+        try:
+            # Wait for restarts
+            await asyncio.sleep(0.5)
+
+            # Get history for worker1 only
+            history = supervisor.get_restart_history(worker_name="worker1")
+            assert all(e["worker_name"] == "worker1" for e in history)
+        finally:
+            await supervisor.stop()
+
+    async def test_get_restart_history_pagination(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test restart history pagination."""
+        # Manually add events
+        for i in range(10):
+            supervisor._record_restart_event(
+                worker_name="test",
+                attempt=i,
+                status="success",
+                error=None,
+            )
+
+        # Test limit
+        history = supervisor.get_restart_history(limit=5)
+        assert len(history) == 5
+
+        # Test offset
+        history = supervisor.get_restart_history(offset=5, limit=5)
+        assert len(history) == 5
+
+    async def test_get_restart_history_count(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test getting restart history count."""
+        assert supervisor.get_restart_history_count() == 0
+
+        # Add some events
+        for i in range(5):
+            supervisor._record_restart_event(
+                worker_name="test",
+                attempt=i,
+                status="success",
+                error=None,
+            )
+
+        assert supervisor.get_restart_history_count() == 5
+        assert supervisor.get_restart_history_count(worker_name="test") == 5
+        assert supervisor.get_restart_history_count(worker_name="other") == 0
+
+    async def test_restart_history_max_size(
+        self,
+        supervisor_config: SupervisorConfig,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test restart history is trimmed to max size."""
+        config = SupervisorConfig(
+            check_interval=0.1,
+            max_restart_history=10,
+        )
+        supervisor = WorkerSupervisor(config=config, broadcaster=mock_broadcaster)
+
+        # Add more than max
+        for i in range(15):
+            supervisor._record_restart_event(
+                worker_name="test",
+                attempt=i,
+                status="success",
+                error=None,
+            )
+
+        # Should be trimmed to max
+        assert len(supervisor._restart_history) == 10
+
+    async def test_restart_history_newest_first(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test restart history is returned newest first."""
+        # Add events over time
+        for i in range(3):
+            supervisor._record_restart_event(
+                worker_name="test",
+                attempt=i,
+                status="success",
+                error=None,
+            )
+            await asyncio.sleep(0.01)  # Ensure different timestamps
+
+        history = supervisor.get_restart_history()
+        assert len(history) == 3
+
+        # Should be newest first
+        assert history[0]["attempt"] == 2
+        assert history[1]["attempt"] == 1
+        assert history[2]["attempt"] == 0
+
+
+# ============================================================================
+# Manual Worker Control Tests (NEM-2462)
+# ============================================================================
+
+
+class TestManualWorkerControl:
+    """Tests for manual worker control methods (NEM-2462)."""
+
+    async def test_start_worker_manually(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test manually starting a stopped worker."""
+        started = asyncio.Event()
+
+        async def worker() -> None:
+            started.set()
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Start manually (supervisor not started)
+        result = await supervisor.start_worker("test_worker")
+        assert result is True
+
+        try:
+            await asyncio.wait_for(started.wait(), timeout=1.0)
+            assert supervisor.get_worker_status("test_worker") == WorkerStatus.RUNNING
+        finally:
+            await supervisor.stop_worker("test_worker")
+
+    async def test_start_worker_unknown(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test starting unknown worker returns False."""
+        result = await supervisor.start_worker("unknown")
+        assert result is False
+
+    async def test_start_worker_already_running(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test starting already running worker is idempotent."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start_worker("test_worker")
+
+        try:
+            # Start again - should return True (idempotent)
+            result = await supervisor.start_worker("test_worker")
+            assert result is True
+        finally:
+            await supervisor.stop_worker("test_worker")
+
+    async def test_start_worker_resets_failed_state(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test starting a failed worker resets its state."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Set to failed state
+        supervisor._workers["test_worker"].status = WorkerStatus.FAILED
+        supervisor._workers["test_worker"].restart_count = 5
+        supervisor._workers["test_worker"].circuit_open = True
+
+        await supervisor.start_worker("test_worker")
+
+        try:
+            info = supervisor.get_worker_info("test_worker")
+            assert info is not None
+            assert info.status == WorkerStatus.RUNNING
+            assert info.restart_count == 0
+            assert info.circuit_open is False
+        finally:
+            await supervisor.stop_worker("test_worker")
+
+    async def test_stop_worker_manually(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test manually stopping a running worker."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start_worker("test_worker")
+        await asyncio.sleep(0.1)  # Let it start
+
+        result = await supervisor.stop_worker("test_worker")
+        assert result is True
+        assert supervisor.get_worker_status("test_worker") == WorkerStatus.STOPPED
+
+    async def test_stop_worker_unknown(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test stopping unknown worker returns False."""
+        result = await supervisor.stop_worker("unknown")
+        assert result is False
+
+    async def test_restart_worker_task_manually(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test manually restarting a worker."""
+        call_count = 0
+
+        async def worker() -> None:
+            nonlocal call_count
+            call_count += 1
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start_worker("test_worker")
+        await asyncio.sleep(0.1)  # Let it start
+
+        # Restart
+        result = await supervisor.restart_worker_task("test_worker")
+        assert result is True
+        await asyncio.sleep(0.1)  # Let it restart
+
+        try:
+            # Should have been called twice (initial + restart)
+            assert call_count == 2
+            assert supervisor.get_worker_status("test_worker") == WorkerStatus.RUNNING
+
+            # Restart count should be reset for manual restart
+            info = supervisor.get_worker_info("test_worker")
+            assert info is not None
+            assert info.restart_count == 0
+        finally:
+            await supervisor.stop_worker("test_worker")
+
+    async def test_restart_worker_task_unknown(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test restarting unknown worker returns False."""
+        result = await supervisor.restart_worker_task("unknown")
+        assert result is False
+
+    async def test_restart_worker_task_records_history(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test manual restart is recorded in history."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start_worker("test_worker")
+        await asyncio.sleep(0.1)
+
+        await supervisor.restart_worker_task("test_worker")
+
+        try:
+            history = supervisor.get_restart_history(worker_name="test_worker")
+            assert len(history) >= 1
+            assert history[0]["status"] == "success"
+            assert history[0]["error"] == "Manual restart requested"
+        finally:
+            await supervisor.stop_worker("test_worker")
+
+
+# ============================================================================
+# Worker Pool Counts Tests
+# ============================================================================
+
+
+class TestWorkerPoolCounts:
+    """Tests for get_worker_pool_counts method."""
+
+    async def test_get_worker_pool_counts_all_stopped(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test pool counts with all workers stopped."""
+
+        async def worker() -> None:
+            pass
+
+        await supervisor.register_worker("worker1", worker)
+        await supervisor.register_worker("worker2", worker)
+
+        active, busy, idle = supervisor.get_worker_pool_counts()
+        assert active == 0
+        assert busy == 0
+        assert idle == 0
+
+    async def test_get_worker_pool_counts_all_running(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test pool counts with all workers running."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("worker1", worker)
+        await supervisor.register_worker("worker2", worker)
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.1)  # Let workers start
+
+            active, busy, idle = supervisor.get_worker_pool_counts()
+            assert active == 2
+            assert busy == 2  # Running workers are considered busy
+            assert idle == 0
+        finally:
+            await supervisor.stop()
+
+    async def test_get_worker_pool_counts_mixed_states(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test pool counts with workers in mixed states."""
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled
+
+        async def crashing_worker() -> None:
+            raise RuntimeError("Crash")
+
+        await supervisor.register_worker("worker1", worker)
+        await supervisor.register_worker("worker2", crashing_worker, max_restarts=0)
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.2)  # Let worker2 crash
+
+            active, busy, idle = supervisor.get_worker_pool_counts()
+            # Only worker1 should be running
+            assert active == 1
+            assert busy == 1
+        finally:
+            await supervisor.stop()
+
+
+# ============================================================================
+# Callback Tests (NEM-2460)
+# ============================================================================
+
+
+class TestCallbacks:
+    """Tests for on_restart and on_failure callbacks (NEM-2460)."""
+
+    async def test_on_restart_callback_called(
+        self,
+        supervisor_config: SupervisorConfig,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test on_restart callback is called when worker restarts."""
+        restart_calls = []
+
+        async def on_restart(name: str, attempt: int, error: str | None) -> None:
+            restart_calls.append({"name": name, "attempt": attempt, "error": error})
+
+        supervisor = WorkerSupervisor(
+            config=supervisor_config,
+            broadcaster=mock_broadcaster,
+            on_restart=on_restart,
+        )
+
+        call_count = 0
+
+        async def flaky_worker() -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("First crash")
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("flaky_worker", flaky_worker, backoff_base=0.05)
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.5)
+
+            assert len(restart_calls) >= 1
+            assert restart_calls[0]["name"] == "flaky_worker"
+            assert restart_calls[0]["attempt"] >= 1
+            assert "First crash" in restart_calls[0]["error"]
+        finally:
+            await supervisor.stop()
+
+    async def test_on_failure_callback_called(
+        self,
+        supervisor_config: SupervisorConfig,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test on_failure callback is called when worker exceeds max restarts."""
+        failure_calls = []
+
+        async def on_failure(name: str, error: str | None) -> None:
+            failure_calls.append({"name": name, "error": error})
+
+        supervisor = WorkerSupervisor(
+            config=supervisor_config,
+            broadcaster=mock_broadcaster,
+            on_failure=on_failure,
+        )
+
+        async def always_crashes() -> None:
+            raise RuntimeError("Always fails")
+
+        await supervisor.register_worker(
+            "always_crashes",
+            always_crashes,
+            max_restarts=1,
+            backoff_base=0.05,
+        )
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.5)
+
+            assert len(failure_calls) >= 1
+            assert failure_calls[0]["name"] == "always_crashes"
+            assert "Always fails" in failure_calls[0]["error"]
+        finally:
+            await supervisor.stop()
+
+    async def test_on_restart_callback_exception_handled(
+        self,
+        supervisor_config: SupervisorConfig,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test exception in on_restart callback is handled gracefully."""
+
+        async def failing_on_restart(name: str, attempt: int, error: str | None) -> None:
+            raise ValueError("Callback error")
+
+        supervisor = WorkerSupervisor(
+            config=supervisor_config,
+            broadcaster=mock_broadcaster,
+            on_restart=failing_on_restart,
+        )
+
+        call_count = 0
+
+        async def flaky_worker() -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("First crash")
+            await asyncio.sleep(10)  # cancelled
+
+        await supervisor.register_worker("flaky_worker", flaky_worker, backoff_base=0.05)
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.5)
+
+            # Worker should still restart despite callback error
+            assert call_count >= 2
+        finally:
+            await supervisor.stop()
+
+    async def test_on_failure_callback_exception_handled(
+        self,
+        supervisor_config: SupervisorConfig,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test exception in on_failure callback is handled gracefully."""
+
+        async def failing_on_failure(name: str, error: str | None) -> None:
+            raise ValueError("Callback error")
+
+        supervisor = WorkerSupervisor(
+            config=supervisor_config,
+            broadcaster=mock_broadcaster,
+            on_failure=failing_on_failure,
+        )
+
+        async def always_crashes() -> None:
+            raise RuntimeError("Always fails")
+
+        await supervisor.register_worker(
+            "always_crashes",
+            always_crashes,
+            max_restarts=1,
+            backoff_base=0.05,
+        )
+        await supervisor.start()
+
+        try:
+            await asyncio.sleep(0.5)
+
+            # Worker should transition to FAILED despite callback error
+            info = supervisor.get_worker_info("always_crashes")
+            assert info is not None
+            assert info.status == WorkerStatus.FAILED
+        finally:
+            await supervisor.stop()
+
+
+# ============================================================================
+# Unregister Worker with Running Task Tests
+# ============================================================================
+
+
+class TestUnregisterRunningWorker:
+    """Tests for unregistering workers with running tasks."""
+
+    async def test_unregister_worker_cancels_running_task(
+        self,
+        supervisor: WorkerSupervisor,
+    ) -> None:
+        """Test unregistering a worker cancels its running task."""
+        task_cancelled = asyncio.Event()
+
+        async def worker() -> None:
+            try:
+                await asyncio.sleep(10)  # cancelled
+            except asyncio.CancelledError:
+                task_cancelled.set()
+                raise
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start_worker("test_worker")
+        await asyncio.sleep(0.1)  # Let it start
+
+        await supervisor.unregister_worker("test_worker")
+
+        # Task should have been cancelled
+        await asyncio.wait_for(task_cancelled.wait(), timeout=1.0)
+        assert "test_worker" not in supervisor._workers

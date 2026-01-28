@@ -5670,3 +5670,1529 @@ class TestVQAValidationIntegration:
         assert "White sedan" in result or "sedan" in result.lower()
         # The garbage color and vehicle_type should NOT appear
         # (they would have had loc tokens if included)
+
+
+# =============================================================================
+# Tests for Previously Uncovered Functions (Coverage Improvement)
+# =============================================================================
+
+
+class TestFormatThreatDetectionContext:
+    """Tests for format_threat_detection_context function."""
+
+    def test_none_input_returns_not_performed(self):
+        """Test that None input returns 'Not performed' message."""
+        from backend.services.prompts import format_threat_detection_context
+
+        result = format_threat_detection_context(None)
+        assert result == "Threat detection: Not performed"
+
+    def test_no_threats_detected(self):
+        """Test format when no threats are present."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = False
+            has_high_priority: bool = False
+            threat_summary: str = ""
+            highest_confidence: float = 0.0
+            threats: list = field(default_factory=list)
+
+        result = format_threat_detection_context(MockThreatResult())
+        assert result == "Threat detection: No weapons or threatening objects detected"
+
+    def test_threat_detected_with_basic_info(self):
+        """Test format with threat detection."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "1 knife detected"
+            highest_confidence: float = 0.85
+            threats: list = field(default_factory=list)
+
+        threat = MockThreat(class_name="knife", confidence=0.85, is_high_priority=False)
+        result = format_threat_detection_context(MockThreatResult(threats=[threat]))
+
+        assert "**WEAPON/THREAT DETECTION**" in result
+        assert "1 knife detected" in result
+        assert "85%" in result
+        assert "knife (85%)" in result
+
+    def test_high_priority_threat_with_critical_alert(self):
+        """Test format with high-priority threat."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = True
+            threat_summary: str = "1 firearm detected"
+            highest_confidence: float = 0.92
+            threats: list = field(default_factory=list)
+
+        threat = MockThreat(class_name="firearm", confidence=0.92, is_high_priority=True)
+        result = format_threat_detection_context(MockThreatResult(threats=[threat]))
+
+        assert "CRITICAL ALERT: High-priority weapon detected!" in result
+        assert "Immediate review recommended" in result
+        assert "firearm (92%) **HIGH PRIORITY**" in result
+
+    def test_threat_with_time_context_night(self):
+        """Test threat detection with night time context."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "1 weapon detected"
+            highest_confidence: float = 0.78
+            threats: list = field(default_factory=list)
+
+        threat = MockThreat(class_name="bat", confidence=0.78, is_high_priority=False)
+        result = format_threat_detection_context(
+            MockThreatResult(threats=[threat]), time_of_day="night"
+        )
+
+        assert "TIME CONTEXT: Detection during night" in result
+        assert "Elevated concern: Armed threat at unusual hour" in result
+
+    def test_threat_with_time_context_late_night(self):
+        """Test threat detection with late_night time context."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "1 weapon detected"
+            highest_confidence: float = 0.65
+            threats: list = field(default_factory=list)
+
+        threat = MockThreat(class_name="crowbar", confidence=0.65, is_high_priority=False)
+        result = format_threat_detection_context(
+            MockThreatResult(threats=[threat]), time_of_day="late_night"
+        )
+
+        assert "TIME CONTEXT: Detection during late_night" in result
+        assert "Elevated concern" in result
+
+    def test_threat_with_time_context_early_morning(self):
+        """Test threat detection with early_morning time context."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "1 weapon detected"
+            highest_confidence: float = 0.70
+            threats: list = field(default_factory=list)
+
+        threat = MockThreat(class_name="knife", confidence=0.70, is_high_priority=False)
+        result = format_threat_detection_context(
+            MockThreatResult(threats=[threat]), time_of_day="early_morning"
+        )
+
+        assert "TIME CONTEXT: Detection during early_morning" in result
+
+    def test_threat_with_daytime_no_escalation(self):
+        """Test that daytime doesn't add time context escalation."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "1 weapon detected"
+            highest_confidence: float = 0.75
+            threats: list = field(default_factory=list)
+
+        threat = MockThreat(class_name="hammer", confidence=0.75, is_high_priority=False)
+        result = format_threat_detection_context(
+            MockThreatResult(threats=[threat]), time_of_day="afternoon"
+        )
+
+        assert "TIME CONTEXT" not in result
+        assert "Elevated concern" not in result
+
+    def test_multiple_threats_sorted_by_confidence(self):
+        """Test that multiple threats are sorted by confidence."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "3 threats detected"
+            highest_confidence: float = 0.90
+            threats: list = field(default_factory=list)
+
+        threats = [
+            MockThreat(class_name="knife", confidence=0.60, is_high_priority=False),
+            MockThreat(class_name="gun", confidence=0.90, is_high_priority=False),
+            MockThreat(class_name="bat", confidence=0.75, is_high_priority=False),
+        ]
+        result = format_threat_detection_context(MockThreatResult(threats=threats))
+
+        # Should be sorted by confidence (gun, bat, knife)
+        lines = result.split("\n")
+        threat_lines = [
+            letter for letter in lines if "%" in letter and "Highest confidence" not in letter
+        ]
+        assert "gun (90%)" in threat_lines[0]
+        assert "bat (75%)" in threat_lines[1]
+        assert "knife (60%)" in threat_lines[2]
+
+    def test_limits_to_top_5_threats(self):
+        """Test that only top 5 threats are shown."""
+        from backend.services.prompts import format_threat_detection_context
+
+        @dataclass
+        class MockThreat:
+            class_name: str
+            confidence: float
+            is_high_priority: bool
+
+        @dataclass
+        class MockThreatResult:
+            has_threats: bool = True
+            has_high_priority: bool = False
+            threat_summary: str = "7 threats detected"
+            highest_confidence: float = 0.95
+            threats: list = field(default_factory=list)
+
+        threats = [
+            MockThreat(class_name=f"weapon_{i}", confidence=0.95 - i * 0.1, is_high_priority=False)
+            for i in range(7)
+        ]
+        result = format_threat_detection_context(MockThreatResult(threats=threats))
+
+        # Count individual threat entries (excluding header and summary lines)
+        threat_entries = [letter for letter in result.split("\n") if "weapon_" in letter]
+        assert len(threat_entries) == 5  # Only top 5
+
+
+class TestFormatAgeClassificationContext:
+    """Tests for format_age_classification_context function."""
+
+    def test_empty_classifications_returns_no_persons(self):
+        """Test that empty dict returns 'No persons analyzed'."""
+        from backend.services.prompts import format_age_classification_context
+
+        result = format_age_classification_context({})
+        assert result == "Age estimation: No persons analyzed"
+
+    def test_single_person_with_high_confidence(self):
+        """Test format for single person with high confidence."""
+        from backend.services.prompts import format_age_classification_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        classifications = {
+            "det_001": MockAgeResult(display_name="Adult (25-35)", confidence=0.85, is_minor=False)
+        }
+        result = format_age_classification_context(classifications)
+
+        assert "Age estimation (1 persons):" in result
+        assert "Person det_001: Adult (25-35) (85%)" in result
+        assert "LOW CONFIDENCE" not in result
+
+    def test_person_with_low_confidence(self):
+        """Test that low confidence adds warning."""
+        from backend.services.prompts import format_age_classification_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        classifications = {
+            "det_002": MockAgeResult(display_name="Teen (13-17)", confidence=0.45, is_minor=True)
+        }
+        result = format_age_classification_context(classifications)
+
+        assert "[LOW CONFIDENCE]" in result
+        assert "**MINOR**" in result
+
+    def test_person_with_medium_confidence(self):
+        """Test that medium confidence adds note."""
+        from backend.services.prompts import format_age_classification_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        classifications = {
+            "det_003": MockAgeResult(
+                display_name="Young Adult (18-24)", confidence=0.65, is_minor=False
+            )
+        }
+        result = format_age_classification_context(classifications)
+
+        assert "[medium confidence]" in result
+
+    def test_minor_detection_adds_special_note(self):
+        """Test that minor detection adds special consideration note."""
+        from backend.services.prompts import format_age_classification_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        classifications = {
+            "det_004": MockAgeResult(display_name="Child (5-12)", confidence=0.80, is_minor=True)
+        }
+        result = format_age_classification_context(classifications)
+
+        assert "**MINOR**" in result
+        assert "**NOTE**: Minor(s) detected - may indicate lost/unaccompanied child" in result
+        assert "Consider context and presence of adults when assessing risk" in result
+
+    def test_multiple_persons_with_mixed_ages(self):
+        """Test formatting for multiple persons with different ages."""
+        from backend.services.prompts import format_age_classification_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        classifications = {
+            "det_005": MockAgeResult(display_name="Adult (35-50)", confidence=0.90, is_minor=False),
+            "det_006": MockAgeResult(display_name="Teen (13-17)", confidence=0.75, is_minor=True),
+        }
+        result = format_age_classification_context(classifications)
+
+        assert "Age estimation (2 persons):" in result
+        assert "Person det_005: Adult (35-50) (90%)" in result
+        assert "Person det_006: Teen (13-17) (75%)" in result
+        assert "**MINOR**" in result
+
+
+class TestFormatGenderClassificationContext:
+    """Tests for format_gender_classification_context function."""
+
+    def test_empty_classifications_returns_no_persons(self):
+        """Test that empty dict returns 'No persons analyzed'."""
+        from backend.services.prompts import format_gender_classification_context
+
+        result = format_gender_classification_context({})
+        assert result == "Gender estimation: No persons analyzed"
+
+    def test_single_person_high_confidence(self):
+        """Test format for single person with high confidence."""
+        from backend.services.prompts import format_gender_classification_context
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        classifications = {"det_007": MockGenderResult(gender="male", confidence=0.92)}
+        result = format_gender_classification_context(classifications)
+
+        assert "Gender estimation (1 persons):" in result
+        assert "Person det_007: male (92%)" in result
+        assert "[low confidence]" not in result
+
+    def test_person_with_low_confidence(self):
+        """Test that low confidence adds warning."""
+        from backend.services.prompts import format_gender_classification_context
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        classifications = {"det_008": MockGenderResult(gender="female", confidence=0.55)}
+        result = format_gender_classification_context(classifications)
+
+        assert "[low confidence]" in result
+
+    def test_multiple_persons(self):
+        """Test formatting for multiple persons."""
+        from backend.services.prompts import format_gender_classification_context
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        classifications = {
+            "det_009": MockGenderResult(gender="male", confidence=0.88),
+            "det_010": MockGenderResult(gender="female", confidence=0.72),
+        }
+        result = format_gender_classification_context(classifications)
+
+        assert "Gender estimation (2 persons):" in result
+        assert "Person det_009: male (88%)" in result
+        assert "Person det_010: female (72%)" in result
+
+
+class TestFormatPersonDemographicsContext:
+    """Tests for format_person_demographics_context function."""
+
+    def test_no_classifications_returns_not_analyzed(self):
+        """Test that no classifications returns 'Not analyzed'."""
+        from backend.services.prompts import format_person_demographics_context
+
+        result = format_person_demographics_context(None, None)
+        assert result == "Person demographics: Not analyzed"
+
+    def test_empty_dicts_returns_not_analyzed(self):
+        """Test that empty dicts return 'Not analyzed'."""
+        from backend.services.prompts import format_person_demographics_context
+
+        result = format_person_demographics_context({}, {})
+        assert result == "Person demographics: Not analyzed"
+
+    def test_age_only_classification(self):
+        """Test demographics with only age classification."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        age_classifications = {
+            "det_011": MockAgeResult(display_name="Adult (30-40)", confidence=0.85, is_minor=False)
+        }
+        result = format_person_demographics_context(age_classifications, None)
+
+        assert "Person demographics (1 persons):" in result
+        assert "Person det_011:, Adult (30-40)" in result
+
+    def test_gender_only_classification(self):
+        """Test demographics with only gender classification."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        gender_classifications = {"det_012": MockGenderResult(gender="male", confidence=0.90)}
+        result = format_person_demographics_context(None, gender_classifications)
+
+        assert "Person demographics (1 persons):" in result
+        assert "Person det_012: male" in result
+
+    def test_combined_age_and_gender(self):
+        """Test demographics with both age and gender."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        age_classifications = {
+            "det_013": MockAgeResult(
+                display_name="Young Adult (18-24)", confidence=0.82, is_minor=False
+            )
+        }
+        gender_classifications = {"det_013": MockGenderResult(gender="female", confidence=0.88)}
+        result = format_person_demographics_context(age_classifications, gender_classifications)
+
+        assert "Person det_013: female, Young Adult (18-24)" in result
+
+    def test_minor_with_combined_demographics(self):
+        """Test that minor flag appears with combined demographics."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        age_classifications = {
+            "det_014": MockAgeResult(display_name="Child (8-12)", confidence=0.90, is_minor=True)
+        }
+        gender_classifications = {"det_014": MockGenderResult(gender="male", confidence=0.85)}
+        result = format_person_demographics_context(age_classifications, gender_classifications)
+
+        assert "**MINOR**" in result
+        assert "**NOTE**: Minor(s) detected - evaluate context carefully" in result
+
+    def test_low_confidence_age_adds_note(self):
+        """Test that low age confidence adds uncertainty note."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        age_classifications = {
+            "det_015": MockAgeResult(display_name="Adult (25-35)", confidence=0.50, is_minor=False)
+        }
+        gender_classifications = {"det_015": MockGenderResult(gender="female", confidence=0.85)}
+        result = format_person_demographics_context(age_classifications, gender_classifications)
+
+        assert "[age uncertain]" in result
+
+    def test_low_confidence_gender_adds_note(self):
+        """Test that low gender confidence adds uncertainty note."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        age_classifications = {
+            "det_016": MockAgeResult(display_name="Adult (30-45)", confidence=0.80, is_minor=False)
+        }
+        gender_classifications = {"det_016": MockGenderResult(gender="male", confidence=0.55)}
+        result = format_person_demographics_context(age_classifications, gender_classifications)
+
+        assert "[gender uncertain]" in result
+
+    def test_both_low_confidence_adds_combined_note(self):
+        """Test that both low confidences add combined note."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        age_classifications = {
+            "det_017": MockAgeResult(display_name="Adult (25-35)", confidence=0.55, is_minor=False)
+        }
+        gender_classifications = {"det_017": MockGenderResult(gender="female", confidence=0.58)}
+        result = format_person_demographics_context(age_classifications, gender_classifications)
+
+        assert "[gender uncertain, age uncertain]" in result
+
+    def test_multiple_persons_sorted(self):
+        """Test that multiple persons are sorted by ID."""
+        from backend.services.prompts import format_person_demographics_context
+
+        @dataclass
+        class MockAgeResult:
+            display_name: str
+            confidence: float
+            is_minor: bool
+
+        @dataclass
+        class MockGenderResult:
+            gender: str
+            confidence: float
+
+        age_classifications = {
+            "det_020": MockAgeResult(display_name="Adult (50-60)", confidence=0.85, is_minor=False),
+            "det_018": MockAgeResult(
+                display_name="Young Adult (18-24)", confidence=0.82, is_minor=False
+            ),
+        }
+        gender_classifications = {
+            "det_020": MockGenderResult(gender="male", confidence=0.88),
+            "det_018": MockGenderResult(gender="female", confidence=0.90),
+        }
+        result = format_person_demographics_context(age_classifications, gender_classifications)
+
+        lines = result.split("\n")
+        person_lines = [letter for letter in lines if letter.strip().startswith("Person det_")]
+        # Should be sorted: det_018, det_020
+        assert "det_018" in person_lines[0]
+        assert "det_020" in person_lines[1]
+
+
+class TestFormatPersonReidContext:
+    """Tests for format_person_reid_context function."""
+
+    def test_none_input_returns_not_performed(self):
+        """Test that None input returns 'Not performed'."""
+        from backend.services.prompts import format_person_reid_context
+
+        result = format_person_reid_context(None)
+        assert result == "Person re-identification: Not performed"
+
+    def test_empty_dict_returns_no_matches(self):
+        """Test that empty dict returns 'No matches found'."""
+        from backend.services.prompts import format_person_reid_context
+
+        result = format_person_reid_context({})
+        assert result == "Person re-identification: No matches found (all new individuals)"
+
+    def test_person_with_no_matches(self):
+        """Test format when person has no matches."""
+        from backend.services.prompts import format_person_reid_context
+
+        reid_matches = {"det_021": []}
+        result = format_person_reid_context(reid_matches)
+
+        assert "Person re-identification:" in result
+        assert "Person det_021: New individual (no prior matches)" in result
+
+    def test_high_confidence_match(self):
+        """Test format for high confidence match (>= 0.9)."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str
+
+        reid_matches = {"det_022": [(MockEmbedding(detection_id="det_001"), 0.95)]}
+        result = format_person_reid_context(reid_matches)
+
+        assert "Person det_022: HIGH CONFIDENCE match to det_001 (95%)" in result
+
+    def test_likely_match(self):
+        """Test format for likely match (>= 0.8, < 0.9)."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str
+
+        reid_matches = {"det_023": [(MockEmbedding(detection_id="det_002"), 0.85)]}
+        result = format_person_reid_context(reid_matches)
+
+        assert "Person det_023: Likely same person as det_002 (85%)" in result
+
+    def test_possible_match(self):
+        """Test format for possible match (< 0.8)."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str
+
+        reid_matches = {"det_024": [(MockEmbedding(detection_id="det_003"), 0.72)]}
+        result = format_person_reid_context(reid_matches)
+
+        assert "Person det_024: Possible match to det_003 (72%)" in result
+
+    def test_multiple_alternative_matches(self):
+        """Test that alternative matches are shown (up to 3 total)."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str
+
+        reid_matches = {
+            "det_025": [
+                (MockEmbedding(detection_id="det_004"), 0.90),
+                (MockEmbedding(detection_id="det_005"), 0.82),
+                (MockEmbedding(detection_id="det_006"), 0.75),
+            ]
+        }
+        result = format_person_reid_context(reid_matches)
+
+        assert "HIGH CONFIDENCE match to det_004 (90%)" in result
+        assert "Alternative: det_005 (82%)" in result
+        assert "Alternative: det_006 (75%)" in result
+
+    def test_limits_alternative_matches_to_2(self):
+        """Test that only 2 alternative matches are shown (top match + 2)."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str
+
+        reid_matches = {
+            "det_026": [
+                (MockEmbedding(detection_id="det_007"), 0.92),
+                (MockEmbedding(detection_id="det_008"), 0.84),
+                (MockEmbedding(detection_id="det_009"), 0.76),
+                (MockEmbedding(detection_id="det_010"), 0.68),
+                (MockEmbedding(detection_id="det_011"), 0.60),
+            ]
+        }
+        result = format_person_reid_context(reid_matches)
+
+        # Should show top match + 2 alternatives only
+        assert "det_007" in result
+        assert "det_008" in result
+        assert "det_009" in result
+        assert "det_010" not in result
+        assert "det_011" not in result
+
+    def test_unknown_detection_id_handled(self):
+        """Test handling of None detection_id."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str | None
+
+        reid_matches = {"det_027": [(MockEmbedding(detection_id=None), 0.88)]}
+        result = format_person_reid_context(reid_matches)
+
+        assert "same person as unknown" in result
+
+    def test_multiple_persons_with_mixed_matches(self):
+        """Test multiple persons with different match scenarios."""
+        from backend.services.prompts import format_person_reid_context
+
+        @dataclass
+        class MockEmbedding:
+            detection_id: str
+
+        reid_matches = {
+            "det_028": [(MockEmbedding(detection_id="det_012"), 0.93)],
+            "det_029": [],
+            "det_030": [(MockEmbedding(detection_id="det_013"), 0.78)],
+        }
+        result = format_person_reid_context(reid_matches)
+
+        assert "Person det_028: HIGH CONFIDENCE match" in result
+        assert "Person det_029: New individual (no prior matches)" in result
+        assert "Person det_030: Possible match" in result
+
+
+class TestBuildPersonAnalysisSection:
+    """Tests for build_person_analysis_section function."""
+
+    def test_empty_enrichment_returns_no_analysis(self):
+        """Test that enrichment with no data returns 'No person analysis available'."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        result = build_person_analysis_section(MockEnrichment())
+        assert result == "No person analysis available."
+
+    def test_pose_with_dict_format(self):
+        """Test pose formatting with dict representation."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: dict = field(default_factory=dict)
+            clothing: None = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(pose={"pose_class": "standing", "pose_confidence": 0.88})
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Pose & Posture" in result
+        assert "Detected pose: standing" in result
+        assert "Confidence: 88.0%" in result
+        assert "Suspicious posture: No" in result
+
+    def test_pose_with_alternative_dict_keys(self):
+        """Test pose with alternative key names (classification, confidence)."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: dict = field(default_factory=dict)
+            clothing: None = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(pose={"classification": "crouching", "confidence": 0.72})
+        result = build_person_analysis_section(enrichment)
+
+        assert "Detected pose: crouching" in result
+        assert "Confidence: 72.0%" in result
+        assert "Suspicious posture: YES" in result
+
+    def test_clothing_with_categories_attribute(self):
+        """Test clothing with categories attribute."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockCategory:
+            def get(self, key, default=None):
+                data = {"category": "hoodie", "confidence": 0.85}
+                return data.get(key, default)
+
+        @dataclass
+        class MockClothing:
+            categories: list
+            is_suspicious: bool = False
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: object = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            clothing=MockClothing(categories=[MockCategory(), MockCategory(), MockCategory()])
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Appearance" in result
+        assert "Clothing:" in result
+        assert "hoodie" in result
+
+    def test_clothing_with_raw_description(self):
+        """Test clothing with raw_description attribute."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockClothing:
+            raw_description: str
+            is_suspicious: bool = False
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: object = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            clothing=MockClothing(raw_description="blue jeans, white t-shirt")
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Appearance" in result
+        assert "blue jeans, white t-shirt" in result
+
+    def test_clothing_with_dict_categories(self):
+        """Test clothing as dict with categories."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: dict = field(default_factory=dict)
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            clothing={
+                "categories": [
+                    {"category": "jacket", "confidence": 0.90},
+                    {"category": "pants", "confidence": 0.85},
+                ],
+                "is_suspicious": False,
+            }
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Appearance" in result
+        assert "jacket (90%)" in result
+        assert "pants (85%)" in result
+
+    def test_clothing_with_dict_non_dict_categories(self):
+        """Test clothing dict with non-dict category values."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: dict = field(default_factory=dict)
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            clothing={"categories": ["shirt", "pants", "shoes"], "is_suspicious": False}
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Appearance" in result
+        assert "shirt, pants, shoes" in result
+
+    def test_clothing_with_fallback_string(self):
+        """Test clothing with fallback to string representation."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: str = "casual attire"
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        result = build_person_analysis_section(MockEnrichment())
+
+        assert "### Appearance" in result
+        assert "casual attire" in result
+
+    def test_demographics_with_dict_age_range(self):
+        """Test demographics as dict with age_range key."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: dict = field(default_factory=dict)
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(demographics={"age_range": "30-40", "gender": "male"})
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Demographics" in result
+        assert "Estimated age: 30-40" in result
+        assert "Gender: male" in result
+
+    def test_demographics_with_dict_age_group(self):
+        """Test demographics dict with age_group as alternative key."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: dict = field(default_factory=dict)
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(demographics={"age_group": "young adult", "gender": "female"})
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Demographics" in result
+        assert "Estimated age: young adult" in result
+        assert "Gender: female" in result
+
+    def test_demographics_with_fallback_string(self):
+        """Test demographics with fallback to unknown."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: str = "demographic_data"
+            action: None = None
+            reid_embedding: None = None
+
+        result = build_person_analysis_section(MockEnrichment())
+
+        assert "### Demographics" in result
+        assert "Estimated age: unknown" in result
+        assert "Gender: unknown" in result
+
+    def test_action_with_dict_format(self):
+        """Test action as dict with action key."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: None = None
+            action: dict = field(default_factory=dict)
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            action={"action": "walking", "confidence": 0.92, "is_suspicious": False}
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Behavior" in result
+        assert "Detected action: walking" in result
+        assert "Confidence: 92.0%" in result
+        assert "Suspicious behavior: No" in result
+
+    def test_action_with_dict_top_action_key(self):
+        """Test action dict with top_action as alternative key."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: None = None
+            action: dict = field(default_factory=dict)
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            action={"top_action": "loitering", "confidence": 0.78, "is_suspicious": True}
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Behavior" in result
+        assert "Detected action: loitering" in result
+        assert "Suspicious behavior: YES" in result
+
+    def test_action_with_fallback_string(self):
+        """Test action with fallback to string representation."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: None = None
+            action: str = "standing"
+            reid_embedding: None = None
+
+        result = build_person_analysis_section(MockEnrichment())
+
+        assert "### Behavior" in result
+        assert "Detected action: standing" in result
+        assert "Confidence: 0.0%" in result
+
+    def test_reid_embedding_present(self):
+        """Test that reid_embedding adds identity section."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: list = field(default_factory=list)
+
+        enrichment = MockEnrichment(reid_embedding=[0.1, 0.2, 0.3])
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Identity" in result
+        assert "Re-ID embedding extracted for tracking" in result
+
+    def test_multiple_sections_combined(self):
+        """Test that multiple sections are combined properly."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockEnrichment:
+            pose: dict = field(default_factory=dict)
+            clothing: dict = field(default_factory=dict)
+            demographics: dict = field(default_factory=dict)
+            action: dict = field(default_factory=dict)
+            reid_embedding: list = field(default_factory=list)
+
+        enrichment = MockEnrichment(
+            pose={"pose_class": "running", "pose_confidence": 0.85},
+            clothing={"categories": ["sportswear"], "is_suspicious": False},
+            demographics={"age_range": "25-35", "gender": "male"},
+            action={"action": "running", "confidence": 0.90, "is_suspicious": False},
+            reid_embedding=[0.1, 0.2],
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Pose & Posture" in result
+        assert "### Appearance" in result
+        assert "### Demographics" in result
+        assert "### Behavior" in result
+        assert "### Identity" in result
+        # Sections should be separated by double newlines
+        assert "\n\n" in result
+
+    def test_pose_with_object_attributes(self):
+        """Test pose with object attributes (pose_class, pose_confidence)."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockPoseResult:
+            pose_class: str
+            pose_confidence: float
+
+        @dataclass
+        class MockEnrichment:
+            pose: object = None
+            clothing: None = None
+            demographics: None = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            pose=MockPoseResult(pose_class="crawling", pose_confidence=0.82)
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Pose & Posture" in result
+        assert "Detected pose: crawling" in result
+        assert "Confidence: 82.0%" in result
+        assert "Suspicious posture: YES" in result
+
+    def test_demographics_with_object_attributes(self):
+        """Test demographics with object attributes (age_range, gender)."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockDemographicsResult:
+            age_range: str
+            gender: str
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: object = None
+            action: None = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            demographics=MockDemographicsResult(age_range="18-25", gender="female")
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Demographics" in result
+        assert "Estimated age: 18-25" in result
+        assert "Gender: female" in result
+
+    def test_action_with_object_attributes(self):
+        """Test action with object attributes (action, confidence, is_suspicious)."""
+        from backend.services.prompts import build_person_analysis_section
+
+        @dataclass
+        class MockActionResult:
+            action: str
+            confidence: float
+            is_suspicious: bool = False
+
+        @dataclass
+        class MockEnrichment:
+            pose: None = None
+            clothing: None = None
+            demographics: None = None
+            action: object = None
+            reid_embedding: None = None
+
+        enrichment = MockEnrichment(
+            action=MockActionResult(action="breaking_in", confidence=0.88, is_suspicious=True)
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Behavior" in result
+        assert "Detected action: breaking_in" in result
+        assert "Confidence: 88.0%" in result
+        assert "Suspicious behavior: YES" in result
+
+
+class TestBuildThreatSection:
+    """Tests for build_threat_section function."""
+
+    def test_no_threat_returns_no_threats_detected(self):
+        """Test that None threat returns 'No threats detected'."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockEnrichment:
+            threat: None = None
+
+        result = build_threat_section(MockEnrichment())
+        assert result == "No threats detected."
+
+    def test_threat_with_has_threat_false(self):
+        """Test threat object with has_threat=False."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockThreat:
+            has_threat: bool = False
+            threats: list = field(default_factory=list)
+
+        @dataclass
+        class MockEnrichment:
+            threat: object = None
+
+        enrichment = MockEnrichment(threat=MockThreat())
+        result = build_threat_section(enrichment)
+        assert result == "No threats detected."
+
+    def test_threat_with_dict_format_has_threat(self):
+        """Test threat as dict with has_threat key."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockEnrichment:
+            threat: dict = field(default_factory=dict)
+
+        enrichment = MockEnrichment(
+            threat={
+                "has_threat": True,
+                "threats": [{"threat_type": "weapon", "severity": "critical", "confidence": 0.95}],
+            }
+        )
+        result = build_threat_section(enrichment)
+
+        assert "**THREATS DETECTED:**" in result
+        assert "WEAPON" in result
+        assert "severity: critical" in result
+        assert "95%" in result
+
+    def test_threat_with_dict_format_threats_detected(self):
+        """Test threat dict with alternative key threats_detected."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockEnrichment:
+            threat: dict = field(default_factory=dict)
+
+        enrichment = MockEnrichment(
+            threat={
+                "threats_detected": True,
+                "threats": [{"type": "knife", "confidence": 0.88}],
+            }
+        )
+        result = build_threat_section(enrichment)
+
+        assert "**THREATS DETECTED:**" in result
+        assert "KNIFE" in result
+        assert "severity: high" in result  # default severity
+        assert "88%" in result
+
+    def test_threat_with_object_attributes(self):
+        """Test threat with object attributes."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockThreatItem:
+            threat_type: str
+            severity: str
+            confidence: float
+
+        @dataclass
+        class MockThreat:
+            has_threat: bool = True
+            threats: list = field(default_factory=list)
+
+        @dataclass
+        class MockEnrichment:
+            threat: object = None
+
+        enrichment = MockEnrichment(
+            threat=MockThreat(
+                threats=[
+                    MockThreatItem(threat_type="firearm", severity="critical", confidence=0.92)
+                ]
+            )
+        )
+        result = build_threat_section(enrichment)
+
+        assert "**THREATS DETECTED:**" in result
+        assert "FIREARM" in result
+        assert "severity: critical" in result
+        assert "92%" in result
+
+    def test_threat_with_fallback_to_unknown_type(self):
+        """Test threat with missing type falls back to 'unknown'."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockEnrichment:
+            threat: dict = field(default_factory=dict)
+
+        enrichment = MockEnrichment(
+            threat={
+                "has_threat": True,
+                "threats": [{}],  # Empty threat dict
+            }
+        )
+        result = build_threat_section(enrichment)
+
+        assert "**THREATS DETECTED:**" in result
+        assert "UNKNOWN" in result
+
+    def test_threat_with_unsupported_format_returns_no_threats(self):
+        """Test that unsupported threat format returns 'No threats detected'."""
+        from backend.services.prompts import build_threat_section
+
+        @dataclass
+        class MockEnrichment:
+            threat: str = "threat_data"
+
+        result = build_threat_section(MockEnrichment())
+        assert result == "No threats detected."
+
+
+class TestBuildVehicleSection:
+    """Tests for build_vehicle_section function."""
+
+    def test_no_vehicle_returns_no_vehicle_detected(self):
+        """Test that None vehicle returns 'No vehicle detected'."""
+        from backend.services.prompts import build_vehicle_section
+
+        @dataclass
+        class MockEnrichment:
+            vehicle: None = None
+
+        result = build_vehicle_section(MockEnrichment())
+        assert result == "No vehicle detected."
+
+    def test_vehicle_with_object_attributes(self):
+        """Test vehicle with object attributes."""
+        from backend.services.prompts import build_vehicle_section
+
+        @dataclass
+        class MockVehicle:
+            vehicle_type: str
+            color: str | None = None
+            make: str | None = None
+            model: str | None = None
+            confidence: float = 0.0
+
+        @dataclass
+        class MockEnrichment:
+            vehicle: object = None
+
+        enrichment = MockEnrichment(
+            vehicle=MockVehicle(
+                vehicle_type="sedan",
+                color="blue",
+                make="Toyota",
+                model="Camry",
+                confidence=0.89,
+            )
+        )
+        result = build_vehicle_section(enrichment)
+
+        assert "Vehicle:" in result
+        assert "sedan" in result
+        assert "blue" in result
+        assert "Toyota" in result
+        assert "Camry" in result
+
+    def test_vehicle_with_dict_format(self):
+        """Test vehicle as dict."""
+        from backend.services.prompts import build_vehicle_section
+
+        @dataclass
+        class MockEnrichment:
+            vehicle: dict = field(default_factory=dict)
+
+        enrichment = MockEnrichment(
+            vehicle={
+                "vehicle_type": "truck",
+                "color": "red",
+                "make": "Ford",
+                "model": "F-150",
+                "confidence": 0.92,
+            }
+        )
+        result = build_vehicle_section(enrichment)
+
+        assert "Vehicle:" in result
+        assert "truck" in result
+        assert "red" in result
+        assert "Ford" in result
+        assert "F-150" in result
+
+    def test_vehicle_with_dict_type_alternative_key(self):
+        """Test vehicle dict with 'type' as alternative key."""
+        from backend.services.prompts import build_vehicle_section
+
+        @dataclass
+        class MockEnrichment:
+            vehicle: dict = field(default_factory=dict)
+
+        enrichment = MockEnrichment(vehicle={"type": "suv", "color": "black", "confidence": 0.85})
+        result = build_vehicle_section(enrichment)
+
+        assert "Vehicle:" in result
+        assert "suv" in result
+        assert "black" in result
+
+    def test_vehicle_with_missing_optional_fields(self):
+        """Test vehicle with missing color/make/model."""
+        from backend.services.prompts import build_vehicle_section
+
+        @dataclass
+        class MockEnrichment:
+            vehicle: dict = field(default_factory=dict)
+
+        enrichment = MockEnrichment(vehicle={"vehicle_type": "motorcycle", "confidence": 0.80})
+        result = build_vehicle_section(enrichment)
+
+        assert "Vehicle:" in result
+        assert "motorcycle" in result
+
+
+class TestFormatEnhancedClothingContext:
+    """Tests for format_enhanced_clothing_context function."""
+
+    def test_no_clothing_returns_empty_string(self):
+        """Test that None clothing returns empty string."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        result = format_enhanced_clothing_context(None)
+        assert result == ""
+
+    def test_clothing_with_suspicious_attire(self):
+        """Test clothing with suspicious attire detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"suspicious": {"confidence": 0.75, "top_match": "ski mask"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "**ALERT**: ski mask" in result
+        assert "75%" in result
+
+    def test_clothing_with_suspicious_dict_format(self):
+        """Test clothing suspicious as dict."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"suspicious": {"confidence": 0.82, "top_match": "face covering"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "**ALERT**: face covering" in result
+        assert "82%" in result
+
+    def test_clothing_with_delivery_uniform(self):
+        """Test clothing with delivery uniform detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"delivery": {"confidence": 0.65, "top_match": "UPS uniform"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "Service worker identified: UPS uniform" in result
+        assert "65%" in result
+
+    def test_clothing_with_utility_worker(self):
+        """Test clothing with utility worker detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"utility": {"confidence": 0.72, "top_match": "electrician vest"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "Utility worker identified: electrician vest" in result
+        assert "72%" in result
+
+    def test_clothing_with_carrying_items(self):
+        """Test clothing with carrying items detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"carrying": {"confidence": 0.88, "top_match": "backpack"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "Carrying: backpack" in result
+        assert "88%" in result
+
+    def test_clothing_with_casual_attire(self):
+        """Test clothing with casual attire."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"casual": {"top_match": "jeans and t-shirt"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "General attire: jeans and t-shirt" in result
+
+    def test_clothing_with_casual_dict_format(self):
+        """Test clothing casual as dict."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {"casual": {"top_match": "business casual"}}
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "General attire: business casual" in result
+
+    def test_clothing_with_empty_dict_returns_empty(self):
+        """Test that empty clothing dict returns empty string."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        result = format_enhanced_clothing_context({})
+        assert result == ""
+
+    def test_clothing_with_multiple_categories(self):
+        """Test clothing with multiple detection categories."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        clothing_result = {
+            "suspicious": {"confidence": 0.70, "top_match": "hoodie"},
+            "carrying": {"confidence": 0.82, "top_match": "large bag"},
+            "casual": {"top_match": "dark clothing"},
+        }
+        result = format_enhanced_clothing_context(clothing_result)
+
+        assert "**ALERT**: hoodie" in result
+        assert "Carrying: large bag" in result
+        assert "General attire: dark clothing" in result

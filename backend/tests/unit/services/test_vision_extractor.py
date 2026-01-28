@@ -78,6 +78,24 @@ class TestVehicleAttributes:
         with pytest.raises(Exception):  # FrozenInstanceError
             attrs.color = "blue"  # type: ignore[misc]
 
+    def test_vehicle_attributes_to_dict(self) -> None:
+        """Test VehicleAttributes to_dict method."""
+        attrs = VehicleAttributes(
+            color="white",
+            vehicle_type="sedan",
+            is_commercial=True,
+            commercial_text="Uber",
+            caption="White Uber sedan",
+        )
+
+        result = attrs.to_dict()
+
+        assert result["color"] == "white"
+        assert result["vehicle_type"] == "sedan"
+        assert result["is_commercial"] is True
+        assert result["commercial_text"] == "Uber"
+        assert result["caption"] == "White Uber sedan"
+
 
 class TestPersonAttributes:
     """Tests for PersonAttributes dataclass."""
@@ -122,6 +140,24 @@ class TestPersonAttributes:
         with pytest.raises(Exception):
             attrs.action = "running"  # type: ignore[misc]
 
+    def test_person_attributes_to_dict(self) -> None:
+        """Test PersonAttributes to_dict method."""
+        attrs = PersonAttributes(
+            clothing="blue jacket",
+            carrying="backpack",
+            is_service_worker=True,
+            action="walking",
+            caption="Delivery person walking",
+        )
+
+        result = attrs.to_dict()
+
+        assert result["clothing"] == "blue jacket"
+        assert result["carrying"] == "backpack"
+        assert result["is_service_worker"] is True
+        assert result["action"] == "walking"
+        assert result["caption"] == "Delivery person walking"
+
 
 class TestSceneAnalysis:
     """Tests for SceneAnalysis dataclass."""
@@ -154,6 +190,22 @@ class TestSceneAnalysis:
         scene.tools_detected.append("crowbar")
 
         assert "crowbar" in scene.tools_detected
+
+    def test_scene_analysis_to_dict(self) -> None:
+        """Test SceneAnalysis to_dict method."""
+        scene = SceneAnalysis(
+            unusual_objects=["ladder"],
+            tools_detected=["hammer", "drill"],
+            abandoned_items=["package"],
+            scene_description="Construction site",
+        )
+
+        result = scene.to_dict()
+
+        assert result["unusual_objects"] == ["ladder"]
+        assert result["tools_detected"] == ["hammer", "drill"]
+        assert result["abandoned_items"] == ["package"]
+        assert result["scene_description"] == "Construction site"
 
 
 class TestEnvironmentContext:
@@ -193,6 +245,20 @@ class TestEnvironmentContext:
 
         with pytest.raises(Exception):
             env.time_of_day = "night"  # type: ignore[misc]
+
+    def test_environment_context_to_dict(self) -> None:
+        """Test EnvironmentContext to_dict method."""
+        env = EnvironmentContext(
+            time_of_day="night",
+            artificial_light=True,
+            weather="clear",
+        )
+
+        result = env.to_dict()
+
+        assert result["time_of_day"] == "night"
+        assert result["artificial_light"] is True
+        assert result["weather"] == "clear"
 
 
 class TestBatchExtractionResult:
@@ -237,6 +303,43 @@ class TestBatchExtractionResult:
         assert len(result.person_attributes) == 1
         assert result.scene_analysis is not None
         assert result.environment_context is not None
+
+    def test_batch_extraction_result_to_dict(self) -> None:
+        """Test BatchExtractionResult to_dict method."""
+        vehicle = VehicleAttributes(
+            color="white",
+            vehicle_type="van",
+            is_commercial=True,
+            commercial_text="FedEx",
+            caption="FedEx van",
+        )
+        person = PersonAttributes(
+            clothing="uniform",
+            carrying="package",
+            is_service_worker=True,
+            action="delivering",
+            caption="Delivery worker",
+        )
+        scene = SceneAnalysis(scene_description="Driveway")
+        env = EnvironmentContext(time_of_day="day", artificial_light=False, weather="sunny")
+
+        result = BatchExtractionResult(
+            vehicle_attributes={"v1": vehicle},
+            person_attributes={"p1": person},
+            scene_analysis=scene,
+            environment_context=env,
+        )
+
+        dict_result = result.to_dict()
+
+        assert "vehicle_attributes" in dict_result
+        assert "person_attributes" in dict_result
+        assert "scene_analysis" in dict_result
+        assert "environment_context" in dict_result
+        assert dict_result["vehicle_attributes"]["v1"]["color"] == "white"
+        assert dict_result["person_attributes"]["p1"]["clothing"] == "uniform"
+        assert dict_result["scene_analysis"]["scene_description"] == "Driveway"
+        assert dict_result["environment_context"]["time_of_day"] == "day"
 
 
 class TestConstants:
@@ -444,6 +547,15 @@ class TestVisionExtractorHelpers:
         assert extractor._parse_yes_no("No, it is not") is False
         assert extractor._parse_yes_no("not visible") is False
 
+    def test_parse_yes_no_with_yes_in_middle(self) -> None:
+        """Test _parse_yes_no checks only first 20 characters for yes."""
+        extractor = VisionExtractor()
+
+        # "yes" not at start, beyond 20 chars - should be False
+        assert extractor._parse_yes_no("not really but maybe yes later") is False
+        # "yes" within first 20 chars
+        assert extractor._parse_yes_no("it seems yes is true") is True
+
     def test_parse_none_response_nothing(self) -> None:
         """Test _parse_none_response with nothing responses."""
         extractor = VisionExtractor()
@@ -498,6 +610,26 @@ class TestVisionExtractorHelpers:
         # Left/top padding would go negative, clamped to 0
         assert cropped.size[0] <= 55  # 50 + 5 padding max
         assert cropped.size[1] <= 55
+
+    def test_crop_image_invalid_bbox_returns_original(self) -> None:
+        """Test _crop_image returns original image for invalid bbox."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        img = Image.new("RGB", (200, 200), color="green")
+
+        # Invalid bbox (negative coords, zero dimensions, etc.)
+        # Should return original image
+        result = extractor._crop_image(img, (-10, -10, -5, -5))
+        assert result.size == img.size
+
+        # Zero width bbox
+        result = extractor._crop_image(img, (50, 50, 50, 100))
+        assert result.size == img.size
+
+        # Zero height bbox
+        result = extractor._crop_image(img, (50, 50, 100, 50))
+        assert result.size == img.size
 
 
 class TestFormatVehicleAttributes:
@@ -708,6 +840,46 @@ class TestFormatBatchExtractionResult:
 
         assert "## Scene Analysis" not in formatted
 
+    def test_format_batch_exclude_environment(self) -> None:
+        """Test formatting batch without environment context."""
+        env = EnvironmentContext(time_of_day="night", artificial_light=True, weather="clear")
+        result = BatchExtractionResult(environment_context=env)
+
+        formatted = format_batch_extraction_result(result, include_environment=False)
+
+        assert "## Environment" not in formatted
+
+    def test_format_batch_with_scene_and_environment(self) -> None:
+        """Test formatting batch with both scene and environment."""
+        scene = SceneAnalysis(scene_description="Night scene")
+        env = EnvironmentContext(time_of_day="night", artificial_light=True, weather=None)
+        result = BatchExtractionResult(scene_analysis=scene, environment_context=env)
+
+        formatted = format_batch_extraction_result(result)
+
+        assert "## Scene Analysis" in formatted
+        assert "## Environment" in formatted
+        assert "Night scene" in formatted
+        assert "Time of day: night" in formatted
+
+    def test_format_batch_none_scene_with_include_true(self) -> None:
+        """Test formatting when scene_analysis is None but include_scene=True."""
+        result = BatchExtractionResult(scene_analysis=None)
+
+        formatted = format_batch_extraction_result(result, include_scene=True)
+
+        # Should not include scene section when scene_analysis is None
+        assert "## Scene Analysis" not in formatted
+
+    def test_format_batch_none_environment_with_include_true(self) -> None:
+        """Test formatting when environment_context is None but include_environment=True."""
+        result = BatchExtractionResult(environment_context=None)
+
+        formatted = format_batch_extraction_result(result, include_environment=True)
+
+        # Should not include environment section when environment_context is None
+        assert "## Environment" not in formatted
+
 
 class TestFormatDetectionsWithAttributes:
     """Tests for format_detections_with_attributes function."""
@@ -787,6 +959,55 @@ class TestVisionExtractorExtraction:
         reset_vision_extractor()
 
     @pytest.mark.asyncio
+    async def test_query_florence_handles_unavailable_error(self) -> None:
+        """Test _query_florence handles FlorenceUnavailableError gracefully."""
+        from PIL import Image
+
+        from backend.services.florence_client import FlorenceUnavailableError
+
+        extractor = VisionExtractor()
+
+        # Mock the florence client to raise error
+        async def mock_extract(image, prompt):
+            raise FlorenceUnavailableError("Service is down")
+
+        extractor._florence_client.extract = mock_extract
+
+        img = Image.new("RGB", (100, 100), color="black")
+        # Should return empty string on error, not raise
+        result = await extractor._query_florence(img, "<CAPTION>")
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_query_florence_formats_vqa_prompt(self) -> None:
+        """Test _query_florence formats VQA prompts correctly."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        received_prompts = []
+
+        async def mock_extract(image, prompt):
+            received_prompts.append(prompt)
+            return "test response"
+
+        extractor._florence_client.extract = mock_extract
+
+        img = Image.new("RGB", (100, 100), color="black")
+
+        # VQA task with text_input should be formatted as <VQA>question
+        await extractor._query_florence(img, "<VQA>", "What color is this?")
+        assert received_prompts[-1] == "<VQA>What color is this?"
+
+        # Non-VQA task should just use the task
+        await extractor._query_florence(img, "<CAPTION>", "")
+        assert received_prompts[-1] == "<CAPTION>"
+
+        # Non-VQA task should ignore text_input
+        await extractor._query_florence(img, "<DETAILED_CAPTION>", "ignored")
+        assert received_prompts[-1] == "<DETAILED_CAPTION>"
+
+    @pytest.mark.asyncio
     async def test_extract_vehicle_attributes_calls_florence(self) -> None:
         """Test extract_vehicle_attributes uses Florence-2 model."""
         from PIL import Image
@@ -817,6 +1038,117 @@ class TestVisionExtractorExtraction:
         assert result.vehicle_type == "van"
         assert result.is_commercial is True
         assert result.commercial_text == "FedEx"
+
+    @pytest.mark.asyncio
+    async def test_extract_vehicle_attributes_non_commercial(self) -> None:
+        """Test extract_vehicle_attributes for non-commercial vehicle."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "Red sedan"
+            elif "color" in text_input.lower():
+                return "red"
+            elif "type" in text_input.lower():
+                return "sedan"
+            elif "commercial" in text_input.lower():
+                return "no"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (100, 100), color="red")
+        result = await extractor.extract_vehicle_attributes(img)
+
+        # Commercial text query should not be called for non-commercial vehicles
+        assert result.is_commercial is False
+        assert result.commercial_text is None
+
+    @pytest.mark.asyncio
+    async def test_extract_vehicle_internal_commercial_text_extraction(self) -> None:
+        """Test _extract_vehicle_internal extracts commercial text."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "Amazon delivery van"
+            elif "color" in text_input.lower():
+                return "white"
+            elif "type" in text_input.lower():
+                return "van"
+            elif "commercial" in text_input.lower():
+                return "yes"
+            elif "logo" in text_input.lower():
+                return "Amazon Prime"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (100, 100), color="white")
+        result = await extractor._extract_vehicle_internal(img)
+
+        assert result.is_commercial is True
+        assert result.commercial_text == "Amazon Prime"
+
+    @pytest.mark.asyncio
+    async def test_extract_vehicle_internal_commercial_text_none_response(self) -> None:
+        """Test _extract_vehicle_internal handles 'none' commercial text."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "White van"
+            elif "color" in text_input.lower():
+                return "white"
+            elif "type" in text_input.lower():
+                return "van"
+            elif "commercial" in text_input.lower():
+                return "yes"
+            elif "logo" in text_input.lower():
+                return "not visible"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (100, 100), color="white")
+        result = await extractor._extract_vehicle_internal(img)
+
+        assert result.is_commercial is True
+        assert result.commercial_text is None  # "not visible" parsed as None
+
+    @pytest.mark.asyncio
+    async def test_extract_vehicle_internal_commercial_text_garbage_vqa(self) -> None:
+        """Test _extract_vehicle_internal handles garbage VQA for commercial text."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "White van"
+            elif "color" in text_input.lower():
+                return "white"
+            elif "type" in text_input.lower():
+                return "van"
+            elif "commercial" in text_input.lower():
+                return "yes"
+            elif "logo" in text_input.lower():
+                return "<loc_1><loc_2><loc_3>"  # Garbage VQA output
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (100, 100), color="white")
+        result = await extractor._extract_vehicle_internal(img)
+
+        assert result.is_commercial is True
+        assert result.commercial_text is None  # Garbage VQA rejected
 
     @pytest.mark.asyncio
     async def test_extract_person_attributes_calls_florence(self) -> None:
@@ -969,6 +1301,88 @@ class TestVisionExtractorExtraction:
         assert result.time_of_day == "night"
         assert result.artificial_light is True
         assert result.weather == "clear"
+
+    @pytest.mark.asyncio
+    async def test_extract_environment_context_dusk(self) -> None:
+        """Test extract_environment_context with dusk/dawn/evening."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if "time of day" in text_input.lower():
+                return "dusk"
+            elif "flashlight" in text_input.lower():
+                return "no"
+            elif "weather" in text_input.lower():
+                return "none"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        result = await extractor.extract_environment_context(img)
+
+        assert result.time_of_day == "dusk"
+        assert result.artificial_light is False
+        assert result.weather is None
+
+    @pytest.mark.asyncio
+    async def test_extract_environment_context_dawn(self) -> None:
+        """Test extract_environment_context with dawn."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if "time of day" in text_input.lower():
+                return "dawn is breaking"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        result = await extractor.extract_environment_context(img)
+
+        assert result.time_of_day == "dusk"  # dawn is classified as dusk
+
+    @pytest.mark.asyncio
+    async def test_extract_environment_context_evening(self) -> None:
+        """Test extract_environment_context with evening."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if "time of day" in text_input.lower():
+                return "evening time"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        result = await extractor.extract_environment_context(img)
+
+        assert result.time_of_day == "dusk"  # evening is classified as dusk
+
+    @pytest.mark.asyncio
+    async def test_extract_environment_context_day_default(self) -> None:
+        """Test extract_environment_context defaults to day."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if "time of day" in text_input.lower():
+                return "bright sunny afternoon"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="white")
+        result = await extractor.extract_environment_context(img)
+
+        assert result.time_of_day == "day"  # Default when not night/dusk/dawn/evening
 
     @pytest.mark.asyncio
     async def test_extract_batch_attributes(self) -> None:

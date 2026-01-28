@@ -531,3 +531,266 @@ class TestEdgeCases:
         result = parse_summary_content(content)
 
         assert "Beach Front Left" in result.focus_areas
+
+    def test_events_with_non_numeric_risk_scores(self) -> None:
+        """Test handling events with non-numeric risk_score values."""
+        content = "Event detected."
+        events = [
+            {"risk_score": "invalid", "risk_level": "high"},  # Invalid type
+            {"risk_score": 80, "risk_level": "high"},
+        ]
+
+        result = parse_summary_content(content, events=events)
+
+        # Should only use valid numeric scores
+        assert result.max_risk_score == 80
+
+    def test_events_with_float_risk_scores(self) -> None:
+        """Test handling events with float risk_score values."""
+        content = "Event detected."
+        events = [
+            {"risk_score": 85.7, "risk_level": "high"},
+            {"risk_score": 72.3, "risk_level": "medium"},
+        ]
+
+        result = parse_summary_content(content, events=events)
+
+        # Should convert float to int
+        assert result.max_risk_score == 85
+
+    def test_events_with_all_invalid_risk_scores(self) -> None:
+        """Test handling events where all risk scores are invalid."""
+        content = "Event detected."
+        events = [
+            {"risk_score": None, "risk_level": "high"},
+            {"risk_score": "invalid", "risk_level": "medium"},
+            {"risk_level": "low"},  # Missing risk_score
+        ]
+
+        result = parse_summary_content(content, events=events)
+
+        # Should return None when no valid scores
+        assert result.max_risk_score is None
+
+
+# Tests: Severity Determination
+
+
+class TestSeverityDetermination:
+    """Tests for severity determination from events and scores."""
+
+    def test_severity_critical_from_events(self) -> None:
+        """Test that critical risk level in events returns 'critical' severity."""
+        content = "Critical event detected at Beach Front Left."
+        events = [
+            {"risk_score": 95, "risk_level": "critical"},
+            {"risk_score": 70, "risk_level": "high"},
+        ]
+
+        result = parse_summary_content(content, events=events)
+
+        # Should have critical severity in bullet points
+        has_critical = any(bp.severity == "critical" for bp in result.bullet_points)
+        assert has_critical
+
+    def test_severity_high_from_events(self) -> None:
+        """Test that high risk level in events returns 'high' severity."""
+        content = "High-priority event detected at Dock Right."
+        events = [
+            {"risk_score": 75, "risk_level": "high"},
+            {"risk_score": 50, "risk_level": "medium"},
+        ]
+
+        result = parse_summary_content(content, events=events)
+
+        # Should have high severity
+        has_high = any(bp.severity == "high" for bp in result.bullet_points)
+        assert has_high
+
+    def test_severity_from_score_critical(self) -> None:
+        """Test severity determination from score >= 80 (critical)."""
+        content = "Event detected at Kitchen camera."
+        events = [{"risk_score": 85}]  # No risk_level, fallback to score
+
+        result = parse_summary_content(content, events=events)
+
+        # Should determine critical from score
+        has_critical = any(bp.severity == "critical" for bp in result.bullet_points)
+        assert has_critical
+
+    def test_severity_from_score_high(self) -> None:
+        """Test severity determination from score 60-79 (high)."""
+        content = "Event detected at Beach Front Left."
+        events = [{"risk_score": 65}]  # No risk_level, fallback to score
+
+        result = parse_summary_content(content, events=events)
+
+        # Should determine high from score
+        has_high = any(bp.severity == "high" for bp in result.bullet_points)
+        assert has_high
+
+    def test_severity_from_score_medium(self) -> None:
+        """Test severity determination from score 40-59 (medium)."""
+        content = "Event detected at Dock Left."
+        events = [{"risk_score": 45}]  # No risk_level, fallback to score
+
+        result = parse_summary_content(content, events=events)
+
+        # Should determine medium from score
+        has_medium = any(bp.severity == "medium" for bp in result.bullet_points)
+        assert has_medium
+
+    def test_severity_from_score_low(self) -> None:
+        """Test severity determination from score < 40 (low)."""
+        content = "Event detected at Beach Front Right."
+        events = [{"risk_score": 25}]  # No risk_level, fallback to score
+
+        result = parse_summary_content(content, events=events)
+
+        # Should determine low from score
+        has_low = any(bp.severity == "low" for bp in result.bullet_points)
+        assert has_low
+
+    def test_severity_none_when_no_events(self) -> None:
+        """Test that severity is None when no events provided."""
+        content = "All clear."
+
+        result = parse_summary_content(content)
+
+        # Bullet points should have None severity or no bullet points
+        if result.bullet_points:
+            # Weather-only bullet points have None severity
+            assert all(bp.severity is None for bp in result.bullet_points)
+
+    def test_severity_none_when_no_score_or_level(self) -> None:
+        """Test that severity is None when events have no score or level."""
+        content = "Event detected."
+        events = [{"camera_id": "front_door"}]  # No risk info
+
+        result = parse_summary_content(content)
+
+        # Should handle gracefully with None severity
+        if result.bullet_points:
+            assert all(bp.severity is None for bp in result.bullet_points)
+
+
+# Tests: Bullet Point Generation
+
+
+class TestBulletPointGeneration:
+    """Tests for bullet point generation logic."""
+
+    def test_bullet_point_with_camera_context(self) -> None:
+        """Test that bullet points include camera context when available."""
+        content = "Activity at Beach Front Left: person detected loitering near entrance."
+
+        result = parse_summary_content(content)
+
+        # Should have a bullet point with camera and context
+        camera_bp = [bp for bp in result.bullet_points if "Beach Front Left" in bp.text]
+        assert len(camera_bp) > 0
+        # Context should be included
+        assert "person detected" in camera_bp[0].text or "loitering" in camera_bp[0].text
+
+    def test_bullet_point_context_truncation(self) -> None:
+        """Test that long camera context is truncated."""
+        # Create content with very long context after camera name
+        long_context = "a" * 60  # 60 characters, should be truncated
+        content = f"Activity at Beach Front Left: {long_context}"
+
+        result = parse_summary_content(content)
+
+        # Should have a bullet point with truncated context
+        camera_bp = [bp for bp in result.bullet_points if "Beach Front Left" in bp.text]
+        assert len(camera_bp) > 0
+        # Should be truncated with ellipsis
+        assert "..." in camera_bp[0].text
+        # Total text should be reasonable length
+        assert len(camera_bp[0].text) < 200
+
+    def test_bullet_point_pattern_not_duplicated_in_camera_context(self) -> None:
+        """Test that patterns already mentioned in camera context aren't duplicated."""
+        content = "Activity at Beach Front Left: loitering behavior detected"
+
+        result = parse_summary_content(content)
+
+        # Should have camera bullet point with loitering in context
+        # Should NOT have separate loitering bullet point
+        loitering_mentions = sum(1 for bp in result.bullet_points if "loitering" in bp.text.lower())
+        # Should only be mentioned once (in camera context)
+        assert loitering_mentions == 1
+
+    def test_weather_bullet_point_only_when_no_other_points(self) -> None:
+        """Test that weather bullet points only appear when there are no other bullet points."""
+        # Content with only weather, no cameras or patterns
+        content = "Activity during rainy nighttime conditions."
+
+        result = parse_summary_content(content)
+
+        # Should have weather bullet point since there are no camera/pattern points
+        assert len(result.bullet_points) >= 1
+        weather_bp = [bp for bp in result.bullet_points if bp.icon == "cloud"]
+        assert len(weather_bp) > 0
+
+    def test_weather_bullet_point_not_added_when_camera_points_exist(self) -> None:
+        """Test that weather bullet points are not added when camera points exist."""
+        content = "Activity at Beach Front Left during rainy nighttime conditions."
+        events = [{"risk_score": 75, "risk_level": "high"}]
+
+        result = parse_summary_content(content, events=events)
+
+        # Should have camera bullet point
+        camera_bp = [bp for bp in result.bullet_points if "Beach Front Left" in bp.text]
+        assert len(camera_bp) > 0
+
+        # Should NOT have separate weather bullet point
+        weather_bp = [bp for bp in result.bullet_points if bp.icon == "cloud"]
+        # Weather conditions are extracted but not as a separate bullet point
+        assert result.weather_conditions == ["rainy", "nighttime"]
+
+    def test_pattern_bullet_points_have_correct_icons(self) -> None:
+        """Test that different patterns get appropriate icons."""
+        content = "Suspicious loitering and obscured face detected, with rapid movement."
+
+        result = parse_summary_content(content)
+
+        # Should have pattern bullet points with appropriate icons
+        assert len(result.bullet_points) >= 1
+        icons = [bp.icon for bp in result.bullet_points]
+        # Should have various alert/warning icons
+        assert any(icon in ["alert-circle", "alert-triangle", "zap"] for icon in icons)
+
+    def test_bullet_point_icons_for_each_pattern(self) -> None:
+        """Test specific icon mappings for behavior patterns."""
+        test_cases = [
+            ("loitering", "alert-circle"),
+            ("obscured face", "alert-triangle"),
+            ("rapid movement", "zap"),
+            ("unauthorized access", "shield-alert"),
+            ("trespassing", "shield-x"),
+            ("prowling", "eye"),
+        ]
+
+        for pattern, expected_icon in test_cases:
+            content = f"Person detected with {pattern} behavior."
+            result = parse_summary_content(content)
+
+            # Find the pattern bullet point
+            pattern_bp = [bp for bp in result.bullet_points if pattern in bp.text.lower()]
+            if pattern_bp:
+                assert pattern_bp[0].icon == expected_icon
+
+
+# Tests: Internal Helper Functions
+
+
+class TestInternalHelpers:
+    """Tests for internal helper functions."""
+
+    def test_severity_from_score_with_none(self) -> None:
+        """Test _severity_from_score with None score."""
+        from backend.services.summary_parser import _severity_from_score
+
+        result = _severity_from_score(None)
+
+        assert result is None

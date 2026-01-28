@@ -387,6 +387,26 @@ class TestPgNotifyListenerHandlers:
             assert message["data"]["reviewed"] is True
 
     @pytest.mark.asyncio
+    async def test_handle_event_update_redis_error(self) -> None:
+        """Test handling Redis publish errors in event update."""
+        mock_redis = AsyncMock()
+        mock_redis.publish.side_effect = Exception("Redis connection lost")
+        listener = PgNotifyListener(redis_client=mock_redis)
+
+        payload = PgNotifyPayload(
+            channel="events_update",
+            operation="UPDATE",
+            table="events",
+            data={"id": 1, "risk_score": 85},
+        )
+
+        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+            mock_settings.return_value.redis_event_channel = "security_events"
+
+            # Should not raise, just log the error
+            await listener._handle_event_update(payload)
+
+    @pytest.mark.asyncio
     async def test_handle_detection_new(self) -> None:
         """Test handling new detection notifications."""
         mock_redis = AsyncMock()
@@ -420,6 +440,26 @@ class TestPgNotifyListenerHandlers:
             assert message["data"]["confidence"] == 0.95
 
     @pytest.mark.asyncio
+    async def test_handle_detection_new_redis_error(self) -> None:
+        """Test handling Redis publish errors in detection new."""
+        mock_redis = AsyncMock()
+        mock_redis.publish.side_effect = Exception("Redis unavailable")
+        listener = PgNotifyListener(redis_client=mock_redis)
+
+        payload = PgNotifyPayload(
+            channel="detections_new",
+            operation="INSERT",
+            table="detections",
+            data={"id": 100, "camera_id": "back_yard"},
+        )
+
+        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+            mock_settings.return_value.redis_event_channel = "security_events"
+
+            # Should not raise, just log the error
+            await listener._handle_detection_new(payload)
+
+    @pytest.mark.asyncio
     async def test_handle_alert_new(self) -> None:
         """Test handling new alert notifications."""
         mock_redis = AsyncMock()
@@ -450,6 +490,26 @@ class TestPgNotifyListenerHandlers:
             assert message["type"] == "alert_created"
             assert message["data"]["id"] == "alert-uuid-123"
             assert message["data"]["severity"] == "high"
+
+    @pytest.mark.asyncio
+    async def test_handle_alert_new_redis_error(self) -> None:
+        """Test handling Redis publish errors in alert new."""
+        mock_redis = AsyncMock()
+        mock_redis.publish.side_effect = Exception("Redis connection failed")
+        listener = PgNotifyListener(redis_client=mock_redis)
+
+        payload = PgNotifyPayload(
+            channel="alerts_new",
+            operation="INSERT",
+            table="alerts",
+            data={"id": "alert-uuid-123", "event_id": 1},
+        )
+
+        with patch("backend.services.pg_notify_listener.get_settings") as mock_settings:
+            mock_settings.return_value.redis_event_channel = "security_events"
+
+            # Should not raise, just log the error
+            await listener._handle_alert_new(payload)
 
     @pytest.mark.asyncio
     async def test_handle_notification_no_redis(self) -> None:
@@ -503,6 +563,75 @@ class TestPgNotifyListenerHandlers:
 
         # Should not raise, just log a warning
         await listener._handle_notification("unknown_channel", payload_json)
+
+    @pytest.mark.asyncio
+    async def test_handle_notification_routes_to_event_new(self) -> None:
+        """Test that notifications are routed to _handle_event_new."""
+        listener = PgNotifyListener()
+
+        payload_json = json.dumps({"operation": "INSERT", "table": "events", "data": {"id": 1}})
+
+        with patch.object(listener, "_handle_event_new") as mock_handler:
+            await listener._handle_notification(PgNotifyChannel.EVENTS_NEW.value, payload_json)
+
+            mock_handler.assert_called_once()
+            payload = mock_handler.call_args[0][0]
+            assert payload.channel == PgNotifyChannel.EVENTS_NEW.value
+
+    @pytest.mark.asyncio
+    async def test_handle_notification_routes_to_event_update(self) -> None:
+        """Test that notifications are routed to _handle_event_update."""
+        listener = PgNotifyListener()
+
+        payload_json = json.dumps({"operation": "UPDATE", "table": "events", "data": {"id": 1}})
+
+        with patch.object(listener, "_handle_event_update") as mock_handler:
+            await listener._handle_notification(PgNotifyChannel.EVENTS_UPDATE.value, payload_json)
+
+            mock_handler.assert_called_once()
+            payload = mock_handler.call_args[0][0]
+            assert payload.channel == PgNotifyChannel.EVENTS_UPDATE.value
+
+    @pytest.mark.asyncio
+    async def test_handle_notification_routes_to_detection_new(self) -> None:
+        """Test that notifications are routed to _handle_detection_new."""
+        listener = PgNotifyListener()
+
+        payload_json = json.dumps({"operation": "INSERT", "table": "detections", "data": {"id": 1}})
+
+        with patch.object(listener, "_handle_detection_new") as mock_handler:
+            await listener._handle_notification(PgNotifyChannel.DETECTIONS_NEW.value, payload_json)
+
+            mock_handler.assert_called_once()
+            payload = mock_handler.call_args[0][0]
+            assert payload.channel == PgNotifyChannel.DETECTIONS_NEW.value
+
+    @pytest.mark.asyncio
+    async def test_handle_notification_routes_to_alert_new(self) -> None:
+        """Test that notifications are routed to _handle_alert_new."""
+        listener = PgNotifyListener()
+
+        payload_json = json.dumps(
+            {"operation": "INSERT", "table": "alerts", "data": {"id": "uuid-123"}}
+        )
+
+        with patch.object(listener, "_handle_alert_new") as mock_handler:
+            await listener._handle_notification(PgNotifyChannel.ALERTS_NEW.value, payload_json)
+
+            mock_handler.assert_called_once()
+            payload = mock_handler.call_args[0][0]
+            assert payload.channel == PgNotifyChannel.ALERTS_NEW.value
+
+    @pytest.mark.asyncio
+    async def test_handle_notification_handles_handler_exception(self) -> None:
+        """Test that exceptions in handlers are caught and logged."""
+        listener = PgNotifyListener()
+
+        payload_json = json.dumps({"operation": "INSERT", "table": "events", "data": {"id": 1}})
+
+        with patch.object(listener, "_handle_event_new", side_effect=RuntimeError("Handler error")):
+            # Should not raise, just log the error
+            await listener._handle_notification(PgNotifyChannel.EVENTS_NEW.value, payload_json)
 
 
 # =============================================================================
@@ -609,6 +738,116 @@ class TestPgNotifyListenerLoop:
         with patch("asyncio.sleep", side_effect=cancel_after_sleep):
             # Should not raise
             await listener._listen_loop()
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_listen_loop_reconnects_on_closed_connection(self) -> None:
+        """Test that listen loop reconnects when connection is closed."""
+        listener = PgNotifyListener()
+        listener._is_running = True
+
+        # Connection that is closed
+        mock_connection = MagicMock()
+        mock_connection.is_closed.return_value = True
+        listener._connection = mock_connection
+
+        reconnect_called = False
+
+        async def mock_connect():
+            nonlocal reconnect_called
+            reconnect_called = True
+            listener._is_running = False  # Stop loop after reconnect
+
+        with (
+            patch.object(listener, "_connect", side_effect=mock_connect),
+            patch("asyncio.sleep"),
+        ):
+            await listener._listen_loop()
+
+            assert reconnect_called
+            assert listener._is_healthy is False  # Set before reconnect
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_listen_loop_reconnects_on_none_connection(self) -> None:
+        """Test that listen loop reconnects when connection is None."""
+        listener = PgNotifyListener()
+        listener._is_running = True
+        listener._connection = None
+
+        reconnect_called = False
+
+        async def mock_connect():
+            nonlocal reconnect_called
+            reconnect_called = True
+            listener._is_running = False  # Stop loop
+
+        with (
+            patch.object(listener, "_connect", side_effect=mock_connect),
+            patch("asyncio.sleep"),
+        ):
+            await listener._listen_loop()
+
+            assert reconnect_called
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_listen_loop_handles_exception_with_reconnect(self) -> None:
+        """Test that listen loop handles exceptions and attempts reconnection."""
+        listener = PgNotifyListener()
+        listener._is_running = True
+        listener._is_healthy = True
+
+        mock_connection = MagicMock()
+        call_count = 0
+
+        def is_closed_raises():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("Unexpected error")
+            # After error, stop the loop
+            listener._is_running = False
+            return False
+
+        mock_connection.is_closed.side_effect = is_closed_raises
+        listener._connection = mock_connection
+
+        with patch("asyncio.sleep") as mock_sleep:
+            await listener._listen_loop()
+
+            # Should have marked unhealthy
+            assert listener._is_healthy is False
+            # Should have incremented reconnect attempts
+            assert listener._reconnect_attempts == 1
+            # Should have slept for exponential backoff
+            assert mock_sleep.call_count > 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(10)
+    async def test_listen_loop_stops_after_max_reconnect_attempts(self) -> None:
+        """Test that listen loop stops after max reconnection attempts."""
+        listener = PgNotifyListener()
+        listener._is_running = True
+        listener._reconnect_attempts = 0
+        listener.MAX_RECONNECT_ATTEMPTS = 3
+
+        mock_connection = MagicMock()
+
+        def is_closed_raises():
+            raise RuntimeError("Persistent error")
+
+        mock_connection.is_closed.side_effect = is_closed_raises
+        listener._connection = mock_connection
+
+        with patch("asyncio.sleep") as mock_sleep:
+            await listener._listen_loop()
+
+            # Should have stopped after max attempts
+            # Note: It increments to MAX and then breaks, so final count equals MAX
+            assert listener._reconnect_attempts >= listener.MAX_RECONNECT_ATTEMPTS
+            # Should have slept MAX-1 times (doesn't sleep after the final increment)
+            assert mock_sleep.call_count == listener.MAX_RECONNECT_ATTEMPTS - 1
 
 
 # =============================================================================

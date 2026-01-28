@@ -480,10 +480,17 @@ class TestGetSessionTransactionIsolation:
         """Test that get_session raises RuntimeError when DB not initialized."""
         import backend.core.database as db_module
 
+        # Save all state that affects initialization check
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
+            # Set all to None to prevent _check_loop_mismatch() from
+            # detecting a mismatch and calling await init_db()
             db_module._async_session_factory = None
+            db_module._engine = None
+            db_module._bound_loop_id = None
 
             with pytest.raises(RuntimeError) as exc_info:
                 async with db_module.get_session():
@@ -493,6 +500,8 @@ class TestGetSessionTransactionIsolation:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
     @pytest.mark.asyncio
     async def test_get_session_commits_transaction(self) -> None:
