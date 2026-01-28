@@ -11,25 +11,42 @@ The architecture separates models into two categories:
 
 ## Architecture Diagram
 
-```
-+---------------------------------------------------------------------+
-|                        Detection Pipeline                            |
-+---------------------------------------------------------------------+
-|  Camera Frame -> YOLO26 -> Detections -> Enrichment -> Nemotron  |
-+---------------------------------------------------------------------+
-                                  |
-                                  v
-+---------------------------------------------------------------------+
-|                  Enrichment Service (ai-enrichment:8094)            |
-+-----------------------+-----------------------------------------+---+
-|   Always Loaded       |        On-Demand (LRU managed)              |
-|   (~2.65GB)           |        (~6.8GB budget)                      |
-+-----------------------+---------------------------------------------+
-| - Florence-2          | CRITICAL: Threat Detection                  |
-| - CLIP ViT-L/14       | HIGH: Pose, Demographics, Clothing          |
-|                       | MEDIUM: Vehicle, Pet, Re-ID                 |
-|                       | LOW: Depth, Action Recognition              |
-+-----------------------+---------------------------------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Pipeline["Detection Pipeline"]
+        CAM[Camera Frame] --> YOLO[YOLO26]
+        YOLO --> DET[Detections]
+        DET --> ENR[Enrichment]
+        ENR --> NEM[Nemotron]
+    end
+
+    subgraph Enrichment["Enrichment Service (ai-enrichment:8094)"]
+        subgraph Always["Always Loaded (~2.65GB)"]
+            FLOR[Florence-2]
+            CLIP[CLIP ViT-L/14]
+        end
+        subgraph OnDemand["On-Demand (LRU managed, ~6.8GB budget)"]
+            CRIT["CRITICAL: Threat Detection"]
+            HIGH["HIGH: Pose, Demographics, Clothing"]
+            MED["MEDIUM: Vehicle, Pet, Re-ID"]
+            LOW["LOW: Depth, Action Recognition"]
+        end
+    end
+
+    Pipeline --> Enrichment
 ```
 
 ## Service Architecture
@@ -46,24 +63,28 @@ The architecture separates models into two categories:
 
 ### Data Flow
 
-```
-Camera Images
-      |
-      v
-+-------------+      +-------------+
-|  YOLO26  |----->|  Enrichment |
-|   (8095)    |      |   (8094)    |
-+-------------+      +-------------+
-      |                    |
-      |   Detections       |  Classified Detections
-      v                    v
-+------------------------------------+
-|         Nemotron (8091)            |
-|     Risk Analysis & Scoring        |
-+------------------------------------+
-                |
-                v
-          Risk Events
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    CAM[Camera Images]
+    CAM --> YOLO["YOLO26<br/>(8095)"]
+    YOLO --> ENR["Enrichment<br/>(8094)"]
+    YOLO -->|Detections| NEM
+    ENR -->|Classified Detections| NEM
+    NEM["Nemotron (8091)<br/>Risk Analysis & Scoring"]
+    NEM --> EVT[Risk Events]
 ```
 
 ## Model Details

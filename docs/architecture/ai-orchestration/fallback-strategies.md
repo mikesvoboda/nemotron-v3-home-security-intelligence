@@ -8,22 +8,47 @@ The AI fallback system provides graceful degradation when AI services become una
 
 ## Architecture Overview
 
-```
-+------------------+     +--------------------+     +------------------+
-| AI Service Call  |     | AIFallbackService  |     | Service Status   |
-| (Failed)         |---->| Check Availability |---->| HEALTHY          |
-|                  |     | Get Fallback Value |     | DEGRADED         |
-|                  |     | Cache Risk Scores  |     | UNAVAILABLE      |
-+------------------+     +--------------------+     +------------------+
-                                  |
-                                  v
-                         +------------------+
-                         | Degradation Level|
-                         | NORMAL           |
-                         | DEGRADED         |
-                         | MINIMAL          |
-                         | OFFLINE          |
-                         +------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph Input
+        ASC["AI Service Call<br/>(Failed)"]
+    end
+
+    subgraph Fallback["AIFallbackService"]
+        CA[Check Availability]
+        GF[Get Fallback Value]
+        CR[Cache Risk Scores]
+    end
+
+    subgraph Status["Service Status"]
+        HEALTHY
+        DEGRADED
+        UNAVAILABLE
+    end
+
+    subgraph Levels["Degradation Level"]
+        NORMAL
+        DEG[DEGRADED]
+        MINIMAL
+        OFFLINE
+    end
+
+    ASC --> Fallback
+    Fallback --> Status
+    Status --> Levels
 ```
 
 ## AI Service Identifiers

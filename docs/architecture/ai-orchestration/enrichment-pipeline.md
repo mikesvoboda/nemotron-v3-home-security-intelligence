@@ -11,37 +11,33 @@ The enrichment pipeline extracts additional context from detections using a mult
 
 ## Architecture Overview
 
-```
-                    +----------------------+
-                    | EnrichmentClient     |
-                    | HTTP Client          |
-                    +----------+-----------+
-                               |
-                               | POST /enrich
-                               | POST /vehicle-classify
-                               | POST /pet-classify
-                               | POST /clothing-classify
-                               | POST /pose-analyze
-                               | POST /action-classify
-                               |
-                    +----------v-----------+
-                    | ai-enrichment:8094   |
-                    | FastAPI Server       |
-                    +----------+-----------+
-                               |
-                    +----------v-----------+
-                    | OnDemandModelManager |
-                    | VRAM Budget: 6.8GB   |
-                    | LRU Eviction         |
-                    +----------+-----------+
-                               |
-        +----------+----------+----------+----------+
-        |          |          |          |          |
-   +----v----+ +---v---+ +----v---+ +----v----+ +---v----+
-   |  Pose   | |Clothes| |Vehicle | |  Pet    | |Threat  |
-   |Estimator| |Fashion| |Classify| |Classify | |Detect  |
-   +---------+ |CLIP   | +--------+ +---------+ +--------+
-               +-------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    EC["EnrichmentClient<br/>HTTP Client"]
+
+    EC -->|"POST /enrich<br/>POST /vehicle-classify<br/>POST /pet-classify<br/>POST /clothing-classify<br/>POST /pose-analyze<br/>POST /action-classify"| AE
+
+    AE["ai-enrichment:8094<br/>FastAPI Server"]
+    AE --> MM["OnDemandModelManager<br/>VRAM Budget: 6.8GB<br/>LRU Eviction"]
+
+    MM --> POSE["Pose<br/>Estimator"]
+    MM --> CLOTH["Clothes<br/>FashionCLIP"]
+    MM --> VEH["Vehicle<br/>Classify"]
+    MM --> PET["Pet<br/>Classify"]
+    MM --> THREAT["Threat<br/>Detect"]
 ```
 
 ## Service Endpoints
@@ -88,49 +84,34 @@ class EnrichmentClient:
 
 For person detections, the following models are applied:
 
-```
-Person Detection
-       |
-       v
-+------+------+
-| Threat      |  CRITICAL priority - always first
-| Detector    |  Weapon detection (guns, knives)
-+------+------+
-       |
-       v
-+------+------+
-| Pose        |  HIGH priority
-| Estimator   |  17 COCO keypoints
-| (YOLOv8n)   |  Posture: standing, crouching, etc.
-+------+------+
-       |
-       v
-+------+------+
-| Demographics|  HIGH priority
-| Estimator   |  Age range, gender
-| (ViT)       |  From face crops
-+------+------+
-       |
-       v
-+------+------+
-| Clothing    |  MEDIUM priority
-| Classifier  |  FashionCLIP
-| (FashionCLIP)| Suspicious attire, uniforms
-+------+------+
-       |
-       v
-+------+------+
-| Person      |  MEDIUM priority
-| ReID        |  512-dim embeddings
-| (OSNet)     |  Cross-camera tracking
-+------+------+
-       |
-       v (if suspicious + multiple frames)
-+------+------+
-| Action      |  LOW priority
-| Recognition |  X-CLIP video understanding
-| (X-CLIP)    |  Loitering, running, etc.
-+------+------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    PD[Person Detection]
+
+    PD --> TD["Threat Detector<br/><i>CRITICAL priority - always first</i><br/>Weapon detection (guns, knives)"]
+
+    TD --> PE["Pose Estimator (YOLOv8n)<br/><i>HIGH priority</i><br/>17 COCO keypoints<br/>Posture: standing, crouching, etc."]
+
+    PE --> DE["Demographics Estimator (ViT)<br/><i>HIGH priority</i><br/>Age range, gender<br/>From face crops"]
+
+    DE --> CC["Clothing Classifier (FashionCLIP)<br/><i>MEDIUM priority</i><br/>Suspicious attire, uniforms"]
+
+    CC --> PR["Person ReID (OSNet)<br/><i>MEDIUM priority</i><br/>512-dim embeddings<br/>Cross-camera tracking"]
+
+    PR -->|"if suspicious + multiple frames"| AR["Action Recognition (X-CLIP)<br/><i>LOW priority</i><br/>Loitering, running, etc."]
 ```
 
 ### Result Types
@@ -166,29 +147,28 @@ class UnifiedThreatResult:
 
 For vehicle detections (car, truck, bus, motorcycle, bicycle):
 
-```
-Vehicle Detection
-       |
-       v
-+------+------+
-| Vehicle     |  MEDIUM priority
-| Classifier  |  ResNet-50 on MIO-TCD dataset
-| (ResNet-50) |  11 types: sedan, pickup, SUV, etc.
-+------+------+
-       |
-       v
-+------+------+
-| License     |  From Model Zoo (backend)
-| Plate       |  YOLO11 license plate detection
-| Detection   |  + PaddleOCR text extraction
-+------+------+
-       |
-       v
-+------+------+
-| Depth       |  LOW priority
-| Estimation  |  Depth Anything V2
-| (DAv2)      |  Distance estimation
-+------+------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    VD[Vehicle Detection]
+
+    VD --> VC["Vehicle Classifier (ResNet-50)<br/><i>MEDIUM priority</i><br/>MIO-TCD dataset<br/>11 types: sedan, pickup, SUV, etc."]
+
+    VC --> LP["License Plate Detection<br/><i>From Model Zoo (backend)</i><br/>YOLO11 license plate detection<br/>+ PaddleOCR text extraction"]
+
+    LP --> DE["Depth Estimation (DAv2)<br/><i>LOW priority</i><br/>Depth Anything V2<br/>Distance estimation"]
 ```
 
 ### Result Types
@@ -216,15 +196,24 @@ class UnifiedVehicleResult:
 
 For animal detections (cat, dog):
 
-```
-Animal Detection
-       |
-       v
-+------+------+
-| Pet         |  MEDIUM priority
-| Classifier  |  ResNet-18
-| (ResNet-18) |  Cat vs Dog
-+------+------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    AD[Animal Detection]
+
+    AD --> PC["Pet Classifier (ResNet-18)<br/><i>MEDIUM priority</i><br/>Cat vs Dog"]
 ```
 
 ### Result Types
