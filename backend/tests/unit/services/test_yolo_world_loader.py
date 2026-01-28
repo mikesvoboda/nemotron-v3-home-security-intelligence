@@ -1,6 +1,7 @@
 """Unit tests for yolo_world_loader service.
 
-Tests for the YOLO-World-S model loader for open-vocabulary object detection.
+Tests for the YOLO-World v2 model loader for open-vocabulary object detection.
+Includes tests for hierarchical prompts and category-specific thresholds.
 """
 
 from unittest.mock import MagicMock
@@ -11,9 +12,15 @@ from backend.services.yolo_world_loader import (
     ANIMAL_PROMPTS,
     SECURITY_PROMPTS,
     VEHICLE_SECURITY_PROMPTS,
+    YOLO_WORLD_PROMPTS_V2,
     detect_with_prompts,
     get_all_security_prompts,
+    get_all_yolo_world_prompts,
     get_delivery_prompts,
+    get_object_category,
+    get_object_priority,
+    get_object_threshold,
+    get_prompts_by_priority,
     get_threat_prompts,
     load_yolo_world_model,
 )
@@ -665,3 +672,177 @@ async def test_detect_with_prompts_verbose_false():
     # Check predict was called with verbose=False
     call_kwargs = mock_model.predict.call_args.kwargs
     assert call_kwargs["verbose"] is False
+
+
+# =============================================================================
+# Test Hierarchical Prompts (YOLO-World v2)
+# =============================================================================
+
+
+def test_yolo_world_prompts_v2_defined():
+    """Test YOLO_WORLD_PROMPTS_V2 constant is defined with expected categories."""
+    assert len(YOLO_WORLD_PROMPTS_V2) > 0
+
+    # Verify expected categories exist
+    expected_categories = [
+        "weapons",
+        "suspicious_items",
+        "packages",
+        "people",
+        "vehicles",
+        "animals",
+    ]
+    for category in expected_categories:
+        assert category in YOLO_WORLD_PROMPTS_V2, f"Missing category: {category}"
+
+
+def test_yolo_world_prompts_v2_structure():
+    """Test each category has prompts list, threshold, and priority."""
+    for category, config in YOLO_WORLD_PROMPTS_V2.items():
+        assert "prompts" in config, f"Category {category} missing 'prompts'"
+        assert "threshold" in config, f"Category {category} missing 'threshold'"
+        assert "priority" in config, f"Category {category} missing 'priority'"
+        assert isinstance(config["prompts"], list)
+        assert isinstance(config["threshold"], float)
+        assert isinstance(config["priority"], str)
+        assert len(config["prompts"]) > 0, f"Category {category} has no prompts"
+        assert 0.0 <= config["threshold"] <= 1.0, f"Invalid threshold for {category}"
+
+
+def test_yolo_world_prompts_v2_weapons_has_low_threshold():
+    """Test weapons category has lowest threshold to not miss threats."""
+    weapons_threshold = YOLO_WORLD_PROMPTS_V2["weapons"]["threshold"]
+    assert weapons_threshold <= 0.25, "Weapons threshold should be low to catch threats"
+
+    # Weapons should have lower threshold than animals
+    animals_threshold = YOLO_WORLD_PROMPTS_V2["animals"]["threshold"]
+    assert weapons_threshold < animals_threshold
+
+
+def test_yolo_world_prompts_v2_animals_has_high_threshold():
+    """Test animals category has highest threshold to reduce false positives."""
+    animals_threshold = YOLO_WORLD_PROMPTS_V2["animals"]["threshold"]
+    assert animals_threshold >= 0.40, "Animals should have high threshold to reduce FPs"
+
+
+def test_get_all_yolo_world_prompts():
+    """Test get_all_yolo_world_prompts returns flattened list."""
+    result = get_all_yolo_world_prompts()
+
+    assert isinstance(result, list)
+    assert len(result) > 0
+
+    # Verify some prompts from different categories
+    assert "knife blade" in result  # From weapons
+    assert "dog" in result  # From animals
+    assert "car" in result  # From vehicles
+
+
+def test_get_all_yolo_world_prompts_total_count():
+    """Test get_all_yolo_world_prompts returns correct count."""
+    result = get_all_yolo_world_prompts()
+
+    expected_count = sum(len(cat["prompts"]) for cat in YOLO_WORLD_PROMPTS_V2.values())
+    assert len(result) == expected_count
+
+
+def test_get_object_priority_known():
+    """Test get_object_priority returns correct priority for known objects."""
+    # Critical priority objects
+    assert get_object_priority("knife blade") == "critical"
+    assert get_object_priority("handgun") == "critical"
+
+    # Low priority objects
+    assert get_object_priority("dog") == "low"
+    assert get_object_priority("car") == "low"
+
+    # Medium priority objects
+    assert get_object_priority("person") == "medium"
+
+
+def test_get_object_priority_unknown():
+    """Test get_object_priority returns 'low' for unknown objects."""
+    result = get_object_priority("unknown_class")
+    assert result == "low"
+
+
+def test_get_object_category_known():
+    """Test get_object_category returns correct category."""
+    assert get_object_category("knife blade") == "weapons"
+    assert get_object_category("dog") == "animals"
+    assert get_object_category("car") == "vehicles"
+    assert get_object_category("person standing") == "people"
+
+
+def test_get_object_category_unknown():
+    """Test get_object_category returns None for unknown objects."""
+    result = get_object_category("unknown_class")
+    assert result is None
+
+
+def test_get_object_threshold_known():
+    """Test get_object_threshold returns correct threshold for known categories."""
+    assert get_object_threshold("weapons") == 0.20
+    assert get_object_threshold("animals") == 0.45
+    assert get_object_threshold("vehicles") == 0.40
+
+
+def test_get_object_threshold_unknown():
+    """Test get_object_threshold returns default for unknown categories."""
+    result = get_object_threshold("unknown_category")
+    assert result == 0.35  # Default threshold
+
+
+def test_get_prompts_by_priority_critical():
+    """Test get_prompts_by_priority returns correct prompts for critical priority."""
+    result = get_prompts_by_priority("critical")
+
+    assert isinstance(result, list)
+    assert len(result) > 0
+    # Weapons should be in critical
+    assert "knife blade" in result
+    assert "handgun" in result
+
+
+def test_get_prompts_by_priority_low():
+    """Test get_prompts_by_priority returns correct prompts for low priority."""
+    result = get_prompts_by_priority("low")
+
+    assert isinstance(result, list)
+    # Animals and vehicles should be in low
+    assert "dog" in result
+    assert "car" in result
+
+
+def test_get_prompts_by_priority_empty():
+    """Test get_prompts_by_priority returns empty for invalid priority."""
+    result = get_prompts_by_priority("invalid_priority")
+    assert result == []
+
+
+def test_yolo_world_prompts_v2_unique_within_categories():
+    """Test prompts are unique within each category."""
+    for category, config in YOLO_WORLD_PROMPTS_V2.items():
+        prompts = config["prompts"]
+        assert len(prompts) == len(set(prompts)), f"Duplicate prompts in {category}"
+
+
+def test_yolo_world_prompts_v2_no_empty_strings():
+    """Test no empty or whitespace-only prompts in v2 config."""
+    for category, config in YOLO_WORLD_PROMPTS_V2.items():
+        for prompt in config["prompts"]:
+            assert len(prompt.strip()) > 0, f"Empty prompt in category {category}"
+
+
+def test_yolo_world_prompts_v2_has_descriptive_prompts():
+    """Test v2 prompts include more descriptive phrases for better detection."""
+    all_prompts = get_all_yolo_world_prompts()
+
+    # Check for descriptive prompts (multi-word phrases)
+    descriptive_prompts = [p for p in all_prompts if " " in p]
+    assert len(descriptive_prompts) > 10, "V2 should have many descriptive prompts"
+
+    # Specific v2 descriptive prompts
+    assert "knife blade" in all_prompts
+    assert "cardboard delivery package" in all_prompts
+    assert "person standing" in all_prompts

@@ -1,4 +1,9 @@
-"""Unit tests for FashionCLIP model loader and clothing classification.
+"""Unit tests for FashionSigLIP model loader and clothing classification.
+
+FashionSigLIP provides 57% improved accuracy over FashionCLIP:
+- Text-to-Image MRR: 0.239 vs 0.165 (FashionCLIP2.0)
+- Text-to-Image Recall@1: 0.121 vs 0.077 (FashionCLIP2.0)
+- Text-to-Image Recall@10: 0.340 vs 0.249 (FashionCLIP2.0)
 
 Tests cover:
 - ClothingClassification dataclass initialization and serialization
@@ -20,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from backend.services.fashion_clip_loader import (
+    CLOTHING_PROMPTS_V2,
     SECURITY_CLOTHING_PROMPTS,
     SERVICE_CATEGORIES,
     SUSPICIOUS_CATEGORIES,
@@ -27,6 +33,10 @@ from backend.services.fashion_clip_loader import (
     classify_clothing,
     classify_clothing_batch,
     format_clothing_context,
+    get_all_clothing_prompts,
+    get_clothing_category,
+    get_clothing_risk_level,
+    get_clothing_threshold,
     load_fashion_clip_model,
 )
 
@@ -378,11 +388,11 @@ class TestLoadFashionClipModel:
                 "open_clip": mock_open_clip,
             },
         ):
-            result = await load_fashion_clip_model("Marqo/marqo-fashionCLIP")
+            result = await load_fashion_clip_model("Marqo/marqo-fashionSigLIP")
 
             # HuggingFace path gets prefixed with hf-hub:
             mock_open_clip.create_model_from_pretrained.assert_called_once_with(
-                "hf-hub:Marqo/marqo-fashionCLIP"
+                "hf-hub:Marqo/marqo-fashionSigLIP"
             )
             assert result["model"] == mock_model
 
@@ -407,7 +417,7 @@ class TestLoadFashionClipModel:
             with pytest.raises(RuntimeError) as exc_info:
                 await load_fashion_clip_model("/invalid/path")
 
-            assert "Failed to load FashionCLIP model" in str(exc_info.value)
+            assert "Failed to load FashionSigLIP model" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_load_model_with_local_path(self) -> None:
@@ -435,13 +445,13 @@ class TestLoadFashionClipModel:
                 "open_clip": mock_open_clip,
             },
         ):
-            result = await load_fashion_clip_model("/export/ai_models/model-zoo/fashion-clip")
+            result = await load_fashion_clip_model("/export/ai_models/model-zoo/fashion-siglip")
 
             assert "model" in result
             assert "preprocess" in result
-            # Local paths use hf-hub:Marqo/marqo-fashionCLIP
+            # Local paths use hf-hub:Marqo/marqo-fashionSigLIP
             mock_open_clip.create_model_from_pretrained.assert_called_once_with(
-                "hf-hub:Marqo/marqo-fashionCLIP"
+                "hf-hub:Marqo/marqo-fashionSigLIP"
             )
 
     @pytest.mark.asyncio
@@ -470,11 +480,11 @@ class TestLoadFashionClipModel:
                 "open_clip": mock_open_clip,
             },
         ):
-            result = await load_fashion_clip_model("hf-hub:Marqo/marqo-fashionCLIP")
+            result = await load_fashion_clip_model("hf-hub:Marqo/marqo-fashionSigLIP")
 
             # Should use the path as-is (line 165: hub_path = model_path)
             mock_open_clip.create_model_from_pretrained.assert_called_once_with(
-                "hf-hub:Marqo/marqo-fashionCLIP"
+                "hf-hub:Marqo/marqo-fashionSigLIP"
             )
             assert result["model"] == mock_model
 
@@ -1226,3 +1236,207 @@ class TestClothingClassificationIntegration:
         assert loaded_data["is_service_uniform"] is False
         assert loaded_data["description"] == "Test description"
         assert "test category" in loaded_data["all_scores"]
+
+
+# =============================================================================
+# Hierarchical Security Categories Tests (NEM-3913)
+# =============================================================================
+
+
+class TestClothingPromptsV2Structure:
+    """Tests for CLOTHING_PROMPTS_V2 hierarchical structure."""
+
+    def test_clothing_prompts_v2_exists(self) -> None:
+        """Test CLOTHING_PROMPTS_V2 is defined."""
+        assert CLOTHING_PROMPTS_V2 is not None
+        assert isinstance(CLOTHING_PROMPTS_V2, dict)
+
+    def test_clothing_prompts_v2_has_expected_categories(self) -> None:
+        """Test CLOTHING_PROMPTS_V2 has expected category keys."""
+        expected_categories = {
+            "suspicious",
+            "delivery_branded",
+            "delivery_generic",
+            "utility_service",
+            "casual_civilian",
+            "colors",
+        }
+        assert set(CLOTHING_PROMPTS_V2.keys()) == expected_categories
+
+    def test_each_category_has_required_fields(self) -> None:
+        """Test each category has prompts, threshold, and risk_level."""
+        for category, config in CLOTHING_PROMPTS_V2.items():
+            assert "prompts" in config, f"Category {category} missing prompts"
+            assert "threshold" in config, f"Category {category} missing threshold"
+            assert "risk_level" in config, f"Category {category} missing risk_level"
+            assert isinstance(config["prompts"], list)
+            assert isinstance(config["threshold"], float)
+            assert isinstance(config["risk_level"], str)
+
+    def test_suspicious_category_has_high_risk(self) -> None:
+        """Test suspicious category has high risk level."""
+        assert CLOTHING_PROMPTS_V2["suspicious"]["risk_level"] == "high"
+
+    def test_delivery_categories_have_low_risk(self) -> None:
+        """Test delivery categories have low risk level."""
+        assert CLOTHING_PROMPTS_V2["delivery_branded"]["risk_level"] == "low"
+        assert CLOTHING_PROMPTS_V2["delivery_generic"]["risk_level"] == "low"
+
+    def test_suspicious_category_has_lowest_threshold(self) -> None:
+        """Test suspicious category has lowest threshold (don't miss threats)."""
+        suspicious_threshold = CLOTHING_PROMPTS_V2["suspicious"]["threshold"]
+        for category, config in CLOTHING_PROMPTS_V2.items():
+            if category != "suspicious":
+                assert config["threshold"] >= suspicious_threshold
+
+    def test_total_prompt_count_increased(self) -> None:
+        """Test total prompts expanded to 40+ as per requirement."""
+        total = sum(len(config["prompts"]) for config in CLOTHING_PROMPTS_V2.values())
+        assert total >= 40, f"Expected at least 40 prompts, got {total}"
+
+
+class TestGetAllClothingPrompts:
+    """Tests for get_all_clothing_prompts function."""
+
+    def test_returns_list(self) -> None:
+        """Test function returns a list."""
+        result = get_all_clothing_prompts()
+        assert isinstance(result, list)
+
+    def test_returns_all_prompts(self) -> None:
+        """Test function returns prompts from all categories."""
+        result = get_all_clothing_prompts()
+        expected_count = sum(len(config["prompts"]) for config in CLOTHING_PROMPTS_V2.values())
+        assert len(result) == expected_count
+
+    def test_contains_suspicious_prompts(self) -> None:
+        """Test result contains suspicious prompts."""
+        result = get_all_clothing_prompts()
+        assert "person wearing ski mask or balaclava" in result
+
+    def test_contains_delivery_prompts(self) -> None:
+        """Test result contains delivery prompts."""
+        result = get_all_clothing_prompts()
+        assert "Amazon delivery driver in blue vest" in result
+
+    def test_matches_legacy_constant(self) -> None:
+        """Test get_all_clothing_prompts matches SECURITY_CLOTHING_PROMPTS."""
+        result = get_all_clothing_prompts()
+        assert result == SECURITY_CLOTHING_PROMPTS
+
+
+class TestGetClothingRiskLevel:
+    """Tests for get_clothing_risk_level function."""
+
+    def test_suspicious_prompts_return_high(self) -> None:
+        """Test suspicious prompts return high risk level."""
+        assert get_clothing_risk_level("person wearing ski mask or balaclava") == "high"
+        assert get_clothing_risk_level("person wearing dark hoodie") == "high"
+
+    def test_delivery_prompts_return_low(self) -> None:
+        """Test delivery prompts return low risk level."""
+        assert get_clothing_risk_level("Amazon delivery driver in blue vest") == "low"
+        assert get_clothing_risk_level("delivery uniform") == "low"
+
+    def test_utility_prompts_return_low(self) -> None:
+        """Test utility service prompts return low risk level."""
+        assert get_clothing_risk_level("utility worker in hard hat and safety vest") == "low"
+
+    def test_casual_prompts_return_normal(self) -> None:
+        """Test casual civilian prompts return normal risk level."""
+        assert get_clothing_risk_level("person in casual everyday clothing") == "normal"
+        assert get_clothing_risk_level("casual clothing") == "normal"
+
+    def test_color_prompts_return_info(self) -> None:
+        """Test color prompts return info risk level."""
+        assert get_clothing_risk_level("person wearing predominantly red clothing") == "info"
+
+    def test_unknown_prompt_returns_normal(self) -> None:
+        """Test unknown prompts return normal risk level as default."""
+        assert get_clothing_risk_level("unknown prompt that does not exist") == "normal"
+
+
+class TestGetClothingThreshold:
+    """Tests for get_clothing_threshold function."""
+
+    def test_suspicious_threshold(self) -> None:
+        """Test suspicious category has 0.25 threshold."""
+        assert get_clothing_threshold("suspicious") == 0.25
+
+    def test_delivery_branded_threshold(self) -> None:
+        """Test delivery_branded category has 0.35 threshold."""
+        assert get_clothing_threshold("delivery_branded") == 0.35
+
+    def test_delivery_generic_threshold(self) -> None:
+        """Test delivery_generic category has 0.30 threshold."""
+        assert get_clothing_threshold("delivery_generic") == 0.30
+
+    def test_casual_civilian_threshold(self) -> None:
+        """Test casual_civilian category has 0.40 threshold."""
+        assert get_clothing_threshold("casual_civilian") == 0.40
+
+    def test_unknown_category_returns_default(self) -> None:
+        """Test unknown category returns 0.35 as default."""
+        assert get_clothing_threshold("nonexistent_category") == 0.35
+
+
+class TestGetClothingCategory:
+    """Tests for get_clothing_category function."""
+
+    def test_suspicious_prompts_return_suspicious(self) -> None:
+        """Test suspicious prompts return suspicious category."""
+        assert get_clothing_category("person wearing ski mask or balaclava") == "suspicious"
+        assert get_clothing_category("person wearing dark hoodie") == "suspicious"
+
+    def test_delivery_prompts_return_correct_category(self) -> None:
+        """Test delivery prompts return correct category."""
+        assert get_clothing_category("Amazon delivery driver in blue vest") == "delivery_branded"
+        assert get_clothing_category("delivery uniform") == "delivery_generic"
+
+    def test_utility_prompts_return_utility_service(self) -> None:
+        """Test utility prompts return utility_service category."""
+        assert (
+            get_clothing_category("utility worker in hard hat and safety vest") == "utility_service"
+        )
+
+    def test_casual_prompts_return_casual_civilian(self) -> None:
+        """Test casual prompts return casual_civilian category."""
+        assert get_clothing_category("casual clothing") == "casual_civilian"
+
+    def test_color_prompts_return_colors(self) -> None:
+        """Test color prompts return colors category."""
+        assert get_clothing_category("person wearing predominantly red clothing") == "colors"
+
+    def test_unknown_prompt_returns_none(self) -> None:
+        """Test unknown prompts return None."""
+        assert get_clothing_category("unknown prompt") is None
+
+
+class TestBackwardCompatibility:
+    """Tests for backward compatibility with legacy constants."""
+
+    def test_security_clothing_prompts_not_empty(self) -> None:
+        """Test SECURITY_CLOTHING_PROMPTS is not empty."""
+        assert len(SECURITY_CLOTHING_PROMPTS) > 0
+
+    def test_security_clothing_prompts_contains_legacy_prompts(self) -> None:
+        """Test SECURITY_CLOTHING_PROMPTS contains legacy prompts."""
+        # These were in the original constant
+        assert "person wearing dark hoodie" in SECURITY_CLOTHING_PROMPTS
+        assert "delivery uniform" in SECURITY_CLOTHING_PROMPTS
+        assert "casual clothing" in SECURITY_CLOTHING_PROMPTS
+
+    def test_suspicious_categories_contains_suspicious_prompts(self) -> None:
+        """Test SUSPICIOUS_CATEGORIES contains suspicious prompts."""
+        assert "person wearing dark hoodie" in SUSPICIOUS_CATEGORIES
+        assert "person wearing ski mask or balaclava" in SUSPICIOUS_CATEGORIES
+
+    def test_service_categories_contains_service_prompts(self) -> None:
+        """Test SERVICE_CATEGORIES contains service prompts."""
+        assert "delivery uniform" in SERVICE_CATEGORIES
+        assert "Amazon delivery driver in blue vest" in SERVICE_CATEGORIES
+
+    def test_suspicious_and_service_still_disjoint(self) -> None:
+        """Test suspicious and service categories still don't overlap."""
+        overlap = SUSPICIOUS_CATEGORIES & SERVICE_CATEGORIES
+        assert len(overlap) == 0
