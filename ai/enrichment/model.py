@@ -212,7 +212,7 @@ IMAGE_MAGIC_BYTES: dict[bytes, str] = {
 }
 
 
-def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:
+def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911 - Multiple validation checks require multiple returns
     """Validate image data by checking magic bytes (file signature).
 
     This provides an early check before passing to PIL, catching obvious

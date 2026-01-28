@@ -109,12 +109,12 @@ POSE_BEHAVIOR_ALERTS_TOTAL = Counter(
 )
 
 
-def record_pose_detection(pose_class: str, confidence: float = 0.0) -> None:
+def record_pose_detection(pose_class: str, _confidence: float = 0.0) -> None:
     """Record a pose detection metric.
 
     Args:
         pose_class: Detected pose class (standing, crouching, fallen, etc.)
-        confidence: Detection confidence (unused but kept for API consistency)
+        _confidence: Detection confidence (unused but kept for API consistency)
     """
     POSE_DETECTIONS_TOTAL.labels(pose_class=pose_class).inc()
 
@@ -754,7 +754,7 @@ class YOLO26PoseModel:
         else:
             image_array = image
 
-        image_height, image_width = image_array.shape[:2]
+        _image_height, _image_width = image_array.shape[:2]
 
         # Current timestamp
         if timestamp_ms is None:

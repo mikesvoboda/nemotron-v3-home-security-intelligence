@@ -192,9 +192,9 @@ def compile_model(
 
 
 def get_optimal_device_map(
-    model_name_or_path: str,
+    _model_name_or_path: str,
     max_memory: dict[int | str, str] | None = None,
-    offload_folder: str | None = None,
+    _offload_folder: str | None = None,
 ) -> dict[str, Any] | str:
     """Get optimal device_map configuration for a model.
 
@@ -202,10 +202,10 @@ def get_optimal_device_map(
     for a model based on available hardware.
 
     Args:
-        model_name_or_path: HuggingFace model name or local path (reserved for future use).
+        _model_name_or_path: HuggingFace model name or local path (reserved for future use).
         max_memory: Optional dict specifying max memory per device.
                     Example: {0: "10GB", "cpu": "30GB"}
-        offload_folder: Optional folder for disk offloading (reserved for future use).
+        _offload_folder: Optional folder for disk offloading (reserved for future use).
 
     Returns:
         A device_map configuration suitable for from_pretrained().

@@ -491,10 +491,10 @@ def validate_tensorrt_output(
     similarities = []
 
     for i in range(num_samples):
-        # Create random test image
-        r = random.randint(0, 255)  # noqa: S311
-        g = random.randint(0, 255)  # noqa: S311
-        b = random.randint(0, 255)  # noqa: S311
+        # Create random test image (non-security: random colors for testing)
+        r = random.randint(0, 255)  # noqa: S311 # nosemgrep: insecure-random
+        g = random.randint(0, 255)  # noqa: S311 # nosemgrep: insecure-random
+        b = random.randint(0, 255)  # noqa: S311 # nosemgrep: insecure-random
         test_image = Image.new("RGB", CLIP_INPUT_SIZE, color=(r, g, b))
 
         # Get PyTorch embedding

@@ -355,7 +355,7 @@ class TestImageValidation:
     def test_validate_image_magic_bytes_invalid(self):
         """Test rejection of invalid magic bytes."""
         invalid_bytes = b"NOT_AN_IMAGE" + b"\x00" * 10
-        is_valid, error_msg = validate_image_magic_bytes(invalid_bytes)
+        is_valid, _error_msg = validate_image_magic_bytes(invalid_bytes)
         assert is_valid is False
 
 

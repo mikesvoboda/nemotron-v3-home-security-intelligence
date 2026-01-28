@@ -414,12 +414,12 @@ class LineZoneProcessorConfig:
 
 
 def create_line_zone_processor(
-    config: LineZoneProcessorConfig | None = None,
+    _config: LineZoneProcessorConfig | None = None,
 ) -> LineZoneProcessor:
     """Factory function for creating a LineZoneProcessor.
 
     Args:
-        config: Optional configuration for the processor (reserved for future use).
+        _config: Optional configuration for the processor (reserved for future use).
 
     Returns:
         A new LineZoneProcessor instance.
