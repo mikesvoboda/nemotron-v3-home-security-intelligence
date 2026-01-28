@@ -1423,6 +1423,463 @@ class TestAuditToResponseConversion:
 # following consolidation of prompt endpoints from ai_audit.py to prompt_management.py (NEM-2695)
 
 
+class TestBatchAuditJobBackgroundTask:
+    """Tests for _run_batch_audit_job background task function."""
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_success(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test successful batch audit job execution."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        # Create test events
+        event_ids = [1, 2, 3]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        # Mock event and audit data
+        mock_event1 = create_mock_event(event_id=1)
+        mock_event2 = create_mock_event(event_id=2)
+        mock_event3 = create_mock_event(event_id=3)
+
+        mock_audit1 = create_mock_audit(audit_id=1, event_id=1, is_evaluated=False)
+        mock_audit2 = create_mock_audit(audit_id=2, event_id=2, is_evaluated=False)
+        mock_audit3 = create_mock_audit(audit_id=3, event_id=3, is_evaluated=False)
+
+        # Mock database session
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        # Setup execute returns for events and audits
+        event_results = [mock_event1, mock_event2, mock_event3]
+        audit_results = [mock_audit1, mock_audit2, mock_audit3]
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            # Check if it's an event query or audit query based on call order
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            # Alternate between event and audit queries
+            if execute_side_effect.call_count % 2 == 1:
+                # Event query
+                idx = (execute_side_effect.call_count - 1) // 2
+                result.scalar_one_or_none.return_value = event_results[idx]
+            else:
+                # Audit query
+                idx = (execute_side_effect.call_count - 2) // 2
+                result.scalar_one_or_none.return_value = audit_results[idx]
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+        mock_session.add = MagicMock()
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=False,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify job tracker calls
+        mock_job_tracker.start_job.assert_called_once()
+        mock_job_tracker.complete_job.assert_called_once()
+
+        # Verify the result - use kwargs for result parameter
+        call_kwargs = mock_job_tracker.complete_job.call_args.kwargs
+        completed_result = call_kwargs.get("result")
+        assert completed_result is not None
+        assert completed_result["total_events"] == 3
+        assert completed_result["processed_events"] == 3
+        assert completed_result["failed_events"] == 0
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_event_not_found(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job when event is not found."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1, 2]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        mock_event1 = create_mock_event(event_id=1)
+        mock_audit1 = create_mock_audit(audit_id=1, event_id=1, is_evaluated=False)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            # First event exists, second event is None
+            if execute_side_effect.call_count == 1:
+                result.scalar_one_or_none.return_value = mock_event1
+            elif execute_side_effect.call_count == 2:
+                result.scalar_one_or_none.return_value = mock_audit1
+            elif execute_side_effect.call_count == 3:
+                result.scalar_one_or_none.return_value = None  # Event not found
+            else:
+                result.scalar_one_or_none.return_value = None
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=False,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify result includes failed event
+        call_kwargs = mock_job_tracker.complete_job.call_args.kwargs
+        completed_result = call_kwargs.get("result")
+        assert completed_result is not None
+        assert completed_result["total_events"] == 2
+        assert completed_result["processed_events"] == 1
+        assert completed_result["failed_events"] == 1
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_creates_partial_audit(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job creates partial audit when missing."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        mock_event = create_mock_event(event_id=1)
+        mock_partial_audit = create_mock_audit(audit_id=1, event_id=1, is_evaluated=False)
+
+        mock_audit_service.create_partial_audit.return_value = mock_partial_audit
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            if execute_side_effect.call_count == 1:
+                result.scalar_one_or_none.return_value = mock_event
+            else:
+                result.scalar_one_or_none.return_value = None  # No audit exists
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+        mock_session.add = MagicMock()
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=False,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify partial audit was created
+        mock_audit_service.create_partial_audit.assert_called_once()
+        mock_session.add.assert_called_once_with(mock_partial_audit)
+        mock_session.commit.assert_called()
+        mock_session.refresh.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_skips_already_evaluated(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job skips already evaluated audits without force."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        mock_event = create_mock_event(event_id=1)
+        mock_audit = create_mock_audit(audit_id=1, event_id=1, is_evaluated=True, overall_score=4.0)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            if execute_side_effect.call_count == 1:
+                result.scalar_one_or_none.return_value = mock_event
+            else:
+                result.scalar_one_or_none.return_value = mock_audit
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=False,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify run_full_evaluation was not called
+        mock_audit_service.run_full_evaluation.assert_not_called()
+
+        # Verify job completed successfully
+        call_kwargs = mock_job_tracker.complete_job.call_args.kwargs
+        completed_result = call_kwargs.get("result")
+        assert completed_result is not None
+        assert completed_result["processed_events"] == 1
+        assert completed_result["failed_events"] == 0
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_force_reevaluate(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job re-evaluates with force flag."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        mock_event = create_mock_event(event_id=1)
+        mock_audit = create_mock_audit(audit_id=1, event_id=1, is_evaluated=True, overall_score=4.0)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            if execute_side_effect.call_count == 1:
+                result.scalar_one_or_none.return_value = mock_event
+            else:
+                result.scalar_one_or_none.return_value = mock_audit
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=True,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify run_full_evaluation was called even though already evaluated
+        mock_audit_service.run_full_evaluation.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_handles_evaluation_error(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job handles errors during evaluation."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1, 2]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        mock_event1 = create_mock_event(event_id=1)
+        mock_event2 = create_mock_event(event_id=2)
+        mock_audit1 = create_mock_audit(audit_id=1, event_id=1, is_evaluated=False)
+        mock_audit2 = create_mock_audit(audit_id=2, event_id=2, is_evaluated=False)
+
+        # Make evaluation fail for first event
+        mock_audit_service.run_full_evaluation.side_effect = [
+            Exception("Evaluation failed"),
+            None,
+        ]
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            if execute_side_effect.call_count == 1:
+                result.scalar_one_or_none.return_value = mock_event1
+            elif execute_side_effect.call_count == 2:
+                result.scalar_one_or_none.return_value = mock_audit1
+            elif execute_side_effect.call_count == 3:
+                result.scalar_one_or_none.return_value = mock_event2
+            else:
+                result.scalar_one_or_none.return_value = mock_audit2
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=False,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify result includes failed event
+        call_kwargs = mock_job_tracker.complete_job.call_args.kwargs
+        completed_result = call_kwargs.get("result")
+        assert completed_result is not None
+        assert completed_result["total_events"] == 2
+        assert completed_result["processed_events"] == 1
+        assert completed_result["failed_events"] == 1
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_handles_fatal_error(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job handles fatal errors and marks job as failed."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        # Make get_session raise an exception
+        with patch(
+            "backend.api.routes.ai_audit.get_session",
+            side_effect=Exception("Database connection failed"),
+        ):
+            await _run_batch_audit_job(
+                job_id=job_id,
+                event_ids=event_ids,
+                force_reevaluate=False,
+                job_tracker=mock_job_tracker,
+            )
+
+        # Verify job was marked as failed
+        mock_job_tracker.fail_job.assert_called_once()
+        assert "Database connection failed" in mock_job_tracker.fail_job.call_args[0][1]
+
+    @pytest.mark.asyncio
+    async def test_run_batch_audit_job_updates_progress(
+        self,
+        mock_audit_service: MagicMock,
+        mock_job_tracker: MagicMock,
+    ) -> None:
+        """Test batch audit job updates progress during execution."""
+        from backend.api.routes.ai_audit import _run_batch_audit_job
+
+        event_ids = [1, 2, 3]
+        job_id = mock_job_tracker.create_job("batch_audit")
+
+        mock_event1 = create_mock_event(event_id=1)
+        mock_event2 = create_mock_event(event_id=2)
+        mock_event3 = create_mock_event(event_id=3)
+
+        mock_audit1 = create_mock_audit(audit_id=1, event_id=1, is_evaluated=False)
+        mock_audit2 = create_mock_audit(audit_id=2, event_id=2, is_evaluated=False)
+        mock_audit3 = create_mock_audit(audit_id=3, event_id=3, is_evaluated=False)
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+
+        def execute_side_effect(*args, **kwargs):
+            result = MagicMock()
+            if not hasattr(execute_side_effect, "call_count"):
+                execute_side_effect.call_count = 0
+            execute_side_effect.call_count += 1
+
+            event_results = [mock_event1, mock_event2, mock_event3]
+            audit_results = [mock_audit1, mock_audit2, mock_audit3]
+
+            if execute_side_effect.call_count % 2 == 1:
+                idx = (execute_side_effect.call_count - 1) // 2
+                result.scalar_one_or_none.return_value = event_results[idx]
+            else:
+                idx = (execute_side_effect.call_count - 2) // 2
+                result.scalar_one_or_none.return_value = audit_results[idx]
+
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=execute_side_effect)
+
+        with patch("backend.api.routes.ai_audit.get_session", return_value=mock_session):
+            with patch(
+                "backend.api.routes.ai_audit.get_audit_service", return_value=mock_audit_service
+            ):
+                await _run_batch_audit_job(
+                    job_id=job_id,
+                    event_ids=event_ids,
+                    force_reevaluate=False,
+                    job_tracker=mock_job_tracker,
+                )
+
+        # Verify progress updates
+        assert mock_job_tracker.update_progress.call_count >= 3
+        # Check that progress was updated with correct percentages
+        progress_calls = [call[0][1] for call in mock_job_tracker.update_progress.call_args_list]
+        assert 0 in progress_calls  # 0/3 = 0%
+        assert 33 in progress_calls  # 1/3 = 33%
+        assert 66 in progress_calls  # 2/3 = 66%
+
+
 class TestHelperFunctions:
     """Tests for helper functions in ai_audit module."""
 
