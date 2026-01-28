@@ -43,9 +43,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "583237107930fe33913d32539620d969",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A delivery dr..."
     },
@@ -61,9 +59,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "583237107930fe33913d32539620d969",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A delivery dr..."
     },
@@ -79,9 +75,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "583237107930fe33913d32539620d969",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A delivery dr..."
     },
@@ -111,9 +105,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0edee66d971031741fba9b364013cfdc",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -129,9 +121,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0edee66d971031741fba9b364013cfdc",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -147,9 +137,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0edee66d971031741fba9b364013cfdc",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -179,9 +167,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "5f100d643f66d3307cf5d0eacef02666",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -197,9 +183,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "5f100d643f66d3307cf5d0eacef02666",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -215,9 +199,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "5f100d643f66d3307cf5d0eacef02666",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -247,9 +229,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "bee4344174dc6247a070353257248260",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -265,9 +245,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "bee4344174dc6247a070353257248260",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -283,9 +261,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "bee4344174dc6247a070353257248260",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -315,9 +291,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "55567c269b4d72b4c25b4f1c315847c7",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at night. Single porch light provides harsh overhead illumination wit..."
     },
@@ -333,9 +307,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "55567c269b4d72b4c25b4f1c315847c7",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at night. Single porch light provides harsh overhead illumination wit..."
     },
@@ -351,9 +323,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "55567c269b4d72b4c25b4f1c315847c7",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at night. Single porch light provides harsh overhead illumination wit..."
     },
@@ -369,9 +339,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "dd0d2e661391ae73b056c8064ab58803",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -387,9 +355,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "dd0d2e661391ae73b056c8064ab58803",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -405,9 +371,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "dd0d2e661391ae73b056c8064ab58803",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -423,9 +387,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c5690be64c4b81d61ca58ff321acff60",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -441,9 +403,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c5690be64c4b81d61ca58ff321acff60",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -459,9 +419,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c5690be64c4b81d61ca58ff321acff60",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -477,9 +435,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "91cfd79413de36bac9d92978ea282e55",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -495,9 +451,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "91cfd79413de36bac9d92978ea282e55",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -513,9 +467,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "91cfd79413de36bac9d92978ea282e55",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -531,9 +483,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c79e8af8bb6d621095c75508ede531c1",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -549,9 +499,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c79e8af8bb6d621095c75508ede531c1",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -567,9 +515,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c79e8af8bb6d621095c75508ede531c1",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -585,9 +531,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "145c9c2db8a82f76333d308868bc2395",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -603,9 +547,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "145c9c2db8a82f76333d308868bc2395",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -621,9 +563,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "145c9c2db8a82f76333d308868bc2395",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -639,9 +579,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3a9c786ca3852d5d8438bda3a994fff8",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
     },
@@ -657,9 +595,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3a9c786ca3852d5d8438bda3a994fff8",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
     },
@@ -675,9 +611,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3a9c786ca3852d5d8438bda3a994fff8",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
     },
@@ -707,9 +641,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "03fcc9d5a4a404ab28af56008b73bbb6",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -725,9 +657,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "03fcc9d5a4a404ab28af56008b73bbb6",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -743,9 +673,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "03fcc9d5a4a404ab28af56008b73bbb6",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in d..."
     },
@@ -775,9 +703,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3749aafa8292ba6172d7dad0eada0279",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -793,9 +719,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3749aafa8292ba6172d7dad0eada0279",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -811,9 +735,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3749aafa8292ba6172d7dad0eada0279",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -843,9 +765,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6ee510571e6d138229d1ca420ba8441b",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark ho..."
     },
@@ -861,9 +781,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6ee510571e6d138229d1ca420ba8441b",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark ho..."
     },
@@ -879,9 +797,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6ee510571e6d138229d1ca420ba8441b",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark ho..."
     },
@@ -911,9 +827,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "33cc211142c6b6ace1a419c39114efd5",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
     },
@@ -929,9 +843,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "33cc211142c6b6ace1a419c39114efd5",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
     },
@@ -947,9 +859,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "33cc211142c6b6ace1a419c39114efd5",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
     },
@@ -979,9 +889,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6152a371c7f7ced998cc313a2c901824",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. An un..."
     },
@@ -997,9 +905,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6152a371c7f7ced998cc313a2c901824",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. An un..."
     },
@@ -1015,9 +921,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6152a371c7f7ced998cc313a2c901824",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. An un..."
     },
@@ -1033,9 +937,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8136182ed1b04376ad9d7fcce39ddebf",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at dusk. Fading natural light mixed with activated porch lights, long shadows..."
     },
@@ -1051,9 +953,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8136182ed1b04376ad9d7fcce39ddebf",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at dusk. Fading natural light mixed with activated porch lights, long shadows..."
     },
@@ -1069,9 +969,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8136182ed1b04376ad9d7fcce39ddebf",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at dusk. Fading natural light mixed with activated porch lights, long shadows..."
     },
@@ -1087,9 +985,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "7d16ec67878319fae009f55d014217aa",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1105,9 +1001,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "7d16ec67878319fae009f55d014217aa",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1123,9 +1017,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "7d16ec67878319fae009f55d014217aa",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1141,9 +1033,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "745cc6fd3a3910be953e493a43ea8d4b",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1159,9 +1049,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "745cc6fd3a3910be953e493a43ea8d4b",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1177,9 +1065,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "745cc6fd3a3910be953e493a43ea8d4b",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1195,9 +1081,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d5fb2e16074bb3999107c97697003291",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
     },
@@ -1213,9 +1097,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d5fb2e16074bb3999107c97697003291",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
     },
@@ -1231,9 +1113,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d5fb2e16074bb3999107c97697003291",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long..."
     },
@@ -1249,9 +1129,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "27ed4c3ce1f13d329bf1d7cb321a8b1a",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. Two p..."
     },
@@ -1267,9 +1145,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "27ed4c3ce1f13d329bf1d7cb321a8b1a",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. Two p..."
     },
@@ -1285,9 +1161,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "27ed4c3ce1f13d329bf1d7cb321a8b1a",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. Two p..."
     },
@@ -1303,9 +1177,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "15517058b732f5aefa301b333c455b9a",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1321,9 +1193,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "15517058b732f5aefa301b333c455b9a",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1339,9 +1209,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "15517058b732f5aefa301b333c455b9a",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1371,9 +1239,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f09c213cb7b860fc055e1eb29b534682",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1389,9 +1255,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f09c213cb7b860fc055e1eb29b534682",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1407,9 +1271,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f09c213cb7b860fc055e1eb29b534682",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1439,9 +1301,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ba8ee9c125d953e682492c8c4f1e37aa",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1457,9 +1317,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ba8ee9c125d953e682492c8c4f1e37aa",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1475,9 +1333,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ba8ee9c125d953e682492c8c4f1e37aa",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A per..."
     },
@@ -1507,9 +1363,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d1b777507e2c6430ff6a57883af463f0",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A homeowne..."
     },
@@ -1525,9 +1379,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d1b777507e2c6430ff6a57883af463f0",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A homeowne..."
     },
@@ -1543,9 +1395,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d1b777507e2c6430ff6a57883af463f0",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A homeowne..."
     },
@@ -1575,9 +1425,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "03ef6f949ced072e36194278b8409c43",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A familiar..."
     },
@@ -1593,9 +1441,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "03ef6f949ced072e36194278b8409c43",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A familiar..."
     },
@@ -1611,9 +1457,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "03ef6f949ced072e36194278b8409c43",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A familiar..."
     },
@@ -1643,9 +1487,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ff6edc55681453a2f5d628bf517a185e",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A recogniz..."
     },
@@ -1661,9 +1503,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ff6edc55681453a2f5d628bf517a185e",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A recogniz..."
     },
@@ -1679,9 +1519,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ff6edc55681453a2f5d628bf517a185e",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A recogniz..."
     },
@@ -1697,9 +1535,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8601a447227f3924d0bf4d35f19b6217",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamil..."
     },
@@ -1715,9 +1551,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8601a447227f3924d0bf4d35f19b6217",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamil..."
     },
@@ -1733,9 +1567,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8601a447227f3924d0bf4d35f19b6217",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamil..."
     },
@@ -1751,9 +1583,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "42ac07fa9c7391a31cb3ee3292f25cfb",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A service ..."
     },
@@ -1769,9 +1599,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "42ac07fa9c7391a31cb3ee3292f25cfb",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A service ..."
     },
@@ -1787,9 +1615,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "42ac07fa9c7391a31cb3ee3292f25cfb",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A service ..."
     },
@@ -1805,9 +1631,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "aa1585a7b5712662f2dc952073173618",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A person c..."
     },
@@ -1823,9 +1647,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "aa1585a7b5712662f2dc952073173618",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A person c..."
     },
@@ -1841,9 +1663,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "aa1585a7b5712662f2dc952073173618",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A person c..."
     },
@@ -1859,9 +1679,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3a51867ab5e464f8dbc1dab5085f3d3f",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -1877,9 +1695,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3a51867ab5e464f8dbc1dab5085f3d3f",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -1895,9 +1711,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3a51867ab5e464f8dbc1dab5085f3d3f",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -1913,9 +1727,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "fdea1749cf6a01e70535258254beea7e",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -1931,9 +1743,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "fdea1749cf6a01e70535258254beea7e",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -1949,9 +1759,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "fdea1749cf6a01e70535258254beea7e",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -1967,9 +1775,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c6cb54c378cefe52592b2150807ce89d",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A homeowne..."
     },
@@ -1985,9 +1791,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c6cb54c378cefe52592b2150807ce89d",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A homeowne..."
     },
@@ -2003,9 +1807,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c6cb54c378cefe52592b2150807ce89d",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A homeowne..."
     },
@@ -2035,9 +1837,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e96966b44dfcc1c5312271ac0b500aba",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A known re..."
     },
@@ -2053,9 +1853,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e96966b44dfcc1c5312271ac0b500aba",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A known re..."
     },
@@ -2071,9 +1869,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e96966b44dfcc1c5312271ac0b500aba",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. A known re..."
     },
@@ -2103,9 +1899,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6deca764f2461b1d69b372df2e173727",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with define..."
     },
@@ -2121,9 +1915,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6deca764f2461b1d69b372df2e173727",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with define..."
     },
@@ -2139,9 +1931,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "6deca764f2461b1d69b372df2e173727",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with define..."
     },
@@ -2171,9 +1961,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "73a945e400e11c3b573b9b5c7bd82fc7",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with define..."
     },
@@ -2189,9 +1977,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "73a945e400e11c3b573b9b5c7bd82fc7",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with define..."
     },
@@ -2207,9 +1993,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "73a945e400e11c3b573b9b5c7bd82fc7",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home backyard with patio and lawn, viewed from an elevated position under the roofline, looking out over the yard at midday. Bright natural daylight with clear sky, well-lit scene with define..."
     },
@@ -2239,9 +2023,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c2d29b3748b16a76c2d30af4b2fb4336",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2257,9 +2039,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c2d29b3748b16a76c2d30af4b2fb4336",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2275,9 +2055,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "c2d29b3748b16a76c2d30af4b2fb4336",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2307,9 +2085,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "316fe252d9536fa3d9d7fd61d46b6a19",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2325,9 +2101,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "316fe252d9536fa3d9d7fd61d46b6a19",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2343,9 +2117,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "316fe252d9536fa3d9d7fd61d46b6a19",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2361,9 +2133,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "16cfcd50cd93a8f12ea79f64ac72895d",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2379,9 +2149,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "16cfcd50cd93a8f12ea79f64ac72895d",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2397,9 +2165,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "16cfcd50cd93a8f12ea79f64ac72895d",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2415,9 +2181,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b4a9e7b8ae716ff63455fbd5c5e694ad",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2433,9 +2197,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b4a9e7b8ae716ff63455fbd5c5e694ad",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2451,9 +2213,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b4a9e7b8ae716ff63455fbd5c5e694ad",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2469,9 +2229,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f3215b43944ac3cd7eba07b63b87c77a",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2487,9 +2245,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f3215b43944ac3cd7eba07b63b87c77a",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2505,9 +2261,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f3215b43944ac3cd7eba07b63b87c77a",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2523,9 +2277,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "28a327a92484199c91b60ce3688705f0",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2541,9 +2293,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "28a327a92484199c91b60ce3688705f0",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2559,9 +2309,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "28a327a92484199c91b60ce3688705f0",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2577,9 +2325,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d042f5da9f63e7caed75c31c479a17f7",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2595,9 +2341,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d042f5da9f63e7caed75c31c479a17f7",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2613,9 +2357,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d042f5da9f63e7caed75c31c479a17f7",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2631,9 +2373,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "22713207616d36263a58be63c3b2f5f1",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2649,9 +2389,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "22713207616d36263a58be63c3b2f5f1",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2667,9 +2405,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "22713207616d36263a58be63c3b2f5f1",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2699,9 +2435,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "738d18aa5d0c588671141fd41618f916",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2717,9 +2451,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "738d18aa5d0c588671141fd41618f916",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2735,9 +2467,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "738d18aa5d0c588671141fd41618f916",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2767,9 +2497,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "77c6e561c8e3675db53d338e94c39147",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2785,9 +2513,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "77c6e561c8e3675db53d338e94c39147",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2803,9 +2529,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "77c6e561c8e3675db53d338e94c39147",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2835,9 +2559,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "09812db5a630d99f4127760e91b7bb87",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2853,9 +2575,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "09812db5a630d99f4127760e91b7bb87",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2871,9 +2591,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "09812db5a630d99f4127760e91b7bb87",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shado..."
     },
@@ -2903,9 +2621,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0b4b3ecf9ce9bd459768ecc8665dc5a0",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
     },
@@ -2921,9 +2637,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0b4b3ecf9ce9bd459768ecc8665dc5a0",
-      "issues": [
-        "DURATION MISMATCH: expected 30s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 30s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
     },
@@ -2939,9 +2653,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0b4b3ecf9ce9bd459768ecc8665dc5a0",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at night. Single porch light provides harsh overhead illumination with deep shadows...."
     },
@@ -2971,9 +2683,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3ca4390aabcf1354da3529759b616c44",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person approaches, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. Stati..."
     },
@@ -2989,9 +2699,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3ca4390aabcf1354da3529759b616c44",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person approaches, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. Stati..."
     },
@@ -3007,9 +2715,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e04e53f0bdd635048681933e724b675f",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point. A person at the door holds a large knife. The blade glints in the porch light. Threatening posture, static viewpoint, IR-tint..."
     },
@@ -3025,9 +2731,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e04e53f0bdd635048681933e724b675f",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point. A person at the door holds a large knife. The blade glints in the porch light. Threatening posture, static viewpoint, IR-tint..."
     },
@@ -3043,9 +2747,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "a243502854f943804e4ac72b9ec053d0",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person carrying a baseball bat walks along the fence, tapping it against their palm threateningly. Static view..."
     },
@@ -3061,9 +2763,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "a243502854f943804e4ac72b9ec053d0",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person carrying a baseball bat walks along the fence, tapping it against their palm threateningly. Static view..."
     },
@@ -3079,9 +2779,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "62c143dbe997a2578811983bab2ed673",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands with aggressive posture - fists clenched, shoulders squared, leaning forward menacingly. Static..."
     },
@@ -3097,9 +2795,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "62c143dbe997a2578811983bab2ed673",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands with aggressive posture - fists clenched, shoulders squared, leaning forward menacingly. Static..."
     },
@@ -3115,9 +2811,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "04ece07b9ebc59717e965564b45243d8",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point. Person repeatedly kicking at the front door, attempting to break it down. Violent forceful kicks, aggressive body language. S..."
     },
@@ -3133,9 +2827,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "04ece07b9ebc59717e965564b45243d8",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point. Person repeatedly kicking at the front door, attempting to break it down. Violent forceful kicks, aggressive body language. S..."
     },
@@ -3151,9 +2843,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "61a643cdab930690c665bb0c409cc552",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. Person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Static vie..."
     },
@@ -3169,9 +2859,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "61a643cdab930690c665bb0c409cc552",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. Person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Static vie..."
     },
@@ -3187,9 +2875,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "02cf5f92f232bf2da3230532f623f32d",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Person using a pry bar to attempt forced entry. Metal tool visible, leveraging against door frame. Static viewp..."
     },
@@ -3205,9 +2891,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "02cf5f92f232bf2da3230532f623f32d",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Person using a pry bar to attempt forced entry. Metal tool visible, leveraging against door frame. Static viewp..."
     },
@@ -3237,9 +2921,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0e425b938a611075470e67cd235fd78b",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Person wearing ski mask and dark gloves at the door. Face completely concealed, tactical clothing. Static viewp..."
     },
@@ -3255,9 +2937,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "0e425b938a611075470e67cd235fd78b",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Person wearing ski mask and dark gloves at the door. Face completely concealed, tactical clothing. Static viewp..."
     },
@@ -3287,9 +2967,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "bf88a1ea9e29bea4417fdda1c46f5075",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at night, viewed from an elevated position on the garage. Three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Static el..."
     },
@@ -3305,9 +2983,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "bf88a1ea9e29bea4417fdda1c46f5075",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at night, viewed from an elevated position on the garage. Three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Static el..."
     },
@@ -3337,9 +3013,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "772d364bc6fe77a99e1f16ef1eeae788",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. S..."
     },
@@ -3355,9 +3029,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "772d364bc6fe77a99e1f16ef1eeae788",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. S..."
     },
@@ -3387,9 +3059,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "7618e7c6c0c01eafdb01486116c0d987",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Same person walking through property. First seen from front, then side profile, then from behind. Consistent clothing ..."
     },
@@ -3405,9 +3075,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "7618e7c6c0c01eafdb01486116c0d987",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Same person walking through property. First seen from front, then side profile, then from behind. Consistent clothing ..."
     },
@@ -3437,9 +3105,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "da3caaca92b699b0180fd529422db568",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. Person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation..."
     },
@@ -3455,9 +3121,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "da3caaca92b699b0180fd529422db568",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home side yard at midday, viewed from a corner vantage point at the house edge. Person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation..."
     },
@@ -3473,9 +3137,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "4235e9b84bd301117e2d439562894c02",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person removes their jacket while walking. First wearing blue jacket, then carrying it, revealing different shirt..."
     },
@@ -3491,9 +3153,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "4235e9b84bd301117e2d439562894c02",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person removes their jacket while walking. First wearing blue jacket, then carrying it, revealing different shirt..."
     },
@@ -3509,9 +3169,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "cfefbe4df6345c89b51a4f8084d8c95b",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Same silver SUV tracked throughout. First approaching from street, then parked in driveway showing side, then backing ..."
     },
@@ -3527,9 +3185,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "cfefbe4df6345c89b51a4f8084d8c95b",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Same silver SUV tracked throughout. First approaching from street, then parked in driveway showing side, then backing ..."
     },
@@ -3545,9 +3201,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "dcaadaf1f8df2e496f6594f7d806a11f",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person running across property. Fast movement with motion blur, changing direction once. Static elevated viewpoint, cl..."
     },
@@ -3563,9 +3217,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "dcaadaf1f8df2e496f6594f7d806a11f",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person running across property. Fast movement with motion blur, changing direction once. Static elevated viewpoint, cl..."
     },
@@ -3581,9 +3233,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "11cd8b91d10096fd49690dafe167b711",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Group of four distinct people walking together then separating. Different heights, clothing, and genders. Static eleva..."
     },
@@ -3599,9 +3249,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "11cd8b91d10096fd49690dafe167b711",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Group of four distinct people walking together then separating. Different heights, clothing, and genders. Static eleva..."
     },
@@ -3617,9 +3265,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "070ef0175adddf51faadc2722b894049",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Same person enters frame, walks to door, leaves frame, then returns again. Static elevated viewpoint, clear da..."
     },
@@ -3635,9 +3281,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "070ef0175adddf51faadc2722b894049",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Same person enters frame, walks to door, leaves frame, then returns again. Static elevated viewpoint, clear da..."
     },
@@ -3653,9 +3297,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "08d5d8ed657afa5f06bffdcdbd988031",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person starting far at street edge, walking steadily closer until near the viewpoint. Static elevated viewpoint, clear..."
     },
@@ -3671,9 +3313,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "08d5d8ed657afa5f06bffdcdbd988031",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person starting far at street edge, walking steadily closer until near the viewpoint. Static elevated viewpoint, clear..."
     },
@@ -3703,9 +3343,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f2d19d47774ae1701cc603ca1c945c44",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Three people standing at the door, full bodies visible from head to toe. Young woman, middle-aged man, elderly..."
     },
@@ -3721,9 +3359,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f2d19d47774ae1701cc603ca1c945c44",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Three people standing at the door, full bodies visible from head to toe. Young woman, middle-aged man, elderly..."
     },
@@ -3753,9 +3389,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3db96eda8b66238c0e73a31b31d2b63d",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch on overcast day, viewed from an elevated vantage point near the door. Person standing at the door, full body visible, face in profile view with hair covering part of face, lo..."
     },
@@ -3771,9 +3405,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "3db96eda8b66238c0e73a31b31d2b63d",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch on overcast day, viewed from an elevated vantage point near the door. Person standing at the door, full body visible, face in profile view with hair covering part of face, lo..."
     },
@@ -3803,9 +3435,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "76525ccd10e2792a3edfb910dd17322e",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Sequence of different people walking through: one in business suit, one in athletic wear, one in work uniform, one in ..."
     },
@@ -3821,9 +3451,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "76525ccd10e2792a3edfb910dd17322e",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Sequence of different people walking through: one in business suit, one in athletic wear, one in work uniform, one in ..."
     },
@@ -3853,9 +3481,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "04c234d743434ebd306ff4b9e19c8f73",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Delivery workers in different uniforms - Amazon, FedEx, UPS logos visible on clothing. Clear uniform details. ..."
     },
@@ -3871,9 +3497,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "04c234d743434ebd306ff4b9e19c8f73",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Delivery workers in different uniforms - Amazon, FedEx, UPS logos visible on clothing. Clear uniform details. ..."
     },
@@ -3903,9 +3527,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e96af14b2f2dee62ea827fb3d41dc189",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Static elevated viewp..."
     },
@@ -3921,9 +3543,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "e96af14b2f2dee62ea827fb3d41dc189",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Static elevated viewp..."
     },
@@ -3939,9 +3559,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "460c62e7a8d7c760239e93b379836470",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Vehicles with clearly visible license plates. Different states, colors, formats. Front and rear plates shown. Static e..."
     },
@@ -3957,9 +3575,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "460c62e7a8d7c760239e93b379836470",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Vehicles with clearly visible license plates. Different states, colors, formats. Front and rear plates shown. Static e..."
     },
@@ -3975,9 +3591,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "749c48708c71d407e6debc392b46f3d5",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Large German Shepherd running and playing in the yard. Clearly visible, active movement. Static elevated viewpoin..."
     },
@@ -3993,9 +3607,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "749c48708c71d407e6debc392b46f3d5",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Large German Shepherd running and playing in the yard. Clearly visible, active movement. Static elevated viewpoin..."
     },
@@ -4011,9 +3623,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b2d74cf51714126e8b03787082bd717d",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Orange tabby cat on the porch walking, sitting, grooming. Clear view of the cat throughout. Static elevated vi..."
     },
@@ -4029,9 +3639,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b2d74cf51714126e8b03787082bd717d",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. Orange tabby cat on the porch walking, sitting, grooming. Clear view of the cat throughout. Static elevated vi..."
     },
@@ -4047,9 +3655,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f4f7ff554be11dc759abd5925fefa808",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person walking dog on leash up the driveway. Both person and golden retriever clearly visible. Casual dressed owner. S..."
     },
@@ -4065,9 +3671,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "f4f7ff554be11dc759abd5925fefa808",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person walking dog on leash up the driveway. Both person and golden retriever clearly visible. Casual dressed owner. S..."
     },
@@ -4083,9 +3687,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "1f4f1637f60bc427c72924a6c6c9e7c6",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting d..."
     },
@@ -4101,9 +3703,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "1f4f1637f60bc427c72924a6c6c9e7c6",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting d..."
     },
@@ -4119,9 +3719,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "a1a40175e02f8df2b4ab075077d17ad0",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. St..."
     },
@@ -4137,9 +3735,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "a1a40175e02f8df2b4ab075077d17ad0",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home backyard at midday, viewed from an elevated position under the roofline. Person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. St..."
     },
@@ -4169,9 +3765,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b7402db61c63aeb73009f6d365954b69",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Objects at varying distances: car far at street, person mid-distance, package close in the foreground. Wide-angle pers..."
     },
@@ -4187,9 +3781,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "b7402db61c63aeb73009f6d365954b69",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Objects at varying distances: car far at street, person mid-distance, package close in the foreground. Wide-angle pers..."
     },
@@ -4219,9 +3811,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "595f473e77071ed776955036c15d8681",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Pure infrared night vision rendering - everything in grayscale. Person approaching door, illuminated by invisib..."
     },
@@ -4237,9 +3827,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "595f473e77071ed776955036c15d8681",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Pure infrared night vision rendering - everything in grayscale. Person approaching door, illuminated by invisib..."
     },
@@ -4269,9 +3857,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ed196c9f24d43fe025365a5133fca241",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at night during heavy rain, viewed from an elevated position on the garage. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porc..."
     },
@@ -4287,9 +3873,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "ed196c9f24d43fe025365a5133fca241",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at night during heavy rain, viewed from an elevated position on the garage. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porc..."
     },
@@ -4319,9 +3903,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "44d8886dfe3b7fbb85898f2f11ea25e0",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway on overcast foggy day, viewed from an elevated position on the garage. Dense fog with person barely visible approaching. Silhouette becoming clearer as they get closer. Very low..."
     },
@@ -4337,9 +3919,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "44d8886dfe3b7fbb85898f2f11ea25e0",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway on overcast foggy day, viewed from an elevated position on the garage. Dense fog with person barely visible approaching. Silhouette becoming clearer as they get closer. Very low..."
     },
@@ -4369,9 +3949,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "05da277b77eb4641348ddb0ed347f9b5",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person running fast with significant motion blur on limbs and body. Motion artifacts visible. Static elevated viewpoin..."
     },
@@ -4387,9 +3965,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "05da277b77eb4641348ddb0ed347f9b5",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Person running fast with significant motion blur on limbs and body. Motion artifacts visible. Static elevated viewpoin..."
     },
@@ -4405,9 +3981,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8d6d2bd4a263bd8974bb110df97fb8a5",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. View partially blocked by tree branches. Person visible through gaps in foliage, intermittent clear views. Sta..."
     },
@@ -4423,9 +3997,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "8d6d2bd4a263bd8974bb110df97fb8a5",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at midday, viewed from an elevated vantage point near the door. View partially blocked by tree branches. Person visible through gaps in foliage, intermittent clear views. Sta..."
     },
@@ -4441,9 +4013,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d2f49be17788f619c884b9242fc65a0d",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at dusk, viewed from an elevated vantage point near the door. Strong backlighting from sunset. Person appears as dark silhouette against bright orange sky. Face and details o..."
     },
@@ -4459,9 +4029,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "d2f49be17788f619c884b9242fc65a0d",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at dusk, viewed from an elevated vantage point near the door. Strong backlighting from sunset. Person appears as dark silhouette against bright orange sky. Face and details o..."
     },
@@ -4477,9 +4045,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "1b442134c502c377bdc30ed1480a8808",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple light sources: porch light, car headlights, streetlamp all creating overlapping shadows. Complex light..."
     },
@@ -4495,9 +4061,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "1b442134c502c377bdc30ed1480a8808",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple light sources: porch light, car headlights, streetlamp all creating overlapping shadows. Complex light..."
     },
@@ -4513,9 +4077,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "4202b1aff046526a5cd75c940330a17b",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Sun causing lens flare and glare. Bright spots, lens artifacts partially obscuring view. Person walking through areas ..."
     },
@@ -4531,9 +4093,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "4202b1aff046526a5cd75c940330a17b",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at midday, viewed from an elevated position on the garage. Sun causing lens flare and glare. Bright spots, lens artifacts partially obscuring view. Person walking through areas ..."
     },
@@ -4549,9 +4109,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "fdec4e6c2304f62df12b96958916f6ee",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway on overcast winter day, viewed from an elevated position on the garage. Snow covering the ground. Person in dark clothing highly visible against white snow. Overcast lighting, s..."
     },
@@ -4567,9 +4125,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "fdec4e6c2304f62df12b96958916f6ee",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway on overcast winter day, viewed from an elevated position on the garage. Snow covering the ground. Person in dark clothing highly visible against white snow. Overcast lighting, s..."
     },
@@ -4585,9 +4141,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "9c8a722c6561f1758e6a80b691330edf",
-      "issues": [
-        "DURATION MISMATCH: expected 10s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 10s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at dusk, viewed from an elevated position on the garage. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting transition. St..."
     },
@@ -4603,9 +4157,7 @@
       "codec": "h264",
       "fps": "16/1",
       "hash": "9c8a722c6561f1758e6a80b691330edf",
-      "issues": [
-        "DURATION MISMATCH: expected 5s, got 5.81s"
-      ],
+      "issues": ["DURATION MISMATCH: expected 5s, got 5.81s"],
       "prompt_id": null,
       "prompt_text": "Suburban home driveway at dusk, viewed from an elevated position on the garage. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting transition. St..."
     }
