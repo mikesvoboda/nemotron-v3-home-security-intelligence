@@ -1490,7 +1490,7 @@ def init_profiling() -> None:
                 "environment": os.getenv("ENVIRONMENT", "development"),
             },
             oncpu=True,
-            gil=True,
+            gil_only=False,  # Profile all threads, not just GIL-holding threads
             enable_logging=True,
         )
         logger.info(f"Pyroscope profiling initialized: server={pyroscope_server}")

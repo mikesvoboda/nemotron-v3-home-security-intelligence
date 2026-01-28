@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Home Security Intelligence - Continuous Profiling Dashboard with Pyroscope integration for CPU and memory profiling",
+  "description": "Home Security Intelligence - Continuous Profiling Dashboard with Pyroscope integration for CPU and memory profiling. Nemotron LLM is the primary service for performance analysis.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -92,7 +92,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 24,
         "x": 0,
         "y": 1
@@ -102,7 +102,7 @@
         "legend": {
           "calcs": ["mean", "max"],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -134,11 +134,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 7
       },
-      "id": 101,
+      "id": 102,
       "panels": [],
-      "title": "Service Flame Graphs",
+      "title": "Nemotron LLM (Primary)",
       "type": "row"
     },
     {
@@ -146,86 +146,12 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "Flame graph visualization for Backend service showing CPU/memory hotspots",
+      "description": "Nemotron LLM inference profiling - the most critical service for performance analysis. Shows CPU time spent in model.generate(), tokenizer operations, and batch processing. Key hotspots: HuggingFace Transformers inference (~60-70% CPU), tokenization (~20-30%), and response formatting.",
       "gridPos": {
-        "h": 12,
-        "w": 12,
+        "h": 14,
+        "w": 24,
         "x": 0,
-        "y": 10
-      },
-      "id": 2,
-      "options": {
-        "minPercentage": 0.1,
-        "showFlameGraph": true,
-        "showTable": true,
-        "showTopTable": true
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-pyroscope-datasource",
-            "uid": "pyroscope"
-          },
-          "groupBy": [],
-          "labelSelector": "{service_name=\"Backend\"}",
-          "profileTypeId": "$profile_type",
-          "queryType": "profile",
-          "refId": "A",
-          "spanSelector": []
-        }
-      ],
-      "title": "Backend Flame Graph ($profile_type)",
-      "type": "flamegraph"
-    },
-    {
-      "datasource": {
-        "type": "grafana-pyroscope-datasource",
-        "uid": "pyroscope"
-      },
-      "description": "Flame graph visualization for YOLO26 service showing CPU/memory hotspots",
-      "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 12,
-        "y": 10
-      },
-      "id": 3,
-      "options": {
-        "minPercentage": 0.1,
-        "showFlameGraph": true,
-        "showTable": true,
-        "showTopTable": true
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-pyroscope-datasource",
-            "uid": "pyroscope"
-          },
-          "groupBy": [],
-          "labelSelector": "{service_name=\"YOLO26\"}",
-          "profileTypeId": "$profile_type",
-          "queryType": "profile",
-          "refId": "A",
-          "spanSelector": []
-        }
-      ],
-      "title": "YOLO26 Flame Graph ($profile_type)",
-      "type": "flamegraph"
-    },
-    {
-      "datasource": {
-        "type": "grafana-pyroscope-datasource",
-        "uid": "pyroscope"
-      },
-      "description": "Flame graph visualization for Nemotron service showing CPU/memory hotspots",
-      "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 0,
-        "y": 22
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -249,7 +175,57 @@
           "spanSelector": []
         }
       ],
-      "title": "Nemotron Flame Graph ($profile_type)",
+      "title": "Nemotron LLM Flame Graph ($profile_type)",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 101,
+      "panels": [],
+      "title": "AI Pipeline Services",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "YOLO26 object detection service - TensorRT-optimized inference for real-time detection. Key hotspots: CUDA kernel execution, NMS post-processing, and tensor operations.",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 3,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"YOLO26\"}",
+          "profileTypeId": "$profile_type",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "YOLO26 Detection ($profile_type)",
       "type": "flamegraph"
     },
     {
@@ -257,12 +233,12 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "Flame graph visualization for Florence service showing CPU/memory hotspots",
+      "description": "Florence-2 vision-language model for dense captioning and scene understanding. Key hotspots: Vision encoder forward pass, cross-attention layers, and beam search decoding.",
       "gridPos": {
         "h": 12,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 23
       },
       "id": 5,
       "options": {
@@ -286,23 +262,110 @@
           "spanSelector": []
         }
       ],
-      "title": "Florence Flame Graph ($profile_type)",
+      "title": "Florence-2 Vision ($profile_type)",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "id": 103,
+      "panels": [],
+      "title": "Backend Services",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "FastAPI backend service - orchestrates AI pipeline, database operations, and WebSocket broadcasts. Key hotspots: SQLAlchemy ORM operations, Redis cache, batch aggregation, and async task coordination.",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "id": 2,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"Backend\"}",
+          "profileTypeId": "$profile_type",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Backend API ($profile_type)",
+      "type": "flamegraph"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Enrichment services - CLIP embeddings, pose estimation, threat detection, and demographic analysis. Runs on dedicated GPU for batch enrichment workloads.",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "id": 6,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=~\"ai-enrichment.*|ai-clip\"}",
+          "profileTypeId": "$profile_type",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Enrichment Services ($profile_type)",
       "type": "flamegraph"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["pyroscope", "profiling", "performance"],
+  "tags": ["pyroscope", "profiling", "performance", "nemotron", "ai"],
   "templating": {
     "list": [
       {
         "current": {
           "selected": true,
-          "text": "Backend",
-          "value": "Backend"
+          "text": "Nemotron",
+          "value": "Nemotron"
         },
-        "description": "Select the service to profile",
+        "description": "Select the service to profile (Nemotron is default - primary LLM service)",
         "hide": 0,
         "includeAll": false,
         "label": "Service",
@@ -311,8 +374,8 @@
         "options": [
           {
             "selected": true,
-            "text": "Backend",
-            "value": "Backend"
+            "text": "Nemotron",
+            "value": "Nemotron"
           },
           {
             "selected": false,
@@ -321,16 +384,16 @@
           },
           {
             "selected": false,
-            "text": "Nemotron",
-            "value": "Nemotron"
+            "text": "Florence",
+            "value": "Florence"
           },
           {
             "selected": false,
-            "text": "Florence",
-            "value": "Florence"
+            "text": "Backend",
+            "value": "Backend"
           }
         ],
-        "query": "Backend,YOLO26,Nemotron,Florence",
+        "query": "Nemotron,YOLO26,Florence,Backend",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
