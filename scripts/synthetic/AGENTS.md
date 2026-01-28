@@ -24,11 +24,9 @@ scripts/synthetic/
 **Purpose:** Converts structured JSON scenario specifications into natural language prompts suitable for video/image generation APIs (Veo 3.1, Gemini).
 
 **Key Classes:**
-
 - `PromptGenerator`: Main class for generating prompts from scenario specs
 
 **Key Constants:**
-
 - `SECURITY_CAMERA_PROMPT`: Base template for all security camera prompts
 - `CAMERA_EFFECT_DESCRIPTIONS`: Mappings for fisheye, IR night vision, motion blur, etc.
 - `TIME_OF_DAY_DESCRIPTIONS`: Dawn, day, dusk, night, midnight with lighting styles
@@ -36,7 +34,6 @@ scripts/synthetic/
 - `ACTION_DESCRIPTIONS`: Loitering, prowling, approaching, running, etc.
 
 **Usage:**
-
 ```python
 from scripts.synthetic import PromptGenerator
 
@@ -55,23 +52,19 @@ video_prompt = generator.generate_video_prompt(spec, duration_seconds=8)
 **Purpose:** Handles media generation via NVIDIA's inference API (Veo 3.1 for video, Gemini for images) with async polling for long-running operations.
 
 **Key Classes:**
-
 - `MediaGenerator`: Main class for generating videos and images
 - `MediaStatus`: Enum for job status (PENDING, PROCESSING, COMPLETED, FAILED)
 - `GenerationResult`: Dataclass for generation operation results
 
 **Exceptions:**
-
 - `MediaGeneratorError`: Base exception
 - `APIKeyNotFoundError`: Missing NVIDIA API key
 - `GenerationTimeoutError`: Polling timeout exceeded
 
 **Environment Variables:**
-
 - `NVIDIA_API_KEY` or `NVAPIKEY`: Required for API authentication
 
 **Usage:**
-
 ```python
 from scripts.synthetic import MediaGenerator, generate_video_sync
 
@@ -94,7 +87,6 @@ success = generate_video_sync(
 **Purpose:** Compares pipeline API results against expected_labels.json for automated A/B testing. Validates that actual AI pipeline outputs match expected outputs defined in synthetic scenario specifications.
 
 **Key Classes:**
-
 - `ComparisonEngine`: Main comparison class with field-type-specific comparisons
 - `ComparisonResult`: Overall comparison result with pass/fail and field details
 - `FieldResult`: Individual field comparison result
@@ -114,7 +106,6 @@ success = generate_video_sync(
 | `distance_range` | Within [min, max] meters |
 
 **Supported Domains:**
-
 - Detections (class, count, confidence)
 - License plate (detected, text pattern)
 - Face detection (count, visible)
@@ -128,7 +119,6 @@ success = generate_video_sync(
 - Risk assessment (score range, level, factors)
 
 **Usage:**
-
 ```python
 from scripts.synthetic import ComparisonEngine
 
@@ -148,7 +138,6 @@ if result.passed:
 **Purpose:** Generates structured JSON test reports for synthetic data A/B testing with summary statistics, per-model results, and failure details.
 
 **Key Classes:**
-
 - `ReportGenerator`: Main report generation class
 - `TestReport`: Complete test report structure
 - `ReportSummary`: Summary statistics (total, passed, failed, pass_rate)
@@ -157,7 +146,6 @@ if result.passed:
 - `FailureDetail`: Detailed failure information
 
 **Usage:**
-
 ```python
 from scripts.synthetic import ReportGenerator, SampleModelResult
 
@@ -181,13 +169,11 @@ generator.save_report(report, Path("results/report.json"))
 **Purpose:** Downloads stock footage from Pexels and Pixabay APIs that matches scenario criteria. Supplements AI-generated content with real-world footage for comprehensive testing.
 
 **Key Classes:**
-
 - `StockFootageDownloader`: Main downloader class
 - `StockResult`: Search result dataclass
 - `StockSource`: Enum (PEXELS, PIXABAY, ALL)
 
 **Key Constants:**
-
 - `SCENARIO_SEARCH_TERMS`: Maps scenario IDs to optimized search queries
 - `CATEGORY_SEARCH_TERMS`: Fallback category-level search terms
 
@@ -199,12 +185,10 @@ generator.save_report(report, Path("results/report.json"))
 | Threats | break_in_attempt, package_theft, vandalism, weapon_visible |
 
 **Environment Variables:**
-
 - `PEXELS_API_KEY`: Pexels API key
 - `PIXABAY_API_KEY`: Pixabay API key
 
 **Usage:**
-
 ```python
 from scripts.synthetic import StockFootageDownloader, search_stock_sync
 
