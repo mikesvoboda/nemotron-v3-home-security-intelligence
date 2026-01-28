@@ -113,12 +113,13 @@ MODEL_ZOO: list[ModelSpec] = [
         description="Violence/aggression detection (98.8% accuracy)",
         model_type="transformers",
     ),
+    # X-CLIP 16-frame patch16 model (NEM-3908: upgraded for +4% accuracy)
     ModelSpec(
         name="xclip-base",
-        hf_repo="microsoft/xclip-base-patch32",
+        hf_repo="microsoft/xclip-base-patch16-16-frames",
         phase=2,
         vram_mb=2000,
-        description="Zero-shot video action recognition",
+        description="Zero-shot video action recognition (16 frames, +4% accuracy)",
         model_type="transformers",
     ),
     ModelSpec(

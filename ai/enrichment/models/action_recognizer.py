@@ -4,12 +4,13 @@ This module provides the ActionRecognizer class for video-based action recogniti
 using Microsoft's X-CLIP model. It analyzes sequences of frames to understand
 what people are doing over time.
 
-Model Details:
-- Model: microsoft/xclip-base-patch32
-- VRAM: ~1.5GB
+Model Details (NEM-3908 upgrade):
+- Model: microsoft/xclip-base-patch16-16-frames
+- VRAM: ~2GB
 - Priority: LOW (expensive, use sparingly)
-- Input: 8-32 frames
+- Input: 16 frames (optimal), supports 8-32 frames
 - Output: Action classification with confidence
+- Accuracy: +4% improvement over patch32 8-frame variant
 
 Trigger Conditions (document for model orchestration):
 - Only run action recognition when:
@@ -17,7 +18,7 @@ Trigger Conditions (document for model orchestration):
   - Multiple frames available in buffer
   - Unusual pose detected (trigger from pose estimator)
 
-Reference: https://huggingface.co/microsoft/xclip-base-patch32
+Reference: https://huggingface.co/microsoft/xclip-base-patch16-16-frames
 Design Doc: docs/plans/2026-01-19-model-zoo-prompt-improvements-design.md Section 5.5
 """
 
@@ -97,11 +98,12 @@ class ActionRecognizer:
     The model analyzes sequences of frames to understand temporal patterns
     and classify activities.
 
-    VRAM Usage: ~1.5GB
-    Typical Inference Time: ~200-500ms for 8 frames
+    Model: microsoft/xclip-base-patch16-16-frames (NEM-3908)
+    VRAM Usage: ~2GB
+    Typical Inference Time: ~300-600ms for 16 frames
 
     Example usage:
-        recognizer = ActionRecognizer("/models/xclip-base-patch32")
+        recognizer = ActionRecognizer("/models/xclip-base-patch16-16-frames")
         recognizer.load_model()
 
         # Get frames from video buffer (list of PIL Images or numpy arrays)
@@ -118,14 +120,15 @@ class ActionRecognizer:
 
         Args:
             model_path: Path to X-CLIP model directory or HuggingFace model ID
-                       (e.g., "microsoft/xclip-base-patch32" or "/models/xclip")
+                       (e.g., "microsoft/xclip-base-patch16-16-frames" or
+                       "/models/xclip-base-patch16-16-frames")
             device: Device to run inference on (e.g., "cuda:0" or "cpu")
         """
         self.model_path = model_path
         self.device = device
         self.model: XCLIPModel | None = None
         self.processor: XCLIPProcessor | None = None
-        self.num_frames = 8  # X-CLIP typically uses 8 frames
+        self.num_frames = 16  # X-CLIP patch16-16-frames uses 16 frames (NEM-3908)
 
         logger.info(f"Initializing ActionRecognizer from {self.model_path}")
 
@@ -191,7 +194,7 @@ class ActionRecognizer:
     def _sample_frames(
         self,
         frames: list[Image.Image | np.ndarray],
-        num_frames: int = 8,
+        num_frames: int = 16,
     ) -> list[Image.Image]:
         """Sample frames evenly from input sequence.
 
@@ -201,7 +204,7 @@ class ActionRecognizer:
 
         Args:
             frames: List of input frames (PIL Images or numpy arrays)
-            num_frames: Number of frames to sample (default: 8)
+            num_frames: Number of frames to sample (default: 16 for NEM-3908)
 
         Returns:
             List of PIL Images with exactly num_frames elements.
