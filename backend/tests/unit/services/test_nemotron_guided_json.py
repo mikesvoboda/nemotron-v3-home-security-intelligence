@@ -260,8 +260,11 @@ class TestGuidedJsonSupportDetection:
 
     @pytest.mark.asyncio
     async def test_check_support_returns_false_on_connection_error(self, analyzer_with_guided_json):
-        """Test that support check returns False on connection error."""
-        with patch("httpx.AsyncClient") as mock_client_class:
+        """Test that support check returns False on connection error after retries (NEM-3886)."""
+        with (
+            patch("httpx.AsyncClient") as mock_client_class,
+            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
+        ):
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
@@ -273,11 +276,21 @@ class TestGuidedJsonSupportDetection:
         assert result is False
         # Should NOT cache on transient errors
         assert analyzer_with_guided_json._supports_guided_json is None
+        # Should retry 3 times (max_retries)
+        assert mock_client.post.call_count == 3
+        # Should sleep between retries (2 sleeps for 3 attempts)
+        assert mock_sleep.call_count == 2
+        # Verify exponential backoff delays
+        mock_sleep.assert_any_call(1.0)  # First retry delay
+        mock_sleep.assert_any_call(2.0)  # Second retry delay
 
     @pytest.mark.asyncio
     async def test_check_support_returns_false_on_timeout(self, analyzer_with_guided_json):
-        """Test that support check returns False on timeout."""
-        with patch("httpx.AsyncClient") as mock_client_class:
+        """Test that support check returns False on timeout after retries (NEM-3886)."""
+        with (
+            patch("httpx.AsyncClient") as mock_client_class,
+            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
+        ):
             mock_client = AsyncMock()
             mock_client.__aenter__.return_value = mock_client
             mock_client.__aexit__.return_value = None
@@ -289,6 +302,77 @@ class TestGuidedJsonSupportDetection:
         assert result is False
         # Should NOT cache on transient errors
         assert analyzer_with_guided_json._supports_guided_json is None
+        # Should retry 3 times (max_retries)
+        assert mock_client.post.call_count == 3
+        # Should sleep between retries (2 sleeps for 3 attempts)
+        assert mock_sleep.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_check_support_retries_and_succeeds_on_second_attempt(
+        self, analyzer_with_guided_json
+    ):
+        """Test that support check retries and succeeds after transient error (NEM-3886)."""
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+
+        with (
+            patch("httpx.AsyncClient") as mock_client_class,
+            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            # Fail first, succeed second
+            mock_client.post.side_effect = [
+                httpx.ConnectError("Connection refused"),
+                mock_response,
+            ]
+            mock_client_class.return_value = mock_client
+
+            result = await analyzer_with_guided_json._check_guided_json_support()
+
+        assert result is True
+        # Should cache successful result
+        assert analyzer_with_guided_json._supports_guided_json is True
+        # Should have made 2 attempts (fail, then succeed)
+        assert mock_client.post.call_count == 2
+        # Should sleep once between attempts
+        assert mock_sleep.call_count == 1
+        mock_sleep.assert_called_once_with(1.0)  # First retry delay
+
+    @pytest.mark.asyncio
+    async def test_check_support_retries_server_error_and_succeeds(self, analyzer_with_guided_json):
+        """Test that support check retries 5xx errors and succeeds (NEM-3886)."""
+        mock_error_response = MagicMock(spec=httpx.Response)
+        mock_error_response.status_code = 503
+        mock_success_response = MagicMock(spec=httpx.Response)
+        mock_success_response.status_code = 200
+
+        with (
+            patch("httpx.AsyncClient") as mock_client_class,
+            patch("asyncio.sleep") as mock_sleep,  # Mock sleep to speed up test
+        ):
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.__aexit__.return_value = None
+            # Fail with 503, then succeed
+            mock_client.post.side_effect = [
+                httpx.HTTPStatusError(
+                    "Service Unavailable", request=MagicMock(), response=mock_error_response
+                ),
+                mock_success_response,
+            ]
+            mock_client_class.return_value = mock_client
+
+            result = await analyzer_with_guided_json._check_guided_json_support()
+
+        assert result is True
+        # Should cache successful result
+        assert analyzer_with_guided_json._supports_guided_json is True
+        # Should have made 2 attempts (fail, then succeed)
+        assert mock_client.post.call_count == 2
+        # Should sleep once between attempts
+        assert mock_sleep.call_count == 1
 
     @pytest.mark.asyncio
     async def test_reset_cache_clears_cached_result(self, analyzer_with_guided_json):

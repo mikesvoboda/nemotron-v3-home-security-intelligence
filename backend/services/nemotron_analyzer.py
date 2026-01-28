@@ -339,6 +339,8 @@ class NemotronAnalyzer:
         a minimal test request to detect support.
 
         The result is cached after the first check to avoid repeated probes.
+        Implements exponential backoff retry for transient connection errors
+        to handle startup race conditions (NEM-3886).
 
         Returns:
             True if endpoint supports guided_json, False otherwise
@@ -351,66 +353,131 @@ class NemotronAnalyzer:
         test_schema = {"type": "object", "properties": {"test": {"type": "string"}}}
         result = False  # Default to not supported
 
-        try:
-            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                # Send a minimal completion request with guided_json
-                response = await client.post(
-                    f"{self._llm_url}/completion",
-                    headers=self._get_auth_headers(),
-                    json={
-                        "prompt": "Say hello",
-                        "max_tokens": 10,
-                        "temperature": 0.0,
-                        "nvext": {"guided_json": test_schema},
-                    },
-                )
+        # Retry configuration for connection errors (NEM-3886)
+        # Use longer delays during startup when services may be warming up
+        max_retries = 3
+        retry_delays = [1.0, 2.0, 4.0]  # Exponential backoff: 1s, 2s, 4s
 
-                # If we get a 2xx response, the endpoint likely supports guided_json
-                # Some endpoints may return 200 but ignore the parameter
-                if response.status_code < 300:
-                    self._supports_guided_json = True
-                    logger.info(
-                        "Nemotron endpoint supports guided_json structured generation",
-                        extra={"llm_url": self._llm_url},
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=self._health_timeout) as client:
+                    # Send a minimal completion request with guided_json
+                    response = await client.post(
+                        f"{self._llm_url}/completion",
+                        headers=self._get_auth_headers(),
+                        json={
+                            "prompt": "Say hello",
+                            "max_tokens": 10,
+                            "temperature": 0.0,
+                            "nvext": {"guided_json": test_schema},
+                        },
                     )
-                    result = True
-                # 4xx errors indicate the endpoint doesn't support guided_json
-                # (e.g., 422 Unprocessable Entity for unknown parameters)
-                elif 400 <= response.status_code < 500:
+
+                    # If we get a 2xx response, the endpoint likely supports guided_json
+                    # Some endpoints may return 200 but ignore the parameter
+                    if response.status_code < 300:
+                        self._supports_guided_json = True
+                        logger.info(
+                            "Nemotron endpoint supports guided_json structured generation",
+                            extra={"llm_url": self._llm_url, "attempts": attempt + 1},
+                        )
+                        result = True
+                        break  # Success - stop retrying
+                    # 4xx errors indicate the endpoint doesn't support guided_json
+                    # (e.g., 422 Unprocessable Entity for unknown parameters)
+                    elif 400 <= response.status_code < 500:
+                        self._supports_guided_json = False
+                        logger.info(
+                            "Nemotron endpoint does not support guided_json, using regex fallback",
+                            extra={"llm_url": self._llm_url, "status_code": response.status_code},
+                        )
+                        break  # Definitive answer - stop retrying
+
+            except httpx.HTTPStatusError as e:
+                # 4xx status errors indicate unsupported parameter
+                if 400 <= e.response.status_code < 500:
                     self._supports_guided_json = False
                     logger.info(
-                        "Nemotron endpoint does not support guided_json, using regex fallback",
-                        extra={"llm_url": self._llm_url, "status_code": response.status_code},
+                        "Nemotron endpoint does not support guided_json (HTTP error), using regex fallback",
+                        extra={"llm_url": self._llm_url, "status_code": e.response.status_code},
+                    )
+                    break  # Definitive answer - stop retrying
+                # 5xx errors are transient - retry with backoff
+                elif attempt < max_retries - 1:
+                    delay = retry_delays[attempt]
+                    logger.warning(
+                        "Failed to check guided_json support (server error), retrying",
+                        extra={
+                            "llm_url": self._llm_url,
+                            "error": str(e),
+                            "attempt": attempt + 1,
+                            "max_retries": max_retries,
+                            "retry_delay_seconds": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed - don't cache, will retry on next call
+                    logger.warning(
+                        "Failed to check guided_json support after all retries (server error)",
+                        extra={
+                            "llm_url": self._llm_url,
+                            "error": str(e),
+                            "attempts": max_retries,
+                        },
                     )
 
-        except httpx.HTTPStatusError as e:
-            # 4xx status errors indicate unsupported parameter
-            if 400 <= e.response.status_code < 500:
-                self._supports_guided_json = False
-                logger.info(
-                    "Nemotron endpoint does not support guided_json (HTTP error), using regex fallback",
-                    extra={"llm_url": self._llm_url, "status_code": e.response.status_code},
-                )
-            else:
-                # 5xx errors are transient - don't cache, try again later
-                logger.warning(
-                    "Failed to check guided_json support (server error), will retry",
-                    extra={"llm_url": self._llm_url, "error": str(e)},
-                )
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                # Connection issues are transient - retry with backoff
+                if attempt < max_retries - 1:
+                    delay = retry_delays[attempt]
+                    logger.warning(
+                        "Failed to check guided_json support (connection error), retrying",
+                        extra={
+                            "llm_url": self._llm_url,
+                            "error": str(e),
+                            "attempt": attempt + 1,
+                            "max_retries": max_retries,
+                            "retry_delay_seconds": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed - don't cache, will retry on next call
+                    logger.warning(
+                        "Failed to check guided_json support after all retries (connection error)",
+                        extra={
+                            "llm_url": self._llm_url,
+                            "error": str(e),
+                            "attempts": max_retries,
+                        },
+                    )
 
-        except (httpx.ConnectError, httpx.TimeoutException) as e:
-            # Connection issues are transient - don't cache, try again later
-            logger.warning(
-                "Failed to check guided_json support (connection error), will retry",
-                extra={"llm_url": self._llm_url, "error": str(e)},
-            )
-
-        except Exception as e:
-            # Unexpected errors - don't cache, try again later
-            logger.warning(
-                "Failed to check guided_json support (unexpected error), will retry",
-                extra={"llm_url": self._llm_url, "error": str(e)},
-            )
+            except Exception as e:
+                # Unexpected errors - retry with backoff
+                if attempt < max_retries - 1:
+                    delay = retry_delays[attempt]
+                    logger.warning(
+                        "Failed to check guided_json support (unexpected error), retrying",
+                        extra={
+                            "llm_url": self._llm_url,
+                            "error": str(e),
+                            "attempt": attempt + 1,
+                            "max_retries": max_retries,
+                            "retry_delay_seconds": delay,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    # Final attempt failed - don't cache, will retry on next call
+                    logger.warning(
+                        "Failed to check guided_json support after all retries (unexpected error)",
+                        extra={
+                            "llm_url": self._llm_url,
+                            "error": str(e),
+                            "attempts": max_retries,
+                        },
+                    )
 
         return result
 
