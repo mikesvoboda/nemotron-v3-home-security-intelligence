@@ -41,10 +41,11 @@ scrape_configs:
     static_configs:
       - targets:
           - 'backend:8000'
-    # Relabel to add service identification
-    relabel_configs:
-      - target_label: service
-        replacement: 'home-security-intelligence'
+    # Honor labels from the target to preserve native 'service' labels on metrics
+    # like hsi_ai_request_duration_seconds{service="yolo26"} and circuit breaker metrics.
+    # Without honor_labels, Prometheus would rename the metric's 'service' label to
+    # 'exported_service' if we added a 'service' label via relabel_configs.
+    honor_labels: true
 
   # ==========================================================================
   # AI Service Native Prometheus Metrics
