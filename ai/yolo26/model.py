@@ -30,72 +30,16 @@ torch.compile Support (NEM-3773):
     - TORCH_COMPILE_MODE: Mode ("default", "reduce-overhead", "max-autotune")
     - TORCH_COMPILE_BACKEND: Backend ("inductor", "cudagraphs", etc.)
     - TORCH_COMPILE_CACHE_DIR: Cache directory for compiled graphs
-
-Pyroscope Profiling (NEM-3918):
-    Continuous profiling via pyroscope-io SDK for performance analysis.
-
-    Environment Variables:
-    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
-    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
 """
-
-import os
-import sys
-
-
-def init_profiling() -> None:
-    """Initialize Pyroscope continuous profiling for ai-yolo26 service.
-
-    This function configures Pyroscope for continuous profiling of the YOLO26
-    detection service. It enables CPU and GIL profiling to identify performance
-    bottlenecks in inference and image processing code paths.
-
-    Configuration is via environment variables:
-    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
-    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
-    - ENVIRONMENT: Environment tag for profiles (default: production)
-
-    The function gracefully handles:
-    - Missing pyroscope-io package (ImportError)
-    - Unsupported Python versions (pyroscope-io native lib requires Python 3.9-3.12)
-    - Configuration errors (logs warning, doesn't fail startup)
-    """
-    if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
-        print("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
-        return
-
-    try:
-        import pyroscope
-
-        pyroscope_server = os.getenv("PYROSCOPE_URL", "http://pyroscope:4040")
-
-        pyroscope.configure(
-            application_name="ai-yolo26",
-            server_address=pyroscope_server,
-            tags={
-                "service": "ai-yolo26",
-                "environment": os.getenv("ENVIRONMENT", "production"),
-            },
-            oncpu=True,
-            gil_only=False,  # Profile all threads, not just GIL-holding threads
-            enable_logging=True,
-        )
-        print(f"Pyroscope profiling initialized: server={pyroscope_server}")
-    except ImportError:
-        print("Pyroscope profiling skipped: pyroscope-io not installed")
-    except Exception as e:
-        print(f"Failed to initialize Pyroscope profiling: {e}")
-
-
-# Initialize profiling before other imports (must run before heavy imports for accurate profiling)
-init_profiling()
 
 import base64
 import binascii
 import io
 import logging
+import os
 import re
 import shutil
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -113,10 +57,10 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from compile_utils import CompileConfig, compile_model, is_compile_available
+from compile_utils import CompileConfig, compile_model, is_compile_available  # noqa: E402
 
 # Import metrics from the metrics module
-from metrics import (
+from metrics import (  # noqa: E402
     DETECTIONS_PER_IMAGE,
     GPU_MEMORY_USED_GB,
     GPU_POWER_WATTS,
@@ -124,7 +68,6 @@ from metrics import (
     GPU_UTILIZATION,
     INFERENCE_LATENCY_SECONDS,
     INFERENCE_REQUESTS_TOTAL,
-    MODEL_INFERENCE_HEALTHY,
     MODEL_LOADED,
     get_vram_usage_bytes,
     record_batch_size,
@@ -280,19 +223,13 @@ def get_tensorrt_version() -> str | None:
 
 
 def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
-    """Check if an exception indicates a TensorRT version mismatch or engine load failure.
+    """Check if an exception indicates a TensorRT version mismatch.
 
     Args:
         error: The exception to check.
 
     Returns:
-        True if the error indicates a TensorRT version mismatch or engine load failure,
-        False otherwise.
-
-    Note:
-        NEM-3877: Added detection of 'NoneType' object has no attribute
-        'create_execution_context' error which occurs when TensorRT engine
-        was built with a different TensorRT version than the runtime.
+        True if the error indicates a TensorRT version mismatch, False otherwise.
     """
     error_str = str(error).lower()
     # Common TensorRT version mismatch error patterns
@@ -305,11 +242,55 @@ def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
         "incompatible",
         "exported with a different version",
         "deserializecudaengine",
-        # NEM-3877: TensorRT engine fails to load when built with different version
-        "'nonetype' object has no attribute 'create_execution_context'",
-        "create_execution_context",
     ]
     return any(pattern in error_str for pattern in mismatch_patterns)
+
+
+def is_tensorrt_fallback_error(error: Exception) -> bool:
+    """Check if an exception indicates TensorRT is unavailable and should fall back to PyTorch.
+
+    This function identifies errors that indicate TensorRT cannot be used, such as:
+    - TensorRT not being installed
+    - TensorRT library not found
+    - Engine file not found
+    - GPU architecture mismatch (kernel not available)
+    - General TensorRT loading failures
+
+    These are distinct from version mismatch errors (which may be resolvable by rebuild)
+    and from resource errors like OOM (which indicate system issues, not TensorRT issues).
+
+    Args:
+        error: The exception to check.
+
+    Returns:
+        True if the error indicates TensorRT is unavailable and PyTorch fallback should be used.
+    """
+    error_str = str(error).lower()
+
+    # Patterns that indicate TensorRT is unavailable or cannot be used
+    fallback_patterns = [
+        # TensorRT not installed
+        "tensorrt is not available",
+        "no module named 'tensorrt'",
+        "tensorrt library not found",
+        # Engine loading failures
+        "failed to load tensorrt",
+        "failed to load engine",
+        "cannot load tensorrt engine",
+        # GPU architecture mismatch
+        "no kernel image is available for execution",
+        "cuda error: no kernel image",
+        # File not found
+        "engine file not found",
+        "engine not found",
+    ]
+
+    # Check for fallback patterns
+    if any(pattern in error_str for pattern in fallback_patterns):
+        return True
+
+    # Also check if it's a FileNotFoundError for engine files
+    return isinstance(error, FileNotFoundError)
 
 
 def get_pt_model_path_for_engine(engine_path: str) -> str | None:
@@ -489,163 +470,6 @@ class TrackingResponse(BaseModel):
     image_height: int = Field(..., description="Original image height")
 
 
-# =============================================================================
-# Instance Segmentation Models (NEM-3912)
-# =============================================================================
-
-
-class MaskRLE(BaseModel):
-    """Run-length encoded mask data."""
-
-    counts: list[int] = Field(..., description="RLE counts (alternating zeros and ones)")
-    size: list[int] = Field(..., description="Mask dimensions [height, width]")
-
-
-class SegmentationDetection(BaseModel):
-    """Single object detection result with instance segmentation mask."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    class_name: str = Field(..., alias="class", description="Detected object class")
-    confidence: float = Field(..., description="Detection confidence score (0-1)")
-    bbox: BoundingBox = Field(..., description="Bounding box coordinates")
-    mask_rle: dict[str, Any] | None = Field(None, description="Run-length encoded binary mask")
-    mask_polygon: list[list[float]] | None = Field(
-        None, description="Polygon contours for the mask [[x1,y1,x2,y2,...], ...]"
-    )
-
-
-class SegmentationResponse(BaseModel):
-    """Response format for segmentation endpoint."""
-
-    detections: list[SegmentationDetection] = Field(
-        default_factory=list, description="List of detected objects with masks"
-    )
-    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
-    image_width: int = Field(..., description="Original image width")
-    image_height: int = Field(..., description="Original image height")
-
-
-# =============================================================================
-# Mask Encoding Utilities (NEM-3912)
-# =============================================================================
-
-
-def encode_mask_to_rle(mask: Any) -> dict[str, Any]:
-    """Encode a binary mask to run-length encoding (RLE).
-
-    Uses COCO-style RLE format where counts alternate between:
-    - Count of zeros
-    - Count of ones
-    - Count of zeros
-    - ...
-
-    The first count is always the number of zeros before the first one
-    (or the total length if there are no ones).
-
-    Args:
-        mask: Binary numpy array where 1/255 indicates foreground.
-
-    Returns:
-        Dictionary with 'counts' (list of run lengths) and 'size' [height, width].
-    """
-    import numpy as np
-
-    # Ensure binary mask (0 or 1)
-    binary_mask = (mask > 0).astype(np.uint8)
-    flat = binary_mask.flatten(order="F")  # Column-major (Fortran) order for COCO compatibility
-
-    n = len(flat)
-    if n == 0:
-        return {"counts": [], "size": list(mask.shape)}
-
-    # Find positions where value changes (0->1 or 1->0)
-    # By comparing each element with its predecessor (using 0 as virtual predecessor)
-    # diff will be non-zero at positions where a transition occurs
-    diff = np.diff(np.concatenate([[0], flat, [0]]))
-    change_positions = np.where(diff != 0)[0]
-
-    # If no changes, the mask is all zeros or all ones
-    if len(change_positions) == 0:
-        return {"counts": [n], "size": list(mask.shape)}
-
-    # Add boundary positions (0 at start, n at end) if not already present
-    # This ensures we capture the full run lengths
-    if change_positions[0] != 0:
-        change_positions = np.concatenate([[0], change_positions])
-    if change_positions[-1] != n:
-        change_positions = np.concatenate([change_positions, [n]])
-
-    # Compute run lengths from change positions
-    counts = np.diff(change_positions).tolist()
-
-    return {
-        "counts": counts,
-        "size": list(mask.shape),  # [height, width]
-    }
-
-
-def decode_rle_to_mask(rle: dict[str, Any]) -> Any:
-    """Decode run-length encoding back to binary mask.
-
-    Args:
-        rle: Dictionary with 'counts' and 'size' keys.
-
-    Returns:
-        Binary numpy array.
-    """
-    import numpy as np
-
-    height, width = rle["size"]
-    counts = rle["counts"]
-
-    # Reconstruct flat mask from RLE
-    flat = np.zeros(height * width, dtype=np.uint8)
-    pos = 0
-    value = 0  # Start with zeros
-
-    for count in counts:
-        flat[pos : pos + count] = value
-        pos += count
-        value = 1 - value  # Toggle between 0 and 1
-
-    # Reshape to original dimensions (column-major order)
-    return flat.reshape((height, width), order="F")
-
-
-def mask_to_polygon(mask: Any, simplify_tolerance: float = 1.0) -> list[list[float]]:
-    """Convert binary mask to polygon contours.
-
-    Args:
-        mask: Binary numpy array where 1/255 indicates foreground.
-        simplify_tolerance: Douglas-Peucker simplification tolerance.
-
-    Returns:
-        List of polygon contours, each as [x1, y1, x2, y2, ...].
-    """
-    import cv2
-    import numpy as np
-
-    # Ensure binary mask (0 or 255)
-    binary_mask = ((mask > 0) * 255).astype(np.uint8)
-
-    # Find contours
-    contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    polygons = []
-    for contour in contours:
-        # Simplify contour
-        epsilon = simplify_tolerance
-        approx = cv2.approxPolyDP(contour, epsilon, True)
-
-        # Flatten to [x1, y1, x2, y2, ...] format
-        if len(approx) >= 3:  # Need at least 3 points for a polygon
-            flat_coords = approx.flatten().tolist()
-            polygons.append(flat_coords)
-
-    return polygons
-
-
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -662,10 +486,6 @@ class HealthResponse(BaseModel):
     tensorrt_version: str | None = None
     torch_compile_enabled: bool | None = None
     torch_compile_mode: str | None = None
-    # NEM-3878: Track whether inference has been tested on startup
-    inference_tested: bool | None = None
-    # NEM-3877: Track which backend is actively being used
-    active_backend: str | None = None
 
 
 class YOLO26Model:
@@ -708,10 +528,6 @@ class YOLO26Model:
         self.cache_clear_count = 0  # Metric: total number of cache clears
         self.model: Any = None
         self.tensorrt_enabled = False
-        # NEM-3878: Track whether inference has been tested and is working
-        self.inference_healthy = False
-        # NEM-3877: Track which backend is actively being used (None until loaded)
-        self.active_backend: str | None = None
 
         # TensorRT auto-rebuild configuration (NEM-3871)
         if auto_rebuild is None:
@@ -750,13 +566,19 @@ class YOLO26Model:
     def load_model(self) -> None:
         """Load the TensorRT model using Ultralytics YOLO.
 
-        Handles TensorRT version mismatches (NEM-3871) by:
+        Handles TensorRT issues (NEM-3871, NEM-3882) by:
         1. Detecting version mismatch errors during engine load
         2. Deleting the stale engine file
         3. Rebuilding the engine from the source .pt file if available
         4. Falling back to the .pt model if rebuild fails or is disabled
 
-        NEM-3877: Added automatic fallback to PyTorch when TensorRT fails.
+        TensorRT to PyTorch fallback (NEM-3882):
+        When TensorRT is unavailable or fails to load (not due to version mismatch),
+        the service gracefully falls back to PyTorch:
+        - TensorRT not installed
+        - TensorRT library not found
+        - Engine file not found
+        - GPU architecture mismatch
         """
         try:
             logger.info("Loading YOLO26 TensorRT model with Ultralytics...")
@@ -767,33 +589,42 @@ class YOLO26Model:
             try:
                 self.model = YOLO(self.model_path)
             except Exception as load_error:
-                # Check if this is a TensorRT version mismatch or engine load failure
-                if self.model_path.endswith(".engine") and is_tensorrt_version_mismatch_error(
-                    load_error
-                ):
-                    logger.warning(f"TensorRT engine load failed: {load_error}")
-                    trt_version = get_tensorrt_version()
-                    logger.warning(f"Current TensorRT runtime version: {trt_version}")
+                # Check if this is a TensorRT engine that failed to load
+                if self.model_path.endswith(".engine"):
+                    # Check if this is a version mismatch (may be recoverable via rebuild)
+                    if is_tensorrt_version_mismatch_error(load_error):
+                        logger.warning(f"TensorRT version mismatch detected: {load_error}")
+                        trt_version = get_tensorrt_version()
+                        logger.warning(f"Current TensorRT runtime version: {trt_version}")
 
-                    # Attempt to rebuild if auto_rebuild is enabled
-                    if self.auto_rebuild:
-                        self._handle_tensorrt_version_mismatch()
-                    else:
-                        # NEM-3877: Fall back to PyTorch model directly
+                        # Attempt to rebuild if auto_rebuild is enabled
+                        if self.auto_rebuild:
+                            self._handle_tensorrt_version_mismatch()
+                        else:
+                            logger.error(
+                                "TensorRT auto-rebuild is disabled. "
+                                "Set YOLO26_AUTO_REBUILD=true to enable automatic engine rebuilding."
+                            )
+                            raise
+
+                    # Check if TensorRT is unavailable and we should fall back to PyTorch
+                    elif is_tensorrt_fallback_error(load_error):
                         logger.warning(
-                            "TensorRT auto-rebuild is disabled. "
-                            "Attempting fallback to PyTorch model..."
+                            f"TensorRT unavailable or failed to load: {load_error}. "
+                            "Attempting fallback to PyTorch model."
                         )
-                        self._fallback_to_pytorch()
+                        self._handle_tensorrt_fallback_to_pytorch(load_error)
+
+                    else:
+                        # Unknown error, re-raise
+                        raise
                 else:
                     raise
 
             # Check if TensorRT is being used
             if self.model_path.endswith(".engine"):
                 self.tensorrt_enabled = True
-                self.active_backend = "tensorrt"
                 logger.info("TensorRT engine loaded successfully")
-                logger.info(f"Active backend: {self.active_backend}")
                 # Note: torch.compile is not applied to TensorRT engines
                 # as they are already graph-optimized
                 if self.enable_torch_compile:
@@ -802,10 +633,7 @@ class YOLO26Model:
                         "(TensorRT already provides graph optimization)"
                     )
             else:
-                self.tensorrt_enabled = False
-                self.active_backend = "pytorch"
                 logger.info("YOLO model loaded (non-TensorRT format)")
-                logger.info(f"Active backend: {self.active_backend}")
                 # Apply torch.compile() for PyTorch models (NEM-3773)
                 if self.enable_torch_compile and is_compile_available():
                     self._apply_torch_compile()
@@ -824,36 +652,6 @@ class YOLO26Model:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
-
-    def _fallback_to_pytorch(self) -> None:
-        """Fall back to PyTorch model when TensorRT engine fails to load.
-
-        NEM-3877: This method attempts to load the .pt model file when the
-        TensorRT engine fails to load due to version mismatch or other issues.
-
-        Raises:
-            RuntimeError: If no fallback .pt model is available.
-        """
-        from ultralytics import YOLO
-
-        # Find the source .pt model
-        pt_path = self.pt_model_path or get_pt_model_path_for_engine(self.model_path)
-
-        if pt_path is None:
-            raise RuntimeError(
-                f"TensorRT engine failed and no fallback .pt model available for {self.model_path}. "
-                "Set YOLO26_PT_MODEL_PATH to specify the source model path."
-            )
-
-        logger.info(f"Falling back to PyTorch model: {pt_path}")
-
-        # Load the PyTorch model
-        self.model = YOLO(pt_path)
-        self.model_path = pt_path
-        self.tensorrt_enabled = False
-        self.active_backend = "pytorch"
-
-        logger.info(f"Successfully loaded fallback PyTorch model from {pt_path}")
 
     def _handle_tensorrt_version_mismatch(self) -> None:
         """Handle TensorRT version mismatch by rebuilding the engine.
@@ -914,6 +712,51 @@ class YOLO26Model:
         self.tensorrt_enabled = True
         logger.info("Rebuilt TensorRT engine loaded successfully")
 
+    def _handle_tensorrt_fallback_to_pytorch(self, original_error: Exception) -> None:
+        """Handle fallback from TensorRT to PyTorch when TensorRT is unavailable.
+
+        This method is called when TensorRT fails to load due to reasons other than
+        version mismatch (e.g., TensorRT not installed, GPU architecture mismatch).
+
+        It attempts to find and load the corresponding PyTorch model (.pt file).
+
+        Args:
+            original_error: The original exception that triggered the fallback.
+
+        Raises:
+            RuntimeError: If no fallback PyTorch model is available.
+        """
+        from ultralytics import YOLO
+
+        engine_path = self.model_path
+
+        # Find the source .pt model
+        pt_path = self.pt_model_path or get_pt_model_path_for_engine(engine_path)
+
+        if pt_path is None:
+            logger.error(
+                f"TensorRT fallback failed: no source .pt model found for {engine_path}. "
+                "Set YOLO26_PT_MODEL_PATH to specify the fallback model path."
+            )
+            # Re-raise the original error since we can't fall back
+            raise original_error
+
+        logger.info(f"Found fallback PyTorch model: {pt_path}")
+
+        try:
+            # Attempt to load the PyTorch model
+            self.model = YOLO(pt_path)
+            self.model_path = pt_path
+            self.tensorrt_enabled = False
+            logger.info(
+                f"Successfully fell back to PyTorch model from {pt_path}. "
+                "TensorRT is disabled for this session."
+            )
+        except Exception as fallback_error:
+            logger.error(f"Failed to load fallback PyTorch model {pt_path}: {fallback_error}")
+            # Re-raise the original error since fallback also failed
+            raise original_error from fallback_error
+
     def _apply_torch_compile(self) -> None:
         """Apply torch.compile() to the underlying PyTorch model for automatic kernel fusion.
 
@@ -963,35 +806,20 @@ class YOLO26Model:
             self._is_compiled = False
 
     def _warmup(self, num_iterations: int = 3) -> None:
-        """Warmup the model with dummy inputs.
-
-        NEM-3878: This method now validates that inference actually works
-        by setting inference_healthy based on warmup success/failure.
-        """
+        """Warmup the model with dummy inputs."""
         logger.info(f"Warming up model with {num_iterations} iterations...")
 
         # Create a dummy image
         dummy_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
 
-        warmup_success = False
         for i in range(num_iterations):
             try:
                 _ = self.detect(dummy_image)
                 logger.info(f"Warmup iteration {i + 1}/{num_iterations} complete")
-                warmup_success = True  # At least one iteration succeeded
             except Exception as e:
                 logger.warning(f"Warmup iteration {i + 1} failed: {e}")
 
-        # NEM-3878: Set inference_healthy based on whether ANY warmup iteration succeeded
-        if warmup_success:
-            self.inference_healthy = True
-            logger.info("Warmup complete - inference validated successfully")
-        else:
-            self.inference_healthy = False
-            logger.error("Warmup FAILED - all inference attempts failed")
-
-        # Update Prometheus metric
-        MODEL_INFERENCE_HEALTHY.set(1 if self.inference_healthy else 0)
+        logger.info("Warmup complete")
 
     def _clear_cuda_cache(self) -> None:
         """Clear CUDA cache to prevent memory fragmentation.
@@ -1220,117 +1048,6 @@ class YOLO26Model:
             # Clear CUDA cache to prevent memory fragmentation
             self._clear_cuda_cache()
 
-    def segment(self, image: Image.Image) -> tuple[list[dict[str, Any]], float]:
-        """Run instance segmentation on an image (NEM-3912).
-
-        Performs object detection with instance-level segmentation masks.
-        Uses the same YOLO model but extracts mask data from results.
-
-        Args:
-            image: PIL Image to segment objects in
-
-        Returns:
-            Tuple of (segmentation detections list, inference_time_ms)
-            Each detection includes:
-            - class: Object class name
-            - confidence: Detection confidence
-            - bbox: Bounding box {x, y, width, height}
-            - mask_rle: Run-length encoded mask
-            - mask_polygon: Polygon contours for the mask
-
-        Note:
-            This method requires a segmentation-capable YOLO model (yolo*-seg.pt).
-            If the model doesn't support segmentation, masks will be None.
-        """
-        if self.model is None:
-            raise RuntimeError("Model not loaded")
-
-        start_time = time.perf_counter()
-
-        try:
-            # Convert to RGB if needed
-            if image.mode != "RGB":
-                image = image.convert("RGB")
-
-            # Run inference with Ultralytics YOLO
-            results = self.model.predict(
-                source=image,
-                conf=self.confidence_threshold,
-                verbose=False,
-                device=self.device,
-            )
-
-            # Process results
-            detections = []
-            if results and len(results) > 0:
-                result = results[0]
-                boxes = result.boxes
-                masks = getattr(result, "masks", None)
-
-                if boxes is not None and len(boxes) > 0:
-                    for idx, box in enumerate(boxes):
-                        # Get class ID and name
-                        class_id = int(box.cls.item())
-                        class_name = COCO_CLASSES.get(class_id)
-
-                        # Filter to security-relevant classes
-                        if class_name is None or class_name not in SECURITY_CLASSES:
-                            continue
-
-                        # Get confidence
-                        confidence = float(box.conf.item())
-
-                        # Get bounding box coordinates (xyxy format)
-                        x1, y1, x2, y2 = box.xyxy[0].tolist()
-
-                        # Extract mask data if available
-                        mask_rle = None
-                        mask_polygon = None
-
-                        if masks is not None and len(masks) > idx:
-                            try:
-                                # Get binary mask as numpy array
-                                mask_data = masks.data[idx].cpu().numpy()
-
-                                # Encode mask to RLE
-                                mask_rle = encode_mask_to_rle(mask_data)
-
-                                # Convert to polygon contours
-                                if masks.xy is not None and len(masks.xy) > idx:
-                                    # Use Ultralytics' polygon representation
-                                    polygon_coords = masks.xy[idx]
-                                    if polygon_coords is not None and len(polygon_coords) > 0:
-                                        mask_polygon = [polygon_coords.flatten().tolist()]
-                                else:
-                                    # Fallback: compute polygon from mask
-                                    mask_polygon = mask_to_polygon(mask_data)
-                            except Exception as mask_error:
-                                logger.warning(
-                                    f"Failed to extract mask for detection {idx}: {mask_error}"
-                                )
-
-                        detections.append(
-                            {
-                                "class": class_name,
-                                "confidence": confidence,
-                                "bbox": {
-                                    "x": int(x1),
-                                    "y": int(y1),
-                                    "width": int(x2 - x1),
-                                    "height": int(y2 - y1),
-                                },
-                                "mask_rle": mask_rle,
-                                "mask_polygon": mask_polygon,
-                            }
-                        )
-
-            inference_time_ms = (time.perf_counter() - start_time) * 1000
-
-            return detections, inference_time_ms
-        finally:
-            # Clear CUDA cache to prevent memory fragmentation
-            self._clear_cuda_cache()
-
 
 # Global model instance
 model: YOLO26Model | None = None
@@ -1407,7 +1124,7 @@ def get_gpu_metrics() -> dict[str, float | int | None]:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for FastAPI app."""
-    global model
+    global model  # noqa: PLW0603
 
     # Startup
     logger.info("Starting YOLO26 Detection Server...")
@@ -1458,13 +1175,7 @@ app = FastAPI(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint.
-
-    NEM-3878: Updated to check inference_healthy for determining health status.
-    The endpoint now reports "unhealthy" if inference warmup failed, even if
-    the model object exists. This catches cases where the TensorRT engine
-    loads but fails during actual inference.
-    """
+    """Health check endpoint."""
     cuda_available = torch.cuda.is_available()
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage() if cuda_available else None
@@ -1472,21 +1183,9 @@ async def health_check() -> HealthResponse:
     # Get GPU metrics (utilization, temperature, power) via pynvml
     gpu_metrics = get_gpu_metrics() if cuda_available else {}
 
-    # NEM-3878: Check inference_healthy in addition to model existence
-    model_loaded = model is not None and model.model is not None
-    inference_healthy = getattr(model, "inference_healthy", False) if model else False
-
-    # Status is only "healthy" if model is loaded AND inference has been validated
-    if model_loaded and inference_healthy:
-        status = "healthy"
-    elif model_loaded and not inference_healthy:
-        status = "unhealthy"  # Model loaded but inference failed
-    else:
-        status = "degraded"  # Model not loaded
-
     return HealthResponse(
-        status=status,
-        model_loaded=model_loaded,
+        status="healthy" if model is not None and model.model is not None else "degraded",
+        model_loaded=model is not None and model.model is not None,
         device=device,
         cuda_available=cuda_available,
         model_name=model.model_path if model else None,
@@ -1498,10 +1197,6 @@ async def health_check() -> HealthResponse:
         tensorrt_version=get_tensorrt_version(),
         torch_compile_enabled=model._is_compiled if model else None,
         torch_compile_mode=model.torch_compile_mode if model and model._is_compiled else None,
-        # NEM-3878: Include inference_tested field
-        inference_tested=inference_healthy,
-        # NEM-3877: Include active_backend field
-        active_backend=getattr(model, "active_backend", None) if model else None,
     )
 
 
@@ -1514,10 +1209,6 @@ async def metrics() -> Response:
     """
     # Update model status gauge
     MODEL_LOADED.set(1 if model is not None and model.model is not None else 0)
-
-    # NEM-3878: Update model inference health gauge
-    inference_healthy = getattr(model, "inference_healthy", False) if model else False
-    MODEL_INFERENCE_HEALTHY.set(1 if inference_healthy else 0)
 
     # Update GPU metrics gauges
     if torch.cuda.is_available():
@@ -2009,384 +1700,12 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
         raise HTTPException(status_code=500, detail=f"Batch detection failed: {e!s}") from e
 
 
-@app.post("/segment", response_model=SegmentationResponse)
-async def segment_objects(
-    file: UploadFile = File(None), image_base64: str | None = None
-) -> SegmentationResponse:
-    """Instance segmentation endpoint (NEM-3912).
-
-    Performs object detection with instance-level segmentation masks.
-    Useful for:
-    - Privacy masking (blur/obscure detected persons)
-    - Improved Re-ID embeddings (extract foreground only)
-    - Precise object boundaries for analytics
-
-    Accepts either:
-    - Multipart file upload (file parameter)
-    - Base64-encoded image (image_base64 parameter)
-
-    Returns:
-        Segmentation results with bounding boxes, confidence scores, and masks
-
-    Raises:
-        HTTPException 400: Invalid image file (corrupted, truncated, or not an image)
-        HTTPException 413: Image size exceeds maximum allowed size
-        HTTPException 503: Model not loaded
-    """
-    if model is None or model.model is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-
-    # Track filename for error reporting
-    filename = file.filename if file else "base64_image"
-
-    try:
-        # Load image from file or base64 with size validation
-        if file:
-            # Validate file extension first
-            ext_valid, ext_error = validate_file_extension(file.filename)
-            if not ext_valid:
-                logger.warning(
-                    f"Invalid file extension for: {filename}. {ext_error}",
-                    extra={"source_file": filename, "error": ext_error},
-                )
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid file '{filename}': {ext_error}"
-                )
-
-            image_bytes = await file.read()
-            # Validate decoded image size
-            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"Image size ({len(image_bytes)} bytes) exceeds maximum "
-                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
-                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
-                )
-
-            # Validate magic bytes before passing to PIL
-            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
-            if not magic_valid:
-                logger.warning(
-                    f"Invalid image magic bytes for: {filename}. {magic_result}",
-                    extra={"source_file": filename, "error": magic_result},
-                )
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid image file '{filename}': {magic_result}. "
-                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
-                )
-
-            image = Image.open(io.BytesIO(image_bytes))
-        elif image_base64:
-            # Validate base64 string size BEFORE decoding to prevent DoS
-            if len(image_base64) > MAX_BASE64_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"Base64 image data size ({len(image_base64)} bytes) exceeds "
-                    f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
-                    f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
-                )
-            try:
-                image_bytes = base64.b64decode(image_base64)
-            except binascii.Error as e:
-                raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
-            # Validate decoded image size (base64 can decode to larger or smaller)
-            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
-                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
-                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
-                )
-
-            # Validate magic bytes before passing to PIL
-            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
-            if not magic_valid:
-                logger.warning(
-                    f"Invalid image magic bytes for: {filename}. {magic_result}",
-                    extra={"source_file": filename, "error": magic_result},
-                )
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid image file '{filename}': {magic_result}. "
-                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
-                )
-
-            image = Image.open(io.BytesIO(image_bytes))
-        else:
-            raise HTTPException(
-                status_code=400, detail="Either 'file' or 'image_base64' must be provided"
-            )
-
-        # Get original dimensions
-        img_width, img_height = image.size
-
-        # Run segmentation with metrics tracking
-        start_time = time.perf_counter()
-        detections, inference_time_ms = model.segment(image)
-        latency_seconds = time.perf_counter() - start_time
-
-        # Record metrics
-        record_inference(endpoint="segment", duration_seconds=latency_seconds, success=True)
-        DETECTIONS_PER_IMAGE.observe(len(detections))
-
-        # Record per-class detection counts
-        record_detections(detections)
-
-        return SegmentationResponse(
-            detections=[SegmentationDetection(**d) for d in detections],
-            inference_time_ms=inference_time_ms,
-            image_width=img_width,
-            image_height=img_height,
-        )
-
-    except HTTPException:
-        record_inference(endpoint="segment", duration_seconds=0, success=False)
-        record_error(error_type="http_error")
-        raise
-    except UnidentifiedImageError as e:
-        record_inference(endpoint="segment", duration_seconds=0, success=False)
-        record_error(error_type="invalid_image")
-        logger.warning(
-            f"Invalid image file received: {filename}. "
-            f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
-            extra={"source_file": filename, "error": str(e)},
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid image file '{filename}': Cannot identify image format. "
-            f"File may be corrupted, truncated, or not a supported image type "
-            f"(supported: JPEG, PNG, GIF, BMP, WEBP).",
-        ) from e
-    except OSError as e:
-        record_inference(endpoint="segment", duration_seconds=0, success=False)
-        record_error(error_type="corrupted_image")
-        logger.warning(
-            f"Corrupted image file received: {filename}. Error: {e}",
-            extra={"source_file": filename, "error": str(e)},
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=f"Corrupted image file '{filename}': {e!s}",
-        ) from e
-    except Exception as e:
-        record_inference(endpoint="segment", duration_seconds=0, success=False)
-        record_error(error_type="segmentation_error")
-        logger.error(f"Segmentation failed for {filename}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Segmentation failed: {e!s}") from e
-
-
-# =============================================================================
-# Pose Estimation Endpoints (NEM-3910)
-# =============================================================================
-
-# Global pose model instance
-pose_model: Any = None
-
-
-def get_pose_model():
-    """Get or initialize the global pose model.
-
-    Lazily initializes the pose model on first access.
-    """
-    global pose_model
-
-    if pose_model is None:
-        try:
-            from pose_estimation import YOLO26PoseModel
-
-            pose_model_path = os.environ.get("YOLO26_POSE_MODEL_PATH", "yolo11n-pose.pt")
-            pose_confidence = float(os.environ.get("YOLO26_POSE_CONFIDENCE", "0.5"))
-            loitering_threshold = float(os.environ.get("LOITERING_THRESHOLD_SECONDS", "30"))
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-            pose_model = YOLO26PoseModel(
-                model_path=pose_model_path,
-                confidence_threshold=pose_confidence,
-                device=device,
-                loitering_threshold_seconds=loitering_threshold,
-            )
-            pose_model.load_model()
-            logger.info(f"Pose model loaded: {pose_model_path}")
-        except Exception as e:
-            logger.error(f"Failed to load pose model: {e}")
-            raise
-
-    return pose_model
-
-
-@app.get("/pose/health")
-async def pose_health_check():
-    """Health check for pose estimation service.
-
-    Returns:
-        JSON with pose model status
-    """
-    try:
-        pm = get_pose_model()
-        return {
-            "status": "healthy" if pm.inference_healthy else "unhealthy",
-            "model_loaded": pm.model is not None,
-            "model_path": pm.model_path,
-            "device": pm.device,
-            "inference_healthy": pm.inference_healthy,
-        }
-    except Exception as e:
-        return {
-            "status": "unavailable",
-            "model_loaded": False,
-            "error": str(e),
-        }
-
-
-@app.post("/pose/detect")
-async def detect_poses(
-    file: UploadFile = File(None),
-    image_base64: str | None = None,
-) -> JSONResponse:
-    """Detect human poses in an image.
-
-    NEM-3910: Pose estimation endpoint using YOLO-pose model.
-
-    Accepts either:
-    - Multipart file upload (file parameter)
-    - Base64-encoded image (image_base64 parameter)
-
-    Returns:
-        JSON with pose detections including keypoints and behavior analysis
-
-    Raises:
-        HTTPException 400: Invalid image file
-        HTTPException 413: Image size exceeds maximum
-        HTTPException 503: Pose model not loaded
-    """
-    # Track filename for error reporting
-    filename = file.filename if file else "base64_image"
-
-    try:
-        pm = get_pose_model()
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Pose model not available: {e}") from e
-
-    try:
-        # Load image from file or base64
-        if file:
-            # Validate file extension
-            ext_valid, ext_error = validate_file_extension(file.filename)
-            if not ext_valid:
-                raise HTTPException(
-                    status_code=400, detail=f"Invalid file '{filename}': {ext_error}"
-                )
-
-            image_bytes = await file.read()
-            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"Image size exceeds maximum ({MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
-                )
-
-            # Validate magic bytes
-            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
-            if not magic_valid:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid image file '{filename}': {magic_result}",
-                )
-
-            image = Image.open(io.BytesIO(image_bytes))
-        elif image_base64:
-            if len(image_base64) > MAX_BASE64_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=413,
-                    detail="Base64 data exceeds maximum size",
-                )
-            try:
-                image_bytes = base64.b64decode(image_base64)
-            except binascii.Error as e:
-                raise HTTPException(status_code=400, detail=f"Invalid base64: {e}") from e
-
-            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=413,
-                    detail="Decoded image exceeds maximum size",
-                )
-
-            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
-            if not magic_valid:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid image: {magic_result}",
-                )
-
-            image = Image.open(io.BytesIO(image_bytes))
-        else:
-            raise HTTPException(status_code=400, detail="Either 'file' or 'image_base64' required")
-
-        # Get image dimensions
-        img_width, img_height = image.size
-
-        # Run pose detection
-        timestamp_ms = time.time() * 1000
-        detections, inference_time_ms = pm.detect_poses(image, timestamp_ms=timestamp_ms)
-
-        # Collect alerts from detections
-        alerts = []
-        for det in detections:
-            behavior = det.get("behavior", {})
-            person_id = det.get("person_id", 0)
-            if behavior.get("is_fallen"):
-                alerts.append(f"Fall detected (person {person_id})")
-            if behavior.get("is_aggressive"):
-                alerts.append(f"Aggressive behavior (person {person_id})")
-            if behavior.get("is_loitering"):
-                duration = behavior.get("loitering_duration_seconds", 0)
-                alerts.append(f"Loitering detected (person {person_id}): {duration:.0f}s")
-
-        return JSONResponse(
-            content={
-                "detections": detections,
-                "inference_time_ms": inference_time_ms,
-                "image_width": img_width,
-                "image_height": img_height,
-                "alerts": alerts,
-            }
-        )
-
-    except HTTPException:
-        raise
-    except UnidentifiedImageError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid image file '{filename}': Cannot identify format",
-        ) from e
-    except Exception as e:
-        logger.error(f"Pose detection failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Pose detection failed: {e!s}") from e
-
-
-@app.post("/pose/analyze")
-async def analyze_poses(
-    file: UploadFile = File(None),
-    image_base64: str | None = None,
-) -> JSONResponse:
-    """Analyze poses for security-relevant behaviors.
-
-    NEM-3910: Behavior analysis endpoint that detects:
-    - Falls (person lying horizontally)
-    - Aggressive behavior (raised arms, rapid movement)
-    - Loitering (stationary person exceeding time threshold)
-
-    This is an alias for /pose/detect with emphasis on behavior analysis.
-    """
-    return await detect_poses(file=file, image_base64=image_base64)
-
-
 if __name__ == "__main__":
     import uvicorn
 
     # Default to 0.0.0.0 to allow connections from Docker/Podman containers.
     # When AI servers run natively on host while backend runs in containers,
     # binding to 127.0.0.1 would prevent container-to-host connectivity.
-    host = os.getenv("HOST", "0.0.0.0")
+    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
     port = int(os.getenv("PORT", "8095"))
     uvicorn.run(app, host=host, port=port, log_level="info")
