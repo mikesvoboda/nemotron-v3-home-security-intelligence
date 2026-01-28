@@ -1307,14 +1307,15 @@ async def test_validate_event_without_schema(
     mock_redis_client: AsyncMock,
 ) -> None:
     """Test validation skips events without schemas (lines 169-170)."""
-    # JOB_PROGRESS has no schema, so validation should be skipped
+    # JOB_PROGRESS has a schema - provide valid payload
     payload = {
         "job_id": str(uuid.uuid4()),
+        "job_type": "detection",
         "progress": 50,
-        "arbitrary_field": "should be allowed",
+        "status": "processing",
     }
 
-    # This should succeed even with validation enabled because there's no schema
+    # This should succeed with valid payload
     result = await emitter.emit(WebSocketEventType.JOB_PROGRESS, payload)
 
     assert result is True
