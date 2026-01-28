@@ -10,13 +10,68 @@ This project follows strict TDD for all feature implementation. Tests are not an
 2. **GREEN** - Write the minimum code necessary to make the test pass
 3. **REFACTOR** - Improve the code while keeping tests green
 
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph TDD["TDD Cycle"]
+        RED["RED<br/>Write failing test"]
+        GREEN["GREEN<br/>Make test pass"]
+        REFACTOR["REFACTOR<br/>Improve code"]
+    end
+
+    RED -->|"minimum code"| GREEN
+    GREEN -->|"clean up"| REFACTOR
+    REFACTOR -->|"next feature"| RED
+
+    style RED fill:#DC2626,stroke:#EF4444,color:#FFFFFF
+    style GREEN fill:#16A34A,stroke:#22C55E,color:#FFFFFF
+    style REFACTOR fill:#3B82F6,stroke:#60A5FA,color:#FFFFFF
 ```
-+----------+     +----------+     +-----------+
-|   RED    | --> |  GREEN   | --> |  REFACTOR |
-|  (fail)  |     |  (pass)  |     |  (improve)|
-+----------+     +----------+     +-----------+
-      ^                                 |
-      +---------------------------------+
+
+### TDD Cycle Details
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> RED: Start new feature
+
+    RED --> RED: Write test
+    note right of RED: Define expected behavior<br/>Test MUST fail initially
+
+    RED --> GREEN: Test fails (expected)
+    note right of GREEN: Write minimum code<br/>Only enough to pass
+
+    GREEN --> GREEN: Implement
+    GREEN --> REFACTOR: All tests pass
+
+    note right of REFACTOR: Clean up code<br/>Keep tests green
+
+    REFACTOR --> RED: Next feature/test
+    REFACTOR --> [*]: Feature complete
 ```
 
 ## Pre-Implementation Checklist

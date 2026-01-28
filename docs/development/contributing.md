@@ -23,25 +23,45 @@ Be respectful, professional, and constructive in all interactions. Focus on the 
 
 ## Development Workflow
 
-```
-flowchart TB
-    subgraph "Development Flow"
-        CLAIM["Claim task<br/>Set to In Progress in Linear"]
-        BRANCH["Create feature branch"]
-        CODE["Implement feature"]
-        TEST["Write/run tests"]
-        COMMIT["Commit changes"]
-        PUSH["Push to remote"]
-        PR["Create pull request"]
-        REVIEW["Code review"]
-        MERGE["Merge to main"]
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    subgraph Linear["Task Tracking"]
+        CLAIM["Claim task<br/>In Progress"]
+    end
+
+    subgraph Local["Local Development"]
+        BRANCH["Create branch"]
+        CODE["Implement"]
+        TEST["Write tests"]
+        COMMIT["Commit"]
+    end
+
+    subgraph Remote["GitHub"]
+        PUSH["Push"]
+        PR["Create PR"]
+        REVIEW["Review"]
+        MERGE["Merge"]
     end
 
     CLAIM --> BRANCH --> CODE --> TEST --> COMMIT --> PUSH --> PR --> REVIEW --> MERGE
 
-    style CLAIM fill:#76B900
-    style TEST fill:#3B82F6
-    style REVIEW fill:#A855F7
+    style CLAIM fill:#76B900,stroke:#84CC16,color:#FFFFFF
+    style TEST fill:#3B82F6,stroke:#60A5FA,color:#FFFFFF
+    style REVIEW fill:#A855F7,stroke:#C084FC,color:#FFFFFF
+    style MERGE fill:#16A34A,stroke:#22C55E,color:#FFFFFF
 ```
 
 ### 1. Claim a Task
