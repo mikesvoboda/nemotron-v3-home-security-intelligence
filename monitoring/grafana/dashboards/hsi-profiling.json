@@ -15,12 +15,25 @@
       }
     ]
   },
-  "description": "Home Security Intelligence - Continuous Profiling Dashboard with Pyroscope integration for CPU and memory profiling",
+  "description": "Home Security Intelligence - Continuous Profiling Dashboard with Pyroscope integration for CPU profiling via eBPF/py-spy across all AI pipeline services. Features diff comparison view and top functions analysis.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "bug",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Request-Level Debugging",
+      "tooltip": "Debug individual slow requests with trace-correlated profiles",
+      "type": "link",
+      "url": "/d/hsi-request-profiling/hsi-request-level-profiling"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
@@ -41,7 +54,7 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "CPU and memory profile data over time for the selected service",
+      "description": "CPU profile data over time for the selected service(s). Use this panel to identify when CPU usage spikes occur and correlate with specific events.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -50,7 +63,7 @@
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "Profile Value",
+            "axisLabel": "CPU Time (nanoseconds)",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -87,12 +100,12 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "ns"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 24,
         "x": 0,
         "y": 1
@@ -102,7 +115,7 @@
         "legend": {
           "calcs": ["mean", "max"],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -118,14 +131,14 @@
             "uid": "pyroscope"
           },
           "groupBy": ["service_name"],
-          "labelSelector": "{service_name=\"$service\"}",
-          "profileTypeId": "$profile_type",
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
           "queryType": "metrics",
           "refId": "A",
           "spanSelector": []
         }
       ],
-      "title": "Profile Timeline - $service ($profile_type)",
+      "title": "CPU Profile Timeline - $service",
       "type": "timeseries"
     },
     {
@@ -134,11 +147,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 7
       },
-      "id": 101,
+      "id": 102,
       "panels": [],
-      "title": "Service Flame Graphs",
+      "title": "Nemotron LLM (Primary - ai-llm)",
       "type": "row"
     },
     {
@@ -146,86 +159,12 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "Flame graph visualization for Backend service showing CPU/memory hotspots",
+      "description": "Nemotron LLM inference profiling - the most critical service for performance analysis. Profiled via eBPF for minimal overhead. Shows CPU time spent in model.generate(), tokenizer operations, and batch processing. Key hotspots: HuggingFace Transformers inference (~60-70% CPU), tokenization (~20-30%), and response formatting. Service name: ai-llm",
       "gridPos": {
-        "h": 12,
-        "w": 12,
+        "h": 14,
+        "w": 24,
         "x": 0,
-        "y": 10
-      },
-      "id": 2,
-      "options": {
-        "minPercentage": 0.1,
-        "showFlameGraph": true,
-        "showTable": true,
-        "showTopTable": true
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-pyroscope-datasource",
-            "uid": "pyroscope"
-          },
-          "groupBy": [],
-          "labelSelector": "{service_name=\"Backend\"}",
-          "profileTypeId": "$profile_type",
-          "queryType": "profile",
-          "refId": "A",
-          "spanSelector": []
-        }
-      ],
-      "title": "Backend Flame Graph ($profile_type)",
-      "type": "flamegraph"
-    },
-    {
-      "datasource": {
-        "type": "grafana-pyroscope-datasource",
-        "uid": "pyroscope"
-      },
-      "description": "Flame graph visualization for YOLO26 service showing CPU/memory hotspots",
-      "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 12,
-        "y": 10
-      },
-      "id": 3,
-      "options": {
-        "minPercentage": 0.1,
-        "showFlameGraph": true,
-        "showTable": true,
-        "showTopTable": true
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-pyroscope-datasource",
-            "uid": "pyroscope"
-          },
-          "groupBy": [],
-          "labelSelector": "{service_name=\"YOLO26\"}",
-          "profileTypeId": "$profile_type",
-          "queryType": "profile",
-          "refId": "A",
-          "spanSelector": []
-        }
-      ],
-      "title": "YOLO26 Flame Graph ($profile_type)",
-      "type": "flamegraph"
-    },
-    {
-      "datasource": {
-        "type": "grafana-pyroscope-datasource",
-        "uid": "pyroscope"
-      },
-      "description": "Flame graph visualization for Nemotron service showing CPU/memory hotspots",
-      "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 0,
-        "y": 22
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -242,14 +181,64 @@
             "uid": "pyroscope"
           },
           "groupBy": [],
-          "labelSelector": "{service_name=\"Nemotron\"}",
-          "profileTypeId": "$profile_type",
+          "labelSelector": "{service_name=\"ai-llm\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
           "queryType": "profile",
           "refId": "A",
           "spanSelector": []
         }
       ],
-      "title": "Nemotron Flame Graph ($profile_type)",
+      "title": "ai-llm (Nemotron LLM) - CPU Flame Graph",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "id": 101,
+      "panels": [],
+      "title": "AI Detection Services",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "YOLO26 object detection service - TensorRT-optimized inference for real-time detection. Profiled via py-spy CPU sampling. Key hotspots: TensorRT inference engine execution, NMS post-processing, bounding box decoding, and tensor data transfer between CPU/GPU. Service name: ai-yolo26",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 3,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"ai-yolo26\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "ai-yolo26 (Object Detection) - CPU Flame Graph",
       "type": "flamegraph"
     },
     {
@@ -257,12 +246,12 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "Flame graph visualization for Florence service showing CPU/memory hotspots",
+      "description": "Florence-2 vision-language model for dense captioning and scene understanding. Profiled via py-spy CPU sampling. Key hotspots: Vision encoder forward pass, cross-attention layers, beam search decoding, and image preprocessing. Service name: ai-florence",
       "gridPos": {
         "h": 12,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 23
       },
       "id": 5,
       "options": {
@@ -279,58 +268,1394 @@
             "uid": "pyroscope"
           },
           "groupBy": [],
-          "labelSelector": "{service_name=\"Florence\"}",
-          "profileTypeId": "$profile_type",
+          "labelSelector": "{service_name=\"ai-florence\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
           "queryType": "profile",
           "refId": "A",
           "spanSelector": []
         }
       ],
-      "title": "Florence Flame Graph ($profile_type)",
+      "title": "ai-florence (Vision-Language) - CPU Flame Graph",
       "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "id": 103,
+      "panels": [],
+      "title": "AI Enrichment Services",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "CLIP embedding service for entity re-identification and similarity matching. Profiled via py-spy CPU sampling. Key hotspots: Vision transformer forward pass, image preprocessing with PIL/torchvision, embedding normalization, and optional TensorRT inference. Service name: ai-clip",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "id": 7,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"ai-clip\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "ai-clip (CLIP Embeddings) - CPU Flame Graph",
+      "type": "flamegraph"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Full enrichment service with vehicle classification, pet classification, FashionSigLIP, pose estimation, OSNet Re-ID, and video analytics. Profiled via py-spy CPU sampling. Key hotspots: Multi-model inference orchestration, ByteTrack tracking, supervision annotators, and batch processing. Service name: ai-enrichment",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "id": 6,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"ai-enrichment\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "ai-enrichment (Full Enrichment) - CPU Flame Graph",
+      "type": "flamegraph"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Lightweight enrichment service optimized for smaller GPUs (A400 4GB). Hosts pose estimation, threat detection, OSNet Re-ID, pet classification, and depth estimation. Profiled via py-spy CPU sampling. Key hotspots: TensorRT-accelerated YOLO pose/threat models, OSNet feature extraction, and model switching overhead. Service name: ai-enrichment-light",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "id": 8,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"ai-enrichment-light\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "ai-enrichment-light (Lightweight Enrichment) - CPU Flame Graph",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
+      "id": 104,
+      "panels": [],
+      "title": "Backend Services",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "FastAPI backend service - orchestrates AI pipeline, database operations, and WebSocket broadcasts. Profiled via pyroscope-io SDK (native Python profiling). Key hotspots: SQLAlchemy ORM operations, Redis cache interactions, batch aggregation logic, async task coordination, and HTTP request handling. Service name: nemotron-backend",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 61
+      },
+      "id": 2,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=\"nemotron-backend\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "nemotron-backend (FastAPI) - CPU Flame Graph",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      },
+      "id": 105,
+      "panels": [],
+      "title": "Selected Service Detail",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Detailed flame graph for the service(s) selected in the service dropdown. Use the multi-select to compare CPU profiles across services or drill down into a specific service.",
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 74
+      },
+      "id": 9,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Selected Service(s) - CPU Flame Graph ($service)",
+      "type": "flamegraph"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      },
+      "id": 106,
+      "panels": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "description": "Baseline profile from the comparison time range ($baseline_from to $baseline_to). Use this to compare against the current time range and identify performance regressions or improvements.",
+          "gridPos": {
+            "h": 12,
+            "w": 12,
+            "x": 0,
+            "y": 89
+          },
+          "id": 10,
+          "options": {
+            "minPercentage": 0.1,
+            "showFlameGraph": true,
+            "showTable": true,
+            "showTopTable": true
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-pyroscope-datasource",
+                "uid": "pyroscope"
+              },
+              "groupBy": [],
+              "labelSelector": "{service_name=~\"$service\"}",
+              "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+              "queryType": "profile",
+              "refId": "A",
+              "spanSelector": []
+            }
+          ],
+          "timeFrom": "$baseline_from",
+          "timeShift": null,
+          "title": "Baseline Profile ($baseline_from to $baseline_to)",
+          "type": "flamegraph"
+        },
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "description": "Current profile from the dashboard time range. Compare this against the baseline to identify which functions have increased or decreased CPU usage.",
+          "gridPos": {
+            "h": 12,
+            "w": 12,
+            "x": 12,
+            "y": 89
+          },
+          "id": 11,
+          "options": {
+            "minPercentage": 0.1,
+            "showFlameGraph": true,
+            "showTable": true,
+            "showTopTable": true
+          },
+          "pluginVersion": "10.2.3",
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-pyroscope-datasource",
+                "uid": "pyroscope"
+              },
+              "groupBy": [],
+              "labelSelector": "{service_name=~\"$service\"}",
+              "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+              "queryType": "profile",
+              "refId": "A",
+              "spanSelector": []
+            }
+          ],
+          "title": "Current Profile (Dashboard Time Range)",
+          "type": "flamegraph"
+        }
+      ],
+      "title": "Profile Comparison (Baseline vs Current)",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 101
+      },
+      "id": 107,
+      "panels": [],
+      "title": "Top Functions Analysis",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Top CPU-consuming functions across selected services, sorted by self time (time spent directly in the function, not including calls to other functions). Use this to identify optimization targets.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1000000000
+              },
+              {
+                "color": "red",
+                "value": 10000000000
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Function"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 500
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Self"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 102
+      },
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Self"
+          }
+        ]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": ["function"],
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "metrics",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Top Functions by CPU Time ($service)",
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": true,
+                "field": "Value"
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 50
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Functions that show increased CPU time compared to the baseline period. High values indicate potential performance regressions that should be investigated.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 500000000
+              },
+              {
+                "color": "orange",
+                "value": 1000000000
+              },
+              {
+                "color": "red",
+                "value": 5000000000
+              }
+            ]
+          },
+          "unit": "ns"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Function"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 500
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Delta"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 112
+      },
+      "id": 13,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Delta"
+          }
+        ]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": ["function"],
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "queryType": "metrics",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Potential Regressions - Functions with Increased CPU ($service)",
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": true,
+                "field": "Value"
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 25
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 122
+      },
+      "id": 108,
+      "panels": [],
+      "title": "Memory Analysis",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Memory allocations flame graph showing functions by number of memory allocations (object count). Identifies functions that allocate many objects, which may cause GC pressure even if individual allocations are small.",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 123
+      },
+      "id": 14,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "memory:alloc_objects:count:space:bytes",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Memory Allocations (Object Count) - $service",
+      "type": "flamegraph"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Memory bytes flame graph showing functions by total bytes allocated. Identifies functions that allocate large amounts of memory, useful for finding memory-intensive operations.",
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 123
+      },
+      "id": 15,
+      "options": {
+        "minPercentage": 0.1,
+        "showFlameGraph": true,
+        "showTable": true,
+        "showTopTable": true
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": [],
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "memory:alloc_space:bytes:space:bytes",
+          "queryType": "profile",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Memory Bytes Allocated - $service",
+      "type": "flamegraph"
+    },
+    {
+      "datasource": {
+        "type": "grafana-pyroscope-datasource",
+        "uid": "pyroscope"
+      },
+      "description": "Top memory-allocating functions sorted by bytes allocated. Use this table to identify optimization targets for memory usage reduction.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1048576
+              },
+              {
+                "color": "orange",
+                "value": 10485760
+              },
+              {
+                "color": "red",
+                "value": 104857600
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Function"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 500
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Self"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 135
+      },
+      "id": 16,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Self"
+          }
+        ]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-pyroscope-datasource",
+            "uid": "pyroscope"
+          },
+          "groupBy": ["function"],
+          "labelSelector": "{service_name=~\"$service\"}",
+          "profileTypeId": "memory:alloc_space:bytes:space:bytes",
+          "queryType": "metrics",
+          "refId": "A",
+          "spanSelector": []
+        }
+      ],
+      "title": "Top Memory Allocating Functions - $service",
+      "transformations": [
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": true,
+                "field": "Value"
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 50
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 145
+      },
+      "id": 109,
+      "panels": [],
+      "title": "Automated Regression Detection",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "CPU usage ratio compared to 24-hour baseline. Values > 100% indicate increased CPU usage. Yellow (>120%) and Red (>150%) thresholds trigger automated alerts.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 200,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 150
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 146
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "job:service_cpu_regression_ratio:5m_vs_24h * 100",
+          "legendFormat": "{{ job }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Regression Ratio (% of 24h Baseline)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Memory usage ratio compared to 6-hour baseline. Values > 100% indicate memory growth. Yellow (>120%) and Red (>150%) thresholds may indicate memory leaks.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 200,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 150
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 146
+      },
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "job:service_memory_regression_ratio:current_vs_6h * 100",
+          "legendFormat": "{{ job }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Memory Regression Ratio (% of 6h Baseline)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "CPU regression ratio over time. Shows how current CPU usage compares to the 24-hour average baseline. Horizontal lines at 120% (warning) and 150% (critical).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "% of Baseline",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 150
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 152
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "job:service_cpu_regression_ratio:5m_vs_24h * 100",
+          "legendFormat": "{{ job }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Regression Trend (% of 24h Baseline)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Memory regression ratio over time. Shows how current memory usage compares to the 6-hour average baseline. Rising trend may indicate memory leak.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "% of Baseline",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 150
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 152
+      },
+      "id": 23,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "job:service_memory_regression_ratio:current_vs_6h * 100",
+          "legendFormat": "{{ job }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Memory Regression Trend (% of 6h Baseline)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Number of active regression alerts by severity. Shows CPU spike, memory growth, and latency regression alerts currently firing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 160
+      },
+      "id": 24,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(ALERTS{alertname=~\"ServiceCPUSpike.*\", alertstate=\"firing\"}) or vector(0)",
+          "legendFormat": "CPU Spike Alerts",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(ALERTS{alertname=~\"ServiceMemory.*\", alertstate=\"firing\"}) or vector(0)",
+          "legendFormat": "Memory Alerts",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(ALERTS{alertname=~\".*HighLatency.*\", alertstate=\"firing\"}) or vector(0)",
+          "legendFormat": "Latency Alerts",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(ALERTS{alertname=\"PotentialMemoryLeak\", alertstate=\"firing\"}) or vector(0)",
+          "legendFormat": "Memory Leak Alerts",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Active Regression Alerts",
+      "type": "stat"
     }
   ],
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["pyroscope", "profiling", "performance"],
+  "tags": [
+    "pyroscope",
+    "profiling",
+    "performance",
+    "cpu",
+    "memory",
+    "ai",
+    "observability",
+    "comparison"
+  ],
   "templating": {
     "list": [
       {
         "current": {
           "selected": true,
-          "text": "Backend",
-          "value": "Backend"
+          "text": ["ai-llm"],
+          "value": ["ai-llm"]
         },
-        "description": "Select the service to profile",
+        "datasource": {
+          "type": "grafana-pyroscope-datasource",
+          "uid": "pyroscope"
+        },
+        "definition": "label_values(service_name)",
+        "description": "Select service(s) to profile. Multi-select enabled for comparison. Services: ai-llm (Nemotron), ai-yolo26, ai-clip, ai-florence, ai-enrichment, ai-enrichment-light, nemotron-backend",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "label": "Service",
-        "multi": false,
+        "multi": true,
         "name": "service",
+        "options": [],
+        "query": "label_values(service_name)",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "now-1d",
+          "value": "now-1d"
+        },
+        "description": "Start time for comparison baseline (e.g., now-1d, now-2h)",
+        "hide": 0,
+        "label": "Baseline Start",
+        "name": "baseline_from",
         "options": [
           {
             "selected": true,
-            "text": "Backend",
-            "value": "Backend"
-          },
-          {
-            "selected": false,
-            "text": "YOLO26",
-            "value": "YOLO26"
-          },
-          {
-            "selected": false,
-            "text": "Nemotron",
-            "value": "Nemotron"
-          },
-          {
-            "selected": false,
-            "text": "Florence",
-            "value": "Florence"
+            "text": "now-1d",
+            "value": "now-1d"
           }
         ],
-        "query": "Backend,YOLO26,Nemotron,Florence",
+        "query": "now-1d",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "now-12h",
+          "value": "now-12h"
+        },
+        "description": "End time for comparison baseline",
+        "hide": 0,
+        "label": "Baseline End",
+        "name": "baseline_to",
+        "options": [
+          {
+            "selected": true,
+            "text": "now-12h",
+            "value": "now-12h"
+          }
+        ],
+        "query": "now-12h",
+        "skipUrlSync": false,
+        "type": "textbox"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "Off",
+          "value": "false"
+        },
+        "description": "Enable side-by-side baseline vs current comparison view",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Enable Comparison",
+        "multi": false,
+        "name": "comparison_enabled",
+        "options": [
+          {
+            "selected": true,
+            "text": "Off",
+            "value": "false"
+          },
+          {
+            "selected": false,
+            "text": "On",
+            "value": "true"
+          }
+        ],
+        "query": "false,true",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
@@ -338,10 +1663,10 @@
       {
         "current": {
           "selected": true,
-          "text": "cpu",
+          "text": "CPU Time",
           "value": "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
         },
-        "description": "Select the profile type (CPU or Memory)",
+        "description": "Select profile type: CPU time, memory allocations (object count), or memory bytes allocated",
         "hide": 0,
         "includeAll": false,
         "label": "Profile Type",
@@ -350,16 +1675,21 @@
         "options": [
           {
             "selected": true,
-            "text": "cpu",
+            "text": "CPU Time",
             "value": "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
           },
           {
             "selected": false,
-            "text": "memory",
+            "text": "Memory Allocations",
             "value": "memory:alloc_objects:count:space:bytes"
+          },
+          {
+            "selected": false,
+            "text": "Memory Bytes",
+            "value": "memory:alloc_space:bytes:space:bytes"
           }
         ],
-        "query": "cpu : process_cpu:cpu:nanoseconds:cpu:nanoseconds,memory : memory:alloc_objects:count:space:bytes",
+        "query": "process_cpu:cpu:nanoseconds:cpu:nanoseconds,memory:alloc_objects:count:space:bytes,memory:alloc_space:bytes:space:bytes",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
@@ -376,6 +1706,6 @@
   "timezone": "browser",
   "title": "HSI Profiling",
   "uid": "hsi-profiling",
-  "version": 1,
+  "version": 4,
   "weekStart": ""
 }

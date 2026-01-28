@@ -1,0 +1,255 @@
+# Performance Regression Alerting Rules (NEM-4133)
+# Automated detection of CPU, memory, and latency regressions using
+# recording rules defined in profiling-recording-rules.yml.
+#
+# Alert Severity Guide:
+# - critical: Immediate attention required, service degradation likely
+# - warning: Investigation needed, may indicate developing issue
+# - info: Notable change, for tracking purposes
+#
+# Response procedures documented in: docs/operations/profiling-runbook.md
+
+groups:
+  # =============================================================================
+  # CPU Regression Alerts
+  # =============================================================================
+  # Detect when services are consuming significantly more CPU than their
+  # historical baseline, which may indicate code regressions, memory leaks
+  # causing GC pressure, or inefficient algorithmic changes.
+  - name: cpu-regression-alerts
+    rules:
+      # CPU usage spike: >50% increase over 24-hour average for 15 minutes
+      # This catches sustained regressions rather than temporary spikes
+      - alert: ServiceCPUSpike
+        expr: |
+          job:service_cpu_regression_ratio:5m_vs_24h > 1.5
+        for: 15m
+        labels:
+          severity: warning
+          category: performance
+          component: cpu
+        annotations:
+          summary: 'CPU usage spike detected for {{ $labels.job }}'
+          description: '{{ $labels.job }} CPU usage is {{ $value | humanize }}x the 24-hour average ({{ $value | humanizePercentage }} of baseline). This may indicate a performance regression.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/cpu-regression'
+          dashboard_url: 'http://localhost:3002/d/hsi-profiling?var-service={{ $labels.job }}'
+
+      # Critical CPU spike: >100% increase (doubled) over 24-hour average
+      - alert: ServiceCPUSpikeCritical
+        expr: |
+          job:service_cpu_regression_ratio:5m_vs_24h > 2.0
+        for: 10m
+        labels:
+          severity: critical
+          category: performance
+          component: cpu
+        annotations:
+          summary: 'Critical CPU spike for {{ $labels.job }} (2x baseline)'
+          description: '{{ $labels.job }} CPU usage has more than doubled compared to 24-hour average. Current ratio: {{ $value | humanize }}x. Immediate investigation required.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/cpu-regression'
+          dashboard_url: 'http://localhost:3002/d/hsi-profiling?var-service={{ $labels.job }}'
+
+      # Short-term CPU spike: >30% increase over 1-hour average
+      # More sensitive, catches recent changes quickly
+      - alert: ServiceCPUIncreaseRecent
+        expr: |
+          job:service_cpu_regression_ratio:5m_vs_1h > 1.3
+        for: 10m
+        labels:
+          severity: info
+          category: performance
+          component: cpu
+        annotations:
+          summary: 'Recent CPU increase for {{ $labels.job }}'
+          description: '{{ $labels.job }} CPU usage increased {{ $value | humanize }}x compared to 1-hour average. May indicate recent deployment or workload change.'
+
+  # =============================================================================
+  # Memory Regression Alerts
+  # =============================================================================
+  # Detect memory growth patterns that may indicate leaks or inefficient
+  # allocation. Memory issues often manifest gradually, so we use longer
+  # time windows for detection.
+  - name: memory-regression-alerts
+    rules:
+      # Memory growth: >25% increase over 6-hour average
+      # Catches gradual memory accumulation
+      - alert: ServiceMemoryGrowth
+        expr: |
+          (job:service_memory_regression_ratio:current_vs_6h - 1) > 0.25
+        for: 30m
+        labels:
+          severity: warning
+          category: memory
+          component: memory
+        annotations:
+          summary: 'Memory growth >25% for {{ $labels.job }}'
+          description: '{{ $labels.job }} memory usage is {{ $value | humanize }}x the 6-hour average ({{ $value | humanizePercentage }} above baseline). Current: {{ with printf "job:service_memory_bytes:current{job=\"%s\"}" $labels.job | query }}{{ . | first | value | humanize1024 }}B{{ end }}'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/memory-growth'
+
+      # Critical memory growth: >50% increase over 6-hour average
+      - alert: ServiceMemoryGrowthCritical
+        expr: |
+          (job:service_memory_regression_ratio:current_vs_6h - 1) > 0.5
+        for: 15m
+        labels:
+          severity: critical
+          category: memory
+          component: memory
+        annotations:
+          summary: 'Critical memory growth for {{ $labels.job }} (>50%)'
+          description: '{{ $labels.job }} memory has grown significantly above baseline. This may indicate a memory leak or accumulating state.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/memory-growth'
+
+      # Memory leak prediction: memory projected to double within 24 hours
+      # Uses linear regression to predict future memory usage
+      - alert: PotentialMemoryLeak
+        expr: |
+          job:service_memory_bytes:predicted_24h > (job:service_memory_bytes:current * 2)
+          and
+          job:service_memory_bytes:current > 100000000
+        for: 1h
+        labels:
+          severity: critical
+          category: memory-leak
+          component: memory
+        annotations:
+          summary: 'Potential memory leak in {{ $labels.job }}'
+          description: 'Based on current growth rate, {{ $labels.job }} memory is projected to double within 24 hours. Current: {{ with printf "job:service_memory_bytes:current{job=\"%s\"}" $labels.job | query }}{{ . | first | value | humanize1024 }}B{{ end }}, Projected: {{ $value | humanize1024 }}B'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/memory-leak'
+
+      # Memory trending up steadily (positive derivative)
+      - alert: ServiceMemoryTrendingUp
+        expr: |
+          job:service_memory_bytes:deriv1h > 10000000
+        for: 2h
+        labels:
+          severity: warning
+          category: memory
+          component: memory
+        annotations:
+          summary: 'Memory steadily increasing for {{ $labels.job }}'
+          description: '{{ $labels.job }} memory has been increasing at {{ $value | humanize1024 }}B/hour for over 2 hours. This gradual growth pattern may indicate a slow leak.'
+
+  # =============================================================================
+  # Latency Regression Alerts
+  # =============================================================================
+  # Detect when service latencies increase significantly, which often
+  # correlates with CPU or memory regressions.
+  - name: latency-regression-alerts
+    rules:
+      # Backend API high latency: P99 > 2 seconds
+      - alert: BackendHighLatency
+        expr: |
+          job:backend_api_latency:p99_5m > 2
+        for: 10m
+        labels:
+          severity: warning
+          category: latency
+          component: backend
+        annotations:
+          summary: 'Backend p99 latency > 2s'
+          description: 'Backend API P99 latency is {{ $value | humanizeDuration }}. This may indicate database issues, CPU contention, or code regression.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/high-latency'
+
+      # Backend API critical latency: P99 > 5 seconds
+      - alert: BackendHighLatencyCritical
+        expr: |
+          job:backend_api_latency:p99_5m > 5
+        for: 5m
+        labels:
+          severity: critical
+          category: latency
+          component: backend
+        annotations:
+          summary: 'Backend p99 latency critically high (>5s)'
+          description: 'Backend API P99 latency is {{ $value | humanizeDuration }}. Service is severely degraded.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/high-latency'
+
+      # YOLO26 latency regression: >50% increase over 1-hour average
+      - alert: YOLO26LatencyRegression
+        expr: |
+          job:yolo26_latency_regression_ratio:p95_vs_1h > 1.5
+        for: 10m
+        labels:
+          severity: warning
+          category: latency
+          component: ai-yolo26
+        annotations:
+          summary: 'YOLO26 inference latency increased >50%'
+          description: 'YOLO26 P95 latency is {{ $value | humanize }}x the 1-hour average. Current P95: {{ with query "job:yolo26_inference_latency:p95_5m" }}{{ . | first | value | humanizeDuration }}{{ end }}'
+          dashboard_url: 'http://localhost:3002/d/hsi-profiling?var-service=ai-yolo26'
+
+      # YOLO26 high latency: P95 > 500ms
+      - alert: YOLO26HighLatency
+        expr: |
+          job:yolo26_inference_latency:p95_5m > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          category: latency
+          component: ai-yolo26
+        annotations:
+          summary: 'YOLO26 P95 latency > 500ms'
+          description: 'YOLO26 detection P95 latency is {{ $value | humanizeDuration }}. Real-time detection may be impacted.'
+
+      # Florence high latency: P95 > 2 seconds
+      - alert: FlorenceHighLatency
+        expr: |
+          job:florence_inference_latency:p95_5m > 2
+        for: 10m
+        labels:
+          severity: warning
+          category: latency
+          component: ai-florence
+        annotations:
+          summary: 'Florence P95 latency > 2s'
+          description: 'Florence vision-language P95 latency is {{ $value | humanizeDuration }}. Scene understanding may be delayed.'
+
+  # =============================================================================
+  # Combined Performance Degradation Alerts
+  # =============================================================================
+  # Detect correlated performance issues across multiple dimensions.
+  - name: performance-degradation-alerts
+    rules:
+      # Multiple services showing CPU regression simultaneously
+      - alert: MultiServiceCPURegression
+        expr: |
+          count(job:service_cpu_regression_ratio:5m_vs_24h > 1.3) >= 2
+        for: 15m
+        labels:
+          severity: critical
+          category: performance
+          component: system
+        annotations:
+          summary: 'Multiple services showing CPU regression'
+          description: '{{ $value }} services are showing elevated CPU usage (>30% above baseline). This may indicate a systemic issue such as increased load or infrastructure problems.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/multi-service-regression'
+
+      # Multiple services showing memory growth
+      - alert: MultiServiceMemoryGrowth
+        expr: |
+          count(job:service_memory_regression_ratio:current_vs_6h > 1.2) >= 2
+        for: 30m
+        labels:
+          severity: warning
+          category: memory
+          component: system
+        annotations:
+          summary: 'Multiple services showing memory growth'
+          description: '{{ $value }} services are showing elevated memory usage (>20% above baseline). Investigate for coordinated memory issues.'
+
+      # Performance degradation during high load
+      # When CPU is high AND latency is increasing, we have contention
+      - alert: PerformanceContention
+        expr: |
+          (job:backend_api_latency:p99_5m > 1)
+          and
+          (job:backend_cpu_seconds:rate5m > 0.5)
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+          component: backend
+        annotations:
+          summary: 'Backend under performance contention'
+          description: 'Backend showing both high CPU usage and elevated latency, indicating resource contention. Consider scaling or optimizing hot paths.'

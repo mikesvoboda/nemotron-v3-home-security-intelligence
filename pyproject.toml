@@ -332,6 +332,10 @@ ignore = [
 "ai/**/*.py" = [
     "ASYNC230", # blocking I/O in async ok for example clients
     "T201",   # print() ok in AI example clients
+    "E402",   # module level import not at top ok for Pyroscope profiling init
+    "PLW0603", # global statement ok for lifespan model instance pattern
+    "S104",    # binding to all interfaces ok for container deployments
+    "F401",    # import for side-effect (TensorRT availability check) ok
 ]
 "ai/**/tests/*.py" = [
     "S101",   # assert is fine in tests
@@ -342,6 +346,12 @@ ignore = [
     "B007",   # unused loop control variable ok in tests
     "ERA001", # section headers and documentation comments ok in tests
     "F841",   # unused variables ok in tests
+]
+"ai/*/test_*.py" = [
+    "S101",   # assert is fine in tests
+    "ARG001", # unused function argument in mock callbacks
+    "ARG002", # unused method argument for fixtures used via side effects
+    "PLR2004",# magic values ok in tests
 ]
 "tools/**/*.py" = [
     "T201",   # print() ok in tool scripts for CLI output

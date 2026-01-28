@@ -23,8 +23,8 @@ if str(_florence_dir) not in sys.path:
     sys.path.insert(0, str(_florence_dir))
 
 # Now import from the local model module
-import model as model_module  # noqa: E402
-from model import (  # noqa: E402
+import model as model_module
+from model import (
     OPEN_VOCABULARY_DETECTION_PROMPT,
     SECURITY_OBJECTS,
     SECURITY_OBJECTS_PROMPT,

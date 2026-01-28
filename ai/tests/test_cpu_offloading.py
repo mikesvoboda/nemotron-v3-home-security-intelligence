@@ -21,7 +21,7 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from cpu_offloading import (  # noqa: E402
+from cpu_offloading import (
     DEFAULT_OFFLOAD_FOLDER,
     OffloadingConfig,
     OffloadingModelWrapper,

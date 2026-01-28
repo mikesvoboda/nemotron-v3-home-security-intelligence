@@ -67,7 +67,7 @@ def _check_flash_attn_installed() -> bool:
         True if flash-attn can be imported, False otherwise.
     """
     try:
-        import flash_attn  # noqa: F401
+        import flash_attn
 
         return True
     except ImportError:

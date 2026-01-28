@@ -31,6 +31,7 @@ from backend.api.middleware import (
     DeprecationLoggerMiddleware,
     DeprecationMiddleware,
     IdempotencyMiddleware,
+    ProfilingMiddleware,
     RequestLoggingMiddleware,
     RequestRecorderMiddleware,
     RequestTimingMiddleware,
@@ -1094,6 +1095,12 @@ app.add_middleware(RequestIDMiddleware)
 # Extracts incoming baggage from W3C Baggage headers and sets application-specific context
 # (camera.id, event.priority, request.source) for propagation through the detection pipeline
 app.add_middleware(BaggageMiddleware)
+
+# Add profiling middleware for trace-to-profile correlation (NEM-4127)
+# Tags Pyroscope profiling data with OpenTelemetry trace_id and span_id
+# Enables debugging slow requests by viewing their exact CPU profiles
+# Added after BaggageMiddleware to capture full request lifecycle
+app.add_middleware(ProfilingMiddleware)
 
 # Add request timing middleware for API latency tracking (NEM-1469)
 # Added early so it measures the full request lifecycle including other middleware

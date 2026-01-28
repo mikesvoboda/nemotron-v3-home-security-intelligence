@@ -22,7 +22,7 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from torch_optimizations import (  # noqa: E402
+from torch_optimizations import (
     COMPILE_MODES,
     BatchConfig,
     BatchProcessor,

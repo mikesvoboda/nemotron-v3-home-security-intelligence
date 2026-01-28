@@ -45,6 +45,7 @@ from .idempotency import (
     IdempotencyMiddleware,
     compute_request_fingerprint,
 )
+from .profiling import ProfilingMiddleware
 from .rate_limit import (
     RateLimiter,
     RateLimitTier,
@@ -89,6 +90,7 @@ __all__ = [
     "DeprecationLoggerMiddleware",
     "DeprecationMiddleware",
     "IdempotencyMiddleware",
+    "ProfilingMiddleware",
     "RateLimitTier",
     "RateLimiter",
     "RequestIDMiddleware",

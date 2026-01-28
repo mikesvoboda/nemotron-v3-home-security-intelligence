@@ -49,6 +49,15 @@ datasources:
     jsonData:
       nodeGraph:
         enabled: true
+      # Trace-to-Profile integration (NEM-4129): Click from trace span to Pyroscope profile
+      tracesToProfiles:
+        datasourceUid: pyroscope
+        profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
+        customQuery: true
+        query: '{service_name="${__span.tags["service.name"]}", trace_id="${__span.traceId}"}'
+        tags:
+          - key: service.name
+            value: service
       tracesToMetrics:
         datasourceUid: PBFA97CFB590B2093
         spanStartTimeShift: '-5m'
@@ -222,6 +231,7 @@ datasources:
     isDefault: false
     editable: false
     jsonData:
+      # Profile-to-Trace navigation: Link back to Jaeger traces from Pyroscope
       tracesToProfiles:
         datasourceUid: PC9A941E8F2E49454
         tags:
@@ -229,3 +239,4 @@ datasources:
             value: service
         profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
         customQuery: true
+        query: '{service_name="${__span.tags["service.name"]}", trace_id="${__span.traceId}"}'

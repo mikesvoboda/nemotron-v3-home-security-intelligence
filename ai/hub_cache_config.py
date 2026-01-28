@@ -267,7 +267,7 @@ _auto_configured = False
 
 def _auto_configure() -> None:
     """Auto-configure cache on first import."""
-    global _auto_configured  # noqa: PLW0603
+    global _auto_configured
     if not _auto_configured:
         # Only configure if HF_HOME is already set (Docker containers)
         # or create default config

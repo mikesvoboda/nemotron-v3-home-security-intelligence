@@ -18,7 +18,7 @@ _ai_dir = Path(__file__).resolve().parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from quantization_config import (  # noqa: E402
+from quantization_config import (
     FourBitQuantType,
     QuantizationMode,
     QuantizationSettings,
@@ -192,7 +192,7 @@ class TestGetQuantizationConfig:
             pytest.skip("transformers not installed")
 
         try:
-            import bitsandbytes  # noqa: F401
+            import bitsandbytes
         except ImportError:
             pytest.skip("bitsandbytes not installed")
 

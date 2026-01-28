@@ -26,7 +26,7 @@ _enrichment_dir = Path(__file__).parent.parent
 if str(_enrichment_dir) not in sys.path:
     sys.path.insert(0, str(_enrichment_dir))
 
-from models.yolo26_detector import (  # noqa: E402
+from models.yolo26_detector import (
     COCO_CLASSES,
     YOLO26_DEFAULT_MODEL,
     YOLO26_MODEL_PATH_ENV,

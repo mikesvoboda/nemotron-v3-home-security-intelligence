@@ -1,0 +1,204 @@
+# GPU Alert Rules for NVIDIA DCGM Exporter Metrics (NEM-4132)
+#
+# These alerts monitor GPU health using metrics from NVIDIA DCGM (Data Center GPU Manager).
+# DCGM provides detailed hardware metrics that enable detection of:
+#   - Memory pressure and OOM conditions
+#   - Thermal throttling
+#   - Power throttling
+#   - Hardware degradation
+#
+# Key DCGM Metrics Used:
+#   - DCGM_FI_DEV_GPU_UTIL: GPU compute utilization percentage
+#   - DCGM_FI_DEV_MEM_COPY_UTIL: Memory bandwidth utilization percentage
+#   - DCGM_FI_DEV_FB_USED: Framebuffer (VRAM) memory used in MB
+#   - DCGM_FI_DEV_FB_FREE: Framebuffer memory free in MB
+#   - DCGM_FI_DEV_GPU_TEMP: GPU temperature in Celsius
+#   - DCGM_FI_DEV_POWER_USAGE: Power consumption in Watts
+#   - DCGM_FI_DEV_SM_CLOCK: SM clock frequency in MHz
+#   - DCGM_FI_DEV_MEM_CLOCK: Memory clock frequency in MHz
+#
+# Validation:
+#   promtool check rules monitoring/prometheus/alerts/gpu.yml
+
+groups:
+  - name: dcgm-gpu-alerts
+    interval: 15s
+    rules:
+      # =========================================================================
+      # GPU Memory Alerts
+      # =========================================================================
+
+      # Critical: GPU memory utilization exceeds 90%
+      # At 90%+ VRAM usage, OOM errors are imminent and model loading will fail
+      - alert: GPUMemoryNearFull
+        expr: |
+          (DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} memory > 90% used'
+          description: 'GPU {{ $labels.gpu }} VRAM usage is {{ $value | printf "%.1f" }}% for more than 2 minutes. OOM errors are imminent. Consider reducing batch sizes or unloading unused models.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#gpumemoryneorfull'
+
+      # Warning: GPU memory utilization exceeds 80%
+      - alert: GPUMemoryHigh
+        expr: |
+          (DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} memory > 80% used'
+          description: 'GPU {{ $labels.gpu }} VRAM usage is {{ $value | printf "%.1f" }}% for more than 5 minutes. Monitor for potential OOM conditions.'
+
+      # =========================================================================
+      # GPU Temperature Alerts
+      # =========================================================================
+
+      # Critical: GPU temperature exceeds 85C (thermal throttling threshold)
+      - alert: GPUHighTemperature
+        expr: DCGM_FI_DEV_GPU_TEMP > 85
+        for: 5m
+        labels:
+          severity: critical
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} temperature > 85C'
+          description: 'GPU {{ $labels.gpu }} temperature is {{ $value | printf "%.0f" }}C, exceeding the thermal throttling threshold. Performance is degraded. Check cooling system and workload.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#gpuhightemperature'
+
+      # Warning: GPU temperature exceeds 75C (approaching throttling)
+      - alert: GPUTemperatureElevated
+        expr: DCGM_FI_DEV_GPU_TEMP > 75
+        for: 10m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} temperature > 75C'
+          description: 'GPU {{ $labels.gpu }} temperature is {{ $value | printf "%.0f" }}C for more than 10 minutes. Approaching thermal throttling threshold (85C). Consider improving cooling.'
+
+      # =========================================================================
+      # GPU Utilization Alerts
+      # =========================================================================
+
+      # Warning: GPU utilization consistently maxed out
+      # May indicate need for model optimization or additional GPU capacity
+      - alert: GPUUtilizationSaturated
+        expr: DCGM_FI_DEV_GPU_UTIL > 95
+        for: 15m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} utilization > 95%'
+          description: 'GPU {{ $labels.gpu }} has been at {{ $value | printf "%.0f" }}% utilization for 15 minutes. This may indicate GPU saturation. Consider scaling horizontally or optimizing workloads.'
+
+      # Warning: GPU underutilized while work is pending
+      # Low GPU utilization with high memory bandwidth may indicate memory-bound workload
+      - alert: GPUUnderutilizedMemoryBound
+        expr: |
+          DCGM_FI_DEV_GPU_UTIL < 30
+          and
+          DCGM_FI_DEV_MEM_COPY_UTIL > 70
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} is memory-bound'
+          description: 'GPU {{ $labels.gpu }} has low compute utilization ({{ $value | printf "%.0f" }}%) but high memory bandwidth usage. Workload is memory-bound. Consider optimizing memory access patterns or using smaller batch sizes.'
+
+      # =========================================================================
+      # Memory Bandwidth Alerts
+      # =========================================================================
+
+      # Warning: Memory bandwidth consistently maxed out
+      - alert: GPUMemoryBandwidthSaturated
+        expr: DCGM_FI_DEV_MEM_COPY_UTIL > 90
+        for: 10m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} memory bandwidth > 90%'
+          description: 'GPU {{ $labels.gpu }} memory bandwidth is saturated at {{ $value | printf "%.0f" }}% for 10 minutes. This may limit throughput. Consider reducing batch sizes or optimizing memory access patterns.'
+
+      # =========================================================================
+      # Power Alerts
+      # =========================================================================
+
+      # Warning: Power limit may be reached
+      # Most datacenter GPUs have a TDP around 300-400W
+      - alert: GPUHighPowerUsage
+        expr: DCGM_FI_DEV_POWER_USAGE > 350
+        for: 10m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} power usage > 350W'
+          description: 'GPU {{ $labels.gpu }} is consuming {{ $value | printf "%.0f" }}W for more than 10 minutes. May be approaching power limit which could cause throttling.'
+
+      # =========================================================================
+      # Clock Speed Alerts
+      # =========================================================================
+
+      # Warning: SM clock significantly below expected under load
+      # Indicates possible thermal or power throttling
+      - alert: GPUClockSpeedDegraded
+        expr: |
+          DCGM_FI_DEV_SM_CLOCK < 1200
+          and
+          DCGM_FI_DEV_GPU_UTIL > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'GPU {{ $labels.gpu }} clock speed degraded under load'
+          description: 'GPU {{ $labels.gpu }} SM clock is {{ $value | printf "%.0f" }}MHz while under load (>50% util). Expected >1200MHz. Possible thermal or power throttling.'
+
+      # =========================================================================
+      # Availability Alerts
+      # =========================================================================
+
+      # Critical: DCGM exporter is down
+      - alert: DCGMExporterDown
+        expr: up{job="dcgm-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'DCGM Exporter is down'
+          description: 'DCGM Exporter has been unreachable for more than 2 minutes. GPU metrics are not being collected. Check if dcgm-exporter container is running.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#dcgmexporterdown'
+
+      # Warning: No GPU metrics being collected
+      - alert: NoGPUMetrics
+        expr: |
+          up{job="dcgm-exporter"} == 1
+          and
+          absent(DCGM_FI_DEV_GPU_UTIL)
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+          service: dcgm
+        annotations:
+          summary: 'DCGM Exporter running but no GPU metrics'
+          description: 'DCGM Exporter is up but not exposing GPU metrics. Check NVIDIA driver status and GPU connectivity.'
