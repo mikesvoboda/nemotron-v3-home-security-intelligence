@@ -6,6 +6,7 @@
  */
 
 export { default as AIPerformancePage } from './AIPerformancePage';
+export { default as AIServicesPage } from './AIServicesPage';
 export { default as ModelStatusCards } from './ModelStatusCards';
 export { default as LatencyPanel } from './LatencyPanel';
 export { default as PipelineHealthPanel } from './PipelineHealthPanel';

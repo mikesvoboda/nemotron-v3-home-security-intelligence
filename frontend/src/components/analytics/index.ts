@@ -1,4 +1,5 @@
 export { default as AnalyticsPage } from './AnalyticsPage';
+export { default as VideoAnalyticsPage } from './VideoAnalyticsPage';
 export { default as ActivityHeatmap } from './ActivityHeatmap';
 export { default as CameraBaselinePanel } from './CameraBaselinePanel';
 export type { CameraBaselinePanelProps } from './CameraBaselinePanel';

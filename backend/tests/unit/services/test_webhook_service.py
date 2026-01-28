@@ -172,8 +172,10 @@ async def test_create_webhook_with_auth_basic(webhook_service, mock_db_session):
     """Test webhook creation with basic authentication."""
     # Arrange
     auth = WebhookAuthConfig(
-        type="basic", username="user", password="pass"
-    )  # pragma: allowlist secret
+        type="basic",
+        username="user",
+        password="pass",  # pragma: allowlist secret
+    )
     data = WebhookCreate(
         name="Basic Auth Webhook",
         url="https://api.example.com/webhook",
@@ -1109,7 +1111,8 @@ def test_sign_payload(webhook_service):
     """Test HMAC-SHA256 payload signing."""
     # Arrange
     payload = {"event_type": "alert_fired", "data": {"alert_id": "test"}}
-    secret = "a" * 64  # 32 bytes hex encoded
+    # nosemgrep: hardcoded-password
+    secret = "a" * 64  # 32 bytes hex encoded  # pragma: allowlist secret
 
     # Act
     signature = webhook_service._sign_payload(payload, secret)
@@ -1220,8 +1223,8 @@ async def test_send_request_with_basic_auth(webhook_service):
         auth_config={
             "type": "basic",
             "username": "user",
-            "password": "pass",
-        },  # pragma: allowlist secret
+            "password": "pass",  # pragma: allowlist secret
+        },
         signing_secret="a" * 64,
         total_deliveries=0,
         successful_deliveries=0,
