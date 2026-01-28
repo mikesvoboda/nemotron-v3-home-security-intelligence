@@ -1,19 +1,14 @@
 id: exit_vehicle
-sequence_description: 'The vehicle pulls into the driveway and parks, driver door opens, and a person steps out'
-additional_details: 'Vehicle comes to complete stop, slight pause before door opens, person emerges and stands briefly'
+sequence_description: 'A car door opens and a person quickly steps out onto the driveway'
+additional_details: 'Door swings open at normal speed, person exits with natural fluid motion, stands upright'
 key_actions:
   - timestamp: 0
-    action: vehicle_enters_frame
-  - timestamp: 5
-    action: vehicle_slows
-  - timestamp: 8
-    action: vehicle_parks
-  - timestamp: 12
-    action: door_opens
-  - timestamp: 14
-    action: person_exits
-  - timestamp: 17
-    action: person_stands
-duration_range: [15, 20]
-motion_type: vehicle_then_person
+    action: door_opening
+  - timestamp: 2
+    action: person_stepping_out
+  - timestamp: 4
+    action: person_standing
+duration_range: [5, 5]
+motion_type: natural_exit
 suspicion_level: varies
+speed_note: 'real-time speed, natural car exit motion'

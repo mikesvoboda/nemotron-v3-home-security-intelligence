@@ -1,17 +1,14 @@
 id: circle_house
-sequence_description: 'They walk along the side of the house, pausing to look at windows and checking the side gate'
-additional_details: 'Methodical movement along property perimeter, testing access points'
+sequence_description: 'They walk quickly along the side of the house toward the back'
+additional_details: 'Brisk walking pace, glancing at windows while moving, continuous motion'
 key_actions:
   - timestamp: 0
-    action: enters_from_front
+    action: walking_along_house
+  - timestamp: 2
+    action: passing_windows
   - timestamp: 5
-    action: walks_along_house
-  - timestamp: 10
-    action: pauses_at_window
-  - timestamp: 15
-    action: continues_to_gate
-  - timestamp: 20
-    action: checks_gate_latch
-duration_range: [18, 25]
-motion_type: deliberate
+    action: moving_toward_back
+duration_range: [5, 5]
+motion_type: walking_brisk
 suspicion_level: high
+speed_note: 'real-time brisk walking speed, not slow motion'

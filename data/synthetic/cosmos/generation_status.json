@@ -1,10 +1,10 @@
 {
-  "started_at": null,
-  "last_updated": null,
+  "started_at": "2026-01-27T20:29:33.460971",
+  "last_updated": "2026-01-27T20:29:33.461725",
   "total": 88,
   "completed": 0,
   "failed": 0,
-  "in_progress": null,
+  "in_progress": 8,
   "presentation": {
     "total": 48,
     "completed": 0,
@@ -15,5 +15,12 @@
     "completed": 0,
     "failed": 0
   },
-  "videos": {}
+  "videos": {
+    "P02": {
+      "state": "in_progress",
+      "updated_at": "2026-01-27T20:29:33.461723",
+      "gpu": 1,
+      "started_at": "2026-01-27T20:29:33.461589"
+    }
+  }
 }

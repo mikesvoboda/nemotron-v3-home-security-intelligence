@@ -1,6 +1,6 @@
 version: '2.0'
 description: 'NVIDIA Cosmos video generation manifest for home security synthetic data'
-total_videos: 88
+total_videos: 167
 created_at: '2026-01-27'
 cosmos_version: 'Predict2.5'
 
@@ -9,10 +9,10 @@ defaults:
   model: 'Cosmos-Predict2.5-14B'
   model_path: 'checkpoints/Cosmos-Predict2.5-14B'
   resolution: 720 # 1280x704
-  fps: 16
+  fps: 24 # Increased from 16 for more natural real-time motion
   aspect_ratio: '16:9'
   guidance: 7.0
-  negative_prompt: 'blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts'
+  negative_prompt: 'blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts, visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, camera mount, camera on wall, camera on ceiling, camera rig, recording device in shot, gopro, webcam, CCTV camera visible, Ring doorbell visible, Nest camera visible, slow motion, time lapse, fast forward, sped up, slowed down'
 
   # H200 optimizations
   natten: true # Sparse attention - 2.5x speedup on Hopper
@@ -598,7 +598,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [threat_detector, pose]
-      prompt_override: 'Security camera footage of suburban home front porch at night. A person approaches the door, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. IR-tinted security footage quality.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. A person approaches, and a handgun is clearly visible in their hand. They move cautiously, weapon raised. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T02
       variation: weapon_knife
@@ -607,7 +607,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [threat_detector, pose]
-      prompt_override: 'Security camera footage showing a person at a front door holding a large knife. The blade glints in the porch light. Threatening posture, IR security camera quality.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point. A person at the door holds a large knife. The blade glints in the porch light. Threatening posture, static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T03
       variation: weapon_bat
@@ -616,7 +616,7 @@ training:
       scene: side_yard
       environment: night_clear
       models_exercised: [threat_detector, pose]
-      prompt_override: 'Security camera footage of side yard at night. A person carrying a baseball bat walks along the fence, tapping it against their palm threateningly. Security camera quality with IR tint.'
+      prompt_override: 'Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person carrying a baseball bat walks along the fence, tapping it against their palm threateningly. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T04
       variation: aggressive_stance
@@ -625,7 +625,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [pose, action]
-      prompt_override: 'Security camera footage of front porch. A person stands with aggressive posture - fists clenched, shoulders squared, leaning forward menacingly. Fixed security camera, night IR footage.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands with aggressive posture - fists clenched, shoulders squared, leaning forward menacingly. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T05
       variation: kicking_door
@@ -634,7 +634,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [pose, action, threat_detector]
-      prompt_override: 'Security camera footage showing person repeatedly kicking at a front door, attempting to break it down. Violent forceful kicks, aggressive body language. Night IR security footage.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point. Person repeatedly kicking at the front door, attempting to break it down. Violent forceful kicks, aggressive body language. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T06
       variation: window_break
@@ -643,7 +643,7 @@ training:
       scene: side_yard
       environment: night_clear
       models_exercised: [action, threat_detector]
-      prompt_override: 'Security camera footage of person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Night security camera footage.'
+      prompt_override: 'Suburban home side yard at night, viewed from a corner vantage point at the house edge. Person breaking a side window. They look around, then smash the glass with an elbow, reaching inside. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T07
       variation: pry_bar_usage
@@ -652,7 +652,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [threat_detector]
-      prompt_override: 'Security camera footage showing person using a pry bar to attempt forced entry on front door. Metal tool visible, leveraging against door frame. IR night footage.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Person using a pry bar to attempt forced entry. Metal tool visible, leveraging against door frame. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T08
       variation: masked_intruder
@@ -661,7 +661,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [face, clothing, threat_detector]
-      prompt_override: 'Security camera footage of person wearing ski mask and dark gloves at front door. Face completely concealed, tactical clothing. Night IR security footage.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Person wearing ski mask and dark gloves at the door. Face completely concealed, tactical clothing. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T09
       variation: multiple_intruders
@@ -670,7 +670,7 @@ training:
       scene: driveway
       environment: night_clear
       models_exercised: [reid, threat_detector, pose]
-      prompt_override: 'Security camera footage showing three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Night IR footage.'
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. Three people in dark clothing approaching house together. Moving as coordinated group, checking surroundings. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T10
       variation: vehicle_ramming
@@ -679,7 +679,7 @@ training:
       scene: driveway
       environment: night_clear
       models_exercised: [vehicle, threat_detector]
-      prompt_override: 'Security camera footage of vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. Night footage with headlights.'
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. Vehicle driving aggressively fast up driveway, screeching to halt near house. Reckless driving, threatening approach. Static viewpoint, night footage with headlights. Real-time speed, natural fluid motion at 1x playback rate.'
 
   # ---------------------------------------------------------------------------
   # Tracking Sequences (8 videos) - Exercise ReID models
@@ -692,7 +692,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [reid, pose]
-      prompt_override: 'Security camera footage showing same person walking through property. First seen from front, then side profile, then from behind. Consistent clothing and gait throughout. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Same person walking through property. First seen from front, then side profile, then from behind. Consistent clothing and gait throughout. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T12
       variation: person_occlusion
@@ -701,7 +701,7 @@ training:
       scene: side_yard
       environment: day_clear
       models_exercised: [reid, depth]
-      prompt_override: 'Security camera footage of person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation. Daytime security footage.'
+      prompt_override: 'Suburban home side yard at midday, viewed from a corner vantage point at the house edge. Person walking along fence, periodically occluded by bushes and trees. Appears and disappears behind vegetation. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T13
       variation: person_appearance_change
@@ -710,7 +710,7 @@ training:
       scene: backyard
       environment: day_clear
       models_exercised: [reid, clothing]
-      prompt_override: 'Security camera footage showing person who removes their jacket while walking. First wearing blue jacket, then carrying it, revealing different shirt underneath. Daytime footage.'
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. Person removes their jacket while walking. First wearing blue jacket, then carrying it, revealing different shirt underneath. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T14
       variation: vehicle_track_3_angles
@@ -719,7 +719,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [vehicle, plate_ocr]
-      prompt_override: 'Security camera footage tracking same silver SUV. First approaching from street, then parked in driveway showing side, then backing out showing rear plate. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Same silver SUV tracked throughout. First approaching from street, then parked in driveway showing side, then backing out showing rear plate. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T15
       variation: fast_moving_person
@@ -728,7 +728,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [reid, action]
-      prompt_override: 'Security camera footage of person running across property. Fast movement with motion blur, changing direction once. Tests tracking at speed. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Person running across property. Fast movement with motion blur, changing direction once. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T16
       variation: group_tracking
@@ -737,7 +737,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [reid, demographics]
-      prompt_override: 'Security camera footage showing group of four distinct people walking together then separating. Different heights, clothing, and genders. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Group of four distinct people walking together then separating. Different heights, clothing, and genders. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T17
       variation: enter_exit_frame
@@ -746,7 +746,7 @@ training:
       scene: front_porch
       environment: day_clear
       models_exercised: [reid]
-      prompt_override: 'Security camera footage where same person enters frame, walks to door, leaves frame, then returns again. Tests re-identification after absence. Daytime footage.'
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Same person enters frame, walks to door, leaves frame, then returns again. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T18
       variation: long_distance_approach
@@ -755,7 +755,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [reid, depth]
-      prompt_override: 'Security camera footage of person starting far at street edge, walking steadily closer until near the camera. Tests tracking through scale changes. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Person starting far at street edge, walking steadily closer until near the viewpoint. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
   # ---------------------------------------------------------------------------
   # Enrichment Stress Tests (12 videos) - Exercise all Model Zoo models
@@ -768,7 +768,7 @@ training:
       scene: front_porch
       environment: day_clear
       models_exercised: [face, demographics]
-      prompt_override: 'Security camera footage showing three people at front door. All faces clearly visible - young woman, middle-aged man, elderly person. Good lighting, clear features. Daytime footage.'
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Three people standing at the door, full bodies visible from head to toe. Young woman, middle-aged man, elderly person. Wide-angle view showing door and surroundings. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T20
       variation: partial_face
@@ -777,7 +777,7 @@ training:
       scene: front_porch
       environment: day_overcast
       models_exercised: [face]
-      prompt_override: 'Security camera footage of person at door with face partially visible. Profile view, hair covering part of face, looking down intermittently. Challenging face detection. Overcast daylight.'
+      prompt_override: 'Suburban home front porch on overcast day, viewed from an elevated vantage point near the door. Person standing at the door, full body visible, face in profile view with hair covering part of face, looking down intermittently. Wide-angle view showing door and porch. Static elevated viewpoint, diffused overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T21
       variation: varied_clothing_types
@@ -786,7 +786,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [clothing]
-      prompt_override: 'Security camera footage showing sequence of different people: one in business suit, one in athletic wear, one in work uniform, one in casual hoodie and jeans. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Sequence of different people walking through: one in business suit, one in athletic wear, one in work uniform, one in casual hoodie and jeans. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T22
       variation: uniform_recognition
@@ -795,7 +795,7 @@ training:
       scene: front_porch
       environment: day_clear
       models_exercised: [clothing, ocr]
-      prompt_override: 'Security camera footage showing delivery workers in different uniforms - Amazon, FedEx, UPS logos visible on clothing. Clear uniform details. Daytime footage.'
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Delivery workers in different uniforms - Amazon, FedEx, UPS logos visible on clothing. Clear uniform details. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T23
       variation: vehicle_types_parade
@@ -804,7 +804,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [vehicle]
-      prompt_override: 'Security camera footage showing different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Different vehicles passing: sedan, SUV, pickup truck, minivan, motorcycle. Each clearly visible. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T24
       variation: license_plates_varied
@@ -813,7 +813,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [plate_ocr]
-      prompt_override: 'Security camera footage showing vehicles with clearly visible license plates. Different states, colors, formats. Front and rear plates shown. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Vehicles with clearly visible license plates. Different states, colors, formats. Front and rear plates shown. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T25
       variation: dog_in_yard
@@ -822,7 +822,7 @@ training:
       scene: backyard
       environment: day_clear
       models_exercised: [pet]
-      prompt_override: 'Security camera footage of large dog running and playing in backyard. German Shepherd, clearly visible, active movement. Daytime footage.'
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. Large German Shepherd running and playing in the yard. Clearly visible, active movement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T26
       variation: cat_on_porch
@@ -831,7 +831,7 @@ training:
       scene: front_porch
       environment: day_clear
       models_exercised: [pet]
-      prompt_override: 'Security camera footage of cat on front porch. Orange tabby walking, sitting, grooming. Clear view of the cat throughout. Daytime footage.'
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Orange tabby cat on the porch walking, sitting, grooming. Clear view of the cat throughout. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T27
       variation: person_with_pet
@@ -840,7 +840,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [pet, reid]
-      prompt_override: 'Security camera footage of person walking dog on leash up the driveway. Both person and dog clearly visible. Golden retriever, casual dressed owner. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Person walking dog on leash up the driveway. Both person and golden retriever clearly visible. Casual dressed owner. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T28
       variation: pose_variety
@@ -849,7 +849,7 @@ training:
       scene: backyard
       environment: day_clear
       models_exercised: [pose]
-      prompt_override: 'Security camera footage showing person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting down. Daytime footage.'
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. Person in various poses: standing straight, bending to pick something up, crouching, reaching overhead, sitting down. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T29
       variation: action_variety
@@ -858,7 +858,7 @@ training:
       scene: backyard
       environment: day_clear
       models_exercised: [action]
-      prompt_override: 'Security camera footage showing person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. Daytime footage.'
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. Person performing various actions: walking, running, jumping, waving, opening door. Distinct separate actions. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T30
       variation: depth_near_far
@@ -867,7 +867,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [depth]
-      prompt_override: 'Security camera footage with objects at varying distances: car far at street, person mid-distance, package close to camera. Tests depth perception. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Objects at varying distances: car far at street, person mid-distance, package close in the foreground. Wide-angle perspective showing depth. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
   # ---------------------------------------------------------------------------
   # Edge Cases (10 videos) - Test under adverse conditions
@@ -880,7 +880,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [all]
-      prompt_override: 'Security camera footage in pure infrared night vision mode. Person approaching door, everything in grayscale IR. No visible light, only IR illumination. Tests all models in IR.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Pure infrared night vision rendering - everything in grayscale. Person approaching door, illuminated by invisible IR light. Static elevated viewpoint, grayscale IR footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T32
       variation: heavy_rain
@@ -889,7 +889,7 @@ training:
       scene: driveway
       environment: night_rain
       models_exercised: [all]
-      prompt_override: 'Security camera footage during heavy rain at night. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porch light. Tests all models.'
+      prompt_override: 'Suburban home driveway at night during heavy rain, viewed from an elevated position on the garage. Person walking through rain, water droplets on lens, reduced visibility. Rain streaks visible in porch light. Static elevated viewpoint, IR-tinted footage with rain effects. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T33
       variation: fog_low_visibility
@@ -898,7 +898,7 @@ training:
       scene: driveway
       environment: day_overcast
       models_exercised: [all]
-      prompt_override: 'Security camera footage in dense fog. Person barely visible approaching through fog, silhouette becoming clearer as they get closer. Very low visibility conditions.'
+      prompt_override: 'Suburban home driveway on overcast foggy day, viewed from an elevated position on the garage. Dense fog with person barely visible approaching. Silhouette becoming clearer as they get closer. Very low visibility conditions. Static elevated viewpoint, muted colors. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T34
       variation: motion_blur_running
@@ -907,7 +907,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [reid, action]
-      prompt_override: 'Security camera footage with significant motion blur. Person running fast, blur on limbs and body. Tests detection and tracking with motion artifacts. Daytime footage.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Person running fast with significant motion blur on limbs and body. Motion artifacts visible. Static elevated viewpoint, clear daytime footage with motion blur effects. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T35
       variation: partial_occlusion_tree
@@ -916,7 +916,7 @@ training:
       scene: front_porch
       environment: day_clear
       models_exercised: [all]
-      prompt_override: 'Security camera footage partially blocked by tree branches. Person visible through gaps in foliage, intermittent clear views. Tests detection through occlusion. Daytime.'
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. View partially blocked by tree branches. Person visible through gaps in foliage, intermittent clear views. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T36
       variation: backlit_silhouette
@@ -925,7 +925,7 @@ training:
       scene: front_porch
       environment: dusk_clear
       models_exercised: [face, pose]
-      prompt_override: 'Security camera footage with strong backlighting at sunset. Person appears as dark silhouette against bright sky. Face and details obscured by contrast. Dusk footage.'
+      prompt_override: 'Suburban home front porch at dusk, viewed from an elevated vantage point near the door. Strong backlighting from sunset. Person appears as dark silhouette against bright orange sky. Face and details obscured by contrast. Static elevated viewpoint, warm transitional lighting. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T37
       variation: multiple_light_sources
@@ -934,7 +934,7 @@ training:
       scene: front_porch
       environment: night_clear
       models_exercised: [all]
-      prompt_override: 'Security camera footage with multiple light sources at night. Porch light, car headlights, streetlamp all creating overlapping shadows. Complex lighting conditions.'
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple light sources: porch light, car headlights, streetlamp all creating overlapping shadows. Complex lighting conditions. Static elevated viewpoint, IR-tinted footage.'
 
     - id: T38
       variation: lens_flare_glare
@@ -943,7 +943,7 @@ training:
       scene: driveway
       environment: day_clear
       models_exercised: [all]
-      prompt_override: 'Security camera footage with sun causing lens flare and glare. Bright spots, lens artifacts partially obscuring view. Person walking through areas of flare. Daytime.'
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Sun causing lens flare and glare. Bright spots, lens artifacts partially obscuring view. Person walking through areas of flare. Static elevated viewpoint, daytime footage with lens effects. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T39
       variation: snow_ground_cover
@@ -952,7 +952,7 @@ training:
       scene: driveway
       environment: day_overcast
       models_exercised: [all]
-      prompt_override: 'Security camera footage in winter with snow on ground. Person in dark clothing highly visible against white snow. Overcast lighting, snow reflecting light. Winter daytime.'
+      prompt_override: 'Suburban home driveway on overcast winter day, viewed from an elevated position on the garage. Snow covering the ground. Person in dark clothing highly visible against white snow. Overcast lighting, snow reflecting light. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.'
 
     - id: T40
       variation: dusk_transition
@@ -961,4 +961,739 @@ training:
       scene: driveway
       environment: dusk_clear
       models_exercised: [all]
-      prompt_override: 'Security camera footage during dusk transition. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting change. Dusk footage.'
+      prompt_override: 'Suburban home driveway at dusk, viewed from an elevated position on the garage. Light visibly changing during clip, porch lights activating mid-video. Person visible throughout lighting transition. Static elevated viewpoint, warm transitional lighting with exposure adjusting. Real-time speed, natural fluid motion at 1x playback rate.'
+
+  # =============================================================================
+  # FALSE POSITIVE TRAINING (16 videos)
+  # Scenarios that should NOT trigger alerts - reducing nuisance notifications
+  # =============================================================================
+
+  false_positives:
+    - id: F01
+      variation: wildlife_deer
+      description: 'Deer walking through yard at dawn'
+      duration_seconds: 30
+      scene: backyard
+      environment: dusk_clear
+      models_exercised: [animal, motion]
+      prompt_override: 'Suburban home backyard at dawn, viewed from an elevated position under the roofline. A deer walks calmly across the lawn, pausing to sniff the grass, then continues walking out of frame. Natural animal movement, peaceful scene. Static elevated viewpoint, warm dawn lighting. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F02
+      variation: wildlife_raccoon
+      description: 'Raccoon on porch at night'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [animal, motion]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. A raccoon waddles onto the porch, investigates a trash can, knocks it slightly, then scurries away. Small animal movement near door. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F03
+      variation: wildlife_coyote
+      description: 'Coyote trotting through yard at night'
+      duration_seconds: 30
+      scene: side_yard
+      environment: night_clear
+      models_exercised: [animal, motion]
+      prompt_override: 'Suburban home side yard at night, viewed from a corner vantage point at the house edge. A coyote trots quickly through the yard along the fence line, alert and moving with purpose. Wild canine movement. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F04
+      variation: wildlife_stray_cat
+      description: 'Cat walking along fence'
+      duration_seconds: 30
+      scene: backyard
+      environment: night_clear
+      models_exercised: [animal, motion]
+      prompt_override: 'Suburban home backyard at night, viewed from an elevated position under the roofline. A cat walks along the top of the fence, pauses to look around, then jumps down and walks away. Small animal on property perimeter. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F05
+      variation: wildlife_birds
+      description: 'Birds on porch pecking'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [animal, motion]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Several small birds hop around on the porch, pecking at crumbs near the doormat, fluttering wings occasionally. Small repetitive animal motion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F06
+      variation: wind_trash_blown
+      description: 'Plastic bag blowing across driveway'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [motion, false_positive]
+      prompt_override: 'Suburban home driveway on overcast day, viewed from an elevated position on the garage. A plastic shopping bag blows across the driveway in gusts of wind, tumbling and rolling erratically. Inanimate object wind movement. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F07
+      variation: wind_tree_branch
+      description: 'Tree branch swaying in wind'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_overcast
+      models_exercised: [motion, false_positive]
+      prompt_override: 'Suburban home front porch on windy day, viewed from an elevated vantage point near the door. A tree branch sways back and forth in the wind at the edge of frame, leaves rustling. Repetitive natural motion. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F08
+      variation: wind_flag_flapping
+      description: 'American flag flapping in wind'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [motion, false_positive]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. An American flag on a pole near the porch flaps continuously in the breeze. Constant repetitive fabric motion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F09
+      variation: shadows_car_headlights
+      description: 'Passing car casts moving shadows'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [motion, false_positive]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Headlights from a passing car sweep across the porch, creating moving shadows that travel across the door and walls. No actual person present. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F10
+      variation: shadows_clouds
+      description: 'Cloud shadows moving across yard'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [motion, false_positive]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Large cloud shadows slowly drift across the driveway and lawn as clouds pass overhead. Gradual lighting changes, no people. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F11
+      variation: reflections_window_glare
+      description: 'Sun reflection creating bright spots'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [exposure, false_positive]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Bright sun reflects off a car windshield creating intense glare spots that shift as clouds pass. Exposure challenges, no people. Static elevated viewpoint, clear daytime footage with glare. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F12
+      variation: neighbor_walking_past
+      description: 'Person on sidewalk not entering property'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, boundary]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person walks along the sidewalk past the property, staying on public path, not entering driveway or yard. Normal pedestrian traffic. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F13
+      variation: neighbor_jogging_past
+      description: 'Jogger running past on street'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, boundary, action]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A jogger in athletic wear runs along the sidewalk past the property at a steady pace, not looking at the house. Normal exercise activity. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F14
+      variation: neighbor_dog_walker
+      description: 'Person walking dog on sidewalk'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, pet, boundary]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person walks a dog on a leash along the sidewalk, the dog briefly sniffs toward the yard but they continue walking past. Normal neighbor activity. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F15
+      variation: delivery_wrong_house
+      description: 'Delivery driver checks address and leaves'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, clothing]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A delivery driver in uniform walks partway up driveway, looks at package, checks house number, shakes head, turns around and walks back to truck. Wrong address scenario. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: F16
+      variation: kids_ball_retrieval
+      description: 'Neighborhood kid retrieves ball from yard'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [reid, action]
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. A child quickly runs into the yard, grabs a soccer ball, waves apologetically toward neighboring house, and runs back out. Innocent brief intrusion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+  # =============================================================================
+  # REAL THREATS (18 videos)
+  # Actual security events the system MUST detect and alert on
+  # =============================================================================
+
+  real_threats:
+    - id: R01
+      variation: package_theft_quick
+      description: 'Porch pirate quick grab and run'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person runs up to the porch, quickly grabs a package sitting by the door, turns and sprints away. Fast theft in progress. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R02
+      variation: package_theft_casual
+      description: 'Casual package theft acting like owner'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person casually walks up to the porch, picks up a package as if it belongs to them, tucks it under arm, and walks away calmly. Deceptive theft behavior. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R03
+      variation: package_theft_follow_delivery
+      description: 'Thief follows delivery truck'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Seconds after a delivery driver leaves frame, a different person quickly approaches, grabs the just-delivered package, and hurries away. Stalking delivery pattern. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R04
+      variation: car_breakin_smash
+      description: 'Smash and grab car break-in'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [action, threat_detector, vehicle]
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. A person approaches a parked car, looks around, then smashes the side window with an object, reaches in quickly to grab items, and runs away. Violent vehicle crime. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R05
+      variation: car_breakin_door_check
+      description: 'Checking car door handles'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [action, threat_detector, vehicle]
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. A person walks along parked cars, trying each door handle quietly, finds one unlocked, opens it, rummages inside briefly, then moves on. Subtle vehicle crime. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R06
+      variation: car_theft_hotwire
+      description: 'Car theft attempt - entering to steal'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [action, threat_detector, vehicle]
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. A person breaks into a car, gets in the driver seat, and bends down below the dashboard attempting to start the vehicle. Car theft in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R07
+      variation: catalytic_converter_theft
+      description: 'Person under vehicle with saw'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. A person slides underneath a parked SUV with a tool, sawing sounds implied, sparks visible underneath the vehicle. Catalytic converter theft. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R08
+      variation: vandalism_graffiti
+      description: 'Person spray painting property'
+      duration_seconds: 30
+      scene: side_yard
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person with a spray paint can sprays graffiti on the fence, looking around nervously between strokes. Property vandalism. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R09
+      variation: vandalism_mailbox
+      description: 'Person destroying mailbox'
+      duration_seconds: 30
+      scene: driveway
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Suburban home driveway at night, viewed from an elevated position on the garage. A person runs up to the mailbox at the end of the driveway and smashes it with a bat or kicks it over, then runs away. Mailbox vandalism. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R10
+      variation: vandalism_egging
+      description: 'Teens throwing eggs at house'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Multiple teenagers run past throwing eggs at the house, eggs splattering on door and windows, teens laughing and running away. Vandalism in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R11
+      variation: casing_photography
+      description: 'Person photographing house from street'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person stands on the sidewalk taking photos of the house with a phone, looking at windows, garage, and entry points systematically. Pre-burglary surveillance. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R12
+      variation: casing_notetaking
+      description: 'Person with clipboard studying house'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person with a clipboard walks slowly past the house, stopping to write notes while looking at the property, checking sight lines and entry points. Suspicious reconnaissance. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R13
+      variation: home_invasion_kickin
+      description: 'Violent forced entry kick-in'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [action, threat_detector, pose]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in dark clothing runs up to the front door and violently kicks it repeatedly, the door frame splintering, forcing entry. Home invasion in progress. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R14
+      variation: home_invasion_multiple
+      description: 'Coordinated multi-person entry'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [action, threat_detector, reid]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. Three people in dark clothing approach the door together, one forces the door while others watch the street, then all rush inside. Coordinated home invasion. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R15
+      variation: garage_breakin
+      description: 'Forcing open garage side door'
+      duration_seconds: 30
+      scene: side_yard
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person works on the garage side door with a pry bar, forcing it open, then slips inside the garage. Garage break-in. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R16
+      variation: shed_breakin
+      description: 'Breaking into detached shed'
+      duration_seconds: 30
+      scene: backyard
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Suburban home backyard at night, viewed from an elevated position under the roofline. A person approaches a storage shed, breaks the padlock with bolt cutters, opens the door and begins taking items out. Outbuilding theft. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R17
+      variation: trespassing_shortcut
+      description: 'Person cutting through yard'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [action, boundary]
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. A person climbs over the back fence, walks quickly across the yard, and climbs over the opposite fence, using property as a shortcut. Trespassing. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: R18
+      variation: trespassing_camping
+      description: 'Person setting up in backyard'
+      duration_seconds: 30
+      scene: backyard
+      environment: night_clear
+      models_exercised: [action, threat_detector]
+      prompt_override: 'Suburban home backyard at night, viewed from an elevated position under the roofline. A person with a bag enters the yard, finds a hidden corner near the shed, and begins setting up a sleeping area with a blanket. Unauthorized camping. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.'
+
+  # =============================================================================
+  # EVERYDAY RECOGNITION (22 videos)
+  # Common legitimate visitors for improved daily user experience
+  # =============================================================================
+
+  everyday_recognition:
+    - id: E01
+      variation: delivery_amazon
+      description: 'Amazon driver with branded van'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [clothing, vehicle, action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. An Amazon delivery driver in blue Amazon vest walks up carrying a package, places it at the door, takes a photo with phone, and walks back to blue Amazon van. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E02
+      variation: delivery_ups
+      description: 'UPS driver in brown uniform'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [clothing, vehicle, action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A UPS driver in brown uniform walks up with a package, places it at the door, rings doorbell, and walks back to brown UPS truck. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E03
+      variation: delivery_fedex
+      description: 'FedEx driver in purple uniform'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [clothing, vehicle, action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A FedEx driver in purple and orange uniform walks up with a package, places it at the door, and walks back to FedEx truck. Standard delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E04
+      variation: delivery_usps
+      description: 'Mail carrier in postal uniform'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [clothing, action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A USPS mail carrier in blue postal uniform walks up, puts mail in the mailbox, places a small package at door, and continues to next house. Daily mail delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E05
+      variation: delivery_food_doordash
+      description: 'Food delivery with insulated bag'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, clothing]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person in casual clothes carrying a red insulated DoorDash bag walks up, places food containers at the door, takes a photo, and walks back to their car. Food delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E06
+      variation: delivery_grocery
+      description: 'Grocery delivery with multiple bags'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person carrying multiple grocery bags in both hands walks up carefully, sets bags down at the door, rings doorbell, and walks back to car. Grocery delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E07
+      variation: delivery_drone
+      description: 'Drone delivering package'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [aerial, action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A delivery drone descends from above, hovers over the porch, lowers a small package on a tether, releases it gently on the ground, and flies away. Drone delivery. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E08
+      variation: service_landscaper
+      description: 'Landscaper with lawn equipment'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [clothing, action]
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. A landscaper in work clothes pushes a lawn mower across the grass, making neat rows. Work truck visible at edge of frame. Scheduled lawn service. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E09
+      variation: service_pool
+      description: 'Pool cleaner with equipment'
+      duration_seconds: 30
+      scene: backyard
+      environment: day_clear
+      models_exercised: [clothing, action]
+      prompt_override: 'Suburban home backyard at midday, viewed from an elevated position under the roofline. A pool service technician in uniform walks to the pool area carrying a net and testing kit, begins skimming the pool surface. Scheduled pool maintenance. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E10
+      variation: service_housecleaner
+      description: 'House cleaner entering with supplies'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A house cleaner carrying a caddy of cleaning supplies and a vacuum walks up to the door, takes out a key, unlocks the door, and enters. Scheduled cleaning service. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E11
+      variation: service_pest_control
+      description: 'Pest control around perimeter'
+      duration_seconds: 30
+      scene: side_yard
+      environment: day_clear
+      models_exercised: [clothing, action]
+      prompt_override: 'Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A pest control technician in uniform with a spray tank walks along the house foundation, spraying treatment at the base of walls. Scheduled pest service. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E12
+      variation: utility_meter_reader
+      description: 'Utility worker reading meter'
+      duration_seconds: 30
+      scene: side_yard
+      environment: day_clear
+      models_exercised: [clothing, action]
+      prompt_override: 'Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A utility worker in safety vest approaches the electric meter on the side of the house, takes a reading with a handheld device, and walks to the next property. Monthly meter reading. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E13
+      variation: utility_electric
+      description: 'Electric company checking lines'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [clothing, vehicle]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. An electric company worker in hard hat and safety vest inspects the power lines near the house, utility truck with cherry picker visible at street. Utility inspection. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E14
+      variation: utility_gas
+      description: 'Gas company safety check'
+      duration_seconds: 30
+      scene: side_yard
+      environment: day_clear
+      models_exercised: [clothing, action]
+      prompt_override: 'Suburban home side yard at midday, viewed from a corner vantage point at the house edge. A gas company technician in uniform with detection equipment checks the gas meter and surrounding pipes, takes readings. Safety inspection. Static viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E15
+      variation: solicitor_sales
+      description: 'Door-to-door salesperson'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person in business casual with a tablet and lanyard walks up, rings doorbell, waits, checks tablet, rings again, then leaves a flyer and walks to next house. Door-to-door sales. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E16
+      variation: solicitor_religious
+      description: 'Religious visitors at door'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. Two well-dressed people carrying pamphlets and a book walk up together, ring doorbell, wait patiently, then leave literature at the door and walk to next house. Religious outreach. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E17
+      variation: solicitor_political
+      description: 'Campaign canvasser'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person with campaign buttons and flyers walks up, rings doorbell, waits with clipboard ready, then hangs a door hanger and moves to next house. Political canvassing. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E18
+      variation: guest_expected
+      description: 'Friend arriving comfortably'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person walks up confidently to the door, waves at the camera with a smile, rings doorbell, and waits comfortably. Expected guest arrival. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E19
+      variation: guest_rideshare
+      description: 'Uber/Lyft drops off visitor'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [vehicle, action, reid]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A rideshare car pulls up, a passenger exits from the back seat with a small bag, waves thanks to driver, and walks toward the front door as car drives away. Guest arrival by rideshare. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E20
+      variation: contractor_scheduled
+      description: 'Contractor arriving with tools'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [vehicle, clothing, action]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A work truck pulls into driveway, a contractor in work clothes exits carrying a toolbox, walks to front door and rings bell. Scheduled home improvement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E21
+      variation: realtor_showing
+      description: 'Real estate agent with clients'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A real estate agent in professional attire walks up with a couple, opens lockbox on door, unlocks door, and gestures for clients to enter. Property showing. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: E22
+      variation: neighbor_returning_item
+      description: 'Neighbor bringing over package'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [action, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A neighbor walks over from next door carrying a misdelivered package, places it at the door, waves at the camera knowingly, and walks back home. Friendly neighbor interaction. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+  # =============================================================================
+  # CHALLENGING CONDITIONS (23 videos)
+  # Edge cases that stress-test AI under difficult real-world conditions
+  # =============================================================================
+
+  challenging_conditions:
+    - id: C01
+      variation: weather_heavy_rain
+      description: 'Person approaching in downpour'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_rain
+      models_exercised: [all]
+      prompt_override: 'Suburban home front porch at night during heavy rain, viewed from an elevated vantage point near the door. A person in rain jacket approaches through the downpour, rain streaking across the view, water droplets on lens, reduced visibility. Static elevated viewpoint, IR-tinted footage with rain effects. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C02
+      variation: weather_snow_falling
+      description: 'Activity during snowfall'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [all]
+      prompt_override: 'Suburban home driveway during active snowfall, viewed from an elevated position on the garage. A person walks up the snowy driveway as snowflakes fall heavily, reduced visibility, white specs throughout frame. Winter storm conditions. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C03
+      variation: weather_fog_dense
+      description: 'Person emerging from thick fog'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [all]
+      prompt_override: 'Suburban home driveway in dense fog, viewed from an elevated position on the garage. A person gradually becomes visible as they walk closer through the fog, starting as a vague silhouette and becoming clearer. Very low visibility. Static elevated viewpoint, muted colors. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C04
+      variation: weather_hail
+      description: 'Movement during hail storm'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [all]
+      prompt_override: 'Suburban home driveway during hail storm, viewed from an elevated position on the garage. A person runs toward the house covering their head as hail pellets bounce off the ground and cars, chaotic small white objects everywhere. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C05
+      variation: weather_wind_gusts
+      description: 'Person struggling against wind'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_overcast
+      models_exercised: [pose, action]
+      prompt_override: 'Suburban home driveway on very windy day, viewed from an elevated position on the garage. A person walks toward the house leaning into strong wind gusts, clothes and hair blowing wildly, struggling to maintain balance. Unusual body posture from wind. Static elevated viewpoint, overcast lighting. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C06
+      variation: lighting_sun_glare
+      description: 'Direct sun washing out subject'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [exposure, face]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Person approaching with harsh direct sunlight behind them, strong backlight causing silhouette effect, face details completely washed out by glare. Challenging exposure. Static elevated viewpoint, overexposed background. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C07
+      variation: lighting_headlight_sweep
+      description: 'Car headlights sweeping scene'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [exposure, action]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. A person stands at the door as a car turns into the driveway, headlights sweeping dramatically across the scene, causing rapid brightness changes. Dynamic night lighting. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C08
+      variation: lighting_flashlight
+      description: 'Person with flashlight at night'
+      duration_seconds: 30
+      scene: side_yard
+      environment: night_clear
+      models_exercised: [action]
+      prompt_override: 'Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person walks along the fence holding a flashlight, the beam illuminating patches of the scene, face alternately lit and in shadow. Moving light source. Static viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C09
+      variation: lighting_lightning
+      description: 'Activity during lightning storm'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_rain
+      models_exercised: [exposure, action]
+      prompt_override: 'Suburban home front porch at night during thunderstorm, viewed from an elevated vantage point near the door. A person runs to the door as lightning flashes illuminate the scene in bright strobes, dramatic contrast between dark and flash-lit moments. Static elevated viewpoint, IR-tinted footage with lightning flashes. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C10
+      variation: lighting_sunrise_transition
+      description: 'Rapid light change at sunrise'
+      duration_seconds: 30
+      scene: driveway
+      environment: dusk_clear
+      models_exercised: [exposure]
+      prompt_override: 'Suburban home driveway at sunrise, viewed from an elevated position on the garage. Light rapidly changing from dark to bright as sun rises, auto-exposure struggling to adjust, person walking through the scene as lighting shifts dramatically. Dawn transition. Static elevated viewpoint, warm changing light. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C11
+      variation: occlusion_umbrella
+      description: 'Person hidden under umbrella'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_rain
+      models_exercised: [reid, face]
+      prompt_override: 'Suburban home front porch at night in rain, viewed from an elevated vantage point near the door. A person approaches holding a large umbrella that completely hides their face and upper body from the elevated camera angle. Face and body obscured by umbrella. Static elevated viewpoint, IR-tinted footage with rain. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C12
+      variation: occlusion_large_package
+      description: 'Person carrying box blocking face'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [reid, face]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A delivery person carries a very large box that blocks their face and torso, only legs visible below the box. Face completely obscured by package. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C13
+      variation: occlusion_crowd
+      description: 'Person hidden in group'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A group of five people walks toward the house, one person mostly hidden behind others, occasionally visible through gaps. Crowd occlusion challenge. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C14
+      variation: occlusion_stroller
+      description: 'Person pushing large stroller'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person pushes a large stroller up the driveway, the stroller and baby items partially obscuring their body from certain angles. Partial body occlusion. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C15
+      variation: speed_full_sprint
+      description: 'Person sprinting across frame'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, action]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person sprints at full speed across the driveway, significant motion blur on limbs, in frame for only a few seconds. Fast movement challenge. Static elevated viewpoint, clear daytime footage with motion blur. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C16
+      variation: speed_fast_cyclist
+      description: 'Cyclist speeding through'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [action, vehicle]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A cyclist speeds through the driveway at high speed, barely stopping, motion blur visible, quick traversal of frame. Fast bicycle movement. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C17
+      variation: clothing_rain_gear
+      description: 'Full rain gear hiding face'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_rain
+      models_exercised: [face, clothing]
+      prompt_override: 'Suburban home front porch at night in rain, viewed from an elevated vantage point near the door. A person in full rain gear with hood up and rain jacket zipped high approaches the door, face completely hidden by weather-appropriate clothing. Face obscured by rain gear. Static elevated viewpoint, IR-tinted footage with rain. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C18
+      variation: clothing_winter_bundled
+      description: 'Heavy winter clothing obscuring face'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_overcast
+      models_exercised: [face, clothing]
+      prompt_override: 'Suburban home front porch on cold winter day, viewed from an elevated vantage point near the door. A person bundled in heavy coat, hat pulled low, scarf wrapped around face approaches, only eyes barely visible. Cold weather concealment. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C19
+      variation: clothing_halloween_costume
+      description: 'Person in costume'
+      duration_seconds: 30
+      scene: front_porch
+      environment: night_clear
+      models_exercised: [face, reid]
+      prompt_override: 'Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in an elaborate Halloween costume with mask approaches the door. Completely unrecognizable due to costume and mask. Costume challenge. Static elevated viewpoint, IR-tinted footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C20
+      variation: clothing_motorcycle_helmet
+      description: 'Person in full face helmet'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [face, vehicle]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person gets off a motorcycle wearing a full-face helmet, walks toward the house with helmet still on, face completely hidden. Helmet concealment. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C21
+      variation: distance_far_approach
+      description: 'Person approaching from far edge'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, depth]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. A person starts at the far edge of the property near the street, very small in frame, and walks steadily closer, growing larger until reaching normal distance. Scale change challenge. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C22
+      variation: angle_directly_below
+      description: 'Activity directly under camera'
+      duration_seconds: 30
+      scene: front_porch
+      environment: day_clear
+      models_exercised: [pose, reid]
+      prompt_override: 'Suburban home front porch at midday, viewed from an elevated vantage point near the door. A person stands directly below the camera position, only the top of their head and shoulders visible, face never visible from this extreme overhead angle. Top-down view only. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'
+
+    - id: C23
+      variation: multi_event_simultaneous
+      description: 'Two activities at once'
+      duration_seconds: 30
+      scene: driveway
+      environment: day_clear
+      models_exercised: [reid, action]
+      prompt_override: 'Suburban home driveway at midday, viewed from an elevated position on the garage. Two unrelated events happen simultaneously: a delivery driver places a package at door while a different person walks a dog past on the sidewalk. Split attention scenario. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.'

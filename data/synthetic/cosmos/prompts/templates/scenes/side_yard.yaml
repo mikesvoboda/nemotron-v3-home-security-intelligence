@@ -1,8 +1,8 @@
 id: side_yard
 setting: 'suburban home side yard with fence and gate'
-camera_position: 'wall-mounted camera at corner of house'
-camera_notes: 'Fixed camera position, medium field of view along property side'
-lens_effects: 'standard security camera lens'
+viewing_angle: 'a corner vantage point at the house edge, looking along the property side'
+perspective_notes: 'Static viewpoint along the fence line, medium field of view'
+lens_effects: 'standard wide-angle perspective'
 zones:
   - perimeter
   - side_yard
