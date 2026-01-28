@@ -2180,3 +2180,82 @@ class TestMetricsServiceExemplarMethods:
         metrics = get_metrics_service()
         metrics.observe_ai_request_with_exemplar("yolo26", 0.05)
         metrics.observe_ai_request_with_exemplar("nemotron", 1.5)
+
+
+class TestProcessMemoryMetrics:
+    """Test process memory metrics (NEM-3890)."""
+
+    def test_process_memory_rss_metric_exists(self) -> None:
+        """PROCESS_MEMORY_RSS_BYTES gauge should be defined."""
+        from backend.core.metrics import PROCESS_MEMORY_RSS_BYTES
+
+        assert PROCESS_MEMORY_RSS_BYTES is not None
+        assert PROCESS_MEMORY_RSS_BYTES._name == "hsi_process_memory_rss_bytes"
+
+    def test_process_memory_container_limit_metric_exists(self) -> None:
+        """PROCESS_MEMORY_CONTAINER_LIMIT_BYTES gauge should be defined."""
+        from backend.core.metrics import PROCESS_MEMORY_CONTAINER_LIMIT_BYTES
+
+        assert PROCESS_MEMORY_CONTAINER_LIMIT_BYTES is not None
+        assert (
+            PROCESS_MEMORY_CONTAINER_LIMIT_BYTES._name == "hsi_process_memory_container_limit_bytes"
+        )
+
+    def test_process_memory_container_usage_metric_exists(self) -> None:
+        """PROCESS_MEMORY_CONTAINER_USAGE_RATIO gauge should be defined."""
+        from backend.core.metrics import PROCESS_MEMORY_CONTAINER_USAGE_RATIO
+
+        assert PROCESS_MEMORY_CONTAINER_USAGE_RATIO is not None
+        assert (
+            PROCESS_MEMORY_CONTAINER_USAGE_RATIO._name == "hsi_process_memory_container_usage_ratio"
+        )
+
+    def test_update_process_memory_metrics_with_container_limit(self) -> None:
+        """update_process_memory_metrics should update all gauges with container limit."""
+        from backend.core.metrics import (
+            PROCESS_MEMORY_CONTAINER_LIMIT_BYTES,
+            PROCESS_MEMORY_CONTAINER_USAGE_RATIO,
+            PROCESS_MEMORY_RSS_BYTES,
+            update_process_memory_metrics,
+        )
+
+        update_process_memory_metrics(
+            rss_bytes=2_147_483_648,  # 2GB
+            container_limit_bytes=6_442_450_944,  # 6GB
+            container_usage_percent=33.3,
+        )
+
+        # Verify gauges are updated
+        assert PROCESS_MEMORY_RSS_BYTES._value._value == 2_147_483_648
+        assert PROCESS_MEMORY_CONTAINER_LIMIT_BYTES._value._value == 6_442_450_944
+        # Container usage ratio should be percent / 100
+        assert abs(PROCESS_MEMORY_CONTAINER_USAGE_RATIO._value._value - 0.333) < 0.001
+
+    def test_update_process_memory_metrics_without_container_limit(self) -> None:
+        """update_process_memory_metrics should handle None container limit."""
+        from backend.core.metrics import (
+            PROCESS_MEMORY_CONTAINER_LIMIT_BYTES,
+            PROCESS_MEMORY_CONTAINER_USAGE_RATIO,
+            PROCESS_MEMORY_RSS_BYTES,
+            update_process_memory_metrics,
+        )
+
+        update_process_memory_metrics(
+            rss_bytes=1_073_741_824,  # 1GB
+            container_limit_bytes=None,
+            container_usage_percent=None,
+        )
+
+        # RSS should still be set
+        assert PROCESS_MEMORY_RSS_BYTES._value._value == 1_073_741_824
+        # Container limit and usage should be 0 when not available
+        assert PROCESS_MEMORY_CONTAINER_LIMIT_BYTES._value._value == 0
+        assert PROCESS_MEMORY_CONTAINER_USAGE_RATIO._value._value == 0.0
+
+    def test_metrics_response_contains_process_memory_metrics(self) -> None:
+        """Metrics response should contain process memory metrics (NEM-3890)."""
+        response = get_metrics_response().decode("utf-8")
+
+        assert "hsi_process_memory_rss_bytes" in response
+        assert "hsi_process_memory_container_limit_bytes" in response
+        assert "hsi_process_memory_container_usage_ratio" in response

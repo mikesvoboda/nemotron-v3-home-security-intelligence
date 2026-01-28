@@ -1,0 +1,176 @@
+{
+  "generated_at": "2026-01-28T04:41:50.041655+00:00",
+  "total_scenarios": 13,
+  "likely_valid": 2,
+  "likely_misaligned": 11,
+  "unknown": 0,
+  "summary": "Audited 13 scenarios. Likely valid for AI generation: 2. Likely misaligned (need stock footage): 11. Unknown: 0.",
+  "scenarios": [
+    {
+      "scenario_id": "break_in_attempt",
+      "category": "threats",
+      "name": "Break-In Attempt",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["face_concealment", "crime", "violence", "weapons"],
+      "problematic_elements": [
+        "pry_bar",
+        "aggressive",
+        "attack",
+        "violence",
+        "breaking",
+        "forcing",
+        "kicking",
+        "break_in",
+        "burglary",
+        "intruder",
+        "mask",
+        "face_covering"
+      ],
+      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person') | Use staged test footage with actors | Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
+      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies | Aggressive/violent poses will be sanitized by AI image generators | Criminal activity depiction may be softened or refused"
+    },
+    {
+      "scenario_id": "casing",
+      "category": "suspicious",
+      "name": "Property Casing",
+      "alignment_status": "likely_valid",
+      "confidence": "high",
+      "content_policy_risks": [],
+      "problematic_elements": [],
+      "recommendation": "AI-generated images should work well for this scenario.",
+      "notes": ""
+    },
+    {
+      "scenario_id": "delivery_driver",
+      "category": "normal",
+      "name": "Package Delivery",
+      "alignment_status": "likely_misaligned",
+      "confidence": "medium",
+      "content_policy_risks": ["crime"],
+      "problematic_elements": ["stealing"],
+      "recommendation": "Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content",
+      "notes": "Criminal activity depiction may be softened or refused"
+    },
+    {
+      "scenario_id": "loitering",
+      "category": "suspicious",
+      "name": "Loitering Person",
+      "alignment_status": "likely_misaligned",
+      "confidence": "medium",
+      "content_policy_risks": ["face_concealment"],
+      "problematic_elements": ["hood_up"],
+      "recommendation": "Stock footage of people in winter clothing can work as proxy",
+      "notes": ""
+    },
+    {
+      "scenario_id": "package_theft",
+      "category": "threats",
+      "name": "Package Theft",
+      "alignment_status": "likely_misaligned",
+      "confidence": "medium",
+      "content_policy_risks": ["face_concealment", "crime"],
+      "problematic_elements": ["theft", "stealing", "hood_up"],
+      "recommendation": "Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
+      "notes": "Criminal activity depiction may be softened or refused"
+    },
+    {
+      "scenario_id": "pet_activity",
+      "category": "normal",
+      "name": "Pet Activity",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["violence"],
+      "problematic_elements": ["threatening"],
+      "recommendation": "Use staged test footage with actors",
+      "notes": "Aggressive/violent poses will be sanitized by AI image generators"
+    },
+    {
+      "scenario_id": "prowling",
+      "category": "suspicious",
+      "name": "Prowling Person",
+      "alignment_status": "likely_misaligned",
+      "confidence": "medium",
+      "content_policy_risks": ["face_concealment", "crime"],
+      "problematic_elements": ["burglary", "mask", "face_covering", "balaclava"],
+      "recommendation": "Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
+      "notes": "Criminal activity depiction may be softened or refused"
+    },
+    {
+      "scenario_id": "resident_arrival",
+      "category": "normal",
+      "name": "Resident Arrival",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["weapons"],
+      "problematic_elements": ["weapon"],
+      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person')",
+      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies"
+    },
+    {
+      "scenario_id": "tailgating",
+      "category": "suspicious",
+      "name": "Tailgating Through Gate",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["face_concealment", "violence"],
+      "problematic_elements": ["aggressive", "hood_up"],
+      "recommendation": "Use staged test footage with actors | Stock footage of people in winter clothing can work as proxy",
+      "notes": "Aggressive/violent poses will be sanitized by AI image generators"
+    },
+    {
+      "scenario_id": "vandalism",
+      "category": "threats",
+      "name": "Property Vandalism",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["face_concealment", "crime", "violence", "weapons"],
+      "problematic_elements": ["weapon", "bat", "breaking", "break_in", "mask", "hood_up"],
+      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person') | Use staged test footage with actors | Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
+      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies | Aggressive/violent poses will be sanitized by AI image generators | Criminal activity depiction may be softened or refused"
+    },
+    {
+      "scenario_id": "vehicle_parking",
+      "category": "normal",
+      "name": "Vehicle Parking",
+      "alignment_status": "likely_valid",
+      "confidence": "high",
+      "content_policy_risks": [],
+      "problematic_elements": [],
+      "recommendation": "AI-generated images should work well for this scenario.",
+      "notes": ""
+    },
+    {
+      "scenario_id": "weapon_visible",
+      "category": "threats",
+      "name": "Weapon Visible",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["violence", "weapons"],
+      "problematic_elements": [
+        "handgun",
+        "firearm",
+        "knife",
+        "weapon",
+        "bat",
+        "aggressive",
+        "threatening",
+        "brandishing",
+        "violence"
+      ],
+      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person') | Use staged test footage with actors",
+      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies | Aggressive/violent poses will be sanitized by AI image generators"
+    },
+    {
+      "scenario_id": "yard_maintenance",
+      "category": "normal",
+      "name": "Yard Maintenance",
+      "alignment_status": "likely_misaligned",
+      "confidence": "high",
+      "content_policy_risks": ["violence", "crime"],
+      "problematic_elements": ["breaking", "stealing"],
+      "recommendation": "Use staged test footage with actors | Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content",
+      "notes": "Aggressive/violent poses will be sanitized by AI image generators | Criminal activity depiction may be softened or refused"
+    }
+  ]
+}

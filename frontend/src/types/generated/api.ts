@@ -21259,6 +21259,14 @@ export interface components {
          * HealthResponse
          * @description Response schema for health check endpoint.
          * @example {
+         *       "memory": {
+         *         "container_limit_mb": 6144,
+         *         "container_usage_percent": 33.3,
+         *         "percent": 25.5,
+         *         "rss_mb": 2048.5,
+         *         "status": "healthy",
+         *         "vms_mb": 4096
+         *       },
          *       "recent_events": [
          *         {
          *           "event_type": "recovery",
@@ -21295,6 +21303,8 @@ export interface components {
          *     }
          */
         HealthResponse: {
+            /** @description Backend process memory metrics (NEM-3890) */
+            memory?: components["schemas"]["ProcessMemoryResponse"] | null;
             /**
              * Recent Events
              * @description Recent health events for debugging intermittent issues
@@ -26694,6 +26704,53 @@ export interface components {
              * @description Backward compatibility alias for alerts
              */
             security_alerts?: string[];
+        };
+        /**
+         * ProcessMemoryResponse
+         * @description Process memory metrics for the backend service (NEM-3890).
+         *
+         *     Tracks memory usage of the backend Python process and container limits
+         *     to help diagnose memory pressure issues before OOM kills.
+         * @example {
+         *       "container_limit_mb": 6144,
+         *       "container_usage_percent": 33.3,
+         *       "percent": 25.5,
+         *       "rss_mb": 2048.5,
+         *       "status": "healthy",
+         *       "vms_mb": 4096
+         *     }
+         */
+        ProcessMemoryResponse: {
+            /**
+             * Container Limit Mb
+             * @description Container memory limit in MB (None if not in container or no limit)
+             */
+            container_limit_mb?: number | null;
+            /**
+             * Container Usage Percent
+             * @description RSS as percentage of container memory limit
+             */
+            container_usage_percent?: number | null;
+            /**
+             * Percent
+             * @description Memory usage as percentage of system RAM
+             */
+            percent: number;
+            /**
+             * Rss Mb
+             * @description Resident Set Size in megabytes (actual physical memory used)
+             */
+            rss_mb: number;
+            /**
+             * Status
+             * @description Memory status: 'healthy', 'warning' (>80%), or 'critical' (>90%)
+             */
+            status: string;
+            /**
+             * Vms Mb
+             * @description Virtual Memory Size in megabytes (total virtual memory allocated)
+             */
+            vms_mb: number;
         };
         /**
          * ProfileStartResponse

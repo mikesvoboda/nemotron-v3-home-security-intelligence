@@ -2167,3 +2167,158 @@ class TestDetectorClientSpanEvents:
             assert complete_attrs["camera.id"] == camera_id
             assert complete_attrs["detection.count"] == 1
             assert "inference.duration_ms" in complete_attrs
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_stores_image_dimensions_for_bbox_scaling(
+    detector_client, mock_session
+):
+    """Test that image dimensions from YOLO response are stored for bbox scaling.
+
+    NEM-3903: YOLO returns bounding box coordinates relative to the image dimensions
+    at inference time. These dimensions must be stored so the enrichment pipeline can
+    scale bboxes if the image is later loaded at a different resolution.
+    """
+    image_path = "/export/foscam/front_door/test_image.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # YOLO response includes image_width and image_height
+    response = {
+        "detections": [
+            {
+                "class": "person",
+                "confidence": 0.95,
+                "bbox": [100, 150, 300, 400],  # Coordinates relative to 640x480
+            }
+        ],
+        "image_width": 640,
+        "image_height": 480,
+    }
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert len(detections) == 1
+        detection = detections[0]
+        # Verify image dimensions are stored for bbox scaling
+        assert detection.video_width == 640
+        assert detection.video_height == 480
+        # Verify this is an image detection (not video)
+        assert detection.media_type == "image"
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_image_without_dimensions_in_response(detector_client, mock_session):
+    """Test handling when YOLO response doesn't include image dimensions.
+
+    Some YOLO versions may not include image_width/image_height in the response.
+    In this case, the detection should still be created but without dimensions.
+    """
+    image_path = "/export/foscam/front_door/test_no_dims.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    # YOLO response without image dimensions
+    response = {
+        "detections": [
+            {
+                "class": "car",
+                "confidence": 0.88,
+                "bbox": [200, 100, 150, 100],
+            }
+        ],
+        # No image_width or image_height
+    }
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert len(detections) == 1
+        detection = detections[0]
+        # Dimensions should be None when not in response
+        assert detection.video_width is None
+        assert detection.video_height is None
+        assert detection.media_type == "image"
+
+
+@pytest.mark.asyncio
+async def test_video_metadata_takes_precedence_over_response_dimensions(
+    detector_client, mock_session
+):
+    """Test that video_metadata dimensions take precedence over YOLO response.
+
+    When processing video frames, the video_metadata dimensions should be used
+    rather than the YOLO response dimensions (which may be for the extracted frame).
+    """
+    image_path = "/export/foscam/front_door/frame_001.jpg"
+    video_path = "/export/foscam/front_door/video.mp4"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    video_metadata = {
+        "duration": 30.5,
+        "video_codec": "h264",
+        "video_width": 1920,  # Video dimensions
+        "video_height": 1080,
+        "file_type": "video/mp4",
+    }
+
+    # YOLO response with different dimensions (e.g., from resized frame)
+    response = {
+        "detections": [
+            {
+                "class": "person",
+                "confidence": 0.95,
+                "bbox": [100, 150, 300, 400],
+            }
+        ],
+        "image_width": 640,  # Different from video dimensions
+        "image_height": 480,
+    }
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(
+            image_path,
+            camera_id,
+            mock_session,
+            video_path=video_path,
+            video_metadata=video_metadata,
+        )
+
+        assert len(detections) == 1
+        detection = detections[0]
+        # Video metadata dimensions should be used, not YOLO response
+        assert detection.video_width == 1920
+        assert detection.video_height == 1080
+        assert detection.media_type == "video"

@@ -1338,7 +1338,8 @@ describe('useEventStream', () => {
       expect(result2.current.events).toHaveLength(1);
 
       // Send an event with a large gap (e.g., sequence 100 when last was 1)
-      // Default gap threshold is 10
+      // NEM-3905: Default gap threshold is now 50 (was 10)
+      // Gap of 99 (100 - 1) exceeds threshold of 50
       const gapEvent: SecurityEvent = {
         id: 100,
         camera_id: 'cam-1',

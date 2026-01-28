@@ -314,6 +314,9 @@ services:
       # TensorRT acceleration for YOLO models
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
+      # Preload models at startup - configured in .env (single source of truth)
+      # See .env.example for available models
+      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-}
     restart: unless-stopped
     networks:
       - security-net
@@ -366,10 +369,9 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # Preload models at startup (comma-separated) to keep resident in memory
-      # Available: vehicle_classifier, fashion_clip, depth_estimator, pose_analyzer, pet_classifier
-      # Only vehicle and clothing models are on heavy service (others on light)
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-vehicle_classifier,fashion_clip}
+      # Preload models at startup - configured in .env (single source of truth)
+      # See .env.example for available models
+      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-}
     restart: unless-stopped
     networks:
       - security-net
@@ -492,7 +494,9 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: 4G
+          # NEM-3890: Increased from 4G to 6G to prevent OOM kills
+          # Backend was at 94.45% memory usage (4.057GB / 4.295GB)
+          memory: 6G
         reservations:
           devices:
             - driver: nvidia

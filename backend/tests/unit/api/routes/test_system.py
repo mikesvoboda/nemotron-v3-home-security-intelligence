@@ -339,6 +339,96 @@ class TestWorkerStatus:
         register_workers(pipeline_manager=mock_manager)
         assert _are_critical_pipeline_workers_healthy() is True
 
+    def test_are_critical_pipeline_workers_healthy_detection_error_state(self) -> None:
+        """Test that detection worker in error state is still considered healthy.
+
+        NEM-3901: The "error" state is transient and self-recovers within ~1 second.
+        Treating error as unhealthy causes false negatives in readiness probes,
+        leading to SLO burn rate spikes.
+        """
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "error"},
+                "analysis": {"state": "running"},
+            },
+        }
+
+        register_workers(pipeline_manager=mock_manager)
+        assert _are_critical_pipeline_workers_healthy() is True
+
+    def test_are_critical_pipeline_workers_healthy_analysis_error_state(self) -> None:
+        """Test that analysis worker in error state is still considered healthy.
+
+        NEM-3901: The "error" state is transient and self-recovers within ~1 second.
+        """
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "error"},
+            },
+        }
+
+        register_workers(pipeline_manager=mock_manager)
+        assert _are_critical_pipeline_workers_healthy() is True
+
+    def test_are_critical_pipeline_workers_healthy_both_error_state(self) -> None:
+        """Test that both workers in error state are still considered healthy.
+
+        NEM-3901: Even if both workers encounter transient errors simultaneously,
+        they should still be considered operational since they auto-recover.
+        """
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "error"},
+                "analysis": {"state": "error"},
+            },
+        }
+
+        register_workers(pipeline_manager=mock_manager)
+        assert _are_critical_pipeline_workers_healthy() is True
+
+    def test_are_critical_pipeline_workers_healthy_starting_state(self) -> None:
+        """Test that starting state is NOT considered healthy.
+
+        Workers in "starting" state haven't completed initialization,
+        so they should not be considered operational.
+        """
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "starting"},
+                "analysis": {"state": "running"},
+            },
+        }
+
+        register_workers(pipeline_manager=mock_manager)
+        assert _are_critical_pipeline_workers_healthy() is False
+
+    def test_are_critical_pipeline_workers_healthy_stopping_state(self) -> None:
+        """Test that stopping state is NOT considered healthy.
+
+        Workers in "stopping" state are shutting down and should not
+        be considered operational for readiness probes.
+        """
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "stopping"},
+            },
+        }
+
+        register_workers(pipeline_manager=mock_manager)
+        assert _are_critical_pipeline_workers_healthy() is False
+
 
 # =============================================================================
 # Directory Stats Tests

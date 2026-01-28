@@ -332,42 +332,61 @@ async def test_get_latency_stats_calculates_percentiles() -> None:
     from backend.api.routes import system as system_routes
 
     redis = AsyncMock()
-    # Mock stored latency samples
-    redis.get = AsyncMock(
-        return_value=[
-            100.0,
-            150.0,
-            200.0,
-            250.0,
-            300.0,
-            350.0,
-            400.0,
-            450.0,
-            500.0,
-            550.0,
-        ]
+    # Mock stored latency samples - peek_queue returns samples for each stage
+    sample_data = [
+        100.0,
+        150.0,
+        200.0,
+        250.0,
+        300.0,
+        350.0,
+        400.0,
+        450.0,
+        500.0,
+        550.0,
+    ]
+    # Return samples for detect stage, empty for others
+    redis.peek_queue = AsyncMock(
+        side_effect=lambda key, _start, _end: sample_data if "detect" in key else []
     )
 
     latencies = await system_routes.get_latency_stats(redis)
 
-    if latencies and latencies.detect:
-        assert latencies.detect.sample_count == 10
-        assert latencies.detect.min_ms == 100.0
-        assert latencies.detect.max_ms == 550.0
+    assert latencies is not None
+    assert latencies.detect is not None
+    assert latencies.detect.sample_count == 10
+    assert latencies.detect.min_ms == 100.0
+    assert latencies.detect.max_ms == 550.0
+    # Other stages should have zero values since no samples
+    assert latencies.watch.sample_count == 0
+    assert latencies.analyze.sample_count == 0
 
 
 @pytest.mark.asyncio
 async def test_get_latency_stats_handles_empty_data() -> None:
-    """Test get_latency_stats handles no data gracefully."""
+    """Test get_latency_stats handles no data gracefully.
+
+    When no latency samples exist, stages should return zero values
+    with sample_count=0 to ensure consistent JSON structure for
+    metrics exporters (e.g., json_exporter).
+    """
     from backend.api.routes import system as system_routes
 
     redis = AsyncMock()
-    redis.get = AsyncMock(return_value=None)
+    redis.peek_queue = AsyncMock(return_value=None)
 
     latencies = await system_routes.get_latency_stats(redis)
 
-    # Should return None or empty latencies when no data
-    assert latencies is None or latencies.watch is None
+    # Should return StageLatency objects with zero values when no data
+    # This ensures consistent JSON structure for metrics exporters
+    assert latencies is not None
+    assert latencies.watch is not None
+    assert latencies.watch.sample_count == 0
+    assert latencies.watch.avg_ms == 0.0
+    assert latencies.watch.p99_ms == 0.0
+    assert latencies.analyze is not None
+    assert latencies.analyze.sample_count == 0
+    assert latencies.analyze.p99_ms == 0.0
 
 
 # =============================================================================

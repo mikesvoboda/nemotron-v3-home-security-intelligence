@@ -1142,3 +1142,125 @@ class TestJobTrackingIntegration:
         """Test _is_job_cancelled returns False when job_id is None."""
         assert evaluator_with_job_tracker._is_job_cancelled(None) is False
         mock_job_tracker.is_cancelled.assert_not_called()
+
+
+# =============================================================================
+# Test: DetachedInstanceError Fix (NEM-3902)
+# =============================================================================
+
+
+class TestDeferredColumnAccess:
+    """Tests for accessing deferred columns after session close (NEM-3902)."""
+
+    @pytest.mark.asyncio
+    async def test_process_one_loads_deferred_columns(
+        self,
+        background_evaluator,
+        mock_evaluation_queue,
+        mock_audit_service,
+    ):
+        """Test that process_one eagerly loads deferred columns before expunge.
+
+        This test verifies the fix for NEM-3902: SQLAlchemy DetachedInstanceError
+        when accessing event.llm_prompt and event.reasoning after the session is closed.
+        """
+        mock_evaluation_queue.dequeue.return_value = 123
+
+        # Create mock event with deferred attributes
+        mock_event = MagicMock()
+        mock_event.id = 123
+        mock_event.llm_prompt = "Test prompt"
+        mock_event.reasoning = "Test reasoning"
+        mock_event.risk_score = 75
+        mock_event.summary = "Test summary"
+
+        mock_audit = MagicMock()
+        mock_audit.id = 1
+        mock_audit.event_id = 123
+        mock_audit.overall_quality_score = 85.0
+
+        # Track whether run_evaluation_llm_calls was able to access deferred attributes
+        access_succeeded = False
+
+        async def mock_run_evaluation(audit, event):
+            """Mock evaluation that accesses deferred attributes."""
+            nonlocal access_succeeded
+            try:
+                # These accesses should not raise DetachedInstanceError
+                _ = event.llm_prompt
+                _ = event.reasoning
+                _ = event.risk_score
+                _ = event.summary
+                access_succeeded = True
+            except Exception as e:
+                pytest.fail(f"Failed to access deferred attributes: {e}")
+
+        mock_audit_service.run_evaluation_llm_calls.side_effect = mock_run_evaluation
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_session.expunge = MagicMock()  # expunge is sync
+            mock_session.merge = AsyncMock(return_value=mock_audit)
+
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = mock_event
+            mock_audit_result = MagicMock()
+            mock_audit_result.scalar_one_or_none.return_value = mock_audit
+
+            mock_session.execute.side_effect = [mock_event_result, mock_audit_result]
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            result = await background_evaluator.process_one()
+
+            assert result is True
+            assert access_succeeded, "Deferred attributes should be accessible after expunge"
+            mock_audit_service.run_evaluation_llm_calls.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_one_handles_missing_llm_prompt(
+        self,
+        background_evaluator,
+        mock_evaluation_queue,
+        mock_audit_service,
+    ):
+        """Test that process_one handles events with missing llm_prompt gracefully."""
+        mock_evaluation_queue.dequeue.return_value = 123
+
+        # Create mock event with None llm_prompt
+        mock_event = MagicMock()
+        mock_event.id = 123
+        mock_event.llm_prompt = None  # Missing prompt
+        mock_event.reasoning = "Test reasoning"
+        mock_event.risk_score = 75
+        mock_event.summary = "Test summary"
+
+        mock_audit = MagicMock()
+        mock_audit.id = 1
+        mock_audit.event_id = 123
+
+        with patch("backend.services.background_evaluator.get_session") as mock_get_session:
+            mock_session = AsyncMock()
+            mock_session.expunge = MagicMock()
+            mock_session.merge = AsyncMock(return_value=mock_audit)
+
+            mock_event_result = MagicMock()
+            mock_event_result.scalar_one_or_none.return_value = mock_event
+            mock_audit_result = MagicMock()
+            mock_audit_result.scalar_one_or_none.return_value = mock_audit
+
+            mock_session.execute.side_effect = [mock_event_result, mock_audit_result]
+
+            mock_ctx_manager = AsyncMock()
+            mock_ctx_manager.__aenter__.return_value = mock_session
+            mock_ctx_manager.__aexit__.return_value = None
+            mock_get_session.return_value = mock_ctx_manager
+
+            result = await background_evaluator.process_one()
+
+            assert result is True
+            # When llm_prompt is None, run_evaluation_llm_calls should return early
+            mock_audit_service.run_evaluation_llm_calls.assert_called_once()

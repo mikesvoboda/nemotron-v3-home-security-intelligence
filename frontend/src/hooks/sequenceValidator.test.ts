@@ -222,9 +222,10 @@ describe('SequenceValidator', () => {
 
   describe('gap detection and resync', () => {
     it('should trigger resync when gap exceeds threshold', () => {
-      // Default gap threshold is 10
+      // NEM-3905: Default gap threshold is now 50 (was 10)
       const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
-      const msgGap: SequencedMessage = { type: 'event', sequence: 15, data: { id: 15 } };
+      // Gap of 59 (sequence 60 - 1 = 59) exceeds threshold of 50
+      const msgGap: SequencedMessage = { type: 'event', sequence: 60, data: { id: 60 } };
 
       validator.handleMessage('events', msg1);
       validator.handleMessage('events', msgGap);
@@ -242,6 +243,20 @@ describe('SequenceValidator', () => {
       expect(resyncCallback).not.toHaveBeenCalled();
     });
 
+    it('should not trigger resync for gaps below threshold (NEM-3905)', () => {
+      // NEM-3905: Verify gaps of 30-40 (previously would trigger resync at threshold 10)
+      // no longer trigger resync with the new threshold of 50
+      const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
+      // Gap of 39 (sequence 40 - 1 = 39) is below threshold of 50
+      const msg40: SequencedMessage = { type: 'event', sequence: 40, data: { id: 40 } };
+
+      validator.handleMessage('events', msg1);
+      validator.handleMessage('events', msg40);
+
+      // Should NOT trigger resync because gap (39) < threshold (50)
+      expect(resyncCallback).not.toHaveBeenCalled();
+    });
+
     it('should use custom gap threshold when configured', () => {
       const customValidator = new SequenceValidator(resyncCallback, { gapThreshold: 3 });
 
@@ -256,7 +271,8 @@ describe('SequenceValidator', () => {
 
     it('should still buffer message when triggering resync', () => {
       const msg1: SequencedMessage = { type: 'event', sequence: 1, data: { id: 1 } };
-      const msgGap: SequencedMessage = { type: 'event', sequence: 15, data: { id: 15 } };
+      // NEM-3905: Use gap > 50 to trigger resync with new threshold
+      const msgGap: SequencedMessage = { type: 'event', sequence: 60, data: { id: 60 } };
 
       validator.handleMessage('events', msg1);
       const result = validator.handleMessage('events', msgGap);
@@ -453,19 +469,22 @@ describe('SequenceValidator', () => {
     });
 
     it('should track resync count', () => {
+      // NEM-3905: Use gaps > 50 to trigger resyncs with new threshold
       validator.handleMessage('events', {
         type: 'event',
         sequence: 1,
         data: {},
       } as SequencedMessage);
+      // Gap of 99 (sequence 100 - 1 = 99) exceeds threshold of 50
       validator.handleMessage('events', {
         type: 'event',
-        sequence: 20,
+        sequence: 100,
         data: {},
       } as SequencedMessage);
+      // Gap of 99 (sequence 200 - 100 - buffer = ~99) exceeds threshold of 50
       validator.handleMessage('events', {
         type: 'event',
-        sequence: 40,
+        sequence: 200,
         data: {},
       } as SequencedMessage);
 
@@ -532,5 +551,11 @@ describe('DEFAULT_SEQUENCE_CONFIG', () => {
     expect(DEFAULT_SEQUENCE_CONFIG.maxBufferSize).toBeGreaterThan(0);
     expect(DEFAULT_SEQUENCE_CONFIG.gapThreshold).toBeGreaterThan(0);
     expect(DEFAULT_SEQUENCE_CONFIG.bufferTimeout).toBeGreaterThan(0);
+  });
+
+  it('should have gap threshold of 50 to reduce frequent resyncs (NEM-3905)', () => {
+    // NEM-3905: Verify the gap threshold is set to 50 (was 10)
+    // This reduces resync frequency from every 10-15 seconds to less than once per minute
+    expect(DEFAULT_SEQUENCE_CONFIG.gapThreshold).toBe(50);
   });
 });

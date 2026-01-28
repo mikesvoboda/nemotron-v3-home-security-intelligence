@@ -26,6 +26,7 @@ import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.orm import undefer
 
 from backend.core.database import get_session
 from backend.core.logging import get_logger
@@ -314,8 +315,14 @@ class BackgroundEvaluator:
             audit: EventAudit | None = None
 
             async with get_session() as session:
-                # Fetch event
-                result = await session.execute(select(Event).where(Event.id == event_id))
+                # Fetch event with deferred columns eagerly loaded
+                # This prevents DetachedInstanceError when accessing llm_prompt and reasoning
+                # after the session is closed (NEM-3902)
+                result = await session.execute(
+                    select(Event)
+                    .where(Event.id == event_id)
+                    .options(undefer(Event.llm_prompt), undefer(Event.reasoning))
+                )
                 event = result.scalar_one_or_none()
 
                 if event is None:

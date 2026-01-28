@@ -2005,9 +2005,21 @@ def test_calculate_percentile_clamping() -> None:
 
 
 def test_calculate_stage_latency_empty_samples() -> None:
-    """Test _calculate_stage_latency returns None for empty samples."""
+    """Test _calculate_stage_latency returns zero values for empty samples.
+
+    This ensures consistent JSON structure for metrics exporters (e.g., json_exporter)
+    that expect all latency fields to exist even when no data is available.
+    """
     result = system_routes._calculate_stage_latency([])
-    assert result is None
+
+    assert isinstance(result, StageLatency)
+    assert result.sample_count == 0
+    assert result.avg_ms == 0.0
+    assert result.min_ms == 0.0
+    assert result.max_ms == 0.0
+    assert result.p50_ms == 0.0
+    assert result.p95_ms == 0.0
+    assert result.p99_ms == 0.0
 
 
 def test_calculate_stage_latency_single_sample() -> None:
@@ -2078,17 +2090,27 @@ async def test_get_latency_stats_with_data() -> None:
 
 @pytest.mark.asyncio
 async def test_get_latency_stats_empty_queues() -> None:
-    """Test get_latency_stats handles empty queues."""
+    """Test get_latency_stats handles empty queues.
+
+    Empty queues should return StageLatency objects with zero values
+    to ensure consistent JSON structure for metrics exporters.
+    """
     redis = AsyncMock()
     redis.peek_queue = AsyncMock(return_value=[])
 
     result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
 
     assert isinstance(result, PipelineLatencies)
-    assert result.watch is None
-    assert result.detect is None
-    assert result.batch is None
-    assert result.analyze is None
+    # All stages should have StageLatency objects with zero values
+    assert result.watch is not None
+    assert result.watch.sample_count == 0
+    assert result.watch.avg_ms == 0.0
+    assert result.detect is not None
+    assert result.detect.sample_count == 0
+    assert result.batch is not None
+    assert result.batch.sample_count == 0
+    assert result.analyze is not None
+    assert result.analyze.sample_count == 0
 
 
 @pytest.mark.asyncio

@@ -95,10 +95,16 @@ export interface SequenceConfig {
 
 /**
  * Default configuration values.
+ *
+ * NEM-3905: Increased gapThreshold from 10 to 50 to reduce frequent resyncs.
+ * The previous threshold of 10 was too sensitive for normal operation where
+ * events may be filtered, batched, or connections briefly interrupted.
+ * A threshold of 50 provides better tolerance while still detecting
+ * genuine connection issues that require resync.
  */
 export const DEFAULT_SEQUENCE_CONFIG: SequenceConfig = {
   maxBufferSize: 100,
-  gapThreshold: 10,
+  gapThreshold: 50,
   bufferTimeout: 5000,
 };
 
@@ -221,6 +227,7 @@ export class SequenceValidator {
       const gap = sequence - state.lastSequence - 1;
 
       // Check for large gap that requires resync
+      // NEM-3905: Only trigger resync when gap exceeds threshold (default: 50)
       if (gap >= this.config.gapThreshold) {
         result.resyncTriggered = true;
         state.statistics.resyncCount++;
@@ -230,6 +237,7 @@ export class SequenceValidator {
           lastSequence: state.lastSequence,
           receivedSequence: sequence,
           gap,
+          gapThreshold: this.config.gapThreshold,
         });
         this.resyncCallback(channel, state.lastSequence);
       }
