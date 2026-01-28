@@ -106,7 +106,7 @@ class LineZoneService:
             extra={
                 "zone_id": zone.id,
                 "camera_id": camera_id,
-                "name": zone.name,
+                "zone_name": zone.name,
             },
         )
 
