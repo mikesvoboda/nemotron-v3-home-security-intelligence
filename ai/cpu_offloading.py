@@ -514,7 +514,7 @@ class OffloadingModelWrapper:
 
         return any(str(device) in ("cpu", "disk") for device in self.device_map.values())
 
-    def pin_layers(self, layer_names: list[str], device: str = "cuda:0") -> None:
+    def pin_layers(self, layer_names: list[str], _device: str = "cuda:0") -> None:
         """Pin specific layers to a device (prevents offloading).
 
         Note: This requires reloading the model with a custom device_map.
