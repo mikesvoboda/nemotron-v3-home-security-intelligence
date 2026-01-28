@@ -133,6 +133,8 @@ services:
       - '8095:8095'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro
+      # PyTorch GPU profiling traces (NEM-4130)
+      - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-yolo26
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -140,6 +142,10 @@ services:
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
       - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+      # PyTorch GPU profiling (NEM-4130)
+      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
+      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
+      - PYTORCH_PROFILE_DIR=/tmp/profiles
     healthcheck:
       test:
         [
@@ -216,6 +222,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
+      # PyTorch GPU profiling traces (NEM-4130)
+      - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-florence
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -226,6 +234,10 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
+      # PyTorch GPU profiling (NEM-4130)
+      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
+      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
+      - PYTORCH_PROFILE_DIR=/tmp/profiles
     restart: unless-stopped
     networks:
       - security-net
@@ -257,6 +269,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
       # Writable mount for TensorRT engine cache (persists between restarts)
       - clip-tensorrt-cache:/cache/tensorrt
+      # PyTorch GPU profiling traces (NEM-4130)
+      - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-clip
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -266,6 +280,10 @@ services:
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
       - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
+      # PyTorch GPU profiling (NEM-4130)
+      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
+      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
+      - PYTORCH_PROFILE_DIR=/tmp/profiles
     restart: unless-stopped
     networks:
       - security-net
@@ -302,6 +320,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
       # TensorRT engine cache (persists compiled engines across restarts)
       - enrichment-light-tensorrt-cache:/cache/tensorrt
+      # PyTorch GPU profiling traces (NEM-4130)
+      - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-enrichment-light
       - GPU_TIER=light
@@ -327,6 +347,10 @@ services:
       # Preload models at startup - configured in .env (single source of truth)
       # See .env.example for available models
       - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-}
+      # PyTorch GPU profiling (NEM-4130)
+      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
+      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
+      - PYTORCH_PROFILE_DIR=/tmp/profiles
     restart: unless-stopped
     networks:
       - security-net
@@ -362,6 +386,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
+      # PyTorch GPU profiling traces (NEM-4130)
+      - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-enrichment
       - GPU_TIER=heavy
@@ -384,6 +410,10 @@ services:
       # Preload models at startup - configured in .env (single source of truth)
       # See .env.example for available models
       - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-}
+      # PyTorch GPU profiling (NEM-4130)
+      - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
+      - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
+      - PYTORCH_PROFILE_DIR=/tmp/profiles
     restart: unless-stopped
     networks:
       - security-net
@@ -430,6 +460,8 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
+      - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
@@ -870,6 +902,7 @@ services:
       - ./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro,z
       - ./monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro,z
       - ./monitoring/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro,z
+      - ./monitoring/gpu-alerts.yml:/etc/prometheus/gpu-alerts.yml:ro,z
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -1148,6 +1181,36 @@ services:
           cpus: '0.25'
           memory: 512M
 
+  # NVIDIA DCGM Exporter for GPU hardware metrics (NEM-4132)
+  # Provides low-level GPU metrics: SM utilization, memory bandwidth, temperature, power
+  # Essential for understanding compute-bound vs memory-bound workloads
+  # Metrics exposed at :9400/metrics, scraped by Prometheus
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - DCGM_EXPORTER_LISTEN=:9400
+      - DCGM_EXPORTER_KUBERNETES=false
+    ports:
+      - '9400:9400'
+    cap_add:
+      - SYS_ADMIN
+    networks:
+      - security-net
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O-', 'http://localhost:9400/metrics']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Alloy for log collection and eBPF profiling (NEM-3093, NEM-3922)
   # - Collects container logs from Podman and forwards to Loki
   # - Profiles native C/C++ services (ai-llm/llama.cpp) via eBPF and sends to Pyroscope
@@ -1250,6 +1313,10 @@ volumes:
     driver: local
   # Frontend SSL certificates volume for auto-generation with read-only filesystem
   frontend_certs:
+    driver: local
+  # PyTorch GPU profiling traces shared across AI services (NEM-4130)
+  # View traces with Perfetto UI: https://ui.perfetto.dev
+  pytorch-profiles:
     driver: local
 
 networks:

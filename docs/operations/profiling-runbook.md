@@ -15,6 +15,340 @@
 
 ---
 
+## Automated Regression Alert Response Procedures
+
+This section covers response procedures for automated regression detection alerts (NEM-4133).
+
+### ALERT-REG-001: ServiceCPUSpike / ServiceCPUSpikeCritical
+
+**Alert Condition:** CPU usage >50% (warning) or >100% (critical) above 24-hour average for 15+ minutes.
+
+**Symptoms:**
+
+- Service consuming significantly more CPU than historical baseline
+- Increased response times
+- Higher infrastructure costs
+
+**Diagnosis:**
+
+```bash
+# 1. Check current CPU regression ratio
+curl -s "http://localhost:9090/api/v1/query?query=job:service_cpu_regression_ratio:5m_vs_24h" | jq '.data.result'
+
+# 2. View CPU profile in Grafana Pyroscope
+# Open: http://localhost:3002/d/hsi-profiling
+# Select the affected service from dropdown
+
+# 3. Compare current vs baseline flame graphs
+# Enable "Comparison" mode in the dashboard
+# Look for new hot functions or significantly increased function times
+
+# 4. Check for recent deployments
+git log --oneline --since="24 hours ago"
+
+# 5. Check if workload increased
+curl -s "http://localhost:9090/api/v1/query?query=rate(hsi_detections_processed_total[1h])" | jq
+```
+
+**Resolution:**
+
+1. **If caused by code regression:**
+
+   ```bash
+   # Identify the problematic commit using flame graph comparison
+   # Roll back to previous version if needed
+   podman-compose -f docker-compose.prod.yml pull [service]
+   podman-compose -f docker-compose.prod.yml up -d [service]
+   ```
+
+2. **If caused by increased workload:**
+
+   - Scale the service if possible
+   - Implement rate limiting
+   - Optimize hot code paths identified in flame graph
+
+3. **If caused by memory pressure (GC overhead):**
+   - Check memory alerts alongside CPU
+   - Increase memory allocation
+   - Investigate memory leaks
+
+**Escalation:** If unresolved after 30 minutes, escalate to on-call engineer.
+
+---
+
+### ALERT-REG-002: ServiceMemoryGrowth / ServiceMemoryGrowthCritical
+
+**Alert Condition:** Memory usage >25% (warning) or >50% (critical) above 6-hour average for 30+ minutes.
+
+**Symptoms:**
+
+- Gradual memory increase over time
+- Service restarts due to OOM
+- Degraded performance
+
+**Diagnosis:**
+
+```bash
+# 1. Check current memory regression ratio
+curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_regression_ratio:current_vs_6h" | jq '.data.result'
+
+# 2. Check memory growth rate
+curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_bytes:deriv1h" | jq '.data.result'
+
+# 3. Check memory profile in Pyroscope
+# Select "Memory Bytes" or "Memory Allocations" profile type
+# Look for functions allocating large amounts
+
+# 4. Check container memory limits
+podman stats --no-stream [container_name]
+
+# 5. For Python services, check for common leak patterns
+podman exec [container] python -c "import tracemalloc; tracemalloc.start()"
+```
+
+**Resolution:**
+
+1. **If memory leak suspected:**
+
+   ```bash
+   # Restart service as immediate mitigation
+   podman-compose -f docker-compose.prod.yml restart [service]
+
+   # Schedule investigation of leak source
+   ```
+
+2. **If caused by caching:**
+
+   - Review cache eviction policies
+   - Reduce cache size limits
+   - Add cache entry TTLs
+
+3. **If caused by large request buffers:**
+   - Implement streaming for large responses
+   - Add request size limits
+
+---
+
+### ALERT-REG-003: PotentialMemoryLeak
+
+**Alert Condition:** Memory projected to double within 24 hours based on current growth rate.
+
+**Symptoms:**
+
+- Steadily increasing memory usage
+- Linear growth pattern visible in monitoring
+- No correlation with workload
+
+**Diagnosis:**
+
+```bash
+# 1. Check projected memory
+curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_bytes:predicted_24h" | jq '.data.result'
+
+# 2. Check growth rate (bytes/hour)
+curl -s "http://localhost:9090/api/v1/query?query=job:service_memory_bytes:deriv1h" | jq '.data.result'
+
+# 3. Analyze memory allocation profile over time
+# In Grafana Pyroscope, compare memory profiles from:
+# - 6 hours ago
+# - Current
+# Look for functions with significantly more allocations
+
+# 4. For Python: enable memory profiling
+podman exec [container] python -c "
+import tracemalloc
+tracemalloc.start()
+# ... run suspect code ...
+snapshot = tracemalloc.take_snapshot()
+for stat in snapshot.statistics('lineno')[:10]:
+    print(stat)
+"
+```
+
+**Resolution:**
+
+1. **Immediate mitigation:**
+
+   ```bash
+   # Set up scheduled restarts until fix is deployed
+   # Add to crontab or systemd timer:
+   # 0 */4 * * * podman-compose -f docker-compose.prod.yml restart [service]
+   ```
+
+2. **Investigation:**
+
+   - Use memory profiler to identify leak source
+   - Check for unclosed database connections
+   - Check for unbounded caches or queues
+   - Review recent code changes for retained references
+
+3. **Long-term fix:**
+   - Deploy code fix
+   - Add memory monitoring to CI/CD pipeline
+   - Implement memory pressure alerts
+
+---
+
+### ALERT-REG-004: BackendHighLatency / BackendHighLatencyCritical
+
+**Alert Condition:** Backend API P99 latency >2s (warning) or >5s (critical) for 10+ minutes.
+
+**Symptoms:**
+
+- Slow API responses
+- UI timeouts
+- WebSocket disconnections
+
+**Diagnosis:**
+
+```bash
+# 1. Check current latency
+curl -s "http://localhost:9090/api/v1/query?query=job:backend_api_latency:p99_5m" | jq '.data.result'
+
+# 2. Check database query latency
+curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.99,rate(hsi_db_query_duration_seconds_bucket[5m]))" | jq
+
+# 3. Check Redis latency
+curl -s "http://localhost:9090/api/v1/query?query=redis_slowlog_length" | jq
+
+# 4. Check CPU usage (may be contention)
+curl -s "http://localhost:9090/api/v1/query?query=job:backend_cpu_seconds:rate5m" | jq
+
+# 5. View backend flame graph for hot paths
+# Open http://localhost:3002/d/hsi-profiling
+# Select "nemotron-backend" service
+```
+
+**Resolution:**
+
+1. **If database is slow:**
+
+   ```bash
+   # Check for long-running queries
+   podman exec postgres psql -U hsi -c "SELECT * FROM pg_stat_activity WHERE state = 'active';"
+
+   # Check for missing indexes
+   podman exec postgres psql -U hsi -c "EXPLAIN ANALYZE [slow_query];"
+   ```
+
+2. **If Redis is slow:**
+
+   ```bash
+   # Check slow log
+   podman exec redis redis-cli slowlog get 10
+
+   # Check memory usage
+   podman exec redis redis-cli info memory
+   ```
+
+3. **If CPU contention:**
+   - Scale backend instances
+   - Optimize hot code paths from flame graph
+   - Add caching for expensive operations
+
+---
+
+### ALERT-REG-005: YOLO26LatencyRegression
+
+**Alert Condition:** YOLO26 inference P95 latency increased >50% compared to 1-hour average.
+
+**Symptoms:**
+
+- Object detection taking longer
+- Real-time detection pipeline backing up
+- Detection queue growing
+
+**Diagnosis:**
+
+```bash
+# 1. Check YOLO26 latency
+curl -s "http://localhost:9090/api/v1/query?query=job:yolo26_inference_latency:p95_5m" | jq
+
+# 2. Check GPU utilization
+curl -s "http://localhost:9090/api/v1/query?query=yolo26_gpu_utilization" | jq
+
+# 3. Check GPU temperature (throttling?)
+curl -s "http://localhost:9090/api/v1/query?query=yolo26_gpu_temperature" | jq
+
+# 4. Check if model is loaded
+curl -s "http://localhost:9090/api/v1/query?query=yolo26_model_loaded" | jq
+
+# 5. View YOLO26 flame graph
+# Open http://localhost:3002/d/hsi-profiling
+# Select "ai-yolo26" service
+```
+
+**Resolution:**
+
+1. **If GPU throttling:**
+
+   - Improve cooling
+   - Reduce batch size
+   - Lower power limit
+
+2. **If model not optimally loaded:**
+
+   ```bash
+   # Restart to reinitialize TensorRT
+   podman-compose -f docker-compose.prod.yml restart ai-yolo26
+   ```
+
+3. **If input resolution changed:**
+   - Verify input preprocessing
+   - Check for larger than expected images
+
+---
+
+### ALERT-REG-006: MultiServiceCPURegression
+
+**Alert Condition:** 2 or more services showing >30% CPU increase simultaneously.
+
+**Symptoms:**
+
+- System-wide slowdown
+- Multiple services affected
+- Infrastructure-level issue likely
+
+**Diagnosis:**
+
+```bash
+# 1. Check which services are affected
+curl -s "http://localhost:9090/api/v1/query?query=job:service_cpu_regression_ratio:5m_vs_24h>1.3" | jq '.data.result[].metric.job'
+
+# 2. Check host-level metrics
+podman stats --no-stream
+
+# 3. Check for noisy neighbor (other processes)
+top -b -n 1 | head -20
+
+# 4. Check disk I/O (may cause CPU wait)
+iostat -x 1 5
+
+# 5. Check network issues
+netstat -s | grep -i error
+```
+
+**Resolution:**
+
+1. **If host resource exhaustion:**
+
+   - Identify and stop non-essential processes
+   - Scale out to additional hosts
+   - Increase host resources
+
+2. **If shared dependency issue:**
+
+   - Check database/Redis health
+   - Check network connectivity
+   - Verify shared storage performance
+
+3. **If coordinated attack/abuse:**
+   - Implement rate limiting
+   - Block abusive traffic
+   - Scale defensive capacity
+
+---
+
 ## Incident Response Procedures
 
 ### INC-PROF-001: Pyroscope Server Unavailable

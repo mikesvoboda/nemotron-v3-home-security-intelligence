@@ -743,13 +743,21 @@ class ModelManager:
 
         try:
             # Add Pyroscope label for per-model profiling
-            try:
-                import pyroscope
+            # Note: pyroscope-io native library only supports Python 3.9-3.12
+            import sys
 
-                with pyroscope.tag_wrapper({"model": model_name}):
+            pyroscope_supported = sys.version_info[:2] < (3, 13)
+            if pyroscope_supported:
+                try:
+                    import pyroscope
+
+                    with pyroscope.tag_wrapper({"model": model_name}):
+                        model = await config.load_fn(config.path)
+                except ImportError:
+                    # Pyroscope not installed, load without tagging
                     model = await config.load_fn(config.path)
-            except ImportError:
-                # Pyroscope not installed, load without tagging
+            else:
+                # Python 3.13+ not supported by pyroscope-io native library
                 model = await config.load_fn(config.path)
             self._loaded_models[model_name] = model
 
