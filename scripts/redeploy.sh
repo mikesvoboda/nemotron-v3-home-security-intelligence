@@ -419,6 +419,10 @@ start_ai_containers_podman() {
 
     cd "$PROJECT_ROOT"
 
+    # Clean up any existing AI containers first to prevent conflicts
+    print_step "Cleaning up any existing AI containers..."
+    stop_ai_containers_podman
+
     # Get network name - podman-compose creates networks with project prefix
     local network_name="${PROJECT_NAME}_security-net"
 
@@ -605,6 +609,15 @@ start_backend_frontend_podman() {
 
     cd "$PROJECT_ROOT"
     source .env 2>/dev/null || true
+
+    # Clean up any existing backend/frontend containers first
+    print_step "Cleaning up any existing backend/frontend containers..."
+    for container in "backend" "frontend"; do
+        if $CONTAINER_CMD container exists "$container" 2>/dev/null; then
+            run_cmd $CONTAINER_CMD stop "$container" 2>/dev/null || true
+            run_cmd $CONTAINER_CMD rm -f "$container" 2>/dev/null || true
+        fi
+    done
 
     local network_name="${PROJECT_NAME}_security-net"
     local postgres_container="${PROJECT_NAME}_postgres_1"
@@ -978,15 +991,21 @@ stop_and_clean() {
         print_step "Stopping AI containers..."
         stop_ai_containers_podman
 
-        # Stop GHCR compose containers (this works with podman-compose)
+        # Stop PROD compose containers (for local mode builds)
+        print_step "Stopping prod compose containers..."
+        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" down $down_flags --remove-orphans 2>/dev/null; then
+            print_success "Stopped prod compose containers"
+        else
+            print_info "No prod containers were running"
+        fi
+
+        # Stop GHCR compose containers (for hybrid mode)
+        print_step "Stopping GHCR compose containers..."
         if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
             print_success "Stopped GHCR compose containers"
         else
             print_info "No GHCR containers were running"
         fi
-
-        # Note: We use hybrid mode (GHCR compose + direct podman for AI) for optimal performance
-        # This approach provides better network routing and service initialization control
 
         # Final cleanup of any remaining pods and containers
         print_step "Cleaning up pods and orphaned containers..."
