@@ -17,9 +17,9 @@ backend/tests/unit/core/websocket/
 
 ### Event Types and Channels
 
-| File                              | Tests For                                       | Linear Issues     |
-| --------------------------------- | ----------------------------------------------- | ----------------- |
-| `test_enrichment_queue_events.py` | Enrichment and queue metrics WebSocket events   | NEM-3627, NEM-3637 |
+| File                              | Tests For                                     | Linear Issues      |
+| --------------------------------- | --------------------------------------------- | ------------------ |
+| `test_enrichment_queue_events.py` | Enrichment and queue metrics WebSocket events | NEM-3627, NEM-3637 |
 
 **Coverage:**
 
@@ -34,9 +34,9 @@ backend/tests/unit/core/websocket/
 
 ### Message Batching
 
-| File                      | Tests For                                       | Linear Issues |
-| ------------------------- | ----------------------------------------------- | ------------- |
-| `test_message_batcher.py` | Intelligent message batching for WebSocket      | NEM-3738      |
+| File                      | Tests For                                  | Linear Issues |
+| ------------------------- | ------------------------------------------ | ------------- |
+| `test_message_batcher.py` | Intelligent message batching for WebSocket | NEM-3738      |
 
 **Coverage:**
 
@@ -80,11 +80,11 @@ uv run pytest backend/tests/unit/core/websocket/test_message_batcher.py::TestMes
 
 ### From Test Files
 
-| Fixture          | Scope    | Description                                    |
-| ---------------- | -------- | ---------------------------------------------- |
-| `batcher`        | function | Fresh `MessageBatcher` instance per test       |
-| `send_callback`  | function | Mock async send callback                       |
-| `reset_state`    | autouse  | Resets module-level singleton state            |
+| Fixture         | Scope    | Description                              |
+| --------------- | -------- | ---------------------------------------- |
+| `batcher`       | function | Fresh `MessageBatcher` instance per test |
+| `send_callback` | function | Mock async send callback                 |
+| `reset_state`   | autouse  | Resets module-level singleton state      |
 
 ### From `backend/tests/conftest.py`
 
