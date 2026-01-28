@@ -2,6 +2,7 @@
 # Batch video generation with persistent model per GPU
 # Each GPU loads model once, then processes ~63 videos sequentially
 # Total: 501 videos (167 prompts × 3 durations: 5s, 10s, 30s) across 8 GPUs
+# Distribution: ROUND-ROBIN to balance workload (each GPU gets mix of durations)
 
 set -e
 
@@ -75,25 +76,26 @@ run_gpu_batch() {
     echo "[GPU ${GPU_ID}] Batch complete!"
 }
 
-# Split files across GPUs and launch in parallel
+# Split files across GPUs using ROUND-ROBIN distribution
+# This ensures each GPU gets an equal mix of 5s, 10s, and 30s videos
+# so all GPUs finish at roughly the same time (balanced workload)
 echo ""
-echo "Starting generation on ${NUM_GPUS} GPUs..."
+echo "Starting generation on ${NUM_GPUS} GPUs (round-robin distribution)..."
 echo ""
 
 for GPU_ID in $(seq 0 $((NUM_GPUS - 1))); do
-    START_IDX=$((GPU_ID * FILES_PER_GPU))
-    
-    # Get this GPU's batch of files
+    # Round-robin: GPU 0 gets files 0,8,16,24... GPU 1 gets 1,9,17,25... etc
     GPU_FILES=()
-    for i in $(seq 0 $((FILES_PER_GPU - 1))); do
-        IDX=$((START_IDX + i))
-        if [ $IDX -lt $TOTAL_FILES ]; then
-            GPU_FILES+=("${PROMPT_FILES[$IDX]}")
-        fi
+    for ((IDX=GPU_ID; IDX<TOTAL_FILES; IDX+=NUM_GPUS)); do
+        GPU_FILES+=("${PROMPT_FILES[$IDX]}")
     done
     
     if [ ${#GPU_FILES[@]} -gt 0 ]; then
-        echo "[GPU ${GPU_ID}] Assigned ${#GPU_FILES[@]} videos: $(basename ${GPU_FILES[0]}) ... $(basename ${GPU_FILES[-1]})"
+        # Count durations in this GPU's batch
+        COUNT_5S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_5s.json' || true)
+        COUNT_10S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_10s.json' || true)
+        COUNT_30S=$(printf '%s\n' "${GPU_FILES[@]}" | grep -c '_30s.json' || true)
+        echo "[GPU ${GPU_ID}] Assigned ${#GPU_FILES[@]} videos: ${COUNT_5S}x5s + ${COUNT_10S}x10s + ${COUNT_30S}x30s"
         
         # Launch in background
         run_gpu_batch ${GPU_ID} "${GPU_FILES[@]}" &

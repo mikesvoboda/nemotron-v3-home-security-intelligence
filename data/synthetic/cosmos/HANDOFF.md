@@ -537,6 +537,7 @@ Key options:
         ├── logs/                         # Per-GPU generation logs
         │   └── gpu[0-7].log
         ├── videos/                       # Generated videos (synced to git)
+        ├── videos_archived/              # Test runs and partial batches
         ├── videos_deprecated/            # Old videos with camera-in-frame issues
         └── prompts/
             ├── templates/                # Jinja2 templates
@@ -896,7 +897,7 @@ The most efficient approach for generating 501 videos is to run **8 persistent D
 
 | Script | Purpose |
 |--------|---------|
-| `batch_generate.sh` | Main parallel generation script (sorted by duration) |
+| `batch_generate.sh` | Main parallel generation script (round-robin distribution) |
 | `generate_prompts.py` | Renders 501 prompts (167 × 3 durations) from manifest |
 | `monitor.sh` | Real-time progress monitoring + auto git sync |
 | `parallel_generate.py` | Alternative Python-based approach |
@@ -917,17 +918,22 @@ python generate_prompts.py
 ./monitor.sh 60     # Refresh every 60s, auto-commits new videos
 ```
 
-### Generation Order (Quality Check Strategy)
+### Distribution Strategy: Round-Robin for Full GPU Utilization
 
-Prompts are sorted so **ALL 5s videos generate first**, then 10s, then 30s:
+Videos are distributed using **round-robin** to ensure all 8 GPUs have balanced workloads and finish at approximately the same time:
 
 ```
-C01_5s.json, C02_5s.json, ... T40_5s.json    # First ~6 hours
-C01_10s.json, C02_10s.json, ... T40_10s.json # Next ~9 hours
-C01_30s.json, C02_30s.json, ... T40_30s.json # Final ~9 hours
+GPU 0: video[0], video[8], video[16], ...  → 21×5s + 21×10s + 21×30s = 63 videos
+GPU 1: video[1], video[9], video[17], ...  → 21×5s + 21×10s + 21×30s = 63 videos
+...
+GPU 7: video[7], video[15], video[23], ... → ~21×5s + 21×10s + 20×30s = 62 videos
 ```
 
-This allows you to quality check the 5s videos while longer videos continue generating.
+**Why round-robin instead of consecutive chunks?**
+- **Consecutive chunks** (sorted by duration): GPUs 0-1 get only 5s videos and finish in ~19 hours, while GPUs 6-7 get only 30s videos and take ~37 hours. GPUs sit idle for 18+ hours.
+- **Round-robin** (mixed durations): Each GPU processes an equal mix of 5s, 10s, and 30s videos. All GPUs finish together in ~26 hours with 100% utilization throughout.
+
+Videos of all durations will complete interleaved throughout the run (not all 5s first).
 
 ### Output Locations
 

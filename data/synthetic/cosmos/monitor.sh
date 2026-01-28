@@ -153,18 +153,42 @@ while true; do
     echo ""
     
     echo "═══════════════════════════════════════════════════════════════════"
-    echo "📝 RECENT LOG ACTIVITY (GPU 0)"
+    echo "🎬 GPU GENERATION STATUS"
     echo "═══════════════════════════════════════════════════════════════════"
     echo ""
+    printf "   %-6s %-12s %-10s %-20s\n" "GPU" "Video#" "Progress" "Current Video"
+    printf "   %-6s %-12s %-10s %-20s\n" "---" "------" "--------" "-------------"
     
-    # Show recent progress from GPU 0 log
-    if [ -f "${LOG_DIR}/gpu0.log" ]; then
-        grep -E "Processing sample|Generating samples:|SUCCESS|video with" "${LOG_DIR}/gpu0.log" 2>/dev/null | tail -5 | while read -r line; do
-            echo "   $line"
-        done
-    else
-        echo "   No log file yet"
-    fi
+    for gpu in 0 1 2 3 4 5 6 7; do
+        log_file="${LOG_DIR}/gpu${gpu}.log"
+        if [ -f "$log_file" ]; then
+            # Get current video being processed
+            current_video=$(grep "Processing sample" "$log_file" 2>/dev/null | tail -1 | sed -E 's/.*Processing sample ([^ ]+).*/\1/')
+            
+            # Get video number (e.g., [5/63])
+            video_num=$(grep "Processing sample" "$log_file" 2>/dev/null | tail -1 | sed -E 's/.*\[([0-9]+\/[0-9]+)\].*/\1/')
+            
+            # Get generation progress percentage from the last "Generating samples" line
+            progress=$(grep "Generating samples:" "$log_file" 2>/dev/null | tail -1 | sed -E 's/.*Generating samples:[[:space:]]*([0-9]+)%.*/\1/')
+            
+            # Check if video just completed (look for SUCCESS)
+            last_success=$(grep "SUCCESS" "$log_file" 2>/dev/null | tail -1 | sed -E 's/.*SUCCESS.*saved to.*\/([^\/]+\.mp4).*/\1/')
+            
+            if [ -z "$current_video" ]; then
+                printf "   %-6s %-12s %-10s %-20s\n" "GPU $gpu" "-" "-" "Starting..."
+            elif [ -n "$progress" ] && [ "$progress" -lt 100 ] 2>/dev/null; then
+                # Build progress bar (10 chars)
+                filled=$((progress / 10))
+                empty=$((10 - filled))
+                bar=$(printf "%${filled}s" | tr ' ' '█')$(printf "%${empty}s" | tr ' ' '░')
+                printf "   %-6s %-12s [%s] %3d%%  %s\n" "GPU $gpu" "$video_num" "$bar" "$progress" "$current_video"
+            else
+                printf "   %-6s %-12s %-10s %-20s\n" "GPU $gpu" "$video_num" "[██████████]" "$current_video"
+            fi
+        else
+            printf "   %-6s %-12s %-10s %-20s\n" "GPU $gpu" "-" "-" "No log yet"
+        fi
+    done
     echo ""
     
     echo "═══════════════════════════════════════════════════════════════════"
