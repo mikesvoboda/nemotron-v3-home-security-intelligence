@@ -17,7 +17,7 @@ ai/enrichment-light/models/
 
 ## Key Files
 
-### __init__.py
+### **init**.py
 
 Package exports for model classes:
 
@@ -33,21 +33,23 @@ __all__ = ["PersonReID", "PoseEstimator", "ThreatDetector"]
 
 OSNet-x0.25 person re-identification for tracking individuals across cameras.
 
-| Class/Function       | Purpose                                         |
-| -------------------- | ----------------------------------------------- |
-| `PersonReID`         | Main model wrapper for embedding extraction     |
-| `ReIDResult`         | Dataclass for embedding + hash result           |
-| `OSNet`              | Standalone OSNet architecture (no torchreid)    |
-| `create_osnet_x0_25` | Factory for OSNet-x0.25 configuration           |
-| `load_person_reid`   | Factory function for model registry             |
+| Class/Function       | Purpose                                      |
+| -------------------- | -------------------------------------------- |
+| `PersonReID`         | Main model wrapper for embedding extraction  |
+| `ReIDResult`         | Dataclass for embedding + hash result        |
+| `OSNet`              | Standalone OSNet architecture (no torchreid) |
+| `create_osnet_x0_25` | Factory for OSNet-x0.25 configuration        |
+| `load_person_reid`   | Factory function for model registry          |
 
 **Features:**
+
 - 512-dimensional normalized embeddings
 - L2 normalization for cosine similarity
 - Embedding hash for quick lookup
 - ~100MB VRAM usage
 
 **Usage:**
+
 ```python
 reid = PersonReID("/models/osnet-reid")
 reid.load_model()
@@ -57,6 +59,7 @@ is_same = reid.is_same_person(emb1, emb2, threshold=0.7)
 ```
 
 **Constants:**
+
 - `OSNET_INPUT_HEIGHT`: 256
 - `OSNET_INPUT_WIDTH`: 128
 - `EMBEDDING_DIMENSION`: 512
@@ -66,15 +69,16 @@ is_same = reid.is_same_person(emb1, emb2, threshold=0.7)
 
 YOLOv8n-pose for human pose estimation with suspicious pose detection.
 
-| Class/Function         | Purpose                                       |
-| ---------------------- | --------------------------------------------- |
-| `PoseEstimator`        | Main model wrapper for pose estimation        |
-| `Keypoint`             | Dataclass for single keypoint (x, y, conf)    |
-| `PoseResult`           | Dataclass with keypoints, pose_class, flags   |
-| `load_pose_estimator`  | Factory function for model registry           |
-| `validate_model_path`  | Security validation for model paths           |
+| Class/Function        | Purpose                                     |
+| --------------------- | ------------------------------------------- |
+| `PoseEstimator`       | Main model wrapper for pose estimation      |
+| `Keypoint`            | Dataclass for single keypoint (x, y, conf)  |
+| `PoseResult`          | Dataclass with keypoints, pose_class, flags |
+| `load_pose_estimator` | Factory function for model registry         |
+| `validate_model_path` | Security validation for model paths         |
 
 **Features:**
+
 - 17 COCO keypoints (nose, eyes, ears, shoulders, etc.)
 - Pose classification (standing, crouching, running, reaching_up, crawling)
 - Suspicious pose flagging (crouching, crawling, hiding, reaching_up)
@@ -82,15 +86,18 @@ YOLOv8n-pose for human pose estimation with suspicious pose detection.
 - Batch inference support (NEM-3377)
 
 **VRAM Usage:**
+
 - ~300MB (PyTorch)
 - ~200MB (TensorRT FP16)
 
 **Environment Variables:**
+
 - `POSE_USE_TENSORRT`: Enable TensorRT (default: false)
 - `POSE_TENSORRT_ENGINE_PATH`: Custom engine path
 - `POSE_TENSORRT_FP16`: Use FP16 precision (default: true)
 
 **Usage:**
+
 ```python
 estimator = PoseEstimator("/models/yolov8n-pose.pt", use_tensorrt=True)
 estimator.load_model()
@@ -102,33 +109,36 @@ print(f"Pose: {result.pose_class}, Suspicious: {result.is_suspicious}")
 
 YOLOv8n for detecting weapons and dangerous objects.
 
-| Class/Function         | Purpose                                       |
-| ---------------------- | --------------------------------------------- |
-| `ThreatDetector`       | Main model wrapper for threat detection       |
-| `ThreatDetection`      | Single detection result with severity         |
-| `ThreatResult`         | Full result with threats list and metadata    |
-| `load_threat_detector` | Factory function for model registry           |
+| Class/Function         | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `ThreatDetector`       | Main model wrapper for threat detection    |
+| `ThreatDetection`      | Single detection result with severity      |
+| `ThreatResult`         | Full result with threats list and metadata |
+| `load_threat_detector` | Factory function for model registry        |
 
 **Threat Classes:**
-| Class    | Severity |
+| Class | Severity |
 | -------- | -------- |
-| knife    | high     |
-| gun      | critical |
-| rifle    | critical |
-| pistol   | critical |
-| bat      | medium   |
-| crowbar  | medium   |
+| knife | high |
+| gun | critical |
+| rifle | critical |
+| pistol | critical |
+| bat | medium |
+| crowbar | medium |
 
 **VRAM Usage:**
+
 - ~400MB (PyTorch)
 - ~300MB (TensorRT FP16)
 
 **Environment Variables:**
+
 - `THREAT_USE_TENSORRT` / `THREAT_DETECTOR_USE_TENSORRT`: Enable TensorRT
 - `THREAT_TENSORRT_ENGINE_PATH`: Custom engine path
 - `THREAT_TENSORRT_FP16`: Use FP16 precision (default: true)
 
 **Usage:**
+
 ```python
 detector = ThreatDetector("/models/threat-detection.pt", use_tensorrt=True)
 detector.load_model()
@@ -139,11 +149,11 @@ if result.has_threat:
 
 ## Model Specifications
 
-| Model           | Architecture   | Input Size | VRAM (PyTorch) | VRAM (TensorRT) |
-| --------------- | -------------- | ---------- | -------------- | --------------- |
-| PersonReID      | OSNet-x0.25    | 256x128    | ~100MB         | N/A             |
-| PoseEstimator   | YOLOv8n-pose   | 640x640    | ~300MB         | ~200MB          |
-| ThreatDetector  | YOLOv8n        | 640x640    | ~400MB         | ~300MB          |
+| Model          | Architecture | Input Size | VRAM (PyTorch) | VRAM (TensorRT) |
+| -------------- | ------------ | ---------- | -------------- | --------------- |
+| PersonReID     | OSNet-x0.25  | 256x128    | ~100MB         | N/A             |
+| PoseEstimator  | YOLOv8n-pose | 640x640    | ~300MB         | ~200MB          |
+| ThreatDetector | YOLOv8n      | 640x640    | ~400MB         | ~300MB          |
 
 ## TensorRT Support
 
