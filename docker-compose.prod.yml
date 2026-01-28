@@ -1181,6 +1181,78 @@ services:
           cpus: '0.25'
           memory: 512M
 
+  # cAdvisor for container CPU/memory metrics (NEM-3930)
+  # Provides detailed container-level resource usage metrics
+  # Access UI at http://localhost:8088
+  cadvisor:
+    # cAdvisor requires privileged mode to access container metrics from /sys and cgroups
+    # This is a documented requirement: https://github.com/google/cadvisor#quick-start-running-cadvisor-in-a-docker-container
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    privileged: true # nosemgrep: yaml.docker-compose.security.privileged-service.privileged-service
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/lib/containers/:/var/lib/containers:ro
+    ports:
+      - '8088:8080'
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/healthz']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # Node Exporter for host system metrics (NEM-3931)
+  # Collects hardware and OS metrics from the host system
+  # Access metrics at http://localhost:9100/metrics
+  node-exporter:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    image: docker.io/prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /:/host:ro,rslave
+    ports:
+      - '9100:9100'
+    pid: host
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9100/metrics']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+    labels:
+      - 'prometheus.scrape=true'
+      - 'prometheus.port=9100'
+
   # NVIDIA DCGM Exporter for GPU hardware metrics (NEM-4132)
   # Provides low-level GPU metrics: SM utilization, memory bandwidth, temperature, power
   # Essential for understanding compute-bound vs memory-bound workloads
