@@ -20,33 +20,33 @@ ai/triton/tests/
 
 Pytest fixtures for Triton client testing with mocked server connections.
 
-| Fixture                   | Purpose                                     |
-| ------------------------- | ------------------------------------------- |
-| `triton_config`           | Enabled TritonConfig with default settings  |
-| `triton_config_disabled`  | Disabled TritonConfig                       |
-| `sample_image_bytes`      | JPEG bytes (640x480 gray image)             |
-| `sample_image_array`      | NumPy array (480x640x3 random RGB)          |
-| `mock_yolo26_outputs`     | Mock YOLO26 outputs (labels, boxes, scores) |
-| `mock_yolo_outputs`       | Alternative YOLO output format              |
-| `mock_grpc_client`        | Mock gRPC InferenceServerClient             |
-| `mock_http_client`        | Mock HTTP InferenceServerClient             |
-| `mock_triton_grpc_module` | Mock tritonclient.grpc.aio module           |
+| Fixture                    | Purpose                                         |
+| -------------------------- | ----------------------------------------------- |
+| `triton_config`            | Enabled TritonConfig with default settings      |
+| `triton_config_disabled`   | Disabled TritonConfig                           |
+| `sample_image_bytes`       | JPEG bytes (640x480 gray image)                 |
+| `sample_image_array`       | NumPy array (480x640x3 random RGB)              |
+| `mock_yolo26_outputs`      | Mock YOLO26 outputs (labels, boxes, scores)     |
+| `mock_yolo_outputs`        | Alternative YOLO output format                  |
+| `mock_grpc_client`         | Mock gRPC InferenceServerClient                 |
+| `mock_http_client`         | Mock HTTP InferenceServerClient                 |
+| `mock_triton_grpc_module`  | Mock tritonclient.grpc.aio module               |
 
 ### test_client.py
 
 Comprehensive unit tests for the TritonClient wrapper class.
 
-| Test Class                    | Purpose                                 |
-| ----------------------------- | --------------------------------------- |
-| `TestTritonConfig`            | Configuration dataclass and from_env()  |
-| `TestTritonClientInit`        | Client initialization and constants     |
-| `TestTritonClientHealth`      | is_healthy(), is_model_ready() checks   |
-| `TestTritonClientPreprocess`  | Image preprocessing (resize, normalize) |
-| `TestTritonClientPostprocess` | Detection postprocessing and filtering  |
-| `TestTritonClientDetection`   | detect() method with retry logic        |
-| `TestTritonClientBatch`       | detect_batch() for multiple images      |
-| `TestTritonClientClose`       | Client cleanup and connection closing   |
-| `TestDetectionDataClasses`    | BoundingBox, Detection, DetectionResult |
+| Test Class                    | Purpose                                      |
+| ----------------------------- | -------------------------------------------- |
+| `TestTritonConfig`            | Configuration dataclass and from_env()       |
+| `TestTritonClientInit`        | Client initialization and constants          |
+| `TestTritonClientHealth`      | is_healthy(), is_model_ready() checks        |
+| `TestTritonClientPreprocess`  | Image preprocessing (resize, normalize)      |
+| `TestTritonClientPostprocess` | Detection postprocessing and filtering       |
+| `TestTritonClientDetection`   | detect() method with retry logic             |
+| `TestTritonClientBatch`       | detect_batch() for multiple images           |
+| `TestTritonClientClose`       | Client cleanup and connection closing        |
+| `TestDetectionDataClasses`    | BoundingBox, Detection, DetectionResult      |
 
 ## Test Coverage
 
@@ -174,17 +174,17 @@ async def test_detect_retry_on_failure(self):
 
 Tests may be affected by these environment variables:
 
-| Variable                      | Purpose                      |
-| ----------------------------- | ---------------------------- |
-| `TRITON_ENABLED`              | Enable Triton client         |
-| `TRITON_URL`                  | gRPC server URL              |
-| `TRITON_HTTP_URL`             | HTTP server URL              |
-| `TRITON_PROTOCOL`             | 'grpc' or 'http'             |
-| `TRITON_TIMEOUT`              | Request timeout in seconds   |
-| `TRITON_MODEL`                | Default model name           |
-| `TRITON_MAX_RETRIES`          | Max retry attempts           |
-| `TRITON_CONFIDENCE_THRESHOLD` | Default confidence threshold |
-| `TRITON_VERBOSE`              | Enable verbose logging       |
+| Variable                       | Purpose                        |
+| ------------------------------ | ------------------------------ |
+| `TRITON_ENABLED`               | Enable Triton client           |
+| `TRITON_URL`                   | gRPC server URL                |
+| `TRITON_HTTP_URL`              | HTTP server URL                |
+| `TRITON_PROTOCOL`              | 'grpc' or 'http'               |
+| `TRITON_TIMEOUT`               | Request timeout in seconds     |
+| `TRITON_MODEL`                 | Default model name             |
+| `TRITON_MAX_RETRIES`           | Max retry attempts             |
+| `TRITON_CONFIDENCE_THRESHOLD`  | Default confidence threshold   |
+| `TRITON_VERBOSE`               | Enable verbose logging         |
 
 ## Entry Points
 
