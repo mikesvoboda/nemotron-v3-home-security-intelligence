@@ -314,8 +314,9 @@ services:
       # TensorRT acceleration for YOLO models
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-      # Note: ai-enrichment-light loads ALL assigned models resident at startup
-      # Model assignment controlled by ENRICHMENT_*_SERVICE vars in .env
+      # Preload models at startup - configured in .env (single source of truth)
+      # See .env.example for available models
+      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-}
     restart: unless-stopped
     networks:
       - security-net

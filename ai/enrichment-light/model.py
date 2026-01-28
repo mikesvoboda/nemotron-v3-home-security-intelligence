@@ -250,7 +250,7 @@ class DepthEstimator:
 # =============================================================================
 # Global Model Instances
 # =============================================================================
-# Models are loaded at startup and kept in memory (no lazy loading for light service)
+# Models can be loaded resident at startup or on-demand based on ENRICHMENT_PRELOAD_MODELS
 pose_estimator: Any = None
 threat_detector: Any = None
 person_reid: Any = None
@@ -282,8 +282,26 @@ def _should_load_model(model_name: str) -> bool:
     return service == "light"
 
 
+def _should_preload_model(model_name: str) -> bool:
+    """Check if a model should be preloaded at startup based on ENRICHMENT_PRELOAD_MODELS.
+
+    Args:
+        model_name: Model identifier (pose_estimator, threat_detector, person_reid,
+                   pet_classifier, depth_estimator)
+
+    Returns:
+        True if model should be preloaded at startup
+    """
+    preload_models = os.environ.get("ENRICHMENT_PRELOAD_MODELS", "").strip()
+    if not preload_models:
+        # Empty means no preloading - all on-demand
+        return False
+    model_list = [m.strip() for m in preload_models.split(",") if m.strip()]
+    return model_name in model_list
+
+
 def load_all_models() -> None:
-    """Load models assigned to this service at startup (no lazy loading).
+    """Load models assigned to this service based on preload configuration.
 
     Model assignment is controlled via environment variables:
     - ENRICHMENT_POSE_SERVICE: 'light' or 'heavy' (default: 'light')
@@ -292,15 +310,20 @@ def load_all_models() -> None:
     - ENRICHMENT_PET_SERVICE: 'light' or 'heavy' (default: 'light')
     - ENRICHMENT_DEPTH_SERVICE: 'light' or 'heavy' (default: 'light')
 
-    Only models assigned to 'light' will be loaded on this service.
+    Preloading (resident vs on-demand) is controlled via:
+    - ENRICHMENT_PRELOAD_MODELS: comma-separated list of models to load at startup
+      Available: pose_estimator, threat_detector, person_reid, pet_classifier, depth_estimator
+
+    Only models assigned to 'light' AND listed in ENRICHMENT_PRELOAD_MODELS will be loaded.
     """
     global pose_estimator, threat_detector, person_reid, pet_classifier, depth_estimator  # noqa: PLW0603
 
     device = get_device()
-    logger.info(f"Loading assigned models on {device}...")
+    preload_config = os.environ.get("ENRICHMENT_PRELOAD_MODELS", "")
+    logger.info(f"Loading models on {device}... (preload config: '{preload_config}')")
 
-    # Load Pose Estimator (if assigned to light service)
-    if _should_load_model("pose"):
+    # Load Pose Estimator (if assigned to light service AND in preload list)
+    if _should_load_model("pose") and _should_preload_model("pose_estimator"):
         pose_path = os.environ.get("POSE_MODEL_PATH", "/models/yolov8n-pose/yolov8n-pose.pt")
         try:
             from models.pose_estimator import PoseEstimator
@@ -308,16 +331,19 @@ def load_all_models() -> None:
             pose_estimator = PoseEstimator(model_path=pose_path, device=device)
             pose_estimator.load_model()
             MODEL_LOADED.labels(model="pose_estimator").set(1)
-            logger.info("Pose estimator loaded")
+            logger.info("Pose estimator loaded (resident)")
         except Exception as e:
             logger.error(f"Failed to load pose estimator: {e}")
             MODEL_LOADED.labels(model="pose_estimator").set(0)
-    else:
+    elif not _should_load_model("pose"):
         logger.info("Pose estimator skipped (assigned to heavy service)")
         MODEL_LOADED.labels(model="pose_estimator").set(0)
+    else:
+        logger.info("Pose estimator deferred (on-demand loading)")
+        MODEL_LOADED.labels(model="pose_estimator").set(0)
 
-    # Load Threat Detector (if assigned to light service)
-    if _should_load_model("threat"):
+    # Load Threat Detector (if assigned to light service AND in preload list)
+    if _should_load_model("threat") and _should_preload_model("threat_detector"):
         threat_path = os.environ.get(
             "THREAT_MODEL_PATH", "/models/threat-detection-yolov8n/weights/best.pt"
         )
@@ -327,16 +353,19 @@ def load_all_models() -> None:
             threat_detector = ThreatDetector(model_path=threat_path, device=device)
             threat_detector.load_model()
             MODEL_LOADED.labels(model="threat_detector").set(1)
-            logger.info("Threat detector loaded")
+            logger.info("Threat detector loaded (resident)")
         except Exception as e:
             logger.error(f"Failed to load threat detector: {e}")
             MODEL_LOADED.labels(model="threat_detector").set(0)
-    else:
+    elif not _should_load_model("threat"):
         logger.info("Threat detector skipped (assigned to heavy service)")
         MODEL_LOADED.labels(model="threat_detector").set(0)
+    else:
+        logger.info("Threat detector deferred (on-demand loading)")
+        MODEL_LOADED.labels(model="threat_detector").set(0)
 
-    # Load Person Re-ID (if assigned to light service)
-    if _should_load_model("reid"):
+    # Load Person Re-ID (if assigned to light service AND in preload list)
+    if _should_load_model("reid") and _should_preload_model("person_reid"):
         reid_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
         try:
             from models.person_reid import PersonReID
@@ -344,42 +373,51 @@ def load_all_models() -> None:
             person_reid = PersonReID(model_path=reid_path, device=device)
             person_reid.load_model()
             MODEL_LOADED.labels(model="person_reid").set(1)
-            logger.info("Person Re-ID loaded")
+            logger.info("Person Re-ID loaded (resident)")
         except Exception as e:
             logger.error(f"Failed to load person Re-ID: {e}")
             MODEL_LOADED.labels(model="person_reid").set(0)
-    else:
+    elif not _should_load_model("reid"):
         logger.info("Person Re-ID skipped (assigned to heavy service)")
         MODEL_LOADED.labels(model="person_reid").set(0)
+    else:
+        logger.info("Person Re-ID deferred (on-demand loading)")
+        MODEL_LOADED.labels(model="person_reid").set(0)
 
-    # Load Pet Classifier (if assigned to light service)
-    if _should_load_model("pet"):
+    # Load Pet Classifier (if assigned to light service AND in preload list)
+    if _should_load_model("pet") and _should_preload_model("pet_classifier"):
         pet_path = os.environ.get("PET_MODEL_PATH", "/models/pet-classifier")
         try:
             pet_classifier = PetClassifier(model_path=pet_path, device=device)
             pet_classifier.load_model()
             MODEL_LOADED.labels(model="pet_classifier").set(1)
-            logger.info("Pet classifier loaded")
+            logger.info("Pet classifier loaded (resident)")
         except Exception as e:
             logger.error(f"Failed to load pet classifier: {e}")
             MODEL_LOADED.labels(model="pet_classifier").set(0)
-    else:
+    elif not _should_load_model("pet"):
         logger.info("Pet classifier skipped (assigned to heavy service)")
         MODEL_LOADED.labels(model="pet_classifier").set(0)
+    else:
+        logger.info("Pet classifier deferred (on-demand loading)")
+        MODEL_LOADED.labels(model="pet_classifier").set(0)
 
-    # Load Depth Estimator (if assigned to light service)
-    if _should_load_model("depth"):
+    # Load Depth Estimator (if assigned to light service AND in preload list)
+    if _should_load_model("depth") and _should_preload_model("depth_estimator"):
         depth_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-small")
         try:
             depth_estimator = DepthEstimator(model_path=depth_path, device=device)
             depth_estimator.load_model()
             MODEL_LOADED.labels(model="depth_estimator").set(1)
-            logger.info("Depth estimator loaded")
+            logger.info("Depth estimator loaded (resident)")
         except Exception as e:
             logger.error(f"Failed to load depth estimator: {e}")
             MODEL_LOADED.labels(model="depth_estimator").set(0)
-    else:
+    elif not _should_load_model("depth"):
         logger.info("Depth estimator skipped (assigned to heavy service)")
+        MODEL_LOADED.labels(model="depth_estimator").set(0)
+    else:
+        logger.info("Depth estimator deferred (on-demand loading)")
         MODEL_LOADED.labels(model="depth_estimator").set(0)
 
     # Update GPU memory metric
