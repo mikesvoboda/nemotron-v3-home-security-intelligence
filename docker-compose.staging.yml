@@ -438,6 +438,11 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-7d}'
       - '--web.enable-lifecycle'
+    # NEM-3898: Prometheus must wait for Alertmanager to be healthy before starting
+    # This ensures Prometheus can connect to Alertmanager for alert delivery
+    depends_on:
+      alertmanager:
+        condition: service_healthy
     healthcheck:
       test:
         ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9090/-/healthy']
@@ -544,12 +549,12 @@ services:
       - '--storage.path=/alertmanager'
       - '--web.listen-address=:9093'
       - '--cluster.listen-address='
-    # NEM-3893: Ensure backend is healthy before Alertmanager sends webhooks
-    # This prevents DNS resolution failures during initial startup when
-    # Alertmanager tries to deliver alerts before backend is available
-    depends_on:
-      backend:
-        condition: service_healthy
+    # NEM-3898: Alertmanager starts independently without waiting for backend
+    # Prometheus depends on Alertmanager being healthy, so we cannot wait for backend here.
+    # Alertmanager has built-in retry logic for webhook delivery - it will retry failed
+    # webhook deliveries with exponential backoff until backend becomes available.
+    # This ensures the alerting pipeline (Prometheus -> Alertmanager) is ready early,
+    # even if alert webhook delivery is delayed until backend starts.
     healthcheck:
       test:
         ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9093/-/healthy']
