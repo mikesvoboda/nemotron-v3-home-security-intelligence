@@ -23,7 +23,6 @@ Environment Variables:
 """
 
 import os
-import sys
 
 
 def init_profiling() -> None:
@@ -45,16 +44,6 @@ def init_profiling() -> None:
     """
     if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
         print("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
-        return
-
-    # pyroscope-io native library is compiled for Python 3.9-3.12
-    # Python 3.13+ has ABI changes that cause SIGABRT crashes
-    python_version = sys.version_info[:2]
-    if python_version >= (3, 13):
-        print(
-            f"Pyroscope profiling skipped: Python {python_version[0]}.{python_version[1]} "
-            "not supported by pyroscope-io native library (requires 3.9-3.12)"
-        )
         return
 
     try:

@@ -12,9 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.14'
+  PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
   UV_VERSION: '0.9.18' # Update this single location to change uv version across all workflows
+  PYROSCOPE_ENABLED: 'false' # Disable profiling in CI (pyroscope-io not installed)
 
 jobs:
   # Change Detection Job - determines which tests to run based on changed files
@@ -120,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -160,7 +161,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -187,7 +188,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
         shard: [1, 2, 3, 4]
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
@@ -367,7 +368,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -486,7 +487,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -596,7 +597,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -713,7 +714,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.14']
+        python-version: ['3.11']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]

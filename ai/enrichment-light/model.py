@@ -17,7 +17,6 @@ import binascii
 import io
 import logging
 import os
-import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -63,16 +62,6 @@ def init_profiling() -> None:
     """
     if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
         logger.info("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
-        return
-
-    # pyroscope-io native library is compiled for Python 3.9-3.12
-    # Python 3.13+ has ABI changes that cause SIGABRT crashes
-    python_version = sys.version_info[:2]
-    if python_version >= (3, 13):
-        logger.info(
-            f"Pyroscope profiling skipped: Python {python_version[0]}.{python_version[1]} "
-            "not supported by pyroscope-io native library (requires 3.9-3.12)"
-        )
         return
 
     try:
