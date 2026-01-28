@@ -419,10 +419,6 @@ start_ai_containers_podman() {
 
     cd "$PROJECT_ROOT"
 
-    # Clean up any existing AI containers first to prevent conflicts
-    print_step "Cleaning up any existing AI containers..."
-    stop_ai_containers_podman
-
     # Get network name - podman-compose creates networks with project prefix
     local network_name="${PROJECT_NAME}_security-net"
 
@@ -543,17 +539,13 @@ restart_backend_with_internal_urls() {
     # Port configuration from .env (with defaults matching .env.example)
     local api_port="${API_PORT:-8000}"
     local frontend_port="${FRONTEND_PORT:-5173}"
-    local frontend_https_port="${FRONTEND_HTTPS_PORT:-8444}"
+    local frontend_https_port="${FRONTEND_HTTPS_PORT:-8443}"
     local frontend_internal_port="${FRONTEND_INTERNAL_PORT:-8080}"
     local yolo26_port="${YOLO26_PORT:-8095}"
     local llm_port="${LLM_PORT:-8091}"
     local florence_port="${FLORENCE_PORT:-8092}"
     local clip_port="${CLIP_PORT:-8093}"
     local enrichment_port="${ENRICHMENT_PORT:-8094}"
-
-    # SSL configuration from .env (HTTPS only - no HTTP)
-    local ssl_enabled="${SSL_ENABLED:-true}"
-    local ssl_san_extra="${SSL_SAN_EXTRA:-}"
 
     # Stop frontend first (depends on backend)
     print_step "Stopping frontend..."
@@ -591,29 +583,17 @@ restart_backend_with_internal_urls() {
         "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}"
     print_success "Backend started with internal AI URLs"
 
-    # Ensure frontend_certs volume exists for SSL certificate storage
-    local certs_volume="nemotron-v3-home-security-intelligence_frontend_certs"
-    if ! $CONTAINER_CMD volume exists "$certs_volume" 2>/dev/null; then
-        print_step "Creating frontend_certs volume..."
-        run_cmd $CONTAINER_CMD volume create "$certs_volume" || true
-    fi
-
-    # Restart frontend with SSL enabled (HTTPS only)
-    print_step "Starting frontend on HTTPS port ${frontend_https_port}..."
+    # Restart frontend
+    print_step "Starting frontend on ports ${frontend_port}/${frontend_https_port}..."
     run_cmd $CONTAINER_CMD run -d \
         --name "$frontend_name" \
         --network "$network_name" \
         --network-alias frontend \
+        -p "${frontend_port}:${frontend_internal_port}" \
         -p "${frontend_https_port}:8443" \
-        -v "${certs_volume}:/etc/nginx/certs:U" \
-        -e "SSL_ENABLED=${ssl_enabled}" \
-        -e "SSL_SAN_EXTRA=${ssl_san_extra}" \
-        -e "SSL_CERT_PATH=/etc/nginx/certs/cert.pem" \
-        -e "SSL_KEY_PATH=/etc/nginx/certs/key.pem" \
-        -e "FRONTEND_HTTPS_PORT=${frontend_https_port}" \
         --restart unless-stopped \
         "ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}"
-    print_success "Frontend started (HTTPS on port ${frontend_https_port})"
+    print_success "Frontend started"
 
     return 0
 }
@@ -626,15 +606,6 @@ start_backend_frontend_podman() {
     cd "$PROJECT_ROOT"
     source .env 2>/dev/null || true
 
-    # Clean up any existing backend/frontend containers first
-    print_step "Cleaning up any existing backend/frontend containers..."
-    for container in "backend" "frontend"; do
-        if $CONTAINER_CMD container exists "$container" 2>/dev/null; then
-            run_cmd $CONTAINER_CMD stop "$container" 2>/dev/null || true
-            run_cmd $CONTAINER_CMD rm -f "$container" 2>/dev/null || true
-        fi
-    done
-
     local network_name="${PROJECT_NAME}_security-net"
     local postgres_container="${PROJECT_NAME}_postgres_1"
     local redis_container="${PROJECT_NAME}_redis_1"
@@ -642,17 +613,13 @@ start_backend_frontend_podman() {
     # Port configuration from .env (with defaults matching .env.example)
     local api_port="${API_PORT:-8000}"
     local frontend_port="${FRONTEND_PORT:-5173}"
-    local frontend_https_port="${FRONTEND_HTTPS_PORT:-8444}"
+    local frontend_https_port="${FRONTEND_HTTPS_PORT:-8443}"
     local frontend_internal_port="${FRONTEND_INTERNAL_PORT:-8080}"
     local yolo26_port="${YOLO26_PORT:-8095}"
     local llm_port="${LLM_PORT:-8091}"
     local florence_port="${FLORENCE_PORT:-8092}"
     local clip_port="${CLIP_PORT:-8093}"
     local enrichment_port="${ENRICHMENT_PORT:-8094}"
-
-    # SSL configuration from .env (HTTPS only - no HTTP)
-    local ssl_enabled="${SSL_ENABLED:-true}"
-    local ssl_san_extra="${SSL_SAN_EXTRA:-}"
 
     # Determine which images to use (prefer locally built, fall back to GHCR)
     local backend_image="${PROJECT_NAME}_backend"
@@ -702,28 +669,17 @@ start_backend_frontend_podman() {
         "$backend_image"
     print_success "Backend started"
 
-    # Ensure frontend_certs volume exists for SSL certificate storage
-    if ! $CONTAINER_CMD volume exists "${PROJECT_NAME}_frontend_certs" 2>/dev/null; then
-        print_step "Creating frontend_certs volume..."
-        run_cmd $CONTAINER_CMD volume create "${PROJECT_NAME}_frontend_certs" || true
-    fi
-
-    # Start frontend with SSL enabled (HTTPS only)
-    print_step "Starting frontend on HTTPS port ${frontend_https_port} with image: $frontend_image"
+    # Start frontend
+    print_step "Starting frontend on ports ${frontend_port}/${frontend_https_port} with image: $frontend_image"
     run_cmd $CONTAINER_CMD run -d \
         --name frontend \
         --network "$network_name" \
         --network-alias frontend \
+        -p "${frontend_port}:${frontend_internal_port}" \
         -p "${frontend_https_port}:8443" \
-        -v "${PROJECT_NAME}_frontend_certs:/etc/nginx/certs:U" \
-        -e "SSL_ENABLED=${ssl_enabled}" \
-        -e "SSL_SAN_EXTRA=${ssl_san_extra}" \
-        -e "SSL_CERT_PATH=/etc/nginx/certs/cert.pem" \
-        -e "SSL_KEY_PATH=/etc/nginx/certs/key.pem" \
-        -e "FRONTEND_HTTPS_PORT=${frontend_https_port}" \
         --restart unless-stopped \
         "$frontend_image"
-    print_success "Frontend started (HTTPS on port ${frontend_https_port})"
+    print_success "Frontend started"
 
     return 0
 }
@@ -1022,21 +978,15 @@ stop_and_clean() {
         print_step "Stopping AI containers..."
         stop_ai_containers_podman
 
-        # Stop PROD compose containers (for local mode builds)
-        print_step "Stopping prod compose containers..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" down $down_flags --remove-orphans 2>/dev/null; then
-            print_success "Stopped prod compose containers"
-        else
-            print_info "No prod containers were running"
-        fi
-
-        # Stop GHCR compose containers (for hybrid mode)
-        print_step "Stopping GHCR compose containers..."
+        # Stop GHCR compose containers (this works with podman-compose)
         if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" down $down_flags --remove-orphans 2>/dev/null; then
             print_success "Stopped GHCR compose containers"
         else
             print_info "No GHCR containers were running"
         fi
+
+        # Note: We use hybrid mode (GHCR compose + direct podman for AI) for optimal performance
+        # This approach provides better network routing and service initialization control
 
         # Final cleanup of any remaining pods and containers
         print_step "Cleaning up pods and orphaned containers..."
