@@ -1,7 +1,7 @@
 id: person_suspicious
 type: person
 description: 'A person in dark hoodie with hood pulled up'
-appearance: 'face obscured by hood, average build, moving with deliberate slow pace'
+appearance: 'face obscured by hood, average build, moving with cautious purposeful gait'
 clothing:
   type: hoodie
   color: dark

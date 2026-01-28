@@ -1,7 +1,7 @@
 id: driveway
 setting: 'suburban home driveway and front yard'
-camera_position: 'elevated wide-angle camera mounted on garage'
-camera_notes: 'Fixed camera position, wide field of view covering driveway and street approach'
+viewing_angle: 'an elevated position on the garage, looking down at the driveway'
+perspective_notes: 'Static elevated viewpoint, wide field of view covering driveway and street approach'
 lens_effects: 'slight barrel distortion at edges'
 zones:
   - driveway

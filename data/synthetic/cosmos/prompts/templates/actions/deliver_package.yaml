@@ -1,19 +1,16 @@
 id: deliver_package
-sequence_description: 'They walk briskly to the door carrying a package, place it on the porch, ring the doorbell, and walk away'
-additional_details: 'Efficient purposeful movement, brief pause after doorbell, turns and exits quickly'
+sequence_description: 'They walk briskly carrying a package and place it at the door'
+additional_details: 'Efficient quick movement, bends down to set package, straightens up'
 key_actions:
   - timestamp: 0
-    action: approaches_with_package
+    action: approaching_with_package
+  - timestamp: 2
+    action: reaching_door
+  - timestamp: 4
+    action: placing_package
   - timestamp: 5
-    action: reaches_porch
-  - timestamp: 7
-    action: bends_to_place_package
-  - timestamp: 9
-    action: rings_doorbell
-  - timestamp: 11
-    action: turns_to_leave
-  - timestamp: 15
-    action: exits_frame
-duration_range: [12, 18]
-motion_type: purposeful
+    action: standing_up
+duration_range: [5, 5]
+motion_type: purposeful_brisk
 suspicion_level: none
+speed_note: 'real-time brisk walking speed typical of delivery driver'

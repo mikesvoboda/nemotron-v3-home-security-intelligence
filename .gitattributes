@@ -1,49 +1,33 @@
 # Git Attributes Configuration
 # https://git-scm.com/docs/gitattributes
-
 # ============================================================================
 # Git LFS - Large File Storage
-# ============================================================================
 # Install: git lfs install
 # Track new files: git lfs track "*.ext"
 #
 # These large files are stored in Git LFS to keep the repository fast.
 # LFS stores file pointers in Git and the actual content on a remote server.
-
 # AI Model Files - GGUF format (Nemotron, llama.cpp models)
 *.gguf filter=lfs diff=lfs merge=lfs -text
-
 # AI Model Files - PyTorch format
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.pth filter=lfs diff=lfs merge=lfs -text
 *.bin filter=lfs diff=lfs merge=lfs -text
-
 # AI Model Files - ONNX format
 *.onnx filter=lfs diff=lfs merge=lfs -text
-
 # AI Model Files - SafeTensors format (Hugging Face)
 *.safetensors filter=lfs diff=lfs merge=lfs -text
-
 # TensorFlow model files
 *.pb filter=lfs diff=lfs merge=lfs -text
 *.h5 filter=lfs diff=lfs merge=lfs -text
-
 # Model weights directory (catch-all)
 ai/*/weights/** filter=lfs diff=lfs merge=lfs -text
 ai/rtdetr/weights/** filter=lfs diff=lfs merge=lfs -text
 ai/nemotron/*.gguf filter=lfs diff=lfs merge=lfs -text
-
-# ============================================================================
 # Merge Drivers
-# ============================================================================
-
 # Beads JSONL files - custom merge driver for issue tracking
 .beads/issues.jsonl merge=beads
-
-# ============================================================================
 # Binary Files - Do not diff these files
-# ============================================================================
-
 # Images
 *.png binary
 *.jpg binary
@@ -52,60 +36,44 @@ ai/nemotron/*.gguf filter=lfs diff=lfs merge=lfs -text
 *.ico binary
 *.webp binary
 *.svg binary
-
 # Fonts
 *.woff binary
 *.woff2 binary
 *.ttf binary
 *.eot binary
-
 # Archives
 *.zip binary
 *.tar binary
 *.gz binary
 *.7z binary
-
-# ============================================================================
 # Text Files - Ensure consistent line endings
-# ============================================================================
-
 # Force LF line endings for all text files (important for cross-platform dev)
 * text=auto eol=lf
-
 # Shell scripts - always LF
 *.sh text eol=lf
-
 # Python - always LF
 *.py text eol=lf
 *.pyi text eol=lf
-
 # JavaScript/TypeScript - always LF
 *.js text eol=lf
 *.jsx text eol=lf
 *.ts text eol=lf
 *.tsx text eol=lf
 *.json text eol=lf
-
 # Configuration files
 *.yml text eol=lf
 *.yaml text eol=lf
 *.toml text eol=lf
 *.ini text eol=lf
 *.cfg text eol=lf
-
 # Documentation
 *.md text eol=lf
 *.txt text eol=lf
 *.rst text eol=lf
-
 # Docker
 Dockerfile text eol=lf
 *.dockerfile text eol=lf
-
-# ============================================================================
 # Export Ignore - Files excluded from git archive
-# ============================================================================
-
 # Development files
 .github/ export-ignore
 .vscode/ export-ignore
@@ -113,27 +81,20 @@ Dockerfile text eol=lf
 tests/ export-ignore
 backend/tests/ export-ignore
 frontend/tests/ export-ignore
-
 # CI/CD
 .pre-commit-config.yaml export-ignore
 .secrets.baseline export-ignore
-
 # Documentation source (keep compiled docs)
 docs/ export-ignore
-
 # Development configs
 .editorconfig export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
-
-# ============================================================================
 # Linguist - Language statistics customization
-# ============================================================================
-
 # Mark generated files
 frontend/src/api/types.ts linguist-generated=true
-
 # Exclude from language statistics
 *.lock linguist-generated=true
 package-lock.json linguist-generated=true
 uv.lock linguist-generated=true
+*.mp4 filter=lfs diff=lfs merge=lfs -text

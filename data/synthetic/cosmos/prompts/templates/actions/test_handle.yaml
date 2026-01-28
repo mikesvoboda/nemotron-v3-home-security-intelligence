@@ -1,17 +1,14 @@
 id: test_handle
-sequence_description: 'They stop at the door, lean close to peer through the side window, then reach down to test the door handle'
-additional_details: "Furtive glances around before testing handle, handle jiggles but doesn't open"
+sequence_description: 'They quickly glance around then reach down to test the door handle'
+additional_details: 'Quick head turn to check surroundings, reaches for handle, jiggles it'
 key_actions:
   - timestamp: 0
-    action: stops_at_door
-  - timestamp: 3
-    action: peers_through_window
-  - timestamp: 7
-    action: looks_around_nervously
-  - timestamp: 10
-    action: reaches_for_handle
-  - timestamp: 12
-    action: tests_handle
-duration_range: [12, 18]
-motion_type: deliberate
+    action: looking_around
+  - timestamp: 2
+    action: reaching_for_handle
+  - timestamp: 4
+    action: testing_handle
+duration_range: [5, 5]
+motion_type: furtive_quick
 suspicion_level: high
+speed_note: 'real-time speed, quick furtive movements'

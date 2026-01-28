@@ -1,19 +1,14 @@
 id: normal_entry
-sequence_description: 'They walk confidently to the door, pull out keys, unlock the door, and enter the house'
-additional_details: 'Relaxed body language, familiar with the environment, smooth key insertion'
+sequence_description: 'They walk up to the door and reach for the handle naturally'
+additional_details: 'Relaxed confident body language, familiar comfortable movements, normal walking pace'
 key_actions:
   - timestamp: 0
-    action: approaches_door_confidently
+    action: approaching_door
+  - timestamp: 3
+    action: reaching_for_handle
   - timestamp: 5
-    action: reaches_door
-  - timestamp: 7
-    action: retrieves_keys
-  - timestamp: 9
-    action: unlocks_door
-  - timestamp: 11
-    action: opens_door
-  - timestamp: 13
-    action: enters_house
-duration_range: [12, 16]
-motion_type: confident
+    action: at_door
+duration_range: [5, 5]
+motion_type: confident_natural
 suspicion_level: none
+speed_note: 'real-time natural walking and movement speed'

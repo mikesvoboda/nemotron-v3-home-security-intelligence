@@ -1,0 +1,9 @@
+{
+  "name": "P09_10s",
+  "inference_type": "text2world",
+  "prompt": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark clothing with face covered by ski mask, face fully concealed, wearing gloves, crouched posture, moving stealthily. They aggressively try the door handle and shake it hard. Quick forceful movements, rattling the handle aggressively, pushing against door. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage quality with slight grain. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "negative_prompt": "blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts, visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, camera mount, camera on wall, camera on ceiling, camera rig, recording device in shot, gopro, webcam, CCTV camera visible, Ring doorbell visible, Nest camera visible, slow motion, time lapse, fast forward, sped up, slowed down",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 240
+}
