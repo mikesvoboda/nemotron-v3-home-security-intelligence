@@ -1491,6 +1491,8 @@ def init_profiling() -> None:
             },
             oncpu=True,
             gil=True,
+            # Memory profiling for allocation tracking and leak detection
+            memory=True,
             enable_logging=True,
         )
         logger.info(f"Pyroscope profiling initialized: server={pyroscope_server}")
