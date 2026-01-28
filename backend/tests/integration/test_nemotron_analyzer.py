@@ -42,8 +42,12 @@ def mock_redis_client():
 
 @pytest.fixture
 def analyzer(mock_redis_client):
-    """Create NemotronAnalyzer instance with mocked Redis."""
-    return NemotronAnalyzer(redis_client=mock_redis_client)
+    """Create NemotronAnalyzer instance with mocked Redis.
+
+    Sets max_retries=1 to avoid long retry delays in tests (exponential backoff
+    would cause timeouts otherwise).
+    """
+    return NemotronAnalyzer(redis_client=mock_redis_client, max_retries=1)
 
 
 @pytest.fixture

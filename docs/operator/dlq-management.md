@@ -232,6 +232,38 @@ curl http://localhost:8000/api/dlq/stats | jq '.total_count'
 watch -n 10 'curl -s http://localhost:8000/api/dlq/stats | jq'
 ```
 
+### Prometheus Metrics (NEM-3891)
+
+The DLQ depth is exposed as a Prometheus gauge metric for alerting and dashboards:
+
+| Metric                               | Labels       | Description                   |
+| ------------------------------------ | ------------ | ----------------------------- |
+| `hsi_dlq_depth`                      | `queue_name` | Current number of jobs in DLQ |
+| `hsi_queue_items_moved_to_dlq_total` | `queue_name` | Cumulative jobs moved to DLQ  |
+
+**Example PromQL Queries:**
+
+```promql
+# Total jobs in all DLQs
+sum(hsi_dlq_depth)
+
+# Jobs in detection DLQ only
+hsi_dlq_depth{queue_name="dlq:detection_queue"}
+
+# Rate of jobs moving to DLQ per minute
+rate(hsi_queue_items_moved_to_dlq_total[5m]) * 60
+```
+
+### Prometheus Alerts
+
+The following alerts are pre-configured in `monitoring/prometheus_rules.yml`:
+
+| Alert            | Threshold   | Severity | Description                                 |
+| ---------------- | ----------- | -------- | ------------------------------------------- |
+| AIDLQHasMessages | > 0 for 5m  | Warning  | DLQ has failed messages requiring attention |
+| AIDLQGrowing     | +5 in 15m   | Warning  | DLQ growing rapidly (systemic issue)        |
+| AIDLQCritical    | > 50 for 2m | Critical | DLQ critically large (data loss risk)       |
+
 ### Circuit Breaker Protection
 
 The DLQ has circuit breaker protection to prevent cascading failures when Redis is overloaded:

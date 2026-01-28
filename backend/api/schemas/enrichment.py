@@ -208,6 +208,45 @@ class PoseEnrichment(BaseModel):
     )
 
 
+class ActionEnrichment(BaseModel):
+    """Action recognition results from X-CLIP temporal analysis.
+
+    Provides detected actions from video frame sequences, identifying
+    security-relevant activities like loitering, climbing, or delivering packages.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "action": "delivering package",
+                "confidence": 0.85,
+                "is_suspicious": False,
+                "all_scores": {
+                    "delivering package": 0.85,
+                    "walking normally": 0.10,
+                    "loitering": 0.05,
+                },
+            }
+        }
+    )
+
+    action: str | None = Field(
+        None, description="Detected action (walking, running, delivering, loitering, etc.)"
+    )
+    confidence: float | None = Field(
+        None, ge=0.0, le=1.0, description="Confidence score for detected action"
+    )
+    is_suspicious: bool | None = Field(
+        None, description="Whether the detected action is flagged as security-relevant"
+    )
+    all_scores: dict[str, float] | None = Field(
+        None, description="Confidence scores for all candidate actions"
+    )
+    model_info: EnrichmentModelInfo | None = Field(
+        None, description="Model that produced this result"
+    )
+
+
 class DepthEnrichment(BaseModel):
     """Depth estimation results (placeholder for future Depth Anything V2)."""
 
@@ -301,6 +340,11 @@ class EnrichmentResponse(BaseModel):
                 "violence": {"detected": False, "score": 0.12},
                 "weather": {"condition": "clear", "confidence": 0.95},
                 "pose": None,
+                "action": {
+                    "action": "delivering package",
+                    "confidence": 0.85,
+                    "is_suspicious": False,
+                },
                 "depth": None,
                 "image_quality": {"score": 0.85, "is_blurry": False},
                 "pet": None,
@@ -337,6 +381,9 @@ class EnrichmentResponse(BaseModel):
     )
     pose: PoseEnrichment | dict[str, Any] | None = Field(
         None, description="Pose estimation results"
+    )
+    action: ActionEnrichment | dict[str, Any] | None = Field(
+        None, description="Action recognition results"
     )
     depth: DepthEnrichment | dict[str, Any] | None = Field(
         None, description="Depth estimation results"

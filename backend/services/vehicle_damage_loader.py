@@ -175,11 +175,66 @@ class VehicleDamageResult:
         return "\n".join(lines)
 
 
+def _has_meta_tensors(model: Any) -> bool:
+    """Check if a model contains meta tensors (lazy-loaded weights).
+
+    Meta tensors are placeholders without actual data, used for lazy weight loading.
+    Calling .to(device) on such tensors raises NotImplementedError.
+
+    Args:
+        model: PyTorch model to check
+
+    Returns:
+        True if any parameter is on the meta device
+    """
+    try:
+        return any(param.device.type == "meta" for param in model.parameters())
+    except Exception:
+        return False
+
+
+def _materialize_meta_tensors(model: Any, device: str) -> Any:
+    """Materialize meta tensors by using to_empty() + load_state_dict.
+
+    When models are saved with meta tensors (lazy initialization), calling
+    model.to(device) raises:
+        NotImplementedError: Cannot copy out of meta tensor; no data!
+
+    The fix is to use to_empty() to create empty tensors on the target device,
+    then reload the state_dict with assign=True to populate them.
+
+    Args:
+        model: Model with potential meta tensors
+        device: Target device ("cuda" or "cpu")
+
+    Returns:
+        Model with materialized tensors on the target device
+    """
+    import torch
+
+    logger.info(f"Materializing meta tensors to device: {device}")
+
+    # Get the current state dict before to_empty()
+    # We need the actual weights from the checkpoint
+    state_dict = model.state_dict()
+
+    # Move model structure to device without copying tensor data
+    model = model.to_empty(device=torch.device(device))
+
+    # Reload the state dict with assign=True to populate the empty tensors
+    # assign=True replaces parameter tensors in-place rather than copying
+    model.load_state_dict(state_dict, assign=True)
+
+    logger.info("Meta tensors materialized successfully")
+    return model
+
+
 async def load_vehicle_damage_model(model_path: str) -> Any:
     """Load the YOLOv11 vehicle damage segmentation model.
 
     This function loads the YOLO model for vehicle damage detection
-    and segmentation.
+    and segmentation. Handles models saved with meta tensors (lazy loading)
+    by properly materializing them before use.
 
     Args:
         model_path: Path to model directory containing best.pt
@@ -193,6 +248,7 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
         RuntimeError: If model loading fails
     """
     try:
+        import torch
         from ultralytics import YOLO
 
         logger.info(f"Loading vehicle damage detection model from {model_path}")
@@ -203,7 +259,38 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
             # Construct path to weights file
             weights_path = f"{model_path}/best.pt"
 
+            # Determine target device
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+            # Load the YOLO model
             model = YOLO(weights_path)
+
+            # Check if model has meta tensors and handle them properly
+            # This can happen when models are saved with lazy weight initialization
+            if hasattr(model, "model") and _has_meta_tensors(model.model):
+                logger.warning(
+                    "Model contains meta tensors (lazy-loaded weights). "
+                    "Materializing tensors to avoid 'Cannot copy out of meta tensor' error."
+                )
+                try:
+                    model.model = _materialize_meta_tensors(model.model, device)
+                except Exception as e:
+                    # If materialization fails, try alternative approach:
+                    # Force a warmup inference which may trigger proper initialization
+                    logger.warning(
+                        f"Meta tensor materialization failed: {e}. Trying warmup inference."
+                    )
+                    try:
+                        import numpy as np
+                        from PIL import Image as PILImage
+
+                        # Create a small dummy image for warmup
+                        dummy_img = PILImage.fromarray(np.zeros((64, 64, 3), dtype=np.uint8))
+                        model.predict(source=dummy_img, device=device, verbose=False)
+                        logger.info("Model initialized via warmup inference")
+                    except Exception as warmup_error:
+                        logger.error(f"Warmup inference also failed: {warmup_error}")
+                        raise
 
             logger.info(f"Vehicle damage model loaded: {len(model.names)} classes")
             logger.debug(f"Model classes: {model.names}")

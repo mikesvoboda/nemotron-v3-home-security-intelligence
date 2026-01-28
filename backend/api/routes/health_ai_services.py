@@ -28,8 +28,14 @@ from backend.api.schemas.ai_services_health import (
 )
 from backend.core import get_settings
 from backend.core.config import Settings
-from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
+from backend.core.constants import (
+    ANALYSIS_QUEUE,
+    DETECTION_QUEUE,
+    DLQ_ANALYSIS_QUEUE,
+    DLQ_DETECTION_QUEUE,
+)
 from backend.core.logging import get_logger
+from backend.core.metrics import set_dlq_depth
 from backend.core.redis import RedisClient, get_redis_optional
 
 logger = get_logger(__name__)
@@ -269,6 +275,8 @@ async def _check_ai_service_health(  # noqa: PLR0911
 async def _get_queue_depths(redis: RedisClient | None) -> dict[str, QueueDepthInfo]:
     """Get queue depths for detection and analysis queues.
 
+    Also updates DLQ depth Prometheus metrics (NEM-3891) for alerting.
+
     Args:
         redis: Redis client or None if unavailable
 
@@ -283,11 +291,12 @@ async def _get_queue_depths(redis: RedisClient | None) -> dict[str, QueueDepthIn
 
     try:
         # Get queue lengths in parallel
+        # NEM-3891: Use correct DLQ key names (dlq:detection_queue, not detection_queue:dlq)
         detection_depth, analysis_depth, detection_dlq, analysis_dlq = await asyncio.gather(
             redis.get_queue_length(DETECTION_QUEUE),
             redis.get_queue_length(ANALYSIS_QUEUE),
-            redis.get_queue_length(f"{DETECTION_QUEUE}:dlq"),
-            redis.get_queue_length(f"{ANALYSIS_QUEUE}:dlq"),
+            redis.get_queue_length(DLQ_DETECTION_QUEUE),
+            redis.get_queue_length(DLQ_ANALYSIS_QUEUE),
             return_exceptions=True,
         )
 
@@ -298,14 +307,21 @@ async def _get_queue_depths(redis: RedisClient | None) -> dict[str, QueueDepthIn
                 return 0
             return int(val) if val is not None else 0
 
+        detection_dlq_depth = safe_int(detection_dlq)
+        analysis_dlq_depth = safe_int(analysis_dlq)
+
+        # NEM-3891: Update DLQ depth Prometheus metrics for alerting
+        set_dlq_depth(DLQ_DETECTION_QUEUE, detection_dlq_depth)
+        set_dlq_depth(DLQ_ANALYSIS_QUEUE, analysis_dlq_depth)
+
         return {
             "detection_queue": QueueDepthInfo(
                 depth=safe_int(detection_depth),
-                dlq_depth=safe_int(detection_dlq),
+                dlq_depth=detection_dlq_depth,
             ),
             "analysis_queue": QueueDepthInfo(
                 depth=safe_int(analysis_depth),
-                dlq_depth=safe_int(analysis_dlq),
+                dlq_depth=analysis_dlq_depth,
             ),
         }
     except Exception as e:

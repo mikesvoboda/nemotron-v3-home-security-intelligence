@@ -24,6 +24,7 @@ from backend.core.metrics import (
     DETECTIONS_BY_CLASS_TOTAL,
     DETECTIONS_FILTERED_LOW_CONFIDENCE_TOTAL,
     DETECTIONS_PROCESSED_TOTAL,
+    DLQ_DEPTH,
     EVENTS_BY_RISK_LEVEL,
     EVENTS_CREATED_TOTAL,
     PIPELINE_ERRORS_TOTAL,
@@ -45,6 +46,7 @@ from backend.core.metrics import (
     record_pipeline_error,
     record_pipeline_stage_latency,
     record_prompt_template_used,
+    set_dlq_depth,
     set_queue_depth,
 )
 
@@ -61,6 +63,12 @@ class TestMetricsDefinitions:
         """ANALYSIS_QUEUE_DEPTH gauge should be defined."""
         assert ANALYSIS_QUEUE_DEPTH is not None
         assert ANALYSIS_QUEUE_DEPTH._name == "hsi_analysis_queue_depth"
+
+    def test_dlq_depth_metric_exists(self) -> None:
+        """DLQ_DEPTH gauge should be defined with queue_name label (NEM-3891)."""
+        assert DLQ_DEPTH is not None
+        assert DLQ_DEPTH._name == "hsi_dlq_depth"
+        assert "queue_name" in DLQ_DEPTH._labelnames
 
     def test_stage_duration_histogram_exists(self) -> None:
         """STAGE_DURATION_SECONDS histogram should be defined with stage label."""
@@ -165,6 +173,33 @@ class TestMetricHelpers:
         """set_queue_depth should handle invalid queue names gracefully."""
         # Should not raise, just log warning
         set_queue_depth("invalid_queue", 5)
+
+    def test_set_dlq_depth_detection_queue(self) -> None:
+        """set_dlq_depth should update DLQ gauge for detection queue (NEM-3891)."""
+        set_dlq_depth("dlq:detection_queue", 5)
+        # Verify the metric was set (no exception means success)
+
+    def test_set_dlq_depth_analysis_queue(self) -> None:
+        """set_dlq_depth should update DLQ gauge for analysis queue (NEM-3891)."""
+        set_dlq_depth("dlq:analysis_queue", 3)
+        # Verify the metric was set (no exception means success)
+
+    def test_set_dlq_depth_zero_does_not_warn(self, caplog: pytest.LogCaptureFixture) -> None:
+        """set_dlq_depth with zero depth should not log warning (NEM-3891)."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            set_dlq_depth("dlq:detection_queue", 0)
+        # No warning should be logged for zero depth
+        assert "DLQ contains" not in caplog.text
+
+    def test_set_dlq_depth_nonzero_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """set_dlq_depth with non-zero depth should log warning (NEM-3891)."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            set_dlq_depth("dlq:test_queue", 9)
+        assert "DLQ contains 9 messages" in caplog.text
 
     def test_observe_stage_duration(self) -> None:
         """observe_stage_duration should record histogram observation."""

@@ -142,7 +142,7 @@ class MockDetectionModel:
         boxes: NDArray[Any],
         scores: NDArray[Any],
         class_ids: NDArray[Any],
-        image_size: tuple[int, int] | None = None,  # noqa: ARG002
+        image_size: tuple[int, int] | None = None,
     ) -> list[dict[str, Any]]:
         """Format detection results as list of dictionaries."""
         detections: list[dict[str, Any]] = []
@@ -438,8 +438,8 @@ class TestConcreteImplementation:
 
             def _init_tensorrt(
                 self,
-                onnx_path: Path | None,  # noqa: ARG002
-                precision: str,  # noqa: ARG002
+                onnx_path: Path | None,
+                precision: str,
             ) -> None:
                 # Skip TensorRT init in tests
                 raise ImportError("TensorRT not available for test")

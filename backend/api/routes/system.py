@@ -303,18 +303,32 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
 # Track application start time for uptime calculation
 _app_start_time = time.time()
 
-# Timeout for health check operations (in seconds)
+# =============================================================================
+# Health Check Timeouts (NEM-3892)
+# =============================================================================
+# Optimized timeouts to ensure health endpoints respond under 500ms SLO.
+# Individual component timeouts allow parallel checks to fail fast.
+
+# Overall timeout for the entire health check (must be under 500ms)
+HEALTH_CHECK_OVERALL_TIMEOUT_SECONDS = 0.4  # 400ms allows 100ms buffer
+
+# Individual component timeouts (run in parallel)
+# These should be shorter than overall timeout since they run concurrently
+HEALTH_CHECK_DB_TIMEOUT_SECONDS = 0.3  # Database ping should be fast
+HEALTH_CHECK_REDIS_TIMEOUT_SECONDS = 0.3  # Redis ping should be fast
+HEALTH_CHECK_AI_TIMEOUT_SECONDS = 0.3  # AI service health check
+
+# Legacy timeout (kept for backwards compatibility with existing code)
 HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
 
 # =============================================================================
 # Health Check Response Cache
 # =============================================================================
 # Cache health check results to reduce load from frequent health probes.
-# Health checks can take 1+ seconds due to database, Redis, and AI service checks.
-# Caching for a short TTL (5-10 seconds) significantly reduces load while
-# still providing timely health status updates.
+# With caching, most requests return instantly from cache, and only cache
+# misses trigger the parallel health checks.
 
-HEALTH_CACHE_TTL_SECONDS = 5.0  # Cache health results for 5 seconds
+HEALTH_CACHE_TTL_SECONDS = 10.0  # Increased from 5s to reduce check frequency
 
 
 @dataclass(slots=True)
@@ -1055,6 +1069,97 @@ async def _emit_health_status_changes(
         logger.warning(f"Failed to emit health status change events: {e}", exc_info=True)
 
 
+async def _check_db_health_with_timeout(
+    db: AsyncSession,
+) -> HealthCheckServiceStatus:
+    """Check database health with timeout and metrics.
+
+    Args:
+        db: Database session
+
+    Returns:
+        HealthCheckServiceStatus for the database
+    """
+    from backend.core.metrics import observe_health_check_component_latency
+
+    start_time = time.time()
+    try:
+        result = await asyncio.wait_for(
+            check_database_health(db),
+            timeout=HEALTH_CHECK_DB_TIMEOUT_SECONDS,
+        )
+        duration = time.time() - start_time
+        observe_health_check_component_latency("database", duration)
+        return result
+    except TimeoutError:
+        duration = time.time() - start_time
+        observe_health_check_component_latency("database", duration)
+        return HealthCheckServiceStatus(
+            status="unhealthy",
+            message=f"Database health check timed out after {HEALTH_CHECK_DB_TIMEOUT_SECONDS}s",
+            details=None,
+        )
+
+
+async def _check_redis_health_with_timeout(
+    redis: RedisClient | None,
+) -> HealthCheckServiceStatus:
+    """Check Redis health with timeout and metrics.
+
+    Args:
+        redis: Redis client or None
+
+    Returns:
+        HealthCheckServiceStatus for Redis
+    """
+    from backend.core.metrics import observe_health_check_component_latency
+
+    start_time = time.time()
+    try:
+        result = await asyncio.wait_for(
+            check_redis_health(redis),
+            timeout=HEALTH_CHECK_REDIS_TIMEOUT_SECONDS,
+        )
+        duration = time.time() - start_time
+        observe_health_check_component_latency("redis", duration)
+        return result
+    except TimeoutError:
+        duration = time.time() - start_time
+        observe_health_check_component_latency("redis", duration)
+        return HealthCheckServiceStatus(
+            status="unhealthy",
+            message=f"Redis health check timed out after {HEALTH_CHECK_REDIS_TIMEOUT_SECONDS}s",
+            details=None,
+        )
+
+
+async def _check_ai_health_with_timeout() -> HealthCheckServiceStatus:
+    """Check AI services health with timeout and metrics.
+
+    Returns:
+        HealthCheckServiceStatus for AI services
+    """
+    from backend.core.metrics import observe_health_check_component_latency
+
+    start_time = time.time()
+    try:
+        result = await asyncio.wait_for(
+            check_ai_services_health(),
+            timeout=HEALTH_CHECK_AI_TIMEOUT_SECONDS,
+        )
+        duration = time.time() - start_time
+        observe_health_check_component_latency("ai_services", duration)
+        return result
+    except TimeoutError:
+        duration = time.time() - start_time
+        observe_health_check_component_latency("ai_services", duration)
+        return HealthCheckServiceStatus(
+            status="unhealthy",
+            message=f"AI services health check timed out after {HEALTH_CHECK_AI_TIMEOUT_SECONDS}s",
+            details=None,
+        )
+
+
 @router.get("/health", response_model=HealthResponse)
 async def get_health(
     response: Response,
@@ -1068,10 +1173,11 @@ async def get_health(
     - Redis connectivity
     - AI services status
 
-    Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
-    If a health check times out, the service is marked as unhealthy.
+    NEM-3892: Health checks run in PARALLEL with short individual timeouts
+    to ensure the endpoint responds under 500ms SLO. Each component has a
+    300ms timeout and all checks run concurrently via asyncio.gather.
 
-    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce
     load from frequent health probes. Cached responses are returned immediately
     without re-checking services.
 
@@ -1079,51 +1185,34 @@ async def get_health(
         HealthResponse with overall status and individual service statuses.
         HTTP 200 if healthy, 503 if degraded or unhealthy.
     """
+    from backend.core.metrics import (
+        observe_health_check_latency,
+        record_health_check_cache_hit,
+        record_health_check_cache_miss,
+    )
+
     global _health_cache  # noqa: PLW0603
+    start_time = time.time()
 
     # Check if we have a valid cached response
     if _health_cache is not None and _health_cache.is_valid():
         # Return cached response with appropriate HTTP status
         response.status_code = _health_cache.http_status
+        duration = time.time() - start_time
+        observe_health_check_latency("health", "cached", duration)
+        record_health_check_cache_hit("health")
         return _health_cache.response
 
-    # Cache miss or expired - perform full health check
-    # Check all services with timeout protection
-    try:
-        db_status = await asyncio.wait_for(
-            check_database_health(db),
-            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        db_status = HealthCheckServiceStatus(
-            status="unhealthy",
-            message="Database health check timed out",
-            details=None,
-        )
+    # Cache miss - record it
+    record_health_check_cache_miss("health")
 
-    try:
-        redis_status = await asyncio.wait_for(
-            check_redis_health(redis),
-            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        redis_status = HealthCheckServiceStatus(
-            status="unhealthy",
-            message="Redis health check timed out",
-            details=None,
-        )
-
-    try:
-        ai_status = await asyncio.wait_for(
-            check_ai_services_health(),
-            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        ai_status = HealthCheckServiceStatus(
-            status="unhealthy",
-            message="AI services health check timed out",
-            details=None,
-        )
+    # NEM-3892: Run all health checks in PARALLEL for faster response
+    # Each check has its own timeout, and they all run concurrently
+    db_status, redis_status, ai_status = await asyncio.gather(
+        _check_db_health_with_timeout(db),
+        _check_redis_health_with_timeout(redis),
+        _check_ai_health_with_timeout(),
+    )
 
     # Determine overall status
     services = {
@@ -1187,11 +1276,43 @@ async def get_health(
         http_status=http_status,
     )
 
+    # Record total latency for the health check
+    duration = time.time() - start_time
+    observe_health_check_latency("health", "full", duration)
+
     return health_response
 
 
-# NOTE: /api/system/health/live has been removed to consolidate duplicate endpoints.
-# Use GET /health (root level) for liveness probes. It provides the same functionality.
+@router.get("/health/live")
+async def get_liveness() -> dict[str, str]:
+    """Fast liveness probe endpoint - responds in under 100ms.
+
+    NEM-3892: This endpoint performs NO external checks. It immediately returns
+    a simple "alive" status to indicate the process is running and can handle
+    HTTP requests. This is critical for Kubernetes liveness probes which need
+    to detect hung processes quickly without waiting for dependency checks.
+
+    For detailed health information, use:
+    - GET /api/system/health - Full health check with service status
+    - GET /api/system/health/ready - Readiness check with dependency status
+
+    Returns:
+        Dict with status "alive" and timestamp.
+    """
+    from backend.core.metrics import observe_health_check_latency
+
+    start_time = time.time()
+
+    response = {
+        "status": "alive",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+    # Record liveness latency (should be <10ms)
+    duration = time.time() - start_time
+    observe_health_check_latency("health_live", "liveness", duration)
+
+    return response
 
 
 @router.get("/health/ready", response_model=ReadinessResponse)
@@ -1216,60 +1337,42 @@ async def get_readiness(
     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
     If this endpoint returns not_ready, the instance should not receive new requests.
 
-    Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
-    If a health check times out, the service is marked as unhealthy.
+    NEM-3892: Health checks run in PARALLEL with short individual timeouts
+    to ensure the endpoint responds under 500ms SLO.
 
-    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce
     load from frequent readiness probes.
 
     Returns:
         ReadinessResponse with overall readiness status and detailed checks.
         HTTP 200 if ready, 503 if degraded or not ready.
     """
+    from backend.core.metrics import (
+        observe_health_check_latency,
+        record_health_check_cache_hit,
+        record_health_check_cache_miss,
+    )
+
     global _readiness_cache  # noqa: PLW0603
+    start_time = time.time()
 
     # Check if we have a valid cached response
     if _readiness_cache is not None and _readiness_cache.is_valid():
         response.status_code = _readiness_cache.http_status
+        duration = time.time() - start_time
+        observe_health_check_latency("health_ready", "cached", duration)
+        record_health_check_cache_hit("health_ready")
         return _readiness_cache.response
 
-    # Cache miss or expired - perform full readiness check
-    # Check all infrastructure services with timeout protection
-    try:
-        db_status = await asyncio.wait_for(
-            check_database_health(db),
-            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        db_status = HealthCheckServiceStatus(
-            status="unhealthy",
-            message="Database health check timed out",
-            details=None,
-        )
+    # Cache miss - record it
+    record_health_check_cache_miss("health_ready")
 
-    try:
-        redis_status = await asyncio.wait_for(
-            check_redis_health(redis),
-            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        redis_status = HealthCheckServiceStatus(
-            status="unhealthy",
-            message="Redis health check timed out",
-            details=None,
-        )
-
-    try:
-        ai_status = await asyncio.wait_for(
-            check_ai_services_health(),
-            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
-        )
-    except TimeoutError:
-        ai_status = HealthCheckServiceStatus(
-            status="unhealthy",
-            message="AI services health check timed out",
-            details=None,
-        )
+    # NEM-3892: Run all health checks in PARALLEL for faster response
+    db_status, redis_status, ai_status = await asyncio.gather(
+        _check_db_health_with_timeout(db),
+        _check_redis_health_with_timeout(redis),
+        _check_ai_health_with_timeout(),
+    )
 
     services = {
         "database": db_status,
@@ -1333,6 +1436,10 @@ async def get_readiness(
         cached_at=time.time(),
         http_status=http_status,
     )
+
+    # Record total latency for the readiness check
+    duration = time.time() - start_time
+    observe_health_check_latency("health_ready", "full", duration)
 
     return readiness_response
 

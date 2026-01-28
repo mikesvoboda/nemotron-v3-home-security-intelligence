@@ -289,6 +289,8 @@ class TestAlertingRulesExpressions:
         "hsi_detections_processed_total",
         "hsi_events_created_total",
         "hsi_stage_duration_seconds",
+        # DLQ monitoring (NEM-3891)
+        "hsi_dlq_depth",
         # Prometheus built-in
         "up",
         # Blackbox exporter metrics

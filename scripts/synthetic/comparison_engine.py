@@ -35,6 +35,321 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+# =============================================================================
+# Synonym dictionary for semantic caption matching
+# =============================================================================
+# This dictionary maps expected keywords to sets of semantically equivalent terms.
+# Used by Florence caption validation to handle natural language variation.
+# For example, Florence might describe a "package" as "cardboard box" or "parcel".
+#
+# All keys and values MUST be lowercase for case-insensitive matching.
+# =============================================================================
+
+CAPTION_SYNONYMS: dict[str, set[str]] = {
+    # Package/delivery related
+    "package": {
+        "package",
+        "box",
+        "parcel",
+        "delivery",
+        "cardboard box",
+        "shipping box",
+        "carton",
+        "container",
+        "crate",
+        "bundle",
+        "packet",
+    },
+    # Person/human related
+    "person": {
+        "person",
+        "man",
+        "woman",
+        "individual",
+        "figure",
+        "someone",
+        "human",
+        "people",
+        "adult",
+        "child",
+        "boy",
+        "girl",
+        "guy",
+        "lady",
+        "gentleman",
+        "worker",
+        "pedestrian",
+    },
+    # Vehicle related
+    "car": {
+        "car",
+        "vehicle",
+        "automobile",
+        "sedan",
+        "suv",
+        "truck",
+        "van",
+        "pickup",
+        "hatchback",
+        "coupe",
+        "minivan",
+        "crossover",
+        "motor vehicle",
+    },
+    "truck": {
+        "truck",
+        "pickup",
+        "pickup truck",
+        "lorry",
+        "van",
+        "delivery truck",
+        "utility vehicle",
+    },
+    "van": {
+        "van",
+        "minivan",
+        "cargo van",
+        "delivery van",
+        "panel van",
+    },
+    "motorcycle": {
+        "motorcycle",
+        "motorbike",
+        "bike",
+        "scooter",
+        "moped",
+    },
+    "bicycle": {
+        "bicycle",
+        "bike",
+        "cycle",
+        "pedal bike",
+    },
+    # Building/structure related
+    "door": {
+        "door",
+        "entrance",
+        "entryway",
+        "doorway",
+        "front door",
+        "entry",
+        "threshold",
+        "portal",
+    },
+    "porch": {
+        "porch",
+        "stoop",
+        "veranda",
+        "front steps",
+        "steps",
+        "landing",
+        "deck",
+        "entryway",
+        "front porch",
+    },
+    "house": {
+        "house",
+        "home",
+        "residence",
+        "dwelling",
+        "building",
+        "property",
+        "residential building",
+        "structure",
+    },
+    "garage": {
+        "garage",
+        "carport",
+        "car garage",
+        "parking garage",
+    },
+    "driveway": {
+        "driveway",
+        "drive",
+        "parking area",
+        "front yard",
+    },
+    "yard": {
+        "yard",
+        "lawn",
+        "garden",
+        "front yard",
+        "backyard",
+        "grounds",
+    },
+    "fence": {
+        "fence",
+        "fencing",
+        "barrier",
+        "gate",
+        "enclosure",
+        "railing",
+    },
+    "window": {
+        "window",
+        "glass",
+        "pane",
+        "windowpane",
+        "opening",
+    },
+    # Pet/animal related
+    "dog": {
+        "dog",
+        "canine",
+        "puppy",
+        "pet",
+        "hound",
+        "pooch",
+        "pup",
+    },
+    "cat": {
+        "cat",
+        "feline",
+        "kitten",
+        "pet",
+        "kitty",
+    },
+    "animal": {
+        "animal",
+        "pet",
+        "creature",
+        "dog",
+        "cat",
+        "wildlife",
+    },
+    # Action/motion related
+    "walking": {
+        "walking",
+        "approaching",
+        "moving",
+        "strolling",
+        "striding",
+        "stepping",
+        "advancing",
+        "coming",
+        "going",
+        "heading",
+    },
+    "running": {
+        "running",
+        "sprinting",
+        "jogging",
+        "rushing",
+        "hurrying",
+        "dashing",
+        "fleeing",
+    },
+    "standing": {
+        "standing",
+        "waiting",
+        "stationary",
+        "still",
+        "positioned",
+        "stopped",
+        "paused",
+    },
+    "sitting": {
+        "sitting",
+        "seated",
+        "resting",
+        "perched",
+    },
+    "bending": {
+        "bending",
+        "crouching",
+        "stooping",
+        "leaning",
+        "kneeling",
+        "hunching",
+        "ducking",
+    },
+    "carrying": {
+        "carrying",
+        "holding",
+        "transporting",
+        "bearing",
+        "bringing",
+        "delivering",
+    },
+    # Object related
+    "weapon": {
+        "weapon",
+        "gun",
+        "knife",
+        "firearm",
+        "pistol",
+        "rifle",
+        "blade",
+        "tool",
+    },
+    "bag": {
+        "bag",
+        "backpack",
+        "sack",
+        "purse",
+        "handbag",
+        "duffle",
+        "tote",
+        "satchel",
+    },
+    # Time/lighting related
+    "night": {
+        "night",
+        "nighttime",
+        "dark",
+        "evening",
+        "darkness",
+        "after dark",
+    },
+    "day": {
+        "day",
+        "daytime",
+        "daylight",
+        "bright",
+        "sunny",
+        "morning",
+        "afternoon",
+    },
+}
+
+
+def check_caption_keywords_with_synonyms(caption: str, keywords: list[str]) -> bool:
+    """Check if all keywords are present in caption using synonym expansion.
+
+    For each keyword, checks if either the keyword itself or any of its synonyms
+    appear in the caption. Uses case-insensitive matching.
+
+    Args:
+        caption: The caption text to search in.
+        keywords: List of keywords that must be present (directly or via synonym).
+
+    Returns:
+        True if all keywords (or their synonyms) are found in the caption.
+
+    Example:
+        >>> check_caption_keywords_with_synonyms(
+        ...     "A man holding a cardboard box",
+        ...     ["person", "package"]
+        ... )
+        True  # "man" matches "person", "cardboard box" matches "package"
+    """
+    if not keywords:
+        return True
+
+    caption_lower = caption.lower()
+
+    for keyword in keywords:
+        keyword_lower = keyword.lower()
+        # Get synonyms for this keyword, defaulting to just the keyword itself
+        synonyms = CAPTION_SYNONYMS.get(keyword_lower, {keyword_lower})
+
+        # Check if any synonym is present in the caption
+        found = any(syn in caption_lower for syn in synonyms)
+        if not found:
+            return False
+
+    return True
+
 
 @dataclass
 class FieldResult:
@@ -1358,9 +1673,11 @@ class ComparisonEngine:
     def _compare_florence_caption(
         self, expected: dict[str, Any], actual: str | dict[str, Any]
     ) -> list[FieldResult]:
-        """Compare Florence caption results.
+        """Compare Florence caption results using semantic synonym matching.
 
-        Validates must_contain and must_not_contain keywords.
+        Validates must_contain (with synonym expansion) and must_not_contain keywords.
+        The must_contain check uses synonym expansion to handle natural language
+        variation in Florence captions (e.g., "cardboard box" matches "package").
 
         Args:
             expected: Expected caption specification with must_contain/must_not_contain.
@@ -1379,7 +1696,7 @@ class ComparisonEngine:
 
         if "must_contain" in expected:
             results.append(
-                self._compare_must_contain(
+                self._compare_must_contain_semantic(
                     expected["must_contain"],
                     caption_text,
                     "florence_caption.must_contain",
@@ -1396,6 +1713,54 @@ class ComparisonEngine:
             )
 
         return results
+
+    def _compare_must_contain_semantic(
+        self, expected: list[str], actual: str | None, field_name: str
+    ) -> FieldResult:
+        """Compare text ensuring all keywords are present using synonym expansion.
+
+        For each keyword, checks if either the keyword itself or any of its synonyms
+        from CAPTION_SYNONYMS appear in the text. Uses case-insensitive matching.
+
+        Args:
+            expected: List of keywords that must be present (directly or via synonym).
+            actual: Actual text from pipeline.
+            field_name: Name of the field.
+
+        Returns:
+            FieldResult indicating pass if all keywords (or synonyms) are found.
+        """
+        if actual is None:
+            return FieldResult(
+                field_name=field_name,
+                passed=False,
+                expected=f"must contain (semantic): {expected}",
+                actual=actual,
+                diff={"reason": "actual value is None"},
+            )
+
+        actual_lower = actual.lower()
+        missing = []
+
+        for keyword in expected:
+            keyword_lower = keyword.lower()
+            # Get synonyms for this keyword, defaulting to just the keyword itself
+            synonyms = CAPTION_SYNONYMS.get(keyword_lower, {keyword_lower})
+
+            # Check if any synonym is present in the caption
+            found = any(syn in actual_lower for syn in synonyms)
+            if not found:
+                missing.append(keyword)
+
+        passed = len(missing) == 0
+
+        return FieldResult(
+            field_name=field_name,
+            passed=passed,
+            expected=f"must contain (semantic): {expected}",
+            actual=actual,
+            diff={"missing_keywords": missing} if not passed else None,
+        )
 
     def _compare_risk_assessment(
         self, expected: dict[str, Any], actual: dict[str, Any]

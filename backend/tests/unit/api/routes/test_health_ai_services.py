@@ -535,6 +535,45 @@ class TestQueueDepths:
         assert result["analysis_queue"].depth == 0
         assert result["analysis_queue"].dlq_depth == 0
 
+    @pytest.mark.asyncio
+    async def test_get_queue_depths_uses_correct_dlq_keys(self) -> None:
+        """Test that _get_queue_depths uses correct DLQ key format (NEM-3891).
+
+        DLQ keys should be 'dlq:detection_queue' and 'dlq:analysis_queue',
+        NOT 'detection_queue:dlq' or 'analysis_queue:dlq'.
+        """
+        mock_redis = AsyncMock()
+        mock_redis.get_queue_length.side_effect = [10, 5, 2, 1]
+
+        await _get_queue_depths(mock_redis)
+
+        # Verify the correct queue names were used
+        calls = mock_redis.get_queue_length.call_args_list
+        queue_names = [call[0][0] for call in calls]
+
+        assert "detection_queue" in queue_names
+        assert "analysis_queue" in queue_names
+        # NEM-3891: Verify correct DLQ key format
+        assert "dlq:detection_queue" in queue_names
+        assert "dlq:analysis_queue" in queue_names
+        # Ensure wrong format is not used
+        assert "detection_queue:dlq" not in queue_names
+        assert "analysis_queue:dlq" not in queue_names
+
+    @pytest.mark.asyncio
+    async def test_get_queue_depths_updates_dlq_metrics(self) -> None:
+        """Test that _get_queue_depths updates DLQ depth Prometheus metrics (NEM-3891)."""
+        mock_redis = AsyncMock()
+        mock_redis.get_queue_length.side_effect = [10, 5, 3, 2]
+
+        with patch("backend.api.routes.health_ai_services.set_dlq_depth") as mock_set_dlq_depth:
+            result = await _get_queue_depths(mock_redis)
+
+            # Verify set_dlq_depth was called for both DLQs
+            assert mock_set_dlq_depth.call_count == 2
+            mock_set_dlq_depth.assert_any_call("dlq:detection_queue", 3)
+            mock_set_dlq_depth.assert_any_call("dlq:analysis_queue", 2)
+
 
 # =============================================================================
 # Overall Status Calculation Tests

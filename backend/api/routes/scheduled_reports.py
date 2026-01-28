@@ -93,7 +93,7 @@ async def create_scheduled_report(
         "Created scheduled report",
         extra={
             "report_id": report.id,
-            "name": report.name,
+            "report_name": report.name,
             "frequency": report.frequency,
         },
     )

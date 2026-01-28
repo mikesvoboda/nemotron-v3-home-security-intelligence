@@ -68,6 +68,7 @@ from metrics import (  # noqa: E402
     GPU_UTILIZATION,
     INFERENCE_LATENCY_SECONDS,
     INFERENCE_REQUESTS_TOTAL,
+    MODEL_INFERENCE_HEALTHY,
     MODEL_LOADED,
     get_vram_usage_bytes,
     record_batch_size,
@@ -223,13 +224,19 @@ def get_tensorrt_version() -> str | None:
 
 
 def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
-    """Check if an exception indicates a TensorRT version mismatch.
+    """Check if an exception indicates a TensorRT version mismatch or engine load failure.
 
     Args:
         error: The exception to check.
 
     Returns:
-        True if the error indicates a TensorRT version mismatch, False otherwise.
+        True if the error indicates a TensorRT version mismatch or engine load failure,
+        False otherwise.
+
+    Note:
+        NEM-3877: Added detection of 'NoneType' object has no attribute
+        'create_execution_context' error which occurs when TensorRT engine
+        was built with a different TensorRT version than the runtime.
     """
     error_str = str(error).lower()
     # Common TensorRT version mismatch error patterns
@@ -242,55 +249,11 @@ def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
         "incompatible",
         "exported with a different version",
         "deserializecudaengine",
+        # NEM-3877: TensorRT engine fails to load when built with different version
+        "'nonetype' object has no attribute 'create_execution_context'",
+        "create_execution_context",
     ]
     return any(pattern in error_str for pattern in mismatch_patterns)
-
-
-def is_tensorrt_fallback_error(error: Exception) -> bool:
-    """Check if an exception indicates TensorRT is unavailable and should fall back to PyTorch.
-
-    This function identifies errors that indicate TensorRT cannot be used, such as:
-    - TensorRT not being installed
-    - TensorRT library not found
-    - Engine file not found
-    - GPU architecture mismatch (kernel not available)
-    - General TensorRT loading failures
-
-    These are distinct from version mismatch errors (which may be resolvable by rebuild)
-    and from resource errors like OOM (which indicate system issues, not TensorRT issues).
-
-    Args:
-        error: The exception to check.
-
-    Returns:
-        True if the error indicates TensorRT is unavailable and PyTorch fallback should be used.
-    """
-    error_str = str(error).lower()
-
-    # Patterns that indicate TensorRT is unavailable or cannot be used
-    fallback_patterns = [
-        # TensorRT not installed
-        "tensorrt is not available",
-        "no module named 'tensorrt'",
-        "tensorrt library not found",
-        # Engine loading failures
-        "failed to load tensorrt",
-        "failed to load engine",
-        "cannot load tensorrt engine",
-        # GPU architecture mismatch
-        "no kernel image is available for execution",
-        "cuda error: no kernel image",
-        # File not found
-        "engine file not found",
-        "engine not found",
-    ]
-
-    # Check for fallback patterns
-    if any(pattern in error_str for pattern in fallback_patterns):
-        return True
-
-    # Also check if it's a FileNotFoundError for engine files
-    return isinstance(error, FileNotFoundError)
 
 
 def get_pt_model_path_for_engine(engine_path: str) -> str | None:
@@ -486,6 +449,10 @@ class HealthResponse(BaseModel):
     tensorrt_version: str | None = None
     torch_compile_enabled: bool | None = None
     torch_compile_mode: str | None = None
+    # NEM-3878: Track whether inference has been tested on startup
+    inference_tested: bool | None = None
+    # NEM-3877: Track which backend is actively being used
+    active_backend: str | None = None
 
 
 class YOLO26Model:
@@ -528,6 +495,10 @@ class YOLO26Model:
         self.cache_clear_count = 0  # Metric: total number of cache clears
         self.model: Any = None
         self.tensorrt_enabled = False
+        # NEM-3878: Track whether inference has been tested and is working
+        self.inference_healthy = False
+        # NEM-3877: Track which backend is actively being used (None until loaded)
+        self.active_backend: str | None = None
 
         # TensorRT auto-rebuild configuration (NEM-3871)
         if auto_rebuild is None:
@@ -566,19 +537,13 @@ class YOLO26Model:
     def load_model(self) -> None:
         """Load the TensorRT model using Ultralytics YOLO.
 
-        Handles TensorRT issues (NEM-3871, NEM-3882) by:
+        Handles TensorRT version mismatches (NEM-3871) by:
         1. Detecting version mismatch errors during engine load
         2. Deleting the stale engine file
         3. Rebuilding the engine from the source .pt file if available
         4. Falling back to the .pt model if rebuild fails or is disabled
 
-        TensorRT to PyTorch fallback (NEM-3882):
-        When TensorRT is unavailable or fails to load (not due to version mismatch),
-        the service gracefully falls back to PyTorch:
-        - TensorRT not installed
-        - TensorRT library not found
-        - Engine file not found
-        - GPU architecture mismatch
+        NEM-3877: Added automatic fallback to PyTorch when TensorRT fails.
         """
         try:
             logger.info("Loading YOLO26 TensorRT model with Ultralytics...")
@@ -589,42 +554,33 @@ class YOLO26Model:
             try:
                 self.model = YOLO(self.model_path)
             except Exception as load_error:
-                # Check if this is a TensorRT engine that failed to load
-                if self.model_path.endswith(".engine"):
-                    # Check if this is a version mismatch (may be recoverable via rebuild)
-                    if is_tensorrt_version_mismatch_error(load_error):
-                        logger.warning(f"TensorRT version mismatch detected: {load_error}")
-                        trt_version = get_tensorrt_version()
-                        logger.warning(f"Current TensorRT runtime version: {trt_version}")
+                # Check if this is a TensorRT version mismatch or engine load failure
+                if self.model_path.endswith(".engine") and is_tensorrt_version_mismatch_error(
+                    load_error
+                ):
+                    logger.warning(f"TensorRT engine load failed: {load_error}")
+                    trt_version = get_tensorrt_version()
+                    logger.warning(f"Current TensorRT runtime version: {trt_version}")
 
-                        # Attempt to rebuild if auto_rebuild is enabled
-                        if self.auto_rebuild:
-                            self._handle_tensorrt_version_mismatch()
-                        else:
-                            logger.error(
-                                "TensorRT auto-rebuild is disabled. "
-                                "Set YOLO26_AUTO_REBUILD=true to enable automatic engine rebuilding."
-                            )
-                            raise
-
-                    # Check if TensorRT is unavailable and we should fall back to PyTorch
-                    elif is_tensorrt_fallback_error(load_error):
-                        logger.warning(
-                            f"TensorRT unavailable or failed to load: {load_error}. "
-                            "Attempting fallback to PyTorch model."
-                        )
-                        self._handle_tensorrt_fallback_to_pytorch(load_error)
-
+                    # Attempt to rebuild if auto_rebuild is enabled
+                    if self.auto_rebuild:
+                        self._handle_tensorrt_version_mismatch()
                     else:
-                        # Unknown error, re-raise
-                        raise
+                        # NEM-3877: Fall back to PyTorch model directly
+                        logger.warning(
+                            "TensorRT auto-rebuild is disabled. "
+                            "Attempting fallback to PyTorch model..."
+                        )
+                        self._fallback_to_pytorch()
                 else:
                     raise
 
             # Check if TensorRT is being used
             if self.model_path.endswith(".engine"):
                 self.tensorrt_enabled = True
+                self.active_backend = "tensorrt"
                 logger.info("TensorRT engine loaded successfully")
+                logger.info(f"Active backend: {self.active_backend}")
                 # Note: torch.compile is not applied to TensorRT engines
                 # as they are already graph-optimized
                 if self.enable_torch_compile:
@@ -633,7 +589,10 @@ class YOLO26Model:
                         "(TensorRT already provides graph optimization)"
                     )
             else:
+                self.tensorrt_enabled = False
+                self.active_backend = "pytorch"
                 logger.info("YOLO model loaded (non-TensorRT format)")
+                logger.info(f"Active backend: {self.active_backend}")
                 # Apply torch.compile() for PyTorch models (NEM-3773)
                 if self.enable_torch_compile and is_compile_available():
                     self._apply_torch_compile()
@@ -652,6 +611,36 @@ class YOLO26Model:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+
+    def _fallback_to_pytorch(self) -> None:
+        """Fall back to PyTorch model when TensorRT engine fails to load.
+
+        NEM-3877: This method attempts to load the .pt model file when the
+        TensorRT engine fails to load due to version mismatch or other issues.
+
+        Raises:
+            RuntimeError: If no fallback .pt model is available.
+        """
+        from ultralytics import YOLO
+
+        # Find the source .pt model
+        pt_path = self.pt_model_path or get_pt_model_path_for_engine(self.model_path)
+
+        if pt_path is None:
+            raise RuntimeError(
+                f"TensorRT engine failed and no fallback .pt model available for {self.model_path}. "
+                "Set YOLO26_PT_MODEL_PATH to specify the source model path."
+            )
+
+        logger.info(f"Falling back to PyTorch model: {pt_path}")
+
+        # Load the PyTorch model
+        self.model = YOLO(pt_path)
+        self.model_path = pt_path
+        self.tensorrt_enabled = False
+        self.active_backend = "pytorch"
+
+        logger.info(f"Successfully loaded fallback PyTorch model from {pt_path}")
 
     def _handle_tensorrt_version_mismatch(self) -> None:
         """Handle TensorRT version mismatch by rebuilding the engine.
@@ -712,51 +701,6 @@ class YOLO26Model:
         self.tensorrt_enabled = True
         logger.info("Rebuilt TensorRT engine loaded successfully")
 
-    def _handle_tensorrt_fallback_to_pytorch(self, original_error: Exception) -> None:
-        """Handle fallback from TensorRT to PyTorch when TensorRT is unavailable.
-
-        This method is called when TensorRT fails to load due to reasons other than
-        version mismatch (e.g., TensorRT not installed, GPU architecture mismatch).
-
-        It attempts to find and load the corresponding PyTorch model (.pt file).
-
-        Args:
-            original_error: The original exception that triggered the fallback.
-
-        Raises:
-            RuntimeError: If no fallback PyTorch model is available.
-        """
-        from ultralytics import YOLO
-
-        engine_path = self.model_path
-
-        # Find the source .pt model
-        pt_path = self.pt_model_path or get_pt_model_path_for_engine(engine_path)
-
-        if pt_path is None:
-            logger.error(
-                f"TensorRT fallback failed: no source .pt model found for {engine_path}. "
-                "Set YOLO26_PT_MODEL_PATH to specify the fallback model path."
-            )
-            # Re-raise the original error since we can't fall back
-            raise original_error
-
-        logger.info(f"Found fallback PyTorch model: {pt_path}")
-
-        try:
-            # Attempt to load the PyTorch model
-            self.model = YOLO(pt_path)
-            self.model_path = pt_path
-            self.tensorrt_enabled = False
-            logger.info(
-                f"Successfully fell back to PyTorch model from {pt_path}. "
-                "TensorRT is disabled for this session."
-            )
-        except Exception as fallback_error:
-            logger.error(f"Failed to load fallback PyTorch model {pt_path}: {fallback_error}")
-            # Re-raise the original error since fallback also failed
-            raise original_error from fallback_error
-
     def _apply_torch_compile(self) -> None:
         """Apply torch.compile() to the underlying PyTorch model for automatic kernel fusion.
 
@@ -806,20 +750,35 @@ class YOLO26Model:
             self._is_compiled = False
 
     def _warmup(self, num_iterations: int = 3) -> None:
-        """Warmup the model with dummy inputs."""
+        """Warmup the model with dummy inputs.
+
+        NEM-3878: This method now validates that inference actually works
+        by setting inference_healthy based on warmup success/failure.
+        """
         logger.info(f"Warming up model with {num_iterations} iterations...")
 
         # Create a dummy image
         dummy_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
 
+        warmup_success = False
         for i in range(num_iterations):
             try:
                 _ = self.detect(dummy_image)
                 logger.info(f"Warmup iteration {i + 1}/{num_iterations} complete")
+                warmup_success = True  # At least one iteration succeeded
             except Exception as e:
                 logger.warning(f"Warmup iteration {i + 1} failed: {e}")
 
-        logger.info("Warmup complete")
+        # NEM-3878: Set inference_healthy based on whether ANY warmup iteration succeeded
+        if warmup_success:
+            self.inference_healthy = True
+            logger.info("Warmup complete - inference validated successfully")
+        else:
+            self.inference_healthy = False
+            logger.error("Warmup FAILED - all inference attempts failed")
+
+        # Update Prometheus metric
+        MODEL_INFERENCE_HEALTHY.set(1 if self.inference_healthy else 0)
 
     def _clear_cuda_cache(self) -> None:
         """Clear CUDA cache to prevent memory fragmentation.
@@ -1175,7 +1134,13 @@ app = FastAPI(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    NEM-3878: Updated to check inference_healthy for determining health status.
+    The endpoint now reports "unhealthy" if inference warmup failed, even if
+    the model object exists. This catches cases where the TensorRT engine
+    loads but fails during actual inference.
+    """
     cuda_available = torch.cuda.is_available()
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage() if cuda_available else None
@@ -1183,9 +1148,21 @@ async def health_check() -> HealthResponse:
     # Get GPU metrics (utilization, temperature, power) via pynvml
     gpu_metrics = get_gpu_metrics() if cuda_available else {}
 
+    # NEM-3878: Check inference_healthy in addition to model existence
+    model_loaded = model is not None and model.model is not None
+    inference_healthy = getattr(model, "inference_healthy", False) if model else False
+
+    # Status is only "healthy" if model is loaded AND inference has been validated
+    if model_loaded and inference_healthy:
+        status = "healthy"
+    elif model_loaded and not inference_healthy:
+        status = "unhealthy"  # Model loaded but inference failed
+    else:
+        status = "degraded"  # Model not loaded
+
     return HealthResponse(
-        status="healthy" if model is not None and model.model is not None else "degraded",
-        model_loaded=model is not None and model.model is not None,
+        status=status,
+        model_loaded=model_loaded,
         device=device,
         cuda_available=cuda_available,
         model_name=model.model_path if model else None,
@@ -1197,6 +1174,10 @@ async def health_check() -> HealthResponse:
         tensorrt_version=get_tensorrt_version(),
         torch_compile_enabled=model._is_compiled if model else None,
         torch_compile_mode=model.torch_compile_mode if model and model._is_compiled else None,
+        # NEM-3878: Include inference_tested field
+        inference_tested=inference_healthy,
+        # NEM-3877: Include active_backend field
+        active_backend=getattr(model, "active_backend", None) if model else None,
     )
 
 
@@ -1209,6 +1190,10 @@ async def metrics() -> Response:
     """
     # Update model status gauge
     MODEL_LOADED.set(1 if model is not None and model.model is not None else 0)
+
+    # NEM-3878: Update model inference health gauge
+    inference_healthy = getattr(model, "inference_healthy", False) if model else False
+    MODEL_INFERENCE_HEALTHY.set(1 if inference_healthy else 0)
 
     # Update GPU metrics gauges
     if torch.cuda.is_available():
