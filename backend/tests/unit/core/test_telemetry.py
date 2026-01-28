@@ -264,7 +264,7 @@ class TestConfigSettings:
         ):
             settings = Settings()
 
-        assert settings.otel_enabled is False
+        assert settings.otel_enabled is True  # OTEL enabled by default
         assert settings.otel_service_name == "nemotron-backend"
         assert settings.otel_exporter_otlp_endpoint == "http://localhost:4317"
         assert settings.otel_exporter_otlp_insecure is True
