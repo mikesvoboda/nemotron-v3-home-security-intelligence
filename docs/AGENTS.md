@@ -204,6 +204,7 @@ Each major directory has its own AGENTS.md:
 | `reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
 | `ui/AGENTS.md`                        | UI page documentation          |
 | `user/AGENTS.md`                      | End-user documentation         |
+| `style-guides/AGENTS.md`              | Documentation style guides     |
 
 ## Visual Assets
 
