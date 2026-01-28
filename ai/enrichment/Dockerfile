@@ -1,5 +1,5 @@
 # Combined Enrichment Service (Multi-Stage Build)
-# Hosts Vehicle Classification, Pet Classification, FashionCLIP, YOLOv8 Pose, OSNet Re-ID,
+# Hosts Vehicle Classification, Pet Classification, FashionSigLIP, YOLOv8 Pose, OSNet Re-ID,
 # and video analytics with Supervision (ByteTrack tracking, annotators, heatmaps)
 # Port: 8094 | Expected VRAM: ~3.5GB (with new models)
 #

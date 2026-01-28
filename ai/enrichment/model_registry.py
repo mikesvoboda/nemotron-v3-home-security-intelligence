@@ -8,7 +8,7 @@ The registry is used by OnDemandModelManager to know which models are available
 and how to load them on-demand when needed for specific detection types.
 
 Available models (10 total):
-- fashion_clip: Clothing attribute extraction (~800MB, MEDIUM priority)
+- fashion_clip: Clothing attribute extraction (FashionSigLIP, ~800MB, MEDIUM priority)
 - vehicle_classifier: Vehicle type classification (~1.5GB, MEDIUM priority)
 - pet_classifier: Cat/dog classification (~200MB, MEDIUM priority)
 - depth_estimator: Monocular depth estimation (~150MB, LOW priority)
@@ -16,7 +16,7 @@ Available models (10 total):
 - threat_detector: Weapon detection (~400MB, CRITICAL priority)
 - demographics: Age-gender from face crops (~500MB, HIGH priority)
 - person_reid: OSNet re-identification (~100MB, MEDIUM priority)
-- action_recognizer: X-CLIP video action recognition (~1.5GB, LOW priority)
+- action_recognizer: X-CLIP video action recognition (~2GB, LOW priority)
 - yolo26_detector: YOLO26 secondary object detection (~100MB, LOW priority)
 """
 
@@ -280,7 +280,8 @@ def load_action_recognizer(model_path: str, device: str = "cuda:0") -> tuple[Any
     Only loaded for suspicious activity analysis.
 
     Args:
-        model_path: Path or HuggingFace model ID for X-CLIP.
+        model_path: Path or HuggingFace model ID for X-CLIP
+            (e.g., "microsoft/xclip-base-patch16-16-frames").
         device: CUDA device string for model placement.
 
     Returns:
@@ -288,7 +289,8 @@ def load_action_recognizer(model_path: str, device: str = "cuda:0") -> tuple[Any
 
     Note:
         Requires transformers[video] for video processing.
-        Memory-intensive (~1.5GB VRAM).
+        Memory-intensive (~2GB VRAM for patch16-16-frames model).
+        Uses 16 frames for ~4% improved accuracy (NEM-3908).
     """
     try:
         from transformers import XCLIPModel, XCLIPProcessor
@@ -392,8 +394,12 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_model,
     )
 
-    # FashionCLIP Clothing Classifier (~800MB)
-    clothing_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-clip")
+    # FashionSigLIP Clothing Classifier (~800MB) - 57% accuracy improvement over FashionCLIP
+    # FashionSigLIP performance vs FashionCLIP2.0:
+    # - Text-to-Image MRR: 0.239 vs 0.165
+    # - Text-to-Image Recall@1: 0.121 vs 0.077
+    # - Text-to-Image Recall@10: 0.340 vs 0.249
+    clothing_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-siglip")
     registry["fashion_clip"] = ModelConfig(
         name="fashion_clip",
         vram_mb=800,
@@ -425,13 +431,14 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_pose_estimator,
     )
 
-    # Action Recognizer - X-CLIP (~1.5GB)
+    # Action Recognizer - X-CLIP (~2GB) (NEM-3908: upgraded to patch16-16-frames)
     # Trigger conditions: Person detected >3 seconds, multiple frames available,
     # unusual pose detected (trigger from pose estimator)
-    action_path = os.environ.get("ACTION_MODEL_PATH", "/models/xclip-base-patch32")
+    # Uses 16 frames for ~4% improved accuracy over 8-frame patch32 model
+    action_path = os.environ.get("ACTION_MODEL_PATH", "/models/xclip-base-patch16-16-frames")
     registry["action_recognizer"] = ModelConfig(
         name="action_recognizer",
-        vram_mb=1500,
+        vram_mb=2000,  # Upgraded from 1500MB for patch16-16-frames
         priority=ModelPriority.LOW,  # Expensive, use sparingly
         loader_fn=lambda: _create_action_recognizer(action_path, device),
         unloader_fn=_unload_action_recognizer,

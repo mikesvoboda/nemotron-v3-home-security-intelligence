@@ -31,10 +31,12 @@ from backend.services.florence_client import (
     FLORENCE_CONNECT_TIMEOUT,
     FLORENCE_HEALTH_TIMEOUT,
     FLORENCE_READ_TIMEOUT,
+    BoundingBox,
     CaptionedRegion,
     Detection,
     FlorenceClient,
     FlorenceUnavailableError,
+    GroundedPhrase,
     OCRRegion,
     get_florence_client,
     reset_florence_client,
@@ -1454,3 +1456,389 @@ class TestCircuitBreakerIntegration:
         assert client._circuit_breaker._failure_threshold == 5
         assert client._circuit_breaker._recovery_timeout == 60.0
         assert client._circuit_breaker._half_open_max_calls == 3
+
+
+# =============================================================================
+# BoundingBox and GroundedPhrase Dataclass Tests (NEM-3911)
+# =============================================================================
+
+
+class TestBoundingBoxDataclass:
+    """Tests for BoundingBox dataclass (NEM-3911)."""
+
+    def test_bounding_box_creation(self) -> None:
+        """Test BoundingBox dataclass creation."""
+
+        bbox = BoundingBox(x1=10, y1=20, x2=100, y2=200)
+        assert bbox.x1 == 10
+        assert bbox.y1 == 20
+        assert bbox.x2 == 100
+        assert bbox.y2 == 200
+
+    def test_bounding_box_as_list(self) -> None:
+        """Test BoundingBox.as_list() method."""
+
+        bbox = BoundingBox(x1=10, y1=20, x2=100, y2=200)
+        assert bbox.as_list() == [10, 20, 100, 200]
+
+    def test_bounding_box_as_dict(self) -> None:
+        """Test BoundingBox.as_dict() method."""
+
+        bbox = BoundingBox(x1=10, y1=20, x2=100, y2=200)
+        assert bbox.as_dict() == {"x1": 10, "y1": 20, "x2": 100, "y2": 200}
+
+    def test_bounding_box_from_list(self) -> None:
+        """Test BoundingBox.from_list() classmethod."""
+
+        bbox = BoundingBox.from_list([10, 20, 100, 200])
+        assert bbox.x1 == 10
+        assert bbox.y1 == 20
+        assert bbox.x2 == 100
+        assert bbox.y2 == 200
+
+
+class TestGroundedPhraseDataclass:
+    """Tests for GroundedPhrase dataclass (NEM-3911)."""
+
+    def test_grounded_phrase_creation(self) -> None:
+        """Test GroundedPhrase dataclass creation."""
+
+        grounded = GroundedPhrase(
+            phrase="person",
+            bboxes=[[10, 20, 100, 200], [150, 50, 250, 180]],
+            confidence_scores=[0.95, 0.87],
+        )
+        assert grounded.phrase == "person"
+        assert len(grounded.bboxes) == 2
+        assert len(grounded.confidence_scores) == 2
+
+    def test_grounded_phrase_empty_bboxes(self) -> None:
+        """Test GroundedPhrase with no matches."""
+
+        grounded = GroundedPhrase(phrase="elephant", bboxes=[], confidence_scores=[])
+        assert grounded.phrase == "elephant"
+        assert grounded.bboxes == []
+
+
+# =============================================================================
+# FlorenceClient.describe_regions Tests (NEM-3911)
+# =============================================================================
+
+
+class TestDescribeRegions:
+    """Tests for FlorenceClient.describe_regions() method (NEM-3911)."""
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_success(self, client, sample_image) -> None:
+        """Test successful region description."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "descriptions": [
+                {"caption": "a person in blue jacket", "bbox": [10, 20, 100, 200]},
+                {"caption": "a brown package on ground", "bbox": [150, 300, 250, 400]},
+            ],
+            "inference_time_ms": 180.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        regions = [
+            BoundingBox(x1=10, y1=20, x2=100, y2=200),
+            BoundingBox(x1=150, y1=300, x2=250, y2=400),
+        ]
+        descriptions = await client.describe_regions(sample_image, regions)
+
+        assert len(descriptions) == 2
+        assert isinstance(descriptions[0], CaptionedRegion)
+        assert descriptions[0].caption == "a person in blue jacket"
+        assert descriptions[1].caption == "a brown package on ground"
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_single_region(self, client, sample_image) -> None:
+        """Test describing a single region."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "descriptions": [
+                {"caption": "a delivery driver", "bbox": [50, 100, 200, 400]},
+            ],
+            "inference_time_ms": 120.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        regions = [BoundingBox(x1=50, y1=100, x2=200, y2=400)]
+        descriptions = await client.describe_regions(sample_image, regions)
+
+        assert len(descriptions) == 1
+        assert descriptions[0].caption == "a delivery driver"
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_connection_error(self, client, sample_image) -> None:
+        """Test describe_regions with connection error raises FlorenceUnavailableError."""
+
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        regions = [BoundingBox(x1=0, y1=0, x2=100, y2=100)]
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.describe_regions(sample_image, regions)
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_timeout(self, client, sample_image) -> None:
+        """Test describe_regions with timeout raises FlorenceUnavailableError."""
+
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+
+        regions = [BoundingBox(x1=0, y1=0, x2=100, y2=100)]
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.describe_regions(sample_image, regions)
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_server_error_5xx(self, client, sample_image) -> None:
+        """Test describe_regions with HTTP 5xx error raises FlorenceUnavailableError."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        regions = [BoundingBox(x1=0, y1=0, x2=100, y2=100)]
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.describe_regions(sample_image, regions)
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_client_error_4xx(self, client, sample_image) -> None:
+        """Test describe_regions with HTTP 4xx error returns empty list."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        regions = [BoundingBox(x1=0, y1=0, x2=100, y2=100)]
+        descriptions = await client.describe_regions(sample_image, regions)
+        assert descriptions == []
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_malformed_response(self, client, sample_image) -> None:
+        """Test describe_regions with malformed response returns empty list."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 80.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        regions = [BoundingBox(x1=0, y1=0, x2=100, y2=100)]
+        descriptions = await client.describe_regions(sample_image, regions)
+        assert descriptions == []
+
+    @pytest.mark.asyncio
+    async def test_describe_regions_sends_correct_endpoint(self, client, sample_image) -> None:
+        """Test describe_regions sends request to correct endpoint."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"descriptions": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        regions = [BoundingBox(x1=0, y1=0, x2=100, y2=100)]
+        await client.describe_regions(sample_image, regions)
+
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/describe-region"
+
+
+# =============================================================================
+# FlorenceClient.phrase_grounding Tests (NEM-3911)
+# =============================================================================
+
+
+class TestPhraseGrounding:
+    """Tests for FlorenceClient.phrase_grounding() method (NEM-3911)."""
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_success(self, client, sample_image) -> None:
+        """Test successful phrase grounding."""
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "grounded_phrases": [
+                {"phrase": "person", "bboxes": [[10, 20, 100, 200]], "confidence_scores": [0.95]},
+                {"phrase": "car", "bboxes": [[150, 50, 300, 180]], "confidence_scores": [0.88]},
+            ],
+            "inference_time_ms": 200.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        phrases = ["person", "car"]
+        grounded = await client.phrase_grounding(sample_image, phrases)
+
+        assert len(grounded) == 2
+        assert isinstance(grounded[0], GroundedPhrase)
+        assert grounded[0].phrase == "person"
+        assert len(grounded[0].bboxes) == 1
+        assert grounded[1].phrase == "car"
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_single_phrase(self, client, sample_image) -> None:
+        """Test phrase grounding with single phrase."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "grounded_phrases": [
+                {
+                    "phrase": "delivery driver",
+                    "bboxes": [[50, 100, 200, 400]],
+                    "confidence_scores": [0.92],
+                },
+            ],
+            "inference_time_ms": 150.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        phrases = ["delivery driver"]
+        grounded = await client.phrase_grounding(sample_image, phrases)
+
+        assert len(grounded) == 1
+        assert grounded[0].phrase == "delivery driver"
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_no_matches(self, client, sample_image) -> None:
+        """Test phrase grounding when phrase has no matches."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "grounded_phrases": [
+                {"phrase": "elephant", "bboxes": [], "confidence_scores": []},
+            ],
+            "inference_time_ms": 100.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        phrases = ["elephant"]
+        grounded = await client.phrase_grounding(sample_image, phrases)
+
+        assert len(grounded) == 1
+        assert grounded[0].phrase == "elephant"
+        assert grounded[0].bboxes == []
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_multiple_instances(self, client, sample_image) -> None:
+        """Test phrase grounding with multiple instances of same object."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "grounded_phrases": [
+                {
+                    "phrase": "person",
+                    "bboxes": [[10, 20, 100, 200], [150, 30, 250, 220], [300, 50, 400, 250]],
+                    "confidence_scores": [0.95, 0.92, 0.89],
+                },
+            ],
+            "inference_time_ms": 180.0,
+        }
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        phrases = ["person"]
+        grounded = await client.phrase_grounding(sample_image, phrases)
+
+        assert len(grounded) == 1
+        assert grounded[0].phrase == "person"
+        assert len(grounded[0].bboxes) == 3
+        assert len(grounded[0].confidence_scores) == 3
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_connection_error(self, client, sample_image) -> None:
+        """Test phrase_grounding with connection error raises FlorenceUnavailableError."""
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        with pytest.raises(FlorenceUnavailableError, match="Failed to connect"):
+            await client.phrase_grounding(sample_image, ["person"])
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_timeout(self, client, sample_image) -> None:
+        """Test phrase_grounding with timeout raises FlorenceUnavailableError."""
+        client._http_client.post = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
+
+        with pytest.raises(FlorenceUnavailableError, match="timed out"):
+            await client.phrase_grounding(sample_image, ["person"])
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_server_error_5xx(self, client, sample_image) -> None:
+        """Test phrase_grounding with HTTP 5xx error raises FlorenceUnavailableError."""
+        mock_response = MagicMock()
+        mock_response.status_code = 502
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Gateway",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        with pytest.raises(FlorenceUnavailableError, match="server error"):
+            await client.phrase_grounding(sample_image, ["person"])
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_client_error_4xx(self, client, sample_image) -> None:
+        """Test phrase_grounding with HTTP 4xx error returns empty list."""
+        mock_response = MagicMock()
+        mock_response.status_code = 422
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Unprocessable Entity",
+            request=MagicMock(),
+            response=mock_response,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        grounded = await client.phrase_grounding(sample_image, ["person"])
+        assert grounded == []
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_malformed_response(self, client, sample_image) -> None:
+        """Test phrase_grounding with malformed response returns empty list."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"inference_time_ms": 100.0}
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        grounded = await client.phrase_grounding(sample_image, ["person"])
+        assert grounded == []
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_sends_correct_endpoint(self, client, sample_image) -> None:
+        """Test phrase_grounding sends request to correct endpoint."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"grounded_phrases": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        await client.phrase_grounding(sample_image, ["person", "car"])
+
+        call_args = client._http_client.post.call_args
+        assert call_args[0][0] == "http://localhost:8092/phrase-grounding"
+
+    @pytest.mark.asyncio
+    async def test_phrase_grounding_sends_correct_payload(self, client, sample_image) -> None:
+        """Test phrase_grounding sends correct payload."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"grounded_phrases": []}
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        await client.phrase_grounding(sample_image, ["person in blue jacket", "car"])
+
+        call_args = client._http_client.post.call_args
+        payload = call_args[1]["json"]
+        assert "image" in payload
+        assert "phrases" in payload
+        assert payload["phrases"] == ["person in blue jacket", "car"]

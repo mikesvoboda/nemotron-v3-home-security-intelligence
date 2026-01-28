@@ -23,7 +23,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from backend.core.logging import get_logger
 
@@ -32,55 +32,240 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# ==============================================================================
+# Hierarchical Security Object Categories (NEM-3913)
+# ==============================================================================
+# Object prompts organized by priority/risk level with category-specific thresholds.
+# This hierarchical structure enables better risk assessment by the LLM.
+
+
+class ObjectCategoryConfig(TypedDict):
+    """Configuration for an object detection category."""
+
+    prompts: list[str]
+    threshold: float
+    priority: str
+
+
+YOLO_WORLD_PROMPTS_V2: dict[str, ObjectCategoryConfig] = {
+    "weapons": {
+        "prompts": [
+            "knife blade",
+            "handgun",
+            "rifle",
+            "crowbar tool",
+            "baseball bat",
+            "hammer",
+            "machete",
+            # Legacy prompts for compatibility
+            "knife",
+            "crowbar",
+            "bolt cutters",
+        ],
+        "threshold": 0.20,
+        "priority": "critical",
+    },
+    "suspicious_items": {
+        "prompts": [
+            "ladder against wall",
+            "lock picks",
+            "spray paint can",
+            "broken glass",
+            "pry bar",
+            "wire cutters",
+            # Legacy prompts for compatibility
+            "ladder",
+            "flashlight",
+        ],
+        "threshold": 0.25,
+        "priority": "high",
+    },
+    "packages": {
+        "prompts": [
+            "cardboard delivery package",
+            "Amazon shipping box",
+            "FedEx package",
+            "UPS package",
+            "mail envelope",
+            "food delivery bag",
+            "pizza box",
+            # Legacy prompts for compatibility
+            "package",
+            "cardboard box",
+            "Amazon box",
+            "delivery box",
+        ],
+        "threshold": 0.35,
+        "priority": "medium",
+    },
+    "people": {
+        "prompts": [
+            "person standing",
+            "person walking",
+            "delivery driver with package",
+            "mail carrier",
+            "person at door",
+            "person in driveway",
+            # Legacy prompts for compatibility
+            "person",
+            "face mask",
+            "hoodie",
+            "gloves",
+        ],
+        "threshold": 0.35,
+        "priority": "medium",
+    },
+    "bags": {
+        "prompts": [
+            "backpack",
+            "duffel bag",
+            "suitcase",
+            "shopping bag",
+            "messenger bag",
+            "large bag",
+            "gym bag",
+        ],
+        "threshold": 0.35,
+        "priority": "medium",
+    },
+    "vehicles": {
+        "prompts": [
+            "car",
+            "pickup truck",
+            "delivery van",
+            "SUV",
+            "motorcycle",
+            "bicycle",
+            "scooter",
+            # Legacy prompts for compatibility
+            "truck",
+            "van",
+        ],
+        "threshold": 0.40,
+        "priority": "low",
+    },
+    "vehicle_parts": {
+        "prompts": [
+            "license plate",
+            "wheel",
+            "door handle",
+            "car window",
+            "side mirror",
+        ],
+        "threshold": 0.35,
+        "priority": "low",
+    },
+    "animals": {
+        "prompts": [
+            "dog",
+            "cat",
+            "raccoon",
+            "deer",
+            "squirrel",
+            "bird",
+            "rabbit",
+            "coyote",
+            "fox",
+        ],
+        "threshold": 0.45,
+        "priority": "low",
+    },
+}
+
+
+def get_all_yolo_world_prompts() -> list[str]:
+    """Get flattened list of all YOLO-World prompts from hierarchical categories.
+
+    Returns:
+        List of all prompts across all categories.
+    """
+    return [p for cat in YOLO_WORLD_PROMPTS_V2.values() for p in cat["prompts"]]
+
+
+def get_object_priority(matched_object: str) -> str:
+    """Get priority level for a detected object.
+
+    Args:
+        matched_object: The object class that was detected.
+
+    Returns:
+        Priority string: "critical", "high", "medium", or "low".
+    """
+    for config in YOLO_WORLD_PROMPTS_V2.values():
+        if matched_object in config["prompts"]:
+            return config["priority"]
+    return "low"
+
+
+def get_object_threshold(category: str) -> float:
+    """Get confidence threshold for an object category.
+
+    Args:
+        category: Category name (e.g., "weapons", "packages").
+
+    Returns:
+        Confidence threshold for the category, or 0.35 as default.
+    """
+    config = YOLO_WORLD_PROMPTS_V2.get(category)
+    if config is None:
+        return 0.35
+    return config["threshold"]
+
+
+def get_object_category(matched_object: str) -> str | None:
+    """Get category name for a detected object.
+
+    Args:
+        matched_object: The object class that was detected.
+
+    Returns:
+        Category name or None if not found.
+    """
+    for category, config in YOLO_WORLD_PROMPTS_V2.items():
+        if matched_object in config["prompts"]:
+            return category
+    return None
+
+
+def get_prompts_by_priority(priority: str) -> list[str]:
+    """Get all prompts for a given priority level.
+
+    Args:
+        priority: Priority level ("critical", "high", "medium", "low").
+
+    Returns:
+        List of prompts matching the priority level.
+    """
+    prompts = []
+    for config in YOLO_WORLD_PROMPTS_V2.values():
+        if config["priority"] == priority:
+            prompts.extend(config["prompts"])
+    return prompts
+
+
+# ==============================================================================
+# Backward Compatibility - Legacy Constants (NEM-3913)
+# ==============================================================================
+# These constants are maintained for backward compatibility with existing code.
+# New code should use the hierarchical YOLO_WORLD_PROMPTS_V2 structure.
+
 # Security-relevant default prompts for home security monitoring
 # These prompts are optimized for detecting objects of interest in security footage
-SECURITY_PROMPTS: list[str] = [
-    # Packages and deliveries
-    "package",
-    "cardboard box",
-    "Amazon box",
-    "delivery box",
-    # Potential threats/tools
-    "knife",
-    "crowbar",
-    "bolt cutters",
-    "hammer",
-    "baseball bat",
-    "flashlight",
-    # Items of interest
-    "ladder",
-    "backpack",
-    "duffel bag",
-    "suitcase",
-    "shopping bag",
-    # People and accessories
-    "person",
-    "face mask",
-    "hoodie",
-    "gloves",
-]
+SECURITY_PROMPTS: list[str] = (
+    YOLO_WORLD_PROMPTS_V2["weapons"]["prompts"]
+    + YOLO_WORLD_PROMPTS_V2["suspicious_items"]["prompts"]
+    + YOLO_WORLD_PROMPTS_V2["packages"]["prompts"]
+    + YOLO_WORLD_PROMPTS_V2["people"]["prompts"]
+    + YOLO_WORLD_PROMPTS_V2["bags"]["prompts"]
+)
 
 # Extended prompts for vehicle-related security
-VEHICLE_SECURITY_PROMPTS: list[str] = [
-    "car",
-    "truck",
-    "van",
-    "motorcycle",
-    "bicycle",
-    "license plate",
-    "wheel",
-    "door handle",
-]
+VEHICLE_SECURITY_PROMPTS: list[str] = (
+    YOLO_WORLD_PROMPTS_V2["vehicles"]["prompts"] + YOLO_WORLD_PROMPTS_V2["vehicle_parts"]["prompts"]
+)
 
 # Prompts for animal detection (common false alarm sources)
-ANIMAL_PROMPTS: list[str] = [
-    "dog",
-    "cat",
-    "bird",
-    "squirrel",
-    "deer",
-    "raccoon",
-]
+ANIMAL_PROMPTS: list[str] = YOLO_WORLD_PROMPTS_V2["animals"]["prompts"]
 
 
 async def load_yolo_world_model(model_path: str) -> Any:

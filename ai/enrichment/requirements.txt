@@ -12,7 +12,7 @@ python-multipart>=0.0.6
 transformers>=4.35.0
 timm>=0.9.0
 
-# FashionCLIP requires open_clip
+# FashionSigLIP requires open_clip (57% more accurate than FashionCLIP)
 open_clip_torch>=2.24.0
 
 # New model dependencies for YOLOv8 and threat detection

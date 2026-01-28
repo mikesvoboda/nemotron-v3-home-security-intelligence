@@ -6,7 +6,7 @@ detections with additional attributes.
 Models hosted:
 - VehicleClassifier: Vehicle type classification (~1.5GB)
 - PetClassifier: Cat/dog classification (~200MB)
-- ClothingClassifier: Zero-shot clothing classification with FashionCLIP (~800MB)
+- ClothingClassifier: Zero-shot clothing classification with FashionSigLIP (~800MB, 57% more accurate)
 - DepthEstimator: Monocular depth estimation with Depth Anything V2 (~150MB)
 - PoseAnalyzer: Human pose estimation with ViTPose+ (~100MB)
 

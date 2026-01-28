@@ -907,6 +907,129 @@ class DetectorClient:
                 ) from last_exception
             raise DetectorUnavailableError(error_msg)
 
+    async def segment_image(
+        self,
+        image_data: bytes,
+        image_name: str = "image.jpg",
+    ) -> dict[str, Any]:
+        """Send segmentation request to YOLO26 service (NEM-3912).
+
+        Performs instance segmentation on an image, returning both bounding boxes
+        and segmentation masks for detected objects.
+
+        Args:
+            image_data: Raw image bytes to send
+            image_name: Filename for the multipart upload
+
+        Returns:
+            Parsed JSON response with segmentation results:
+            {
+                "detections": [
+                    {
+                        "class": "person",
+                        "confidence": 0.95,
+                        "bbox": {"x": 100, "y": 150, "width": 200, "height": 400},
+                        "mask_rle": {"counts": [...], "size": [height, width]},
+                        "mask_polygon": [[x1, y1, x2, y2, ...], ...]
+                    }
+                ],
+                "inference_time_ms": 45.2,
+                "image_width": 640,
+                "image_height": 480
+            }
+
+        Raises:
+            DetectorUnavailableError: If segmentation request fails
+        """
+        last_exception: Exception | None = None
+        semaphore = self._get_semaphore()
+        settings = get_settings()
+        explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+
+        with trace_span(
+            f"{self._detector_type}_segmentation_request",
+            image_size_bytes=len(image_data),
+        ) as span:
+            AIModelAttributes.set_on_span(
+                span,
+                model_name=self._detector_type,
+                model_version=self._model_version,
+                model_provider="huggingface",
+                device="cuda:0",
+                batch_size=1,
+            )
+
+            for attempt in range(self._max_retries):
+                span.set_attribute("retry_attempt", attempt)
+                try:
+                    async with semaphore:
+                        start_time = time.monotonic()
+                        async with asyncio.timeout(explicit_timeout):
+                            files = {"file": (image_name, image_data, "image/jpeg")}
+                            response = await self._http_client.post(
+                                f"{self._detector_url}/segment",
+                                files=files,
+                                headers=self._get_auth_headers(),
+                            )
+                            response.raise_for_status()
+                            result: dict[str, Any] = response.json()
+                            inference_time_ms = (time.monotonic() - start_time) * 1000
+
+                            detections = result.get("detections", [])
+                            set_detection_attributes(
+                                span,
+                                detections=detections,
+                                inference_time_ms=inference_time_ms,
+                            )
+                            set_inference_result_attributes(
+                                span, duration_ms=inference_time_ms, status="success"
+                            )
+                            return result
+
+                except (
+                    httpx.ConnectError,
+                    httpx.ReadTimeout,
+                    httpx.WriteTimeout,
+                    TimeoutError,
+                ) as e:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)
+                        logger.warning(
+                            f"Segmentation request failed (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s: {sanitize_error(e)}",
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error(f"{self._detector_type}_segmentation_error")
+                        logger.error(
+                            f"Segmentation failed after {self._max_retries} attempts",
+                            exc_info=True,
+                        )
+
+                except httpx.HTTPStatusError as e:
+                    status_code = e.response.status_code
+                    if status_code >= 500:
+                        last_exception = e
+                        if attempt < self._max_retries - 1:
+                            delay = min(2**attempt, 30)
+                            await asyncio.sleep(delay)
+                        else:
+                            record_pipeline_error(
+                                f"{self._detector_type}_segmentation_server_error"
+                            )
+                    else:
+                        raise ValueError(f"Segmentation client error: HTTP {status_code}") from e
+
+            error_msg = f"Segmentation failed after {self._max_retries} attempts"
+            span.set_attribute("error", True)
+            span.set_attribute("error.message", error_msg)
+            if last_exception:
+                raise DetectorUnavailableError(
+                    error_msg, original_error=last_exception
+                ) from last_exception
+            raise DetectorUnavailableError(error_msg)
+
     def _validate_image_for_detection(self, image_path: str, camera_id: str) -> bool:
         """Validate that an image file is suitable for object detection.
 

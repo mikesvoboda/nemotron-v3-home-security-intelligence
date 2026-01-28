@@ -16,7 +16,11 @@ MODELS = {
         "repo": "depth-anything/Depth-Anything-V2-Small",
         "type": "huggingface",
     },
-    "xclip-base-patch32": {"repo": "microsoft/xclip-base-patch32", "type": "huggingface"},
+    # X-CLIP 16-frame patch16 model for improved action recognition accuracy (NEM-3908)
+    "xclip-base-patch16-16-frames": {
+        "repo": "microsoft/xclip-base-patch16-16-frames",
+        "type": "huggingface",
+    },
     "vit-age-classifier": {"repo": "nateraw/vit-age-classifier", "type": "huggingface"},
     "yolov8n-pose": {"repo": "yolov8n-pose.pt", "type": "ultralytics"},
     "osnet-x0-25": {"repo": "osnet_x0_25", "type": "torchreid"},

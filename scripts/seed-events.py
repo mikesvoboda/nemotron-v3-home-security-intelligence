@@ -45,8 +45,10 @@ def _load_env_and_fix_database_url() -> None:
     When running outside containers, the DATABASE_URL uses container hostnames
     (e.g., 'postgres:5432') which don't resolve. This function:
     1. Loads .env from the project root
-    2. Detects if running locally (hostname doesn't resolve)
-    3. Converts container hostname to localhost for local execution
+    2. Checks for DATABASE_URL_EXTERNAL (explicit local config)
+    3. Detects if running locally (hostname doesn't resolve)
+    4. Converts container hostname to localhost for local execution
+    5. Uses POSTGRES_EXTERNAL_PORT if set (for port mapping differences)
     """
     from dotenv import load_dotenv
 
@@ -58,13 +60,20 @@ def _load_env_and_fix_database_url() -> None:
         load_dotenv(env_file)
         print(f"Loaded environment from {env_file}")
 
+    # Check for explicit external DATABASE_URL first
+    external_url = os.environ.get("DATABASE_URL_EXTERNAL")
+    if external_url:
+        os.environ["DATABASE_URL"] = external_url
+        print("Using DATABASE_URL_EXTERNAL for local execution")
+        return
+
     # Check if DATABASE_URL needs transformation for local execution
     database_url = os.environ.get("DATABASE_URL", "")
     if not database_url:
         print("Warning: DATABASE_URL not set in environment")
         return
 
-    # Extract hostname from DATABASE_URL (format: protocol://user:pass@host:port/db)  # pragma: allowlist secret
+    # Extract hostname and port from DATABASE_URL (format: protocol://user:pass@host:port/db)  # pragma: allowlist secret
     match = re.search(r"@([^:/@]+):(\d+)/", database_url)
     if not match:
         return
@@ -78,10 +87,20 @@ def _load_env_and_fix_database_url() -> None:
         print(f"Database hostname '{hostname}' resolves - using container network")
     except socket.gaierror:
         # Hostname doesn't resolve - we're running locally
-        # Replace container hostname with localhost
+        # Check for external port override (container may expose different port)
+        external_port = os.environ.get("POSTGRES_EXTERNAL_PORT", "5432")
+
+        # Replace container hostname with localhost and optionally fix port
         new_url = database_url.replace(f"@{hostname}:", "@localhost:")
+        if port != external_port:
+            new_url = new_url.replace(f"@localhost:{port}/", f"@localhost:{external_port}/")
+            print(
+                f"Database hostname '{hostname}' doesn't resolve - "
+                f"using localhost:{external_port} (mapped from container port {port})"
+            )
+        else:
+            print(f"Database hostname '{hostname}' doesn't resolve - using localhost:{port}")
         os.environ["DATABASE_URL"] = new_url
-        print(f"Database hostname '{hostname}' doesn't resolve - using localhost:{port}")
 
 
 # Load .env and fix DATABASE_URL before importing backend modules

@@ -9,13 +9,19 @@ The model analyzes sequences of frames to detect security-relevant actions like:
 - Looking around suspiciously, trying door handle
 - Walking normally, delivering package
 
-Reference: https://huggingface.co/microsoft/xclip-base-patch32
+Model Configuration (NEM-3908):
+- Model: microsoft/xclip-base-patch16-16-frames
+- Frames: 16 (upgraded from 8 for +4% accuracy)
+- Patch size: 16 (finer spatial resolution than patch32)
+- VRAM: ~2GB
+
+Reference: https://huggingface.co/microsoft/xclip-base-patch16-16-frames
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, TypedDict
 
 from PIL import Image
 
@@ -23,25 +29,188 @@ from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# ==============================================================================
+# Hierarchical Security Action Categories (NEM-3913)
+# ==============================================================================
+# Action prompts organized by risk level with category-specific thresholds.
+# This hierarchical structure enables better risk assessment by the LLM.
+
+
+class ActionCategoryConfig(TypedDict):
+    """Configuration for an action category."""
+
+    prompts: list[str]
+    threshold: float
+
+
+ACTION_PROMPTS_V2: dict[str, ActionCategoryConfig] = {
+    "high_risk": {
+        "prompts": [
+            "a person breaking into a building through a window",
+            "a person forcing open a door with tools",
+            "a person smashing or breaking glass",
+            "a person climbing over a fence",
+            "a person picking or tampering with a lock",
+            "a person vandalizing property",
+            "a person running away quickly after an action",
+            # Legacy prompts for compatibility
+            "a person breaking in",
+            "a person vandalizing property",
+        ],
+        "threshold": 0.20,  # Low threshold - don't miss these
+    },
+    "suspicious": {
+        "prompts": [
+            "a person loitering and looking around suspiciously",
+            "a person repeatedly walking past the same location",
+            "a person hiding behind bushes or objects",
+            "a person casing a house by looking at windows and doors",
+            "a person photographing security cameras or locks",
+            "a person checking if anyone is home",
+            "a person carrying tools at night",
+            "a person peeking into windows",
+            # Legacy prompts for compatibility
+            "a person loitering",
+            "a person looking around suspiciously",
+            "a person trying a door handle",
+            "a person checking windows",
+            "a person hiding near bushes",
+            "a person taking photos of house",
+        ],
+        "threshold": 0.25,
+    },
+    "approaching": {
+        "prompts": [
+            "a person approaching a front door",
+            "a person walking up a driveway",
+            "a person approaching a side entrance",
+            "a person approaching a garage",
+            # Legacy prompts for compatibility
+            "a person approaching a door",
+        ],
+        "threshold": 0.30,
+    },
+    "delivery": {
+        "prompts": [
+            "a delivery driver carrying a package to a door",
+            "a mail carrier delivering mail",
+            "a person leaving a package at a door",
+            "a food delivery person with a bag",
+            # Legacy prompts for compatibility
+            "a person delivering a package",
+            "a person leaving package at door",
+        ],
+        "threshold": 0.35,
+    },
+    "normal": {
+        "prompts": [
+            "a person walking casually on a sidewalk",
+            "a person jogging or running for exercise",
+            "a person walking a dog",
+            "a person checking a mailbox",
+            "a person mowing a lawn or doing yard work",
+            "a person knocking politely on a door",
+            "a person ringing a doorbell and waiting",
+            "a person waving or greeting someone",
+            # Legacy prompts for compatibility
+            "a person walking normally",
+            "a person knocking on door",
+            "a person ringing doorbell",
+        ],
+        "threshold": 0.40,
+    },
+    "stationary": {
+        "prompts": [
+            "a person standing still and waiting",
+            "a person talking on a phone",
+            "a person looking at their phone",
+            "a person sitting on steps or a porch",
+        ],
+        "threshold": 0.40,
+    },
+    "fleeing": {
+        "prompts": [
+            "a person running away from a location",
+            "a person quickly leaving after suspicious activity",
+            "a person fleeing the scene",
+            # Legacy prompts for compatibility
+            "a person running away",
+        ],
+        "threshold": 0.25,
+    },
+}
+
+
+def get_all_action_prompts() -> list[str]:
+    """Get flattened list of all action prompts from hierarchical categories.
+
+    Returns:
+        List of all prompts across all categories.
+    """
+    return [p for cat in ACTION_PROMPTS_V2.values() for p in cat["prompts"]]
+
+
+def get_action_risk_level(matched_action: str) -> str:
+    """Map detected action to risk level.
+
+    Args:
+        matched_action: The action that was matched.
+
+    Returns:
+        Risk level string: "critical", "high", "medium", or "low".
+    """
+    for category, config in ACTION_PROMPTS_V2.items():
+        if matched_action in config["prompts"]:
+            if category in ["high_risk"]:
+                return "critical"
+            elif category in ["suspicious", "fleeing"]:
+                return "high"
+            elif category in ["approaching"]:
+                return "medium"
+            else:
+                return "low"
+    return "low"
+
+
+def get_action_threshold(category: str) -> float:
+    """Get confidence threshold for an action category.
+
+    Args:
+        category: Category name (e.g., "high_risk", "suspicious").
+
+    Returns:
+        Confidence threshold for the category, or 0.35 as default.
+    """
+    config = ACTION_PROMPTS_V2.get(category)
+    if config is None:
+        return 0.35
+    return config["threshold"]
+
+
+def get_action_category(matched_action: str) -> str | None:
+    """Get category name for a matched action prompt.
+
+    Args:
+        matched_action: The action that was matched.
+
+    Returns:
+        Category name or None if not found.
+    """
+    for category, config in ACTION_PROMPTS_V2.items():
+        if matched_action in config["prompts"]:
+            return category
+    return None
+
+
+# ==============================================================================
+# Backward Compatibility - Legacy Constants (NEM-3913)
+# ==============================================================================
+# These constants are maintained for backward compatibility with existing code.
+# New code should use the hierarchical ACTION_PROMPTS_V2 structure.
+
 # Security-focused action prompts for home security monitoring
 # These prompts are designed to capture suspicious vs normal behaviors
-SECURITY_ACTION_PROMPTS = [
-    "a person loitering",
-    "a person approaching a door",
-    "a person running away",
-    "a person looking around suspiciously",
-    "a person trying a door handle",
-    "a person walking normally",
-    "a person delivering a package",
-    "a person checking windows",
-    "a person hiding near bushes",
-    "a person taking photos of house",
-    "a person knocking on door",
-    "a person ringing doorbell",
-    "a person leaving package at door",
-    "a person vandalizing property",
-    "a person breaking in",
-]
+SECURITY_ACTION_PROMPTS = get_all_action_prompts()
 
 
 async def load_xclip_model(model_path: str) -> Any:
@@ -52,7 +221,8 @@ async def load_xclip_model(model_path: str) -> Any:
 
     Args:
         model_path: Local model path or HuggingFace model path
-            (e.g., "/export/ai_models/model-zoo/xclip-base" or "microsoft/xclip-base-patch32")
+            (e.g., "/export/ai_models/model-zoo/xclip-base-patch16-16-frames"
+            or "microsoft/xclip-base-patch16-16-frames")
 
     Returns:
         Dictionary containing:
@@ -213,7 +383,8 @@ async def classify_actions(
 
     Args:
         model_dict: Dictionary containing model and processor from load_xclip_model
-        frames: List of PIL Images representing video frames (ideally 8 frames)
+        frames: List of PIL Images representing video frames (ideally 16 frames
+            for xclip-base-patch16-16-frames model)
         prompts: Custom action prompts to classify against.
             If None, uses SECURITY_ACTION_PROMPTS.
         top_k: Number of top predictions to return (default 3)
@@ -280,10 +451,11 @@ async def classify_actions(
         def _classify() -> dict[str, Any]:
             import numpy as np
 
-            # X-CLIP expects 8 frames for optimal performance
-            # If we have fewer, duplicate frames to reach 8
-            # If we have more, sample uniformly to get 8
-            num_frames = 8
+            # X-CLIP base-patch16-16-frames model expects 16 frames for optimal performance
+            # This provides ~4% improved accuracy over the 8-frame variant (NEM-3908)
+            # If we have fewer, duplicate frames to reach 16
+            # If we have more, sample uniformly to get 16
+            num_frames = 16
             if len(frames) < num_frames:
                 # Duplicate last frame to fill
                 padded_frames = frames + [frames[-1]] * (num_frames - len(frames))
@@ -447,16 +619,16 @@ async def classify_actions(
 
 def sample_frames_from_batch(
     frame_paths: list[str],
-    target_count: int = 8,
+    target_count: int = 16,
 ) -> list[str]:
     """Sample frames uniformly from a batch for X-CLIP processing.
 
-    X-CLIP works best with 8 frames spanning the action. This function
-    samples frames uniformly from a larger batch.
+    X-CLIP base-patch16-16-frames model works best with 16 frames spanning
+    the action. This function samples frames uniformly from a larger batch.
 
     Args:
         frame_paths: List of frame file paths
-        target_count: Number of frames to sample (default 8)
+        target_count: Number of frames to sample (default 16 for NEM-3908 upgrade)
 
     Returns:
         List of sampled frame paths

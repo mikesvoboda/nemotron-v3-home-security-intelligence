@@ -99,6 +99,11 @@ SUPPORTED_PROMPTS = {
     "<OCR_WITH_REGION>",
 }
 
+# Region-based task prompts (NEM-3911)
+# These require additional location/text inputs
+REGION_TO_DESCRIPTION_PROMPT = "<REGION_TO_DESCRIPTION>"
+CAPTION_TO_PHRASE_GROUNDING_PROMPT = "<CAPTION_TO_PHRASE_GROUNDING>"
+
 # VQA prompt prefix - VQA prompts have format: <VQA>question text
 VQA_PROMPT_PREFIX = "<VQA>"
 
@@ -270,6 +275,122 @@ class HealthResponse(BaseModel):
     device: str
     cuda_available: bool
     vram_used_gb: float | None = None
+
+
+# =============================================================================
+# Region Description and Phrase Grounding Models (NEM-3911)
+# =============================================================================
+
+
+class BoundingBox(BaseModel):
+    """A bounding box with x1, y1, x2, y2 coordinates.
+
+    Coordinates are in pixel values relative to image dimensions.
+    x1, y1 is the top-left corner and x2, y2 is the bottom-right corner.
+    """
+
+    x1: float = Field(..., ge=0, description="Left edge x-coordinate")
+    y1: float = Field(..., ge=0, description="Top edge y-coordinate")
+    x2: float = Field(..., ge=0, description="Right edge x-coordinate")
+    y2: float = Field(..., ge=0, description="Bottom edge y-coordinate")
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate that x1 < x2 and y1 < y2."""
+        if self.x1 >= self.x2:
+            raise ValueError(f"x1 ({self.x1}) must be less than x2 ({self.x2})")
+        if self.y1 >= self.y2:
+            raise ValueError(f"y1 ({self.y1}) must be less than y2 ({self.y2})")
+
+    def as_list(self) -> list[float]:
+        """Return bounding box as [x1, y1, x2, y2] list."""
+        return [self.x1, self.y1, self.x2, self.y2]
+
+    @classmethod
+    def from_list(cls, bbox: list[float]) -> BoundingBox:
+        """Create BoundingBox from [x1, y1, x2, y2] list."""
+        if len(bbox) != 4:
+            raise ValueError(f"Expected 4 coordinates, got {len(bbox)}")
+        return cls(x1=bbox[0], y1=bbox[1], x2=bbox[2], y2=bbox[3])
+
+
+class RegionDescriptionRequest(BaseModel):
+    """Request format for region description endpoint (NEM-3911).
+
+    Given an image and one or more bounding box regions, describe what's
+    in each specific region.
+    """
+
+    image: str = Field(..., description="Base64 encoded image")
+    regions: list[BoundingBox] = Field(
+        ...,
+        min_length=1,
+        description="List of bounding box regions to describe (at least one required)",
+    )
+
+
+class RegionDescriptionResponse(BaseModel):
+    """Response format for region description endpoint (NEM-3911).
+
+    Returns a caption for each input region along with the original
+    bounding box coordinates.
+    """
+
+    descriptions: list[CaptionedRegion] = Field(
+        ..., description="List of region descriptions with bounding boxes"
+    )
+    inference_time_ms: float = Field(..., description="Total inference time in milliseconds")
+
+
+class GroundedPhrase(BaseModel):
+    """A phrase with its grounded bounding boxes (NEM-3911).
+
+    When a phrase matches multiple objects in the image, multiple bboxes
+    are returned. If the phrase has no matches, bboxes will be empty.
+    """
+
+    phrase: str = Field(..., description="The text phrase that was searched for")
+    bboxes: list[list[float]] = Field(
+        default_factory=list,
+        description="List of bounding boxes where this phrase was found, each as [x1, y1, x2, y2]",
+    )
+    confidence_scores: list[float] = Field(
+        default_factory=list,
+        description="Confidence scores for each bounding box (0-1)",
+    )
+
+
+class PhraseGroundingRequest(BaseModel):
+    """Request format for phrase grounding endpoint (NEM-3911).
+
+    Given an image and text descriptions, find the bounding boxes of
+    objects matching each description.
+    """
+
+    image: str = Field(..., description="Base64 encoded image")
+    phrases: list[str] = Field(
+        ...,
+        min_length=1,
+        description="List of text phrases to ground in the image (at least one required)",
+    )
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate that no phrases are empty strings."""
+        for i, phrase in enumerate(self.phrases):
+            if not phrase or not phrase.strip():
+                raise ValueError(f"Phrase at index {i} cannot be empty")
+
+
+class PhraseGroundingResponse(BaseModel):
+    """Response format for phrase grounding endpoint (NEM-3911).
+
+    Returns grounding results for each input phrase. Phrases with no
+    matches will have empty bboxes lists.
+    """
+
+    grounded_phrases: list[GroundedPhrase] = Field(
+        ..., description="Grounding results for each input phrase"
+    )
+    inference_time_ms: float = Field(..., description="Total inference time in milliseconds")
 
 
 class Florence2Model:
@@ -1116,6 +1237,190 @@ async def detect_security_objects(request: ImageRequest) -> SecurityObjectsRespo
         raise HTTPException(
             status_code=500, detail=f"Security objects detection failed: {e!s}"
         ) from e
+
+
+# =============================================================================
+# Region Description and Phrase Grounding Endpoints (NEM-3911)
+# =============================================================================
+
+
+@app.post("/describe-region", response_model=RegionDescriptionResponse)
+async def describe_region(request: RegionDescriptionRequest) -> RegionDescriptionResponse:
+    """Describe what's in a specific bounding box region of an image.
+
+    Given an image and one or more bounding box regions, this endpoint uses
+    Florence-2's <REGION_TO_DESCRIPTION> task to generate a textual description
+    of what's contained within each specified region.
+
+    This is useful for:
+    - Getting detailed descriptions of detected objects
+    - Understanding context within a specific area of the image
+    - Enriching YOLO26 detections with natural language descriptions
+
+    Args:
+        request: RegionDescriptionRequest with image and regions to describe
+
+    Returns:
+        RegionDescriptionResponse with description for each input region
+
+    Example:
+        Given a YOLO26 detection of a person at [100, 150, 300, 400],
+        this endpoint can describe: "a person wearing a blue jacket and
+        holding a brown package"
+    """
+    if model is None or model.model is None:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="describe_region", status="error").inc()
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+        start_time = time.perf_counter()
+
+        descriptions: list[CaptionedRegion] = []
+
+        # Process each region
+        for region in request.regions:
+            # Florence-2 REGION_TO_DESCRIPTION expects format:
+            # <REGION_TO_DESCRIPTION><loc_x1><loc_y1><loc_x2><loc_y2>
+            # where loc values are normalized to 0-999 range
+            bbox = region.as_list()
+
+            # Normalize bbox coordinates to Florence-2's 0-999 range
+            # Florence-2 expects coordinates as integers in [0, 999] range
+            # representing percentage of image dimension * 10
+            img_width, img_height = image.size
+            norm_x1 = int(bbox[0] / img_width * 999)
+            norm_y1 = int(bbox[1] / img_height * 999)
+            norm_x2 = int(bbox[2] / img_width * 999)
+            norm_y2 = int(bbox[3] / img_height * 999)
+
+            # Build the location-aware prompt
+            prompt = f"{REGION_TO_DESCRIPTION_PROMPT}<loc_{norm_x1}><loc_{norm_y1}><loc_{norm_x2}><loc_{norm_y2}>"
+
+            # Run inference
+            result, _time_ms = model.extract_raw(image, prompt)
+
+            # Parse the result - Florence-2 returns the description as a string
+            description = ""
+            if isinstance(result, str):
+                description = result
+            elif isinstance(result, dict) and REGION_TO_DESCRIPTION_PROMPT in result:
+                description = str(result[REGION_TO_DESCRIPTION_PROMPT])
+            elif isinstance(result, dict):
+                # Try to get any text result
+                description = str(result.get("description", result.get("text", str(result))))
+
+            descriptions.append(CaptionedRegion(caption=description, bbox=bbox))
+
+        # Calculate total time
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="describe_region").observe(total_time_ms / 1000)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="describe_region", status="success").inc()
+
+        return RegionDescriptionResponse(
+            descriptions=descriptions,
+            inference_time_ms=total_time_ms,
+        )
+
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="describe_region", status="error").inc()
+        raise
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="describe_region", status="error").inc()
+        logger.error(f"Region description failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Region description failed: {e!s}") from e
+
+
+@app.post("/phrase-grounding", response_model=PhraseGroundingResponse)
+async def phrase_grounding(request: PhraseGroundingRequest) -> PhraseGroundingResponse:
+    """Find objects in an image matching text descriptions (phrase grounding).
+
+    Given an image and one or more text phrases, this endpoint uses
+    Florence-2's <CAPTION_TO_PHRASE_GROUNDING> task to locate bounding boxes
+    of objects that match each phrase description.
+
+    This is useful for:
+    - Finding specific objects described in natural language
+    - Verifying presence of particular items or people
+    - Targeted search for security-relevant objects by description
+
+    Args:
+        request: PhraseGroundingRequest with image and phrases to find
+
+    Returns:
+        PhraseGroundingResponse with bounding boxes for each matched phrase
+
+    Example:
+        Given the phrase "person in blue jacket", this endpoint returns
+        bounding boxes of all persons wearing blue jackets in the image.
+        If no match is found, bboxes will be empty for that phrase.
+    """
+    if model is None or model.model is None:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="phrase_grounding", status="error").inc()
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+        start_time = time.perf_counter()
+
+        grounded_phrases: list[GroundedPhrase] = []
+
+        # Process each phrase
+        for phrase in request.phrases:
+            # Florence-2 CAPTION_TO_PHRASE_GROUNDING expects format:
+            # <CAPTION_TO_PHRASE_GROUNDING>phrase text here
+            # This is a ML model prompt, not HTML rendering - semgrep false positive
+            prompt = f"{CAPTION_TO_PHRASE_GROUNDING_PROMPT}{phrase}"  # nosemgrep
+
+            # Run inference
+            raw_result, _time_ms = model.extract_raw(image, prompt)
+
+            # Parse the result - Florence-2 returns {'bboxes': [...], 'labels': [...]}
+            bboxes: list[list[float]] = []
+            confidence_scores: list[float] = []
+
+            if isinstance(raw_result, dict):
+                # Get bboxes - may be nested or flat
+                result_bboxes = raw_result.get("bboxes", [])
+                # Note: result_labels are not used since we already have the phrase
+
+                # Florence-2 phrase grounding returns all matches for the phrase
+                for bbox in result_bboxes:
+                    if isinstance(bbox, list):
+                        bboxes.append(bbox)
+                        # Florence-2 doesn't return confidence for phrase grounding
+                        # so we default to 1.0
+                        confidence_scores.append(1.0)
+
+            grounded_phrases.append(
+                GroundedPhrase(
+                    phrase=phrase,
+                    bboxes=bboxes,
+                    confidence_scores=confidence_scores,
+                )
+            )
+
+        # Calculate total time
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="phrase_grounding").observe(total_time_ms / 1000)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="phrase_grounding", status="success").inc()
+
+        return PhraseGroundingResponse(
+            grounded_phrases=grounded_phrases,
+            inference_time_ms=total_time_ms,
+        )
+
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="phrase_grounding", status="error").inc()
+        raise
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="phrase_grounding", status="error").inc()
+        logger.error(f"Phrase grounding failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Phrase grounding failed: {e!s}") from e
 
 
 if __name__ == "__main__":

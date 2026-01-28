@@ -273,6 +273,71 @@ Tasks 2 and 3 run in parallel using `asyncio.gather` for optimal performance.
 
 **Use Case:** Primary endpoint for Nemotron prompt context generation. Provides structured output with all scene elements needed for security risk assessment.
 
+### POST /describe-region (NEM-3911)
+
+Describe what's in specific bounding box regions of an image.
+
+**Request:**
+
+```json
+{
+  "image": "<base64-encoded-image>",
+  "regions": [
+    { "x1": 100, "y1": 150, "x2": 300, "y2": 400 },
+    { "x1": 200, "y1": 350, "x2": 280, "y2": 420 }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "descriptions": [
+    {
+      "caption": "a person wearing a blue jacket and holding a brown package",
+      "bbox": [100, 150, 300, 400]
+    },
+    { "caption": "a brown cardboard package on the ground", "bbox": [200, 350, 280, 420] }
+  ],
+  "inference_time_ms": 180.5
+}
+```
+
+**Use Case:** Get detailed descriptions of YOLO26 detections for enriched context in Nemotron prompts.
+
+### POST /phrase-grounding (NEM-3911)
+
+Find objects in an image matching text descriptions (phrase grounding).
+
+**Request:**
+
+```json
+{
+  "image": "<base64-encoded-image>",
+  "phrases": ["person in blue jacket", "brown package", "weapon"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "grounded_phrases": [
+    {
+      "phrase": "person in blue jacket",
+      "bboxes": [[100, 150, 300, 400]],
+      "confidence_scores": [1.0]
+    },
+    { "phrase": "brown package", "bboxes": [[200, 350, 280, 420]], "confidence_scores": [1.0] },
+    { "phrase": "weapon", "bboxes": [], "confidence_scores": [] }
+  ],
+  "inference_time_ms": 250.3
+}
+```
+
+**Use Case:** Targeted object search for security-relevant items. Useful for finding specific objects described in natural language or verifying presence of suspicious items.
+
 ## Prompt Types and Use Cases
 
 ### Caption Prompts
@@ -297,6 +362,13 @@ Tasks 2 and 3 run in parallel using `asyncio.gather` for optimal performance.
 | ------------------- | ------------------------ | --------------------- |
 | `<OCR>`             | Detected text            | License plates, signs |
 | `<OCR_WITH_REGION>` | Text with bounding boxes | Text localization     |
+
+### Region-Based Prompts (NEM-3911)
+
+| Prompt                          | Input               | Output                     | Use Case                    |
+| ------------------------------- | ------------------- | -------------------------- | --------------------------- |
+| `<REGION_TO_DESCRIPTION>`       | Bounding box region | Caption of region contents | Describe detected objects   |
+| `<CAPTION_TO_PHRASE_GROUNDING>` | Text phrase         | Bounding boxes of matches  | Find objects by description |
 
 ## Environment Variables
 

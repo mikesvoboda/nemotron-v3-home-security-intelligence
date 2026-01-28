@@ -6,7 +6,7 @@ YOLO26v2 detections with additional attributes.
 Models hosted:
 1. Vehicle Segment Classification (~1.5GB) - ResNet-50 for vehicle type/color
 2. Pet Classifier (~200MB) - ResNet-18 for dog/cat classification
-3. FashionCLIP (~800MB) - Zero-shot clothing attribute extraction
+3. FashionSigLIP (~800MB) - Zero-shot clothing attribute extraction (57% more accurate)
 4. Depth Anything V2 Small (~150MB) - Monocular depth estimation
 
 Port: 8094 (configurable via PORT env var)
@@ -257,7 +257,7 @@ VEHICLE_DISPLAY_NAMES: dict[str, str] = {
 }
 
 # Common vehicle colors for color classification - reserved for future use
-# with FashionCLIP zero-shot color classification
+# with FashionSigLIP zero-shot color classification
 _VEHICLE_COLORS: list[str] = [
     "white",
     "black",
@@ -507,7 +507,7 @@ class PetClassifier:
 
 
 # =============================================================================
-# Clothing Classifier (FashionCLIP)
+# Clothing Classifier (FashionSigLIP)
 # =============================================================================
 
 # Category-specific confidence thresholds for clothing classification
@@ -654,18 +654,23 @@ def get_threshold_for_category(category: str) -> float:
 
 
 class ClothingClassifier:
-    """FashionCLIP zero-shot clothing classification model wrapper.
+    """FashionSigLIP zero-shot clothing classification model wrapper.
+
+    FashionSigLIP provides 57% improved accuracy over FashionCLIP:
+    - Text-to-Image MRR: 0.239 vs 0.165 (FashionCLIP2.0)
+    - Text-to-Image Recall@1: 0.121 vs 0.077 (FashionCLIP2.0)
+    - Text-to-Image Recall@10: 0.340 vs 0.249 (FashionCLIP2.0)
 
     Uses open_clip library directly instead of transformers.AutoModel because
-    the Marqo-FashionCLIP custom model wrapper has meta tensor issues when
-    loaded via transformers that cause "Cannot copy out of meta tensor" errors.
+    the Marqo model custom wrapper has meta tensor issues when loaded via
+    transformers that cause "Cannot copy out of meta tensor" errors.
     """
 
     def __init__(self, model_path: str, device: str = "cuda:0"):
         """Initialize clothing classifier.
 
         Args:
-            model_path: Path to FashionCLIP model directory or HuggingFace model ID
+            model_path: Path to FashionSigLIP model directory or HuggingFace model ID
             device: Device to run inference on
 
         Raises:
@@ -680,15 +685,15 @@ class ClothingClassifier:
         logger.info(f"Initializing ClothingClassifier from {self.model_path}")
 
     def load_model(self) -> None:
-        """Load the FashionCLIP model using open_clip."""
+        """Load the FashionSigLIP model using open_clip."""
         from open_clip import create_model_from_pretrained, get_tokenizer
 
-        logger.info("Loading FashionCLIP model...")
+        logger.info("Loading FashionSigLIP model...")
 
         # Convert path to HuggingFace hub format if needed
         if self.model_path.startswith("/") or self.model_path.startswith("./"):
-            # Local path - use hf-hub format with Marqo model
-            hub_path = "hf-hub:Marqo/marqo-fashionCLIP"
+            # Local path - use hf-hub format with Marqo FashionSigLIP model
+            hub_path = "hf-hub:Marqo/marqo-fashionSigLIP"
             logger.info(f"Local path {self.model_path} detected, using HuggingFace hub: {hub_path}")
         elif "/" in self.model_path and not self.model_path.startswith("hf-hub:"):
             # HuggingFace model ID without prefix
@@ -1759,7 +1764,7 @@ async def lifespan(_app: FastAPI):
         )
     )
 
-    # FashionCLIP Clothing Classifier (~800MB)
+    # FashionSigLIP Clothing Classifier (~800MB) - 57% accuracy improvement over FashionCLIP
     model_manager.register_model(
         ModelConfig(
             name="fashion_clip",
@@ -2129,7 +2134,7 @@ async def pet_classify(request: PetClassifyRequest) -> PetClassifyResponse:
 
 @app.post("/clothing-classify", response_model=ClothingClassifyResponse)
 async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassifyResponse:
-    """Classify clothing attributes from a person image using FashionCLIP.
+    """Classify clothing attributes from a person image using FashionSigLIP.
 
     Input: Base64 encoded image with optional bounding box
     Output: Clothing type, color, style, confidence, suspicious/service flags

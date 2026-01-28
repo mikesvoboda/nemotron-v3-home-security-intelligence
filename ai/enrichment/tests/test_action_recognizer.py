@@ -105,7 +105,7 @@ class TestActionRecognizerFrameSampling:
     @pytest.fixture
     def recognizer(self) -> ActionRecognizer:
         """Create an ActionRecognizer without loading the model."""
-        return ActionRecognizer(model_path="microsoft/xclip-base-patch32")
+        return ActionRecognizer(model_path="microsoft/xclip-base-patch16-16-frames")
 
     def test_sample_frames_exact_count(self, recognizer: ActionRecognizer) -> None:
         """Test sampling when input has exactly required number of frames."""
@@ -200,7 +200,7 @@ class TestActionRecognizerModelLoading:
         assert recognizer.device == "cuda:0"
         assert recognizer.model is None
         assert recognizer.processor is None
-        assert recognizer.num_frames == 8
+        assert recognizer.num_frames == 16  # NEM-3908: upgraded to 16 frames
 
     def test_recognize_action_without_load_raises(self) -> None:
         """Test that calling recognize_action before load_model raises."""

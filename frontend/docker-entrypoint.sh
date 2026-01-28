@@ -28,6 +28,24 @@ fi
 # These location blocks serve the application when SSL is disabled.
 # When SSL is enabled, they are replaced with a redirect to HTTPS.
 HTTP_LOCATIONS='
+    # Reverse proxy for AI audit evaluation endpoints (longer timeout for LLM calls)
+    # AI audit evaluation makes 4 LLM calls (up to 120s each) and can take 60-480+ seconds
+    # This location takes precedence over generic /api due to longer prefix match
+    location ^~ /api/ai-audit {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Extended timeout for LLM evaluation calls (up to 10 minutes)
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
+
     # Reverse proxy for API requests to backend (handles /api and /api/*)
     # Uses $backend_upstream variable for dynamic DNS re-resolution
     # The ^~ modifier ensures this prefix location takes precedence over regex locations
@@ -124,6 +142,24 @@ HTTP_LOCATIONS='
 # The health check endpoint is exempted (it has higher priority with exact match).
 HTTPS_REDIRECT_PORT="${FRONTEND_HTTPS_PORT:-8443}"
 HTTPS_REDIRECT='
+    # Reverse proxy for AI audit evaluation endpoints (longer timeout for LLM calls)
+    # AI audit evaluation makes 4 LLM calls (up to 120s each) and can take 60-480+ seconds
+    # This location takes precedence over generic /api due to longer prefix match
+    location ^~ /api/ai-audit {
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+        # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
+        proxy_set_header Host $server_name;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Extended timeout for LLM evaluation calls (up to 10 minutes)
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
+
     # Reverse proxy for API requests to backend (handles /api and /api/*)
     # Preserved on HTTP even with SSL enabled to avoid "Failed to fetch" errors (NEM-3827)
     # Uses $backend_upstream variable for dynamic DNS re-resolution
@@ -387,6 +423,21 @@ server {
     # ==========================================================================
     # Location Blocks
     # ==========================================================================
+
+    # Reverse proxy for AI audit evaluation endpoints (longer timeout for LLM calls)
+    # AI audit evaluation makes 4 LLM calls (up to 120s each) and can take 60-480+ seconds
+    # This location takes precedence over generic /api due to longer prefix match
+    location ^~ /api/ai-audit {
+        proxy_pass \$backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$server_name;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
 
     # Reverse proxy for API requests to backend
     location ^~ /api {

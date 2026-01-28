@@ -31,10 +31,10 @@ echo "[3/9] Downloading YOLOv8n-pose..."
 mkdir -p "$MODELS_DIR/yolov8n-pose"
 python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt')" && mv yolov8n-pose.pt "$MODELS_DIR/yolov8n-pose/"
 
-# X-CLIP
+# X-CLIP 16-frame patch16 model (NEM-3908: upgraded for +4% accuracy)
 echo ""
-echo "[4/9] Downloading X-CLIP..."
-huggingface-cli download microsoft/xclip-base-patch32 --local-dir "$MODELS_DIR/xclip-base-patch32" --local-dir-use-symlinks False
+echo "[4/9] Downloading X-CLIP base-patch16-16-frames..."
+huggingface-cli download microsoft/xclip-base-patch16-16-frames --local-dir "$MODELS_DIR/xclip-base-patch16-16-frames" --local-dir-use-symlinks False
 
 # Age Classifier
 echo ""

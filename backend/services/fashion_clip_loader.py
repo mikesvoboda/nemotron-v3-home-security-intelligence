@@ -1,22 +1,32 @@
-"""FashionCLIP model loader for zero-shot clothing classification.
+"""FashionSigLIP model loader for zero-shot clothing classification.
 
 This module provides async loading and classification functions for the
-Marqo-FashionCLIP model, which is optimized for fashion/clothing recognition.
+Marqo-FashionSigLIP model, which is optimized for fashion/clothing recognition.
 
-The model uses CLIP-style zero-shot classification with text prompts to
+FashionSigLIP provides 57% improvement in accuracy over FashionCLIP:
+- Text-to-Image MRR: 0.239 vs 0.165 (FashionCLIP2.0)
+- Text-to-Image Recall@1: 0.121 vs 0.077 (FashionCLIP2.0)
+- Text-to-Image Recall@10: 0.340 vs 0.249 (FashionCLIP2.0)
+
+The model uses SigLIP-style zero-shot classification with text prompts to
 identify clothing attributes relevant to security surveillance:
 - Suspicious attire (dark hoodie, face mask, gloves)
 - Service uniforms (delivery, utility, high-visibility)
 - General clothing categories (casual, business attire)
 
-VRAM Budget: ~500MB
+Model architecture:
+- Base: ViT-B-16-SigLIP (webli)
+- Training: Generalised Contrastive Learning (GCL)
+- Parameters: 0.2B
+
+VRAM Budget: ~500MB (unchanged from FashionCLIP)
 """
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from backend.core.logging import get_logger
 
@@ -25,58 +35,201 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# ==============================================================================
+# Hierarchical Security Clothing Categories (NEM-3913)
+# ==============================================================================
+# Clothing prompts organized by risk level with category-specific thresholds.
+# This hierarchical structure enables better risk assessment by the LLM.
+
+
+class ClothingCategoryConfig(TypedDict):
+    """Configuration for a clothing category."""
+
+    prompts: list[str]
+    threshold: float
+    risk_level: str
+
+
+CLOTHING_PROMPTS_V2: dict[str, ClothingCategoryConfig] = {
+    "suspicious": {
+        "prompts": [
+            # Face/Head Covering
+            "person with face completely obscured by hood",
+            "person wearing ski mask or balaclava",
+            "person wearing dark hood pulled over head",
+            "person wearing surgical mask at unusual time",
+            "person wearing sunglasses at night",
+            # Body Concealment
+            "person in all black clothing head to toe",
+            "person wearing oversized loose clothing",
+            "person wearing long coat or trench coat",
+            "person wearing dark gloves",
+            "person with hoodie and backpack combination",
+            # Legacy prompts for compatibility
+            "person wearing dark hoodie",
+            "person wearing face mask",
+            "person wearing gloves",
+            "person wearing all black clothing",
+            "person with obscured face",
+        ],
+        "threshold": 0.25,
+        "risk_level": "high",
+    },
+    "delivery_branded": {
+        "prompts": [
+            "Amazon delivery driver in blue vest",
+            "FedEx worker in purple and orange uniform",
+            "UPS driver in brown uniform",
+            "USPS mail carrier in blue uniform",
+            "DHL courier in yellow and red uniform",
+        ],
+        "threshold": 0.35,
+        "risk_level": "low",
+    },
+    "delivery_generic": {
+        "prompts": [
+            "delivery person in high-visibility vest",
+            "courier with package and uniform",
+            "food delivery worker with insulated bag",
+            "pizza delivery person",
+            "grocery delivery worker",
+            # Legacy prompts for compatibility
+            "delivery uniform",
+            "Amazon delivery vest",
+            "FedEx uniform",
+            "UPS uniform",
+            "USPS postal worker uniform",
+        ],
+        "threshold": 0.30,
+        "risk_level": "low",
+    },
+    "utility_service": {
+        "prompts": [
+            "utility worker in hard hat and safety vest",
+            "construction worker in safety gear",
+            "maintenance worker in uniform",
+            "security guard in uniform",
+            "landscaper in work clothes",
+            "electrician in work gear",
+            "plumber in work clothes",
+            "cable technician in uniform",
+            # Legacy prompts for compatibility
+            "high-visibility vest or safety vest",
+            "utility worker uniform",
+            "maintenance worker clothing",
+        ],
+        "threshold": 0.35,
+        "risk_level": "low",
+    },
+    "casual_civilian": {
+        "prompts": [
+            "person in casual everyday clothing",
+            "person in business casual attire",
+            "person in athletic or gym wear",
+            "person in formal business suit",
+            "person wearing jeans and t-shirt",
+            "person in shorts and casual shirt",
+            # Legacy prompts for compatibility
+            "casual clothing",
+            "business attire or suit",
+            "athletic wear or sportswear",
+            "outdoor or hiking clothing",
+            "winter coat or jacket",
+            "rain jacket or raincoat",
+        ],
+        "threshold": 0.40,
+        "risk_level": "normal",
+    },
+    "colors": {
+        "prompts": [
+            "person wearing predominantly red clothing",
+            "person wearing predominantly blue clothing",
+            "person wearing predominantly black clothing",
+            "person wearing predominantly white clothing",
+            "person wearing predominantly green clothing",
+            "person wearing predominantly gray clothing",
+            "person wearing predominantly brown clothing",
+            "person wearing predominantly yellow clothing",
+            "person wearing predominantly orange clothing",
+        ],
+        "threshold": 0.35,
+        "risk_level": "info",  # Just for identification
+    },
+}
+
+
+def get_all_clothing_prompts() -> list[str]:
+    """Get flattened list of all clothing prompts from hierarchical categories.
+
+    Returns:
+        List of all prompts across all categories.
+    """
+    return [p for cat in CLOTHING_PROMPTS_V2.values() for p in cat["prompts"]]
+
+
+def get_clothing_risk_level(matched_prompt: str) -> str:
+    """Get risk level for a matched clothing prompt.
+
+    Args:
+        matched_prompt: The prompt that was matched.
+
+    Returns:
+        Risk level string: "high", "low", "normal", or "info".
+    """
+    for config in CLOTHING_PROMPTS_V2.values():
+        if matched_prompt in config["prompts"]:
+            return config["risk_level"]
+    return "normal"
+
+
+def get_clothing_threshold(category: str) -> float:
+    """Get confidence threshold for a clothing category.
+
+    Args:
+        category: Category name (e.g., "suspicious", "delivery_branded").
+
+    Returns:
+        Confidence threshold for the category, or 0.35 as default.
+    """
+    config = CLOTHING_PROMPTS_V2.get(category)
+    if config is None:
+        return 0.35
+    return config["threshold"]
+
+
+def get_clothing_category(matched_prompt: str) -> str | None:
+    """Get category name for a matched clothing prompt.
+
+    Args:
+        matched_prompt: The prompt that was matched.
+
+    Returns:
+        Category name or None if not found.
+    """
+    for category, config in CLOTHING_PROMPTS_V2.items():
+        if matched_prompt in config["prompts"]:
+            return category
+    return None
+
+
+# ==============================================================================
+# Backward Compatibility - Legacy Constants (NEM-3913)
+# ==============================================================================
+# These constants are maintained for backward compatibility with existing code.
+# New code should use the hierarchical CLOTHING_PROMPTS_V2 structure.
+
 # Security-focused clothing classification prompts
 # Higher confidence matches provide context for risk assessment
-SECURITY_CLOTHING_PROMPTS: list[str] = [
-    # Potentially suspicious attire
-    "person wearing dark hoodie",
-    "person wearing face mask",
-    "person wearing ski mask or balaclava",
-    "person wearing gloves",
-    "person wearing all black clothing",
-    "person with obscured face",
-    # Delivery and service uniforms
-    "delivery uniform",
-    "Amazon delivery vest",
-    "FedEx uniform",
-    "UPS uniform",
-    "USPS postal worker uniform",
-    "high-visibility vest or safety vest",
-    "utility worker uniform",
-    "maintenance worker clothing",
-    # General clothing categories
-    "casual clothing",
-    "business attire or suit",
-    "athletic wear or sportswear",
-    "outdoor or hiking clothing",
-    "winter coat or jacket",
-    "rain jacket or raincoat",
-]
+SECURITY_CLOTHING_PROMPTS: list[str] = get_all_clothing_prompts()
 
 # Suspicious clothing categories that may warrant higher attention
-SUSPICIOUS_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "person wearing dark hoodie",
-        "person wearing face mask",
-        "person wearing ski mask or balaclava",
-        "person wearing gloves",
-        "person wearing all black clothing",
-        "person with obscured face",
-    }
-)
+SUSPICIOUS_CATEGORIES: frozenset[str] = frozenset(CLOTHING_PROMPTS_V2["suspicious"]["prompts"])
 
 # Service/uniform categories that typically reduce risk
 SERVICE_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "delivery uniform",
-        "Amazon delivery vest",
-        "FedEx uniform",
-        "UPS uniform",
-        "USPS postal worker uniform",
-        "high-visibility vest or safety vest",
-        "utility worker uniform",
-        "maintenance worker clothing",
-    }
+    CLOTHING_PROMPTS_V2["delivery_branded"]["prompts"]
+    + CLOTHING_PROMPTS_V2["delivery_generic"]["prompts"]
+    + CLOTHING_PROMPTS_V2["utility_service"]["prompts"]
 )
 
 
@@ -113,26 +266,26 @@ class ClothingClassification:
 
 
 async def load_fashion_clip_model(model_path: str) -> Any:
-    """Load Marqo-FashionCLIP model from local path or HuggingFace.
+    """Load Marqo-FashionSigLIP model from local path or HuggingFace.
 
-    This function loads the FashionCLIP model using open_clip library directly.
-    The model is optimized for fashion/clothing recognition and uses CLIP
-    architecture for zero-shot classification.
+    This function loads the FashionSigLIP model using open_clip library directly.
+    FashionSigLIP provides 57% improved accuracy over FashionCLIP while using
+    the same SigLIP architecture for zero-shot classification.
 
     Note: We use open_clip directly instead of transformers.AutoModel because
-    the Marqo-FashionCLIP custom model wrapper has meta tensor issues when
-    loaded via transformers that cause "Cannot copy out of meta tensor" errors.
+    the Marqo model custom wrapper has meta tensor issues when loaded via
+    transformers that cause "Cannot copy out of meta tensor" errors.
 
     Args:
         model_path: Path to local model directory or HuggingFace model path.
-                   For local paths (e.g., "/export/ai_models/model-zoo/fashion-clip"),
+                   For local paths (e.g., "/export/ai_models/model-zoo/fashion-siglip"),
                    the model files should be in open_clip format.
-                   For HuggingFace paths (e.g., "Marqo/marqo-fashionCLIP"),
+                   For HuggingFace paths (e.g., "Marqo/marqo-fashionSigLIP"),
                    use "hf-hub:" prefix.
 
     Returns:
         Dictionary containing:
-            - model: The FashionCLIP model instance
+            - model: The FashionSigLIP model instance
             - preprocess: The image preprocessing transform
             - tokenizer: The text tokenizer
 
@@ -144,7 +297,7 @@ async def load_fashion_clip_model(model_path: str) -> Any:
         import torch
         from open_clip import create_model_from_pretrained, get_tokenizer
 
-        logger.info(f"Loading FashionCLIP model from {model_path}")
+        logger.info(f"Loading FashionSigLIP model from {model_path}")
 
         loop = asyncio.get_event_loop()
 
@@ -153,10 +306,10 @@ async def load_fashion_clip_model(model_path: str) -> Any:
             # Convert path to HuggingFace hub format if needed
             # Local paths should be converted to hf-hub format for open_clip
             if model_path.startswith("/") or model_path.startswith("./"):
-                # Local path - use hf-hub format with Marqo model
+                # Local path - use hf-hub format with Marqo FashionSigLIP model
                 # This assumes the local path contains a copy of the model,
                 # but open_clip needs the hf-hub format for Marqo models
-                hub_path = "hf-hub:Marqo/marqo-fashionCLIP"
+                hub_path = "hf-hub:Marqo/marqo-fashionSigLIP"
                 logger.info(f"Local path {model_path} detected, using HuggingFace hub: {hub_path}")
             elif "/" in model_path and not model_path.startswith("hf-hub:"):
                 # HuggingFace model ID without prefix
@@ -172,7 +325,7 @@ async def load_fashion_clip_model(model_path: str) -> Any:
             target_device = "cuda" if torch.cuda.is_available() else "cpu"
             if target_device == "cuda":
                 model = model.cuda()
-            logger.info(f"FashionCLIP model loaded on {target_device}")
+            logger.info(f"FashionSigLIP model loaded on {target_device}")
 
             model.eval()
 
@@ -180,7 +333,7 @@ async def load_fashion_clip_model(model_path: str) -> Any:
 
         result = await loop.run_in_executor(None, _load)
 
-        logger.info(f"Successfully loaded FashionCLIP model from {model_path}")
+        logger.info(f"Successfully loaded FashionSigLIP model from {model_path}")
         return result
 
     except ImportError as e:
@@ -189,15 +342,15 @@ async def load_fashion_clip_model(model_path: str) -> Any:
             "Install with: pip install open_clip_torch torch"
         )
         raise ImportError(
-            "FashionCLIP requires open_clip_torch and torch. "
+            "FashionSigLIP requires open_clip_torch and torch. "
             "Install with: pip install open_clip_torch torch"
         ) from e
 
     except Exception as e:
         logger.error(
-            "Failed to load FashionCLIP model", exc_info=True, extra={"model_path": model_path}
+            "Failed to load FashionSigLIP model", exc_info=True, extra={"model_path": model_path}
         )
-        raise RuntimeError(f"Failed to load FashionCLIP model: {e}") from e
+        raise RuntimeError(f"Failed to load FashionSigLIP model: {e}") from e
 
 
 async def classify_clothing(
@@ -208,7 +361,7 @@ async def classify_clothing(
 ) -> ClothingClassification:
     """Classify clothing in a person crop using zero-shot classification.
 
-    Uses CLIP-style text-image similarity to classify clothing from a set
+    Uses SigLIP-style text-image similarity to classify clothing from a set
     of predefined security-relevant prompts.
 
     Args:
