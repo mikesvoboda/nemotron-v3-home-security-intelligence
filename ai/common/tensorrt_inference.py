@@ -562,7 +562,7 @@ class TensorRTDetectionModel(TensorRTInferenceBase[Any, list[dict[str, Any]]]):
         boxes: NDArray[Any],
         scores: NDArray[Any],
         class_ids: NDArray[Any],
-        image_size: tuple[int, int] | None = None,
+        _image_size: tuple[int, int] | None = None,
     ) -> list[dict[str, Any]]:
         """Format detection results as list of dictionaries.
 
