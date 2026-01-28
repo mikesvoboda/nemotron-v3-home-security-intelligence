@@ -529,5 +529,5 @@ If tests hang or memory grows:
 - [Vitest Fake Timers](https://vitest.dev/api/vi.html#vi-usefaketimers)
 - [React Testing Library waitFor](https://testing-library.com/docs/dom-testing-library/api-async/#waitfor)
 - [Testing Library Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
-- [Project Testing Guide](./testing.md)
-- [TDD Workflow](./testing-workflow.md)
+- [Project Testing Guide](../../development/testing.md)
+- [TDD Workflow](../../development/testing-workflow.md)
