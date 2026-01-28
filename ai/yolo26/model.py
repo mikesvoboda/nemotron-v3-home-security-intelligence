@@ -246,6 +246,53 @@ def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
     return any(pattern in error_str for pattern in mismatch_patterns)
 
 
+def is_tensorrt_fallback_error(error: Exception) -> bool:
+    """Check if an exception indicates TensorRT is unavailable and should fall back to PyTorch.
+
+    This function identifies errors that indicate TensorRT cannot be used, such as:
+    - TensorRT not being installed
+    - TensorRT library not found
+    - Engine file not found
+    - GPU architecture mismatch (kernel not available)
+    - General TensorRT loading failures
+
+    These are distinct from version mismatch errors (which may be resolvable by rebuild)
+    and from resource errors like OOM (which indicate system issues, not TensorRT issues).
+
+    Args:
+        error: The exception to check.
+
+    Returns:
+        True if the error indicates TensorRT is unavailable and PyTorch fallback should be used.
+    """
+    error_str = str(error).lower()
+
+    # Patterns that indicate TensorRT is unavailable or cannot be used
+    fallback_patterns = [
+        # TensorRT not installed
+        "tensorrt is not available",
+        "no module named 'tensorrt'",
+        "tensorrt library not found",
+        # Engine loading failures
+        "failed to load tensorrt",
+        "failed to load engine",
+        "cannot load tensorrt engine",
+        # GPU architecture mismatch
+        "no kernel image is available for execution",
+        "cuda error: no kernel image",
+        # File not found
+        "engine file not found",
+        "engine not found",
+    ]
+
+    # Check for fallback patterns
+    if any(pattern in error_str for pattern in fallback_patterns):
+        return True
+
+    # Also check if it's a FileNotFoundError for engine files
+    return isinstance(error, FileNotFoundError)
+
+
 def get_pt_model_path_for_engine(engine_path: str) -> str | None:
     """Derive the .pt model path from a TensorRT engine path.
 
@@ -519,11 +566,19 @@ class YOLO26Model:
     def load_model(self) -> None:
         """Load the TensorRT model using Ultralytics YOLO.
 
-        Handles TensorRT version mismatches (NEM-3871) by:
+        Handles TensorRT issues (NEM-3871, NEM-3882) by:
         1. Detecting version mismatch errors during engine load
         2. Deleting the stale engine file
         3. Rebuilding the engine from the source .pt file if available
         4. Falling back to the .pt model if rebuild fails or is disabled
+
+        TensorRT to PyTorch fallback (NEM-3882):
+        When TensorRT is unavailable or fails to load (not due to version mismatch),
+        the service gracefully falls back to PyTorch:
+        - TensorRT not installed
+        - TensorRT library not found
+        - Engine file not found
+        - GPU architecture mismatch
         """
         try:
             logger.info("Loading YOLO26 TensorRT model with Ultralytics...")
@@ -534,22 +589,34 @@ class YOLO26Model:
             try:
                 self.model = YOLO(self.model_path)
             except Exception as load_error:
-                # Check if this is a TensorRT version mismatch
-                if self.model_path.endswith(".engine") and is_tensorrt_version_mismatch_error(
-                    load_error
-                ):
-                    logger.warning(f"TensorRT version mismatch detected: {load_error}")
-                    trt_version = get_tensorrt_version()
-                    logger.warning(f"Current TensorRT runtime version: {trt_version}")
+                # Check if this is a TensorRT engine that failed to load
+                if self.model_path.endswith(".engine"):
+                    # Check if this is a version mismatch (may be recoverable via rebuild)
+                    if is_tensorrt_version_mismatch_error(load_error):
+                        logger.warning(f"TensorRT version mismatch detected: {load_error}")
+                        trt_version = get_tensorrt_version()
+                        logger.warning(f"Current TensorRT runtime version: {trt_version}")
 
-                    # Attempt to rebuild if auto_rebuild is enabled
-                    if self.auto_rebuild:
-                        self._handle_tensorrt_version_mismatch()
-                    else:
-                        logger.error(
-                            "TensorRT auto-rebuild is disabled. "
-                            "Set YOLO26_AUTO_REBUILD=true to enable automatic engine rebuilding."
+                        # Attempt to rebuild if auto_rebuild is enabled
+                        if self.auto_rebuild:
+                            self._handle_tensorrt_version_mismatch()
+                        else:
+                            logger.error(
+                                "TensorRT auto-rebuild is disabled. "
+                                "Set YOLO26_AUTO_REBUILD=true to enable automatic engine rebuilding."
+                            )
+                            raise
+
+                    # Check if TensorRT is unavailable and we should fall back to PyTorch
+                    elif is_tensorrt_fallback_error(load_error):
+                        logger.warning(
+                            f"TensorRT unavailable or failed to load: {load_error}. "
+                            "Attempting fallback to PyTorch model."
                         )
+                        self._handle_tensorrt_fallback_to_pytorch(load_error)
+
+                    else:
+                        # Unknown error, re-raise
                         raise
                 else:
                     raise
@@ -644,6 +711,51 @@ class YOLO26Model:
         self.model = YOLO(engine_path)
         self.tensorrt_enabled = True
         logger.info("Rebuilt TensorRT engine loaded successfully")
+
+    def _handle_tensorrt_fallback_to_pytorch(self, original_error: Exception) -> None:
+        """Handle fallback from TensorRT to PyTorch when TensorRT is unavailable.
+
+        This method is called when TensorRT fails to load due to reasons other than
+        version mismatch (e.g., TensorRT not installed, GPU architecture mismatch).
+
+        It attempts to find and load the corresponding PyTorch model (.pt file).
+
+        Args:
+            original_error: The original exception that triggered the fallback.
+
+        Raises:
+            RuntimeError: If no fallback PyTorch model is available.
+        """
+        from ultralytics import YOLO
+
+        engine_path = self.model_path
+
+        # Find the source .pt model
+        pt_path = self.pt_model_path or get_pt_model_path_for_engine(engine_path)
+
+        if pt_path is None:
+            logger.error(
+                f"TensorRT fallback failed: no source .pt model found for {engine_path}. "
+                "Set YOLO26_PT_MODEL_PATH to specify the fallback model path."
+            )
+            # Re-raise the original error since we can't fall back
+            raise original_error
+
+        logger.info(f"Found fallback PyTorch model: {pt_path}")
+
+        try:
+            # Attempt to load the PyTorch model
+            self.model = YOLO(pt_path)
+            self.model_path = pt_path
+            self.tensorrt_enabled = False
+            logger.info(
+                f"Successfully fell back to PyTorch model from {pt_path}. "
+                "TensorRT is disabled for this session."
+            )
+        except Exception as fallback_error:
+            logger.error(f"Failed to load fallback PyTorch model {pt_path}: {fallback_error}")
+            # Re-raise the original error since fallback also failed
+            raise original_error from fallback_error
 
     def _apply_torch_compile(self) -> None:
         """Apply torch.compile() to the underlying PyTorch model for automatic kernel fusion.
