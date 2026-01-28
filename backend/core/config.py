@@ -1423,7 +1423,7 @@ class Settings(BaseSettings):
 
     # OpenTelemetry settings (NEM-1629)
     otel_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable OpenTelemetry distributed tracing. When enabled, traces are "
         "collected and exported to the configured OTLP endpoint (e.g., Jaeger, Tempo).",
     )
