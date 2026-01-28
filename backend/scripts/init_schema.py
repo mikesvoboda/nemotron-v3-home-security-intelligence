@@ -12,18 +12,17 @@ from pathlib import Path
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
-
 from backend.core.config import get_settings
 from backend.models import Base
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
 
 async def init_schema() -> None:
     """Create all tables from SQLAlchemy models."""
     settings = get_settings()
 
-    print(f"Connecting to database...")
+    print("Connecting to database...")
     engine = create_async_engine(settings.database_url, echo=False)
 
     async with engine.begin() as conn:
@@ -34,9 +33,9 @@ async def init_schema() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
         # Verify tables were created
-        result = await conn.execute(text(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
-        ))
+        result = await conn.execute(
+            text("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename")
+        )
         tables = [row[0] for row in result.fetchall()]
         print(f"\nCreated {len(tables)} tables:")
         for table in tables:
