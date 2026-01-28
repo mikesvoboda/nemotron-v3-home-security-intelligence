@@ -1,0 +1,9 @@
+{
+  "name": "P20_10s",
+  "inference_type": "text2world",
+  "prompt": "suburban home side yard with fence and gate, viewed from a corner vantage point at the house edge, looking along the property side at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They walk behind a large bush, disappearing briefly, then reappear continuing along the fence. Static viewpoint along the fence line, medium field of view, standard wide-angle perspective, Transitional lighting quality, warm tones, automatic exposure adjusting. Real-time speed, natural fluid human motion at 1x playback rate.",
+  "negative_prompt": "blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts, visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, camera mount, camera on wall, camera on ceiling, camera rig, recording device in shot, gopro, webcam, CCTV camera visible, Ring doorbell visible, Nest camera visible, slow motion, time lapse, fast forward, sped up, slowed down",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 240
+}

@@ -1,0 +1,9 @@
+{
+  "name": "R16_5s",
+  "inference_type": "text2world",
+  "prompt": "Suburban home backyard at night, viewed from an elevated position under the roofline. A person approaches a storage shed, breaks the padlock with bolt cutters, opens the door and begins taking items out. Outbuilding theft. Static elevated viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "negative_prompt": "blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles, jump cuts, visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, camera mount, camera on wall, camera on ceiling, camera rig, recording device in shot, gopro, webcam, CCTV camera visible, Ring doorbell visible, Nest camera visible, slow motion, time lapse, fast forward, sped up, slowed down",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 120
+}

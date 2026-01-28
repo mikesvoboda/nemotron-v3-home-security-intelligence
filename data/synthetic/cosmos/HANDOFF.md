@@ -2,115 +2,227 @@
 
 ## Overview
 
-You are generating **88 synthetic security camera videos** using NVIDIA Cosmos models on an H200 instance. This document contains everything you need.
+You are generating **501 synthetic security camera videos** (167 prompts × 3 durations) using NVIDIA Cosmos models. This document contains everything you need, **updated 2026-01-27**.
 
 ---
 
-## Installation Guide
+## Quick Status
 
-### System Requirements
+| Item | Status | Notes |
+|------|--------|-------|
+| Environment | ✅ Bootstrapped | Docker container `cosmos-b300` |
+| Cosmos-Predict2.5-14B | ✅ Downloaded | 54GB in `checkpoints/` |
+| Cosmos-Reason1-7B | ✅ Downloaded | 16GB in cosmos-reason1 |
+| Test Generation | ✅ Verified | NVRTC JIT tests pass on B300 |
+| HuggingFace Auth | ✅ Configured | Token saved to cache |
+| Prompt Files | ✅ Generated | **501 JSON files** (167 × 3 durations) |
+| Batch Scripts | ✅ Ready | `batch_generate.sh`, `monitor.sh` |
+| 8-GPU Parallel | ✅ Verified | All GPUs 100% utilization |
+| Guardrails | ✅ Disabled | Required for security training data |
+| Prompt Format | ✅ Fixed | Perspective-centric (no camera in frame) |
 
-| Requirement | Specification                         |
-| ----------- | ------------------------------------- |
-| **OS**      | Linux (Ubuntu 20.04, 22.04, or 24.04) |
-| **Python**  | 3.10.x (required)                     |
-| **GPU**     | H200 (or A100/H100 with 80GB+ VRAM)   |
-| **CUDA**    | 12.x                                  |
-| **Conda**   | Required for environment management   |
+---
 
-### Step 1: Clone Cosmos-Predict2.5 Repository
+## Supported Hardware
+
+| GPU | Architecture | Compute Capability | Setup Method |
+|-----|--------------|-------------------|--------------|
+| **NVIDIA B300** | Blackwell | sm_103 (10.3) | **Docker (Required)** |
+| **NVIDIA B200/B100** | Blackwell | sm_100 (10.0) | Docker (Recommended) |
+| **NVIDIA H200/H100** | Hopper | sm_90 (9.0) | Native uv or Docker |
+
+**IMPORTANT:** B300 GPUs require the Docker container due to PyTorch NVRTC JIT compilation issues with sm_103 architecture. The NGC PyTorch 25.10 container includes proper Blackwell support.
+
+---
+
+## B300 Blackwell Setup (Docker - Required)
+
+### System Specifications (B300)
+
+| Component | Specification | Verified |
+|-----------|---------------|----------|
+| **GPU** | 8× NVIDIA B300 SXM6 AC | ✅ 267 GB VRAM each |
+| **CUDA** | 12.8.93 | ✅ |
+| **Compute Capability** | 10.3 (sm_103) | ✅ |
+| **Container** | NGC PyTorch 25.10 | ✅ |
+| **PyTorch** | 2.9.0a0+nv25.10 | ✅ |
+| **flash-attn** | 2.7.4.post1 | ✅ |
+| **OS** | Ubuntu 24.04 | ✅ |
+
+### Step 1: Clone Repository and Download Models
 
 ```bash
-# Clone the latest Cosmos-Predict2.5 repository (Dec 2025)
+cd /home/shadeform
+git clone https://github.com/nvidia-cosmos/cosmos-predict2.5.git
+cd cosmos-predict2.5
+
+# Install git-lfs
+sudo apt-get install -y git-lfs
+git lfs install
+git lfs pull
+
+# Authenticate with HuggingFace
+huggingface-cli login --token YOUR_HF_TOKEN
+
+# Download models
+mkdir -p checkpoints
+huggingface-cli download nvidia/Cosmos-Predict2.5-14B \
+  --local-dir checkpoints/Cosmos-Predict2.5-14B
+```
+
+### Step 2: Build the Docker Container
+
+```bash
+cd /home/shadeform/cosmos-predict2.5
+
+# Build the Blackwell-compatible container
+docker build -f docker/nightly.Dockerfile -t cosmos-b300 .
+```
+
+This builds a container based on `nvcr.io/nvidia/pytorch:25.10-py3` with:
+- Full Blackwell sm_103 NVRTC support
+- flash-attn 2.7.4 pre-built
+- transformer-engine pre-built
+- All Cosmos dependencies
+
+### Step 3: Run Test Inference
+
+```bash
+docker run --rm --gpus all \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v /home/shadeform/cosmos-predict2.5:/workspace \
+  -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
+  -w /workspace \
+  cosmos-b300 \
+  python examples/inference.py \
+  -i assets/base/snowy_stop_light.json \
+  -o outputs/test \
+  --inference-type=text2world \
+  --model=14B/post-trained \
+  --disable-guardrails
+```
+
+**Note:** The container's default entrypoint runs `pip install -e .` which is required. Use `-w /workspace` instead of `--entrypoint python`.
+
+### Step 4: Verify Installation
+
+```bash
+docker run --rm --gpus all \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  --entrypoint python \
+  cosmos-b300 \
+  -c "
+import torch
+print(f'GPU: {torch.cuda.get_device_name(0)}')
+print(f'PyTorch: {torch.__version__}')
+x = torch.randn(100, device='cuda')
+y = torch.erfinv(x)
+print('NVRTC JIT test: PASSED')
+import flash_attn
+print(f'flash-attn: {flash_attn.__version__}')
+"
+```
+
+Expected output:
+```
+GPU: NVIDIA B300 SXM6 AC
+PyTorch: 2.9.0a0+145a3a7bda.nv25.10
+NVRTC JIT test: PASSED
+flash-attn: 2.7.4.post1
+```
+
+---
+
+## H200/Hopper Setup (Native - Alternative)
+
+For H200 and older GPUs, you can use the native uv installation method.
+
+### Verified System Specifications (H200)
+
+| Component | Specification | Verified |
+|-----------|---------------|----------|
+| **GPU** | NVIDIA H200 | ✅ 139.8 GB VRAM |
+| **CUDA** | 13.0 | ✅ |
+| **Python** | 3.10.19 (via uv) | ✅ Auto-installed |
+| **PyTorch** | 2.7.0+cu128 | ✅ |
+| **OS** | Ubuntu 24.04 | ✅ |
+
+---
+
+## Bootstrap Process (Verified Working)
+
+### Step 1: Clone Repository
+
+```bash
+cd /home/ubuntu
 git clone https://github.com/nvidia-cosmos/cosmos-predict2.5.git
 cd cosmos-predict2.5
 ```
 
-### Step 2: Create Environment with uv (Recommended)
+### Step 2: Create Environment with uv
 
-Cosmos-Predict2.5 uses `uv` for fast dependency management:
+**IMPORTANT:** Use `--extra cu128` (NOT cu130 - has platform compatibility issues)
 
 ```bash
-# Install uv if not present
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Create virtual environment and install dependencies
-uv sync
-
-# Activate the environment
-source .venv/bin/activate
+# uv is pre-installed on this machine
+uv sync --extra cu128
 ```
 
-**Alternative: Conda Setup**
+This installs 246 packages including:
+- PyTorch 2.7.0+cu128
+- flash-attn 2.7.3+cu128
+- natten 0.21.0+cu128
+- transformer-engine 2.2+cu128
+
+### Step 3: Install Git LFS and Pull Assets
 
 ```bash
-# Create conda environment
-conda create -n cosmos-predict2.5 python=3.10
-conda activate cosmos-predict2.5
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Step 3: Install CUDA Dependencies
-
-```bash
-# Install Transformer Engine for H200 optimization
-pip install transformer-engine[pytorch]
-
-# Install NATTEN for sparse attention (2.5x speedup on Hopper/Blackwell)
-pip install natten
+sudo apt-get install -y git-lfs
+git lfs install
+git lfs pull
 ```
 
 ### Step 4: Authenticate with Hugging Face
 
-```bash
-# Install huggingface CLI if not present
-pip install huggingface_hub
+**CRITICAL:** You must accept licenses for ALL these models on HuggingFace before proceeding:
 
-# Login to Hugging Face (requires account with accepted model license)
-huggingface-cli login
-# Enter your HF token when prompted (needs 'Read' permission)
+| Model | URL | Required For |
+|-------|-----|--------------|
+| nvidia/Cosmos-Predict2.5-14B | https://huggingface.co/nvidia/Cosmos-Predict2.5-14B | Main generation |
+| nvidia/Cosmos-Predict2.5-2B | https://huggingface.co/nvidia/Cosmos-Predict2.5-2B | Config loading |
+| nvidia/Cosmos-Guardrail1 | https://huggingface.co/nvidia/Cosmos-Guardrail1 | Safety checks |
+| nvidia/Cosmos-Reason1-7B | https://huggingface.co/nvidia/Cosmos-Reason1-7B | Quality scoring |
+
+```bash
+source .venv/bin/activate
+huggingface-cli login --token YOUR_HF_TOKEN
 ```
 
-### Step 5: Download Cosmos-Predict2.5-14B Model
-
-**We use the 14B model exclusively for maximum quality on H200.**
+### Step 5: Download Models
 
 ```bash
 # Create checkpoints directory
 mkdir -p checkpoints
 
-# Download Cosmos-Predict2.5-14B (unified Text/Image/Video2World)
-# This is the largest and highest quality model available
+# Download Cosmos-Predict2.5-14B (54GB total)
 huggingface-cli download nvidia/Cosmos-Predict2.5-14B \
   --local-dir checkpoints/Cosmos-Predict2.5-14B
+
+# Verify download
+ls -la checkpoints/Cosmos-Predict2.5-14B/base/
+# Should show: post-trained/ (27GB) and pre-trained/ (27GB)
 ```
 
-**Alternative: Using Python**
-
-```python
-from huggingface_hub import snapshot_download
-
-# Download 14B model (largest available)
-snapshot_download(
-    repo_id="nvidia/Cosmos-Predict2.5-14B",
-    local_dir="checkpoints/Cosmos-Predict2.5-14B"
-)
-```
-
-### Step 6: Install Cosmos-Reason1 (Quality Scoring)
-
-Cosmos-Reason1 scores generated videos for physical plausibility (1-5 scale):
+### Step 6: Install Cosmos-Reason1 (Optional - for quality scoring)
 
 ```bash
-# Clone Cosmos-Reason1 repository
+cd /home/ubuntu
 git clone https://github.com/nvidia-cosmos/cosmos-reason1.git
 cd cosmos-reason1
 uv sync
-cd ..
 
-# Download Cosmos-Reason1-7B model
+# Download model
+mkdir -p checkpoints
 huggingface-cli download nvidia/Cosmos-Reason1-7B \
   --local-dir checkpoints/Cosmos-Reason1-7B
 ```
@@ -118,742 +230,965 @@ huggingface-cli download nvidia/Cosmos-Reason1-7B \
 ### Step 7: Verify Installation
 
 ```bash
-# Verify GPU access (should show H200)
-nvidia-smi
+cd /home/ubuntu/cosmos-predict2.5
+source .venv/bin/activate
 
-# Test environment
-python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-python -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0)}')"
+# Verify PyTorch and GPU
+python -c "
+import torch
+print(f'PyTorch: {torch.__version__}')
+print(f'CUDA: {torch.cuda.is_available()}')
+print(f'GPU: {torch.cuda.get_device_name(0)}')
+print(f'VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB')
+"
 
-# Test a simple inference
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "A simple test scene with a person walking on a suburban sidewalk" \
-    --output_path test_output.mp4 \
-    --resolution 720 \
-    --fps 16 \
-    --natten
-```
-
-### Model Storage & VRAM Requirements
-
-| Model                     | Disk Size | VRAM Required | Notes                           |
-| ------------------------- | --------- | ------------- | ------------------------------- |
-| **Cosmos-Predict2.5-14B** | ~30 GB    | ~50 GB        | Largest & highest quality model |
-
-**H200 (141 GB VRAM)** provides exceptional headroom for the 14B model:
-
-- **91 GB free** after model load for batch processing
-- NATTEN sparse attention enabled (2.5x speedup on Hopper architecture)
-- CUDA graphs acceleration for faster inference
-- Room for parallel video generation if needed
-
-### Docker Alternative
-
-```bash
-# Build Docker image
-docker build -f Dockerfile . -t cosmos-predict2.5:latest
-
-# Run container with GPU access
-docker run --gpus all -it --rm \
-  -v $(pwd):/workspace \
-  -v /path/to/checkpoints:/checkpoints \
-  cosmos-predict2.5:latest /bin/bash
+# Expected output:
+# PyTorch: 2.7.0+cu128
+# CUDA: True
+# GPU: NVIDIA H200
+# VRAM: 139.8 GB
 ```
 
 ---
 
-## Quick Start
+## Test Generation Results (Verified 2026-01-27)
+
+### Command Used
 
 ```bash
-# 1. Verify Cosmos installation
-python -c "import cosmos; print(cosmos.__version__)"
+cd /home/ubuntu/cosmos-predict2.5
+source .venv/bin/activate
 
-# 2. Verify GPU
-nvidia-smi  # Should show H200
-
-# 3. Navigate to working directory
-cd /path/to/project/data/synthetic/cosmos
-
-# 4. Read the manifest
-cat generation_manifest.yaml
-
-# 5. Generate first video (test)
-python scripts/cosmos_prompt_generator.py --id P01 --preview  # Preview prompt
-python scripts/cosmos_prompt_generator.py --id P01            # Generate prompt file
-
-# 6. Run Cosmos inference
-python -m cosmos.predict1.diffusion.inference \
-    --checkpoint_dir /models/cosmos-diffusion-14b \
-    --prompt "$(cat cosmos_prompts/P01.txt)" \
-    --output_path presentation/threat_escalation/P01_delivery_baseline.mp4
+python examples/inference.py \
+  -i assets/base/snowy_stop_light.json \
+  -o outputs/test \
+  --inference-type=text2world \
+  --model=14B/post-trained
 ```
+
+### Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Generation Time** | 14:58 (35 steps × 25.4s/step) |
+| **Peak VRAM Usage** | 65 GB (45% of 140 GB) |
+| **GPU Utilization** | 100% during diffusion steps |
+| **Model Load Time** | ~4 minutes (first run downloads additional checkpoints) |
+
+### Output Video Specifications
+
+| Property | Value | Notes |
+|----------|-------|-------|
+| **Resolution** | 1280×704 (720p) | Fixed |
+| **Frame Rate** | 24 fps | Set in manifest |
+| **Codec** | H.264 | Default |
+| **Duration** | 5s / 10s / 30s | Via `num_output_frames` |
+| **Frames** | 120 / 240 / 720 | Corresponding to durations |
+
+**Note:** Earlier test runs used 16 fps default. Production runs use 24 fps for more natural motion.
+
+### Generated Files
+
+```
+outputs/test/
+├── config.yaml              # Model configuration
+├── console.log              # Generation logs
+├── debug.log                # Detailed debug info
+├── snowy_stop_light.json    # Input parameters
+└── snowy_stop_light.mp4     # Generated video (598 KB)
+```
+
+---
+
+## Video Generation Summary
+
+### Total Videos: 501 (167 prompts × 3 durations)
+
+| Category | Prompts | × Durations | Total Videos |
+|----------|---------|-------------|--------------|
+| **Presentation (P)** | 48 | × 3 | 144 |
+| **Training (T)** | 40 | × 3 | 120 |
+| **False Positives (F)** | 16 | × 3 | 48 |
+| **Real Threats (R)** | 18 | × 3 | 54 |
+| **Everyday Recognition (E)** | 22 | × 3 | 66 |
+| **Challenging Conditions (C)** | 23 | × 3 | 69 |
+| **TOTAL** | **167** | × 3 | **501** |
+
+### Duration Variants (Each Prompt)
+
+| Duration | Frames @ 24fps | Use Case |
+|----------|----------------|----------|
+| **5 seconds** | 120 frames | Quick demos, thumbnails |
+| **10 seconds** | 240 frames | Standard training clips |
+| **30 seconds** | 720 frames | Extended scenarios |
+
+### Video Category Details
+
+| Prefix | Category | Description |
+|--------|----------|-------------|
+| P | Presentation | Threat escalation, cross-camera tracking, household recognition, vehicle+person |
+| T | Training | Threat patterns, tracking sequences, enrichment stress, edge cases |
+| F | False Positives | Wildlife, wind effects, shadows/reflections, passing pedestrians |
+| R | Real Threats | Package theft, vehicle crime, vandalism, casing, break-ins, trespassing |
+| E | Everyday Recognition | Deliveries, home services, utilities, solicitors, visitors |
+| C | Challenging Conditions | Weather, lighting, occlusion, speed, clothing variations |
+
+### Estimated Generation Time (8× B300 GPUs)
+
+| Duration | Count | Time Each | Total Time (8 GPUs) |
+|----------|-------|-----------|---------------------|
+| 5s videos | 167 | ~17 min | ~6 hours |
+| 10s videos | 167 | ~25 min | ~9 hours |
+| 30s videos | 167 | ~60 min | ~21 hours |
+| **TOTAL** | **501** | - | **~18-24 hours** |
+
+**Note:** Generation is sorted so ALL 5s videos complete first, then 10s, then 30s. This allows quality checking the 5s videos while longer ones continue generating.
+
+---
+
+## Working Inference Commands
+
+### B300 Docker Commands
+
+#### Text2World (Presentation Videos)
+
+```bash
+docker run --rm --gpus all \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v /home/shadeform/cosmos-predict2.5:/workspace/cosmos \
+  -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
+  --entrypoint python \
+  cosmos-b300 \
+  /workspace/cosmos/examples/inference.py \
+  -i /workspace/cosmos/assets/base/snowy_stop_light.json \
+  -o /workspace/cosmos/outputs/presentation \
+  --inference-type=text2world \
+  --model=14B/post-trained \
+  --disable-guardrails
+```
+
+#### Custom Prompt Generation
+
+Create a JSON file like `my_video.json`:
+
+```json
+{
+  "name": "my_custom_video",
+  "inference_type": "text2world",
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in dark hoodie approaches...",
+  "negative_prompt": "visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, camera housing, surveillance camera in frame, slow motion, time lapse",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 120
+}
+```
+
+**CRITICAL:** Use perspective-centric language ("viewed from elevated vantage point") NOT device-centric language ("security camera footage from doorbell camera"). The latter causes Cosmos to render camera equipment IN the frame.
+
+Then run:
+
+```bash
+docker run --rm --gpus all \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v /home/shadeform/cosmos-predict2.5:/workspace/cosmos \
+  -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
+  --entrypoint python \
+  cosmos-b300 \
+  /workspace/cosmos/examples/inference.py \
+  -i /workspace/cosmos/my_video.json \
+  -o /workspace/cosmos/outputs/custom \
+  --inference-type=text2world \
+  --model=14B/post-trained
+```
+
+#### Interactive Shell (for debugging)
+
+```bash
+docker run --rm --gpus all -it \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v /home/shadeform/cosmos-predict2.5:/workspace/cosmos \
+  -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
+  --entrypoint bash \
+  cosmos-b300
+```
+
+---
+
+### H200 Native Commands
+
+#### Text2World (Presentation Videos)
+
+```bash
+cd /home/ubuntu/cosmos-predict2.5
+source .venv/bin/activate
+
+python examples/inference.py \
+  -i assets/base/snowy_stop_light.json \
+  -o outputs/presentation \
+  --inference-type=text2world \
+  --model=14B/post-trained \
+  --disable-guardrails
+```
+
+#### Custom Prompt Generation
+
+Create a JSON file like `my_video.json`:
+
+```json
+{
+  "name": "my_custom_video",
+  "inference_type": "text2world",
+  "prompt": "Suburban home front porch at night, viewed from an elevated vantage point near the door. A person in dark hoodie approaches...",
+  "negative_prompt": "visible camera, security camera device, doorbell camera, camera lens visible, camera equipment, slow motion, time lapse",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 120
+}
+```
+
+**CRITICAL:** Use perspective-centric language, NOT device-centric ("security camera footage from...").
+
+Then run:
+
+```bash
+python examples/inference.py \
+  -i my_video.json \
+  -o outputs/custom \
+  --inference-type=text2world \
+  --model=14B/post-trained \
+  --disable-guardrails
+```
+
+---
+
+### Extended Duration (10s, 30s Videos)
+
+For videos longer than 5s, set `num_output_frames` in the JSON prompt file:
+
+| Duration | Frames @ 24fps |
+|----------|----------------|
+| 5 seconds | 120 frames |
+| 10 seconds | 240 frames |
+| 30 seconds | 720 frames |
+
+Example JSON for 30-second video:
+
+```json
+{
+  "name": "my_30s_video",
+  "inference_type": "text2world",
+  "prompt": "Suburban home driveway, viewed from elevated angle...",
+  "negative_prompt": "visible camera, camera equipment, slow motion...",
+  "guidance": 7,
+  "seed": 0,
+  "num_output_frames": 720
+}
+```
+
+The `generate_prompts.py` script automatically creates 5s, 10s, and 30s variants for each prompt.
+
+### All Available Options
+
+```bash
+python examples/inference.py --help
+```
+
+Key options:
+- `--model`: `2B/post-trained`, `2B/pre-trained`, `14B/post-trained`, `14B/pre-trained`
+- `--inference-type`: `text2world`, `image2world`, `video2world`
+- `--disable-guardrails`: **Required** for security training videos (weapons, threats, break-ins)
+- `--seed`: Set random seed for reproducibility
+- `--guidance`: Prompt adherence (default 7.0)
 
 ---
 
 ## Directory Structure
 
+### B300 Setup (Docker)
+
 ```
-data/synthetic/cosmos/
-├── HANDOFF.md                    # This file
-├── generation_manifest.yaml      # Master list of 88 videos
-├── generation_status.json        # Track progress (you update this)
+/home/shadeform/
+├── cosmos-predict2.5/                    # Main Cosmos installation
+│   ├── docker/
+│   │   └── nightly.Dockerfile            # Blackwell-compatible Dockerfile
+│   ├── checkpoints/
+│   │   └── Cosmos-Predict2.5-14B/        # 54GB model
+│   │       └── base/
+│   │           ├── post-trained/         # 27GB - USE THIS
+│   │           └── pre-trained/          # 27GB
+│   ├── assets/base/                      # Example input files
+│   ├── examples/inference.py             # Main inference script
+│   └── outputs/                          # Generated videos
 │
-├── prompts/
-│   └── templates/
-│       ├── base_prompt.jinja2    # Master template
-│       ├── scenes/*.yaml         # Scene components
-│       ├── subjects/*.yaml       # Subject components
-│       ├── environments/*.yaml   # Environment components
-│       └── actions/*.yaml        # Action sequences
+├── cosmos-reason1/                       # Quality scoring (optional)
+│   └── checkpoints/
+│       └── Cosmos-Reason1-7B/            # 16GB model
 │
-├── presentation/                 # Output: 48 Diffusion videos
-│   ├── threat_escalation/
-│   ├── cross_camera/
-│   ├── household_recognition/
-│   └── vehicle_person/
+├── .cache/huggingface/                   # HuggingFace model cache
 │
-└── training/                     # Output: 40 Autoregressive videos
-    ├── threat_patterns/
-    ├── tracking_sequences/
-    ├── enrichment_stress/
-    └── edge_cases/
+└── nemotron-v3-home-security-intelligence/
+    └── data/synthetic/cosmos/
+        ├── HANDOFF.md                    # This file
+        ├── generation_manifest.yaml      # All 167 video definitions
+        ├── generation_status.json        # Progress tracking
+        ├── batch_generate.sh             # 8-GPU parallel generation
+        ├── generate_prompts.py           # Prompt file generator (3 durations)
+        ├── monitor.sh                    # Progress monitoring + auto git sync
+        ├── logs/                         # Per-GPU generation logs
+        │   └── gpu[0-7].log
+        ├── videos/                       # Generated videos (synced to git)
+        ├── videos_archived/              # Test runs and partial batches
+        ├── videos_deprecated/            # Old videos with camera-in-frame issues
+        └── prompts/
+            ├── templates/                # Jinja2 templates
+            │   ├── base_prompt.jinja2    # Perspective-centric prompt template
+            │   ├── scenes/               # Scene definitions
+            │   ├── environments/         # Lighting/weather
+            │   ├── subjects/             # Person/vehicle descriptions
+            │   └── actions/              # Action sequences
+            └── generated/                # 501 JSON prompt files
+                ├── C01_5s.json ... C23_30s.json   # Challenging Conditions
+                ├── E01_5s.json ... E22_30s.json   # Everyday Recognition
+                ├── F01_5s.json ... F16_30s.json   # False Positives
+                ├── P01_5s.json ... P48_30s.json   # Presentation
+                ├── R01_5s.json ... R18_30s.json   # Real Threats
+                ├── T01_5s.json ... T40_30s.json   # Training
+                └── generation_queue.json          # Full manifest
 ```
+
+### H200 Setup (Native)
+
+```
+/home/ubuntu/
+├── cosmos-predict2.5/                    # Main Cosmos installation
+│   ├── .venv/                            # Python virtual environment
+│   ├── checkpoints/
+│   │   └── Cosmos-Predict2.5-14B/        # 54GB model
+│   │       └── base/
+│   │           ├── post-trained/         # 27GB - USE THIS
+│   │           └── pre-trained/          # 27GB
+│   ├── assets/base/                      # Example input files
+│   ├── examples/inference.py             # Main inference script
+│   └── outputs/                          # Generated videos
+│
+├── cosmos-reason1/                       # Quality scoring (optional)
+│   ├── .venv/                            # Separate environment
+│   └── checkpoints/
+│       └── Cosmos-Reason1-7B/            # 16GB model
+│
+└── nemotron-v3-home-security-intelligence/
+    └── data/synthetic/cosmos/
+        ├── HANDOFF.md                    # This file
+        ├── generation_manifest.yaml      # All 167 video definitions
+        └── generation_status.json        # Progress tracking
+```
+
+**Note:** H200 setup is similar to B300 but uses native Python instead of Docker. The same prompt files and scripts work on both.
 
 ---
 
-## Generation Manifest Format
+## First-Run Behavior
 
-`generation_manifest.yaml` defines every video. Key fields:
+**IMPORTANT:** On first inference run, additional models are automatically downloaded:
 
-```yaml
-videos:
-  - id: 'P01'
-    category: 'presentation'
-    scenario: 'threat_escalation'
-    variation: 'delivery_baseline'
-    model: 'cosmos-diffusion-14b'
-    duration_seconds: 15
-    environment: 'night_clear'
-    scene: 'front_porch'
-    subject: 'person_normal'
-    action: 'deliver_package'
-    output_path: 'presentation/threat_escalation/P01_delivery_baseline.mp4'
-```
+| Model | Size | Purpose |
+|-------|------|---------|
+| Cosmos-Guardrail1 | ~2GB | Content safety |
+| Cosmos-Predict2.5-2B | ~5GB | Config dependencies |
+| Cosmos-Reason1-7B | ~16GB | Text encoder |
+| Tokenizer | ~1GB | Video tokenization |
+
+This adds ~5 minutes to the first run. Subsequent runs use cached models.
 
 ---
 
-## How to Generate Prompts
+## Memory Usage Profile
 
-### Option A: Use the Generator Script
+### During Model Loading
+- Base model: ~50 GB
+- Total with tokenizer/guardrails: ~65 GB
 
-```bash
-# Generate prompt for single video
-python scripts/cosmos_prompt_generator.py --id P01
+### During Generation (Peak)
+- **65 GB** at diffusion step execution
+- GPU utilization: 100%
+- 75 GB free headroom
 
-# Generate all prompts (writes to cosmos_prompts/)
-python scripts/cosmos_prompt_generator.py --all
-
-# Preview without writing
-python scripts/cosmos_prompt_generator.py --id P01 --preview
+### Memory Timeline
 ```
-
-### Option B: Manual Template Rendering
-
-```python
-from jinja2 import Environment, FileSystemLoader
-import yaml
-
-env = Environment(loader=FileSystemLoader('prompts/templates'))
-template = env.get_template('base_prompt.jinja2')
-
-# Load components
-scene = yaml.safe_load(open('prompts/templates/scenes/front_porch.yaml'))
-environment = yaml.safe_load(open('prompts/templates/environments/night_clear.yaml'))
-subject = yaml.safe_load(open('prompts/templates/subjects/person_suspicious.yaml'))
-action = yaml.safe_load(open('prompts/templates/actions/test_handle.yaml'))
-
-prompt = template.render(
-    scene=scene,
-    environment=environment,
-    subject=subject,
-    action=action,
-    generation={'duration_seconds': 15}
-)
-print(prompt)
-```
-
----
-
-## Cosmos Model Commands
-
-**We use Cosmos-Predict2.5-14B for all generation** - the latest and highest quality model, optimized for H200.
-
-### Presentation Videos (48 total) - Text2World
-
-```bash
-# Maximum quality settings for presentation videos
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "$(cat cosmos_prompts/P01.txt)" \
-    --output_path presentation/threat_escalation/P01_delivery_baseline.mp4 \
-    --resolution 720 \
-    --fps 16 \
-    --guidance 7.0 \
-    --negative_prompt "blurry, low quality, artifacts, glitches, distorted, unrealistic motion, multiple camera angles" \
-    --aspect_ratio 16:9 \
-    --seed 42 \
-    --natten \
-    --use_cuda_graphs
-```
-
-**Output specs:**
-
-- Resolution: 1280×704 (720P)
-- Frame rate: 16 FPS
-- Duration: 5 seconds per generation
-- Format: MP4
-
-### Training Videos (40 total) - Extended Duration with Sliding Window
-
-For 30-second training videos, use autoregressive sliding window mode:
-
-```bash
-# Generate 30s video using sliding window (6 × 5s clips)
-python -m cosmos_predict2_5.inference.video2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "$(cat cosmos_prompts/T01.txt)" \
-    --output_path training/threat_patterns/T01_weapon_handgun.mp4 \
-    --resolution 720 \
-    --fps 16 \
-    --guidance 7.0 \
-    --negative_prompt "blurry, low quality, artifacts, camera shake, jump cuts" \
-    --num_iterations 6 \
-    --autoregressive_mode sliding_window \
-    --aspect_ratio 16:9 \
-    --natten \
-    --use_cuda_graphs
-```
-
-**Training video specs:**
-
-- Resolution: 1280×704 (720P)
-- Frame rate: 16 FPS
-- Duration: 30 seconds (6 × 5s iterations)
-- Format: MP4
-
-### Quality Parameters Explained
-
-| Parameter           | Value   | Purpose                                                         |
-| ------------------- | ------- | --------------------------------------------------------------- |
-| `--guidance 7.0`    | 7.0     | Classifier-free guidance scale (higher = more prompt adherence) |
-| `--negative_prompt` | Text    | Elements to avoid in generation                                 |
-| `--natten`          | Flag    | NATTEN sparse attention - **2.5x speedup on H200**              |
-| `--use_cuda_graphs` | Flag    | CUDA acceleration for faster inference                          |
-| `--seed`            | Integer | Reproducible generation                                         |
-
-### Batch Generation
-
-```bash
-# Generate all presentation videos from JSONL
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --batch_input_json cosmos_prompts/presentation_batch.jsonl \
-    --output_dir presentation/ \
-    --resolution 720 \
-    --fps 16 \
-    --guidance 7.0 \
-    --natten \
-    --use_cuda_graphs
-```
-
-JSONL format:
-
-```json
-{"prompt": "Security camera footage...", "negative_prompt": "blurry...", "output_name": "P01_delivery_baseline", "seed": 42}
-{"prompt": "Security camera footage...", "negative_prompt": "blurry...", "output_name": "P02_lingering_mild", "seed": 43}
-```
-
----
-
-## Progress Tracking
-
-Update `generation_status.json` as you generate:
-
-```json
-{
-  "started_at": "2026-01-27T10:00:00Z",
-  "last_updated": "2026-01-27T12:30:00Z",
-  "total": 88,
-  "completed": 23,
-  "failed": 1,
-  "in_progress": "P24",
-  "videos": {
-    "P01": { "status": "completed", "duration_sec": 45, "file_size_mb": 12.3 },
-    "P02": { "status": "completed", "duration_sec": 52, "file_size_mb": 14.1 },
-    "P03": { "status": "failed", "error": "OOM - retry with offload" },
-    "P04": { "status": "pending" }
-  }
-}
-```
-
-**Status values:** `pending`, `in_progress`, `completed`, `failed`
-
----
-
-## Output Requirements
-
-Each generated video must have:
-
-1. **Video file**: `{id}_{variation}.mp4`
-2. **Metadata file**: `{id}_{variation}_metadata.json`
-3. **Thumbnail**: `{id}_{variation}_thumb.jpg` (first frame)
-
-### Metadata Format
-
-```json
-{
-  "id": "P01",
-  "generated_at": "2026-01-27T10:15:32Z",
-  "model": "cosmos-diffusion-14b",
-  "prompt": "Security camera footage from elevated doorbell camera...",
-  "parameters": {
-    "guidance_scale": 7.5,
-    "num_inference_steps": 50,
-    "seed": 42,
-    "fps": 24,
-    "resolution": "1280x704"
-  },
-  "generation_time_seconds": 45,
-  "file_size_bytes": 12903424
-}
-```
-
-### Extract Thumbnail
-
-```bash
-ffmpeg -i P01_delivery_baseline.mp4 -vframes 1 -q:v 2 P01_delivery_baseline_thumb.jpg
-```
-
----
-
-## Prompt Engineering Rules
-
-Follow these rules for all prompts:
-
-1. **~120 words** - Not too short, not over 300
-2. **Single scene only** - No shot changes
-3. **No camera movement** - Always "fixed camera" or "static camera"
-4. **Security camera aesthetic**:
-   - "IR-tinted footage" for night
-   - "Wide-angle lens distortion"
-   - "Timestamp overlay"
-   - "Slight grain" for realism
-5. **Ground in physics** - Realistic motion, lighting, spatial relationships
-6. **Specific over abstract** - "Porch light" not "ambient illumination"
-
-### Example Good Prompt
-
-> Security camera footage from elevated doorbell camera, suburban home front porch at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood up approaches the front door from the driveway, walking with deliberate slow pace. They stop at the door, lean close to peer through the side window, then reach down to test the door handle. Their face remains obscured by the hood. Fixed camera position, wide-angle lens with slight barrel distortion, IR-tinted footage quality typical of home security systems. Realistic human motion, 15-second duration.
-
----
-
-## Debugging & Quality Metrics
-
-Capture comprehensive debugging outputs for each generated video to enable troubleshooting and quality filtering.
-
-### Required Outputs Per Video
-
-For each generated video, capture and save:
-
-| Output        | File                             | Purpose                     |
-| ------------- | -------------------------------- | --------------------------- |
-| Video file    | `{id}_{variation}.mp4`           | The generated video         |
-| Metadata      | `{id}_{variation}_metadata.json` | All generation parameters   |
-| Thumbnail     | `{id}_{variation}_thumb.jpg`     | First frame preview         |
-| Timing        | `{id}_{variation}_timing.json`   | Performance metrics         |
-| Quality score | `{id}_{variation}_quality.json`  | Physical plausibility score |
-| GPU log       | `{id}_{variation}_gpu.log`       | Resource utilization        |
-
-### Enhanced Metadata Format
-
-Save comprehensive metadata for reproducibility:
-
-```json
-{
-  "id": "P01",
-  "variation": "delivery_baseline",
-  "generated_at": "2026-01-27T10:15:32Z",
-
-  "model": {
-    "name": "Cosmos-Predict2.5-14B",
-    "checkpoint_path": "checkpoints/Cosmos-Predict2.5-14B",
-    "version": "2.5"
-  },
-
-  "parameters": {
-    "seed": 42,
-    "guidance": 7.0,
-    "resolution": 720,
-    "fps": 16,
-    "aspect_ratio": "16:9",
-    "negative_prompt": "blurry, low quality, artifacts...",
-    "natten_enabled": true,
-    "cuda_graphs_enabled": true
-  },
-
-  "prompt": {
-    "text": "Security camera footage from elevated doorbell camera...",
-    "word_count": 97,
-    "template_components": {
-      "scene": "front_porch",
-      "environment": "night_clear",
-      "subject": "person_normal",
-      "action": "deliver_package"
-    }
-  },
-
-  "output": {
-    "file_path": "presentation/threat_escalation/P01_delivery_baseline.mp4",
-    "file_size_bytes": 12903424,
-    "duration_seconds": 5.0,
-    "resolution": "1280x704",
-    "frame_count": 80
-  },
-
-  "performance": {
-    "generation_time_seconds": 45.2,
-    "gpu_peak_memory_gb": 48.3,
-    "gpu_utilization_avg_percent": 95
-  },
-
-  "quality": {
-    "physical_plausibility_score": 4,
-    "cosmos_reason_version": "1.0",
-    "reasoning_summary": "Good adherence to physical laws..."
-  }
-}
-```
-
-### Benchmark Mode for Timing
-
-Always run with `--benchmark` to capture timing:
-
-```bash
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "$(cat cosmos_prompts/P01.txt)" \
-    --output_path output.mp4 \
-    --benchmark \
-    --natten \
-    --use_cuda_graphs \
-    2>&1 | tee timing_P01.log
-```
-
-### Physical Plausibility Scoring with Cosmos-Reason1
-
-**Install Cosmos-Reason1:**
-
-```bash
-# Clone Cosmos-Reason1 repository
-git clone https://github.com/nvidia-cosmos/cosmos-reason1.git
-cd cosmos-reason1
-uv sync
-```
-
-**Score generated videos (1-5 scale):**
-
-| Score | Meaning                                          |
-| ----- | ------------------------------------------------ |
-| 1     | Completely implausible - no adherence to physics |
-| 2     | Mostly unrealistic - poor physics                |
-| 3     | Mixed - moderate physics adherence               |
-| 4     | Mostly realistic - good physics                  |
-| 5     | Completely plausible - perfect physics           |
-
-```bash
-# Score a single video
-python -m cosmos_reason1.inference.video_reward \
-    --video_path presentation/threat_escalation/P01_delivery_baseline.mp4 \
-    --output_json P01_quality.json
-
-# Batch score all videos in a directory
-for video in presentation/**/*.mp4; do
-    base=$(basename "$video" .mp4)
-    python -m cosmos_reason1.inference.video_reward \
-        --video_path "$video" \
-        --output_json "quality_scores/${base}_quality.json"
-done
-```
-
-**Quality score output format:**
-
-```json
-{
-  "video_path": "presentation/threat_escalation/P01_delivery_baseline.mp4",
-  "physical_plausibility_score": 4,
-  "reasoning": {
-    "object_behavior": "Person moves naturally with realistic gait",
-    "motion_consistency": "Smooth motion without teleportation",
-    "interaction_plausibility": "Door handle interaction looks realistic",
-    "temporal_continuity": "No frame jumps or artifacts"
-  },
-  "scored_at": "2026-01-27T12:30:00Z"
-}
-```
-
-### Best-of-N Generation (Quality Optimization)
-
-Generate multiple variations and automatically select the best:
-
-```bash
-# Generate 3 variations, score each, keep best
-python -m cosmos_predict2_5.inference.video2world_bestofn \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "$(cat cosmos_prompts/P01.txt)" \
-    --output_dir bestofn_P01/ \
-    --num_generations 3 \
-    --num_critic_trials 2 \
-    --resolution 720 \
-    --fps 16 \
-    --natten
-```
-
-**Output structure:**
-
-```
-bestofn_P01/
-├── generation_0.mp4     # First variation
-├── generation_1.mp4     # Second variation
-├── generation_2.mp4     # Third variation
-├── scores.json          # Quality scores for each
-└── best.mp4            # Symlink to highest scored
-```
-
-### GPU Monitoring
-
-Capture GPU utilization during generation:
-
-```bash
-# Start GPU monitoring in background
-nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.total,temperature.gpu,power.draw \
-    --format=csv -l 1 > gpu_log_P01.csv &
-GPU_MONITOR_PID=$!
-
-# Run generation
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "$(cat cosmos_prompts/P01.txt)" \
-    --output_path P01.mp4 \
-    --natten
-
-# Stop monitoring
-kill $GPU_MONITOR_PID
-```
-
-### Automated Quality Pipeline
-
-Run this after each video generation:
-
-```bash
-#!/bin/bash
-# quality_check.sh - Run after each video generation
-
-VIDEO_PATH=$1
-BASE_NAME=$(basename "$VIDEO_PATH" .mp4)
-OUTPUT_DIR="quality_reports"
-
-mkdir -p "$OUTPUT_DIR"
-
-# 1. Extract thumbnail
-ffmpeg -i "$VIDEO_PATH" -vframes 1 -q:v 2 "${OUTPUT_DIR}/${BASE_NAME}_thumb.jpg"
-
-# 2. Get video metadata
-ffprobe -v quiet -print_format json -show_format -show_streams "$VIDEO_PATH" \
-    > "${OUTPUT_DIR}/${BASE_NAME}_ffprobe.json"
-
-# 3. Score physical plausibility
-python -m cosmos_reason1.inference.video_reward \
-    --video_path "$VIDEO_PATH" \
-    --output_json "${OUTPUT_DIR}/${BASE_NAME}_quality.json"
-
-# 4. Check quality threshold (reject if score < 3)
-SCORE=$(jq '.physical_plausibility_score' "${OUTPUT_DIR}/${BASE_NAME}_quality.json")
-if [ "$SCORE" -lt 3 ]; then
-    echo "WARNING: ${BASE_NAME} scored ${SCORE}/5 - consider regenerating"
-    echo "$BASE_NAME" >> "${OUTPUT_DIR}/low_quality_videos.txt"
-fi
-
-echo "Quality check complete for ${BASE_NAME}: Score ${SCORE}/5"
-```
-
-### Quality Thresholds for This Project
-
-| Category            | Minimum Score | Action if Below                    |
-| ------------------- | ------------- | ---------------------------------- |
-| Presentation videos | 4             | Regenerate with different seed     |
-| Training videos     | 3             | Regenerate or exclude from dataset |
-
-**Regeneration command:**
-
-```bash
-# Regenerate with new seed if quality score < threshold
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "$(cat cosmos_prompts/P01.txt)" \
-    --output_path P01_retry.mp4 \
-    --seed 12345 \  # Different seed
-    --guidance 7.5 \  # Slightly higher guidance
-    --natten
+Start      → Load model     → Generate      → Save
+0 GB       → 50 GB          → 65 GB (peak)  → 50 GB
 ```
 
 ---
 
 ## Troubleshooting
 
-### Out of Memory (OOM)
+### "nvrtc: error: invalid value for --gpu-architecture (-arch)" (B300/Blackwell)
 
-H200 has 141GB VRAM so OOM is extremely unlikely with the 14B model (~50GB). If it occurs:
+**Cause:** PyTorch's NVRTC JIT compilation doesn't recognize sm_103 (B300) architecture in native installations.
 
-```bash
-# Disable CUDA graphs (reduces memory overhead)
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    --prompt "..." \
-    --natten
-    # Note: --use_cuda_graphs flag removed
-```
-
-### Poor Quality Output
-
-1. Check prompt length (~120 words optimal, max 300)
-2. Ensure single scene focus (no shot changes)
-3. Try different seed: `--seed 12345`
-4. Increase guidance scale: `--guidance 8.0` (more prompt adherence)
-5. Add specific negative prompts for artifacts you see
-6. Ensure "fixed camera" or "static camera" is in prompt
-
-### Temporal Inconsistency (Sliding Window)
-
-For 30s training videos using sliding window:
-
-1. Ensure prompt describes continuous action
-2. Reduce guidance slightly: `--guidance 6.0`
-3. Check that first frame of each iteration aligns
-4. Consider shorter iterations: `--num_iterations 4` (20s total)
-
-### NATTEN Issues
-
-If NATTEN causes problems:
+**Solution:** Use the Docker container approach. The NGC PyTorch 25.10+ containers include proper Blackwell NVRTC support.
 
 ```bash
-# Run without NATTEN (slower but stable)
-python -m cosmos_predict2_5.inference.text2world \
-    --model_path checkpoints/Cosmos-Predict2.5-14B \
-    # Remove --natten flag
-    ...
+# Build and use the cosmos-b300 container
+docker build -f docker/nightly.Dockerfile -t cosmos-b300 .
+
+# Run inference in container
+docker run --rm --gpus all \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v $(pwd):/workspace/cosmos \
+  --entrypoint python \
+  cosmos-b300 \
+  /workspace/cosmos/examples/inference.py ...
 ```
 
-### Video Corruption
+**Key insight:** B300 = sm_103, which is different from B100/B200 (sm_100). Many "Blackwell" builds only target sm_100.
+
+### "GatedRepoError: 403 Client Error"
+
+**Cause:** HuggingFace license not accepted
+
+**Solution:** Visit each model's HuggingFace page and accept the license:
+- https://huggingface.co/nvidia/Cosmos-Predict2.5-14B
+- https://huggingface.co/nvidia/Cosmos-Predict2.5-2B  
+- https://huggingface.co/nvidia/Cosmos-Guardrail1
+- https://huggingface.co/nvidia/Cosmos-Reason1-7B
+
+### "decord" Platform Error with cu130
+
+**Cause:** CUDA 13.0 wheels only available for ARM64
+
+**Solution:** Use `--extra cu128` instead:
+```bash
+uv sync --extra cu128  # NOT cu130
+```
+
+### Slow First Run
+
+**Cause:** Additional models being downloaded
+
+**Solution:** Wait ~5 minutes for downloads to complete. Check progress:
+```bash
+tail -f outputs/test/console.log
+```
+
+### Generation Hangs at 0%
+
+**Cause:** CUDA kernel compilation (torch.compile)
+
+**Solution:** Wait 2-3 minutes. First run compiles kernels which are cached for subsequent runs.
+
+### Out of Memory
+
+**Cause:** Should not happen with 14B on H200 (65GB << 140GB) or B300 (267GB)
+
+**If it occurs:**
+```bash
+# Disable CUDA graphs
+python examples/inference.py ... 
+# Remove any --use_cuda_graphs flag if present
+```
+
+### flash-attn or transformer-engine ImportError (Native Install)
+
+**Cause:** Binary incompatibility with PyTorch version after upgrade
+
+**Solution:** Either rebuild from source (slow) or use Docker container (recommended):
 
 ```bash
-# Verify video integrity
-ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 video.mp4
+# Option 1: Rebuild flash-attn for your architecture (takes ~70 minutes)
+FLASH_ATTN_CUDA_ARCHS="100" uv pip install --upgrade flash-attn --no-build-isolation
 
-# Check for frame issues
-ffprobe -v error -select_streams v:0 -count_frames -show_entries stream=nb_read_frames video.mp4
+# Option 2: Use Docker container (recommended)
+docker build -f docker/nightly.Dockerfile -t cosmos-b300 .
 ```
 
-### Known Cosmos-Predict2.5 Limitations
+---
 
-Be aware of these documented limitations:
+## Quality Scoring with Cosmos-Reason1
 
-- Fast camera movements may cause artifacts
-- Overlapping human-object interactions can be imprecise
-- Low lighting with motion blur is challenging
-- Multiple simultaneous actions may not render well
+```bash
+cd /home/ubuntu/cosmos-reason1
+source .venv/bin/activate
 
-**Mitigation:** Our prompts are designed for static security cameras, which avoids most of these issues.
+# Score a video (1-5 scale for physical plausibility)
+python -m cosmos_reason1.inference.video_reward \
+  --video_path /path/to/video.mp4 \
+  --output_json quality_score.json
+```
 
 ---
 
-## Validation Checklist
+## Batch Generation Strategy
 
-Before marking a video complete:
+### Recommended Approach
 
-- [ ] Video plays without corruption
-- [ ] Duration matches spec (±1 second)
-- [ ] Resolution is correct (1280x704 for Diffusion, 1024x640 for AR)
-- [ ] Content matches prompt intent
-- [ ] No obvious artifacts or glitches
-- [ ] Metadata file created
-- [ ] Thumbnail extracted
-- [ ] generation_status.json updated
+1. **Keep model loaded** - Process multiple videos per container to avoid reload time
+2. **Use multiple JSON files** - Pass space-separated after single `-i` flag (tyro syntax)
+3. **8 GPU parallelism** - One container per GPU, each processing ~63 videos
 
----
+### Batch Input Format
 
-## Video Categories Summary
+Use individual JSON files passed to a single `-i` flag:
 
-### Presentation (48 videos)
+```bash
+# ✅ CORRECT - Multiple files after single -i
+python inference.py -i P01_5s.json P02_5s.json P03_5s.json -o output/
 
-| Scenario              | IDs     | Time  | Purpose                        |
-| --------------------- | ------- | ----- | ------------------------------ |
-| Threat Escalation     | P01-P12 | Night | Show risk scoring intelligence |
-| Cross-Camera Tracking | P13-P24 | Dusk  | Show ReID and correlation      |
-| Household Recognition | P25-P36 | Day   | Show known vs unknown contrast |
-| Vehicle + Person      | P37-P48 | Day   | Show full enrichment pipeline  |
+# ❌ WRONG - Repeated -i flags (only processes last file)
+python inference.py -i P01_5s.json -i P02_5s.json -i P03_5s.json -o output/
+```
 
-### Training (40 videos)
-
-| Category           | IDs     | Purpose                            |
-| ------------------ | ------- | ---------------------------------- |
-| Threat Patterns    | T01-T10 | Weapon detection, aggressive poses |
-| Tracking Sequences | T11-T18 | ReID, cross-angle consistency      |
-| Enrichment Stress  | T19-T30 | Exercise all Model Zoo models      |
-| Edge Cases         | T31-T40 | Adverse conditions testing         |
+The `batch_generate.sh` script handles this automatically.
 
 ---
 
-## Expected Timeline
+## Hardware Considerations
 
-With Cosmos-Predict2.5-14B on H200 (NATTEN + CUDA graphs enabled):
+### Current: H200 (140GB VRAM)
 
-| Phase                     | Videos | Duration Each | Estimated Time   |
-| ------------------------- | ------ | ------------- | ---------------- |
-| Presentation (Text2World) | 48     | 5s clips      | ~3-4 hours       |
-| Training (Sliding Window) | 40     | 30s (6×5s)    | ~5-6 hours       |
-| Validation & Retries      | ~5-10  | -             | ~1 hour          |
-| **Total**                 | **88** |               | **~10-12 hours** |
+| Metric | Value |
+|--------|-------|
+| Peak usage | 65 GB (45%) |
+| Free during generation | 75 GB |
+| Parallel capacity | 1× 14B + 1× 2B safely |
 
-**Note:** NATTEN sparse attention provides ~2.5x speedup on H200's Hopper architecture compared to standard attention.
+### Upgrade Options
+
+| GPU | Expected Speedup | Notes |
+|-----|------------------|-------|
+| 2× H200 | 2× | Run two 14B instances |
+| B200 (Blackwell) | ~2.5× | Higher memory bandwidth |
+| GB200 NVL | ~4× | Rack-scale parallelism |
 
 ---
 
-## References
+## Files Reference
 
-### Official Documentation
+### Key Paths (B300 - Docker)
 
-- [NVIDIA Cosmos Documentation](https://docs.nvidia.com/cosmos/)
-- [Cosmos Diffusion Reference](https://docs.nvidia.com/cosmos/latest/predict1/diffusion/reference.html)
-- [Cosmos Diffusion Quickstart](https://docs.nvidia.com/cosmos/1.1.0/predict/diffusion/quickstart_guide.html)
-- [Cosmos Autoregressive Reference](https://docs.nvidia.com/cosmos/latest/predict1/autoregressive/reference.html)
+| File | Path |
+|------|------|
+| Cosmos repo | `/home/shadeform/cosmos-predict2.5` |
+| Docker image | `cosmos-b300` (built from `docker/nightly.Dockerfile`) |
+| Inference script | `examples/inference.py` (inside container at `/workspace`) |
+| Video manifest | `/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/generation_manifest.yaml` |
+| Generated prompts | `/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/prompts/generated/` |
+| Output videos | `/home/shadeform/cosmos-predict2.5/outputs/security_videos/` |
 
-### GitHub Repositories
+### Key Paths (H200 - Native)
 
-- [cosmos-predict1](https://github.com/nvidia-cosmos/cosmos-predict1) - Main inference repository
-- [Cosmos-Tokenizer](https://github.com/NVIDIA/Cosmos-Tokenizer) - Video/image tokenizers
-- [NVIDIA Cosmos GitHub](https://github.com/nvidia-cosmos) - All Cosmos repositories
+| File | Path |
+|------|------|
+| Cosmos environment | `/home/ubuntu/cosmos-predict2.5/.venv/bin/activate` |
+| 14B model | `/home/ubuntu/cosmos-predict2.5/checkpoints/Cosmos-Predict2.5-14B` |
+| Inference script | `/home/ubuntu/cosmos-predict2.5/examples/inference.py` |
 
-### Hugging Face Models
+### Prompt Generation Environment
 
-- [Cosmos-1.0-Diffusion-7B-Text2World](https://huggingface.co/nvidia/Cosmos-1.0-Diffusion-7B-Text2World)
-- [Cosmos-1.0-Diffusion-14B-Text2World](https://huggingface.co/nvidia/Cosmos-1.0-Diffusion-14B-Text2World)
-- [Cosmos-1.0-Autoregressive-13B-Video2World](https://huggingface.co/nvidia/Cosmos-1.0-Autoregressive-13B-Video2World)
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+source .venv/bin/activate  # For running generate_prompts.py
+```
 
-### Tutorials & Guides
+---
 
-- [Cosmos Cookbook Blog](https://developer.nvidia.com/blog/how-to-scale-data-generation-for-physical-ai-with-the-nvidia-cosmos-cookbook/)
-- [Analytics Vidhya Cosmos Tutorial](https://www.analyticsvidhya.com/blog/2025/02/nvidia-cosmos-1-0-diffusion/)
+## Generation Manifest Quick Reference
+
+### Presentation Videos (P01-P48)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Threat Escalation | P01-P12 | Progressive suspicious behavior at night |
+| Cross-Camera Tracking | P13-P24 | Zone movement at dusk |
+| Household Recognition | P25-P36 | Known vs unknown during day |
+| Vehicle + Person | P37-P48 | Vehicle arrivals/exits |
+
+### Training Videos (T01-T40)
+
+| Category | IDs | Purpose |
+|----------|-----|---------|
+| Threat Patterns | T01-T10 | Weapons, aggressive poses |
+| Tracking Sequences | T11-T18 | ReID testing |
+| Enrichment Stress | T19-T30 | Face/clothing/pet detection |
+| Edge Cases | T31-T40 | Weather/lighting challenges |
+
+### False Positive Training (F01-F16)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Wildlife | F01-F05 | Deer, raccoon, coyote, cat, birds |
+| Wind Effects | F06-F08 | Trash, branches, flags |
+| Shadows/Reflections | F09-F11 | Headlights, clouds, glare |
+| Passing Pedestrians | F12-F14 | Joggers, dog walkers |
+| Innocent Intrusions | F15-F16 | Wrong delivery, ball retrieval |
+
+### Real Threats (R01-R18)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Package Theft | R01-R03 | Quick grab, casual, follow delivery |
+| Vehicle Crime | R04-R07 | Car break-in, theft, catalytic converter |
+| Vandalism | R08-R10 | Graffiti, mailbox, egging |
+| Casing | R11-R12 | Photography, note-taking |
+| Break-ins | R13-R16 | Home invasion, garage, shed |
+| Trespassing | R17-R18 | Shortcut, camping |
+
+### Everyday Recognition (E01-E22)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Deliveries | E01-E07 | Amazon, UPS, FedEx, USPS, food, grocery, drone |
+| Home Services | E08-E11 | Landscaper, pool, cleaner, pest control |
+| Utilities | E12-E14 | Meter reader, electric, gas |
+| Solicitors | E15-E17 | Sales, religious, political |
+| Visitors | E18-E22 | Guests, rideshare, contractor, realtor, neighbor |
+
+### Challenging Conditions (C01-C23)
+
+| Category | IDs | Description |
+|----------|-----|-------------|
+| Weather | C01-C05 | Rain, snow, fog, hail, wind |
+| Lighting | C06-C10 | Glare, headlights, flashlight, lightning, sunrise |
+| Occlusion | C11-C14 | Umbrella, package, crowd, stroller |
+| Speed | C15-C16 | Sprint, fast cyclist |
+| Clothing | C17-C20 | Rain gear, winter, costume, helmet |
+| Other | C21-C23 | Distance, angle, multi-event |
+
+---
+
+## Next Steps for Generation (Quick Start)
+
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+
+# 1. Activate environment and regenerate prompts (if needed)
+source .venv/bin/activate
+python generate_prompts.py
+
+# 2. Start generation (runs in background)
+./batch_generate.sh
+
+# 3. Monitor progress (auto-syncs videos to git)
+./monitor.sh 60
+```
+
+### Quality Check Workflow
+
+1. **First 5s videos complete in ~6 hours** - Check for camera-in-frame issues
+2. **Use ffmpeg to extract frames**: `ffmpeg -ss 2 -i video.mp4 -vframes 1 frame.jpg`
+3. **Verify**: No camera equipment visible, elevated perspective, real-time motion
+4. **If issues found**: Stop generation, fix prompts, restart
+
+---
+
+## Batch Generation with 8 GPUs (Verified Working)
+
+### Optimal Approach: Persistent Containers
+
+The most efficient approach for generating 501 videos is to run **8 persistent Docker containers** (one per GPU), each processing ~63 videos sequentially. This loads the model once per GPU and processes all assigned videos.
+
+**Why not other approaches?**
+- **Single GPU serial**: 100+ hours (too slow)
+- **New container per video**: Model reload (~4 min) for each video (wasteful)
+- **Context parallelism for single video**: Faster per-video but lower total throughput
+
+### Generation Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `batch_generate.sh` | Main parallel generation script (round-robin distribution) |
+| `generate_prompts.py` | Renders 501 prompts (167 × 3 durations) from manifest |
+| `monitor.sh` | Real-time progress monitoring + auto git sync |
+| `parallel_generate.py` | Alternative Python-based approach |
+
+### Running Batch Generation
+
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+
+# Generate all prompt JSON files first (501 files)
+source .venv/bin/activate
+python generate_prompts.py
+
+# Start parallel generation on 8 GPUs
+./batch_generate.sh
+
+# Monitor progress with auto-sync to git (in separate terminal)
+./monitor.sh 60     # Refresh every 60s, auto-commits new videos
+```
+
+### Distribution Strategy: Round-Robin for Full GPU Utilization
+
+Videos are distributed using **round-robin** to ensure all 8 GPUs have balanced workloads and finish at approximately the same time:
+
+```
+GPU 0: video[0], video[8], video[16], ...  → 21×5s + 21×10s + 21×30s = 63 videos
+GPU 1: video[1], video[9], video[17], ...  → 21×5s + 21×10s + 21×30s = 63 videos
+...
+GPU 7: video[7], video[15], video[23], ... → ~21×5s + 21×10s + 20×30s = 62 videos
+```
+
+**Why round-robin instead of consecutive chunks?**
+- **Consecutive chunks** (sorted by duration): GPUs 0-1 get only 5s videos and finish in ~19 hours, while GPUs 6-7 get only 30s videos and take ~37 hours. GPUs sit idle for 18+ hours.
+- **Round-robin** (mixed durations): Each GPU processes an equal mix of 5s, 10s, and 30s videos. All GPUs finish together in ~26 hours with 100% utilization throughout.
+
+Videos of all durations will complete interleaved throughout the run (not all 5s first).
+
+### Output Locations
+
+```
+# Raw generation output (Docker container writes here)
+/home/shadeform/cosmos-predict2.5/outputs/security_videos/*.mp4
+
+# Git-synced location (monitor.sh auto-copies here)
+/home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos/videos/*.mp4
+```
+
+Both paths persist on the host filesystem (not inside containers).
+
+---
+
+## Critical: Camera-in-Frame Issue (FIXED)
+
+### The Problem
+
+Early video generations showed **camera equipment visible IN the frame** (~60% of videos). This happened because prompts used device-centric language like:
+- "Security camera footage from elevated doorbell camera"
+- "Camera mounted on garage"
+
+Cosmos interpreted these as instructions to SHOW a camera rather than simulate the camera's POV.
+
+### The Solution
+
+1. **Use perspective-centric language** in prompts:
+   - ❌ BAD: `Security camera footage from elevated doorbell camera`
+   - ✅ GOOD: `Suburban home front porch, viewed from an elevated vantage point near the front door`
+
+2. **Include camera exclusions in negative_prompt:**
+   ```
+   visible camera, security camera device, doorbell camera, camera lens visible,
+   camera equipment, camera housing, surveillance camera in frame, camera mount,
+   camera on wall, camera on ceiling, CCTV camera visible, Ring doorbell visible
+   ```
+
+3. **Add real-time speed specification:**
+   ```
+   Real-time speed, natural fluid motion at 1x playback rate.
+   ```
+
+The `generate_prompts.py` script and `base_prompt.jinja2` template implement these fixes.
+
+---
+
+## Critical: Guardrails and Security Training Data
+
+### The Problem
+
+Cosmos includes content safety guardrails (BLOCKLIST, QWEN3GUARD) that **will block** prompts containing:
+- Weapon descriptions (handgun, knife, bat)
+- Violence (kicking door, breaking window)
+- Threatening behavior
+- Concealed faces (ski masks)
+
+**Our training videos (T01-T10, R01-R18) explicitly require these scenarios for threat detection training.**
+
+### The Solution
+
+Use `--disable-guardrails` flag:
+
+```bash
+python examples/inference.py \
+  -i prompts.json \
+  -o outputs/ \
+  --inference-type=text2world \
+  --model=14B/post-trained \
+  --disable-guardrails  # Required for security training data
+```
+
+The `batch_generate.sh` script includes this flag by default.
+
+### Videos Requiring Disabled Guardrails
+
+| Video ID | Content | Why Blocked |
+|----------|---------|-------------|
+| T01 | Visible handgun | Weapon |
+| T02 | Large knife | Weapon |
+| T03 | Baseball bat as weapon | Weapon |
+| T05 | Kicking door | Violence |
+| T06 | Breaking window | Violence |
+| T07 | Pry bar forced entry | Break-in tool |
+| T08 | Ski mask and gloves | Face concealment |
+| T09 | Multiple intruders | Coordinated threat |
+
+---
+
+## Important: tyro Argument Syntax
+
+### Correct Way to Pass Multiple Input Files
+
+Cosmos uses `tyro` for argument parsing. For list arguments, use **space-separated values after a single flag**:
+
+```bash
+# ✅ CORRECT - All files after single -i
+python inference.py -i file1.json file2.json file3.json -o output/
+
+# ❌ WRONG - Repeated flags (only last file processed)
+python inference.py -i file1.json -i file2.json -i file3.json -o output/
+```
+
+This is critical for batch processing multiple videos in a single container.
+
+---
+
+## B300 8-GPU Generation Performance (Verified)
+
+### Actual Metrics from Production Run
+
+| Metric | Value |
+|--------|-------|
+| **GPUs Used** | 8× NVIDIA B300 |
+| **VRAM per GPU** | ~65 GB |
+| **GPU Utilization** | 100% during diffusion |
+| **Time per Step** | ~29 seconds |
+| **Steps per Video** | 35 |
+
+### Time per Video by Duration
+
+| Duration | Frames | Approx Time |
+|----------|--------|-------------|
+| **5 seconds** | 120 | ~17 minutes |
+| **10 seconds** | 240 | ~25 minutes |
+| **30 seconds** | 720 | ~60 minutes |
+
+### Total Generation Time (501 Videos)
+
+| Duration | Count | Time per GPU | Total (8 GPUs) |
+|----------|-------|--------------|----------------|
+| 5s videos | 167 | ~7 hours | ~6 hours |
+| 10s videos | 167 | ~10 hours | ~9 hours |
+| 30s videos | 167 | ~21 hours | ~9 hours |
+| **TOTAL** | **501** | - | **~18-24 hours** |
+
+### Parallelization Efficiency
+
+| Configuration | Total Time | Speedup |
+|---------------|------------|---------|
+| 1 GPU (serial) | ~150 hours | 1× |
+| 8 GPUs (parallel) | ~18-24 hours | ~7-8× |
+
+---
+
+## Verified By
+
+### B300 Blackwell (Docker)
+
+- **Date:** 2026-01-27
+- **Container:** `cosmos-b300` (built from `nightly.Dockerfile`)
+- **Base Image:** `nvcr.io/nvidia/pytorch:25.10-py3`
+- **GPU:** 8× NVIDIA B300 SXM6 AC (267GB VRAM each)
+- **PyTorch:** 2.9.0a0+nv25.10
+- **flash-attn:** 2.7.4.post1
+- **NVRTC JIT Test:** ✅ PASSED (erfinv kernel compiles for sm_103)
+- **Cosmos Import:** ✅ PASSED
+
+### H200 Hopper (Native)
+
+- **Date:** 2026-01-27
+- **Test:** snowy_stop_light.json → snowy_stop_light.mp4
+- **Result:** ✅ Success (598 KB, 5.81s, 1280×704)
+- **GPU:** NVIDIA H200, 65GB peak usage
+- **Time:** 14:58 generation time
+
+---
+
+## Quick Reference: Docker Run Command
+
+```bash
+# Standard inference command for B300 (single GPU)
+docker run --rm --gpus '"device=0"' \
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  -v /home/shadeform/cosmos-predict2.5:/workspace \
+  -v /home/shadeform/.cache/huggingface:/root/.cache/huggingface \
+  -v /path/to/prompts:/prompts \
+  -w /workspace \
+  cosmos-b300 \
+  python examples/inference.py \
+  -i /prompts/INPUT_FILE.json \
+  -o /workspace/outputs/OUTPUT_DIR \
+  --inference-type=text2world \
+  --model=14B/post-trained \
+  --disable-guardrails
+```
+
+**Key points:**
+- Use `-w /workspace` (not `--entrypoint python`) to let entrypoint install cosmos-predict2
+- Use `--disable-guardrails` for security training content
+- Use `--gpus '"device=N"'` for specific GPU assignment in parallel runs
+
+---
+
+## Redeployment on New Node (Quick Reference)
+
+If you need to redeploy on a fresh B300 or H200 node:
+
+### 1. Clone Repositories
+
+```bash
+cd /home/shadeform  # or /home/ubuntu for H200
+git clone https://github.com/nvidia-cosmos/cosmos-predict2.5.git
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
+git checkout msvoboda/nemo3
+```
+
+### 2. Build Docker Container (B300)
+
+```bash
+cd /home/shadeform/cosmos-predict2.5
+docker build -f docker/nightly.Dockerfile -t cosmos-b300 .
+```
+
+### 3. Setup Python Environment (for prompt generation)
+
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+apt install -y python3-venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pyyaml jinja2
+```
+
+### 4. Authenticate HuggingFace
+
+```bash
+# Accept licenses at:
+# - https://huggingface.co/nvidia/Cosmos-Predict2.5-14B
+# - https://huggingface.co/nvidia/Cosmos-Predict2.5-2B
+# - https://huggingface.co/nvidia/Cosmos-Guardrail1
+# - https://huggingface.co/nvidia/Cosmos-Reason1-7B
+
+huggingface-cli login --token YOUR_TOKEN
+```
+
+### 5. Generate Prompts and Start
+
+```bash
+cd /home/shadeform/nemotron-v3-home-security-intelligence/data/synthetic/cosmos
+source .venv/bin/activate
+python generate_prompts.py  # Creates 501 prompt files
+./batch_generate.sh         # Starts 8-GPU generation
+./monitor.sh 60             # Monitor + auto-sync to git
+```
+
+### Key Files to Verify
+
+| File | Purpose | Check |
+|------|---------|-------|
+| `generation_manifest.yaml` | Video definitions | 167 videos defined |
+| `prompts/templates/base_prompt.jinja2` | Prompt template | Perspective-centric language |
+| `prompts/generated/*.json` | Cosmos inputs | 501 files, correct format |
+| `batch_generate.sh` | Generation script | `--disable-guardrails` present |
 
 ---
 

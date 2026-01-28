@@ -10,7 +10,7 @@ ambient_light: minimal
 artificial_light:
   - porch_light
   - street_lamp_halo
-camera_effects:
+footage_effects:
   - ir_tint
   - rain_streaks
   - wet_reflections
