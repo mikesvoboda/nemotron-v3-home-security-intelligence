@@ -55,10 +55,15 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # Redis tuning for connection handling
+    sysctls:
+      - net.core.somaxconn=511
     tmpfs:
       - /tmp
     ports:
       - '6379:6379'
+    # Disable persistence failures blocking writes in CI (ephemeral environment)
+    command: redis-server --stop-writes-on-bgsave-error no
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s

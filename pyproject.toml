@@ -496,6 +496,7 @@ exclude = [
     "backend/tests/unit/services/test_orphan_scanner_service.py",
     "backend/tests/unit/core/test_redis_memory.py",  # Empty async generator pattern
     "backend/tests/integration/test_gpu_config_workflow.py",  # Unreachable code in mock function
+    "backend/tests/unit/core/test_database_pool.py",  # Unreachable code in failing_connect mock
 ]
 
 # =============================================================================

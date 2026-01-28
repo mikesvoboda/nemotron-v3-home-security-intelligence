@@ -126,13 +126,21 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # Redis tuning for connection handling
+    # NOTE: vm.overcommit_memory=1 sysctl requires host-level configuration
+    # and cannot be set in rootless containers. For production deployments, run:
+    #   sudo sysctl -w vm.overcommit_memory=1
+    #   echo "vm.overcommit_memory=1" | sudo tee /etc/sysctl.d/99-redis.conf
+    # See: https://redis.io/docs/management/admin/#background-saving-fails-with-a-fork-error
+    sysctls:
+      - net.core.somaxconn=511
     tmpfs:
       - /tmp
     ports:
       - '6379:6379'
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --appendfsync everysec
+    command: redis-server --appendonly yes --appendfsync everysec --stop-writes-on-bgsave-error no
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s

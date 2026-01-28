@@ -7,7 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+
+# Import ultralytics and YOLO to ensure YOLO is available for patching
+# This must be done before importing model module
+import ultralytics  # noqa: F401
 from fastapi.testclient import TestClient
+from ultralytics import YOLO as _YOLO  # noqa: F401 - forces YOLO attr to exist
 
 # Add the ai/yolo26 directory to sys.path to enable imports
 # This handles both pytest from project root and running tests directly
@@ -33,6 +38,7 @@ from model import (  # noqa: E402
     get_gpu_metrics,
     get_pt_model_path_for_engine,
     get_tensorrt_version,
+    is_tensorrt_fallback_error,
     is_tensorrt_version_mismatch_error,
     validate_file_extension,
     validate_image_magic_bytes,
@@ -1294,6 +1300,276 @@ class TestYOLO26ModelTensorRTVersionHandling:
             cuda_available=True,
         )
         assert response.tensorrt_version is None
+
+
+class TestTensorRTPyTorchFallback:
+    """Tests for TensorRT to PyTorch fallback logic (NEM-3882).
+
+    These tests verify that the YOLO26 service gracefully falls back to PyTorch
+    when TensorRT is unavailable or fails to load.
+    """
+
+    def test_fallback_when_tensorrt_not_installed(self, tmp_path):
+        """Test fallback to PyTorch when TensorRT is not installed."""
+        # Create a .pt file that would be used as fallback
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        # Engine path that would fail because TensorRT isn't available
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cpu",
+            pt_model_path=str(pt_file),
+        )
+
+        # Mock YOLO to raise ImportError for TensorRT
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine"):
+                # Simulate TensorRT not being available
+                raise RuntimeError("TensorRT is not available or installed")
+            return mock_yolo_instance
+
+        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
+            model.load_model()
+
+        # Should have fallen back to .pt model
+        assert model.tensorrt_enabled is False
+        assert model.model_path == str(pt_file)
+
+    def test_fallback_when_engine_file_not_found(self, tmp_path):
+        """Test fallback to PyTorch when engine file doesn't exist."""
+        # Create a .pt file that would be used as fallback
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        # Engine path that doesn't exist
+        engine_path = tmp_path / "nonexistent_fp16.engine"
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cpu",
+            pt_model_path=str(pt_file),
+        )
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine") and not Path(path).exists():
+                raise FileNotFoundError(f"Engine file not found: {path}")
+            return mock_yolo_instance
+
+        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
+            model.load_model()
+
+        # Should have fallen back to .pt model
+        assert model.tensorrt_enabled is False
+        assert model.model_path == str(pt_file)
+
+    def test_fallback_when_tensorrt_import_fails(self, tmp_path):
+        """Test fallback when TensorRT module import fails during engine load."""
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cpu",
+            pt_model_path=str(pt_file),
+        )
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine"):
+                # Simulate TensorRT import error
+                raise RuntimeError("No module named 'tensorrt'")
+            return mock_yolo_instance
+
+        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
+            model.load_model()
+
+        assert model.tensorrt_enabled is False
+        assert model.model_path == str(pt_file)
+
+    def test_fallback_when_gpu_mismatch(self, tmp_path):
+        """Test fallback when TensorRT engine was built for different GPU."""
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cuda:0",
+            pt_model_path=str(pt_file),
+        )
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine"):
+                # Simulate GPU architecture mismatch
+                raise RuntimeError(
+                    "CUDA error: no kernel image is available for execution on the device"
+                )
+            return mock_yolo_instance
+
+        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
+            model.load_model()
+
+        assert model.tensorrt_enabled is False
+        assert model.model_path == str(pt_file)
+
+    def test_fallback_logs_backend_used(self, tmp_path, caplog):
+        """Test that fallback logs which backend is being used."""
+        import logging
+
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cpu",
+            pt_model_path=str(pt_file),
+        )
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine"):
+                raise RuntimeError("TensorRT is not available")
+            return mock_yolo_instance
+
+        with (
+            patch("ultralytics.YOLO", side_effect=mock_yolo_init),
+            caplog.at_level(logging.INFO),
+        ):
+            model.load_model()
+
+        # Should log the fallback
+        assert any("fallback" in record.message.lower() for record in caplog.records) or any(
+            "pytorch" in record.message.lower() for record in caplog.records
+        )
+
+    def test_no_fallback_when_pt_model_not_available(self, tmp_path):
+        """Test that loading fails when both TensorRT and fallback .pt are unavailable."""
+        # No .pt file created
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cpu",
+            # No pt_model_path provided and none can be derived
+        )
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine"):
+                raise RuntimeError("TensorRT is not available")
+            raise FileNotFoundError(f"Model not found: {path}")
+
+        with (
+            patch("ultralytics.YOLO", side_effect=mock_yolo_init),
+            pytest.raises(RuntimeError, match="TensorRT is not available"),
+        ):
+            model.load_model()
+
+    def test_successful_tensorrt_load_no_fallback(self, tmp_path):
+        """Test that successful TensorRT load doesn't trigger fallback."""
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            device="cuda:0",
+        )
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_instance),
+            patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
+        ):
+            model.load_model()
+
+        # TensorRT should remain enabled
+        assert model.tensorrt_enabled is True
+        assert model.model_path == str(engine_path)
+
+    def test_fallback_preserves_confidence_threshold(self, tmp_path):
+        """Test that fallback preserves the configured confidence threshold."""
+        pt_file = tmp_path / "yolo26m.pt"
+        pt_file.touch()
+
+        engine_path = tmp_path / "yolo26m_fp16.engine"
+        engine_path.touch()
+
+        model = YOLO26Model(
+            model_path=str(engine_path),
+            confidence_threshold=0.75,
+            device="cpu",
+            pt_model_path=str(pt_file),
+        )
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.model = MagicMock()
+
+        def mock_yolo_init(path):
+            if path.endswith(".engine"):
+                raise RuntimeError("TensorRT is not available or installed")
+            return mock_yolo_instance
+
+        with patch("ultralytics.YOLO", side_effect=mock_yolo_init):
+            model.load_model()
+
+        # Confidence threshold should be preserved
+        assert model.confidence_threshold == 0.75
+
+    def test_is_tensorrt_fallback_error_patterns(self):
+        """Test detection of various TensorRT errors that should trigger fallback."""
+
+        # Errors that SHOULD trigger fallback
+        fallback_errors = [
+            RuntimeError("TensorRT is not available or installed"),
+            RuntimeError("No module named 'tensorrt'"),
+            RuntimeError("CUDA error: no kernel image is available for execution"),
+            RuntimeError("TensorRT library not found"),
+            RuntimeError("Failed to load TensorRT engine"),
+            FileNotFoundError("Engine file not found"),
+        ]
+
+        for error in fallback_errors:
+            assert is_tensorrt_fallback_error(error) is True, (
+                f"Expected error to trigger fallback: {error}"
+            )
+
+        # Errors that should NOT trigger fallback (other failures)
+        non_fallback_errors = [
+            RuntimeError("CUDA out of memory"),  # Should fail, not fallback
+            RuntimeError("Invalid model format"),  # Model corruption
+        ]
+
+        for error in non_fallback_errors:
+            assert is_tensorrt_fallback_error(error) is False, (
+                f"Expected error NOT to trigger fallback: {error}"
+            )
 
 
 if __name__ == "__main__":

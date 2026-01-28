@@ -65,6 +65,8 @@ _.device_tokens
 # Mock function parameters (required by interface signature but unused in mock body)
 # e.g., async def mock_seek(pos): pass - pos is required by UploadFile.seek signature
 _.pos
+_.auto_enhance
+_.plate_crop
 
 # ASGI middleware parameters (required by ASGI signature in test mock apps)
 # async def minimal_app(scope, receive, send): pass
@@ -72,13 +74,9 @@ _.receive
 _.scope
 _.send
 
-# DI container service aliases (imported for cast() type safety but referenced as strings)
-# These are imported locally in FastAPI dependencies to avoid circular imports
-# and used with cast("Alias", ...) for type checking
-_.FDS  # FaceDetectorService alias
-_.PDS  # PlateDetectorService alias
-_.OCRS  # OCRService alias
-_.YWS  # YOLOWorldService alias
+# DI container service aliases - REMOVED: these are no longer imported
+# They were only used in string literals for cast() calls
+# See: backend/api/dependencies.py uses cast("ServiceName", ...) without import
 
 # Test fixtures used for side effects (data setup)
 _.sample_anomalies
@@ -88,6 +86,8 @@ _.enable_api_key_auth
 _.service_reset
 _.cleanup_redis_keys
 _.cleanup_stale_databases
+_.inputs2
+_.trace_state
 
 # SQLAlchemy event handler parameters (required by signature but unused in handler body)
 _.flush_context
@@ -96,5 +96,6 @@ _.instances
 # asyncpg callback parameters (required by signature but unused in callback body)
 _.pid
 
-# Redis Sentinel type annotation (used in type hints only)
+# Type annotations used only in TYPE_CHECKING blocks (mypy only, not runtime)
 _.Sentinel
+_.CursorResult

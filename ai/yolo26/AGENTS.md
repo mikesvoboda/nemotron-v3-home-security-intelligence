@@ -182,13 +182,43 @@ curl -X POST http://localhost:8095/detect/batch \
 
 ## Environment Variables
 
-| Variable                       | Default                                      | Description                                        |
-| ------------------------------ | -------------------------------------------- | -------------------------------------------------- |
-| `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path                               |
-| `YOLO26_CONFIDENCE`            | `0.5`                                        | Min confidence threshold                           |
-| `YOLO26_CACHE_CLEAR_FREQUENCY` | `1`                                          | Clear CUDA cache every N detections (0 to disable) |
-| `HOST`                         | `0.0.0.0`                                    | Bind address                                       |
-| `PORT`                         | `8095`                                       | Server port                                        |
+| Variable                       | Default                                      | Description                                             |
+| ------------------------------ | -------------------------------------------- | ------------------------------------------------------- |
+| `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path                                    |
+| `YOLO26_CONFIDENCE`            | `0.5`                                        | Min confidence threshold                                |
+| `YOLO26_CACHE_CLEAR_FREQUENCY` | `1`                                          | Clear CUDA cache every N detections (0 to disable)      |
+| `YOLO26_AUTO_REBUILD`          | `true`                                       | Auto-rebuild TensorRT engine on version mismatch        |
+| `YOLO26_PT_MODEL_PATH`         | (derived)                                    | Fallback PyTorch model path for TensorRT unavailability |
+| `HOST`                         | `0.0.0.0`                                    | Bind address                                            |
+| `PORT`                         | `8095`                                       | Server port                                             |
+
+## TensorRT Fallback to PyTorch (NEM-3882)
+
+The service gracefully falls back to PyTorch when TensorRT is unavailable or fails:
+
+**Fallback triggers:**
+
+- TensorRT not installed
+- TensorRT library not found
+- Engine file not found
+- GPU architecture mismatch (engine built for different GPU)
+
+**Fallback behavior:**
+
+1. Detect TensorRT loading failure
+2. Log warning with the original error
+3. Locate fallback PyTorch model (.pt file)
+4. Load PyTorch model instead
+5. Set `tensorrt_enabled=False` in health response
+
+**Finding the fallback model:**
+
+1. Check `YOLO26_PT_MODEL_PATH` environment variable
+2. Derive from engine path (e.g., `yolo26m_fp16.engine` -> `yolo26m.pt`)
+3. Search in same directory, parent directory, or common model paths
+
+**Note:** Version mismatch errors (NEM-3871) are handled separately with auto-rebuild
+before falling back to PyTorch.
 
 ## Inference Pipeline
 
