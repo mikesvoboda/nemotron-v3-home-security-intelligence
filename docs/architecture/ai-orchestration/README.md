@@ -74,6 +74,7 @@ The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction f
 | Document                                           | Purpose                                       |
 | -------------------------------------------------- | --------------------------------------------- |
 | [model-zoo.md](./model-zoo.md)                     | Model registry, VRAM management, LRU eviction |
+| [yolo26-client.md](./yolo26-client.md)             | YOLO26 detection client interface             |
 | [nemotron-analyzer.md](./nemotron-analyzer.md)     | LLM-based risk analysis service               |
 | [enrichment-pipeline.md](./enrichment-pipeline.md) | Multi-model enrichment flow                   |
 | [fallback-strategies.md](./fallback-strategies.md) | Graceful degradation patterns                 |
