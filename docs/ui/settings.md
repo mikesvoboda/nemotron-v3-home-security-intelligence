@@ -2,7 +2,7 @@
 
 ![Settings Hero](../images/settings-hero.png)
 
-_AI-generated visualization of the settings interface with 8-tab navigation and camera configuration._
+_AI-generated visualization of the settings interface with tabbed navigation and camera configuration._
 
 ![Settings Screenshot](../images/screenshots/settings.png)
 
@@ -10,7 +10,7 @@ The central configuration hub for your home security monitoring system.
 
 ## What You're Looking At
 
-The Settings page provides comprehensive control over all aspects of your security system. It uses a tabbed interface with eight distinct sections, each focused on a specific configuration area:
+The Settings page provides comprehensive control over all aspects of your security system. It uses a tabbed interface with eleven distinct sections, each focused on a specific configuration area:
 
 - **CAMERAS** - Manage security camera configurations and detection zones
 - **RULES** - Configure alert rules that trigger notifications
@@ -18,8 +18,11 @@ The Settings page provides comprehensive control over all aspects of your securi
 - **NOTIFICATIONS** - Set up email, webhook, and quiet hours for alerts
 - **AMBIENT** - Configure visual and audio status awareness features
 - **CALIBRATION** - Fine-tune AI risk sensitivity and feedback learning
+- **ACCESS** - Manage household members, vehicles, and zone-based access control
 - **PROMPTS** - Manage AI model prompt configurations with version history
 - **STORAGE** - Monitor disk usage and perform cleanup operations
+- **AI MODELS** - View status and performance of core AI models and Model Zoo
+- **ADMIN** - Feature toggles, system configuration, and maintenance actions
 
 Access the Settings page from the navigation menu or by clicking the gear icon in the header. When debug mode is enabled, a "Developer Tools" link appears in the top-right corner for additional debugging capabilities.
 
@@ -327,6 +330,30 @@ The core calibration interface (RiskSensitivitySettings component) provides:
 
 ---
 
+### Access Tab
+
+Manage household members, vehicles, and zone-based access permissions. This tab contains two sub-tabs:
+
+#### Household Sub-Tab
+
+Manage recognized people and vehicles:
+
+- **Members** - Add household members with names and optional photos for face recognition
+- **Vehicles** - Register known vehicles by license plate for automatic identification
+- **Member Actions** - Edit or remove household members
+- **Vehicle Actions** - Edit or remove registered vehicles
+
+#### Zone Access Sub-Tab
+
+Configure zone-specific access control:
+
+- **Zone Selection** - Choose which zones to configure access for
+- **Permission Assignment** - Assign access permissions to household members per zone
+- **Schedule-Based Access** - Configure time-based access restrictions
+- **Access Logging** - View access events by zone
+
+---
+
 ### Prompts Tab
 
 ![Prompts Tab](../images/screenshots/settings-prompts.png)
@@ -449,6 +476,86 @@ Bottom action bar with cleanup and export controls:
   - Confirm/Cancel buttons with warning that action cannot be undone
 - **Export Data** - Start a data export job (disabled when exports are in progress)
 - **Refresh** - Manually refresh storage statistics with last updated timestamp displayed
+
+---
+
+### AI Models Tab
+
+View status and performance of all AI models used in the system.
+
+#### Core Models Section
+
+Status cards for the primary AI models:
+
+- **RT-DETRv2** - Real-time object detection model status
+- **Nemotron** - Risk analysis and reasoning model status
+
+Each card displays:
+
+- Model name and description
+- Current status (loaded/unloaded)
+- Last inference time
+- Model version
+
+#### Model Management Panel
+
+VRAM usage overview and categorized model status:
+
+- **VRAM Usage** - Visual bar showing GPU memory utilization with color-coded indicators
+- **Model Status Summary** - Counts of loaded, available, and unavailable models
+- **Categorized Models** - Models grouped by function (Detection, Recognition, Analysis, etc.)
+
+#### Model Zoo Section
+
+Detailed cards for all 18+ specialized models:
+
+- **Model Cards** - Individual status cards with latency charts
+- **Performance Metrics** - Load count, average latency, error rate
+- **Model Controls** - Manual load/unload actions (when applicable)
+
+---
+
+### Admin Tab
+
+Administrative controls for system management, available in four collapsible sections.
+
+#### Feature Toggles
+
+Enable or disable system features:
+
+| Toggle                | Description                                 |
+| --------------------- | ------------------------------------------- |
+| **Vision Extraction** | Extract visual features using AI models     |
+| **Re-ID Tracking**    | Track individuals across camera views       |
+| **Scene Change**      | Detect significant changes in camera scenes |
+| **Clip Generation**   | Generate video clips for events             |
+| **Image Quality**     | Assess image quality before processing      |
+| **Background Eval**   | Evaluate background changes                 |
+
+#### System Config
+
+Rate limiting and queue settings:
+
+- **Rate Limiting** - Configure API rate limits per endpoint
+- **Queue Settings** - Adjust processing queue parameters
+
+#### Maintenance Actions
+
+System maintenance operations:
+
+- **Orphan Cleanup** - Remove orphaned files not linked to events
+- **Clear Cache** - Clear Redis and application caches
+- **Flush Queues** - Clear pending processing queues (use with caution)
+
+#### Developer Tools
+
+Debug-only features (visible only when `DEBUG=true`):
+
+- **Seed Test Cameras** - Create test camera configurations
+- **Seed Test Events** - Generate sample events for testing
+- **Debug Utilities** - Additional debugging tools
+
+> **Note:** Developer Tools section only appears when debug mode is enabled via the `DEBUG` environment variable.
 
 ---
 
@@ -597,8 +704,11 @@ For developers wanting to understand the underlying systems.
 | Notification Settings | `frontend/src/components/settings/NotificationSettings.tsx`                                |
 | Ambient Settings      | `frontend/src/components/settings/AmbientStatusSettings.tsx`                               |
 | Calibration Panel     | `frontend/src/components/settings/CalibrationPanel.tsx`                                    |
+| Access Control        | `frontend/src/components/settings/AccessControlSettings.tsx`                               |
 | Prompt Management     | `frontend/src/components/settings/prompts/PromptManagementPage.tsx`                        |
 | Storage Panel         | `frontend/src/components/system/FileOperationsPanel.tsx`                                   |
+| AI Models Tab         | `frontend/src/components/settings/AIModelsTab.tsx`                                         |
+| Admin Settings        | `frontend/src/components/settings/AdminSettings.tsx`                                       |
 | Zone Editor           | `frontend/src/components/zones/ZoneEditor.tsx`                                             |
 
 ### Backend APIs

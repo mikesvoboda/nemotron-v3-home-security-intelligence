@@ -138,7 +138,7 @@ cd home-security-intelligence
 **What happens** ([`ai/yolo26/model.py`](../../ai/yolo26/model.py)):
 
 - Loads YOLO26 via HuggingFace Transformers (`YOLO26_MODEL_PATH`)
-- Starts HTTP server on port 8090
+- Starts HTTP server on port 8095
 - Uses ~4GB VRAM
 
 **Expected output:**
@@ -146,7 +146,7 @@ cd home-security-intelligence
 ```
 Starting YOLO26 Detection Server...
 Model directory: /path/to/ai/yolo26
-Port: 8090
+Port: 8095
 Expected VRAM usage: ~4GB
 INFO:     Uvicorn running on http://0.0.0.0:8095
 ```

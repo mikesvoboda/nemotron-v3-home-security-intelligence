@@ -348,11 +348,10 @@ class ServiceManager(ABC):
 
 ### Available Implementations
 
-| Manager                | Description    | Use Case                      |
-| ---------------------- | -------------- | ----------------------------- |
-| `ShellServiceManager`  | Shell commands | Development, systemd services |
-| `DockerServiceManager` | Docker CLI     | Production Docker containers  |
-| `PodmanServiceManager` | Podman CLI     | Podman deployments            |
+| Manager                | Description    | Use Case                            |
+| ---------------------- | -------------- | ----------------------------------- |
+| `ShellServiceManager`  | Shell commands | Development, systemd services       |
+| `DockerServiceManager` | Docker CLI     | Production Docker/Podman containers |
 
 ## Usage Example
 

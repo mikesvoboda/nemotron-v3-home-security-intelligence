@@ -650,6 +650,7 @@ Detections represent individual objects identified by YOLO26 in camera images.
 | GET    | `/api/detections/labels`                         | Get unique labels with counts |
 | GET    | `/api/detections/search`                         | Full-text search              |
 | GET    | `/api/detections/stats`                          | Get detection statistics      |
+| GET    | `/api/detections/export`                         | Export as CSV/JSON            |
 | POST   | `/api/detections/bulk`                           | Bulk create detections        |
 | PATCH  | `/api/detections/bulk`                           | Bulk update detections        |
 | DELETE | `/api/detections/bulk`                           | Bulk delete detections        |
@@ -872,11 +873,96 @@ Content-Type: application/json
 
 Note: Detection deletion is always hard delete (soft-delete not supported for raw data).
 
+### Export Detections
+
+Export detections as CSV or JSON file for external analysis. Supports content negotiation via HTTP Accept header.
+
+```bash
+GET /api/detections/export?camera_id=front_door&object_type=person
+Accept: text/csv
+```
+
+**Parameters:**
+
+| Name           | Type     | Description                            |
+| -------------- | -------- | -------------------------------------- |
+| camera_id      | string   | Filter by camera ID                    |
+| object_type    | string   | Filter: `person`, `car`, `dog`, etc.   |
+| start_date     | datetime | Filter after date                      |
+| end_date       | datetime | Filter before date                     |
+| min_confidence | float    | Minimum confidence threshold (0.0-1.0) |
+
+**Content Negotiation:**
+
+| Accept Header        | Format | Description             |
+| -------------------- | ------ | ----------------------- |
+| `text/csv` (default) | CSV    | Comma-separated values  |
+| `application/csv`    | CSV    | Alternative CSV request |
+| `application/json`   | JSON   | JSON array format       |
+
+**CSV Response:**
+
+```csv
+detection_id,camera_name,detected_at,object_type,confidence,bbox_x,bbox_y,bbox_width,bbox_height,file_path,thumbnail_path,media_type
+12345,Front Door Camera,2026-01-15T10:30:00Z,person,0.95,100,150,200,400,/export/foscam/front_door/image.jpg,/data/thumbnails/12345_thumb.jpg,image
+```
+
+**JSON Response:**
+
+```json
+[
+  {
+    "detection_id": 12345,
+    "camera_name": "Front Door Camera",
+    "detected_at": "2026-01-15T10:30:00Z",
+    "object_type": "person",
+    "confidence": 0.95,
+    "bbox_x": 100,
+    "bbox_y": 150,
+    "bbox_width": 200,
+    "bbox_height": 400,
+    "file_path": "/export/foscam/front_door/image.jpg",
+    "thumbnail_path": "/data/thumbnails/12345_thumb.jpg",
+    "media_type": "image"
+  }
+]
+```
+
+**Export Fields:**
+
+| Field            | Type     | Description                          |
+| ---------------- | -------- | ------------------------------------ |
+| `detection_id`   | integer  | Unique detection identifier          |
+| `camera_name`    | string   | Human-readable camera name           |
+| `detected_at`    | datetime | ISO 8601 timestamp                   |
+| `object_type`    | string   | Detected object type                 |
+| `confidence`     | float    | Detection confidence score (0.0-1.0) |
+| `bbox_x`         | integer  | Bounding box X coordinate            |
+| `bbox_y`         | integer  | Bounding box Y coordinate            |
+| `bbox_width`     | integer  | Bounding box width                   |
+| `bbox_height`    | integer  | Bounding box height                  |
+| `file_path`      | string   | Path to source image                 |
+| `thumbnail_path` | string   | Path to thumbnail (may be null)      |
+| `media_type`     | string   | `image` or `video`                   |
+
+**Rate Limiting:**
+
+Export endpoint is rate-limited to 10 requests per minute per client IP to prevent abuse.
+
+**Errors:**
+
+- `400` - Invalid date range (start_date after end_date)
+- `429` - Rate limit exceeded
+
 ---
 
 ## Zones
 
 Zones define areas of interest within camera views for targeted detection and alerting.
+
+### Sparse Fieldsets
+
+**Note:** The zones API does **not** support sparse fieldsets (`?fields=` parameter) unlike cameras, events, and detections endpoints. Zone responses are compact by design (typically 7-8 fields per zone), making field filtering unnecessary. The full zone object is always returned.
 
 ### Zone Configuration Architecture
 
@@ -955,6 +1041,49 @@ flowchart TB
 | GET    | `/api/cameras/{camera_id}/zones/{zone_id}` | Get zone    |
 | PUT    | `/api/cameras/{camera_id}/zones/{zone_id}` | Update zone |
 | DELETE | `/api/cameras/{camera_id}/zones/{zone_id}` | Delete zone |
+
+### List Zones
+
+```bash
+GET /api/cameras/front_door/zones?enabled=true
+```
+
+**Parameters:**
+
+| Name    | Type    | Description                         |
+| ------- | ------- | ----------------------------------- |
+| enabled | boolean | Filter by enabled status (optional) |
+
+**Response:**
+
+```json
+{
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "camera_id": "front_door",
+      "name": "Front Door",
+      "zone_type": "entry_point",
+      "coordinates": [
+        [0.1, 0.2],
+        [0.3, 0.2],
+        [0.3, 0.8],
+        [0.1, 0.8]
+      ],
+      "shape": "rectangle",
+      "color": "#3B82F6",
+      "enabled": true,
+      "priority": 1
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "limit": 1,
+    "offset": 0,
+    "has_more": false
+  }
+}
+```
 
 ### Create Zone
 

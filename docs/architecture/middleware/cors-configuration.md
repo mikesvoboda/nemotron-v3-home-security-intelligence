@@ -4,9 +4,9 @@
 
 **Key Files:**
 
-- `backend/main.py:1041-1053` - CORS middleware registration
-- `backend/core/config.py:572-585` - CORS origin configuration
-- `backend/api/middleware/security_headers.py:1-176` - Security headers
+- `backend/main.py:1127-1139` - CORS middleware registration
+- `backend/core/config.py:752-765` - CORS origin configuration
+- `backend/api/middleware/security_headers.py` - Security headers
 
 ## Overview
 
@@ -37,10 +37,10 @@ sequenceDiagram
 
 ## CORS Middleware Configuration
 
-The CORS middleware is configured in `backend/main.py:1041-1053`:
+The CORS middleware is configured in `backend/main.py:1127-1139`:
 
 ```python
-# From backend/main.py:1041-1053
+# From backend/main.py:1127-1139
 # Security: Restrict CORS methods to only what's needed
 # Using explicit methods instead of wildcard "*" to follow least-privilege principle
 # Note: When allow_credentials=True, allow_origins cannot be ["*"]
@@ -60,10 +60,10 @@ app.add_middleware(
 
 ### Default Origins
 
-Default allowed origins are configured in `backend/core/config.py:572-585`:
+Default allowed origins are configured in `backend/core/config.py:752-765`:
 
 ```python
-# From backend/core/config.py:572-585
+# From backend/core/config.py:752-765
 # CORS settings
 # Includes common development ports and 0.0.0.0 (accept from any origin when bound to all interfaces)
 # For production, override via CORS_ORIGINS env var with specific allowed origins
@@ -141,10 +141,10 @@ Vary: Origin
 
 ## Credentials Handling
 
-The `allow_credentials` setting is dynamically determined based on origins (`backend/main.py:1046`):
+The `allow_credentials` setting is dynamically determined based on origins (`backend/main.py:1132`):
 
 ```python
-# From backend/main.py:1046
+# From backend/main.py:1132
 _allow_credentials = "*" not in _cors_origins
 ```
 
@@ -161,7 +161,7 @@ When `allow_credentials=true`:
 
 ## Security Headers Integration
 
-The `SecurityHeadersMiddleware` (`backend/api/middleware/security_headers.py:23-176`) adds additional security headers that complement CORS:
+The `SecurityHeadersMiddleware` (`backend/api/middleware/security_headers.py`) adds additional security headers that complement CORS:
 
 | Header                         | Default Value                     | Purpose                      |
 | ------------------------------ | --------------------------------- | ---------------------------- |

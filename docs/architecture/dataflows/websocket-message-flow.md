@@ -510,38 +510,52 @@ async def websocket_events_endpoint(
 
 ## Complete Message Flow Diagram
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        WebSocket Message Flow                           │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  Client                   Backend                      Redis           │
-│    │                        │                            │             │
-│    │─── Upgrade Request ───>│                            │             │
-│    │                        │─── Auth Check             │             │
-│    │<── Connection OK ──────│                            │             │
-│    │                        │                            │             │
-│    │<── Heartbeat Ping ─────│                            │             │
-│    │─── Pong ──────────────>│                            │             │
-│    │                        │                            │             │
-│    │─── Subscribe ─────────>│                            │             │
-│    │<── Subscribed ─────────│                            │             │
-│    │                        │                            │             │
-│    │                        │<─────── Event Published ───│             │
-│    │                        │─── Add seq, buffer        │             │
-│    │<── Event (seq=1) ──────│                            │             │
-│    │                        │                            │             │
-│    │<── Event (seq=2) ──────│                            │             │
-│    │                        │                            │             │
-│    │  (gap detected)        │                            │             │
-│    │─── Resync ────────────>│                            │             │
-│    │<── Resync ACK ─────────│                            │             │
-│    │<── Buffered Messages ──│                            │             │
-│    │                        │                            │             │
-│    │─── Close ─────────────>│                            │             │
-│    │<── Close ACK ──────────│                            │             │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant Client as WebSocket Client
+    participant Backend as Backend Server
+    participant Redis as Redis Pub/Sub
+
+    rect rgb(30, 58, 95)
+        Note over Client,Backend: Connection Phase
+        Client->>Backend: Upgrade Request
+        Backend->>Backend: Auth Check
+        Backend-->>Client: Connection OK
+    end
+
+    rect rgb(45, 74, 62)
+        Note over Client,Backend: Heartbeat
+        Backend->>Client: Heartbeat Ping
+        Client-->>Backend: Pong
+    end
+
+    rect rgb(30, 58, 95)
+        Note over Client,Backend: Subscription
+        Client->>Backend: Subscribe
+        Backend-->>Client: Subscribed
+    end
+
+    rect rgb(74, 58, 45)
+        Note over Client,Redis: Event Delivery
+        Redis-->>Backend: Event Published
+        Backend->>Backend: Add seq, buffer
+        Backend-->>Client: Event (seq=1)
+        Backend-->>Client: Event (seq=2)
+    end
+
+    rect rgb(45, 74, 62)
+        Note over Client,Backend: Gap Recovery
+        Note right of Client: Gap detected
+        Client->>Backend: Resync
+        Backend-->>Client: Resync ACK
+        Backend-->>Client: Buffered Messages
+    end
+
+    rect rgb(30, 58, 95)
+        Note over Client,Backend: Disconnect
+        Client->>Backend: Close
+        Backend-->>Client: Close ACK
+    end
 ```
 
 ## Related Documents

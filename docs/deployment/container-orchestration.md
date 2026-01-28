@@ -470,7 +470,7 @@ Observability and alerting stack:
 | Service           | Display Name      | Port  | Grace Period |
 | ----------------- | ----------------- | ----- | ------------ |
 | prometheus        | Prometheus        | 9090  | 30s          |
-| grafana           | Grafana           | 3000  | 30s          |
+| grafana           | Grafana           | 3002  | 30s          |
 | alertmanager      | Alertmanager      | 9093  | 15s          |
 | jaeger            | Jaeger            | 16686 | 15s          |
 | redis-exporter    | Redis Exporter    | 9121  | 15s          |
@@ -530,7 +530,7 @@ class OrchestratorSettings(BaseSettings):
     clip_port: int = 8093
     enrichment_port: int = 8094
     prometheus_port: int = 9090
-    grafana_port: int = 3000
+    grafana_port: int = 3002
     # ... etc
 ```
 

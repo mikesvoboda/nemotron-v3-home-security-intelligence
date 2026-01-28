@@ -7,10 +7,10 @@
 > YOLO26 is now the sole detector in the system.
 
 **Date:** 2026-01-26 06:30:35
-**GPU:** Unknown
-**VRAM:** 0 MiB
-**CUDA Version:** Unknown
-**Driver Version:** Unknown
+**GPU:** NVIDIA RTX A5500
+**VRAM:** 24576 MiB
+**CUDA Version:** 12.4
+**Driver Version:** 550.54.14
 
 ## Executive Summary
 

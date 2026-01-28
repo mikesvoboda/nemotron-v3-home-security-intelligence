@@ -93,12 +93,12 @@ nvidia-smi
 
 | Requirement | Version                                              |
 | ----------- | ---------------------------------------------------- |
-| **Python**  | 3.14+ ([`pyproject.toml:5`](../../pyproject.toml:5)) |
+| **Python**  | 3.10+ ([`pyproject.toml:5`](../../pyproject.toml:5)) |
 
 ```bash
 # Verify Python version
 python3 --version
-# Python 3.14.x
+# Python 3.10.x or higher
 ```
 
 **Installation:**
@@ -107,10 +107,10 @@ python3 --version
 # Ubuntu/Debian
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
-sudo apt install python3.14 python3.14-venv python3.14-dev
+sudo apt install python3.10 python3.10-venv python3.10-dev
 
 # macOS (via Homebrew)
-brew install python@3.14
+brew install python@3.10
 ```
 
 ### Node.js
@@ -250,7 +250,7 @@ Expected output (Docker example):
 
 ```
 NVIDIA-SMI 535.xxx  Driver Version: 535.xxx  CUDA Version: 12.x
-Python 3.14.x
+Python 3.10.x or higher
 v20.19.x (or v22.12.x+)
 10.x.x
 Docker version 24.x.x
@@ -262,7 +262,7 @@ Expected output (Podman example):
 
 ```
 NVIDIA-SMI 535.xxx  Driver Version: 535.xxx  CUDA Version: 12.x
-Python 3.14.x
+Python 3.10.x or higher
 v20.19.x (or v22.12.x+)
 10.x.x
 podman version 4.x.x

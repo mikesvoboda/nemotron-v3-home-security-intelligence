@@ -116,31 +116,36 @@ flowchart TB
 
 ### Result Types
 
+The enrichment pipeline uses result types defined in `backend/services/enrichment_client.py`:
+
 ```python
+# backend/services/enrichment_client.py
 @dataclass(slots=True)
-class UnifiedPoseResult:
-    keypoints: list[dict]  # [{name, x, y, confidence}, ...]
-    pose_class: str        # standing, crouching, bending_over, etc.
-    confidence: float      # 0-1
-    is_suspicious: bool    # True if crouching, lying_down, etc.
+class ClothingClassificationResult:
+    clothing_type: str          # hoodie, vest, uniform, etc.
+    color: str                  # Primary color
+    style: str                  # Overall style classification
+    confidence: float           # 0-1
+    top_category: str           # Top matched category from prompts
+    description: str            # Human-readable description
+    is_suspicious: bool         # Dark hoodie, face mask, etc.
+    is_service_uniform: bool    # Service/delivery uniform detected
+    inference_time_ms: float
 
+# Pose results from backend/services/vitpose_loader.py
 @dataclass(slots=True)
-class UnifiedClothingResult:
-    categories: list[dict]  # Top matching categories
-    is_suspicious: bool     # Dark hoodie, face mask, etc.
+class PoseResult:
+    keypoints: list[dict]       # [{name, x, y, confidence}, ...]
+    pose_class: str             # standing, crouching, bending_over, etc.
+    confidence: float           # 0-1
+    is_suspicious: bool         # True if crouching, lying_down, etc.
 
+# Violence detection from backend/services/violence_loader.py
 @dataclass(slots=True)
-class UnifiedDemographicsResult:
-    age_range: str          # "25-35", "child", "senior"
-    age_confidence: float
-    gender: str             # "male", "female", "unknown"
-    gender_confidence: float
-
-@dataclass(slots=True)
-class UnifiedThreatResult:
-    threats: list[dict]     # [{type, confidence, bbox}, ...]
-    has_threat: bool
-    max_severity: str       # "none", "low", "medium", "high", "critical"
+class ViolenceDetectionResult:
+    is_violent: bool
+    confidence: float
+    category: str | None
 ```
 
 ## Vehicle Enrichment Pipeline
@@ -173,6 +178,8 @@ flowchart TB
 
 ### Result Types
 
+Vehicle classification result from `backend/services/enrichment_client.py`:
+
 ```python
 @dataclass(slots=True)
 class VehicleClassificationResult:
@@ -180,16 +187,11 @@ class VehicleClassificationResult:
     display_name: str       # Human-readable name
     confidence: float       # 0-1
     is_commercial: bool     # Delivery van, truck, etc.
-    all_scores: dict        # Top 3 class scores
+    all_scores: dict[str, float]  # Top class scores
     inference_time_ms: float
 
-@dataclass(slots=True)
-class UnifiedVehicleResult:
-    make: str | None        # "Toyota", "Ford", etc.
-    model: str | None       # "Camry", "F-150", etc.
-    color: str | None       # "red", "black", etc.
-    type: str               # "sedan", "pickup_truck", etc.
-    confidence: float
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
 ```
 
 ## Pet/Animal Enrichment Pipeline
@@ -218,6 +220,8 @@ flowchart TB
 
 ### Result Types
 
+Pet classification result from `backend/services/enrichment_client.py`:
+
 ```python
 @dataclass(slots=True)
 class PetClassificationResult:
@@ -226,6 +230,9 @@ class PetClassificationResult:
     confidence: float       # 0-1
     is_household_pet: bool  # Always True for this classifier
     inference_time_ms: float
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
 ```
 
 ## Parallel Processing
@@ -252,16 +259,28 @@ async def enrich_batch_with_tracking(
 
 ## Tracking Partial Failures
 
-The pipeline tracks which models succeeded/failed:
+The pipeline tracks which models succeeded/failed via `EnrichmentTrackingResult` in `backend/services/enrichment_pipeline.py`:
 
 ```python
+class EnrichmentStatus(str, Enum):
+    """Status of enrichment pipeline execution."""
+    FULL = "full"       # All enabled models succeeded
+    PARTIAL = "partial" # Some models succeeded, some failed
+    FAILED = "failed"   # All models failed
+    SKIPPED = "skipped" # Enrichment not attempted
+
 @dataclass(slots=True)
 class EnrichmentTrackingResult:
-    status: EnrichmentStatus       # SUCCESS, PARTIAL, FAILED
-    successful_models: list[str]   # Models that completed
-    failed_models: list[str]       # Models that failed
-    errors: dict[str, str]         # Error messages by model
-    data: EnrichmentResult | None  # Actual enrichment data
+    status: EnrichmentStatus = EnrichmentStatus.SKIPPED
+    successful_models: list[str] = field(default_factory=list)
+    failed_models: list[str] = field(default_factory=list)
+    errors: dict[str, str] = field(default_factory=dict)
+    data: EnrichmentResult | None = None
+
+    @property
+    def has_data(self) -> bool:
+        """Check if any enrichment data is available."""
+        return self.data is not None
 
     @property
     def is_partial(self) -> bool:
@@ -270,9 +289,9 @@ class EnrichmentTrackingResult:
 
     @property
     def success_rate(self) -> float:
-        """Percentage of models that succeeded."""
+        """Percentage of models that succeeded (1.0 if no models attempted)."""
         total = len(self.successful_models) + len(self.failed_models)
-        return len(self.successful_models) / total if total > 0 else 0.0
+        return len(self.successful_models) / total if total > 0 else 1.0
 ```
 
 ## Context String Generation
@@ -383,32 +402,47 @@ def get_models_for_detection_type(
 
 ## Unified Enrichment Result
 
-The unified `/enrich` endpoint returns all applicable enrichments:
+The `EnrichmentResult` class in `backend/services/enrichment_pipeline.py` aggregates all enrichment outputs:
 
 ```python
 @dataclass(slots=True)
-class UnifiedEnrichmentResult:
-    pose: UnifiedPoseResult | None = None
-    clothing: UnifiedClothingResult | None = None
-    demographics: UnifiedDemographicsResult | None = None
-    vehicle: UnifiedVehicleResult | None = None
-    pet: dict | None = None
-    threat: UnifiedThreatResult | None = None
-    reid_embedding: list[float] | None = None
-    action: dict | None = None
-    depth: dict | None = None
-    models_loaded: list[str] | None = None
-    inference_time_ms: float = 0.0
+class EnrichmentResult:
+    """Result from the enrichment pipeline.
 
-    def has_security_alerts(self) -> bool:
-        """Check if any security alerts are present."""
-        if self.threat and self.threat.has_threat:
-            return True
-        if self.pose and self.pose.is_suspicious:
-            return True
-        if self.clothing and self.clothing.is_suspicious:
-            return True
-        return False
+    Contains all additional context extracted from detections
+    for use in the Nemotron LLM prompt.
+    """
+    license_plates: list[LicensePlateResult] = field(default_factory=list)
+    faces: list[FaceResult] = field(default_factory=list)
+    vision_extraction: BatchExtractionResult | None = None
+    person_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
+    vehicle_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
+    person_household_matches: list[HouseholdMatch] = field(default_factory=list)
+    vehicle_household_matches: list[HouseholdMatch] = field(default_factory=list)
+    scene_change: SceneChangeResult | None = None
+    violence_detection: ViolenceDetectionResult | None = None
+    weather_classification: WeatherResult | None = None
+    clothing_classifications: dict[str, ClothingClassification] = field(default_factory=dict)
+    vehicle_classifications: dict[str, VehicleClassificationResult] = field(default_factory=dict)
+    vehicle_damage: dict[str, VehicleDamageResult] = field(default_factory=dict)
+    pet_classifications: dict[str, PetClassificationResult] = field(default_factory=dict)
+    pose_results: dict[str, PoseResult] = field(default_factory=dict)
+    action_results: dict[str, Any] | None = None
+    depth_analysis: DepthAnalysisResult | None = None
+    image_quality: ImageQualityResult | None = None
+    errors: list[str] = field(default_factory=list)
+    structured_errors: list[EnrichmentError] = field(default_factory=list)
+    processing_time_ms: float = 0.0
+
+    # Helper properties
+    @property
+    def has_license_plates(self) -> bool: ...
+    @property
+    def has_faces(self) -> bool: ...
+    @property
+    def has_reid_matches(self) -> bool: ...
+    @property
+    def has_household_matches(self) -> bool: ...
 ```
 
 ## Metrics

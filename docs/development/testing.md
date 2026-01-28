@@ -32,15 +32,17 @@ See [CLAUDE.md](../../CLAUDE.md:199) for the complete policy on testing requirem
 
 _Frontend test provider tree showing the testing wrapper hierarchy for React Testing Library._
 
-```
+```mermaid
 flowchart TB
-    subgraph "Test Pyramid"
+    subgraph Pyramid["Test Pyramid"]
+        direction TB
         E2E["E2E Tests<br/>2358 tests / 17 files"]
         INT["Integration Tests<br/>1499 tests"]
         UNIT["Unit Tests<br/>7193 tests"]
     end
 
-    subgraph "Coverage Targets"
+    subgraph Coverage["Coverage Targets"]
+        direction TB
         UNIT_COV["Unit: 85%+"]
         INT_COV["Integration: N/A"]
         TOTAL_COV["Combined: 95%+"]
@@ -50,9 +52,12 @@ flowchart TB
     INT --> INT_COV
     E2E --> TOTAL_COV
 
-    style UNIT fill:#76B900
-    style INT fill:#3B82F6
-    style E2E fill:#A855F7
+    style UNIT fill:#2d4a3e,stroke:#4a7c59,color:#fff
+    style INT fill:#1e3a5f,stroke:#3a6a9f,color:#fff
+    style E2E fill:#4a3a2d,stroke:#7a5a3d,color:#fff
+    style UNIT_COV fill:#2d4a3e,stroke:#4a7c59,color:#fff
+    style INT_COV fill:#1e3a5f,stroke:#3a6a9f,color:#fff
+    style TOTAL_COV fill:#4a3a2d,stroke:#7a5a3d,color:#fff
 ```
 
 ### Test Categories

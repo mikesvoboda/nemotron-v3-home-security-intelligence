@@ -229,10 +229,22 @@ class Alert(Base):
 
 ### Status Flow
 
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Alert created
+    PENDING --> DELIVERED: Notification sent
+    DELIVERED --> ACKNOWLEDGED: User reviewed
+    DELIVERED --> DISMISSED: User dismissed
+    ACKNOWLEDGED --> [*]
+    DISMISSED --> [*]
 ```
-PENDING --> DELIVERED --> ACKNOWLEDGED
-                    \--> DISMISSED
-```
+
+The alert lifecycle progresses through these states:
+
+- **PENDING**: Alert created but notification not yet sent
+- **DELIVERED**: Notification successfully sent via configured channels
+- **ACKNOWLEDGED**: User has reviewed and acknowledged the alert
+- **DISMISSED**: User has dismissed the alert without action
 
 ---
 

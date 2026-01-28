@@ -546,16 +546,28 @@ Jaeger provides distributed tracing for cross-service request correlation. When 
 
 ```bash
 # Environment variables (docker-compose.prod.yml)
-COLLECTOR_OTLP_ENABLED=true          # Enable OTLP collector
-SPAN_STORAGE_TYPE=memory             # In-memory storage (default)
-MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-100000}  # Max traces to store
+COLLECTOR_OTLP_ENABLED=true                    # Enable OTLP collector
+SPAN_STORAGE_TYPE=elasticsearch                # Elasticsearch storage backend
+ES_SERVER_URLS=http://elasticsearch:9200       # Elasticsearch endpoint
+ES_INDEX_PREFIX=jaeger                         # Index name prefix
+ES_TAGS_AS_FIELDS_ALL=true                     # Store all tags as indexed fields
+ES_NUM_SHARDS=1                                # Shards per index (single-node)
+ES_NUM_REPLICAS=0                              # No replicas (single-node)
 ```
 
 **Environment Variables:**
 
-| Variable            | Default  | Description                                 |
-| ------------------- | -------- | ------------------------------------------- |
-| `JAEGER_MAX_TRACES` | `100000` | Maximum number of traces to store in memory |
+| Variable                 | Default                     | Description                               |
+| ------------------------ | --------------------------- | ----------------------------------------- |
+| `SPAN_STORAGE_TYPE`      | `elasticsearch`             | Storage backend (elasticsearch or memory) |
+| `ES_SERVER_URLS`         | `http://elasticsearch:9200` | Elasticsearch endpoint(s)                 |
+| `ES_INDEX_PREFIX`        | `jaeger`                    | Index name prefix for Jaeger data         |
+| `ES_TAGS_AS_FIELDS_ALL`  | `true`                      | Store all tags as indexed fields          |
+| `ES_NUM_SHARDS`          | `1`                         | Number of shards per index                |
+| `ES_NUM_REPLICAS`        | `0`                         | Number of replicas (0 for single-node)    |
+| `ES_BULK_SIZE`           | `5000000`                   | Bulk request size in bytes                |
+| `ES_BULK_WORKERS`        | `1`                         | Number of bulk workers                    |
+| `ES_BULK_FLUSH_INTERVAL` | `200ms`                     | Bulk flush interval                       |
 
 **Accessing Jaeger UI:**
 
@@ -590,11 +602,29 @@ curl "http://localhost:16686/api/traces?service=nemotron-backend&limit=20" | jq
 
 **Production Considerations:**
 
-For production deployments, consider:
+The default configuration uses Elasticsearch for persistent trace storage with the following characteristics:
 
-1. **External Storage**: Configure Elasticsearch, Cassandra, or ClickHouse for persistent trace storage
-2. **Sampling**: Reduce `OTEL_TRACE_SAMPLE_RATE` to 0.1 (10%) for high-traffic systems
-3. **Retention**: Configure trace retention policies in your storage backend
+1. **Elasticsearch Backend**: Traces are stored in Elasticsearch with 30-day ILM retention (configured in `monitoring/elasticsearch/`)
+2. **Index Lifecycle Management**: Jaeger indices follow the `jaeger-span-*` pattern with automatic rollover
+3. **Sampling**: Reduce `OTEL_TRACE_SAMPLE_RATE` to 0.1 (10%) for high-traffic systems
+4. **Resource Limits**: Elasticsearch is configured with `ES_HEAP_SIZE` (default 2GB) and `ES_MEMORY_LIMIT` (default 4GB)
+
+**Elasticsearch Dependency:**
+
+Jaeger depends on Elasticsearch being healthy before starting:
+
+```yaml
+depends_on:
+  elasticsearch:
+    condition: service_healthy
+```
+
+If Elasticsearch is not available, Jaeger will fail to start. Check Elasticsearch health:
+
+```bash
+curl http://localhost:9200/_cluster/health | jq '.status'
+# Expected: "green" or "yellow"
+```
 
 ---
 

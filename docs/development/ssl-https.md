@@ -4,7 +4,7 @@ source_refs:
   - frontend/nginx.conf:1
   - frontend/docker-entrypoint.sh:1
   - docker-compose.prod.yml:350
-  - scripts/generate-ssl-cert.sh:1
+  - scripts/generate-certs.sh:1
 ---
 
 # SSL/HTTPS Configuration
@@ -26,7 +26,7 @@ Generate a self-signed certificate and enable HTTPS:
 
 ```bash
 # Generate self-signed certificate
-./scripts/generate-ssl-cert.sh
+./scripts/generate-certs.sh
 
 # Enable HTTPS in .env
 echo "SSL_ENABLED=true" >> .env
@@ -74,10 +74,10 @@ Use the provided script to generate a self-signed certificate:
 
 ```bash
 # Default output to ./certs directory
-./scripts/generate-ssl-cert.sh
+./scripts/generate-certs.sh
 
 # Custom output directory
-./scripts/generate-ssl-cert.sh /path/to/certs
+./scripts/generate-certs.sh /path/to/certs
 ```
 
 The script generates:

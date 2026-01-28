@@ -187,23 +187,53 @@ Push notifications alert you to security events even when the app is not open. H
 
 ### How Push Notifications Work
 
-```
-Security Event Detected
-        |
-        v
-Backend Server processes event
-        |
-        v
-Risk level evaluated
-        |
-        v
-Push notification sent via Web Push API
-        |
-        v
-Your device receives notification
-        |
-        v
-Tap to open event details
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TD
+    EVENT["Security Event<br/>Detected"]
+    PROCESS["Backend Server<br/>processes event"]
+    RISK{"Risk level<br/>evaluated"}
+    LOW["Low Risk"]
+    MED["Medium Risk"]
+    HIGH["High Risk"]
+    CRIT["Critical Risk"]
+    PUSH["Push notification<br/>sent via Web Push API"]
+    DEVICE["Your device receives<br/>notification"]
+    TAP["Tap to open<br/>event details"]
+    SILENT["Silent log<br/>(no notification)"]
+
+    EVENT --> PROCESS
+    PROCESS --> RISK
+    RISK -->|"0-29"| LOW
+    RISK -->|"30-59"| MED
+    RISK -->|"60-84"| HIGH
+    RISK -->|"85-100"| CRIT
+
+    LOW -->|"if enabled"| SILENT
+    MED --> PUSH
+    HIGH --> PUSH
+    CRIT --> PUSH
+
+    PUSH --> DEVICE
+    DEVICE --> TAP
+
+    style LOW fill:#22C55E,color:#fff
+    style MED fill:#F59E0B,color:#fff
+    style HIGH fill:#F97316,color:#fff
+    style CRIT fill:#EF4444,color:#fff
+    style TAP fill:#3B82F6,color:#fff
 ```
 
 ### Notification Risk Levels

@@ -60,6 +60,8 @@ The system provides WebSocket endpoints for real-time push communication and an 
 | -------- | --------------------------------------- | ------------------------------- |
 | WS       | `/ws/events`                            | Security event stream           |
 | WS       | `/ws/system`                            | System status stream            |
+| WS       | `/ws/detections`                        | Real-time AI detection stream   |
+| WS       | `/ws/jobs/{job_id}/logs`                | Job log streaming               |
 | SSE      | `/api/events/analyze/{batch_id}/stream` | LLM analysis progress streaming |
 
 Additionally, REST endpoints are available for WebSocket monitoring:
@@ -567,6 +569,296 @@ const systemWs = new SystemWebSocket('your-api-key', {
       showServiceAlert(status.service, status.message);
     }
   },
+});
+```
+
+---
+
+## Detections Stream
+
+Stream real-time AI detection events as they are processed by the YOLO26 pipeline. This endpoint provides lower-level detection data before event aggregation.
+
+**Endpoint:** `ws://localhost:8000/ws/detections`
+
+### Use Cases
+
+- Real-time object detection visualization
+- Live camera monitoring dashboards
+- Custom detection filtering and alerting
+- Integration with third-party analytics
+
+### Connection Lifecycle
+
+1. **Connect** - Client initiates WebSocket handshake
+2. **Authenticate** - Server validates API key or token (if enabled)
+3. **Auto-Subscribe** - Client automatically subscribed to `detection.*` events
+4. **Stream** - Server pushes detection events as they occur
+5. **Keepalive** - Periodic pings maintain connection
+6. **Close** - Idle timeout or client disconnect
+
+### Server-Sent Messages
+
+#### Detection Event Message
+
+Sent when a new AI detection is created:
+
+```json
+{
+  "type": "detection",
+  "seq": 42,
+  "data": {
+    "id": 12345,
+    "camera_id": "front_door",
+    "object_type": "person",
+    "confidence": 0.95,
+    "detected_at": "2026-01-15T10:30:00Z",
+    "bbox_x": 100,
+    "bbox_y": 150,
+    "bbox_width": 200,
+    "bbox_height": 400,
+    "file_path": "/export/foscam/front_door/image.jpg",
+    "thumbnail_path": "/data/thumbnails/12345_thumb.jpg"
+  }
+}
+```
+
+**Detection Data Fields:**
+
+| Field            | Type    | Description                               |
+| ---------------- | ------- | ----------------------------------------- |
+| `id`             | integer | Unique detection identifier               |
+| `camera_id`      | string  | Camera that captured the detection        |
+| `object_type`    | string  | Detected object type (person, car, etc.)  |
+| `confidence`     | float   | Detection confidence score (0.0-1.0)      |
+| `detected_at`    | string  | ISO 8601 timestamp                        |
+| `bbox_x`         | integer | Bounding box X coordinate                 |
+| `bbox_y`         | integer | Bounding box Y coordinate                 |
+| `bbox_width`     | integer | Bounding box width                        |
+| `bbox_height`    | integer | Bounding box height                       |
+| `file_path`      | string  | Path to source image                      |
+| `thumbnail_path` | string  | Path to thumbnail (may be null initially) |
+
+#### Batch Detection Message
+
+Sent when multiple detections from a single frame are processed:
+
+```json
+{
+  "type": "detection.batch",
+  "seq": 43,
+  "data": {
+    "batch_id": "batch_abc123",
+    "camera_id": "front_door",
+    "detection_count": 3,
+    "detection_ids": [12345, 12346, 12347],
+    "timestamp": "2026-01-15T10:30:00Z"
+  }
+}
+```
+
+### Sequence Numbers
+
+All messages include a `seq` field for message ordering and gap detection:
+
+```json
+{
+  "type": "detection",
+  "seq": 42,
+  "data": {...}
+}
+```
+
+Clients can detect missed messages by tracking sequence numbers. Server heartbeats include `lastSeq` for gap detection during idle periods.
+
+### JavaScript Example
+
+```javascript
+class DetectionsWebSocket {
+  constructor(apiKey, callbacks) {
+    this.url = `ws://localhost:8000/ws/detections?api_key=${apiKey}`;
+    this.callbacks = callbacks;
+    this.lastSeq = 0;
+    this.connect();
+  }
+
+  connect() {
+    this.ws = new WebSocket(this.url);
+
+    this.ws.onopen = () => {
+      console.log('Connected to detections stream');
+      // Auto-subscribed to detection.* events
+    };
+
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      // Check for sequence gaps
+      if (data.seq && data.seq > this.lastSeq + 1) {
+        console.warn(`Sequence gap detected: expected ${this.lastSeq + 1}, got ${data.seq}`);
+      }
+      if (data.seq) {
+        this.lastSeq = data.seq;
+      }
+
+      switch (data.type) {
+        case 'detection':
+          this.callbacks.onDetection?.(data.data);
+          break;
+        case 'detection.batch':
+          this.callbacks.onBatch?.(data.data);
+          break;
+        case 'ping':
+          // Server heartbeat - check lastSeq for gaps
+          if (data.lastSeq && data.lastSeq > this.lastSeq) {
+            console.warn('Missed messages during idle');
+          }
+          this.ws.send(JSON.stringify({ type: 'pong' }));
+          break;
+        case 'pong':
+          break;
+      }
+    };
+
+    // Similar reconnection handling as EventsWebSocket...
+  }
+}
+
+// Usage
+const detectionsWs = new DetectionsWebSocket('your-api-key', {
+  onDetection: (detection) => {
+    console.log(`New detection: ${detection.object_type} on ${detection.camera_id}`);
+    updateLiveView(detection);
+  },
+  onBatch: (batch) => {
+    console.log(`Batch ${batch.batch_id}: ${batch.detection_count} detections`);
+  },
+});
+```
+
+### React Hook Example
+
+```typescript
+import { useEffect, useState, useCallback } from 'react';
+
+interface Detection {
+  id: number;
+  camera_id: string;
+  object_type: string;
+  confidence: number;
+  detected_at: string;
+  bbox_x: number;
+  bbox_y: number;
+  bbox_width: number;
+  bbox_height: number;
+}
+
+export function useDetectionStream(apiKey: string) {
+  const [detections, setDetections] = useState<Detection[]>([]);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    const ws = new WebSocket(`ws://localhost:8000/ws/detections?api_key=${apiKey}`);
+
+    ws.onopen = () => setConnected(true);
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'detection') {
+        setDetections((prev) => [data.data, ...prev].slice(0, 100));
+      }
+    };
+
+    ws.onclose = () => setConnected(false);
+
+    // Keepalive
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(pingInterval);
+      ws.close(1000);
+    };
+  }, [apiKey]);
+
+  return { detections, connected };
+}
+```
+
+---
+
+## Job Logs Stream
+
+Stream real-time log entries for active background jobs. This enables live progress monitoring for long-running operations like exports or video processing.
+
+**Endpoint:** `ws://localhost:8000/ws/jobs/{job_id}/logs`
+
+### Use Cases
+
+- Real-time job progress monitoring
+- Debugging job execution issues
+- Building job status dashboards
+
+### Server-Sent Messages
+
+#### Log Message
+
+Sent as log entries are generated:
+
+```json
+{
+  "type": "log",
+  "data": {
+    "timestamp": "2026-01-17T10:32:05Z",
+    "level": "INFO",
+    "message": "Processing batch 2/3",
+    "context": { "batch_id": "abc123" }
+  }
+}
+```
+
+**Log Data Fields:**
+
+| Field       | Type   | Description                                      |
+| ----------- | ------ | ------------------------------------------------ |
+| `timestamp` | string | ISO 8601 timestamp                               |
+| `level`     | string | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR`   |
+| `message`   | string | Log message text                                 |
+| `context`   | object | Additional context (optional, job-specific data) |
+
+### Connection Behavior
+
+- Connection closes automatically when job completes or fails
+- Server sends periodic heartbeats to maintain connection
+- Logs are streamed via Redis pub/sub channel `job:{job_id}:logs`
+
+### JavaScript Example
+
+```javascript
+function streamJobLogs(jobId, apiKey, onLog) {
+  const ws = new WebSocket(`ws://localhost:8000/ws/jobs/${jobId}/logs?api_key=${apiKey}`);
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'log') {
+      onLog(data.data);
+    } else if (data.type === 'ping') {
+      ws.send(JSON.stringify({ type: 'pong' }));
+    }
+  };
+
+  ws.onclose = () => {
+    console.log('Job logs stream closed');
+  };
+
+  return ws;
+}
+
+// Usage
+const ws = streamJobLogs('job-uuid', 'your-api-key', (log) => {
+  console.log(`[${log.level}] ${log.message}`);
 });
 ```
 

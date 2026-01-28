@@ -8,12 +8,29 @@ This directory contains authoritative configuration reference documentation for 
 
 ```
 config/
-  AGENTS.md           # This file
-  env-reference.md    # Complete environment variable reference
-  risk-levels.md      # Risk score ranges and severity definitions
+  AGENTS.md                       # This file
+  cache-invalidation-reasons.md   # Cache invalidation reason constants
+  env-reference.md                # Complete environment variable reference
+  risk-levels.md                  # Risk score ranges and severity definitions
 ```
 
 ## Key Files
+
+### cache-invalidation-reasons.md
+
+**Purpose:** Reference for cache invalidation reason constants used in backend services.
+
+**Content:**
+
+- `CacheInvalidationReason` enum documentation
+- Event lifecycle operations (EVENT_CREATED, EVENT_UPDATED, etc.)
+- Camera lifecycle operations
+- Detection lifecycle operations
+- Alert operations
+- System operations (STATUS_CHANGED, GRACEFUL_SHUTDOWN, MANUAL)
+- Test-specific reasons
+
+**When to use:** Understanding cache invalidation patterns, implementing cache operations, writing tests.
 
 ### env-reference.md
 

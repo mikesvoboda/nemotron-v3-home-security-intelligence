@@ -66,40 +66,40 @@ The Repository pattern is a design pattern that mediates between the domain and 
 
 ### Architecture Overview
 
-```
-┌──────────────────┐     ┌─────────────────┐     ┌──────────────────┐
-│   API Routes     │     │    Services     │     │   Background     │
-│   (FastAPI)      │     │  (Business)     │     │   Workers        │
-└────────┬─────────┘     └────────┬────────┘     └────────┬─────────┘
-         │                        │                       │
-         └────────────────────────┼───────────────────────┘
-                                  │
-                                  ▼
-                    ┌─────────────────────────┐
-                    │     Repositories        │
-                    │   (Data Access Layer)   │
-                    └─────────────┬───────────┘
-                                  │
-                                  ▼
-                    ┌─────────────────────────┐
-                    │    SQLAlchemy ORM       │
-                    │   (AsyncSession)        │
-                    └─────────────┬───────────┘
-                                  │
-                                  ▼
-                    ┌─────────────────────────┐
-                    │      PostgreSQL         │
-                    └─────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Consumers["Consumer Layer"]
+        API["API Routes<br/>(FastAPI)"]
+        SVC["Services<br/>(Business)"]
+        BG["Background<br/>Workers"]
+    end
+
+    subgraph DataAccess["Data Access Layer"]
+        REPO["Repositories"]
+    end
+
+    subgraph ORM["ORM Layer"]
+        SA["SQLAlchemy ORM<br/>(AsyncSession)"]
+    end
+
+    subgraph Database["Database"]
+        PG[(PostgreSQL)]
+    end
+
+    API --> REPO
+    SVC --> REPO
+    BG --> REPO
+    REPO --> SA
+    SA --> PG
 ```
 
 **Repository Hierarchy:**
 
 ```
 Repository[T] (Generic Base)
-    │
-    ├── CameraRepository
-    ├── EventRepository
-    └── DetectionRepository
+  |-- CameraRepository
+  |-- EventRepository
+  +-- DetectionRepository
 ```
 
 ### Base Repository Class

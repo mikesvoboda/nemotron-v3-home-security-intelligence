@@ -474,6 +474,278 @@ CHECK (started_at IS NULL OR started_at >= created_at)
 
 ---
 
+## Job Attempts
+
+**Source:** `backend/models/job_attempt.py`
+
+**Table Name:** `job_attempts`
+
+Tracks individual execution attempts for each job. A job can have multiple attempts due to retries.
+
+### Schema Definition
+
+| Column            | Type           | Nullable | Default      | Description                         |
+| ----------------- | -------------- | -------- | ------------ | ----------------------------------- |
+| `id`              | `UUID`         | NO       | Auto (UUID7) | Primary key                         |
+| `job_id`          | `UUID`         | NO       | -            | Reference to parent job             |
+| `attempt_number`  | `Integer`      | NO       | `1`          | Sequential attempt number (1-based) |
+| `started_at`      | `DateTime(tz)` | NO       | `now()`      | When this attempt started           |
+| `ended_at`        | `DateTime(tz)` | YES      | `NULL`       | When this attempt ended             |
+| `status`          | `String(20)`   | NO       | `"started"`  | Attempt status                      |
+| `worker_id`       | `String(100)`  | YES      | `NULL`       | Worker that processed this attempt  |
+| `error_message`   | `Text`         | YES      | `NULL`       | Error message if failed             |
+| `error_traceback` | `Text`         | YES      | `NULL`       | Full traceback if failed            |
+| `result`          | `JSONB`        | YES      | `NULL`       | Result data if successful           |
+
+### Constraints
+
+```sql
+CHECK (status IN ('started', 'succeeded', 'failed', 'cancelled'))
+CHECK (attempt_number >= 1)
+CHECK (ended_at IS NULL OR ended_at >= started_at)
+```
+
+### Indexes
+
+| Index Name                        | Columns                  | Type   | Purpose                   |
+| --------------------------------- | ------------------------ | ------ | ------------------------- |
+| `idx_job_attempts_job_id`         | `job_id`                 | B-tree | Filter by job             |
+| `idx_job_attempts_job_attempt`    | `job_id, attempt_number` | B-tree | Composite job + attempt   |
+| `idx_job_attempts_status`         | `status`                 | B-tree | Filter by status          |
+| `ix_job_attempts_started_at_brin` | `started_at`             | BRIN   | Time-series range queries |
+
+---
+
+## Job Logs
+
+**Source:** `backend/models/job_log.py`
+
+**Table Name:** `job_logs`
+
+Stores log entries generated during job execution for debugging and audit trails.
+
+### Schema Definition
+
+| Column           | Type           | Nullable | Default      | Description                 |
+| ---------------- | -------------- | -------- | ------------ | --------------------------- |
+| `id`             | `UUID`         | NO       | Auto (UUID7) | Primary key                 |
+| `job_id`         | `UUID`         | NO       | -            | Reference to parent job     |
+| `attempt_number` | `Integer`      | NO       | `1`          | Which attempt generated log |
+| `timestamp`      | `DateTime(tz)` | NO       | `now()`      | Log entry timestamp         |
+| `level`          | `String(10)`   | NO       | `"info"`     | Log level                   |
+| `message`        | `Text`         | NO       | -            | Log message                 |
+| `context`        | `JSONB`        | YES      | `NULL`       | Optional structured context |
+
+### Constraints
+
+```sql
+CHECK (level IN ('debug', 'info', 'warning', 'error'))
+CHECK (attempt_number >= 1)
+```
+
+### Indexes
+
+| Index Name                   | Columns                  | Type   | Purpose                   |
+| ---------------------------- | ------------------------ | ------ | ------------------------- |
+| `idx_job_logs_job_id`        | `job_id`                 | B-tree | Filter by job             |
+| `idx_job_logs_job_attempt`   | `job_id, attempt_number` | B-tree | Composite job + attempt   |
+| `idx_job_logs_level`         | `level`                  | B-tree | Filter by log level       |
+| `idx_job_logs_job_timestamp` | `job_id, timestamp`      | B-tree | Combined job + time       |
+| `ix_job_logs_timestamp_brin` | `timestamp`              | BRIN   | Time-series range queries |
+
+---
+
+## Job Transitions
+
+**Source:** `backend/models/job_transition.py`
+
+**Table Name:** `job_transitions`
+
+Records all state transitions for jobs, enabling audit trails and debugging of job lifecycle issues.
+
+### Schema Definition
+
+| Column            | Type           | Nullable | Default      | Description                   |
+| ----------------- | -------------- | -------- | ------------ | ----------------------------- |
+| `id`              | `UUID`         | NO       | Auto (UUID7) | Primary key                   |
+| `job_id`          | `String(36)`   | NO       | -            | Reference to parent job       |
+| `from_status`     | `String(50)`   | NO       | -            | Previous status               |
+| `to_status`       | `String(50)`   | NO       | -            | New status                    |
+| `transitioned_at` | `DateTime(tz)` | NO       | `now()`      | When transition occurred      |
+| `triggered_by`    | `String(50)`   | NO       | `"worker"`   | What triggered the transition |
+| `metadata_json`   | `Text`         | YES      | `NULL`       | Optional transition metadata  |
+
+### Trigger Types
+
+| Trigger   | Description                            |
+| --------- | -------------------------------------- |
+| `worker`  | Background worker initiated transition |
+| `user`    | User action (cancel, retry)            |
+| `timeout` | Timeout-based transition               |
+| `retry`   | Retry mechanism initiated transition   |
+| `system`  | System-initiated (cleanup, recovery)   |
+
+### Indexes
+
+| Index Name                                   | Columns                   | Type   | Purpose             |
+| -------------------------------------------- | ------------------------- | ------ | ------------------- |
+| `idx_job_transitions_job_id`                 | `job_id`                  | B-tree | Filter by job       |
+| `idx_job_transitions_transitioned_at`        | `transitioned_at`         | B-tree | Time-range queries  |
+| `idx_job_transitions_job_id_transitioned_at` | `job_id, transitioned_at` | B-tree | Combined job + time |
+
+---
+
+## Export Jobs
+
+**Source:** `backend/models/export_job.py`
+
+**Table Name:** `export_jobs`
+
+Tracks background export jobs including events, alerts, and full backup exports with compliance features.
+
+### Schema Definition
+
+| Column                     | Type           | Nullable | Default      | Description                          |
+| -------------------------- | -------------- | -------- | ------------ | ------------------------------------ |
+| `id`                       | `UUID`         | NO       | Auto (UUID7) | Primary key                          |
+| `status`                   | `ENUM`         | NO       | `"pending"`  | Job status                           |
+| `export_type`              | `String(50)`   | NO       | -            | Type (events, alerts, full_backup)   |
+| `export_format`            | `String(20)`   | NO       | `"csv"`      | Format (csv, json, zip, excel)       |
+| `total_items`              | `Integer`      | YES      | `NULL`       | Total items to export                |
+| `processed_items`          | `Integer`      | NO       | `0`          | Items processed so far               |
+| `progress_percent`         | `Integer`      | NO       | `0`          | Progress (0-100)                     |
+| `current_step`             | `String(255)`  | YES      | `NULL`       | Current step description             |
+| `created_at`               | `DateTime(tz)` | NO       | `now()`      | Creation timestamp                   |
+| `started_at`               | `DateTime(tz)` | YES      | `NULL`       | Start timestamp                      |
+| `completed_at`             | `DateTime(tz)` | YES      | `NULL`       | Completion timestamp                 |
+| `estimated_completion`     | `DateTime(tz)` | YES      | `NULL`       | Estimated completion time            |
+| `output_path`              | `String(512)`  | YES      | `NULL`       | Path to output file                  |
+| `output_size_bytes`        | `Integer`      | YES      | `NULL`       | Output file size                     |
+| `error_message`            | `Text`         | YES      | `NULL`       | Error message if failed              |
+| `filter_params`            | `Text`         | YES      | `NULL`       | Filter parameters (JSON)             |
+| `expires_at`               | `DateTime(tz)` | YES      | +7 days      | File expiration (compliance)         |
+| `download_count`           | `Integer`      | NO       | `0`          | Download tracking                    |
+| `last_downloaded_at`       | `DateTime(tz)` | YES      | `NULL`       | Last download timestamp              |
+| `sensitivity_acknowledged` | `Boolean`      | NO       | `False`      | Data sensitivity acknowledged        |
+| `acknowledged_at`          | `DateTime(tz)` | YES      | `NULL`       | Acknowledgment timestamp             |
+| `retention_days`           | `Integer`      | YES      | `NULL`       | Custom retention (overrides default) |
+| `legal_hold`               | `Boolean`      | NO       | `False`      | Prevents automatic deletion          |
+| `compliance_metadata`      | `JSONB`        | YES      | `NULL`       | Audit trail info                     |
+
+### Constraints
+
+```sql
+CHECK (progress_percent >= 0 AND progress_percent <= 100)
+CHECK (processed_items >= 0)
+CHECK (total_items IS NULL OR total_items >= 0)
+CHECK (output_size_bytes IS NULL OR output_size_bytes >= 0)
+CHECK (download_count >= 0)
+CHECK (retention_days IS NULL OR retention_days > 0)
+```
+
+### Indexes
+
+| Index Name                          | Columns              | Type   | Purpose                |
+| ----------------------------------- | -------------------- | ------ | ---------------------- |
+| `idx_export_jobs_status`            | `status`             | B-tree | Filter by status       |
+| `idx_export_jobs_export_type`       | `export_type`        | B-tree | Filter by type         |
+| `idx_export_jobs_created_at`        | `created_at`         | B-tree | Time-range queries     |
+| `idx_export_jobs_status_created_at` | `status, created_at` | B-tree | Combined status + time |
+| `idx_export_jobs_expires_at`        | `expires_at`         | B-tree | Expired files cleanup  |
+| `idx_export_jobs_legal_hold`        | `legal_hold`         | B-tree | Legal hold queries     |
+
+---
+
+## Backup Jobs
+
+**Source:** `backend/models/backup_job.py`
+
+**Table Name:** `backup_jobs`
+
+Tracks full system backup job progress and results.
+
+### Schema Definition
+
+| Column             | Type           | Nullable | Default      | Description              |
+| ------------------ | -------------- | -------- | ------------ | ------------------------ |
+| `id`               | `UUID`         | NO       | Auto (UUID7) | Primary key              |
+| `status`           | `ENUM`         | NO       | `"pending"`  | Job status               |
+| `total_tables`     | `Integer`      | NO       | `8`          | Total tables to backup   |
+| `completed_tables` | `Integer`      | NO       | `0`          | Tables backed up         |
+| `progress_percent` | `Integer`      | NO       | `0`          | Progress (0-100)         |
+| `current_step`     | `String(255)`  | YES      | `NULL`       | Current step description |
+| `created_at`       | `DateTime(tz)` | NO       | `now()`      | Creation timestamp       |
+| `started_at`       | `DateTime(tz)` | YES      | `NULL`       | Start timestamp          |
+| `completed_at`     | `DateTime(tz)` | YES      | `NULL`       | Completion timestamp     |
+| `file_path`        | `String(512)`  | YES      | `NULL`       | Path to backup file      |
+| `file_size_bytes`  | `Integer`      | YES      | `NULL`       | Backup file size         |
+| `manifest_json`    | `JSONB`        | YES      | `NULL`       | Backup manifest          |
+| `error_message`    | `Text`         | YES      | `NULL`       | Error message if failed  |
+
+### Constraints
+
+```sql
+CHECK (progress_percent >= 0 AND progress_percent <= 100)
+```
+
+### Indexes
+
+| Index Name                   | Columns      | Type   | Purpose            |
+| ---------------------------- | ------------ | ------ | ------------------ |
+| `idx_backup_jobs_status`     | `status`     | B-tree | Filter by status   |
+| `idx_backup_jobs_created_at` | `created_at` | B-tree | Time-range queries |
+
+---
+
+## Restore Jobs
+
+**Source:** `backend/models/backup_job.py`
+
+**Table Name:** `restore_jobs`
+
+Tracks system restore job progress from backup files.
+
+### Schema Definition
+
+| Column              | Type           | Nullable | Default      | Description              |
+| ------------------- | -------------- | -------- | ------------ | ------------------------ |
+| `id`                | `UUID`         | NO       | Auto (UUID7) | Primary key              |
+| `status`            | `ENUM`         | NO       | `"pending"`  | Job status               |
+| `backup_id`         | `String(64)`   | YES      | `NULL`       | Source backup ID         |
+| `backup_created_at` | `DateTime(tz)` | YES      | `NULL`       | Source backup timestamp  |
+| `total_tables`      | `Integer`      | NO       | `8`          | Total tables to restore  |
+| `completed_tables`  | `Integer`      | NO       | `0`          | Tables restored          |
+| `progress_percent`  | `Integer`      | NO       | `0`          | Progress (0-100)         |
+| `current_step`      | `String(255)`  | YES      | `NULL`       | Current step description |
+| `created_at`        | `DateTime(tz)` | NO       | `now()`      | Creation timestamp       |
+| `started_at`        | `DateTime(tz)` | YES      | `NULL`       | Start timestamp          |
+| `completed_at`      | `DateTime(tz)` | YES      | `NULL`       | Completion timestamp     |
+| `items_restored`    | `JSONB`        | YES      | `NULL`       | Items restored per table |
+| `error_message`     | `Text`         | YES      | `NULL`       | Error message if failed  |
+
+### Status Flow
+
+```
+pending -> validating -> restoring -> completed
+                     \            \-> failed
+                      \-> failed
+```
+
+### Constraints
+
+```sql
+CHECK (progress_percent >= 0 AND progress_percent <= 100)
+```
+
+### Indexes
+
+| Index Name                    | Columns      | Type   | Purpose            |
+| ----------------------------- | ------------ | ------ | ------------------ |
+| `idx_restore_jobs_status`     | `status`     | B-tree | Filter by status   |
+| `idx_restore_jobs_created_at` | `created_at` | B-tree | Time-range queries |
+
+---
+
 ## Event Feedback
 
 **Source:** `backend/models/event_feedback.py`
