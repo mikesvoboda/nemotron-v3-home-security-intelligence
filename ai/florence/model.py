@@ -11,6 +11,8 @@ Port: 8092 (configurable via PORT env var)
 Expected VRAM: ~1.2GB
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
 import binascii
