@@ -12,12 +12,12 @@ Welcome! This system watches your security cameras around the clock and alerts y
 
 New to the system? Follow this learning path:
 
-| Step | Guide                                                 | Description                                       | Time    |
-| ---- | ----------------------------------------------------- | ------------------------------------------------- | ------- |
-| 1    | [Quick Start](../getting-started/quick-start.md)      | What the system does and how to open it           | ~5 min  |
-| 2    | [Product Tour](../getting-started/tour.md)            | Interactive tour walkthrough and first-time setup | ~8 min  |
-| 3    | [Dashboard](../ui/dashboard.md)                       | Understanding what you see on screen              | ~8 min  |
-| 4    | [Understanding Alerts](../ui/understanding-alerts.md) | What risk levels mean and when to take action     | ~10 min |
+| Step | Guide                                            | Description                                       | Time    |
+| ---- | ------------------------------------------------ | ------------------------------------------------- | ------- |
+| 1    | [Quick Start](../getting-started/quick-start.md) | What the system does and how to open it           | ~5 min  |
+| 2    | [Product Tour](../getting-started/tour.md)       | Interactive tour walkthrough and first-time setup | ~8 min  |
+| 3    | [Dashboard](../ui/dashboard.md)                  | Understanding what you see on screen              | ~8 min  |
+| 4    | [Alerts](../ui/alerts.md)                        | What risk levels mean and when to take action     | ~10 min |
 
 > **Already set up?** Skip to [Dashboard Features](#dashboard-features) below.
 
@@ -38,7 +38,6 @@ These guides help you understand and use the main dashboard.
 | Guide                               | Description                                                           | Time    |
 | ----------------------------------- | --------------------------------------------------------------------- | ------- |
 | [Event Timeline](../ui/timeline.md) | Browse, filter, review events, video clips, entity tracking, and more | ~15 min |
-| [Full-Text Search](../ui/search.md) | Find specific events by keyword                                       | ~6 min  |
 
 ### Analytics and Entities
 
@@ -60,10 +59,9 @@ These guides help you understand and use the main dashboard.
 
 When the system detects something important, you will want to know about it.
 
-| Guide                                                     | Description                            | Time    |
-| --------------------------------------------------------- | -------------------------------------- | ------- |
-| [Understanding Alerts](../ui/understanding-alerts.md)     | What causes alerts and how to respond  | ~10 min |
-| [Alerts and Notifications](../ui/alerts-notifications.md) | The Alerts page and notification setup | ~8 min  |
+| Guide                     | Description                                           | Time    |
+| ------------------------- | ----------------------------------------------------- | ------- |
+| [Alerts](../ui/alerts.md) | What causes alerts, how to respond, and notifications | ~15 min |
 
 ### Quick Reference: Risk Levels
 
@@ -93,7 +91,7 @@ When the system detects something important, you will want to know about it.
 | [AI Enrichment Data](../ui/dashboard.md#ai-enrichment-data-in-event-details) | Advanced AI analysis in event details            | ~8 min  |
 | [AI Audit Dashboard](../ui/ai-audit.md)                                      | AI quality metrics and recommendations           | ~8 min  |
 | [AI Performance](../ui/ai-performance.md)                                    | AI model health and Model Zoo monitoring         | ~15 min |
-| [System Monitoring](../ui/system-monitoring.md)                              | System health, circuit breakers, troubleshooting | ~12 min |
+| [Operations Dashboard](../ui/operations.md)                                  | System health, circuit breakers, troubleshooting | ~12 min |
 
 ---
 
