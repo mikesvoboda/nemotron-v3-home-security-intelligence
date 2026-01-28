@@ -6,8 +6,9 @@ X-CLIP action recognition with the database layer. It handles:
 - Creating and retrieving ActionEvent records
 - Filtering suspicious actions
 - Configurable confidence thresholds
+- Prometheus metrics for action detection observability
 
-Linear issue: NEM-3714
+Linear issue: NEM-3714, NEM-4144
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from PIL import Image
+from prometheus_client import Counter, Histogram
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +26,7 @@ from backend.models.action_event import ActionEvent
 from backend.services.xclip_loader import (
     SECURITY_ACTION_PROMPTS,
     classify_actions,
+    get_action_category,
     is_suspicious_action,
     load_xclip_model,
     sample_frames_from_batch,
@@ -36,6 +39,83 @@ DEFAULT_CONFIDENCE_THRESHOLD = 0.5
 
 # Default number of frames for action recognition
 DEFAULT_FRAME_COUNT = 8
+
+# =============================================================================
+# Prometheus Metrics (NEM-4144)
+# =============================================================================
+# Action recognition metrics for observability and feedback loop tracking.
+# These metrics enable monitoring of action detection quality and user corrections.
+
+# Counter for total action detections with action_type and camera_id labels
+# action_type represents the category: high_risk, suspicious, approaching, normal, stationary, fleeing
+hsi_action_detections_total = Counter(
+    "hsi_action_detections_total",
+    "Total action detections by action type category and camera",
+    labelnames=["action_type", "camera_id"],
+)
+
+# Histogram for action confidence scores by action type
+# Buckets designed to capture the confidence distribution for quality analysis
+hsi_action_confidence = Histogram(
+    "hsi_action_confidence",
+    "Action recognition confidence scores by action type category",
+    labelnames=["action_type"],
+    buckets=[0.5, 0.6, 0.7, 0.8, 0.9, 0.95],
+)
+
+# Counter for user corrections to action classifications
+# correction_type: false_positive, false_negative, misclassification
+hsi_action_corrections_total = Counter(
+    "hsi_action_corrections_total",
+    "User corrections to action classifications for feedback loop tracking",
+    labelnames=["action_type", "correction_type"],
+)
+
+
+def record_action_detection(action: str, camera_id: str, confidence: float) -> None:
+    """Record an action detection in Prometheus metrics.
+
+    Args:
+        action: The detected action prompt string
+        camera_id: Camera ID where action was detected
+        confidence: Confidence score for the detection (0.0 to 1.0)
+    """
+    # Get the action category (high_risk, suspicious, approaching, normal, stationary, fleeing)
+    action_type = get_action_category(action) or "unknown"
+
+    # Sanitize camera_id to prevent cardinality explosion
+    # Truncate long camera IDs and replace special characters
+    sanitized_camera_id = camera_id[:50].replace("/", "_").replace("\\", "_")
+
+    # Record the detection count
+    hsi_action_detections_total.labels(
+        action_type=action_type,
+        camera_id=sanitized_camera_id,
+    ).inc()
+
+    # Record the confidence score
+    hsi_action_confidence.labels(action_type=action_type).observe(confidence)
+
+
+def record_action_correction(
+    action: str,
+    correction_type: str,
+) -> None:
+    """Record a user correction to an action classification.
+
+    Args:
+        action: The original detected action prompt string
+        correction_type: Type of correction - one of:
+            - "false_positive": Action was detected but shouldn't have been
+            - "false_negative": Action should have been detected but wasn't
+            - "misclassification": Action was detected but classified incorrectly
+    """
+    action_type = get_action_category(action) or "unknown"
+
+    hsi_action_corrections_total.labels(
+        action_type=action_type,
+        correction_type=correction_type,
+    ).inc()
 
 
 class ActionRecognitionService:
@@ -173,6 +253,9 @@ class ActionRecognitionService:
         detected_action = result["detected_action"]
         confidence = result["confidence"]
         suspicious = is_suspicious_action(detected_action)
+
+        # Record metrics for action detection (NEM-4144)
+        record_action_detection(detected_action, camera_id, confidence)
 
         # Build response
         response = {

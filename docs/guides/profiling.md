@@ -757,18 +757,18 @@ DCGM_FI_DEV_POWER_USAGE
 
 ### Key DCGM Metrics
 
-| Metric                           | Description                  | Unit    | Use Case                 |
-| -------------------------------- | ---------------------------- | ------- | ------------------------ |
-| `DCGM_FI_DEV_GPU_UTIL`           | GPU compute utilization      | %       | Overall GPU usage        |
-| `DCGM_FI_DEV_MEM_COPY_UTIL`      | Memory bandwidth utilization | %       | Memory-bound detection   |
-| `DCGM_FI_DEV_FB_USED`            | Framebuffer (VRAM) used      | MB      | OOM risk assessment      |
-| `DCGM_FI_DEV_FB_FREE`            | Framebuffer free             | MB      | Available VRAM           |
-| `DCGM_FI_DEV_GPU_TEMP`           | GPU temperature              | Celsius | Thermal throttling       |
-| `DCGM_FI_DEV_POWER_USAGE`        | Power consumption            | Watts   | Power throttling         |
-| `DCGM_FI_DEV_SM_CLOCK`           | SM clock frequency           | MHz     | Clock throttling         |
-| `DCGM_FI_DEV_MEM_CLOCK`          | Memory clock frequency       | MHz     | Memory throttling        |
-| `DCGM_FI_DEV_PCIE_TX_THROUGHPUT` | PCIe transmit rate           | B/s     | Data transfer bottleneck |
-| `DCGM_FI_DEV_PCIE_RX_THROUGHPUT` | PCIe receive rate            | B/s     | Data transfer bottleneck |
+| Metric                       | Description                  | Unit    | Use Case                 |
+| ---------------------------- | ---------------------------- | ------- | ------------------------ |
+| `DCGM_FI_DEV_GPU_UTIL`       | GPU compute utilization      | %       | Overall GPU usage        |
+| `DCGM_FI_DEV_MEM_COPY_UTIL`  | Memory bandwidth utilization | %       | Memory-bound detection   |
+| `DCGM_FI_DEV_FB_USED`        | Framebuffer (VRAM) used      | MB      | OOM risk assessment      |
+| `DCGM_FI_DEV_FB_FREE`        | Framebuffer free             | MB      | Available VRAM           |
+| `DCGM_FI_DEV_GPU_TEMP`       | GPU temperature              | Celsius | Thermal throttling       |
+| `DCGM_FI_DEV_POWER_USAGE`    | Power consumption            | Watts   | Power throttling         |
+| `DCGM_FI_DEV_SM_CLOCK`       | SM clock frequency           | MHz     | Clock throttling         |
+| `DCGM_FI_DEV_MEM_CLOCK`      | Memory clock frequency       | MHz     | Memory throttling        |
+| `DCGM_FI_PROF_PCIE_TX_BYTES` | PCIe transmit rate           | B/s     | Data transfer bottleneck |
+| `DCGM_FI_PROF_PCIE_RX_BYTES` | PCIe receive rate            | B/s     | Data transfer bottleneck |
 
 ### Identifying Workload Characteristics
 

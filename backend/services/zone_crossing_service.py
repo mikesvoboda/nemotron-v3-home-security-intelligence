@@ -22,6 +22,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from backend.core.config import get_settings
+from backend.core.metrics import (
+    observe_zone_dwell_time,
+    record_zone_crossing,
+    set_zone_occupancy,
+)
 from backend.core.redis import get_redis
 from backend.core.time_utils import utc_now
 from backend.services.zone_service import (
@@ -532,10 +537,11 @@ class ZoneCrossingService:
         Returns:
             The emitted event dictionary.
         """
+        zone_id = str(zone.id)
         event = {
             "type": "zone.enter",
             "data": {
-                "zone_id": str(zone.id),
+                "zone_id": zone_id,
                 "zone_name": zone.name,
                 "entity_id": entity_id,
                 "entity_type": entity_type,
@@ -545,6 +551,13 @@ class ZoneCrossingService:
                 "dwell_time": None,
             },
         }
+
+        # Record Prometheus metrics for zone crossing (enter direction)
+        record_zone_crossing(zone_id=zone_id, direction="enter", entity_type=entity_type)
+
+        # Update zone occupancy gauge
+        occupancy = len(self._zone_occupants.get(zone_id, set())) + 1
+        set_zone_occupancy(zone_id=zone_id, count=occupancy)
 
         await self._emit_websocket_event(event)
         return event
@@ -573,10 +586,11 @@ class ZoneCrossingService:
         Returns:
             The emitted event dictionary.
         """
+        zone_id = str(zone.id)
         event = {
             "type": "zone.exit",
             "data": {
-                "zone_id": str(zone.id),
+                "zone_id": zone_id,
                 "zone_name": zone.name,
                 "entity_id": entity_id,
                 "entity_type": entity_type,
@@ -586,6 +600,18 @@ class ZoneCrossingService:
                 "dwell_time": dwell_time,
             },
         }
+
+        # Record Prometheus metrics for zone crossing (exit direction)
+        record_zone_crossing(zone_id=zone_id, direction="exit", entity_type=entity_type)
+
+        # Record dwell time histogram if we have a valid dwell time
+        if dwell_time is not None and dwell_time > 0:
+            observe_zone_dwell_time(zone_id=zone_id, duration_seconds=dwell_time)
+
+        # Update zone occupancy gauge (entity is leaving, so subtract 1)
+        current_occupants = self._zone_occupants.get(zone_id, set())
+        occupancy = max(0, len(current_occupants) - 1)
+        set_zone_occupancy(zone_id=zone_id, count=occupancy)
 
         await self._emit_websocket_event(event)
         return event
@@ -614,10 +640,11 @@ class ZoneCrossingService:
         Returns:
             The emitted event dictionary.
         """
+        zone_id = str(zone.id)
         event = {
             "type": "zone.dwell",
             "data": {
-                "zone_id": str(zone.id),
+                "zone_id": zone_id,
                 "zone_name": zone.name,
                 "entity_id": entity_id,
                 "entity_type": entity_type,
@@ -627,6 +654,10 @@ class ZoneCrossingService:
                 "dwell_time": dwell_time,
             },
         }
+
+        # Record dwell time histogram for ongoing dwell events
+        if dwell_time > 0:
+            observe_zone_dwell_time(zone_id=zone_id, duration_seconds=dwell_time)
 
         await self._emit_websocket_event(event)
         return event

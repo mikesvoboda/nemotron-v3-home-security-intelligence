@@ -51,6 +51,7 @@ from backend.core.logging import get_logger
 from backend.core.metrics import (
     record_pipeline_worker_restart,
     record_worker_crash,
+    record_worker_heartbeat_missed,
     record_worker_max_restarts_exceeded,
     record_worker_restart,
     set_pipeline_worker_consecutive_failures,
@@ -143,6 +144,9 @@ class WorkerInfo:
         last_crashed_at: When the worker last crashed.
         error: Last error message if crashed.
         circuit_open: Whether the circuit breaker is open (NEM-2492).
+        last_heartbeat_at: When the last heartbeat was received (NEM-4148).
+        heartbeat_timeout: Seconds before a heartbeat is considered missed (NEM-4148).
+        missed_heartbeat_count: Number of consecutive missed heartbeats (NEM-4148).
     """
 
     name: str
@@ -157,9 +161,12 @@ class WorkerInfo:
     last_crashed_at: datetime | None = None
     error: str | None = None
     circuit_open: bool = False  # NEM-2492: Circuit breaker state
+    last_heartbeat_at: datetime | None = None  # NEM-4148: Heartbeat tracking
+    heartbeat_timeout: float = 30.0  # NEM-4148: Heartbeat timeout in seconds
+    missed_heartbeat_count: int = 0  # NEM-4148: Consecutive missed heartbeats
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert WorkerInfo to a dictionary for serialization (NEM-2492).
+        """Convert WorkerInfo to a dictionary for serialization (NEM-2492, NEM-4148).
 
         Returns:
             Dictionary representation of the worker info.
@@ -175,6 +182,11 @@ class WorkerInfo:
             "last_crashed_at": self.last_crashed_at.isoformat() if self.last_crashed_at else None,
             "error": self.error,
             "circuit_open": self.circuit_open,
+            "last_heartbeat_at": (
+                self.last_heartbeat_at.isoformat() if self.last_heartbeat_at else None
+            ),
+            "heartbeat_timeout": self.heartbeat_timeout,
+            "missed_heartbeat_count": self.missed_heartbeat_count,
         }
 
 
@@ -217,6 +229,8 @@ class SupervisorConfig:
         default_backoff_base: Default base backoff time.
         default_backoff_max: Default max backoff time.
         max_restart_history: Maximum number of restart events to keep in history.
+        default_heartbeat_timeout: Default heartbeat timeout for workers (NEM-4148).
+        heartbeat_check_enabled: Whether to check for missed heartbeats (NEM-4148).
     """
 
     check_interval: float = 5.0
@@ -224,6 +238,8 @@ class SupervisorConfig:
     default_backoff_base: float = 1.0
     default_backoff_max: float = 60.0
     max_restart_history: int = 100
+    default_heartbeat_timeout: float = 30.0  # NEM-4148
+    heartbeat_check_enabled: bool = True  # NEM-4148
 
 
 class WorkerSupervisor:
@@ -273,6 +289,7 @@ class WorkerSupervisor:
         max_restarts: int | None = None,
         backoff_base: float | None = None,
         backoff_max: float | None = None,
+        heartbeat_timeout: float | None = None,
     ) -> None:
         """Register a worker to be supervised.
 
@@ -282,6 +299,8 @@ class WorkerSupervisor:
             max_restarts: Max restart attempts (uses config default if None).
             backoff_base: Base backoff time (uses config default if None).
             backoff_max: Max backoff time (uses config default if None).
+            heartbeat_timeout: Heartbeat timeout in seconds (uses config default if None).
+                Workers should call record_heartbeat() within this interval (NEM-4148).
 
         Raises:
             ValueError: If a worker with this name is already registered.
@@ -295,6 +314,7 @@ class WorkerSupervisor:
             max_restarts=max_restarts or self._config.default_max_restarts,
             backoff_base=backoff_base or self._config.default_backoff_base,
             backoff_max=backoff_max or self._config.default_backoff_max,
+            heartbeat_timeout=heartbeat_timeout or self._config.default_heartbeat_timeout,
         )
 
         self._workers[name] = worker
@@ -302,7 +322,7 @@ class WorkerSupervisor:
 
         logger.info(
             f"Registered worker '{name}': max_restarts={worker.max_restarts}, "
-            f"backoff_base={worker.backoff_base}s"
+            f"backoff_base={worker.backoff_base}s, heartbeat_timeout={worker.heartbeat_timeout}s"
         )
 
     async def unregister_worker(self, name: str) -> None:
@@ -417,6 +437,8 @@ class WorkerSupervisor:
         )
         worker.status = WorkerStatus.RUNNING
         worker.last_started_at = datetime.now(UTC)
+        worker.last_heartbeat_at = datetime.now(UTC)  # NEM-4148: Initialize heartbeat
+        worker.missed_heartbeat_count = 0  # NEM-4148: Reset missed heartbeat count
         worker.error = None
 
         # Record metrics (NEM-2457, NEM-2459)
@@ -447,8 +469,8 @@ class WorkerSupervisor:
             worker.last_crashed_at = datetime.now(UTC)
             worker.error = str(e)
 
-            # Record metrics (NEM-2457, NEM-2459)
-            record_worker_crash(name)
+            # Record metrics (NEM-2457, NEM-2459, NEM-4148)
+            record_worker_crash(name, error=str(e))
             set_worker_status(name, WorkerStatus.CRASHED.value)
             set_pipeline_worker_state(name, "stopped")
             set_pipeline_worker_consecutive_failures(name, worker.restart_count + 1)
@@ -474,6 +496,10 @@ class WorkerSupervisor:
                     if worker.status == WorkerStatus.CRASHED:
                         await self._handle_crashed_worker(name)
 
+                    # NEM-4148: Check for missed heartbeats
+                    elif worker.status == WorkerStatus.RUNNING:
+                        self._check_worker_heartbeat(name)
+
                 await asyncio.sleep(self._config.check_interval)
 
             except asyncio.CancelledError:
@@ -484,6 +510,32 @@ class WorkerSupervisor:
                 await asyncio.sleep(self._config.check_interval)
 
         logger.info("Monitor loop stopped")
+
+    def _check_worker_heartbeat(self, name: str) -> None:
+        """Check if a worker has missed its heartbeat deadline (NEM-4148).
+
+        Args:
+            name: Name of the worker to check.
+        """
+        if not self._config.heartbeat_check_enabled:
+            return
+
+        worker = self._workers.get(name)
+        if worker is None or worker.last_heartbeat_at is None:
+            return
+
+        # Calculate time since last heartbeat
+        now = datetime.now(UTC)
+        seconds_since_heartbeat = (now - worker.last_heartbeat_at).total_seconds()
+
+        # Check if heartbeat is overdue
+        if seconds_since_heartbeat > worker.heartbeat_timeout:
+            worker.missed_heartbeat_count += 1
+            record_worker_heartbeat_missed(name)
+            logger.warning(
+                f"Worker '{name}' missed heartbeat #{worker.missed_heartbeat_count} "
+                f"(last: {seconds_since_heartbeat:.1f}s ago, timeout: {worker.heartbeat_timeout}s)"
+            )
 
     async def _handle_crashed_worker(self, name: str) -> None:
         """Handle a crashed worker by attempting restart.
@@ -567,8 +619,8 @@ class WorkerSupervisor:
             # Increment restart count and start
             worker.restart_count += 1
 
-            # Record restart metrics (NEM-2457, NEM-2459)
-            record_worker_restart(name)
+            # Record restart metrics (NEM-2457, NEM-2459, NEM-4148)
+            record_worker_restart(name, reason=worker.error)
             restart_duration = time.monotonic() - restart_start_time
             record_pipeline_worker_restart(
                 name, reason=worker.error, duration_seconds=restart_duration
@@ -678,6 +730,45 @@ class WorkerSupervisor:
 
         logger.info(f"Reset worker '{name}' restart count")
         return True
+
+    def record_heartbeat(self, name: str) -> bool:
+        """Record a heartbeat from a worker (NEM-4148).
+
+        Workers should call this method periodically to indicate they are
+        still alive and processing. If a worker fails to send heartbeats
+        within its configured timeout, it will be flagged as having missed
+        a heartbeat and the metric will be recorded.
+
+        Args:
+            name: Name of the worker sending the heartbeat.
+
+        Returns:
+            True if heartbeat was recorded, False if worker not found.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            logger.warning(f"Cannot record heartbeat for unknown worker: {name}")
+            return False
+
+        worker.last_heartbeat_at = datetime.now(UTC)
+        worker.missed_heartbeat_count = 0  # Reset on successful heartbeat
+
+        logger.debug(f"Heartbeat recorded for worker '{name}'")
+        return True
+
+    def get_missed_heartbeat_count(self, name: str) -> int:
+        """Get the number of consecutive missed heartbeats for a worker (NEM-4148).
+
+        Args:
+            name: Name of the worker.
+
+        Returns:
+            Number of consecutive missed heartbeats, or 0 if worker not found.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            return 0
+        return worker.missed_heartbeat_count
 
     @property
     def is_running(self) -> bool:

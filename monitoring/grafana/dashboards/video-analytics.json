@@ -1921,7 +1921,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "0",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total{match_status=\"known\"}[1h]))",
           "refId": "A"
         }
       ],
@@ -1979,7 +1979,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "0",
+          "expr": "sum(increase(hsi_face_embeddings_generated_total{match_status=\"unknown\"}[1h]))",
           "refId": "A"
         }
       ],

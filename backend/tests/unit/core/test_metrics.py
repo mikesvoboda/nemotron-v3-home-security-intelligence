@@ -29,6 +29,10 @@ from backend.core.metrics import (
     EVENTS_CREATED_TOTAL,
     PIPELINE_ERRORS_TOTAL,
     PROMPT_TEMPLATE_USED,
+    QUEUE_ITEMS_DROPPED_TOTAL,
+    QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL,
+    QUEUE_ITEMS_REJECTED_TOTAL,
+    QUEUE_OVERFLOW_TOTAL,
     RISK_SCORE,
     STAGE_DURATION_SECONDS,
     PipelineLatencyTracker,
@@ -69,6 +73,37 @@ class TestMetricsDefinitions:
         assert DLQ_DEPTH is not None
         assert DLQ_DEPTH._name == "hsi_dlq_depth"
         assert "queue_name" in DLQ_DEPTH._labelnames
+
+    def test_queue_overflow_metric_exists(self) -> None:
+        """QUEUE_OVERFLOW_TOTAL should be defined with queue_name and policy labels."""
+        assert QUEUE_OVERFLOW_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert QUEUE_OVERFLOW_TOTAL._name == "hsi_queue_overflow"
+        assert "queue_name" in QUEUE_OVERFLOW_TOTAL._labelnames
+        assert "policy" in QUEUE_OVERFLOW_TOTAL._labelnames
+
+    def test_queue_items_moved_to_dlq_metric_exists(self) -> None:
+        """QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL should have queue_name and reason labels (NEM-4147)."""
+        assert QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL._name == "hsi_queue_items_moved_to_dlq"
+        assert "queue_name" in QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL._labelnames
+        assert "reason" in QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL._labelnames
+
+    def test_queue_items_dropped_metric_exists(self) -> None:
+        """QUEUE_ITEMS_DROPPED_TOTAL should be defined with queue_name label."""
+        assert QUEUE_ITEMS_DROPPED_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert QUEUE_ITEMS_DROPPED_TOTAL._name == "hsi_queue_items_dropped"
+        assert "queue_name" in QUEUE_ITEMS_DROPPED_TOTAL._labelnames
+
+    def test_queue_items_rejected_metric_exists(self) -> None:
+        """QUEUE_ITEMS_REJECTED_TOTAL should have queue_name and reason labels (NEM-4147)."""
+        assert QUEUE_ITEMS_REJECTED_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert QUEUE_ITEMS_REJECTED_TOTAL._name == "hsi_queue_items_rejected"
+        assert "queue_name" in QUEUE_ITEMS_REJECTED_TOTAL._labelnames
+        assert "reason" in QUEUE_ITEMS_REJECTED_TOTAL._labelnames
 
     def test_stage_duration_histogram_exists(self) -> None:
         """STAGE_DURATION_SECONDS histogram should be defined with stage label."""
@@ -790,8 +825,12 @@ class TestMetricsServiceQueueMethods:
         from backend.core.metrics import get_metrics_service
 
         metrics = get_metrics_service()
+        # Test with default reason (overflow)
         metrics.record_queue_items_moved_to_dlq("detection", 1)
-        metrics.record_queue_items_moved_to_dlq("analysis", 5)
+        # Test with explicit reason
+        metrics.record_queue_items_moved_to_dlq("analysis", 5, reason="overflow")
+        metrics.record_queue_items_moved_to_dlq("detection", 2, reason="processing_failed")
+        metrics.record_queue_items_moved_to_dlq("analysis", 1, reason="max_retries")
 
     def test_record_queue_items_dropped(self) -> None:
         """MetricsService should record dropped items."""
@@ -806,8 +845,12 @@ class TestMetricsServiceQueueMethods:
         from backend.core.metrics import get_metrics_service
 
         metrics = get_metrics_service()
+        # Test with default reason (queue_full)
         metrics.record_queue_items_rejected("detection", 1)
-        metrics.record_queue_items_rejected("analysis", 2)
+        # Test with explicit reasons
+        metrics.record_queue_items_rejected("analysis", 2, reason="queue_full")
+        metrics.record_queue_items_rejected("detection", 1, reason="invalid_payload")
+        metrics.record_queue_items_rejected("analysis", 1, reason="consumer_rejected")
 
 
 class TestMetricsServiceStageDuration:
@@ -1188,11 +1231,17 @@ class TestQueueOverflowHelpers:
         record_queue_overflow("analysis", "drop_oldest")
 
     def test_record_queue_items_moved_to_dlq_helper(self) -> None:
-        """record_queue_items_moved_to_dlq should increment counter."""
+        """record_queue_items_moved_to_dlq should increment counter with reason label."""
         from backend.core.metrics import record_queue_items_moved_to_dlq
 
+        # Test with default reason
         record_queue_items_moved_to_dlq("detection")
         record_queue_items_moved_to_dlq("analysis", 5)
+        # Test with explicit reasons
+        record_queue_items_moved_to_dlq("detection", 1, reason="overflow")
+        record_queue_items_moved_to_dlq("analysis", 2, reason="processing_failed")
+        record_queue_items_moved_to_dlq("detection", 1, reason="max_retries")
+        record_queue_items_moved_to_dlq("analysis", 1, reason="timeout")
 
     def test_record_queue_items_dropped_helper(self) -> None:
         """record_queue_items_dropped should increment counter."""
@@ -1202,11 +1251,17 @@ class TestQueueOverflowHelpers:
         record_queue_items_dropped("analysis", 3)
 
     def test_record_queue_items_rejected_helper(self) -> None:
-        """record_queue_items_rejected should increment counter."""
+        """record_queue_items_rejected should increment counter with reason label."""
         from backend.core.metrics import record_queue_items_rejected
 
+        # Test with default reason
         record_queue_items_rejected("detection")
         record_queue_items_rejected("analysis", 2)
+        # Test with explicit reasons
+        record_queue_items_rejected("detection", 1, reason="queue_full")
+        record_queue_items_rejected("analysis", 1, reason="invalid_payload")
+        record_queue_items_rejected("detection", 1, reason="validation_failed")
+        record_queue_items_rejected("analysis", 1, reason="consumer_rejected")
 
 
 class TestTokenUsageHelpers:
@@ -2259,3 +2314,475 @@ class TestProcessMemoryMetrics:
         assert "hsi_process_memory_rss_bytes" in response
         assert "hsi_process_memory_container_limit_bytes" in response
         assert "hsi_process_memory_container_usage_ratio" in response
+
+
+# =============================================================================
+# Re-Identification Metrics Tests (NEM-4140)
+# =============================================================================
+
+
+class TestReIDMetricsDefinitions:
+    """Test Re-ID metric definitions and registrations (NEM-4140)."""
+
+    def test_reid_matches_total_metric_exists(self) -> None:
+        """REID_MATCHES_TOTAL counter should be defined with labels."""
+        from backend.core.metrics import REID_MATCHES_TOTAL
+
+        assert REID_MATCHES_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert REID_MATCHES_TOTAL._name == "hsi_reid_matches"
+        assert "entity_type" in REID_MATCHES_TOTAL._labelnames
+        assert "camera_id" in REID_MATCHES_TOTAL._labelnames
+
+    def test_reid_attempts_total_metric_exists(self) -> None:
+        """REID_ATTEMPTS_TOTAL counter should be defined with labels."""
+        from backend.core.metrics import REID_ATTEMPTS_TOTAL
+
+        assert REID_ATTEMPTS_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert REID_ATTEMPTS_TOTAL._name == "hsi_reid_attempts"
+        assert "entity_type" in REID_ATTEMPTS_TOTAL._labelnames
+        assert "camera_id" in REID_ATTEMPTS_TOTAL._labelnames
+
+    def test_reid_match_duration_histogram_exists(self) -> None:
+        """REID_MATCH_DURATION_SECONDS histogram should be defined with labels and buckets."""
+        from backend.core.metrics import REID_MATCH_DURATION_SECONDS
+
+        assert REID_MATCH_DURATION_SECONDS is not None
+        assert REID_MATCH_DURATION_SECONDS._name == "hsi_reid_match_duration_seconds"
+        assert "entity_type" in REID_MATCH_DURATION_SECONDS._labelnames
+        # Verify buckets cover Re-ID match duration range
+        buckets = REID_MATCH_DURATION_SECONDS._upper_bounds
+        assert 0.01 in buckets  # 10ms
+        assert 0.1 in buckets  # 100ms
+        assert 1.0 in buckets  # 1s
+
+    def test_cross_camera_handoffs_total_metric_exists(self) -> None:
+        """CROSS_CAMERA_HANDOFFS_TOTAL counter should be defined with labels."""
+        from backend.core.metrics import CROSS_CAMERA_HANDOFFS_TOTAL
+
+        assert CROSS_CAMERA_HANDOFFS_TOTAL is not None
+        # Note: prometheus_client strips _total suffix from counter names internally
+        assert CROSS_CAMERA_HANDOFFS_TOTAL._name == "hsi_cross_camera_handoffs"
+        assert "source_camera" in CROSS_CAMERA_HANDOFFS_TOTAL._labelnames
+        assert "target_camera" in CROSS_CAMERA_HANDOFFS_TOTAL._labelnames
+        assert "entity_type" in CROSS_CAMERA_HANDOFFS_TOTAL._labelnames
+
+    def test_active_tracks_count_gauge_exists(self) -> None:
+        """ACTIVE_TRACKS_COUNT gauge should be defined with entity_type label."""
+        from backend.core.metrics import ACTIVE_TRACKS_COUNT
+
+        assert ACTIVE_TRACKS_COUNT is not None
+        assert ACTIVE_TRACKS_COUNT._name == "hsi_active_tracks_count"
+        assert "entity_type" in ACTIVE_TRACKS_COUNT._labelnames
+
+
+class TestReIDMetricHelpers:
+    """Test Re-ID metric helper functions (NEM-4140)."""
+
+    def test_record_reid_match(self) -> None:
+        """record_reid_match should increment counter with labels."""
+        from backend.core.metrics import record_reid_match
+
+        # Should not raise - no exception means success
+        record_reid_match("person", "camera_front")
+        record_reid_match("vehicle", "camera_garage")
+        record_reid_match("person", "camera_back")
+
+    def test_record_reid_match_multiple_calls(self) -> None:
+        """record_reid_match should increment on each call."""
+        from backend.core.metrics import record_reid_match
+
+        # Multiple calls should increment counter
+        record_reid_match("person", "camera_1")
+        record_reid_match("person", "camera_1")
+        record_reid_match("person", "camera_1")
+        # No assertion needed - no exception means success
+
+    def test_record_reid_attempt(self) -> None:
+        """record_reid_attempt should increment counter with labels."""
+        from backend.core.metrics import record_reid_attempt
+
+        # Should not raise - no exception means success
+        record_reid_attempt("person", "camera_front")
+        record_reid_attempt("vehicle", "camera_parking")
+
+    def test_record_reid_attempt_multiple_calls(self) -> None:
+        """record_reid_attempt should increment on each call."""
+        from backend.core.metrics import record_reid_attempt
+
+        # Multiple calls should increment counter
+        record_reid_attempt("vehicle", "camera_2")
+        record_reid_attempt("vehicle", "camera_2")
+        # No assertion needed - no exception means success
+
+    def test_observe_reid_match_duration(self) -> None:
+        """observe_reid_match_duration should record histogram observation."""
+        from backend.core.metrics import observe_reid_match_duration
+
+        # Should not raise - no exception means success
+        observe_reid_match_duration("person", 0.015)  # 15ms
+        observe_reid_match_duration("person", 0.150)  # 150ms
+        observe_reid_match_duration("vehicle", 0.5)  # 500ms
+        observe_reid_match_duration("person", 2.0)  # 2s
+
+    def test_observe_reid_match_duration_boundary_values(self) -> None:
+        """observe_reid_match_duration should handle boundary values."""
+        from backend.core.metrics import observe_reid_match_duration
+
+        observe_reid_match_duration("person", 0.01)  # Bucket boundary
+        observe_reid_match_duration("person", 0.1)  # Bucket boundary
+        observe_reid_match_duration("person", 1.0)  # Bucket boundary
+        observe_reid_match_duration("person", 5.0)  # Bucket boundary
+        # No assertion needed - no exception means success
+
+    def test_record_cross_camera_handoff(self) -> None:
+        """record_cross_camera_handoff should increment counter with labels."""
+        from backend.core.metrics import record_cross_camera_handoff
+
+        # Should not raise - no exception means success
+        record_cross_camera_handoff("camera_front", "camera_back", "person")
+        record_cross_camera_handoff("camera_garage", "camera_driveway", "vehicle")
+        record_cross_camera_handoff("camera_1", "camera_2", "person")
+
+    def test_record_cross_camera_handoff_multiple_calls(self) -> None:
+        """record_cross_camera_handoff should increment on each call."""
+        from backend.core.metrics import record_cross_camera_handoff
+
+        # Multiple calls should increment counter
+        record_cross_camera_handoff("cam_a", "cam_b", "person")
+        record_cross_camera_handoff("cam_a", "cam_b", "person")
+        # No assertion needed - no exception means success
+
+    def test_set_active_tracks_count(self) -> None:
+        """set_active_tracks_count should set gauge value."""
+        from backend.core.metrics import ACTIVE_TRACKS_COUNT, set_active_tracks_count
+
+        set_active_tracks_count("person", 5)
+        # Verify gauge was set
+        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 5
+
+        set_active_tracks_count("vehicle", 3)
+        assert ACTIVE_TRACKS_COUNT.labels(entity_type="vehicle")._value._value == 3
+
+    def test_set_active_tracks_count_zero(self) -> None:
+        """set_active_tracks_count should handle zero value."""
+        from backend.core.metrics import ACTIVE_TRACKS_COUNT, set_active_tracks_count
+
+        set_active_tracks_count("person", 0)
+        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 0
+
+    def test_set_active_tracks_count_update(self) -> None:
+        """set_active_tracks_count should update existing gauge value."""
+        from backend.core.metrics import ACTIVE_TRACKS_COUNT, set_active_tracks_count
+
+        set_active_tracks_count("person", 10)
+        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 10
+
+        set_active_tracks_count("person", 8)  # Track was lost
+        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 8
+
+        set_active_tracks_count("person", 12)  # New tracks created
+        assert ACTIVE_TRACKS_COUNT.labels(entity_type="person")._value._value == 12
+
+
+class TestReIDMetricsEndpointExposure:
+    """Test that Re-ID metrics are exposed in /metrics endpoint (NEM-4140)."""
+
+    def test_metrics_response_contains_reid_metrics(self) -> None:
+        """Metrics response should contain Re-ID metrics (NEM-4140)."""
+        from backend.core.metrics import (
+            get_metrics_response,
+            observe_reid_match_duration,
+            record_cross_camera_handoff,
+            record_reid_attempt,
+            record_reid_match,
+            set_active_tracks_count,
+        )
+
+        # Record some metrics first to ensure they appear
+        record_reid_attempt("person", "test_cam")
+        record_reid_match("person", "test_cam")
+        observe_reid_match_duration("person", 0.05)
+        record_cross_camera_handoff("cam_1", "cam_2", "person")
+        set_active_tracks_count("person", 5)
+
+        response = get_metrics_response().decode("utf-8")
+
+        # Verify all Re-ID metrics are present
+        assert "hsi_reid_attempts_total" in response
+        assert "hsi_reid_matches_total" in response
+        assert "hsi_reid_match_duration_seconds" in response
+        assert "hsi_cross_camera_handoffs_total" in response
+        assert "hsi_active_tracks_count" in response
+
+    def test_metrics_response_contains_reid_labels(self) -> None:
+        """Metrics response should contain Re-ID metric labels (NEM-4140)."""
+        from backend.core.metrics import (
+            get_metrics_response,
+            record_reid_attempt,
+            record_reid_match,
+        )
+
+        # Record metrics with specific labels
+        record_reid_attempt("vehicle", "garage_camera")
+        record_reid_match("vehicle", "garage_camera")
+
+        response = get_metrics_response().decode("utf-8")
+
+        # Verify labels are present in output
+        assert 'entity_type="vehicle"' in response
+        assert 'camera_id="garage_camera"' in response
+
+
+# =============================================================================
+# AI Model Load Duration, Cold Start Latency, and Restart Metrics (NEM-4145)
+# =============================================================================
+
+
+class TestModelLoadDurationMetrics:
+    """Tests for model load duration metric (NEM-4145)."""
+
+    def test_load_duration_metric_exists(self) -> None:
+        """MODEL_LOAD_DURATION gauge should be defined with model label."""
+        from backend.core.metrics import MODEL_LOAD_DURATION
+
+        assert MODEL_LOAD_DURATION is not None
+        assert MODEL_LOAD_DURATION._name == "hsi_model_load_duration_seconds"
+        assert "model" in MODEL_LOAD_DURATION._labelnames
+
+    def test_set_load_duration_updates_gauge(self) -> None:
+        """set_model_load_duration should update the gauge for a model."""
+        from backend.core.metrics import MODEL_LOAD_DURATION, set_model_load_duration
+
+        set_model_load_duration("yolo11-license-plate", 1.234)
+
+        # Verify the gauge value
+        value = MODEL_LOAD_DURATION.labels(model="yolo11-license-plate")._value.get()
+        assert value == 1.234
+
+    def test_set_load_duration_different_models(self) -> None:
+        """Load duration can be set for different models independently."""
+        from backend.core.metrics import MODEL_LOAD_DURATION, set_model_load_duration
+
+        set_model_load_duration("yolo11-face", 0.5)
+        set_model_load_duration("paddleocr", 2.1)
+        set_model_load_duration("clip-vit-l", 3.5)
+
+        assert MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get() == 0.5
+        assert MODEL_LOAD_DURATION.labels(model="paddleocr")._value.get() == 2.1
+        assert MODEL_LOAD_DURATION.labels(model="clip-vit-l")._value.get() == 3.5
+
+    def test_load_duration_overwrite(self) -> None:
+        """Load duration can be overwritten on model reload."""
+        from backend.core.metrics import MODEL_LOAD_DURATION, set_model_load_duration
+
+        set_model_load_duration("threat-detection-yolov8n", 1.0)
+        assert MODEL_LOAD_DURATION.labels(model="threat-detection-yolov8n")._value.get() == 1.0
+
+        # After reload, duration may be different
+        set_model_load_duration("threat-detection-yolov8n", 0.8)
+        assert MODEL_LOAD_DURATION.labels(model="threat-detection-yolov8n")._value.get() == 0.8
+
+    def test_metrics_response_contains_load_duration(self) -> None:
+        """Metrics response should contain load duration metric."""
+        from backend.core.metrics import get_metrics_response, set_model_load_duration
+
+        # Record a metric to ensure it appears
+        set_model_load_duration("test-model-load", 0.456)
+
+        response = get_metrics_response().decode("utf-8")
+
+        assert "hsi_model_load_duration_seconds" in response
+        assert 'model="test-model-load"' in response
+
+
+class TestModelColdStartLatencyMetrics:
+    """Tests for model cold start latency metric (NEM-4145)."""
+
+    def test_cold_start_latency_metric_exists(self) -> None:
+        """MODEL_COLD_START_LATENCY gauge should be defined with model label."""
+        from backend.core.metrics import MODEL_COLD_START_LATENCY
+
+        assert MODEL_COLD_START_LATENCY is not None
+        assert MODEL_COLD_START_LATENCY._name == "hsi_model_cold_start_latency_seconds"
+        assert "model" in MODEL_COLD_START_LATENCY._labelnames
+
+    def test_set_cold_start_latency_updates_gauge(self) -> None:
+        """set_model_cold_start_latency should update the gauge for a model."""
+        from backend.core.metrics import (
+            MODEL_COLD_START_LATENCY,
+            set_model_cold_start_latency,
+        )
+
+        set_model_cold_start_latency("yolo26", 0.543)
+
+        # Verify the gauge value
+        value = MODEL_COLD_START_LATENCY.labels(model="yolo26")._value.get()
+        assert value == 0.543
+
+    def test_set_cold_start_latency_different_models(self) -> None:
+        """Cold start latency can be set for different models independently."""
+        from backend.core.metrics import (
+            MODEL_COLD_START_LATENCY,
+            set_model_cold_start_latency,
+        )
+
+        set_model_cold_start_latency("yolo26", 0.05)
+        set_model_cold_start_latency("nemotron", 5.5)
+        set_model_cold_start_latency("florence", 1.2)
+        set_model_cold_start_latency("clip", 0.25)
+
+        assert MODEL_COLD_START_LATENCY.labels(model="yolo26")._value.get() == 0.05
+        assert MODEL_COLD_START_LATENCY.labels(model="nemotron")._value.get() == 5.5
+        assert MODEL_COLD_START_LATENCY.labels(model="florence")._value.get() == 1.2
+        assert MODEL_COLD_START_LATENCY.labels(model="clip")._value.get() == 0.25
+
+    def test_cold_start_latency_overwrite(self) -> None:
+        """Cold start latency can be overwritten on model restart."""
+        from backend.core.metrics import (
+            MODEL_COLD_START_LATENCY,
+            set_model_cold_start_latency,
+        )
+
+        set_model_cold_start_latency("enrichment-pose", 0.5)
+        assert MODEL_COLD_START_LATENCY.labels(model="enrichment-pose")._value.get() == 0.5
+
+        # After restart, cold start latency may be different
+        set_model_cold_start_latency("enrichment-pose", 0.35)
+        assert MODEL_COLD_START_LATENCY.labels(model="enrichment-pose")._value.get() == 0.35
+
+
+class TestModelRestartsMetrics:
+    """Tests for model restart counter metric (NEM-4145)."""
+
+    def test_model_restarts_metric_exists(self) -> None:
+        """MODEL_RESTARTS_TOTAL counter should be defined with model and reason labels."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL
+
+        assert MODEL_RESTARTS_TOTAL is not None
+        # prometheus_client strips _total suffix internally
+        assert MODEL_RESTARTS_TOTAL._name == "hsi_model_restarts"
+        assert "model" in MODEL_RESTARTS_TOTAL._labelnames
+        assert "reason" in MODEL_RESTARTS_TOTAL._labelnames
+
+    def test_valid_restart_reasons_defined(self) -> None:
+        """Valid restart reasons should be defined."""
+        from backend.core.metrics import MODEL_RESTART_REASONS
+
+        assert "oom" in MODEL_RESTART_REASONS
+        assert "crash" in MODEL_RESTART_REASONS
+        assert "manual" in MODEL_RESTART_REASONS
+        assert "health_check" in MODEL_RESTART_REASONS
+
+    def test_record_model_restart_increments_counter(self) -> None:
+        """record_model_restart should increment counter for valid reasons."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL, record_model_restart
+
+        initial_oom = MODEL_RESTARTS_TOTAL.labels(model="yolo26", reason="oom")._value.get()
+        initial_crash = MODEL_RESTARTS_TOTAL.labels(model="yolo26", reason="crash")._value.get()
+
+        record_model_restart("yolo26", "oom")
+        record_model_restart("yolo26", "crash")
+        record_model_restart("yolo26", "oom")
+
+        assert (
+            MODEL_RESTARTS_TOTAL.labels(model="yolo26", reason="oom")._value.get()
+            == initial_oom + 2
+        )
+        assert (
+            MODEL_RESTARTS_TOTAL.labels(model="yolo26", reason="crash")._value.get()
+            == initial_crash + 1
+        )
+
+    def test_record_model_restart_manual(self) -> None:
+        """record_model_restart should work with manual reason."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL, record_model_restart
+
+        initial = MODEL_RESTARTS_TOTAL.labels(model="nemotron", reason="manual")._value.get()
+
+        record_model_restart("nemotron", "manual")
+
+        assert (
+            MODEL_RESTARTS_TOTAL.labels(model="nemotron", reason="manual")._value.get()
+            == initial + 1
+        )
+
+    def test_record_model_restart_health_check(self) -> None:
+        """record_model_restart should work with health_check reason."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL, record_model_restart
+
+        initial = MODEL_RESTARTS_TOTAL.labels(model="florence", reason="health_check")._value.get()
+
+        record_model_restart("florence", "health_check")
+
+        assert (
+            MODEL_RESTARTS_TOTAL.labels(model="florence", reason="health_check")._value.get()
+            == initial + 1
+        )
+
+    def test_record_model_restart_invalid_reason_raises(self) -> None:
+        """record_model_restart should raise ValueError for invalid reason."""
+        from backend.core.metrics import record_model_restart
+
+        with pytest.raises(ValueError, match="Invalid restart reason"):
+            record_model_restart("yolo26", "invalid_reason")
+
+        with pytest.raises(ValueError, match="Invalid restart reason"):
+            record_model_restart("clip", "unknown")
+
+    def test_record_model_restart_different_models(self) -> None:
+        """Restarts can be tracked independently per model."""
+        from backend.core.metrics import MODEL_RESTARTS_TOTAL, record_model_restart
+
+        initial_yolo = MODEL_RESTARTS_TOTAL.labels(
+            model="yolo26-restart-test", reason="oom"
+        )._value.get()
+        initial_florence = MODEL_RESTARTS_TOTAL.labels(
+            model="florence-restart-test", reason="oom"
+        )._value.get()
+
+        record_model_restart("yolo26-restart-test", "oom")
+        record_model_restart("florence-restart-test", "oom")
+        record_model_restart("florence-restart-test", "oom")
+
+        assert (
+            MODEL_RESTARTS_TOTAL.labels(model="yolo26-restart-test", reason="oom")._value.get()
+            == initial_yolo + 1
+        )
+        assert (
+            MODEL_RESTARTS_TOTAL.labels(model="florence-restart-test", reason="oom")._value.get()
+            == initial_florence + 2
+        )
+
+
+class TestModelColdStartAndRestartMetricsExposure:
+    """Tests for metric exposure in /metrics endpoint (NEM-4145)."""
+
+    def test_metrics_response_contains_cold_start_latency(self) -> None:
+        """Metrics response should contain cold start latency metric."""
+        from backend.core.metrics import (
+            get_metrics_response,
+            set_model_cold_start_latency,
+        )
+
+        # Record a metric to ensure it appears
+        set_model_cold_start_latency("test-model-latency", 0.123)
+
+        response = get_metrics_response().decode("utf-8")
+
+        assert "hsi_model_cold_start_latency_seconds" in response
+        assert 'model="test-model-latency"' in response
+
+    def test_metrics_response_contains_model_restarts(self) -> None:
+        """Metrics response should contain model restarts metric."""
+        from backend.core.metrics import get_metrics_response, record_model_restart
+
+        # Record a metric to ensure it appears
+        record_model_restart("test-model-restarts", "manual")
+
+        response = get_metrics_response().decode("utf-8")
+
+        assert "hsi_model_restarts_total" in response
+        assert 'model="test-model-restarts"' in response
+        assert 'reason="manual"' in response

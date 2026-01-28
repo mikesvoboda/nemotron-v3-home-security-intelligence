@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -33,6 +34,12 @@ import numpy as np
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_reid_match_duration,
+    record_cross_camera_handoff,
+    record_reid_attempt,
+    record_reid_match,
+)
 from backend.services.bbox_validation import (
     InvalidBoundingBoxError,
     clamp_bbox_to_image,
@@ -663,6 +670,7 @@ class ReIdentificationService:
         threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
         exclude_detection_id: str | None = None,
         include_historical: bool = False,
+        camera_id: str | None = None,
     ) -> list[EntityMatch]:
         """Find entities matching the given embedding.
 
@@ -675,6 +683,9 @@ class ReIdentificationService:
         NEM-2499: When include_historical=True and hybrid_storage is configured,
         uses HybridEntityStorage for combined Redis + PostgreSQL search.
 
+        NEM-4140: Instrumented with Prometheus metrics for monitoring Re-ID
+        performance (attempts, matches, and match duration).
+
         Args:
             redis_client: Redis client instance
             embedding: 768-dimensional embedding to match
@@ -683,15 +694,23 @@ class ReIdentificationService:
             exclude_detection_id: Optional detection ID to exclude from results
             include_historical: If True and hybrid_storage is configured, search
                 both Redis and PostgreSQL. Defaults to False. (NEM-2499)
+            camera_id: Optional camera ID for metrics recording. If not provided,
+                "unknown" is used. (NEM-4140)
 
         Returns:
             List of EntityMatch objects sorted by similarity (highest first)
 
         Related to NEM-2499: Update ReIdentificationService to Use Hybrid Storage.
+        Related to NEM-4140: Re-ID Service Prometheus Metrics.
         """
         async with self._rate_limit_semaphore:
             matches: list[EntityMatch] = []
             now = datetime.now(UTC)
+            start_time = time.perf_counter()
+
+            # Record re-identification attempt (NEM-4140)
+            metric_camera_id = camera_id or "unknown"
+            record_reid_attempt(entity_type, metric_camera_id)
 
             # Use hybrid storage for combined Redis + PostgreSQL search (NEM-2499)
             if include_historical and self._hybrid_storage:
@@ -721,6 +740,19 @@ class ReIdentificationService:
                                 time_gap_seconds=hybrid_match.time_gap_seconds,
                             )
                         )
+
+                    # Record metrics for successful matches (NEM-4140)
+                    duration = time.perf_counter() - start_time
+                    observe_reid_match_duration(entity_type, duration)
+                    for match in matches:
+                        record_reid_match(entity_type, match.entity.camera_id)
+                        # Record cross-camera handoff if camera changed
+                        is_known_camera = metric_camera_id != "unknown"
+                        is_cross_camera = match.entity.camera_id != metric_camera_id
+                        if is_known_camera and is_cross_camera:
+                            record_cross_camera_handoff(
+                                match.entity.camera_id, metric_camera_id, entity_type
+                            )
 
                     logger.debug(
                         "Found %d hybrid matches for %s (threshold=%.2f, include_historical=%s)",
@@ -803,6 +835,19 @@ class ReIdentificationService:
 
                 # Sort by similarity (highest first)
                 matches.sort(key=lambda m: m.similarity, reverse=True)
+
+                # Record metrics (NEM-4140)
+                duration = time.perf_counter() - start_time
+                observe_reid_match_duration(entity_type, duration)
+                for match in matches:
+                    record_reid_match(entity_type, match.entity.camera_id)
+                    # Record cross-camera handoff if camera changed
+                    is_known_camera = metric_camera_id != "unknown"
+                    is_cross_camera = match.entity.camera_id != metric_camera_id
+                    if is_known_camera and is_cross_camera:
+                        record_cross_camera_handoff(
+                            match.entity.camera_id, metric_camera_id, entity_type
+                        )
 
                 logger.debug(
                     f"Found {len(matches)} matching {entity_type}(s) with threshold {threshold}"

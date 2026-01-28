@@ -24,6 +24,13 @@ from backend.api.schemas.track import (
     TrajectoryPoint,
 )
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_track_duration,
+    record_track_created,
+    record_track_lost,
+    record_track_reidentified,
+    set_active_track_count,
+)
 from backend.models.track import Track
 
 logger = get_logger(__name__)
@@ -145,6 +152,10 @@ class TrackService:
                     "object_class": object_class,
                 },
             )
+
+            # Record Prometheus metric for track creation
+            record_track_created(camera_id, object_class)
+
             return track
 
         # Update existing track
@@ -391,6 +402,141 @@ class TrackService:
             )
 
         return deleted_count
+
+    async def mark_track_lost(
+        self,
+        track_id: int,
+        camera_id: str,
+        reason: str = "timeout",
+    ) -> Track | None:
+        """Mark a track as lost and record metrics.
+
+        This method should be called when a track is lost (no longer being updated)
+        due to timeout, going out of frame, or occlusion. It records the track
+        duration and loss reason in Prometheus metrics.
+
+        Args:
+            track_id: Track ID from the tracker.
+            camera_id: Camera ID where the track was observed.
+            reason: Reason for track loss. Common values:
+                - "timeout": Track timed out due to no updates
+                - "out_of_frame": Track exited the camera view
+                - "occlusion": Track was lost due to occlusion
+
+        Returns:
+            The Track if found, None otherwise.
+
+        Example:
+            track = await service.mark_track_lost(
+                track_id=42,
+                camera_id="front_door",
+                reason="out_of_frame"
+            )
+        """
+        track = await self.get_track(track_id, camera_id)
+        if track is None:
+            return None
+
+        # Calculate track duration
+        entity_type = track.object_class or "unknown"
+        if track.first_seen and track.last_seen:
+            duration_seconds = (track.last_seen - track.first_seen).total_seconds()
+
+            # Record duration in histogram
+            observe_track_duration(camera_id, entity_type, duration_seconds)
+
+        # Record track loss event
+        record_track_lost(camera_id, entity_type, reason)
+
+        logger.debug(
+            f"Track {track_id} marked as lost on camera {camera_id}",
+            extra={
+                "track_id": track_id,
+                "camera_id": camera_id,
+                "reason": reason,
+                "object_class": track.object_class,
+            },
+        )
+
+        return track
+
+    def record_reidentification(self, camera_id: str) -> None:
+        """Record a successful track re-identification event.
+
+        This method should be called when a previously lost track is successfully
+        re-identified and associated with its previous identity. This happens when
+        re-identification (re-ID) embeddings match a lost track.
+
+        Args:
+            camera_id: Camera ID where the re-identification occurred.
+
+        Example:
+            # After matching a new detection to a previously lost track
+            service.record_reidentification("front_door")
+        """
+        record_track_reidentified(camera_id)
+
+        logger.debug(
+            f"Track re-identified on camera {camera_id}",
+            extra={"camera_id": camera_id},
+        )
+
+    async def get_active_track_count(self, camera_id: str) -> int:
+        """Get the count of active tracks for a camera and update gauge metric.
+
+        This method counts tracks that have been updated recently (within the
+        last track_retention_hours) and updates the Prometheus gauge metric.
+
+        Args:
+            camera_id: Camera ID to count tracks for.
+
+        Returns:
+            Number of active tracks for the camera.
+
+        Example:
+            count = await service.get_active_track_count("front_door")
+            print(f"Active tracks: {count}")
+        """
+        # Count tracks updated within retention period
+        cutoff_time = datetime.now(UTC) - timedelta(hours=self.track_retention_hours)
+
+        stmt = (
+            select(func.count())
+            .select_from(Track)
+            .where(
+                Track.camera_id == camera_id,
+                Track.last_seen >= cutoff_time,
+            )
+        )
+        result = await self.db.execute(stmt)
+        count: int = result.scalar_one()
+
+        # Update Prometheus gauge
+        set_active_track_count(camera_id, count)
+
+        return count
+
+    async def update_active_track_counts(self, camera_ids: list[str]) -> dict[str, int]:
+        """Update active track count metrics for multiple cameras.
+
+        Utility method to update the active track count gauge for multiple
+        cameras in a single call, typically used during periodic metric updates.
+
+        Args:
+            camera_ids: List of camera IDs to update metrics for.
+
+        Returns:
+            Dictionary mapping camera_id to active track count.
+
+        Example:
+            counts = await service.update_active_track_counts(
+                ["front_door", "back_yard", "driveway"]
+            )
+        """
+        counts = {}
+        for camera_id in camera_ids:
+            counts[camera_id] = await self.get_active_track_count(camera_id)
+        return counts
 
     @staticmethod
     def calculate_metrics(trajectory: list[dict]) -> MovementMetrics:

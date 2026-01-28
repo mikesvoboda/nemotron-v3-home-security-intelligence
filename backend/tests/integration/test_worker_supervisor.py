@@ -264,7 +264,7 @@ class TestPrometheusMetrics:
         self,
         supervisor: WorkerSupervisor,
     ) -> None:
-        """Test that worker restart metrics are recorded."""
+        """Test that worker restart metrics are recorded (NEM-4148)."""
         from backend.core.metrics import WORKER_RESTARTS_TOTAL
 
         call_count = 0
@@ -280,21 +280,31 @@ class TestPrometheusMetrics:
 
         await supervisor.register_worker("metrics_test_worker", flaky_worker)
 
-        # Get initial metric value
-        initial_value = WORKER_RESTARTS_TOTAL.labels(worker_name="metrics_test_worker")._value.get()
+        # Get initial metric value (NEM-4148: now requires worker_type and reason labels)
+        # The worker_type is auto-detected as "unknown" (no special keywords in name)
+        # The reason is auto-categorized as "crash" (error contains "crash")
+        initial_value = WORKER_RESTARTS_TOTAL.labels(
+            worker_name="metrics_test_worker",
+            worker_type="unknown",
+            reason="crash",
+        )._value.get()
 
         await supervisor.start()
         await asyncio.wait_for(restarted.wait(), timeout=2.0)
 
         # Check metric was incremented
-        final_value = WORKER_RESTARTS_TOTAL.labels(worker_name="metrics_test_worker")._value.get()
+        final_value = WORKER_RESTARTS_TOTAL.labels(
+            worker_name="metrics_test_worker",
+            worker_type="unknown",
+            reason="crash",
+        )._value.get()
         assert final_value > initial_value
 
     async def test_worker_crash_metrics_recorded(
         self,
         supervisor: WorkerSupervisor,
     ) -> None:
-        """Test that worker crash metrics are recorded."""
+        """Test that worker crash metrics are recorded (NEM-4148)."""
         from backend.core.metrics import WORKER_CRASHES_TOTAL
 
         crashed = asyncio.Event()
@@ -309,14 +319,24 @@ class TestPrometheusMetrics:
             max_restarts=0,  # Don't restart
         )
 
-        # Get initial metric value
-        initial_value = WORKER_CRASHES_TOTAL.labels(worker_name="crash_metrics_worker")._value.get()
+        # Get initial metric value (NEM-4148: now requires worker_type and exit_code labels)
+        # The worker_type is auto-detected as "unknown" (no special keywords in name)
+        # The exit_code is auto-extracted as "unknown" (no exit code in error message)
+        initial_value = WORKER_CRASHES_TOTAL.labels(
+            worker_name="crash_metrics_worker",
+            worker_type="unknown",
+            exit_code="unknown",
+        )._value.get()
 
         await supervisor.start()
         await asyncio.sleep(0.3)
 
         # Check metric was incremented
-        final_value = WORKER_CRASHES_TOTAL.labels(worker_name="crash_metrics_worker")._value.get()
+        final_value = WORKER_CRASHES_TOTAL.labels(
+            worker_name="crash_metrics_worker",
+            worker_type="unknown",
+            exit_code="unknown",
+        )._value.get()
         assert final_value > initial_value
 
 

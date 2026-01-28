@@ -40,12 +40,14 @@ VRAM Budget:
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
 from backend.core.logging import get_logger
+from backend.core.metrics import record_model_restart, set_model_load_duration
 from backend.services.age_classifier_loader import load_age_classifier_model
 from backend.services.clip_loader import load_clip_model
 from backend.services.depth_anything_loader import load_depth_model
@@ -688,6 +690,7 @@ class ModelManager:
         self._loaded_models: dict[str, Any] = {}
         self._lock = asyncio.Lock()
         self._load_counts: dict[str, int] = {}  # Reference counting for nested loads
+        self._previously_loaded: set[str] = set()  # Track models that have been loaded before
         logger.info("ModelManager initialized")
 
     @property
@@ -719,11 +722,13 @@ class ModelManager:
         """
         return model_name in self._loaded_models
 
-    async def _load_model(self, model_name: str) -> Any:
+    async def _load_model(self, model_name: str, restart_reason: str | None = None) -> Any:
         """Load a model into memory.
 
         Args:
             model_name: Name of the model to load
+            restart_reason: If this is a restart, the reason (oom, crash, manual, health_check).
+                           If None and model was previously loaded, defaults to 'manual'.
 
         Returns:
             Loaded model instance
@@ -739,7 +744,13 @@ class ModelManager:
         if not config.enabled:
             raise RuntimeError(f"Model {model_name} is disabled")
 
+        # Check if this is a restart (model was previously loaded)
+        is_restart = model_name in self._previously_loaded
+
         logger.info(f"Loading model {model_name} (~{config.vram_mb}MB VRAM)")
+
+        # Track load time for metrics (NEM-4145)
+        start_time = time.perf_counter()
 
         try:
             # Add Pyroscope label for per-model profiling
@@ -751,12 +762,30 @@ class ModelManager:
             except ImportError:
                 # Pyroscope not installed, load without tagging
                 model = await config.load_fn(config.path)
+
+            # Record load duration metric (NEM-4145)
+            load_duration = time.perf_counter() - start_time
+            set_model_load_duration(model_name, load_duration)
+
             self._loaded_models[model_name] = model
 
             # Mark as available after successful load
             config.available = True
 
-            logger.info(f"Successfully loaded model {model_name}")
+            # Track that this model has been loaded (for restart detection)
+            self._previously_loaded.add(model_name)
+
+            # Record restart metric if this is a reload (NEM-4145)
+            if is_restart:
+                reason = restart_reason if restart_reason else "manual"
+                record_model_restart(model_name, reason)
+                logger.info(
+                    f"Successfully reloaded model {model_name} in {load_duration:.2f}s "
+                    f"(restart reason: {reason})"
+                )
+            else:
+                logger.info(f"Successfully loaded model {model_name} in {load_duration:.2f}s")
+
             return model
 
         except RuntimeError as e:
@@ -905,6 +934,43 @@ class ModelManager:
                 pass
 
         logger.info("All models unloaded")
+
+    async def reload(self, model_name: str, reason: str) -> Any:
+        """Reload a model with a specific restart reason.
+
+        This method unloads the model if loaded, then reloads it.
+        The restart is recorded with the specified reason for metrics tracking.
+
+        Args:
+            model_name: Name of the model to reload
+            reason: Restart reason, one of: 'oom', 'crash', 'manual', 'health_check'
+
+        Returns:
+            Reloaded model instance
+
+        Raises:
+            KeyError: If model name is not in MODEL_ZOO
+            RuntimeError: If model is disabled or loading fails
+            ValueError: If reason is not a valid restart reason
+        """
+        from backend.core.metrics import MODEL_RESTART_REASONS
+
+        if reason not in MODEL_RESTART_REASONS:
+            raise ValueError(
+                f"Invalid restart reason '{reason}'. "
+                f"Valid reasons are: {', '.join(sorted(MODEL_RESTART_REASONS))}"
+            )
+
+        async with self._lock:
+            # Unload if currently loaded
+            if model_name in self._loaded_models:
+                await self._unload_model(model_name)
+                self._load_counts.pop(model_name, None)
+
+            # Reload with the specified reason
+            model = await self._load_model(model_name, restart_reason=reason)
+            self._load_counts[model_name] = 1
+            return model
 
     def get_status(self) -> ModelManagerStatus:
         """Get current status of the ModelManager.

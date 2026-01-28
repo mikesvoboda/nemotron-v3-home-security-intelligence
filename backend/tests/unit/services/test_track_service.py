@@ -562,3 +562,170 @@ class TestFactoryFunctions:
 
         assert service.max_trajectory_points == DEFAULT_MAX_TRAJECTORY_POINTS
         assert service.track_retention_hours == DEFAULT_TRACK_RETENTION_HOURS
+
+
+class TestTrackMetrics:
+    """Test Prometheus metrics integration in TrackService."""
+
+    @pytest.mark.asyncio
+    async def test_create_new_track_records_metric(self, mock_session):
+        """Test that creating a new track increments the tracks_created counter."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+        timestamp = datetime(2026, 1, 26, 12, 0, 0, tzinfo=UTC)
+
+        # Mock no existing track
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        with patch("backend.services.track_service.record_track_created") as mock_record_created:
+            await service.create_or_update_track(
+                track_id=42,
+                camera_id="front_door",
+                object_class="person",
+                position=(640.5, 480.2),
+                timestamp=timestamp,
+            )
+
+            # Verify metric was recorded with camera_id and object_class
+            mock_record_created.assert_called_once_with("front_door", "person")
+
+    @pytest.mark.asyncio
+    async def test_update_existing_track_does_not_record_created_metric(
+        self, mock_session, mock_track
+    ):
+        """Test that updating an existing track does not increment tracks_created."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+        timestamp = datetime(2026, 1, 26, 12, 0, 30, tzinfo=UTC)
+
+        # Mock existing track found
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_track
+        mock_session.execute.return_value = mock_result
+
+        with patch("backend.services.track_service.record_track_created") as mock_record_created:
+            await service.create_or_update_track(
+                track_id=42,
+                camera_id="front_door",
+                object_class="person",
+                position=(300.0, 400.0),
+                timestamp=timestamp,
+            )
+
+            # Created metric should not be called for updates
+            mock_record_created.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_mark_track_lost_records_metrics(self, mock_session, mock_track):
+        """Test that marking a track as lost records duration and loss metrics."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+
+        # Mock track found
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_track
+        mock_session.execute.return_value = mock_result
+
+        with (
+            patch("backend.services.track_service.record_track_lost") as mock_record_lost,
+            patch("backend.services.track_service.observe_track_duration") as mock_observe_duration,
+        ):
+            result = await service.mark_track_lost(
+                track_id=42,
+                camera_id="front_door",
+                reason="out_of_frame",
+            )
+
+            assert result == mock_track
+
+            # Verify lost metric was recorded with camera_id, object_class, and reason
+            mock_record_lost.assert_called_once_with("front_door", "person", "out_of_frame")
+
+            # Verify duration was observed
+            # Track duration: 12:00:27 - 12:00:00 = 27 seconds
+            mock_observe_duration.assert_called_once_with("front_door", "person", 27.0)
+
+    @pytest.mark.asyncio
+    async def test_mark_track_lost_returns_none_for_missing_track(self, mock_session):
+        """Test that mark_track_lost returns None if track not found."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        with patch("backend.services.track_service.record_track_lost") as mock_record_lost:
+            result = await service.mark_track_lost(
+                track_id=999,
+                camera_id="front_door",
+                reason="timeout",
+            )
+
+            assert result is None
+            mock_record_lost.assert_not_called()
+
+    def test_record_reidentification_calls_metric(self, mock_session):
+        """Test that record_reidentification calls the re-ID metric."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+
+        with patch("backend.services.track_service.record_track_reidentified") as mock_record_reid:
+            service.record_reidentification("front_door")
+            mock_record_reid.assert_called_once_with("front_door")
+
+    @pytest.mark.asyncio
+    async def test_get_active_track_count_updates_gauge(self, mock_session):
+        """Test that get_active_track_count updates the gauge metric."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+
+        # Mock count query result
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        mock_session.execute.return_value = mock_result
+
+        with patch("backend.services.track_service.set_active_track_count") as mock_set_count:
+            count = await service.get_active_track_count("front_door")
+
+            assert count == 5
+            mock_set_count.assert_called_once_with("front_door", 5)
+
+    @pytest.mark.asyncio
+    async def test_update_active_track_counts_multiple_cameras(self, mock_session):
+        """Test that update_active_track_counts updates metrics for multiple cameras."""
+        from unittest.mock import patch
+
+        service = TrackService(mock_session)
+
+        # Mock different counts for different cameras
+        counts = [3, 7, 0]
+        mock_results = [MagicMock() for _ in counts]
+        for mock_result, count in zip(mock_results, counts, strict=True):
+            mock_result.scalar_one.return_value = count
+        mock_session.execute.side_effect = mock_results
+
+        camera_ids = ["front_door", "back_yard", "driveway"]
+
+        with patch("backend.services.track_service.set_active_track_count") as mock_set_count:
+            result = await service.update_active_track_counts(camera_ids)
+
+            assert result == {
+                "front_door": 3,
+                "back_yard": 7,
+                "driveway": 0,
+            }
+
+            # Verify gauge was set for each camera
+            assert mock_set_count.call_count == 3
+            mock_set_count.assert_any_call("front_door", 3)
+            mock_set_count.assert_any_call("back_yard", 7)
+            mock_set_count.assert_any_call("driveway", 0)
