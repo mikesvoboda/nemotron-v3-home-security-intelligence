@@ -295,7 +295,7 @@ When the circuit is open, check logs for `CRITICAL DATA LOSS` entries.
 
    ```bash
    curl http://localhost:8000/api/system/health
-   curl http://localhost:8090/health  # YOLO26
+   curl http://localhost:8095/health  # YOLO26
    curl http://localhost:8091/health  # Nemotron
    ```
 

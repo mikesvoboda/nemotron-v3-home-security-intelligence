@@ -18,39 +18,39 @@ The `CircuitBreaker` class (`backend/services/circuit_breaker.py:258-982`) imple
 
 ![Circuit Breaker State Machine - CLOSED, OPEN, and HALF_OPEN transitions](../../images/architecture/circuit-breaker-states.png)
 
-```
-                    +-------------------+
-                    |      CLOSED       |
-                    |  Normal Operation |
-                    |  Track failures   |
-                    +--------+----------+
-                             |
-                 failures >= threshold
-                             |
-                             v
-                    +--------+----------+
-                    |       OPEN        |
-                    | Circuit Tripped   |
-                    | Calls rejected    |
-                    +--------+----------+
-                             |
-              recovery_timeout elapsed
-                             |
-                             v
-                    +--------+----------+
-                    |    HALF_OPEN      |
-                    | Testing recovery  |
-                    | Limited calls     |
-                    +--------+----------+
-                            /\
-                           /  \
-            success_threshold   any failure
-                   met           occurs
-                  /                \
-                 v                  v
-            +----+----+      +------+-----+
-            | CLOSED  |      |    OPEN    |
-            +---------+      +------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+stateDiagram-v2
+    [*] --> CLOSED: Initial State
+
+    CLOSED --> OPEN: failures >= threshold
+    OPEN --> HALF_OPEN: recovery_timeout elapsed
+    HALF_OPEN --> CLOSED: success_threshold met
+    HALF_OPEN --> OPEN: any failure occurs
+
+    CLOSED: Normal Operation
+    CLOSED: Calls pass through
+    CLOSED: Track failures
+
+    OPEN: Circuit Tripped
+    OPEN: Calls rejected immediately
+    OPEN: CircuitBreakerError raised
+
+    HALF_OPEN: Testing Recovery
+    HALF_OPEN: Limited calls allowed
+    HALF_OPEN: Track successes
 ```
 
 ## Configuration

@@ -4,6 +4,64 @@
 
 ---
 
+## System Architecture
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Cameras["Camera Layer"]
+        CAM[IP Cameras]
+    end
+
+    subgraph Frontend["Frontend Layer"]
+        UI["React Dashboard<br/>:5173"]
+    end
+
+    subgraph Backend["Backend Layer"]
+        API["FastAPI<br/>:8000"]
+        WS["WebSocket"]
+    end
+
+    subgraph AI["AI Services Layer"]
+        YOLO["YOLO26<br/>Object Detection<br/>:8095"]
+        NEM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
+        FLO["Florence-2<br/>(optional)<br/>:8092"]
+        CLIP["CLIP<br/>(optional)<br/>:8093"]
+    end
+
+    subgraph Data["Data Layer"]
+        DB[(PostgreSQL)]
+        REDIS[(Redis)]
+    end
+
+    CAM -->|FTP Upload| API
+    UI <-->|REST API| API
+    UI <-->|Real-time| WS
+    API --> YOLO
+    API --> NEM
+    API --> FLO
+    API --> CLIP
+    API <--> DB
+    API <--> REDIS
+    WS --> REDIS
+```
+
+_High-level architecture showing cameras, frontend, backend, AI services, and data stores. See [architecture/overview.md](architecture/overview.md) for detailed diagrams._
+
+---
+
 ## Start Here
 
 | Role           | Hub                                 | Description                               |
@@ -43,7 +101,6 @@ docs/
 ├── components/         # React component library documentation
 │
 ├── architecture/       # System design documents
-├── user-guide/         # Detailed user documentation
 ├── benchmarks/         # Performance benchmarks
 ├── decisions/          # Architectural Decision Records
 └── images/             # Diagrams and screenshots

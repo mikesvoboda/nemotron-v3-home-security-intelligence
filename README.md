@@ -47,7 +47,7 @@ The brain of this system is [NVIDIA's Nemotron-3-Nano](https://huggingface.co/nv
 | -------------------- | ---------------------- | ---------------------------------------------------- |
 | **Parameters**       | 30B (A3B architecture) | State-of-the-art reasoning in a dense model          |
 | **Quantization**     | Q4_K_M (4-bit)         | Reduces memory by ~4x with minimal quality loss      |
-| **VRAM Required**    | ~18GB                  | Fits on RTX 3090, 4090, A5000, A5500, A6000          |
+| **VRAM Required**    | ~14.7GB                | Fits on RTX 3090, 4090, A5000, A5500, A6000          |
 | **Context Window**   | 128K tokens            | Analyze hours of security context in a single prompt |
 | **Inference Engine** | llama.cpp              | Optimized C++ with CUDA acceleration                 |
 
@@ -121,7 +121,7 @@ These models are always loaded for real-time analysis:
 
 | Model            | Purpose                       | VRAM   | Port |
 | ---------------- | ----------------------------- | ------ | ---- |
-| Object Detector  | Primary object detection      | ~650MB | 8091 |
+| Object Detector  | Primary object detection      | ~650MB | 8095 |
 | Florence-2-large | Scene understanding, captions | ~1.2GB | 8092 |
 | CLIP ViT-L/14    | Anomaly detection baseline    | ~800MB | 8093 |
 
@@ -245,12 +245,12 @@ curl -X POST http://localhost:8094/models/preload?model_name=threat_detector
 
 With all services running on RTX A5500 (24GB):
 
-| Resource       | Usage                                 |
-| -------------- | ------------------------------------- |
-| **GPU Memory** | ~23 GB / 24 GB                        |
-| **System RAM** | ~16 GB                                |
-| **Containers** | 9                                     |
-| **Open Ports** | 5173 (UI), 8000 (API), 8090-8094 (AI) |
+| Resource       | Usage                                                 |
+| -------------- | ----------------------------------------------------- |
+| **GPU Memory** | ~23 GB / 24 GB                                        |
+| **System RAM** | ~16 GB                                                |
+| **Containers** | 9                                                     |
+| **Open Ports** | 5173/8443 (UI HTTP/HTTPS), 8000 (API), 8091-8096 (AI) |
 
 > [!TIP] > **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
 
@@ -277,7 +277,8 @@ docker compose -f docker-compose.prod.yml up -d
 
 ```bash
 curl http://localhost:8000/api/system/health  # Backend health
-open http://localhost:5173                     # Dashboard
+open http://localhost:5173                     # Dashboard (HTTP)
+# Or: open https://localhost:8443              # Dashboard (HTTPS - SSL enabled by default)
 ```
 
 > [!TIP]
@@ -295,8 +296,9 @@ Useful when iterating on AI services, or when GPU passthrough is inconvenient.
 # 2. Download AI models
 ./ai/download_models.sh
 
-# 3. Start AI on the host
-./scripts/start-ai.sh start
+# 3. Start AI on the host (in separate terminals)
+./ai/start_detector.sh   # YOLO26 on port 8095
+./ai/start_llm.sh        # Nemotron on port 8091
 
 # 4. Set AI_HOST for container → host networking
 export AI_HOST=host.docker.internal  # Docker Desktop
@@ -307,7 +309,7 @@ docker compose up -d
 ```
 
 > [!WARNING]
-> Do **not** mix host-run AI with `docker-compose.prod.yml` (port conflicts on 8090/8091).
+> Do **not** mix host-run AI with `docker-compose.prod.yml` (port conflicts on 8091/8095).
 
 </details>
 
@@ -386,7 +388,7 @@ This MVP is designed for **single-user, trusted LAN** deployments.
 - Rate limiting is **on by default**
 - Do **not** expose to the public internet without hardening
 
-See: [Admin Security Guide](docs/admin-guide/security.md)
+See: [Admin Security Guide](docs/operator/admin/security.md)
 
 </details>
 

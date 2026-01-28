@@ -83,7 +83,7 @@ deployment/
 1. Check `README.md` - Troubleshooting section
 2. Verify GPU access: `nvidia-smi`
 3. Test container GPU: `docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi`
-4. Check AI health endpoints: `curl http://localhost:8090/health`
+4. Check AI health endpoints: `curl http://localhost:8095/health`
 
 ## Target Audience
 

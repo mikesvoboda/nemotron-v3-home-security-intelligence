@@ -288,7 +288,7 @@ GET /api/system/services?category=monitoring
 
 | Service  | Port | Description                              |
 | -------- | ---- | ---------------------------------------- |
-| YOLO26   | 8090 | Real-time object detection model         |
+| YOLO26   | 8095 | Real-time object detection model         |
 | Nemotron | 8091 | Risk analysis LLM for security reasoning |
 
 ### Monitoring Services

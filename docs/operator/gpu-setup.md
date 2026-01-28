@@ -361,14 +361,14 @@ PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 ### Per-Service Requirements
 
-| Service             | Base VRAM | Peak VRAM | Notes                      |
-| ------------------- | --------- | --------- | -------------------------- |
-| YOLO26              | ~3.5GB    | ~4.5GB    | Spikes during batch detect |
-| Nemotron-3-Nano-30B | ~14GB     | ~15GB     | Production, 128K context   |
-| Nemotron Mini 4B    | ~2.8GB    | ~3.2GB    | Development only           |
-| CUDA Context        | ~300MB    | ~500MB    | Per-process overhead       |
-| **Total (prod)**    | **~18GB** | **~20GB** | Both services concurrent   |
-| **Total (dev)**     | **~7GB**  | **~8GB**  | Using Mini 4B              |
+| Service             | Base VRAM   | Peak VRAM   | Notes                      |
+| ------------------- | ----------- | ----------- | -------------------------- |
+| YOLO26              | ~3.5GB      | ~4.5GB      | Spikes during batch detect |
+| Nemotron-3-Nano-30B | ~14.7GB     | ~15.5GB     | Production, 128K context   |
+| Nemotron Mini 4B    | ~2.8GB      | ~3.2GB      | Development only           |
+| CUDA Context        | ~300MB      | ~500MB      | Per-process overhead       |
+| **Total (prod)**    | **~18.5GB** | **~20.5GB** | Both services concurrent   |
+| **Total (dev)**     | **~7GB**    | **~8GB**    | Using Mini 4B              |
 
 ### Monitoring VRAM Usage
 

@@ -2,15 +2,22 @@
 
 ## Purpose
 
-This directory is the **end-user documentation hub** for the Home Security Intelligence dashboard. It provides a curated entry point for non-technical users who want to understand and operate the security system.
+This directory is the **end-user documentation hub** for the Home Security Intelligence dashboard. It provides a curated entry point for non-technical users who want to understand and operate the security system on a day-to-day basis.
 
 > **Documentation Organization**
 >
 > This directory (`docs/user/`) serves as the **navigation hub** with `README.md` providing structured pathways through user documentation. User documentation has been organized across several directories:
 >
-> - `docs/getting-started/` - Quick start and product tour guides
+> - `docs/getting-started/` - Installation, first run, quick start, and product tour guides
 > - `docs/ui/` - UI-specific documentation and usability guides
 > - `docs/reference/` - Reference documentation including accessibility
+>
+> **Relationship with docs/getting-started/:**
+>
+> - `docs/getting-started/` covers **installation and initial setup** (one-time tasks)
+> - `docs/user/` covers **ongoing usage** (day-to-day operations)
+> - Both link to shared end-user content in `docs/ui/` to avoid duplication
+> - The quick-start and tour guides in getting-started are also referenced from the user hub
 
 ## Directory Contents
 
@@ -52,13 +59,25 @@ user/
 
 ## Related Resources
 
-| Resource                                     | Description                            |
-| -------------------------------------------- | -------------------------------------- |
-| [docs/getting-started/](../getting-started/) | Quick start and product tour guides    |
-| [docs/ui/](../ui/)                           | UI documentation and usability guides  |
-| [docs/reference/](../reference/)             | Reference docs including accessibility |
-| [docs/operator/](../operator/)               | System administration guides           |
-| [docs/developer/](../developer/)             | Developer documentation                |
+| Resource                                     | Description                                            | Audience         |
+| -------------------------------------------- | ------------------------------------------------------ | ---------------- |
+| [docs/getting-started/](../getting-started/) | Installation, first run, quick start, and product tour | All users        |
+| [docs/ui/](../ui/)                           | UI documentation and usability guides                  | End users        |
+| [docs/reference/](../reference/)             | Reference docs including accessibility                 | All users        |
+| [docs/operator/](../operator/)               | System administration and deployment                   | Operators/admins |
+| [docs/developer/](../developer/)             | Contributing, testing, and architecture                | Developers       |
+
+### Content Ownership
+
+To avoid duplication, content is organized as follows:
+
+| Content Type                | Canonical Location      | Reason                                  |
+| --------------------------- | ----------------------- | --------------------------------------- |
+| Installation/prerequisites  | `docs/getting-started/` | One-time setup tasks                    |
+| Quick start/product tour    | `docs/getting-started/` | First-time user onboarding              |
+| Dashboard/UI feature guides | `docs/ui/`              | Detailed feature documentation          |
+| Navigation hub for users    | `docs/user/README.md`   | Entry point linking to all user content |
+| Reference material          | `docs/reference/`       | Standalone reference docs               |
 
 ## Entry Points for Agents
 

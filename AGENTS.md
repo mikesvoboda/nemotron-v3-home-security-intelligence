@@ -84,13 +84,13 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ```
 /
 ├── ai/                   # AI model scripts and configs
-│   ├── yolo26/           # YOLO26 detection server
-│   ├── nemotron/         # Nemotron model files
-│   ├── florence/         # Florence-2 dense captioning
-│   ├── clip/             # CLIP embedding service
-│   └── enrichment/       # On-demand enrichment pipeline
+│   ├── yolo26/           # YOLO26 detection server (port 8095)
+│   ├── nemotron/         # Nemotron LLM model files (port 8091)
+│   ├── florence/         # Florence-2 dense captioning (port 8092)
+│   ├── clip/             # CLIP embedding service (port 8093)
+│   ├── enrichment/       # Heavy enrichment pipeline (port 8094)
+│   └── enrichment-light/ # Light enrichment models (port 8096)
 ├── backend/              # FastAPI backend (Python)
-│   ├── alembic/          # Database migrations (PostgreSQL)
 │   ├── api/              # REST endpoints and WebSocket routes
 │   │   ├── routes/       # FastAPI route handlers
 │   │   ├── schemas/      # Pydantic request/response schemas
@@ -107,7 +107,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ├── certs/                # SSL certificates directory (placeholder)
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
 ├── docs/                 # Documentation
-│   ├── admin-guide/      # Administrator documentation
 │   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
 │   ├── benchmarks/       # Performance benchmarks (model-zoo)
@@ -116,12 +115,11 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── development/      # Development workflow documentation
 │   ├── getting-started/  # Installation and first-run guides
 │   ├── images/           # Visual assets (mockups, diagrams)
-│   ├── operator/         # Operator-focused documentation
+│   ├── operator/         # Operator-focused documentation (admin, deployment, monitoring)
 │   ├── plans/            # Design and implementation plans
 │   ├── reference/        # Reference docs (api, config, troubleshooting)
 │   ├── testing/          # Testing guides (TDD, Hypothesis, patterns)
-│   ├── user/             # Hub-and-spoke user docs
-│   └── user-guide/       # End-user documentation
+│   └── user/             # End-user documentation
 ├── frontend/             # React dashboard (TypeScript)
 │   ├── src/
 │   │   ├── components/   # React components
@@ -327,13 +325,40 @@ cd frontend && npm test
 
 ## Service Ports
 
-| Service     | Port | Description                            |
-| ----------- | ---- | -------------------------------------- |
-| Frontend    | 5173 | Vite dev server                        |
-| Backend API | 8000 | FastAPI REST + WebSocket               |
-| YOLO26      | 8090 | Object detection (container with GPU)  |
-| Nemotron    | 8091 | LLM risk analysis (container with GPU) |
-| Redis       | 6379 | Cache and queues                       |
+### Core Services
+
+| Service        | Port | Description                                                      |
+| -------------- | ---- | ---------------------------------------------------------------- |
+| Frontend HTTP  | 5173 | React dashboard (Vite dev server locally, nginx in production)   |
+| Frontend HTTPS | 8443 | React dashboard via nginx (SSL enabled by default in production) |
+| Backend API    | 8000 | FastAPI REST + WebSocket                                         |
+| PostgreSQL     | 5432 | Primary database                                                 |
+| Redis          | 6379 | Cache and queues                                                 |
+
+### AI Services
+
+| Service            | Port | Description                                               |
+| ------------------ | ---- | --------------------------------------------------------- |
+| YOLO26             | 8095 | Object detection (container with GPU)                     |
+| Nemotron           | 8091 | LLM risk analysis (container with GPU)                    |
+| Florence-2         | 8092 | Dense captioning and visual understanding                 |
+| CLIP               | 8093 | Entity re-identification embeddings                       |
+| Enrichment (Heavy) | 8094 | Heavy transformer models (vehicle, fashion, demographics) |
+| Enrichment (Light) | 8096 | Light models (pose, threat, reid, pet, depth)             |
+
+### Monitoring Stack
+
+| Service      | Port  | Description                |
+| ------------ | ----- | -------------------------- |
+| Grafana      | 3002  | Monitoring dashboards      |
+| Prometheus   | 9090  | Metrics collection         |
+| Jaeger       | 16686 | Distributed tracing UI     |
+| Alertmanager | 9093  | Alert routing and delivery |
+| Loki         | 3100  | Log aggregation            |
+| Pyroscope    | 4040  | Continuous profiling       |
+| Alloy        | 12345 | Log/metrics collector      |
+
+> **Frontend Port Note:** In production (`docker-compose.prod.yml`), nginx serves the built React app. HTTP on host port 5173 (internal 8080), HTTPS on host port 8443 (internal 8443). SSL is enabled by default with auto-generated self-signed certificates. In local development (`npm run dev`), Vite runs directly on port 5173.
 
 ## Session Completion Workflow
 

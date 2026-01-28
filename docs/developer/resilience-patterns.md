@@ -3,11 +3,11 @@ title: Resilience and Security Patterns
 description: Circuit breakers, retry logic, and prompt injection prevention for building robust services
 last_updated: 2026-01-09
 source_refs:
-  - backend/services/circuit_breaker.py:CircuitBreaker:240
-  - backend/services/circuit_breaker.py:CircuitBreakerConfig:108
-  - backend/services/circuit_breaker.py:CircuitState:100
-  - backend/core/retry.py:retry_async:161
-  - backend/core/retry.py:RetryConfig:83
+  - backend/services/circuit_breaker.py:CircuitBreaker:270
+  - backend/services/circuit_breaker.py:CircuitBreakerConfig:139
+  - backend/services/circuit_breaker.py:CircuitState:130
+  - backend/core/retry.py:retry_async:157
+  - backend/core/retry.py:RetryConfig:80
   - backend/services/retry_handler.py:RetryHandler:184
   - backend/services/prompt_sanitizer.py:sanitize_for_prompt:107
   - backend/services/prompt_sanitizer.py:DANGEROUS_PATTERNS:69

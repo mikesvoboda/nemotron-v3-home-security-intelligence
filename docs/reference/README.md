@@ -21,18 +21,24 @@
 
 ## Service Ports
 
-| Service     | Port | Protocol | Description                                                        |
-| ----------- | ---- | -------- | ------------------------------------------------------------------ |
-| Frontend    | 5173 | HTTP     | Vite dev server (development) or host port in production (default) |
-| Frontend    | 80   | HTTP     | Nginx inside production container (mapped via FRONTEND_PORT)       |
-| Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                           |
-| YOLO26      | 8090 | HTTP     | Object detection service                                           |
-| Nemotron    | 8091 | HTTP     | LLM risk analysis service                                          |
-| Florence-2  | 8092 | HTTP     | Vision extraction service (optional)                               |
-| CLIP        | 8093 | HTTP     | Re-identification service (optional)                               |
-| Enrichment  | 8094 | HTTP     | Enrichment HTTP service (optional)                                 |
-| PostgreSQL  | 5432 | TCP      | Database                                                           |
-| Redis       | 6379 | TCP      | Cache, queues, pub/sub                                             |
+| Service        | Port | Protocol | Description                                                     |
+| -------------- | ---- | -------- | --------------------------------------------------------------- |
+| Frontend HTTP  | 5173 | HTTP     | React dashboard via nginx (configurable: `FRONTEND_PORT`)       |
+| Frontend HTTPS | 8443 | HTTPS    | React dashboard via nginx (configurable: `FRONTEND_HTTPS_PORT`) |
+| Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                        |
+| YOLO26         | 8090 | HTTP     | Object detection service                                        |
+| Nemotron       | 8091 | HTTP     | LLM risk analysis service                                       |
+| Florence-2     | 8092 | HTTP     | Vision extraction service (optional)                            |
+| CLIP           | 8093 | HTTP     | Re-identification service (optional)                            |
+| Enrichment     | 8094 | HTTP     | Enrichment HTTP service (optional)                              |
+| PostgreSQL     | 5432 | TCP      | Database                                                        |
+| Redis          | 6379 | TCP      | Cache, queues, pub/sub                                          |
+
+> **Frontend Port Details:**
+>
+> - **Production containers:** nginx serves the built React app on internal ports 8080 (HTTP) and 8443 (HTTPS), mapped to host ports via `FRONTEND_PORT` (default 5173) and `FRONTEND_HTTPS_PORT` (default 8443)
+> - **Local development:** Vite dev server runs on port 5173 (`npm run dev` in frontend/)
+> - **SSL:** Enabled by default in production with auto-generated self-signed certificates. See [SSL/HTTPS Configuration](../development/ssl-https.md)
 
 ---
 

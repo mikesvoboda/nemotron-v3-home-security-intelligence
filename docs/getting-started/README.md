@@ -2,11 +2,15 @@
 
 Welcome to Home Security Intelligence. This section guides you from zero to a running system.
 
+> **Note:** This section covers installation and initial setup. For ongoing usage documentation, see the [User Guide](../user/README.md).
+
 ---
 
 ## Quick Navigation
 
 ### Technical Setup (for operators/installers)
+
+Follow these steps in order to install and start the system:
 
 | Step | Guide                             | Description                                  |
 | ---- | --------------------------------- | -------------------------------------------- |
@@ -16,6 +20,8 @@ Welcome to Home Security Intelligence. This section guides you from zero to a ru
 | 4    | [Upgrading](upgrading.md)         | Update to new versions                       |
 
 ### End User Guides
+
+These guides help users learn the system after installation:
 
 | Guide                         | Description                                              |
 | ----------------------------- | -------------------------------------------------------- |
@@ -47,8 +53,10 @@ See [Prerequisites](prerequisites.md) for complete requirements and verification
 
 Once your system is running, continue to the guide that matches your role:
 
-| Role           | Hub                              | Focus                                 |
-| -------------- | -------------------------------- | ------------------------------------- |
-| **End Users**  | [User Guide](../user/)           | Dashboard usage, cameras, alerts      |
-| **Developers** | [Developer Guide](../developer/) | Contributing, testing, architecture   |
-| **Operators**  | [Operator Guide](../operator/)   | Deployment, monitoring, configuration |
+| Role           | Hub                                     | Focus                                 |
+| -------------- | --------------------------------------- | ------------------------------------- |
+| **End Users**  | [User Guide](../user/README.md)         | Dashboard usage, cameras, alerts      |
+| **Developers** | [Developer Guide](../developer/)        | Contributing, testing, architecture   |
+| **Operators**  | [Operator Guide](../operator/README.md) | Deployment, monitoring, configuration |
+
+> **Recommended for all users:** Complete the [Product Tour](tour.md) to familiarize yourself with the dashboard before diving into detailed documentation.

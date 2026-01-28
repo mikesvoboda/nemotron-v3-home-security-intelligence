@@ -69,7 +69,7 @@ ai/
 │   │   └── action_recognizer.py # X-CLIP video actions
 │   └── tests/             # Additional unit tests
 ├── download_models.sh     # Download AI models
-├── start_detector.sh      # Start YOLO26v2 (port 8090)
+├── start_detector.sh      # Start YOLO26v2 (port 8095)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)
 └── start_nemotron.sh      # Start Nemotron 30B with auto-recovery
 ```
@@ -136,7 +136,7 @@ Shell scripts for native execution (useful for debugging):
 ./ai/download_models.sh
 
 # 2. Start individual services
-./ai/start_detector.sh     # YOLO26v2 on 8090
+./ai/start_detector.sh     # YOLO26v2 on 8095
 ./ai/start_llm.sh          # Nemotron 4B on 8091
 ./ai/start_nemotron.sh     # Nemotron 30B on 8091 (alternative)
 ```
@@ -149,7 +149,7 @@ Camera Images
       ▼
 ┌─────────────┐      ┌───────────────────────────────────┐
 │   YOLO26    │─────▶│          Enrichment (8094)        │
-│   (8090)    │      │    On-Demand Model Loading        │
+│   (8095)    │      │    On-Demand Model Loading        │
 └─────────────┘      │  ┌─────────────────────────────┐  │
       │              │  │ Threat │ Pose  │ Clothing  │  │
       │              │  │ ReID   │ Demo. │ Vehicle   │  │
@@ -196,7 +196,7 @@ The backend communicates with AI services via HTTP clients:
 | `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
 | `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold |
 | `HOST`              | `0.0.0.0`                                    | Bind address             |
-| `PORT`              | `8090`                                       | Server port              |
+| `PORT`              | `8095`                                       | Server port              |
 
 ### Nemotron
 
@@ -260,7 +260,7 @@ The enrichment service provides structured context to Nemotron for better risk a
 - **Container Runtime**: Docker or Podman with NVIDIA Container Toolkit
 - **Total VRAM**: ~22 GB for all services running simultaneously
   - YOLO26: ~100 MB (TensorRT FP16)
-  - Nemotron: ~21.7 GB
+  - Nemotron: ~14.7 GB
   - Florence-2: ~1.5 GB
   - CLIP: ~1.2 GB
   - Enrichment (Model Zoo): ~6.8 GB budget
@@ -334,7 +334,7 @@ Downloads or locates models:
 
 ### `start_detector.sh`
 
-Runs YOLO26 server (`python model.py`) on port 8090.
+Runs YOLO26 server (`python model.py`) on port 8095.
 
 ### `start_llm.sh`
 

@@ -72,17 +72,20 @@ podman-compose -f docker-compose.prod.yml up -d
 
 **What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1)):
 
-| Service       | Port | Purpose                    |
-| ------------- | ---- | -------------------------- |
-| PostgreSQL    | 5432 | Database                   |
-| Redis         | 6379 | Queues + pub/sub           |
-| ai-yolo26     | 8090 | YOLO26 object detection    |
-| ai-llm        | 8091 | Nemotron LLM risk analysis |
-| ai-florence   | 8092 | Florence-2 (optional)      |
-| ai-clip       | 8093 | CLIP (optional)            |
-| ai-enrichment | 8094 | Enrichment (optional)      |
-| Backend       | 8000 | FastAPI + WebSocket        |
-| Frontend      | 5173 | React dashboard (nginx)    |
+| Service       | Port         | Purpose                                            |
+| ------------- | ------------ | -------------------------------------------------- |
+| PostgreSQL    | 5432         | Database                                           |
+| Redis         | 6379         | Queues + pub/sub                                   |
+| ai-yolo26     | 8095         | YOLO26 object detection                            |
+| ai-llm        | 8091         | Nemotron LLM risk analysis                         |
+| ai-florence   | 8092         | Florence-2 (optional)                              |
+| ai-clip       | 8093         | CLIP (optional)                                    |
+| ai-enrichment | 8094         | Enrichment (optional)                              |
+| Backend       | 8000         | FastAPI + WebSocket                                |
+| Frontend      | 5173 (HTTP)  | React dashboard via nginx                          |
+| Frontend      | 8443 (HTTPS) | React dashboard via nginx (SSL enabled by default) |
+
+> **Port Note:** The frontend runs nginx serving the built React app. HTTP on port 5173 (configurable via `FRONTEND_PORT`), HTTPS on port 8443 (configurable via `FRONTEND_HTTPS_PORT`). SSL is enabled by default with auto-generated self-signed certificates.
 
 ### Verify Production Deployment
 
@@ -105,7 +108,9 @@ security-frontend-1       healthy
 
 ### Access Dashboard
 
-Open **[http://localhost:5173](http://localhost:5173)**
+Open **[http://localhost:5173](http://localhost:5173)** (HTTP) or **[https://localhost:8443](https://localhost:8443)** (HTTPS)
+
+> **HTTPS Note:** SSL is enabled by default. The first time you access via HTTPS, your browser will show a certificate warning because the certificate is self-signed. Accept the warning to proceed. For trusted certificates, see the [SSL/HTTPS Configuration Guide](../development/ssl-https.md).
 
 ---
 
@@ -207,12 +212,13 @@ podman-compose -f docker-compose.prod.yml up -d
 
 **What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1) without AI services, or start AI separately):
 
-| Service    | Port | Purpose                           |
-| ---------- | ---- | --------------------------------- |
-| PostgreSQL | 5432 | Database                          |
-| Redis      | 6379 | Queues + pub/sub                  |
-| Backend    | 8000 | FastAPI + WebSocket               |
-| Frontend   | 5173 | React dashboard (Vite dev server) |
+| Service    | Port         | Purpose                                            |
+| ---------- | ------------ | -------------------------------------------------- |
+| PostgreSQL | 5432         | Database                                           |
+| Redis      | 6379         | Queues + pub/sub                                   |
+| Backend    | 8000         | FastAPI + WebSocket                                |
+| Frontend   | 5173 (HTTP)  | React dashboard via nginx                          |
+| Frontend   | 8443 (HTTPS) | React dashboard via nginx (SSL enabled by default) |
 
 ### Verify Development Deployment
 
@@ -233,7 +239,7 @@ security-frontend-1     healthy
 
 ### Access Dashboard
 
-Open **[http://localhost:5173](http://localhost:5173)**
+Open **[http://localhost:5173](http://localhost:5173)** (HTTP) or **[https://localhost:8443](https://localhost:8443)** (HTTPS)
 
 ---
 

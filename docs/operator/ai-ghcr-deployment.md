@@ -75,7 +75,7 @@ Object detection service using YOLO26 transformer model.
 
 | Property         | Value                                           |
 | ---------------- | ----------------------------------------------- |
-| **Port**         | 8090                                            |
+| **Port**         | 8095                                            |
 | **VRAM**         | ~3-4GB                                          |
 | **Base Image**   | `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime` |
 | **Model**        | Auto-downloads from HuggingFace on first start  |

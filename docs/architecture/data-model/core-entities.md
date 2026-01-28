@@ -21,7 +21,7 @@ flowchart LR
 
 ## Camera Model
 
-**Source:** `backend/models/camera.py:63-195`
+**Source:** `backend/models/camera.py:68-218`
 
 **Table Name:** `cameras`
 
@@ -53,7 +53,7 @@ class CameraStatus(str, Enum):
 ### Constraints
 
 ```sql
--- Check constraint for status values (backend/models/camera.py:88-91)
+-- Check constraint for status values (backend/models/camera.py:93-96)
 CHECK (status IN ('online', 'offline', 'error', 'unknown'))
 ```
 
@@ -61,14 +61,14 @@ CHECK (status IN ('online', 'offline', 'error', 'unknown'))
 
 | Index Name                       | Columns       | Type   | Source                        |
 | -------------------------------- | ------------- | ------ | ----------------------------- |
-| `idx_cameras_name_unique`        | `name`        | UNIQUE | `backend/models/camera.py:84` |
-| `idx_cameras_folder_path_unique` | `folder_path` | UNIQUE | `backend/models/camera.py:85` |
-| `idx_cameras_property_id`        | `property_id` | B-tree | `backend/models/camera.py:86` |
+| `idx_cameras_name_unique`        | `name`        | UNIQUE | `backend/models/camera.py:89` |
+| `idx_cameras_folder_path_unique` | `folder_path` | UNIQUE | `backend/models/camera.py:90` |
+| `idx_cameras_property_id`        | `property_id` | B-tree | `backend/models/camera.py:91` |
 
 ### Relationships
 
 ```python
-# backend/models/camera.py:110-140
+# backend/models/camera.py:114-163
 detections: Mapped[list[Detection]]     # One-to-many, cascade delete
 events: Mapped[list[Event]]              # One-to-many, cascade delete
 camera_zones: Mapped[list[CameraZone]]   # One-to-many, cascade delete
@@ -79,7 +79,7 @@ scene_changes: Mapped[list[SceneChange]]            # One-to-many
 
 ### ID Normalization
 
-Camera IDs are normalized from folder names using `normalize_camera_id()` (`backend/models/camera.py:22-54`):
+Camera IDs are normalized from folder names using `normalize_camera_id()` (`backend/models/camera.py:27-59`):
 
 ```python
 def normalize_camera_id(folder_name: str) -> str:
@@ -93,7 +93,7 @@ def normalize_camera_id(folder_name: str) -> str:
 ### Soft Delete Support
 
 ```python
-# backend/models/camera.py:142-161
+# backend/models/camera.py:165-184
 @property
 def is_deleted(self) -> bool:
     return self.deleted_at is not None
@@ -109,7 +109,7 @@ def restore(self) -> None:
 
 ## Detection Model
 
-**Source:** `backend/models/detection.py:28-193`
+**Source:** `backend/models/detection.py:28-206`
 
 **Table Name:** `detections`
 
@@ -141,7 +141,7 @@ def restore(self) -> None:
 ### Constraints
 
 ```sql
--- backend/models/detection.py:133-140
+-- backend/models/detection.py:141-152
 CHECK (media_type IS NULL OR media_type IN ('image', 'video'))
 CHECK (confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0))
 ```
@@ -158,7 +158,7 @@ CHECK (confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0))
 | `ix_detections_enrichment_data_gin`     | `enrichment_data`          | GIN    | JSONB containment queries (@>) |
 | `ix_detections_detected_at_brin`        | `detected_at`              | BRIN   | Time-series range queries      |
 
-**Source:** `backend/models/detection.py:105-131`
+**Source:** `backend/models/detection.py:111-139`
 
 ### Enrichment Data Structure
 
@@ -178,7 +178,7 @@ The `enrichment_data` JSONB column stores results from 18+ vision models:
 ### Relationships
 
 ```python
-# backend/models/detection.py:76-102
+# backend/models/detection.py:81-108
 camera: Mapped[Camera]                      # Many-to-one
 event_records: Mapped[list[EventDetection]] # Junction table records
 
@@ -194,7 +194,7 @@ action_result: Mapped[ActionResult | None]
 
 ## Event Model
 
-**Source:** `backend/models/event.py:21-243`
+**Source:** `backend/models/event.py:34-398`
 
 **Table Name:** `events`
 
@@ -235,7 +235,7 @@ class Severity(str, Enum):
 ### Constraints
 
 ```sql
--- backend/models/event.py:136-147
+-- backend/models/event.py:211-222
 CHECK (risk_level IS NULL OR risk_level IN ('low', 'medium', 'high', 'critical'))
 CHECK (risk_score IS NULL OR (risk_score >= 0 AND risk_score <= 100))
 CHECK (ended_at IS NULL OR ended_at >= started_at)
@@ -256,12 +256,12 @@ CHECK (ended_at IS NULL OR ended_at >= started_at)
 | `idx_events_unreviewed`            | `id`                     | Partial | WHERE reviewed = false      |
 | `ix_events_started_at_brin`        | `started_at`             | BRIN    | Time-series range queries   |
 
-**Source:** `backend/models/event.py:103-155`
+**Source:** `backend/models/event.py:173-230`
 
 ### Relationships
 
 ```python
-# backend/models/event.py:75-98
+# backend/models/event.py:126-168
 camera: Mapped[Camera]                          # Many-to-one
 alerts: Mapped[list[Alert]]                     # One-to-many, cascade delete
 audit: Mapped[EventAudit | None]                # One-to-one
@@ -279,7 +279,7 @@ When a parent entity is deleted, all related child entities are automatically re
 ### Helper Properties
 
 ```python
-# backend/models/event.py:224-243
+# backend/models/event.py:316-335
 @property
 def detection_id_list(self) -> list[int]:
     """Get list of detection IDs from the relationship."""

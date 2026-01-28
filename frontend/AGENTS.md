@@ -180,12 +180,14 @@ npm run validate         # typecheck + lint + test with coverage
 
 The `vite.config.ts` configures:
 
-- **Dev Server**: Port 5173 (strictPort: true)
+- **Dev Server**: Port 5173 (strictPort: true) - for local development with `npm run dev`
 - **API Proxy**: `/api/*` -> `http://localhost:8000`
 - **WebSocket Proxy**: `/ws/*` -> `ws://localhost:8000`
 - **Test Environment**: jsdom with globals
 - **Coverage Thresholds**: 83% statements, 77% branches, 81% functions, 84% lines
 - **Memory Optimization**: Uses forks pool with single fork
+
+> **Production Note:** In production containers (`docker-compose.prod.yml`), nginx serves the built React app (not Vite). HTTP on host port 5173 (internal 8080), HTTPS on host port 8443 (internal 8443). SSL is enabled by default with auto-generated self-signed certificates.
 
 ## Source Map Strategy
 

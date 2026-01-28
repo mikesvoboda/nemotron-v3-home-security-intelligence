@@ -14,27 +14,48 @@ This documentation covers the background services that power the AI-powered home
 
 ## Architecture Overview
 
-```
-                                    +------------------+
-                                    |   FastAPI App    |
-                                    |    (Lifespan)    |
-                                    +--------+---------+
-                                             |
-            +--------------------------------+--------------------------------+
-            |                |               |                |               |
-            v                v               v                v               v
-    +---------------+ +---------------+ +----------+ +--------------+ +----------------+
-    | FileWatcher   | | Pipeline      | | GPU      | | Cleanup      | | Health         |
-    | (watchdog)    | | Manager       | | Monitor  | | Service      | | Monitor        |
-    +-------+-------+ +-------+-------+ +----+-----+ +------+-------+ +-------+--------+
-            |                 |              |              |                 |
-            |         +-------+-------+      |              |                 |
-            |         |       |       |      |              |                 |
-            v         v       v       v      v              v                 v
-    +-------+---+ +---+---+ +-+---+ +-+--+ +-+--------+ +---+-----+ +--------+--------+
-    | Camera    | |Detect | |Anal | |Batch| |pynvml/  | |Database | |YOLO26/       |
-    | Directories| |Worker| |Worker| |Timeout| |nvidia-smi| |(cleanup)| |Nemotron Health |
-    +-----------+ +-------+ +-----+ +------+ +---------+ +---------+ +-----------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph App["FastAPI App (Lifespan)"]
+        Main[Application Start]
+    end
+
+    subgraph Services["Background Services"]
+        FW[FileWatcher<br/>watchdog]
+        PM[PipelineManager]
+        GPU[GPUMonitor]
+        CS[CleanupService]
+        HM[HealthMonitor]
+    end
+
+    subgraph Workers["Pipeline Workers"]
+        DW[DetectWorker]
+        AW[AnalWorker]
+        BT[BatchTimeout]
+    end
+
+    subgraph Resources["Resources"]
+        Cam[Camera Directories]
+        NVML[pynvml/nvidia-smi]
+        DB[(Database)]
+        Health[YOLO26/Nemotron Health]
+    end
+
+    Main --> FW
+    Main --> PM
+    Main --> GPU
+    Main --> CS
+    Main --> HM
+
+    PM --> DW
+    PM --> AW
+    PM --> BT
+
+    FW --> Cam
+    GPU --> NVML
+    CS --> DB
+    HM --> Health
 ```
 
 ## Lifespan Management
@@ -207,6 +228,6 @@ The alert engine provides the notification pipeline for security events, integra
 
 ## Related Documentation
 
-- [Pipeline Architecture](../pipeline/README.md) - Detection and analysis pipeline
+- [Detection Pipeline](../detection-pipeline/README.md) - Detection and analysis pipeline
 - [Testing Guide](../../development/testing.md) - Testing background services
-- [Operations Guide](../../operations/monitoring.md) - Monitoring and alerting
+- [Observability](../observability/README.md) - Monitoring and alerting

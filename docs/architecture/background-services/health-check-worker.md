@@ -121,41 +121,25 @@ async def stop(self) -> None:
 
 The main monitoring loop (`backend/services/health_monitor.py:130-185`):
 
-```
-+------------------+
-| For each service |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| check_health()   |
-+--------+---------+
-         |
-    +----+----+
-    |         |
- Healthy  Unhealthy
-    |         |
-    v         v
-+---+---+ +---+---+
-|Reset  | |Handle |
-|failure| |failure|
-|count  | +---+---+
-+-------+     |
-              v
-       +------+------+
-       | Restart     |
-       | disabled?   |
-       +------+------+
-              |
-         +----+----+
-         |         |
-        Yes       No
-         |         |
-         v         v
-    Broadcast  +---+---+
-    status     |Backoff|
-               |restart|
-               +-------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    ForEach["For each service"]
+    CheckHealth["check_health()"]
+    IsHealthy{Healthy?}
+    ResetCount["Reset failure count"]
+    HandleFailure["Handle failure"]
+    RestartDisabled{Restart disabled?}
+    BroadcastStatus["Broadcast status"]
+    BackoffRestart["Backoff restart"]
+
+    ForEach --> CheckHealth
+    CheckHealth --> IsHealthy
+    IsHealthy -->|Yes| ResetCount
+    IsHealthy -->|No| HandleFailure
+    HandleFailure --> RestartDisabled
+    RestartDisabled -->|Yes| BroadcastStatus
+    RestartDisabled -->|No| BackoffRestart
 ```
 
 ```python
@@ -207,77 +191,41 @@ Example with `backoff_base=5`:
 
 ### Failure Handling Flow
 
-```
-+------------------+
-| Service failed   |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Restart disabled?|
-+--------+---------+
-         |
-    +----+----+
-    |         |
-   Yes       No
-    |         |
-    v         v
-Broadcast  +--------+---------+
-"restart_  | Increment failure|
-disabled"  | count            |
-           +--------+---------+
-                    |
-                    v
-           +--------+---------+
-           | Max retries      |
-           | exceeded?        |
-           +--------+---------+
-                    |
-               +----+----+
-               |         |
-              Yes       No
-               |         |
-               v         v
-          Broadcast  +--------+---------+
-          "failed"   | Calculate backoff|
-                     +--------+---------+
-                              |
-                              v
-                     +--------+---------+
-                     | Sleep backoff    |
-                     +--------+---------+
-                              |
-                              v
-                     +--------+---------+
-                     | Broadcast        |
-                     | "restarting"     |
-                     +--------+---------+
-                              |
-                              v
-                     +--------+---------+
-                     | Execute restart  |
-                     +--------+---------+
-                              |
-                         +----+----+
-                         |         |
-                      Success   Failed
-                         |         |
-                         v         v
-                    +----+----+ +----+----+
-                    |Wait 2s  | |Broadcast|
-                    |verify   | |"restart_|
-                    |health   | |failed"  |
-                    +----+----+ +---------+
-                         |
-                    +----+----+
-                    |         |
-                 Healthy  Unhealthy
-                    |         |
-                    v         v
-               Reset      Broadcast
-               failures   "restart_failed"
-               Broadcast
-               "healthy"
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    ServiceFailed["Service failed"]
+    RestartDisabled{Restart disabled?}
+    BroadcastDisabled["Broadcast<br/>restart_disabled"]
+    IncrementCount["Increment failure count"]
+    MaxRetries{Max retries exceeded?}
+    BroadcastFailed["Broadcast<br/>failed"]
+    CalcBackoff["Calculate backoff"]
+    SleepBackoff["Sleep backoff"]
+    BroadcastRestarting["Broadcast<br/>restarting"]
+    ExecRestart["Execute restart"]
+    RestartResult{Success?}
+    Wait2s["Wait 2s<br/>verify health"]
+    BroadcastRestartFailed["Broadcast<br/>restart_failed"]
+    VerifyHealth{Healthy?}
+    ResetBroadcast["Reset failures<br/>Broadcast healthy"]
+    BroadcastUnhealthy["Broadcast<br/>restart_failed"]
+
+    ServiceFailed --> RestartDisabled
+    RestartDisabled -->|Yes| BroadcastDisabled
+    RestartDisabled -->|No| IncrementCount
+    IncrementCount --> MaxRetries
+    MaxRetries -->|Yes| BroadcastFailed
+    MaxRetries -->|No| CalcBackoff
+    CalcBackoff --> SleepBackoff
+    SleepBackoff --> BroadcastRestarting
+    BroadcastRestarting --> ExecRestart
+    ExecRestart --> RestartResult
+    RestartResult -->|Success| Wait2s
+    RestartResult -->|Failed| BroadcastRestartFailed
+    Wait2s --> VerifyHealth
+    VerifyHealth -->|Healthy| ResetBroadcast
+    VerifyHealth -->|Unhealthy| BroadcastUnhealthy
 ```
 
 ```python

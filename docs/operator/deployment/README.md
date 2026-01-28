@@ -21,6 +21,156 @@
 
 ---
 
+## Deployment Architecture
+
+The following diagram shows the complete production deployment topology with all containers, their connections, ports, and GPU assignments.
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph External["External Access Points"]
+        direction LR
+        USER["User Browser"]
+        CAM["Foscam Cameras<br/>(FTP Upload)"]
+        ADMN["Admin/Ops"]
+    end
+
+    subgraph Network["security-net (Bridge Network)"]
+        subgraph FrontendLayer["Frontend Layer"]
+            FE["<b>frontend</b><br/>nginx-unprivileged<br/>Internal: 8080<br/>External: 5173 (HTTP), 8443 (HTTPS)<br/>Memory: 512M"]
+        end
+
+        subgraph BackendLayer["Backend Layer"]
+            BE["<b>backend</b><br/>FastAPI + Uvicorn<br/>Port: 8000<br/>Memory: 6G<br/>CPU: 2 cores"]
+        end
+
+        subgraph AILayer["AI Services Layer (GPU Required)"]
+            direction LR
+            subgraph GPU0["GPU 0 (Primary - High VRAM)"]
+                LLM["<b>ai-llm</b><br/>Nemotron 30B<br/>Port: 8091<br/>~14.7GB VRAM"]
+                FLOR["<b>ai-florence</b><br/>Florence-2<br/>Port: 8092<br/>~530MB VRAM"]
+            end
+            subgraph GPU1["GPU 1 (Secondary - 4GB+)"]
+                YOLO["<b>ai-yolo26</b><br/>YOLO26 TensorRT<br/>Port: 8095<br/>~1GB VRAM"]
+                CLIP["<b>ai-clip</b><br/>CLIP ViT-L<br/>Port: 8093<br/>~722MB VRAM"]
+                ENRL["<b>ai-enrichment-light</b><br/>Pose, Threat, ReID, Pet, Depth<br/>Port: 8096<br/>~1.2GB VRAM"]
+            end
+            ENR["<b>ai-enrichment</b><br/>Vehicle, Fashion, Age, Gender, Action<br/>Port: 8094<br/>GPU: Configurable<br/>~4.3GB VRAM"]
+        end
+
+        subgraph DataLayer["Data Layer"]
+            PG[("<b>postgres</b><br/>PostgreSQL 16-alpine<br/>Port: 5432<br/>Memory: 1G")]
+            RD[("<b>redis</b><br/>Redis 7.4-alpine<br/>Port: 6379<br/>Memory: 512M")]
+            ES[("<b>elasticsearch</b><br/>ES 8.12<br/>Port: 9200<br/>Memory: 4G")]
+        end
+
+        subgraph MonitoringLayer["Monitoring & Observability"]
+            direction TB
+            subgraph MetricsTracing["Metrics & Tracing"]
+                PROM["<b>prometheus</b><br/>Port: 9090<br/>Memory: 512M"]
+                JAEG["<b>jaeger</b><br/>Port: 16686<br/>Memory: 512M"]
+                GRAF["<b>grafana</b><br/>Port: 3002<br/>Memory: 256M"]
+            end
+            subgraph LogsProfiling["Logs & Profiling"]
+                LOKI["<b>loki</b><br/>Port: 3100<br/>Memory: 512M"]
+                PYRO["<b>pyroscope</b><br/>Port: 4040<br/>Memory: 512M"]
+                ALLOY["<b>alloy</b><br/>Port: 12345<br/>Memory: 768M"]
+            end
+            subgraph Exporters["Exporters & Alerting"]
+                AM["<b>alertmanager</b><br/>Port: 9093<br/>Memory: 128M"]
+                BB["<b>blackbox-exporter</b><br/>Port: 9115"]
+                RE["<b>redis-exporter</b><br/>Port: 9121"]
+                JE["<b>json-exporter</b><br/>Port: 7979"]
+            end
+        end
+    end
+
+    %% External connections
+    USER -->|"HTTP :5173<br/>HTTPS :8443"| FE
+    CAM -->|"FTP to<br/>/cameras mount"| BE
+    ADMN -->|"Grafana :3002<br/>Prometheus :9090<br/>Jaeger :16686"| MonitoringLayer
+
+    %% Frontend to Backend
+    FE -->|"Proxy /api, /ws"| BE
+
+    %% Backend to Data
+    BE -->|"asyncpg"| PG
+    BE -->|"aioredis"| RD
+
+    %% Backend to AI (HTTP inference calls)
+    BE -->|"POST /detect"| YOLO
+    BE -->|"POST /v1/completions"| LLM
+    BE -->|"POST /caption"| FLOR
+    BE -->|"POST /embed"| CLIP
+    BE -->|"POST /analyze"| ENR
+    BE -->|"POST /analyze"| ENRL
+
+    %% Monitoring data flows
+    PROM -.->|"scrape /metrics"| BE
+    PROM -.->|"scrape"| YOLO
+    PROM -.->|"scrape"| LLM
+    PROM -.->|"scrape"| RE
+    PROM -.->|"scrape"| BB
+    PROM -.->|"scrape"| JE
+    PROM -->|"alert rules"| AM
+    AM -->|"webhooks"| BE
+
+    GRAF -->|"query"| PROM
+    GRAF -->|"query"| LOKI
+    GRAF -->|"query"| JAEG
+    GRAF -->|"query"| PYRO
+
+    JAEG -->|"store spans"| ES
+
+    ALLOY -->|"push logs"| LOKI
+    ALLOY -->|"push profiles"| PYRO
+    BE -->|"OTLP traces"| ALLOY
+
+    %% Health check dependencies (startup order)
+    BE -.->|"depends_on<br/>healthy"| PG
+    BE -.->|"depends_on<br/>healthy"| RD
+    BE -.->|"depends_on<br/>healthy"| YOLO
+    BE -.->|"depends_on<br/>healthy"| LLM
+    FE -.->|"depends_on<br/>healthy"| BE
+    PROM -.->|"depends_on<br/>healthy"| AM
+    JAEG -.->|"depends_on<br/>healthy"| ES
+```
+
+### Architecture Summary
+
+| Layer           | Services                                                       | Resource Profile           |
+| --------------- | -------------------------------------------------------------- | -------------------------- |
+| **Frontend**    | nginx reverse proxy                                            | 512M RAM, 1 CPU            |
+| **Backend**     | FastAPI application server                                     | 6G RAM, 2 CPUs, GPU access |
+| **AI Services** | YOLO26, Nemotron, Florence-2, CLIP, Enrichment (light + heavy) | GPU required (~19GB total) |
+| **Data**        | PostgreSQL, Redis, Elasticsearch                               | 5.5G RAM total             |
+| **Monitoring**  | Prometheus, Grafana, Jaeger, Loki, Pyroscope, Alloy            | ~3G RAM total              |
+
+### GPU Assignment Strategy
+
+The default GPU assignment distributes models across two GPUs:
+
+| GPU   | Services                       | Total VRAM | Typical GPU        |
+| ----- | ------------------------------ | ---------- | ------------------ |
+| GPU 0 | Nemotron LLM, Florence-2       | ~15.2GB    | RTX A5500/RTX 4090 |
+| GPU 1 | YOLO26, CLIP, Enrichment-Light | ~2.9GB     | RTX A400/RTX 3060  |
+
+Enrichment (heavy models) defaults to GPU 1 but can be configured via `GPU_ENRICHMENT` environment variable.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -71,7 +221,7 @@ curl http://localhost:8000/api/system/health/ready
 | ------- | ----------- | -------- | ------------------ |
 | 80/5173 | Frontend    | HTTP     | Browser            |
 | 8000    | Backend API | HTTP/WS  | Frontend           |
-| 8090    | YOLO26      | HTTP     | Backend            |
+| 8095    | YOLO26      | HTTP     | Backend            |
 | 8091    | Nemotron    | HTTP     | Backend            |
 | 8092    | Florence-2  | HTTP     | Backend (optional) |
 | 8093    | CLIP        | HTTP     | Backend (optional) |
@@ -336,7 +486,7 @@ The system supports a multi-service AI stack:
 
 | Service    | Port | VRAM                      | Purpose                         |
 | ---------- | ---- | ------------------------- | ------------------------------- |
-| YOLO26     | 8090 | ~4GB                      | Object detection                |
+| YOLO26     | 8095 | ~4GB                      | Object detection                |
 | Nemotron   | 8091 | ~3GB (4B) / ~14.7GB (30B) | Risk reasoning                  |
 | Florence-2 | 8092 | ~2GB                      | Vision extraction (optional)    |
 | CLIP       | 8093 | ~2GB                      | Re-identification (optional)    |

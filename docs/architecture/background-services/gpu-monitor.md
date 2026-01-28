@@ -58,29 +58,23 @@ def __init__(
 
 The service selects the best available backend (`backend/services/gpu_monitor.py:1122-1145`):
 
-```
-+-------------------+
-| Try pynvml import |
-+--------+----------+
-         |
-    Success?
-    |     |
-   Yes    No
-    |     |
-    v     v
-+-------+ +------------------+
-|pynvml | |Find nvidia-smi   |
-|backend| +--------+---------+
-+-------+          |
-              Found?
-              |    |
-             Yes   No
-              |    |
-              v    v
-        +--------+ +----------+
-        |nvidia- | |No GPU    |
-        |smi     | |monitoring|
-        +--------+ +----------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    TryPynvml["Try pynvml import"]
+    Success{Success?}
+    Pynvml["pynvml backend"]
+    FindSmi["Find nvidia-smi"]
+    Found{Found?}
+    NvidiaSmi["nvidia-smi backend"]
+    NoGpu["No GPU monitoring"]
+
+    TryPynvml --> Success
+    Success -->|Yes| Pynvml
+    Success -->|No| FindSmi
+    FindSmi --> Found
+    Found -->|Yes| NvidiaSmi
+    Found -->|No| NoGpu
 ```
 
 ```python
@@ -164,38 +158,22 @@ async def stop(self) -> None:
 
 The main poll loop (`backend/services/gpu_monitor.py:1185-1225`):
 
-```
-+------------------+
-| Sleep for poll   |
-| interval         |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Running check    |
-+--------+---------+
-         |
-    Yes  v
-+--------+---------+
-| Collect GPU      |
-| stats            |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Persist to DB    |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Broadcast via    |
-| WebSocket        |
-+--------+---------+
-         |
-         v
-+------------------+
-| Loop back        |
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    Sleep["Sleep for poll interval"]
+    RunCheck{Running?}
+    Collect["Collect GPU stats"]
+    Persist["Persist to DB"]
+    Broadcast["Broadcast via WebSocket"]
+    LoopBack["Loop back"]
+
+    Sleep --> RunCheck
+    RunCheck -->|Yes| Collect
+    Collect --> Persist
+    Persist --> Broadcast
+    Broadcast --> LoopBack
+    LoopBack --> Sleep
 ```
 
 ```python

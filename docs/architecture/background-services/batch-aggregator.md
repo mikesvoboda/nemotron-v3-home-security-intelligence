@@ -27,45 +27,25 @@ The BatchAggregator service:
 
 ## Batch Lifecycle
 
-```
-+------------------+
-| First detection  |
-| for camera       |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Create new batch |
-| batch_id =       |
-| batch-XXXXXXXX   |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Add detection    |
-| to batch         |
-+--------+---------+
-         |
-    +----+----+
-    |         |
-    v         v
-More      Timeout?
-detections  (idle or window)
-    |         |
-    v         v
-Add to    +--------+--------+
-batch     | Close batch     |
-    |     +--------+--------+
-    |              |
-    +------+-------+
-           |
-           v
-+----------+-----------+
-| Push to analysis_queue|
-| with batch_id,       |
-| camera_id,           |
-| detection_ids        |
-+----------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    FirstDetect["First detection<br/>for camera"]
+    CreateBatch["Create new batch<br/>batch_id = batch-XXXXXXXX"]
+    AddDetect["Add detection<br/>to batch"]
+    CheckMore{More detections?}
+    CheckTimeout{Timeout?<br/>idle or window}
+    CloseBatch["Close batch"]
+    PushQueue["Push to analysis_queue<br/>with batch_id,<br/>camera_id,<br/>detection_ids"]
+
+    FirstDetect --> CreateBatch
+    CreateBatch --> AddDetect
+    AddDetect --> CheckMore
+    CheckMore -->|Yes| AddDetect
+    CheckMore -->|No| CheckTimeout
+    CheckTimeout -->|Yes| CloseBatch
+    CheckTimeout -->|No| AddDetect
+    CloseBatch --> PushQueue
 ```
 
 ## Timing Diagram
@@ -156,66 +136,35 @@ async def add_detection(
 
 ### Detection Flow
 
-```
-+------------------+
-| add_detection()  |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Fast path check  |
-| (confidence >    |
-| threshold AND    |
-| object in list)  |
-+--------+---------+
-         |
-    Yes  |  No
-    |    |
-    v    v
-Fast   +--------+---------+
-path   | Acquire camera  |
-       | lock            |
-       +--------+---------+
-                |
-                v
-       +--------+---------+
-       | Get current      |
-       | batch for camera |
-       +--------+---------+
-                |
-           +----+----+
-           |         |
-        Exists    None
-           |         |
-           v         v
-       +---+---+ +---+---+
-       |Check  | |Create |
-       |max    | |new    |
-       |size   | |batch  |
-       +---+---+ +---+---+
-           |         |
-           v         |
-       At max?       |
-       |    |        |
-      Yes   No       |
-       |    |        |
-       v    +--------+
-    Close            |
-    batch            |
-       |             |
-       v             v
-    Create      +----+----+
-    new batch   | Atomic  |
-                | RPUSH   |
-                | detection|
-                +----+----+
-                     |
-                     v
-                +----+----+
-                | Update  |
-                | last_   |
-                | activity|
-                +---------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    AddDetect["add_detection()"]
+    FastCheck{"Fast path check<br/>confidence > threshold<br/>AND object in list?"}
+    FastPath["Fast path<br/>immediate analysis"]
+    AcquireLock["Acquire camera lock"]
+    GetBatch["Get current batch<br/>for camera"]
+    BatchExists{Batch exists?}
+    CheckMax{"Check max size"}
+    CreateNew["Create new batch"]
+    AtMax{At max?}
+    CloseBatch["Close batch"]
+    AtomicRPUSH["Atomic RPUSH<br/>detection"]
+    UpdateActivity["Update<br/>last_activity"]
+
+    AddDetect --> FastCheck
+    FastCheck -->|Yes| FastPath
+    FastCheck -->|No| AcquireLock
+    AcquireLock --> GetBatch
+    GetBatch --> BatchExists
+    BatchExists -->|Exists| CheckMax
+    BatchExists -->|None| CreateNew
+    CheckMax --> AtMax
+    AtMax -->|Yes| CloseBatch
+    AtMax -->|No| AtomicRPUSH
+    CloseBatch --> CreateNew
+    CreateNew --> AtomicRPUSH
+    AtomicRPUSH --> UpdateActivity
 ```
 
 ### Atomic Batch Metadata Creation
@@ -364,20 +313,13 @@ def _should_use_fast_path(self, confidence: float | None, object_type: str | Non
     return object_type.lower() in [t.lower() for t in self._fast_path_types]
 ```
 
-```
-Fast Path Flow:
-+------------------+
-| confidence > 95% |
-| AND              |
-| object = person  |
-+--------+---------+
-         |
-         v
-+--------+---------+
-| Skip batching    |
-| Immediate        |
-| analysis         |
-+------------------+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+    Check{"confidence > 95%<br/>AND<br/>object = person"}
+    Skip["Skip batching<br/>Immediate analysis"]
+
+    Check -->|Fast Path| Skip
 ```
 
 ## Max Size Protection

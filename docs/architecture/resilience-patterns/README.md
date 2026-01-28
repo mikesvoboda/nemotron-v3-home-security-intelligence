@@ -4,7 +4,7 @@ This directory contains comprehensive documentation for the resilience patterns 
 
 ## Pattern Overview
 
-![Resilience Pattern Architecture - Circuit breakers, retry handlers, and health monitoring](../../images/architecture/resilience-patterns/resilience-overview-graphviz.png)
+![Resilience Pattern Architecture - Circuit breakers, retry handlers, and health monitoring](../../images/architecture/resilience-overview-graphviz.png)
 
 | Pattern                                         | Purpose                                          | Source File                               |
 | ----------------------------------------------- | ------------------------------------------------ | ----------------------------------------- |
@@ -16,37 +16,48 @@ This directory contains comprehensive documentation for the resilience patterns 
 
 ## Architecture Diagram
 
-```
-                          +-------------------+
-                          |  Incoming Request |
-                          +--------+----------+
-                                   |
-                                   v
-                    +-----------------------------+
-                    |     Circuit Breaker Layer   |
-                    | (fail fast when unhealthy)  |
-                    +-------------+---------------+
-                                  |
-                    +-------------+---------------+
-                    |      Retry Handler Layer    |
-                    | (exponential backoff)       |
-                    +-------------+---------------+
-                                  |
-                   +--------------+--------------+
-                   |                             |
-                   v                             v
-           +-------+-------+            +-------+-------+
-           |    Success    |            |    Failure    |
-           | (reset state) |            | (record fail) |
-           +---------------+            +-------+-------+
-                                                |
-                                +---------------+--------------+
-                                |                              |
-                                v                              v
-                    +-----------+----------+      +-----------+----------+
-                    | Retry (if attempts   |      | Dead-Letter Queue    |
-                    | remaining)           |      | (max retries hit)    |
-                    +----------------------+      +----------------------+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    REQ[Incoming Request] --> CB
+
+    subgraph CB["Circuit Breaker Layer"]
+        CB_CHECK{Circuit<br/>State?}
+    end
+
+    CB_CHECK -->|Closed/Half-Open| RETRY
+    CB_CHECK -->|Open| FAST_FAIL[Fast Fail<br/>when unhealthy]
+
+    subgraph RETRY["Retry Handler Layer"]
+        RETRY_EXEC[Execute with<br/>Exponential Backoff]
+    end
+
+    RETRY_EXEC --> OUTCOME{Result?}
+
+    OUTCOME -->|Success| SUCCESS[Success<br/>Reset State]
+    OUTCOME -->|Failure| FAILURE[Failure<br/>Record Fail]
+
+    FAILURE --> RETRY_CHECK{Attempts<br/>Remaining?}
+    RETRY_CHECK -->|Yes| BACKOFF[Wait with<br/>Backoff] --> RETRY_EXEC
+    RETRY_CHECK -->|No| DLQ[Dead-Letter Queue<br/>Max Retries Hit]
+
+    FAST_FAIL --> DLQ
+
+    style SUCCESS fill:#76B900,color:#fff
+    style DLQ fill:#E74856,color:#fff
+    style FAST_FAIL fill:#FFB800,color:#000
 ```
 
 ## Quick Reference
@@ -92,20 +103,41 @@ This directory contains comprehensive documentation for the resilience patterns 
 
 ### Service Dependencies
 
-```
-File Watcher
-    |
-    v
-Detection Queue --> DetectionQueueWorker --> YOLO26
-    |                     |                     |
-    |              CircuitBreaker          [Protected]
-    |              RetryHandler
-    |                     |
-    v                     v
-Analysis Queue --> AnalysisQueueWorker --> Nemotron LLM
-                          |                     |
-                   CircuitBreaker          [Protected]
-                   RetryHandler
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    FW[File Watcher] --> DQ[detection_queue]
+
+    subgraph Detection["Detection Pipeline"]
+        DQ --> DW[DetectionQueueWorker]
+        DW --> CB1[CircuitBreaker<br/>+ RetryHandler]
+        CB1 --> YOLO[YOLO26<br/>Protected]
+    end
+
+    DW --> AQ[analysis_queue]
+
+    subgraph Analysis["Analysis Pipeline"]
+        AQ --> AW[AnalysisQueueWorker]
+        AW --> CB2[CircuitBreaker<br/>+ RetryHandler]
+        CB2 --> NEM[Nemotron LLM<br/>Protected]
+    end
+
+    style YOLO fill:#3B82F6,color:#fff
+    style NEM fill:#A855F7,color:#fff
+    style CB1 fill:#FFB800,color:#000
+    style CB2 fill:#FFB800,color:#000
 ```
 
 ### Global Registry Access
