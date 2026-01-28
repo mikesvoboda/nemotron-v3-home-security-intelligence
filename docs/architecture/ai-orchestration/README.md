@@ -6,8 +6,8 @@ This hub documents the AI model infrastructure that powers the home security int
 
 | Model              | Port | Container       | VRAM            | Purpose                     |
 | ------------------ | ---- | --------------- | --------------- | --------------------------- |
-| YOLO26             | 8095 | `ai-yolo26`     | ~650MB          | Primary object detection    |
-| Nemotron 30B       | 8091 | `ai-nemotron`   | ~14.7GB         | Risk analysis and reasoning |
+| YOLO26             | 8090 | `ai-yolo26`     | ~650MB          | Primary object detection    |
+| Nemotron 70B       | 8091 | `ai-nemotron`   | ~21.7GB         | Risk analysis and reasoning |
 | Florence-2         | 8092 | `ai-florence`   | ~1.2GB          | Vision-language captioning  |
 | Enrichment Service | 8094 | `ai-enrichment` | ~6.8GB (budget) | Multi-model enrichment      |
 
@@ -42,7 +42,7 @@ flowchart TB
     end
 
     subgraph AI["AI Services"]
-        YOLO["YOLO26<br/>Port 8095<br/>Object Detection"]
+        YOLO["YOLO26<br/>Port 8090<br/>Object Detection"]
         NEM["Nemotron 70B<br/>Port 8091<br/>Risk Analysis"]
         ENR["Enrichment Svc<br/>Port 8094<br/>Multi-model Zoo"]
     end
@@ -74,7 +74,7 @@ The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction f
 | Document                                           | Purpose                                       |
 | -------------------------------------------------- | --------------------------------------------- |
 | [model-zoo.md](./model-zoo.md)                     | Model registry, VRAM management, LRU eviction |
-| [yolo26-client.md](./yolo26-client.md)             | YOLO26 detection client interface             |
+| [yolo26-client.md](./yolo26-client.md)             | YOLO26 detector client implementation         |
 | [nemotron-analyzer.md](./nemotron-analyzer.md)     | LLM-based risk analysis service               |
 | [enrichment-pipeline.md](./enrichment-pipeline.md) | Multi-model enrichment flow                   |
 | [fallback-strategies.md](./fallback-strategies.md) | Graceful degradation patterns                 |
