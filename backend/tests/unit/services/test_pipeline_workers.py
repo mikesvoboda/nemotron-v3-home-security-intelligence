@@ -2516,3 +2516,629 @@ async def test_analysis_worker_handles_invalid_pipeline_start_time(
         call_args = mock_record_latency.call_args_list
         total_pipeline_calls = [c for c in call_args if c[0][0] == "total_pipeline"]
         assert len(total_pipeline_calls) == 0
+
+
+# =============================================================================
+# Test broadcast_worker_event function (lines 95-126)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_broadcast_worker_event_success():
+    """Test that broadcast_worker_event emits events successfully."""
+    from backend.services.pipeline_workers import broadcast_worker_event
+
+    mock_emitter = AsyncMock()
+    mock_emitter.emit = AsyncMock()
+
+    await broadcast_worker_event(
+        emitter=mock_emitter,
+        event_type="worker.started",
+        worker_name="test_worker",
+        worker_type="detection",
+        extra_field="extra_value",
+    )
+
+    # Verify emit was called with correct event type and payload
+    mock_emitter.emit.assert_called_once()
+    call_args = mock_emitter.emit.call_args
+    # First arg should be WebSocketEventType.WORKER_STARTED
+    assert call_args[0][0].name == "WORKER_STARTED"
+    # Second arg should be the payload dict
+    payload = call_args[0][1]
+    assert payload["worker_name"] == "test_worker"
+    assert payload["worker_type"] == "detection"
+    assert payload["extra_field"] == "extra_value"
+    assert "timestamp" in payload
+
+
+@pytest.mark.asyncio
+async def test_broadcast_worker_event_with_none_emitter():
+    """Test that broadcast_worker_event handles None emitter gracefully."""
+    from backend.services.pipeline_workers import broadcast_worker_event
+
+    # Should not raise an exception
+    await broadcast_worker_event(
+        emitter=None,
+        event_type="worker.started",
+        worker_name="test_worker",
+        worker_type="detection",
+    )
+
+
+@pytest.mark.asyncio
+async def test_broadcast_worker_event_unknown_event_type():
+    """Test that broadcast_worker_event handles unknown event types."""
+    from backend.services.pipeline_workers import broadcast_worker_event
+
+    mock_emitter = AsyncMock()
+    mock_emitter.emit = AsyncMock()
+
+    await broadcast_worker_event(
+        emitter=mock_emitter,
+        event_type="worker.unknown_event_type",
+        worker_name="test_worker",
+        worker_type="detection",
+    )
+
+    # Should not call emit for unknown event type
+    mock_emitter.emit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_worker_event_emit_failure():
+    """Test that broadcast_worker_event handles emit failures gracefully."""
+    from backend.services.pipeline_workers import broadcast_worker_event
+
+    mock_emitter = AsyncMock()
+    mock_emitter.emit = AsyncMock(side_effect=Exception("Emit failed"))
+
+    # Should not raise exception (failures are logged but not propagated)
+    await broadcast_worker_event(
+        emitter=mock_emitter,
+        event_type="worker.started",
+        worker_name="test_worker",
+        worker_type="detection",
+    )
+
+
+@pytest.mark.asyncio
+async def test_broadcast_worker_event_all_event_types():
+    """Test all supported worker event types."""
+    from backend.services.pipeline_workers import broadcast_worker_event
+
+    mock_emitter = AsyncMock()
+    mock_emitter.emit = AsyncMock()
+
+    event_types = [
+        "worker.started",
+        "worker.stopped",
+        "worker.health_check_failed",
+        "worker.restarting",
+        "worker.recovered",
+        "worker.error",
+    ]
+
+    for event_type in event_types:
+        mock_emitter.emit.reset_mock()
+        await broadcast_worker_event(
+            emitter=mock_emitter,
+            event_type=event_type,
+            worker_name="test_worker",
+            worker_type="detection",
+        )
+        # Each valid event type should result in an emit call
+        mock_emitter.emit.assert_called_once()
+
+
+# =============================================================================
+# Test video detection error handling (lines 635-646, 663-672)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_video_processing_detector_unavailable_during_frames():
+    """Test video processing when detector becomes unavailable mid-processing."""
+    from backend.services.detector_client import DetectorUnavailableError
+    from backend.services.retry_handler import RetryResult
+
+    mock_redis = AsyncMock(spec=RedisClient)
+    mock_detector = AsyncMock()
+    mock_aggregator = AsyncMock(spec=BatchAggregator)
+    mock_video_processor = AsyncMock()
+
+    # Mock video processor to return multiple frames
+    mock_video_processor.extract_frames_for_detection_batch = AsyncMock(
+        return_value=["frame1.jpg", "frame2.jpg", "frame3.jpg"]
+    )
+    mock_video_processor.get_video_metadata = AsyncMock(return_value={"duration": 10.0, "fps": 30})
+    mock_video_processor.cleanup_extracted_frames = MagicMock()
+
+    # Mock retry handler - first call succeeds, second fails
+    call_count = 0
+
+    async def mock_retry(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First frame succeeds
+            detection = MagicMock()
+            detection.id = 1
+            detection.confidence = 0.9
+            detection.object_type = "person"
+            return RetryResult(
+                success=True,
+                result=[detection],
+                attempts=1,
+                error=None,
+                moved_to_dlq=False,
+            )
+        else:
+            # Subsequent frames fail
+            return RetryResult(
+                success=False,
+                result=None,
+                attempts=3,
+                error="Detector unavailable",
+                moved_to_dlq=True,
+            )
+
+    mock_retry_handler = AsyncMock()
+    mock_retry_handler.with_retry = mock_retry
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis,
+        detector_client=mock_detector,
+        batch_aggregator=mock_aggregator,
+        video_processor=mock_video_processor,
+        retry_handler=mock_retry_handler,
+    )
+
+    job_data = {
+        "camera_id": "front_door",
+        "file_path": "/videos/test.mp4",
+        "media_type": "video",
+    }
+
+    # Mock database session
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    # Should raise DetectorUnavailableError and cleanup frames
+    with (
+        patch("backend.services.pipeline_workers.get_session", return_value=mock_session),
+        pytest.raises(DetectorUnavailableError),
+    ):
+        await worker._process_video_detection(
+            camera_id="front_door",
+            video_path="/videos/test.mp4",
+            job_data=job_data,
+            pipeline_start_time=None,
+        )
+
+    # Verify cleanup was called despite error
+    mock_video_processor.cleanup_extracted_frames.assert_called_once_with("/videos/test.mp4")
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_video_processing_frame_exception_continues():
+    """Test that frame processing exceptions are logged but processing continues."""
+    from backend.services.retry_handler import RetryResult
+
+    mock_redis = AsyncMock(spec=RedisClient)
+    mock_detector = AsyncMock()
+    mock_aggregator = AsyncMock(spec=BatchAggregator)
+    mock_video_processor = AsyncMock()
+
+    # Mock video processor
+    mock_video_processor.extract_frames_for_detection_batch = AsyncMock(
+        return_value=["frame1.jpg", "frame2.jpg", "frame3.jpg"]
+    )
+    mock_video_processor.get_video_metadata = AsyncMock(return_value={"duration": 10.0, "fps": 30})
+    mock_video_processor.cleanup_extracted_frames = MagicMock()
+
+    # Mock retry handler - frame 2 raises exception but continues
+    call_count = 0
+
+    async def mock_retry(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            # Second frame raises exception but returns success with empty result
+            return RetryResult(
+                success=True,
+                result=[],  # Empty result for failed frame
+                attempts=1,
+                error="Frame processing error",
+                moved_to_dlq=False,
+            )
+        # Other frames succeed
+        detection = MagicMock()
+        detection.id = call_count
+        detection.confidence = 0.9
+        detection.object_type = "person"
+        return RetryResult(
+            success=True,
+            result=[detection],
+            attempts=1,
+            error=None,
+            moved_to_dlq=False,
+        )
+
+    mock_retry_handler = AsyncMock()
+    mock_retry_handler.with_retry = mock_retry
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis,
+        detector_client=mock_detector,
+        batch_aggregator=mock_aggregator,
+        video_processor=mock_video_processor,
+        retry_handler=mock_retry_handler,
+    )
+
+    job_data = {
+        "camera_id": "front_door",
+        "file_path": "/videos/test.mp4",
+        "media_type": "video",
+    }
+
+    # Mock database session
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    # Should complete successfully despite frame 2 error
+    with patch("backend.services.pipeline_workers.get_session", return_value=mock_session):
+        await worker._process_video_detection(
+            camera_id="front_door",
+            video_path="/videos/test.mp4",
+            job_data=job_data,
+            pipeline_start_time=None,
+        )
+
+    # Verify cleanup was called
+    mock_video_processor.cleanup_extracted_frames.assert_called_once()
+
+
+# =============================================================================
+# Test drain_queues with stall detection (lines 1557-1564, 1570-1577)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_manager_drain_queues_successful():
+    """Test successful queue draining."""
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    # Simulate queue draining: 3 items -> 2 -> 1 -> 0
+    queue_depths = [3, 2, 1, 0]
+    call_count = 0
+
+    async def mock_get_queue_length(queue_name):
+        nonlocal call_count
+        if call_count < len(queue_depths):
+            depth = queue_depths[call_count]
+            call_count += 1
+            return depth
+        return 0
+
+    mock_redis.get_queue_length = mock_get_queue_length
+
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis,
+        enable_detection_worker=False,
+        enable_analysis_worker=False,
+        enable_timeout_worker=False,
+        enable_metrics_worker=False,
+    )
+
+    remaining = await manager.drain_queues(timeout=5.0)
+    assert remaining == 0
+    assert not manager.accepting
+
+
+@pytest.mark.asyncio
+async def test_manager_drain_queues_with_stall():
+    """Test queue draining with stall detection (no progress for 5+ seconds)."""
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    # Simulate stall: each queue has 2 items (total 4)
+    async def mock_get_queue_length(queue_name):
+        return 2
+
+    mock_redis.get_queue_length = mock_get_queue_length
+
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis,
+        enable_detection_worker=False,
+        enable_analysis_worker=False,
+        enable_timeout_worker=False,
+        enable_metrics_worker=False,
+    )
+
+    # Use short timeout to avoid long test
+    remaining = await manager.drain_queues(timeout=0.6)
+    assert remaining == 4  # Still pending after timeout (2 per queue)
+
+
+@pytest.mark.asyncio
+async def test_manager_drain_queues_already_empty():
+    """Test draining when queues are already empty."""
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    async def mock_get_queue_length(queue_name):
+        return 0
+
+    mock_redis.get_queue_length = mock_get_queue_length
+
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis,
+        enable_detection_worker=False,
+        enable_analysis_worker=False,
+        enable_timeout_worker=False,
+        enable_metrics_worker=False,
+    )
+
+    remaining = await manager.drain_queues(timeout=5.0)
+    assert remaining == 0
+
+
+# =============================================================================
+# Test manager stop with ExceptionGroup handling (lines 1699-1703)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_manager_stop_with_worker_exceptions():
+    """Test that manager handles worker stop exceptions gracefully."""
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    # Create manager with workers
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis,
+        enable_detection_worker=True,
+        enable_analysis_worker=True,
+        enable_timeout_worker=True,
+        enable_metrics_worker=True,
+        worker_stop_timeout=0.1,
+    )
+
+    # Mock one worker to fail during stop
+    original_stop = manager._detection_worker.stop
+
+    async def failing_stop():
+        raise RuntimeError("Worker stop failed")
+
+    manager._detection_worker.stop = failing_stop
+    manager._running = True  # Pretend we're running
+
+    # Stop should complete despite exception (logged but not raised)
+    await manager.stop()
+
+    # Manager should still be stopped
+    assert not manager.running
+
+
+# =============================================================================
+# Test get_pipeline_manager singleton with lock (lines 1820-1827)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_pipeline_manager_creates_singleton():
+    """Test that get_pipeline_manager creates and returns singleton instance."""
+    from backend.services.pipeline_workers import (
+        get_pipeline_manager,
+        reset_pipeline_manager_state,
+    )
+
+    reset_pipeline_manager_state()
+
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    manager1 = await get_pipeline_manager(mock_redis)
+    manager2 = await get_pipeline_manager(mock_redis)
+
+    # Should return same instance
+    assert manager1 is manager2
+
+    reset_pipeline_manager_state()
+
+
+@pytest.mark.asyncio
+async def test_get_pipeline_manager_concurrent_initialization():
+    """Test that concurrent initialization is handled correctly with lock."""
+    from backend.services.pipeline_workers import (
+        get_pipeline_manager,
+        reset_pipeline_manager_state,
+    )
+
+    reset_pipeline_manager_state()
+
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    # Simulate concurrent access
+    results = await asyncio.gather(
+        get_pipeline_manager(mock_redis),
+        get_pipeline_manager(mock_redis),
+        get_pipeline_manager(mock_redis),
+    )
+
+    # All should return the same instance
+    assert results[0] is results[1]
+    assert results[1] is results[2]
+
+    reset_pipeline_manager_state()
+
+
+# =============================================================================
+# Test worker factory functions (lines 1903-1910, 1926-1933, 1949-1956, 1972-1979)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_create_detection_worker_factory():
+    """Test create_detection_worker factory function."""
+    from backend.services.pipeline_workers import create_detection_worker
+
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    worker_func = create_detection_worker(mock_redis)
+    assert callable(worker_func)
+    # Just verify it returns a coroutine function, don't actually run it
+    # (running it would require mocking detector, batch aggregator, etc.)
+
+
+@pytest.mark.asyncio
+async def test_create_analysis_worker_factory():
+    """Test create_analysis_worker factory function."""
+    from backend.services.pipeline_workers import create_analysis_worker
+
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    worker_func = create_analysis_worker(mock_redis)
+    assert callable(worker_func)
+    # Just verify it returns a coroutine function
+
+
+@pytest.mark.asyncio
+async def test_create_timeout_worker_factory():
+    """Test create_timeout_worker factory function."""
+    from backend.services.pipeline_workers import create_timeout_worker
+
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    worker_func = create_timeout_worker(mock_redis)
+    assert callable(worker_func)
+    # Just verify it returns a coroutine function
+
+
+@pytest.mark.asyncio
+async def test_create_metrics_worker_factory():
+    """Test create_metrics_worker factory function."""
+    from backend.services.pipeline_workers import create_metrics_worker
+
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    worker_func = create_metrics_worker(mock_redis)
+    assert callable(worker_func)
+    # Just verify it returns a coroutine function
+
+
+# =============================================================================
+# Additional edge case tests for higher coverage
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_video_processing_with_detector_unavailable_exception():
+    """Test video processing when DetectorUnavailableError is raised directly (not via retry)."""
+    from backend.services.detector_client import DetectorUnavailableError
+    from backend.services.retry_handler import RetryResult
+
+    mock_redis = AsyncMock(spec=RedisClient)
+    mock_detector = AsyncMock()
+    mock_aggregator = AsyncMock(spec=BatchAggregator)
+    mock_video_processor = AsyncMock()
+
+    # Mock video processor
+    mock_video_processor.extract_frames_for_detection_batch = AsyncMock(
+        return_value=["frame1.jpg", "frame2.jpg"]
+    )
+    mock_video_processor.get_video_metadata = AsyncMock(return_value={"duration": 10.0, "fps": 30})
+    mock_video_processor.cleanup_extracted_frames = MagicMock()
+
+    # Mock retry handler to succeed first, then raise exception directly
+    call_count = 0
+
+    async def mock_retry(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First frame succeeds
+            detection = MagicMock()
+            detection.id = 1
+            detection.confidence = 0.9
+            detection.object_type = "person"
+            return RetryResult(
+                success=True,
+                result=[detection],
+                attempts=1,
+                error=None,
+                moved_to_dlq=False,
+            )
+        else:
+            # Second frame - raise DetectorUnavailableError directly
+            # This tests the except DetectorUnavailableError block (lines 663-666)
+            raise DetectorUnavailableError("Detector service is down")
+
+    mock_retry_handler = AsyncMock()
+    mock_retry_handler.with_retry = mock_retry
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis,
+        detector_client=mock_detector,
+        batch_aggregator=mock_aggregator,
+        video_processor=mock_video_processor,
+        retry_handler=mock_retry_handler,
+    )
+
+    job_data = {
+        "camera_id": "front_door",
+        "file_path": "/videos/test.mp4",
+        "media_type": "video",
+    }
+
+    # Mock database session
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("backend.services.pipeline_workers.get_session", return_value=mock_session),
+        pytest.raises(DetectorUnavailableError),
+    ):
+        await worker._process_video_detection(
+            camera_id="front_door",
+            video_path="/videos/test.mp4",
+            job_data=job_data,
+            pipeline_start_time=None,
+        )
+
+    # Cleanup should be called in finally block
+    mock_video_processor.cleanup_extracted_frames.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_manager_drain_queues_with_stall_logging():
+    """Test drain_queues with stall detection that triggers debug logging."""
+    mock_redis = AsyncMock(spec=RedisClient)
+
+    # Simulate stall that lasts long enough to trigger logging
+    # First calls return high count, later calls return 0
+    call_count = 0
+
+    async def mock_get_queue_length(queue_name):
+        nonlocal call_count
+        call_count += 1
+        # Return 2 per queue (4 total) for first 60 calls (6 seconds at 0.1s interval)
+        # This will trigger stall logging after 5 seconds
+        if call_count < 60:
+            return 2
+        return 0
+
+    mock_redis.get_queue_length = mock_get_queue_length
+
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis,
+        enable_detection_worker=False,
+        enable_analysis_worker=False,
+        enable_timeout_worker=False,
+        enable_metrics_worker=False,
+    )
+
+    # Run with longer timeout to allow stall logging to trigger
+    remaining = await manager.drain_queues(timeout=10.0)
+    # Should complete eventually
+    assert remaining == 0

@@ -724,3 +724,179 @@ class TestNemotronCall:
             assert "<think>" not in result
             assert "internal reasoning" not in result
             assert "Clean summary text." in result
+
+
+# Tests: Authentication Headers
+
+
+class TestAuthenticationHeaders:
+    """Tests for authentication header generation."""
+
+    def test_get_auth_headers_without_api_key(self) -> None:
+        """Test that headers are generated without API key."""
+        generator = SummaryGenerator(llm_url="http://localhost:8091", api_key=None)
+
+        headers = generator._get_auth_headers()
+
+        assert "Content-Type" in headers
+        assert headers["Content-Type"] == "application/json"
+        assert "X-API-Key" not in headers
+
+    def test_get_auth_headers_with_string_api_key(self) -> None:
+        """Test that headers include API key when provided as string."""
+        generator = SummaryGenerator(llm_url="http://localhost:8091", api_key="test-api-key-123")
+
+        headers = generator._get_auth_headers()
+
+        assert "Content-Type" in headers
+        assert "X-API-Key" in headers
+        assert headers["X-API-Key"] == "test-api-key-123"
+
+    def test_get_auth_headers_with_secret_str_api_key(self) -> None:
+        """Test that headers include API key when provided as SecretStr."""
+        from pydantic import SecretStr
+
+        secret_key = SecretStr("secret-api-key-456")
+        generator = SummaryGenerator(llm_url="http://localhost:8091", api_key=secret_key)
+
+        headers = generator._get_auth_headers()
+
+        assert "Content-Type" in headers
+        assert "X-API-Key" in headers
+        assert headers["X-API-Key"] == "secret-api-key-456"
+
+
+# Tests: Session Management
+
+
+class TestSessionManagement:
+    """Tests for database session management paths."""
+
+    @pytest.mark.asyncio
+    async def test_generate_hourly_summary_without_session(self) -> None:
+        """Test generating hourly summary without providing a session."""
+        generator = SummaryGenerator(llm_url="http://localhost:8091")
+
+        mock_summary = MagicMock(spec=Summary)
+        mock_summary.id = 1
+        mock_summary.content = "Hourly summary"
+
+        with (
+            patch("backend.services.summary_generator.get_session") as mock_get_session,
+            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
+            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+        ):
+            # Setup mock session context manager
+            mock_session = MagicMock()
+            mock_session_ctx = AsyncMock()
+            mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session_ctx.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session_ctx
+
+            # Setup event and summary repos
+            mock_event_repo = MagicMock()
+            mock_event_repo.get_in_date_range = AsyncMock(return_value=[])
+            mock_event_repo_cls.return_value = mock_event_repo
+
+            mock_summary_repo = MagicMock()
+            mock_summary_repo.create_summary = AsyncMock(return_value=mock_summary)
+            mock_summary_repo_cls.return_value = mock_summary_repo
+
+            mock_nemotron.return_value = "All clear"
+
+            # Execute without passing session
+            result = await generator.generate_hourly_summary(session=None)
+
+            # Verify result and that get_session was called
+            assert result == mock_summary
+            mock_get_session.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_generate_daily_summary_without_session(self) -> None:
+        """Test generating daily summary without providing a session."""
+        generator = SummaryGenerator(llm_url="http://localhost:8091")
+
+        mock_summary = MagicMock(spec=Summary)
+        mock_summary.id = 2
+        mock_summary.content = "Daily summary"
+
+        with (
+            patch("backend.services.summary_generator.get_session") as mock_get_session,
+            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
+            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+        ):
+            # Setup mock session context manager
+            mock_session = MagicMock()
+            mock_session_ctx = AsyncMock()
+            mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session_ctx.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session_ctx
+
+            # Setup event and summary repos
+            mock_event_repo = MagicMock()
+            mock_event_repo.get_in_date_range = AsyncMock(return_value=[])
+            mock_event_repo_cls.return_value = mock_event_repo
+
+            mock_summary_repo = MagicMock()
+            mock_summary_repo.create_summary = AsyncMock(return_value=mock_summary)
+            mock_summary_repo_cls.return_value = mock_summary_repo
+
+            mock_nemotron.return_value = "All clear for today"
+
+            # Execute without passing session
+            result = await generator.generate_daily_summary(session=None)
+
+            # Verify result and that get_session was called
+            assert result == mock_summary
+            mock_get_session.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_generate_all_summaries_without_session(self) -> None:
+        """Test generating all summaries without providing a session."""
+        generator = SummaryGenerator(llm_url="http://localhost:8091")
+
+        mock_hourly_summary = MagicMock(spec=Summary)
+        mock_hourly_summary.id = 1
+        mock_hourly_summary.content = "Hourly summary"
+
+        mock_daily_summary = MagicMock(spec=Summary)
+        mock_daily_summary.id = 2
+        mock_daily_summary.content = "Daily summary"
+
+        with (
+            patch("backend.services.summary_generator.get_session") as mock_get_session,
+            patch("backend.services.summary_generator.EventRepository") as mock_event_repo_cls,
+            patch("backend.services.summary_generator.SummaryRepository") as mock_summary_repo_cls,
+            patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
+        ):
+            # Setup mock session context manager
+            mock_session = MagicMock()
+            mock_session_ctx = AsyncMock()
+            mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session_ctx.__aexit__ = AsyncMock()
+            mock_get_session.return_value = mock_session_ctx
+
+            # Setup event and summary repos
+            mock_event_repo = MagicMock()
+            mock_event_repo.get_in_date_range = AsyncMock(return_value=[])
+            mock_event_repo_cls.return_value = mock_event_repo
+
+            mock_summary_repo = MagicMock()
+            mock_summary_repo.create_summary = AsyncMock(
+                side_effect=[mock_hourly_summary, mock_daily_summary]
+            )
+            mock_summary_repo_cls.return_value = mock_summary_repo
+
+            mock_nemotron.return_value = "Summary content"
+
+            # Execute without passing session
+            result = await generator.generate_all_summaries(session=None)
+
+            # Verify result and that get_session was called
+            assert "hourly" in result
+            assert "daily" in result
+            assert result["hourly"] == mock_hourly_summary
+            assert result["daily"] == mock_daily_summary
+            mock_get_session.assert_called_once()

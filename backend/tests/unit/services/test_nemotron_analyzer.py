@@ -4447,3 +4447,222 @@ async def test_call_llm_vehicle_only_household_context(analyzer):
         request_json = call_args[1]["json"]
         prompt = request_json["prompt"]
         assert "White Tesla Model 3" in prompt
+
+
+# =============================================================================
+# Additional Coverage Tests for Uncovered Sections
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_extract_reasoning_and_response_with_think_block():
+    """Test extracting reasoning from <think> tags."""
+    from backend.services.nemotron_analyzer import extract_reasoning_and_response
+
+    text = """<think>This is reasoning content
+    with multiple lines</think>
+    {"risk_score": 50, "summary": "test"}"""
+
+    reasoning, response = extract_reasoning_and_response(text)
+
+    assert reasoning == "This is reasoning content\n    with multiple lines"
+    assert "<think>" not in response
+    assert "risk_score" in response
+
+
+@pytest.mark.asyncio
+async def test_extract_reasoning_and_response_no_think_block():
+    """Test extract_reasoning_and_response when no think block present."""
+    from backend.services.nemotron_analyzer import extract_reasoning_and_response
+
+    text = '{"risk_score": 50, "summary": "test"}'
+
+    reasoning, response = extract_reasoning_and_response(text)
+
+    assert reasoning == ""
+    assert response == text.strip()
+
+
+@pytest.mark.asyncio
+async def test_check_guided_json_support_cached(analyzer):
+    """Test _check_guided_json_support returns cached result."""
+    # Set cached value
+    analyzer._supports_guided_json = True
+
+    result = await analyzer._check_guided_json_support()
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_check_guided_json_support_http_4xx_error(analyzer):
+    """Test _check_guided_json_support with 4xx HTTP error."""
+    analyzer._supports_guided_json = None
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 400
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad request", request=MagicMock(), response=mock_resp
+        )
+        mock_post.return_value = mock_resp
+
+        result = await analyzer._check_guided_json_support()
+
+        assert result is False
+        assert analyzer._supports_guided_json is False
+
+
+@pytest.mark.asyncio
+async def test_check_guided_json_support_http_5xx_error_max_retries(analyzer):
+    """Test _check_guided_json_support with 5xx error exhausting retries."""
+    analyzer._supports_guided_json = None
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Server error", request=MagicMock(), response=mock_resp
+        )
+        mock_post.return_value = mock_resp
+
+        result = await analyzer._check_guided_json_support()
+
+        # Should retry 3 times total
+        assert mock_post.call_count == 3
+        # Should not cache result after server errors
+        assert analyzer._supports_guided_json is None
+
+
+@pytest.mark.asyncio
+async def test_check_guided_json_support_connection_error_retry(analyzer):
+    """Test _check_guided_json_support retries on connection error."""
+    analyzer._supports_guided_json = None
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection failed")
+
+        result = await analyzer._check_guided_json_support()
+
+        # Should retry 3 times
+        assert mock_post.call_count == 3
+        assert analyzer._supports_guided_json is None
+
+
+@pytest.mark.asyncio
+async def test_check_guided_json_support_unexpected_error_retry(analyzer):
+    """Test _check_guided_json_support retries on unexpected error."""
+    analyzer._supports_guided_json = None
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = Exception("Unexpected error")
+
+        result = await analyzer._check_guided_json_support()
+
+        # Should retry 3 times
+        assert mock_post.call_count == 3
+        assert analyzer._supports_guided_json is None
+
+
+@pytest.mark.asyncio
+async def test_build_guided_json_extra_body_disabled(analyzer):
+    """Test _build_guided_json_extra_body when disabled."""
+    analyzer._use_guided_json = False
+
+    result = analyzer._build_guided_json_extra_body()
+
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_build_guided_json_extra_body_enabled(analyzer):
+    """Test _build_guided_json_extra_body when enabled."""
+    analyzer._use_guided_json = True
+
+    result = analyzer._build_guided_json_extra_body()
+
+    assert "nvext" in result
+    assert "guided_json" in result["nvext"]
+
+
+@pytest.mark.asyncio
+async def test_is_guided_json_enabled(analyzer):
+    """Test is_guided_json_enabled returns configuration value."""
+    analyzer._use_guided_json = True
+    assert analyzer.is_guided_json_enabled() is True
+
+    analyzer._use_guided_json = False
+    assert analyzer.is_guided_json_enabled() is False
+
+
+@pytest.mark.asyncio
+async def test_is_guided_json_fallback_enabled(mock_settings, mock_redis_client):
+    """Test is_guided_json_fallback_enabled returns configuration value."""
+    mock_settings.nemotron_guided_json_fallback = True
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
+        patch("backend.services.severity.get_settings", return_value=mock_settings),
+        patch("backend.services.token_counter.get_settings", return_value=mock_settings),
+        patch("backend.core.config.get_settings", return_value=mock_settings),
+        patch("backend.services.inference_semaphore.get_settings", return_value=mock_settings),
+    ):
+        from backend.services.severity import reset_severity_service
+        from backend.services.token_counter import reset_token_counter
+
+        reset_severity_service()
+        reset_token_counter()
+        analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
+
+        assert analyzer.is_guided_json_fallback_enabled() is True
+
+        reset_severity_service()
+        reset_token_counter()
+
+
+@pytest.mark.asyncio
+async def test_record_rollout_feedback_no_rollout_manager(analyzer):
+    """Test record_rollout_feedback when no rollout manager configured."""
+    analyzer._rollout_manager = None
+
+    # Should not raise an error
+    analyzer.record_rollout_feedback("camera1", is_false_positive=True)
+
+
+@pytest.mark.asyncio
+async def test_record_rollout_feedback_control_group(analyzer):
+    """Test record_rollout_feedback for control group."""
+    mock_rollout = MagicMock()
+    mock_rollout.get_group_for_camera.return_value = MagicMock()
+    mock_rollout.get_group_for_camera.return_value.__eq__ = (
+        lambda self, other: True
+    )  # Equals CONTROL
+
+    with patch("backend.config.prompt_ab_rollout.ExperimentGroup") as mock_exp_group:
+        mock_exp_group.CONTROL = MagicMock()
+        mock_rollout.get_group_for_camera.return_value = mock_exp_group.CONTROL
+
+        analyzer._rollout_manager = mock_rollout
+        analyzer.record_rollout_feedback("camera1", is_false_positive=True)
+
+        mock_rollout.record_control_feedback.assert_called_once_with(True)
+
+
+@pytest.mark.asyncio
+async def test_check_rollout_rollback_no_manager(analyzer):
+    """Test check_rollout_rollback when no manager configured."""
+    analyzer._rollout_manager = None
+
+    result = analyzer.check_rollout_rollback()
+
+    assert result.should_rollback is False
+    assert result.reason == "No rollout manager configured"
+
+
+@pytest.mark.asyncio
+async def test_execute_rollout_rollback_no_manager(analyzer):
+    """Test execute_rollout_rollback when no manager configured."""
+    analyzer._rollout_manager = None
+
+    # Should not raise an error
+    analyzer.execute_rollout_rollback()

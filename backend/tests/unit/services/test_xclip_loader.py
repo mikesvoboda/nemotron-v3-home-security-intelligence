@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import sys
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import numpy as np
 import pytest
@@ -703,6 +703,240 @@ class TestClassifyActionsInternal:
         # Verify half() was called for float16 model
         mock_pixel_values.half.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_classify_all_frames_fail_numpy_validation(self) -> None:
+        """Test that error is raised when all frames fail numpy conversion (deep validation)."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        # Create frames that pass initial validation but fail deep validation
+        # Mock PIL images where numpy conversion fails
+        mock_frame = MagicMock(spec=Image.Image)
+        mock_frame.size = (224, 224)
+        mock_frame.mode = "RGB"
+        mock_frame.load.side_effect = OSError("Corrupted during load")
+
+        frames = [mock_frame, mock_frame, mock_frame]  # type: ignore[list-item]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.float16 = "float16"
+
+        # Should raise ValueError about all frames failed numpy conversion
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            with pytest.raises(ValueError, match="all frames failed numpy conversion"):
+                await classify_actions(model_dict, frames, prompts=["a", "b", "c"])  # type: ignore[arg-type]
+
+    @pytest.mark.asyncio
+    async def test_classify_frame_validation_with_invalid_shape(self) -> None:
+        """Test frame validation handles invalid numpy array shapes."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Create a processor that validates and returns proper tensor
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
+        for v in mock_inputs.values():
+            v.to.return_value = v
+        mock_processor.return_value = mock_inputs
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array([0.5, 0.5])
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        # Create one valid frame
+        frames = [Image.new("RGB", (224, 224))]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        # Should handle frame validation gracefully
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            result = await classify_actions(model_dict, frames, prompts=["a", "b"])
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_classify_processor_returns_none(self) -> None:
+        """Test that RuntimeError is raised when processor returns None."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Processor returns None
+        mock_processor.return_value = None
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+        frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            with pytest.raises(RuntimeError, match="X-CLIP processor returned None"):
+                await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+    @pytest.mark.asyncio
+    async def test_classify_processor_returns_none_pixel_values(self) -> None:
+        """Test that RuntimeError is raised when processor returns None for pixel_values."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Processor returns dict with None pixel_values
+        mock_processor.return_value = {"pixel_values": None}
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+        frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            with pytest.raises(RuntimeError, match="returned None for pixel_values"):
+                await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+    @pytest.mark.asyncio
+    async def test_classify_pixel_values_no_shape_attribute(self) -> None:
+        """Test that RuntimeError is raised when pixel_values has no shape attribute."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Create pixel_values without shape attribute
+        mock_pixel_values = MagicMock()
+        del mock_pixel_values.shape  # Remove shape attribute
+        mock_processor.return_value = {"pixel_values": mock_pixel_values}
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+        frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            with pytest.raises(RuntimeError, match="has no shape attribute"):
+                await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+    @pytest.mark.asyncio
+    async def test_classify_processor_attribute_error(self) -> None:
+        """Test that RuntimeError is raised when processor raises AttributeError."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Processor raises AttributeError (NoneType has no attribute 'shape')
+        mock_processor.side_effect = AttributeError("'NoneType' object has no attribute 'shape'")
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+        frames = [Image.new("RGB", (224, 224)) for _ in range(16)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            with pytest.raises(RuntimeError, match="processor failed"):
+                await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+    @pytest.mark.asyncio
+    async def test_classify_frame_repadding_after_validation_loss(self) -> None:
+        """Test that frames are re-padded if some are lost during final validation."""
+        from backend.services.xclip_loader import classify_actions
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Setup proper mocked tensors
+        mock_inputs = {"pixel_values": create_mock_pixel_values()}
+        for v in mock_inputs.values():
+            v.to.return_value = v
+        mock_processor.return_value = mock_inputs
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
+            [0.6, 0.3, 0.1]
+        )
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        # Create frames - just a few to trigger padding
+        frames = [Image.new("RGB", (224, 224)) for _ in range(5)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            result = await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+        assert result is not None
+        assert "detected_action" in result
+
 
 # =============================================================================
 # sample_frames_from_batch Tests
@@ -1309,6 +1543,17 @@ class TestPilImageValidation:
         p_img = Image.new("P", (100, 100))
         assert _is_valid_pil_image(p_img) is True
 
+    def test_corrupted_pil_image_returns_false(self) -> None:
+        """Test that corrupted PIL Image (can't access size/mode) returns False."""
+        from backend.services.xclip_loader import _is_valid_pil_image
+
+        # Create a mock that looks like PIL Image but raises on attribute access
+        mock_img = MagicMock(spec=Image.Image)
+        # Use PropertyMock to make size raise exception when accessed
+        type(mock_img).size = PropertyMock(side_effect=OSError("Image corrupted"))
+
+        assert _is_valid_pil_image(mock_img) is False
+
 
 # =============================================================================
 # Numpy Conversion Validation Tests
@@ -1363,6 +1608,61 @@ class TestNumpyConversionValidation:
         assert arr is not None
         assert arr.shape == (100, 100, 4)  # 4 channels for RGBA
 
+    def test_convert_to_numpy_safe_with_corrupted_image(self) -> None:
+        """Test numpy conversion with corrupted image returns None."""
+        from backend.services.xclip_loader import _convert_to_numpy_safe
+
+        # Create a mock PIL Image that fails during load/array conversion
+        mock_img = MagicMock(spec=Image.Image)
+        mock_img.load.side_effect = OSError("Corrupted image data")
+
+        result = _convert_to_numpy_safe(mock_img)
+        assert result is None
+
+    def test_convert_to_numpy_safe_returns_none_for_invalid_array(self) -> None:
+        """Test that numpy conversion handles edge cases returning None."""
+        from backend.services.xclip_loader import _convert_to_numpy_safe
+
+        # Mock image that produces None array
+        mock_img = MagicMock(spec=Image.Image)
+        mock_img.load.return_value = None
+
+        with patch("numpy.array", return_value=None):
+            result = _convert_to_numpy_safe(mock_img)
+            assert result is None
+
+    def test_convert_to_numpy_safe_invalid_shape(self) -> None:
+        """Test that arrays with invalid shapes are rejected."""
+        from backend.services.xclip_loader import _convert_to_numpy_safe
+
+        # Mock image that produces 1D array (invalid)
+        mock_img = MagicMock(spec=Image.Image)
+        mock_img.load.return_value = None
+
+        with patch("numpy.array") as mock_array:
+            invalid_arr = MagicMock()
+            invalid_arr.shape = (100,)  # 1D, should be rejected
+            mock_array.return_value = invalid_arr
+
+            result = _convert_to_numpy_safe(mock_img)
+            assert result is None
+
+    def test_convert_to_numpy_safe_zero_dimensions(self) -> None:
+        """Test that arrays with zero dimensions are rejected."""
+        from backend.services.xclip_loader import _convert_to_numpy_safe
+
+        # Mock image that produces array with zero dimensions
+        mock_img = MagicMock(spec=Image.Image)
+        mock_img.load.return_value = None
+
+        with patch("numpy.array") as mock_array:
+            invalid_arr = MagicMock()
+            invalid_arr.shape = (0, 100, 3)  # Zero height
+            mock_array.return_value = invalid_arr
+
+            result = _convert_to_numpy_safe(mock_img)
+            assert result is None
+
     def test_validate_and_convert_frames_filters_none(self) -> None:
         """Test that None frames are filtered out."""
         from backend.services.xclip_loader import _validate_and_convert_frames
@@ -1373,6 +1673,26 @@ class TestNumpyConversionValidation:
         result = _validate_and_convert_frames(frames)  # type: ignore[arg-type]
 
         # Should only have the 2 valid images
+        assert len(result) == 2
+
+    def test_validate_and_convert_frames_logs_warning_for_corrupted(self) -> None:
+        """Test that corrupted frames are logged and filtered."""
+        from backend.services.xclip_loader import _validate_and_convert_frames
+
+        # Create a valid image and a corrupted one
+        valid_img = Image.new("RGB", (100, 100))
+
+        # Mock corrupted image that passes PIL validation but fails numpy conversion
+        mock_corrupted = MagicMock(spec=Image.Image)
+        mock_corrupted.size = (100, 100)
+        mock_corrupted.mode = "RGB"
+        mock_corrupted.load.side_effect = OSError("Corrupted")
+
+        frames = [valid_img, mock_corrupted, valid_img]  # type: ignore[list-item]
+
+        result = _validate_and_convert_frames(frames)  # type: ignore[arg-type]
+
+        # Should filter out the corrupted frame
         assert len(result) == 2
 
     def test_validate_and_convert_frames_filters_non_pil(self) -> None:

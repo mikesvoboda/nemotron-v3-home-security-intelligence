@@ -958,3 +958,414 @@ class TestSingleton:
         assert service1 is not service2
 
         reset_orphan_cleanup_service()
+
+
+# =============================================================================
+# Additional Coverage Tests
+# =============================================================================
+
+
+class TestEventIdExtraction:
+    """Tests for extracting event IDs from file paths."""
+
+    def test_extract_event_id_pattern_1_event_id(self):
+        """Test extraction of event ID from event_<id> pattern."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService()
+
+        # Test event_<id>
+        assert service._extract_event_id_from_path("event_123.mp4") == 123
+        assert service._extract_event_id_from_path("EVENT_456.mp4") == 456
+
+        # Test clip_event_<id>
+        assert service._extract_event_id_from_path("clip_event_789.mp4") == 789
+
+    def test_extract_event_id_pattern_2_id_prefix(self):
+        """Test extraction of event ID from <id>_ prefix pattern."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService()
+
+        # Test <id>_clip
+        assert service._extract_event_id_from_path("123_clip.mp4") == 123
+        assert service._extract_event_id_from_path("456-event.webm") == 456
+
+    def test_extract_event_id_pattern_3_just_number(self):
+        """Test extraction of event ID when filename is just a number."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService()
+
+        # Test just a number
+        assert service._extract_event_id_from_path("789.mp4") == 789
+        assert service._extract_event_id_from_path("123.webm") == 123
+
+    def test_extract_event_id_returns_none_for_no_match(self):
+        """Test that None is returned when no event ID can be extracted."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService()
+
+        # No numeric ID
+        assert service._extract_event_id_from_path("video.mp4") is None
+        assert service._extract_event_id_from_path("clip_abc.mp4") is None
+
+
+class TestScanErrorHandling:
+    """Tests for error handling during file scanning."""
+
+    def test_scan_handles_generic_exception(self, tmp_path):
+        """Test that scanning handles generic exceptions gracefully."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
+
+        # Mock glob to raise a generic exception
+        with patch("pathlib.Path.glob", side_effect=RuntimeError("Generic error")):
+            files = service._scan_clip_files()
+
+        assert files == []
+
+
+class TestFileAgeChecking:
+    """Tests for file age checking edge cases."""
+
+    def test_is_file_old_enough_handles_os_error(self):
+        """Test that file age checking handles OS errors gracefully."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService(age_threshold_hours=24)
+        test_file = Path("/nonexistent/file.mp4")
+
+        # Mock stat to raise OSError
+        with patch.object(Path, "stat", side_effect=OSError("Stat failed")):
+            result = service._is_file_old_enough(test_file)
+
+        assert result is False
+
+    def test_is_file_old_enough_handles_file_not_found(self):
+        """Test that file age checking handles FileNotFoundError."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService(age_threshold_hours=24)
+        test_file = Path("/nonexistent/file.mp4")
+
+        # File doesn't exist - should handle gracefully
+        result = service._is_file_old_enough(test_file)
+
+        assert result is False
+
+
+class TestOrphanChecking:
+    """Tests for orphan checking with different scenarios."""
+
+    @pytest.mark.asyncio
+    async def test_is_orphan_event_exists_but_file_not_referenced(self, tmp_path):
+        """Test file is orphan when event exists but file is not referenced."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        test_file = tmp_path / "event_123.mp4"
+        test_file.write_text("test")
+
+        service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
+
+        # Mock database: event exists (first query), but clip_path doesn't match (second query)
+        mock_session = AsyncMock()
+
+        call_count = 0
+
+        async def mock_execute(query):
+            nonlocal call_count
+            call_count += 1
+            mock_result = MagicMock()
+            if call_count == 1:
+                # First query: event exists
+                mock_result.scalar_one_or_none.return_value = 123
+            else:
+                # Second query: clip_path doesn't match
+                mock_result.scalar_one_or_none.return_value = None
+            return mock_result
+
+        mock_session.execute = mock_execute
+
+        @contextlib.asynccontextmanager
+        async def mock_get_session():
+            yield mock_session
+
+        with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
+            is_orphan = await service._is_orphan(str(test_file))
+
+        assert is_orphan is True
+
+    @pytest.mark.asyncio
+    async def test_is_orphan_handles_database_error(self, tmp_path):
+        """Test that orphan checking returns False on database error (safe default)."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        test_file = tmp_path / "event_123.mp4"
+        test_file.write_text("test")
+
+        service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
+
+        # Mock database to raise error
+        @contextlib.asynccontextmanager
+        async def mock_get_session():
+            mock_session = AsyncMock()
+            mock_session.execute = AsyncMock(side_effect=Exception("DB connection failed"))
+            yield mock_session
+
+        with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
+            is_orphan = await service._is_orphan(str(test_file))
+
+        # Should return False (safe default - don't delete on error)
+        assert is_orphan is False
+
+    @pytest.mark.asyncio
+    async def test_is_orphan_no_event_id_checks_clip_path(self, tmp_path):
+        """Test orphan check falls back to clip_path lookup when event ID not extractable."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        # File without recognizable event ID pattern
+        test_file = tmp_path / "unknown_clip.mp4"
+        test_file.write_text("test")
+
+        service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
+
+        # Mock database to return no matching clip_path
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        @contextlib.asynccontextmanager
+        async def mock_get_session():
+            yield mock_session
+
+        with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
+            is_orphan = await service._is_orphan(str(test_file))
+
+        assert is_orphan is True
+
+
+class TestFileDeletion:
+    """Tests for file deletion edge cases."""
+
+    def test_delete_file_handles_exception(self, tmp_path):
+        """Test that file deletion handles exceptions gracefully."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        test_file = tmp_path / "test.mp4"
+        test_file.write_text("test")
+
+        service = OrphanedFileCleanupService()
+
+        # Mock unlink to raise exception
+        with patch.object(Path, "unlink", side_effect=PermissionError("Cannot delete")):
+            success, size = service._delete_file(test_file)
+
+        assert success is False
+        assert size == 0
+
+
+class TestBroadcasting:
+    """Tests for WebSocket broadcasting edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_broadcast_with_async_callback(self, tmp_path):
+        """Test broadcasting with async callback."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        callback_called = False
+        callback_event_type = None
+        callback_data = None
+
+        async def async_callback(event_type, data):
+            nonlocal callback_called, callback_event_type, callback_data
+            callback_called = True
+            callback_event_type = event_type
+            callback_data = data
+
+        service = OrphanedFileCleanupService(
+            clips_directory=str(tmp_path), broadcast_callback=async_callback
+        )
+
+        # Mock database
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        @contextlib.asynccontextmanager
+        async def mock_get_session():
+            yield mock_session
+
+        with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
+            await service.run_cleanup()
+
+        # Give async callback time to execute
+        await asyncio.sleep(0.1)
+
+        assert callback_called is True
+        assert callback_event_type == "orphan_cleanup_completed"
+        assert "stats" in callback_data["data"]
+
+    def test_broadcast_with_async_callback_no_running_loop(self, tmp_path):
+        """Test broadcasting with async callback when no event loop is running.
+
+        Note: This test verifies the fallback to asyncio.run when no event loop
+        is running. The coroutine warning is expected in this edge case test.
+        """
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        async def async_callback(event_type, data):
+            pass
+
+        service = OrphanedFileCleanupService(
+            clips_directory=str(tmp_path), broadcast_callback=async_callback
+        )
+
+        # Mock get_running_loop to raise RuntimeError
+        with patch("asyncio.get_running_loop", side_effect=RuntimeError("No running loop")):
+            with patch("asyncio.run") as mock_asyncio_run:
+                # Directly call _broadcast
+                service._broadcast("test_event", {"test": "data"})
+
+                # Should fall back to asyncio.run
+                mock_asyncio_run.assert_called_once()
+
+    def test_broadcast_handles_callback_exception(self, tmp_path):
+        """Test that broadcasting handles callback exceptions gracefully."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        def failing_callback(event_type, data):
+            raise Exception("Callback failed")
+
+        service = OrphanedFileCleanupService(
+            clips_directory=str(tmp_path), broadcast_callback=failing_callback
+        )
+
+        # Should not raise exception
+        service._broadcast("test_event", {"test": "data"})
+
+
+class TestRunCleanupProgress:
+    """Tests for cleanup progress tracking."""
+
+    @pytest.mark.asyncio
+    async def test_run_cleanup_updates_progress(self, tmp_path, mock_job_tracker):
+        """Test that run_cleanup updates job progress during execution."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        # Create multiple test files
+        for i in range(3):
+            test_file = tmp_path / f"event_{i}.mp4"
+            test_file.write_text(f"test {i}")
+            # Make files old enough
+            old_time = datetime.now().timestamp() - (48 * 3600)
+            os.utime(test_file, (old_time, old_time))
+
+        service = OrphanedFileCleanupService(
+            clips_directory=str(tmp_path), job_tracker=mock_job_tracker
+        )
+
+        # Mock database
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        @contextlib.asynccontextmanager
+        async def mock_get_session():
+            yield mock_session
+
+        with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
+            await service.run_cleanup()
+
+        # Verify progress updates were called
+        assert mock_job_tracker.update_progress.call_count >= 3
+
+    @pytest.mark.asyncio
+    async def test_run_cleanup_handles_file_processing_error(self, tmp_path):
+        """Test that run_cleanup continues when individual file processing fails."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        # Create multiple test files
+        for i in range(3):
+            test_file = tmp_path / f"event_{i}.mp4"
+            test_file.write_text(f"test {i}")
+            old_time = datetime.now().timestamp() - (48 * 3600)
+            os.utime(test_file, (old_time, old_time))
+
+        service = OrphanedFileCleanupService(clips_directory=str(tmp_path))
+
+        # Mock _is_orphan to raise exception for some files
+        call_count = 0
+
+        async def mock_is_orphan(file_path):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:
+                raise Exception("Processing error")
+            return True
+
+        # Mock database
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        @contextlib.asynccontextmanager
+        async def mock_get_session():
+            yield mock_session
+
+        with patch("backend.services.orphan_cleanup_service.get_session", mock_get_session):
+            with patch.object(service, "_is_orphan", side_effect=mock_is_orphan):
+                stats = await service.run_cleanup()
+
+        # Should still complete and process other files
+        assert stats.files_scanned == 3
+        # Should have deleted some files despite error
+        assert stats.files_deleted >= 1
+
+
+class TestAsyncContextManager:
+    """Tests for async context manager protocol."""
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_starts_and_stops(self):
+        """Test that async context manager starts and stops service."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService(enabled=True)
+
+        # Use as async context manager
+        async with service as svc:
+            assert svc is service
+            assert service.running is True
+
+        # After exit, should be stopped
+        assert service.running is False
+
+
+class TestGetStatus:
+    """Tests for the get_status method."""
+
+    def test_get_status_returns_service_info(self):
+        """Test that get_status returns current service configuration."""
+        from backend.services.orphan_cleanup_service import OrphanedFileCleanupService
+
+        service = OrphanedFileCleanupService(
+            scan_interval_hours=12,
+            age_threshold_hours=48,
+            clips_directory="/test/clips",
+            enabled=True,
+        )
+
+        status = service.get_status()
+
+        assert status["running"] is False
+        assert status["enabled"] is True
+        assert status["scan_interval_hours"] == 12
+        assert status["age_threshold_hours"] == 48
+        assert status["clips_directory"] == "/test/clips"

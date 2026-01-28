@@ -9,6 +9,7 @@ Tests the pub/sub channel sharding implementation including:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
@@ -624,10 +625,332 @@ class TestEdgeCases:
         assert len(events) == 1
         assert events[0]["event"] == "1"
 
+    @pytest.mark.asyncio
+    async def test_publish_event_handles_redis_error(self) -> None:
+        """Publish event re-raises Redis exceptions."""
+        redis = _FakeRedis()
+        redis.publish.side_effect = Exception("Redis connection failed")
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        with pytest.raises(Exception, match="Redis connection failed"):
+            await service.publish_event(
+                camera_id="front_door",
+                event_type="test",
+                payload={},
+            )
+
+    @pytest.mark.asyncio
+    async def test_subscribe_cameras_handles_cancellation(self) -> None:
+        """Subscription cleanup happens on cancellation."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        # Create a pubsub that will be cancelled
+        pubsub = _FakePubSub()
+
+        async def listen_then_cancel():
+            yield {"type": "message", "data": json.dumps({"camera_id": "front_door", "event": "1"})}
+            # Raise after first message to trigger cleanup
+            raise asyncio.CancelledError()
+
+        pubsub.listen = listen_then_cancel
+        redis._pubsub_instance = pubsub
+
+        with pytest.raises(asyncio.CancelledError):
+            async for event in service.subscribe_cameras(["front_door"]):
+                pass
+
+        # Verify cleanup was called
+        pubsub.unsubscribe.assert_called()
+        pubsub.close.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_cameras_handles_general_exception(self) -> None:
+        """Subscription cleanup happens on general exception."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        # Make listen() raise an exception
+        async def failing_listen():
+            yield {"type": "message", "data": json.dumps({"camera_id": "front_door", "event": "1"})}
+            raise RuntimeError("Subscription error")
+
+        pubsub = _FakePubSub()
+        pubsub.listen = failing_listen
+        redis._pubsub_instance = pubsub
+
+        with pytest.raises(RuntimeError, match="Subscription error"):
+            async for event in service.subscribe_cameras(["front_door"]):
+                pass
+
+        # Verify cleanup was called
+        pubsub.unsubscribe.assert_called()
+        pubsub.close.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_cameras_cleanup_error_is_logged(self) -> None:
+        """Errors during subscription cleanup are logged but don't crash."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "front_door", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        # Make cleanup fail
+        pubsub = redis._pubsub_instance
+        pubsub.unsubscribe.side_effect = Exception("Cleanup failed")
+
+        # Subscription should complete despite cleanup error
+        events = []
+        async for event in service.subscribe_cameras(["front_door"]):
+            events.append(event)
+            break
+
+        assert len(events) == 1
+
 
 # ==============================================================================
 # Integration-style Tests
 # ==============================================================================
+
+
+class TestSubscribeAllShards:
+    """Tests for the subscribe_all_shards method."""
+
+    @pytest.mark.asyncio
+    async def test_subscribe_all_shards_receives_from_all(self) -> None:
+        """Subscribe to all shards receives events from any camera."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        # Set up messages from different cameras (likely different shards)
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "cam1", "event": "1"})},
+            {"type": "message", "data": json.dumps({"camera_id": "cam2", "event": "2"})},
+            {"type": "message", "data": json.dumps({"camera_id": "cam3", "event": "3"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        events = []
+        async for event in service.subscribe_all_shards():
+            events.append(event)
+            if len(events) >= 3:
+                break
+
+        assert len(events) == 3
+        camera_ids = {e["camera_id"] for e in events}
+        assert camera_ids == {"cam1", "cam2", "cam3"}
+
+    @pytest.mark.asyncio
+    async def test_subscribe_all_shards_subscribes_to_all_channels(self) -> None:
+        """Subscribe to all shards subscribes to all shard channels."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=4)
+
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "test", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        async for event in service.subscribe_all_shards():
+            break  # Just trigger subscription
+
+        pubsub = redis._pubsub_instance
+        assert pubsub is not None
+
+        # Should have subscribed to all 4 shards
+        expected_channels = [f"events:shard:{i}" for i in range(4)]
+        assert len(pubsub._subscribed_channels) == 4
+        for channel in expected_channels:
+            assert channel in pubsub._subscribed_channels
+
+    @pytest.mark.asyncio
+    async def test_subscribe_all_shards_increments_counter(self) -> None:
+        """Subscribe to all shards increments subscribe_count."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=4)
+
+        assert service.subscribe_count == 0
+
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "test", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        async for event in service.subscribe_all_shards():
+            break
+
+        assert service.subscribe_count == 1
+
+    @pytest.mark.asyncio
+    async def test_subscribe_all_shards_handles_cancellation(self) -> None:
+        """Subscribe to all shards handles cancellation gracefully."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=4)
+
+        # Create a pubsub that will be cancelled
+        pubsub = _FakePubSub()
+
+        async def listen_then_cancel():
+            yield {"type": "message", "data": json.dumps({"camera_id": "test", "event": "1"})}
+            raise asyncio.CancelledError()
+
+        pubsub.listen = listen_then_cancel
+        redis._pubsub_instance = pubsub
+
+        with pytest.raises(asyncio.CancelledError):
+            async for event in service.subscribe_all_shards():
+                pass
+
+        # Cleanup should have been called
+        pubsub.unsubscribe.assert_called()
+        pubsub.close.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_subscribe_all_shards_handles_invalid_json(self) -> None:
+        """Subscribe to all shards skips invalid JSON."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=4)
+
+        messages = [
+            {"type": "message", "data": "invalid json {"},
+            {"type": "message", "data": json.dumps({"camera_id": "test", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        events = []
+        async for event in service.subscribe_all_shards():
+            events.append(event)
+            break
+
+        # Invalid JSON should be skipped
+        assert len(events) == 1
+        assert events[0]["event"] == "1"
+
+    @pytest.mark.asyncio
+    async def test_subscribe_all_shards_tracks_active_shards(self) -> None:
+        """Subscribe to all shards tracks all shards as active."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=4)
+
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "test", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        async for event in service.subscribe_all_shards():
+            # Check active shards while subscription is active
+            stats = service.get_stats()
+            assert stats["active_subscription_shards"] == 4
+            assert len(stats["active_shards"]) == 4
+            break
+
+
+# ==============================================================================
+# Singleton Advanced Tests
+# ==============================================================================
+
+
+class TestSingletonAdvanced:
+    """Advanced tests for singleton behavior."""
+
+    @pytest.mark.asyncio
+    async def test_get_websocket_sharded_service_sync_returns_none_initially(self) -> None:
+        """get_websocket_sharded_service_sync returns None before initialization."""
+        from backend.services.websocket_service import get_websocket_sharded_service_sync
+
+        reset_service_state()
+        service = get_websocket_sharded_service_sync()
+        assert service is None
+
+    @pytest.mark.asyncio
+    async def test_get_websocket_sharded_service_sync_returns_instance_after_init(self) -> None:
+        """get_websocket_sharded_service_sync returns instance after initialization."""
+        from backend.services.websocket_service import get_websocket_sharded_service_sync
+
+        reset_service_state()
+        redis = _FakeRedis()
+
+        # Initialize async
+        await get_websocket_sharded_service(redis, shard_count=8)
+
+        # Get sync
+        service = get_websocket_sharded_service_sync()
+        assert service is not None
+        assert service.shard_count == 8
+
+    @pytest.mark.asyncio
+    async def test_concurrent_initialization_returns_same_instance(self) -> None:
+        """Concurrent calls to get_websocket_sharded_service return same instance."""
+        import asyncio
+
+        reset_service_state()
+        redis = _FakeRedis()
+
+        # Start multiple concurrent initializations
+        tasks = [get_websocket_sharded_service(redis, shard_count=i) for i in range(8, 12)]
+        services = await asyncio.gather(*tasks)
+
+        # All should return the same instance (first wins)
+        assert all(s is services[0] for s in services)
+        assert services[0].shard_count == 8  # First call's config is used
+
+
+# ==============================================================================
+# Stats Tracking Advanced Tests
+# ==============================================================================
+
+
+class TestStatsTrackingAdvanced:
+    """Advanced tests for stats tracking."""
+
+    @pytest.mark.asyncio
+    async def test_stats_track_active_subscriptions(self) -> None:
+        """Stats track active subscription shards."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "cam1", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        # Start subscription
+        async for event in service.subscribe_cameras(["cam1"]):
+            # Check stats during subscription
+            stats = service.get_stats()
+            assert stats["active_subscription_shards"] >= 1
+            break
+
+        # Stats should be updated
+
+    @pytest.mark.asyncio
+    async def test_subscribe_count_increments_per_subscription(self) -> None:
+        """Subscribe count increments for each subscription call."""
+        redis = _FakeRedis()
+        service = WebSocketShardedService(redis, shard_count=16)
+
+        messages = [
+            {"type": "message", "data": json.dumps({"camera_id": "test", "event": "1"})},
+        ]
+        redis.set_pubsub_messages(messages)
+
+        assert service.subscribe_count == 0
+
+        # First subscription
+        async for event in service.subscribe_camera("test"):
+            break
+        assert service.subscribe_count == 1
+
+        # Reset pubsub for second subscription
+        redis.set_pubsub_messages(messages)
+
+        # Second subscription
+        async for event in service.subscribe_cameras(["test", "test2"]):
+            break
+        assert service.subscribe_count == 2
 
 
 class TestPublishSubscribeIntegration:
