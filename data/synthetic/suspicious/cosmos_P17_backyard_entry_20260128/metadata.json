@@ -9,7 +9,9 @@
   "resolution": "1280x704",
   "fps": 16,
   "generated_at": "2026-01-28T17:05:12.491803+00:00",
-  "files": ["media/P17_5s.mp4"],
+  "files": [
+    "media/P17_5s.mp4"
+  ],
   "cosmos_metadata": {
     "model": "Cosmos-Predict2.5-14B",
     "seed": 0,
