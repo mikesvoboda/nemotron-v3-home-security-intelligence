@@ -46,6 +46,164 @@ This document provides comprehensive documentation for all pre-commit hooks conf
 | check-new-files-have-tests | pre-push   | Verify new source files have tests     | <1s     |
 | parallel-tests             | pre-push   | Run all test validations (5 jobs)      | 60-180s |
 
+## Hook Execution Flow
+
+### Pre-commit Hook Flow
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Trigger["git commit"]
+        COMMIT["git commit -m 'message'"]
+    end
+
+    subgraph Stage1["Stage 1: Basic Checks"]
+        WHITESPACE["trailing-whitespace"]
+        EOF["end-of-file-fixer"]
+        YAML["check-yaml"]
+        JSON["check-json"]
+        LARGE["check-added-large-files"]
+        MERGE["check-merge-conflict"]
+        KEYS["detect-private-key"]
+    end
+
+    subgraph Stage2["Stage 2: Security"]
+        SECRETS["detect-secrets"]
+        SEMGREP["semgrep"]
+    end
+
+    subgraph Stage3["Stage 3: Python"]
+        RUFF["ruff check"]
+        RUFF_FMT["ruff format"]
+        MYPY["mypy"]
+    end
+
+    subgraph Stage4["Stage 4: Frontend"]
+        PRETTIER["prettier"]
+        ESLINT["eslint"]
+        TSC["typescript-check"]
+    end
+
+    subgraph Stage5["Stage 5: Validation"]
+        MOCKS["check-test-mocks"]
+        TIMEOUTS["check-test-timeouts"]
+        DRIFT["check-validation-drift"]
+        OPENAPI["generate-openapi"]
+    end
+
+    COMMIT --> Stage1
+    Stage1 -->|pass| Stage2
+    Stage2 -->|pass| Stage3
+    Stage3 -->|pass| Stage4
+    Stage4 -->|pass| Stage5
+    Stage5 -->|pass| SUCCESS["Commit Created"]
+
+    Stage1 -->|fail| ABORT["Commit Aborted"]
+    Stage2 -->|fail| ABORT
+    Stage3 -->|fail| ABORT
+    Stage4 -->|fail| ABORT
+    Stage5 -->|fail| ABORT
+
+    style SUCCESS fill:#16A34A,stroke:#22C55E,color:#FFFFFF
+    style ABORT fill:#DC2626,stroke:#EF4444,color:#FFFFFF
+```
+
+### Pre-push Hook Flow
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart TB
+    subgraph Trigger["git push"]
+        PUSH["git push origin branch"]
+    end
+
+    subgraph Rebase["Auto-Rebase"]
+        FETCH["Fetch origin/main"]
+        CHECK["Check if behind"]
+        REBASE["Rebase on main"]
+    end
+
+    subgraph Parallel["Parallel Tests (5 jobs)"]
+        JOB1["Job 1: Backend Unit<br/>pytest + 85% coverage"]
+        JOB2["Job 2: E2E Tests<br/>Playwright Chromium"]
+        JOB3["Job 3: API Types<br/>openapi-typescript"]
+        JOB4["Job 4: Integration<br/>pytest integration"]
+        JOB5["Job 5: Frontend Unit<br/>vitest + coverage"]
+    end
+
+    PUSH --> FETCH
+    FETCH --> CHECK
+
+    CHECK -->|"up to date"| Parallel
+    CHECK -->|"behind"| REBASE
+    REBASE -->|"success"| Parallel
+    REBASE -->|"conflicts"| CONFLICT["Resolve conflicts<br/>manually"]
+
+    JOB1 & JOB2 & JOB3 & JOB4 & JOB5 --> WAIT["Wait for all jobs"]
+
+    WAIT -->|"all pass"| SUCCESS["Push to remote"]
+    WAIT -->|"any fail"| FAIL["Push aborted"]
+
+    style SUCCESS fill:#16A34A,stroke:#22C55E,color:#FFFFFF
+    style FAIL fill:#DC2626,stroke:#EF4444,color:#FFFFFF
+    style CONFLICT fill:#F59E0B,stroke:#FBBF24,color:#000000
+```
+
+### Commit Message Validation Flow
+
+```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
+flowchart LR
+    MSG["Commit message"]
+    PARSE["Parse format"]
+    TYPE["Check type"]
+    VALID["Valid types:<br/>feat, fix, docs,<br/>chore, refactor,<br/>test, style, perf,<br/>build, ci, revert"]
+
+    MSG --> PARSE
+    PARSE --> TYPE
+    TYPE -->|"valid"| ACCEPT["Accept commit"]
+    TYPE -->|"invalid"| REJECT["Reject commit"]
+
+    style ACCEPT fill:#16A34A,stroke:#22C55E,color:#FFFFFF
+    style REJECT fill:#DC2626,stroke:#EF4444,color:#FFFFFF
+```
+
 ## Installation
 
 ```bash
