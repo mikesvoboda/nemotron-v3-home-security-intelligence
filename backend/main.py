@@ -655,24 +655,25 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         # Register workers with the supervisor
         # Note: Workers are already managed by PipelineManager, but supervisor
         # provides additional monitoring and restart callbacks
+        # NEM-4148: Pass supervisor to workers for heartbeat reporting
         await worker_supervisor.register_worker(
             "detection",
-            create_detection_worker(redis_client),
+            create_detection_worker(redis_client, supervisor=worker_supervisor),
             max_restarts=settings.worker_supervisor_max_restarts,
         )
         await worker_supervisor.register_worker(
             "analysis",
-            create_analysis_worker(redis_client),
+            create_analysis_worker(redis_client, supervisor=worker_supervisor),
             max_restarts=settings.worker_supervisor_max_restarts,
         )
         await worker_supervisor.register_worker(
             "batch_timeout",
-            create_timeout_worker(redis_client),
+            create_timeout_worker(redis_client, supervisor=worker_supervisor),
             max_restarts=settings.worker_supervisor_max_restarts,
         )
         await worker_supervisor.register_worker(
             "metrics",
-            create_metrics_worker(redis_client),
+            create_metrics_worker(redis_client, supervisor=worker_supervisor),
             max_restarts=settings.worker_supervisor_max_restarts,
         )
 
