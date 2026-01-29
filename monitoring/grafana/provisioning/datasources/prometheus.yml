@@ -40,7 +40,7 @@ datasources:
 
   # Jaeger datasource for distributed tracing with metric correlations
   - name: Jaeger
-    uid: PC9A941E8F2E49454
+    uid: jaeger
     type: jaeger
     access: proxy
     url: http://jaeger:16686
@@ -219,7 +219,7 @@ datasources:
         - name: TraceID
           matcherRegex: 'trace_id=([a-f0-9]{32})'
           url: '${__value.raw}'
-          datasourceUid: PC9A941E8F2E49454
+          datasourceUid: jaeger
           urlDisplayLabel: 'View Trace'
 
   # Pyroscope datasource for continuous profiling
@@ -233,7 +233,7 @@ datasources:
     jsonData:
       # Profile-to-Trace navigation: Link back to Jaeger traces from Pyroscope
       tracesToProfiles:
-        datasourceUid: PC9A941E8F2E49454
+        datasourceUid: jaeger
         tags:
           - key: service.name
             value: service
