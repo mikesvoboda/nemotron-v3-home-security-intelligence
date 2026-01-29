@@ -533,18 +533,38 @@ def extract_video_frames(
     return extracted_frames
 
 
-async def ensure_synthetic_camera(camera_name: str = "synthetic_cosmos") -> Camera:
+def get_test_camera_for_category(category: str) -> str:
+    """Map scenario category to existing test camera directory.
+
+    Args:
+        category: Scenario category (normal, suspicious, threats)
+
+    Returns:
+        Test camera folder name that exists in /export/foscam
+    """
+    category_to_camera = {
+        "normal": "test_normal_delivery",
+        "suspicious": "test_suspicious_loitering",
+        "threats": "test_threat_breakin",
+        "cosmos": "test_normal_delivery",  # Default for cosmos scenarios
+    }
+    return category_to_camera.get(category, "test_normal_delivery")
+
+
+async def ensure_synthetic_camera(camera_name: str = "test_normal_delivery") -> Camera:
     """Ensure a synthetic camera exists in the database.
 
     Args:
-        camera_name: Name for the synthetic camera
+        camera_name: Name for the synthetic camera (should be existing test camera)
 
     Returns:
         Camera object (existing or newly created)
     """
     async with get_session() as session:
-        # Check if camera exists
-        result = await session.execute(select(Camera).where(Camera.name == camera_name))
+        # Check if camera exists by ID or name (ID is the folder name)
+        result = await session.execute(
+            select(Camera).where((Camera.id == camera_name) | (Camera.name == camera_name))
+        )
         camera = result.scalars().first()
 
         if camera:
@@ -583,31 +603,33 @@ async def seed_synthetic_scenarios(
     Returns:
         Tuple of (frames_processed, list of frame paths)
     """
-    # Create or get synthetic camera
-    camera = await ensure_synthetic_camera()
-
-    # Set up watch folder under camera path structure
-    if watch_folder is None:
-        # Create synthetic camera folder structure: /cameras/synthetic_cosmos/YYYY/MM/DD/
-        now = datetime.now()
-        watch_folder = (
-            Path(FOSCAM_BASE_PATH)
-            / "synthetic_cosmos"
-            / str(now.year)
-            / f"{now.month:02d}"
-            / f"{now.day:02d}"
-        )
-
-    watch_folder.mkdir(parents=True, exist_ok=True)
-    print(f"Using watch folder: {watch_folder}")
-
     processed_frames = []
     total_extracted = 0
+
+    # Group scenarios by category to use appropriate test cameras
+    now = datetime.now()
 
     for i, scenario in enumerate(scenarios, 1):
         if not scenario.video_path or not scenario.video_path.exists():
             print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (no video)")
             continue
+
+        # Get the appropriate test camera for this scenario's category
+        camera_name = get_test_camera_for_category(scenario.category)
+        camera = await ensure_synthetic_camera(camera_name)
+
+        # Use existing test camera folder structure
+        scenario_watch_folder = watch_folder
+        if scenario_watch_folder is None:
+            scenario_watch_folder = (
+                Path(FOSCAM_BASE_PATH)
+                / camera_name
+                / str(now.year)
+                / f"{now.month:02d}"
+                / f"{now.day:02d}"
+            )
+
+        scenario_watch_folder.mkdir(parents=True, exist_ok=True)
 
         # Create temp directory for frame extraction
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -628,7 +650,7 @@ async def seed_synthetic_scenarios(
             for j, frame_path in enumerate(frames, 1):
                 # Use naming convention that includes scenario info for traceability
                 dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
-                dest_path = watch_folder / dest_name
+                dest_path = scenario_watch_folder / dest_name
 
                 shutil.copy2(frame_path, dest_path)
                 processed_frames.append(dest_path)
@@ -646,6 +668,26 @@ async def seed_synthetic_scenarios(
             await asyncio.sleep(delay_between)
 
     print(f"\nExtracted {total_extracted} frames from {len(scenarios)} scenarios")
+
+    # Fix SELinux context for files created in temp directories
+    # Without this, containers using :z mount option may get Permission denied
+    if processed_frames:
+        try:
+            # Get unique parent directories
+            parent_dirs = {str(p.parent) for p in processed_frames}
+            for parent_dir in parent_dirs:
+                proc = await asyncio.create_subprocess_exec(
+                    "restorecon",
+                    "-R",
+                    parent_dir,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(proc.wait(), timeout=30)
+            print(f"  Fixed SELinux context for {len(parent_dirs)} directories")
+        except (TimeoutError, FileNotFoundError, OSError) as e:
+            print(f"  Warning: Could not fix SELinux context: {e}")
+
     return total_extracted, processed_frames
 
 
