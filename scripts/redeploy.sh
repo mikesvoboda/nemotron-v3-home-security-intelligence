@@ -255,16 +255,28 @@ EOF
 # (with version: '3.8' specification), this hybrid approach provides better
 # control over service initialization order and network configuration.
 
-stop_ai_containers_podman() {
-    # Stop and remove AI containers if they exist (called during cleanup)
-    local -a ai_containers=("ai-yolo26" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment")
+stop_standalone_containers() {
+    # Stop and remove standalone containers if they exist (called during cleanup)
+    # These containers are started with podman run directly (not via compose)
+    # and use generic names that aren't project-scoped
+    local -a standalone_containers=(
+        # AI services
+        "ai-yolo26" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment"
+        # Core services (started via podman run in local/hybrid modes)
+        "backend" "frontend"
+    )
 
-    for container in "${ai_containers[@]}"; do
+    for container in "${standalone_containers[@]}"; do
         if $CONTAINER_CMD container exists "$container" 2>/dev/null; then
             run_cmd $CONTAINER_CMD stop "$container" 2>/dev/null || true
             run_cmd $CONTAINER_CMD rm -f "$container" 2>/dev/null || true
         fi
     done
+}
+
+# Legacy alias for backwards compatibility
+stop_ai_containers_podman() {
+    stop_standalone_containers
 }
 
 rebuild_tensorrt_engine() {
@@ -1018,9 +1030,10 @@ stop_and_clean() {
     fi
 
     if [ "$CONTAINER_CMD" = "podman" ]; then
-        # Podman: Stop AI containers first (they're not managed by compose)
-        print_step "Stopping AI containers..."
-        stop_ai_containers_podman
+        # Podman: Stop standalone containers first (AI + backend/frontend started via podman run)
+        # These use generic names and aren't project-scoped, so compose won't find them
+        print_step "Stopping standalone containers (AI, backend, frontend)..."
+        stop_standalone_containers
 
         # Stop PROD compose containers (for local mode builds)
         print_step "Stopping prod compose containers..."

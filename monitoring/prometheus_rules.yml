@@ -26,9 +26,9 @@ groups:
       # Service Availability Alerts
       # =========================================================================
 
-      # Uses hsi_ai_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
+      # Uses hsi_ai_healthy gauge from json-exporter (1 when healthy, 0 when unhealthy)
       - alert: AIDetectorUnavailable
-        expr: hsi_ai_healthy_unhealthy > 0
+        expr: hsi_ai_healthy == 0
         for: 2m
         labels:
           severity: critical

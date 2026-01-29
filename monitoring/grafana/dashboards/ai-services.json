@@ -54,7 +54,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -117,7 +117,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_model_loaded",
           "legendFormat": "Model Status",
@@ -130,7 +130,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -182,7 +182,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.95, sum(rate(yolo26_inference_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95 Latency",
@@ -195,7 +195,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -247,7 +247,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(yolo26_requests_total{status=\"success\"}[1m]))",
           "legendFormat": "Requests/s",
@@ -260,7 +260,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -312,7 +312,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_vram_bytes",
           "legendFormat": "VRAM",
@@ -325,7 +325,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -377,7 +377,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(yolo26_errors_total[5m])) * 300",
           "legendFormat": "Errors (5m)",
@@ -390,7 +390,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
@@ -444,7 +444,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_gpu_utilization_percent",
           "legendFormat": "GPU %",
@@ -470,7 +470,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Inference duration distribution over time",
       "fieldConfig": {
@@ -545,7 +545,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.50, sum(rate(yolo26_inference_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
@@ -554,7 +554,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.90, sum(rate(yolo26_inference_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p90",
@@ -563,7 +563,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.95, sum(rate(yolo26_inference_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
@@ -572,7 +572,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.99, sum(rate(yolo26_inference_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
@@ -585,7 +585,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Request rate by status and endpoint",
       "fieldConfig": {
@@ -676,7 +676,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(yolo26_requests_total{status=\"success\"}[1m])) by (endpoint)",
           "legendFormat": "{{endpoint}} success",
@@ -685,7 +685,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(yolo26_requests_total{status=\"error\"}[1m])) by (endpoint)",
           "legendFormat": "{{endpoint}} error",
@@ -711,7 +711,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Detections by object class over time",
       "fieldConfig": {
@@ -788,7 +788,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(yolo26_detections_total[5m])) by (class_name)",
           "legendFormat": "{{class_name}}",
@@ -801,7 +801,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Distribution of detections per image",
       "fieldConfig": {
@@ -876,7 +876,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(yolo26_detections_per_image_bucket[1h])) by (le)",
           "legendFormat": "{{le}} detections",
@@ -902,7 +902,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Errors by type over time",
       "fieldConfig": {
@@ -977,7 +977,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(yolo26_errors_total[5m])) by (error_type) * 300",
           "legendFormat": "{{error_type}}",
@@ -990,7 +990,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Batch size distribution for batch inference requests",
       "fieldConfig": {
@@ -1065,7 +1065,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(yolo26_batch_size_bucket[1h])) by (le)",
           "legendFormat": "{{le}} images",
@@ -1091,7 +1091,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "VRAM usage over time",
       "fieldConfig": {
@@ -1174,7 +1174,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_vram_bytes",
           "legendFormat": "VRAM Used",
@@ -1187,7 +1187,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "GPU utilization, temperature, and power",
       "fieldConfig": {
@@ -1301,7 +1301,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_gpu_utilization_percent",
           "legendFormat": "GPU %",
@@ -1310,7 +1310,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_gpu_temperature_celsius",
           "legendFormat": "Temperature",
@@ -1319,7 +1319,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "yolo26_gpu_power_watts",
           "legendFormat": "Power",
@@ -1345,7 +1345,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Rate of face detections over time",
       "fieldConfig": {
@@ -1420,7 +1420,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "rate(hsi_face_embeddings_generated_total[5m])",
           "legendFormat": "Face Detections",
@@ -1433,7 +1433,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Distribution of face quality scores",
       "fieldConfig": {
@@ -1508,7 +1508,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(hsi_face_quality_score_bucket[1h])) by (le)",
           "legendFormat": "{{le}}",
@@ -1521,7 +1521,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "P95 face embedding generation time",
       "fieldConfig": {
@@ -1574,7 +1574,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.95, sum(rate(hsi_face_embedding_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95 Embedding Time",
@@ -1587,7 +1587,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Ratio of known vs unknown face detections",
       "fieldConfig": {
@@ -1668,7 +1668,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(hsi_face_embeddings_generated_total{match_status=\"known\"}[1h]))",
           "legendFormat": "Known",
@@ -1677,7 +1677,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(hsi_face_embeddings_generated_total{match_status=\"unknown\"}[1h]))",
           "legendFormat": "Unknown",
@@ -1690,7 +1690,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Face detection count breakdown by camera",
       "fieldConfig": {
@@ -1767,7 +1767,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "rate(hsi_face_embeddings_generated_total[5m])",
           "legendFormat": "{{camera_id}}",
@@ -1780,7 +1780,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Distribution of recognition confidence scores",
       "fieldConfig": {
@@ -1855,7 +1855,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(hsi_face_recognition_confidence_bucket[1h])) by (le)",
           "legendFormat": "{{le}}",
@@ -1868,7 +1868,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Number of known faces in the database",
       "fieldConfig": {
@@ -1913,7 +1913,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "hsi_known_faces_database_size",
           "legendFormat": "Known Faces",
@@ -1939,7 +1939,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "CLIP model inference latency percentiles",
       "fieldConfig": {
@@ -2014,7 +2014,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.50, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
@@ -2023,7 +2023,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.95, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
@@ -2032,7 +2032,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.99, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
@@ -2045,7 +2045,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Florence-2 model inference latency percentiles",
       "fieldConfig": {
@@ -2120,7 +2120,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.50, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p50",
@@ -2129,7 +2129,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.95, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p95",
@@ -2138,7 +2138,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "histogram_quantile(0.99, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))",
           "legendFormat": "p99",
@@ -2151,7 +2151,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Rate of enrichment operations",
       "fieldConfig": {
@@ -2226,7 +2226,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(enrichment_inference_latency_seconds_count[5m]))",
           "legendFormat": "Enrichment Rate",
@@ -2239,7 +2239,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Current enrichment queue depth",
       "fieldConfig": {
@@ -2292,7 +2292,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "hsi_analysis_queue_depth",
           "legendFormat": "Queue Depth",
@@ -2318,7 +2318,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Actions detected grouped by action type",
       "fieldConfig": {
@@ -2395,7 +2395,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(hsi_enrichment_model_calls_total{model=\"action\"})",
           "legendFormat": "{{action_type}}",
@@ -2408,7 +2408,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Distribution of action recognition confidence scores",
       "fieldConfig": {
@@ -2483,7 +2483,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(hsi_action_confidence_bucket[1h])) by (le)",
           "legendFormat": "{{le}}",
@@ -2496,7 +2496,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Ratio of corrected (false positive) detections to total detections",
       "fieldConfig": {
@@ -2551,7 +2551,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(rate(hsi_action_corrections_total[1h])) / sum(rate(hsi_action_detections_total[1h]))",
           "legendFormat": "False Positive Rate",
@@ -2577,7 +2577,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Loitering events grouped by zone",
       "fieldConfig": {
@@ -2654,7 +2654,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum by (zone_name) (hsi_loitering_events_total)",
           "legendFormat": "{{zone_name}}",
@@ -2667,7 +2667,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Distribution of dwell times for detected loitering",
       "fieldConfig": {
@@ -2742,7 +2742,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum(increase(hsi_loitering_dwell_time_seconds_bucket[1h])) by (le)",
           "legendFormat": "{{le}}s",
@@ -2755,7 +2755,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Rate of loitering alerts per hour",
       "fieldConfig": {
@@ -2830,7 +2830,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "rate(hsi_loitering_alerts_total[1h]) * 3600",
           "legendFormat": "Loitering Alerts",
@@ -2856,7 +2856,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Time taken to load AI models",
       "fieldConfig": {
@@ -2931,7 +2931,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "enrichment_model_load_time_seconds",
           "legendFormat": "{{model}}",
@@ -2944,7 +2944,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Latency of first inference after model load (cold start)",
       "fieldConfig": {
@@ -3019,7 +3019,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "hsi_model_cold_start_latency_seconds",
           "legendFormat": "{{model}}",
@@ -3032,7 +3032,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Number of model restarts in the last 24 hours",
       "fieldConfig": {
@@ -3085,7 +3085,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "expr": "sum by (model) (increase(hsi_model_restarts_total[24h]))",
           "legendFormat": "{{model}}",

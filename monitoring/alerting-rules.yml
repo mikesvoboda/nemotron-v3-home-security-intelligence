@@ -735,7 +735,7 @@ groups:
   # =============================================================================
   # Monitor circuit breaker state to detect service degradation and cascading failures.
   # Circuit breaker states: 0=closed (healthy), 1=open (failing), 2=half-open (testing)
-  # Note: Metric uses 'exported_service' label, not 'service'
+  # Note: Metric uses native 'service' label (honor_labels: true in prometheus.yml)
   - name: circuit_breaker_alerts
     rules:
       # Critical: Circuit breaker is open (service is failing)
@@ -745,10 +745,10 @@ groups:
         labels:
           severity: critical
           component: circuit_breaker
-          service: '{{ $labels.exported_service }}'
+          target_service: '{{ $labels.service }}'
         annotations:
-          summary: 'Circuit breaker OPEN for {{ $labels.exported_service }}'
-          description: 'Circuit breaker for {{ $labels.exported_service }} is in OPEN state, rejecting all calls. The downstream service has exceeded the failure threshold.'
+          summary: 'Circuit breaker OPEN for {{ $labels.service }}'
+          description: 'Circuit breaker for {{ $labels.service }} is in OPEN state, rejecting all calls. The downstream service has exceeded the failure threshold.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/circuit-breaker-open'
 
       # Warning: Circuit breaker stuck in half-open state
@@ -758,10 +758,10 @@ groups:
         labels:
           severity: warning
           component: circuit_breaker
-          service: '{{ $labels.exported_service }}'
+          target_service: '{{ $labels.service }}'
         annotations:
-          summary: 'Circuit breaker stuck in HALF-OPEN for {{ $labels.exported_service }}'
-          description: 'Circuit breaker for {{ $labels.exported_service }} has been in HALF-OPEN state for >5 minutes. Recovery probes may be failing consistently.'
+          summary: 'Circuit breaker stuck in HALF-OPEN for {{ $labels.service }}'
+          description: 'Circuit breaker for {{ $labels.service }} has been in HALF-OPEN state for >5 minutes. Recovery probes may be failing consistently.'
 
       # Critical: High circuit breaker trip rate (>3 trips in 15m)
       - alert: HSICircuitBreakerTripRate
@@ -771,10 +771,10 @@ groups:
         labels:
           severity: critical
           component: circuit_breaker
-          service: '{{ $labels.exported_service }}'
+          target_service: '{{ $labels.service }}'
         annotations:
-          summary: 'Circuit breaker for {{ $labels.exported_service }} is flapping'
-          description: 'Circuit breaker for {{ $labels.exported_service }} has changed state {{ $value }} times in 15 minutes. Service is unstable.'
+          summary: 'Circuit breaker for {{ $labels.service }} is flapping'
+          description: 'Circuit breaker for {{ $labels.service }} has changed state {{ $value }} times in 15 minutes. Service is unstable.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/circuit-breaker-flapping'
 
       # Warning: Circuit breaker failure rate increasing
@@ -788,10 +788,10 @@ groups:
         labels:
           severity: warning
           component: circuit_breaker
-          service: '{{ $labels.exported_service }}'
+          target_service: '{{ $labels.service }}'
         annotations:
-          summary: 'High failure rate for {{ $labels.exported_service }}'
-          description: 'Circuit breaker for {{ $labels.exported_service }} is seeing >30% failure rate. May trip soon.'
+          summary: 'High failure rate for {{ $labels.service }}'
+          description: 'Circuit breaker for {{ $labels.service }} is seeing >30% failure rate. May trip soon.'
 
       # Critical: Multiple circuit breakers open simultaneously
       - alert: HSIMultipleCircuitsOpen

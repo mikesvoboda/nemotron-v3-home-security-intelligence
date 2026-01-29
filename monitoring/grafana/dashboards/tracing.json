@@ -18,7 +18,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
       "description": "Full pipeline analysis traces showing detection → enrichment → LLM analysis",
       "fieldConfig": {
         "defaults": {
@@ -64,7 +64,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
           "queryType": "search",
           "service": "nemotron-backend",
           "operation": "analysis_processing",
@@ -84,7 +84,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
       "description": "Object detection traces from YOLO26",
       "fieldConfig": {
         "defaults": {
@@ -130,7 +130,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
           "queryType": "search",
           "service": "nemotron-backend",
           "operation": "detection_processing",
@@ -142,7 +142,7 @@
       "type": "table"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
       "description": "LLM inference traces from Nemotron",
       "fieldConfig": {
         "defaults": {
@@ -188,7 +188,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
           "queryType": "search",
           "service": "nemotron-backend",
           "operation": "llm_inference",
@@ -208,7 +208,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
       "description": "Traces with error=true tag",
       "fieldConfig": {
         "defaults": {
@@ -240,7 +240,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
           "queryType": "search",
           "service": "nemotron-backend",
           "tags": "error=true",
@@ -260,7 +260,7 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
       "description": "All recent traces from the backend service",
       "fieldConfig": {
         "defaults": {
@@ -306,7 +306,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
           "queryType": "search",
           "service": "nemotron-backend",
           "limit": 30,
