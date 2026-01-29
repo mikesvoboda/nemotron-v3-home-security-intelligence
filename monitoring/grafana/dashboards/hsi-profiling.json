@@ -1109,7 +1109,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "CPU usage ratio compared to 24-hour baseline. Values > 100% indicate increased CPU usage. Yellow (>120%) and Red (>150%) thresholds trigger automated alerts.",
       "fieldConfig": {
@@ -1165,7 +1165,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "job:service_cpu_regression_ratio:5m_vs_24h * 100",
@@ -1180,7 +1180,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Memory usage ratio compared to 6-hour baseline. Values > 100% indicate memory growth. Yellow (>120%) and Red (>150%) thresholds may indicate memory leaks.",
       "fieldConfig": {
@@ -1236,7 +1236,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "job:service_memory_regression_ratio:current_vs_6h * 100",
@@ -1251,7 +1251,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "CPU regression ratio over time. Shows how current CPU usage compares to the 24-hour average baseline. Horizontal lines at 120% (warning) and 150% (critical).",
       "fieldConfig": {
@@ -1335,7 +1335,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "job:service_cpu_regression_ratio:5m_vs_24h * 100",
@@ -1350,7 +1350,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Memory regression ratio over time. Shows how current memory usage compares to the 6-hour average baseline. Rising trend may indicate memory leak.",
       "fieldConfig": {
@@ -1434,7 +1434,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "job:service_memory_regression_ratio:current_vs_6h * 100",
@@ -1449,7 +1449,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Number of active regression alerts by severity. Shows CPU spike, memory growth, and latency regression alerts currently firing.",
       "fieldConfig": {
@@ -1503,7 +1503,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "count(ALERTS{alertname=~\"ServiceCPUSpike.*\", alertstate=\"firing\"}) or vector(0)",
@@ -1514,7 +1514,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "count(ALERTS{alertname=~\"ServiceMemory.*\", alertstate=\"firing\"}) or vector(0)",
@@ -1525,7 +1525,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "count(ALERTS{alertname=~\".*HighLatency.*\", alertstate=\"firing\"}) or vector(0)",
@@ -1536,7 +1536,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "count(ALERTS{alertname=\"PotentialMemoryLeak\", alertstate=\"firing\"}) or vector(0)",
