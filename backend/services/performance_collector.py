@@ -183,8 +183,8 @@ class PerformanceCollector:
                     "utilization": data.get("gpu_utilization", 0),
                     "vram_used_gb": data.get("vram_used_gb", 0),
                     "vram_total_gb": 24.0,  # Assume A5500
-                    "temperature": int(data.get("temperature", 0)),
-                    "power_watts": int(data.get("power_watts", 0)),
+                    "temperature": int(data.get("temperature") or 0),
+                    "power_watts": int(data.get("power_watts") or 0),
                 }
         except Exception as e:
             logger.warning(f"GPU fallback failed: {e}")

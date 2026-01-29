@@ -266,7 +266,7 @@ class TestConfigSettings:
 
         assert settings.otel_enabled is True  # OTEL enabled by default
         assert settings.otel_service_name == "nemotron-backend"
-        assert settings.otel_exporter_otlp_endpoint == "http://localhost:4317"
+        assert settings.otel_exporter_otlp_endpoint == "http://alloy:4317"
         assert settings.otel_exporter_otlp_insecure is True
         assert settings.otel_trace_sample_rate == 1.0
 

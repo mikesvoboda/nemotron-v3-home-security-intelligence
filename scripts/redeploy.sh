@@ -539,6 +539,83 @@ start_ai_containers_podman() {
     return 0
 }
 
+# Start privileged monitoring containers using sudo podman
+# These containers require privileged mode or SYS_ADMIN capability which doesn't work in rootless Podman
+# Uses sudo to run in rootful mode (requires passwordless sudo for podman)
+start_privileged_containers_sudo() {
+    print_header "Starting Privileged Monitoring Containers (sudo podman)"
+
+    cd "$PROJECT_ROOT"
+    source .env 2>/dev/null || true
+
+    # Get network name - podman-compose creates networks with project prefix
+    local network_name="${PROJECT_NAME}_security-net"
+
+    # Stop any existing privileged containers first
+    print_step "Cleaning up any existing privileged containers..."
+    sudo podman stop cadvisor 2>/dev/null || true
+    sudo podman rm -f cadvisor 2>/dev/null || true
+    sudo podman stop dcgm-exporter 2>/dev/null || true
+    sudo podman rm -f dcgm-exporter 2>/dev/null || true
+
+    # Ensure network exists in rootful podman (may need to create separately)
+    if ! sudo podman network exists "$network_name" 2>/dev/null; then
+        print_step "Creating network $network_name in rootful podman..."
+        sudo podman network create "$network_name" || true
+    fi
+
+    # cAdvisor for container CPU/memory metrics
+    # Requires privileged mode to access container metrics from /sys and cgroups
+    print_step "Starting cAdvisor (privileged)..."
+    if sudo podman run -d \
+        --name cadvisor \
+        --network "$network_name" \
+        --privileged \
+        --device /dev/kmsg:/dev/kmsg \
+        -v /:/rootfs:ro \
+        -v /var/run:/var/run:ro \
+        -v /sys:/sys:ro \
+        -v /var/lib/docker/:/var/lib/docker:ro \
+        -v /var/lib/containers/:/var/lib/containers:ro \
+        -p '8088:8080' \
+        --restart unless-stopped \
+        gcr.io/cadvisor/cadvisor:v0.49.1; then
+        print_success "cAdvisor started (privileged)"
+    else
+        print_warn "Failed to start cAdvisor"
+    fi
+
+    # DCGM Exporter for GPU hardware metrics
+    # Requires SYS_ADMIN capability and GPU access
+    print_step "Starting dcgm-exporter (privileged)..."
+    if sudo podman run -d \
+        --name dcgm-exporter \
+        --network "$network_name" \
+        --privileged \
+        --device nvidia.com/gpu=all \
+        -v "${PROJECT_ROOT}/monitoring/dcgm/custom-counters.csv:/etc/dcgm-exporter/default-counters.csv:ro" \
+        -e DCGM_EXPORTER_LISTEN=:9400 \
+        -e DCGM_EXPORTER_KUBERNETES=false \
+        -p '9400:9400' \
+        --restart unless-stopped \
+        nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04; then
+        print_success "dcgm-exporter started (privileged)"
+    else
+        print_warn "Failed to start dcgm-exporter"
+    fi
+
+    return 0
+}
+
+# Stop privileged monitoring containers
+stop_privileged_containers_sudo() {
+    print_step "Stopping privileged monitoring containers..."
+    sudo podman stop cadvisor 2>/dev/null || true
+    sudo podman rm -f cadvisor 2>/dev/null || true
+    sudo podman stop dcgm-exporter 2>/dev/null || true
+    sudo podman rm -f dcgm-exporter 2>/dev/null || true
+}
+
 # Restart backend with internal network URLs for AI services
 # This is needed because podman-compose starts the backend with host.docker.internal URLs,
 # but in hybrid mode the AI containers are on the same network and should use container names
@@ -1055,6 +1132,10 @@ stop_and_clean() {
         print_step "Cleaning up pods and orphaned containers..."
         run_cmd $CONTAINER_CMD pod rm -f -a 2>/dev/null || true
         run_cmd $CONTAINER_CMD container prune -f 2>/dev/null || true
+
+        # Clean up privileged containers running in rootful podman
+        print_step "Cleaning up privileged containers (sudo)..."
+        stop_privileged_containers_sudo
         print_success "Cleanup complete"
     else
         # Docker: Use compose normally for both files
@@ -1335,10 +1416,20 @@ start_containers() {
         run_cmd timeout 120 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d \
             elasticsearch jaeger prometheus loki pyroscope \
             grafana alertmanager blackbox-exporter redis-exporter json-exporter \
-            node-exporter dcgm-exporter 2>/dev/null || true
-        # cadvisor and alloy often have permission issues, try but don't fail
-        run_cmd timeout 30 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d cadvisor alloy 2>/dev/null || true
+            node-exporter 2>/dev/null || true
+        # alloy often has permission issues, try but don't fail
+        run_cmd timeout 30 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d alloy 2>/dev/null || true
         print_info "Monitoring services started (some may have warnings)"
+
+        # Phase 2b: Privileged monitoring containers (cAdvisor, dcgm-exporter)
+        # These require privileged mode which doesn't work in rootless Podman
+        # Use sudo podman to run them in rootful mode
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            start_privileged_containers_sudo
+        else
+            # Docker can run privileged containers directly via compose
+            run_cmd timeout 60 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d cadvisor dcgm-exporter 2>/dev/null || true
+        fi
 
         # Phase 3: AI services using direct podman run (bypasses compose dependency issues)
         if [ "$CONTAINER_CMD" = "podman" ]; then

@@ -1433,9 +1433,9 @@ class Settings(BaseSettings):
         "in distributed tracing dashboards.",
     )
     otel_exporter_otlp_endpoint: str = Field(
-        default="http://localhost:4317",
-        description="OTLP gRPC endpoint for trace export. Default uses Jaeger's OTLP port. "
-        "Examples: 'http://jaeger:4317' (Docker), 'http://localhost:4317' (local dev).",
+        default="http://alloy:4317",
+        description="OTLP gRPC endpoint for trace export. Default uses Alloy collector which forwards to Jaeger. "
+        "Examples: 'http://alloy:4317' (Docker), 'http://localhost:4317' (local dev).",
     )
     otel_exporter_otlp_insecure: bool = Field(
         default=True,

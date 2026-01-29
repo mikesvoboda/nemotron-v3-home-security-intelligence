@@ -26,13 +26,19 @@ Queue Flow:
        - Creates Event records and broadcasts via WebSocket
 """
 
+from __future__ import annotations
+
 import asyncio
 import signal
+import time as time_module
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from backend.services.worker_supervisor import WorkerSupervisor
 
 from backend.api.routes.system import record_stage_latency
 from backend.api.schemas.queue import (
@@ -229,6 +235,8 @@ class DetectionQueueWorker:
         queue_name: str = DETECTION_QUEUE,
         poll_timeout: int = 5,
         stop_timeout: float = 10.0,
+        supervisor: WorkerSupervisor | None = None,
+        worker_name: str = "detection",
     ) -> None:
         """Initialize detection queue worker.
 
@@ -243,6 +251,8 @@ class DetectionQueueWorker:
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
+            supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
+            worker_name: Name used for heartbeat reporting (NEM-4148)
         """
         settings = get_settings()
         self._redis = redis_client
@@ -273,6 +283,10 @@ class DetectionQueueWorker:
         # Video processing settings
         self._video_frame_interval = settings.video_frame_interval_seconds
         self._video_max_frames = settings.video_max_frames
+
+        # Heartbeat support (NEM-4148)
+        self._supervisor = supervisor
+        self._worker_name = worker_name
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -344,8 +358,19 @@ class DetectionQueueWorker:
         """Main processing loop for the detection queue worker."""
         logger.info("DetectionQueueWorker loop started")
 
+        # NEM-4148: Track last heartbeat time for periodic supervisor updates
+        last_heartbeat = time_module.time()
+        heartbeat_interval = 20.0  # Send heartbeat every 20 seconds
+
         while self._running:
             try:
+                # NEM-4148: Send periodic heartbeat to supervisor
+                if self._supervisor is not None:
+                    now = time_module.time()
+                    if now - last_heartbeat >= heartbeat_interval:
+                        self._supervisor.record_heartbeat(self._worker_name)
+                        last_heartbeat = now
+
                 # Pop item from queue with timeout (allows checking shutdown signal)
                 # Uses retry with exponential backoff for Redis connection failures
                 item = await self._redis.get_from_queue(
@@ -712,6 +737,8 @@ class AnalysisQueueWorker:
         queue_name: str = ANALYSIS_QUEUE,
         poll_timeout: int = 5,
         stop_timeout: float = 30.0,
+        supervisor: WorkerSupervisor | None = None,
+        worker_name: str = "analysis",
     ) -> None:
         """Initialize analysis queue worker.
 
@@ -721,12 +748,18 @@ class AnalysisQueueWorker:
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP
             stop_timeout: Timeout in seconds for graceful stop before force cancel
+            supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
+            worker_name: Name used for heartbeat reporting (NEM-4148)
         """
         self._redis = redis_client
         self._analyzer = analyzer or NemotronAnalyzer(redis_client=redis_client)
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
         self._stop_timeout = stop_timeout
+
+        # Heartbeat support (NEM-4148)
+        self._supervisor = supervisor
+        self._worker_name = worker_name
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -809,8 +842,19 @@ class AnalysisQueueWorker:
         """Main processing loop for the analysis queue worker."""
         logger.info("AnalysisQueueWorker loop started")
 
+        # NEM-4148: Track last heartbeat time for periodic supervisor updates
+        last_heartbeat = time_module.time()
+        heartbeat_interval = 20.0  # Send heartbeat every 20 seconds
+
         while self._running:
             try:
+                # NEM-4148: Send periodic heartbeat to supervisor
+                if self._supervisor is not None:
+                    now = time_module.time()
+                    if now - last_heartbeat >= heartbeat_interval:
+                        self._supervisor.record_heartbeat(self._worker_name)
+                        last_heartbeat = now
+
                 # Pop item from queue with timeout
                 # Uses retry with exponential backoff for Redis connection failures
                 item = await self._redis.get_from_queue(
@@ -1073,6 +1117,8 @@ class BatchTimeoutWorker:
         batch_aggregator: BatchAggregator | None = None,
         check_interval: float = 10.0,
         stop_timeout: float = 10.0,
+        supervisor: WorkerSupervisor | None = None,
+        worker_name: str = "batch_timeout",
     ) -> None:
         """Initialize batch timeout worker.
 
@@ -1081,11 +1127,17 @@ class BatchTimeoutWorker:
             batch_aggregator: Aggregator for batch timeout checks. If None, will be created.
             check_interval: How often to check for timeouts (seconds)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
+            supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
+            worker_name: Name used for heartbeat reporting (NEM-4148)
         """
         self._redis = redis_client
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
         self._check_interval = check_interval
         self._stop_timeout = stop_timeout
+
+        # Heartbeat support (NEM-4148)
+        self._supervisor = supervisor
+        self._worker_name = worker_name
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -1158,9 +1210,20 @@ class BatchTimeoutWorker:
 
         logger.info("BatchTimeoutWorker loop started")
 
+        # NEM-4148: Track last heartbeat time for periodic supervisor updates
+        last_heartbeat = time_module.time()
+        heartbeat_interval = 20.0  # Send heartbeat every 20 seconds
+
         while self._running:
             try:
                 start_time = time.time()
+
+                # NEM-4148: Send periodic heartbeat to supervisor
+                if self._supervisor is not None:
+                    now = time_module.time()
+                    if now - last_heartbeat >= heartbeat_interval:
+                        self._supervisor.record_heartbeat(self._worker_name)
+                        last_heartbeat = now
 
                 # Check for batch timeouts FIRST (before sleeping)
                 # This catches batches that may have timed out during startup
@@ -1233,6 +1296,8 @@ class QueueMetricsWorker:
         redis_client: RedisClient,
         update_interval: float = 5.0,
         stop_timeout: float = 5.0,
+        supervisor: WorkerSupervisor | None = None,
+        worker_name: str = "metrics",
     ) -> None:
         """Initialize queue metrics worker.
 
@@ -1240,10 +1305,17 @@ class QueueMetricsWorker:
             redis_client: Redis client for queue length queries
             update_interval: How often to update metrics (seconds)
             stop_timeout: How long to wait for graceful shutdown (seconds)
+            supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
+            worker_name: Name used for heartbeat reporting (NEM-4148)
         """
         self._redis = redis_client
         self._update_interval = update_interval
         self._stop_timeout = stop_timeout
+
+        # Heartbeat support (NEM-4148)
+        self._supervisor = supervisor
+        self._worker_name = worker_name
+
         self._running = False
         self._task: asyncio.Task | None = None
 
@@ -1297,8 +1369,19 @@ class QueueMetricsWorker:
         """Main loop for updating queue metrics."""
         logger.info("QueueMetricsWorker loop started")
 
+        # NEM-4148: Track last heartbeat time for periodic supervisor updates
+        last_heartbeat = time_module.time()
+        heartbeat_interval = 20.0  # Send heartbeat every 20 seconds
+
         while self._running:
             try:
+                # NEM-4148: Send periodic heartbeat to supervisor
+                if self._supervisor is not None:
+                    now = time_module.time()
+                    if now - last_heartbeat >= heartbeat_interval:
+                        self._supervisor.record_heartbeat(self._worker_name)
+                        last_heartbeat = now
+
                 # Get queue depths from Redis with retry for connection failures
                 detection_depth = await self._redis.get_queue_length(DETECTION_QUEUE)
                 analysis_depth = await self._redis.get_queue_length(ANALYSIS_QUEUE)
@@ -1887,7 +1970,10 @@ def reset_pipeline_manager_state() -> None:
 # These return async callables that the WorkerSupervisor can manage
 
 
-def create_detection_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+def create_detection_worker(
+    redis_client: RedisClient,
+    supervisor: WorkerSupervisor | None = None,
+) -> Callable[[], Awaitable[None]]:
     """Create a detection worker factory for WorkerSupervisor.
 
     Returns a callable that creates and runs a DetectionQueueWorker.
@@ -1895,13 +1981,18 @@ def create_detection_worker(redis_client: RedisClient) -> Callable[[], Awaitable
 
     Args:
         redis_client: Redis client for queue operations
+        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
 
     Returns:
         Async callable that runs the detection worker
     """
 
     async def _run_detection_worker() -> None:
-        worker = DetectionQueueWorker(redis_client=redis_client)
+        worker = DetectionQueueWorker(
+            redis_client=redis_client,
+            supervisor=supervisor,
+            worker_name="detection",
+        )
         await worker.start()
         # Wait for worker to complete (it runs until stopped)
         if worker._task:
@@ -1910,7 +2001,10 @@ def create_detection_worker(redis_client: RedisClient) -> Callable[[], Awaitable
     return _run_detection_worker
 
 
-def create_analysis_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+def create_analysis_worker(
+    redis_client: RedisClient,
+    supervisor: WorkerSupervisor | None = None,
+) -> Callable[[], Awaitable[None]]:
     """Create an analysis worker factory for WorkerSupervisor.
 
     Returns a callable that creates and runs an AnalysisQueueWorker.
@@ -1918,13 +2012,18 @@ def create_analysis_worker(redis_client: RedisClient) -> Callable[[], Awaitable[
 
     Args:
         redis_client: Redis client for queue operations
+        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
 
     Returns:
         Async callable that runs the analysis worker
     """
 
     async def _run_analysis_worker() -> None:
-        worker = AnalysisQueueWorker(redis_client=redis_client)
+        worker = AnalysisQueueWorker(
+            redis_client=redis_client,
+            supervisor=supervisor,
+            worker_name="analysis",
+        )
         await worker.start()
         # Wait for worker to complete (it runs until stopped)
         if worker._task:
@@ -1933,7 +2032,10 @@ def create_analysis_worker(redis_client: RedisClient) -> Callable[[], Awaitable[
     return _run_analysis_worker
 
 
-def create_timeout_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+def create_timeout_worker(
+    redis_client: RedisClient,
+    supervisor: WorkerSupervisor | None = None,
+) -> Callable[[], Awaitable[None]]:
     """Create a batch timeout worker factory for WorkerSupervisor.
 
     Returns a callable that creates and runs a BatchTimeoutWorker.
@@ -1941,13 +2043,18 @@ def create_timeout_worker(redis_client: RedisClient) -> Callable[[], Awaitable[N
 
     Args:
         redis_client: Redis client for queue operations
+        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
 
     Returns:
         Async callable that runs the timeout worker
     """
 
     async def _run_timeout_worker() -> None:
-        worker = BatchTimeoutWorker(redis_client=redis_client)
+        worker = BatchTimeoutWorker(
+            redis_client=redis_client,
+            supervisor=supervisor,
+            worker_name="batch_timeout",
+        )
         await worker.start()
         # Wait for worker to complete (it runs until stopped)
         if worker._task:
@@ -1956,7 +2063,10 @@ def create_timeout_worker(redis_client: RedisClient) -> Callable[[], Awaitable[N
     return _run_timeout_worker
 
 
-def create_metrics_worker(redis_client: RedisClient) -> Callable[[], Awaitable[None]]:
+def create_metrics_worker(
+    redis_client: RedisClient,
+    supervisor: WorkerSupervisor | None = None,
+) -> Callable[[], Awaitable[None]]:
     """Create a queue metrics worker factory for WorkerSupervisor.
 
     Returns a callable that creates and runs a QueueMetricsWorker.
@@ -1964,13 +2074,18 @@ def create_metrics_worker(redis_client: RedisClient) -> Callable[[], Awaitable[N
 
     Args:
         redis_client: Redis client for queue operations
+        supervisor: Optional WorkerSupervisor for heartbeat reporting (NEM-4148)
 
     Returns:
         Async callable that runs the metrics worker
     """
 
     async def _run_metrics_worker() -> None:
-        worker = QueueMetricsWorker(redis_client=redis_client)
+        worker = QueueMetricsWorker(
+            redis_client=redis_client,
+            supervisor=supervisor,
+            worker_name="metrics",
+        )
         await worker.start()
         # Wait for worker to complete (it runs until stopped)
         if worker._task:

@@ -123,6 +123,60 @@ def _load_env_and_fix_database_url() -> None:
         os.environ["DATABASE_URL"] = new_url
 
 
+# Service container-to-localhost port mappings
+# Format: container_hostname -> (container_port, localhost_port)
+_SERVICE_PORT_MAPPINGS = {
+    "ai-clip": (8093, 8093),
+    "ai-yolo26": (8090, 8090),
+    "ai-florence": (8091, 8091),
+    "ai-llm": (8092, 8092),
+    "ai-enrichment": (8094, 8094),
+    "backend": (8000, 8000),
+}
+
+
+def _fix_service_url(env_var: str, default_url: str) -> str:
+    """Fix service URL for local execution.
+
+    When running outside containers, service URLs use container hostnames
+    (e.g., 'http://ai-clip:8093') which don't resolve. This function:
+    1. Gets the URL from environment or uses default
+    2. Checks if it uses a container hostname
+    3. Translates to localhost if hostname doesn't resolve
+    """
+    url = os.environ.get(env_var, default_url)
+    if not url:
+        return default_url
+
+    # Extract hostname from URL
+    match = re.search(r"://([^:/@]+)(?::(\d+))?", url)
+    if not match:
+        return url
+
+    hostname = match.group(1)
+    port = match.group(2)
+
+    # Skip if already localhost
+    if hostname in ("localhost", "127.0.0.1"):
+        return url
+
+    # Check if hostname resolves
+    try:
+        socket.gethostbyname(hostname)
+        return url  # Resolves, we're in container network
+    except socket.gaierror:
+        # Doesn't resolve - translate to localhost
+        if hostname in _SERVICE_PORT_MAPPINGS:
+            _, localhost_port = _SERVICE_PORT_MAPPINGS[hostname]
+            new_url = url.replace(f"://{hostname}", "://localhost")
+            if port and port != str(localhost_port):
+                new_url = new_url.replace(f":{port}", f":{localhost_port}")
+            return new_url
+        else:
+            # Unknown service, just replace hostname with localhost
+            return url.replace(f"://{hostname}", "://localhost")
+
+
 # Load .env and fix DATABASE_URL before importing backend modules
 _load_env_and_fix_database_url()
 
@@ -533,18 +587,38 @@ def extract_video_frames(
     return extracted_frames
 
 
-async def ensure_synthetic_camera(camera_name: str = "synthetic_cosmos") -> Camera:
+def get_test_camera_for_category(category: str) -> str:
+    """Map scenario category to existing test camera directory.
+
+    Args:
+        category: Scenario category (normal, suspicious, threats)
+
+    Returns:
+        Test camera folder name that exists in /export/foscam
+    """
+    category_to_camera = {
+        "normal": "test_normal_delivery",
+        "suspicious": "test_suspicious_loitering",
+        "threats": "test_threat_breakin",
+        "cosmos": "test_normal_delivery",  # Default for cosmos scenarios
+    }
+    return category_to_camera.get(category, "test_normal_delivery")
+
+
+async def ensure_synthetic_camera(camera_name: str = "test_normal_delivery") -> Camera:
     """Ensure a synthetic camera exists in the database.
 
     Args:
-        camera_name: Name for the synthetic camera
+        camera_name: Name for the synthetic camera (should be existing test camera)
 
     Returns:
         Camera object (existing or newly created)
     """
     async with get_session() as session:
-        # Check if camera exists
-        result = await session.execute(select(Camera).where(Camera.name == camera_name))
+        # Check if camera exists by ID or name (ID is the folder name)
+        result = await session.execute(
+            select(Camera).where((Camera.id == camera_name) | (Camera.name == camera_name))
+        )
         camera = result.scalars().first()
 
         if camera:
@@ -583,31 +657,33 @@ async def seed_synthetic_scenarios(
     Returns:
         Tuple of (frames_processed, list of frame paths)
     """
-    # Create or get synthetic camera
-    camera = await ensure_synthetic_camera()
-
-    # Set up watch folder under camera path structure
-    if watch_folder is None:
-        # Create synthetic camera folder structure: /cameras/synthetic_cosmos/YYYY/MM/DD/
-        now = datetime.now()
-        watch_folder = (
-            Path(FOSCAM_BASE_PATH)
-            / "synthetic_cosmos"
-            / str(now.year)
-            / f"{now.month:02d}"
-            / f"{now.day:02d}"
-        )
-
-    watch_folder.mkdir(parents=True, exist_ok=True)
-    print(f"Using watch folder: {watch_folder}")
-
     processed_frames = []
     total_extracted = 0
+
+    # Group scenarios by category to use appropriate test cameras
+    now = datetime.now()
 
     for i, scenario in enumerate(scenarios, 1):
         if not scenario.video_path or not scenario.video_path.exists():
             print(f"  [{i}/{len(scenarios)}] Skipped: {scenario.name} (no video)")
             continue
+
+        # Get the appropriate test camera for this scenario's category
+        camera_name = get_test_camera_for_category(scenario.category)
+        camera = await ensure_synthetic_camera(camera_name)
+
+        # Use existing test camera folder structure
+        scenario_watch_folder = watch_folder
+        if scenario_watch_folder is None:
+            scenario_watch_folder = (
+                Path(FOSCAM_BASE_PATH)
+                / camera_name
+                / str(now.year)
+                / f"{now.month:02d}"
+                / f"{now.day:02d}"
+            )
+
+        scenario_watch_folder.mkdir(parents=True, exist_ok=True)
 
         # Create temp directory for frame extraction
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -628,7 +704,7 @@ async def seed_synthetic_scenarios(
             for j, frame_path in enumerate(frames, 1):
                 # Use naming convention that includes scenario info for traceability
                 dest_name = f"{scenario.video_id}_{scenario.category}_frame{j:02d}.jpg"
-                dest_path = watch_folder / dest_name
+                dest_path = scenario_watch_folder / dest_name
 
                 shutil.copy2(frame_path, dest_path)
                 processed_frames.append(dest_path)
@@ -646,6 +722,26 @@ async def seed_synthetic_scenarios(
             await asyncio.sleep(delay_between)
 
     print(f"\nExtracted {total_extracted} frames from {len(scenarios)} scenarios")
+
+    # Fix SELinux context for files created in temp directories
+    # Without this, containers using :z mount option may get Permission denied
+    if processed_frames:
+        try:
+            # Get unique parent directories
+            parent_dirs = {str(p.parent) for p in processed_frames}
+            for parent_dir in parent_dirs:
+                proc = await asyncio.create_subprocess_exec(
+                    "restorecon",
+                    "-R",
+                    parent_dir,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                await asyncio.wait_for(proc.wait(), timeout=30)
+            print(f"  Fixed SELinux context for {len(parent_dirs)} directories")
+        except (TimeoutError, FileNotFoundError, OSError) as e:
+            print(f"  Warning: Could not fix SELinux context: {e}")
+
     return total_extracted, processed_frames
 
 
@@ -1041,7 +1137,7 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
             by_type[obj_type] = []
         by_type[obj_type].append(det)
 
-    clip_url = os.environ.get("CLIP_URL", "http://localhost:8093")
+    clip_url = _fix_service_url("CLIP_URL", "http://localhost:8093")
     entities_created = 0
 
     async with get_session() as session:
@@ -1067,17 +1163,29 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
                     # Try to get real embedding from CLIP
                     embedding_vector = None
                     try:
-                        # Check if file exists
-                        if Path(image_path).exists():
+                        # Validate and resolve the image path to prevent path traversal
+                        img_path = Path(image_path).resolve()
+                        allowed_base = Path("/export/foscam").resolve()
+
+                        # Ensure the path is within the allowed directory
+                        if not str(img_path).startswith(str(allowed_base)):
+                            print(f"    Skipping {det.id}: path outside allowed directory")
+                            continue
+
+                        if img_path.exists() and img_path.is_file():
+                            import base64
+
+                            with img_path.open("rb") as f:
+                                image_b64 = base64.b64encode(f.read()).decode("utf-8")
                             response = await client.post(
                                 f"{clip_url}/embed",
-                                json={"image_path": image_path},
+                                json={"image": image_b64},
                             )
                             if response.status_code == 200:
                                 data = response.json()
                                 embedding_vector = {
                                     "vector": data.get("embedding", []),
-                                    "model": "clip-vit-base-patch32",
+                                    "model": "clip-vit-large-patch14",
                                     "dimension": len(data.get("embedding", [])),
                                 }
                     except Exception as e:
@@ -1664,7 +1772,7 @@ async def seed_pipeline_latency(num_samples: int = 100, time_span_hours: int = 2
     """
     import httpx
 
-    backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
+    backend_url = _fix_service_url("BACKEND_URL", "http://localhost:8000")
     api_key = os.environ.get("ADMIN_API_KEY", "")
 
     headers = {}
