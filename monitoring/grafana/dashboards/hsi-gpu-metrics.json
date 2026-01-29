@@ -100,7 +100,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_utilization{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_utilization",
           "legendFormat": "GPU {{gpu}}",
           "range": true,
           "refId": "A"
@@ -173,7 +173,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_memory_bandwidth_utilization{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_memory_bandwidth_utilization",
           "legendFormat": "GPU {{gpu}}",
           "range": true,
           "refId": "A"
@@ -246,7 +246,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_temperature{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_temperature",
           "legendFormat": "GPU {{gpu}}",
           "range": true,
           "refId": "A"
@@ -307,7 +307,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_power_limit_watts{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_power_limit_watts",
           "legendFormat": "GPU {{gpu}}",
           "range": true,
           "refId": "A"
@@ -417,7 +417,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_utilization{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_utilization",
           "legendFormat": "GPU {{gpu}} Utilization",
           "range": true,
           "refId": "A"
@@ -552,7 +552,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_memory_used_mb{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_memory_used_mb",
           "legendFormat": "GPU {{gpu}} Used",
           "range": true,
           "refId": "A"
@@ -563,7 +563,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_memory_total_mb{gpu=~\"$gpu\"} - hsi_gpu_memory_used_mb{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_memory_total_mb - hsi_gpu_memory_used_mb",
           "legendFormat": "GPU {{gpu}} Free",
           "range": true,
           "refId": "B"
@@ -660,7 +660,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_memory_bandwidth_utilization{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_memory_bandwidth_utilization",
           "legendFormat": "GPU {{gpu}} Memory BW",
           "range": true,
           "refId": "A"
@@ -774,7 +774,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_temperature{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_temperature",
           "legendFormat": "GPU {{gpu}}",
           "range": true,
           "refId": "A"
@@ -865,7 +865,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_power_limit_watts{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_power_limit_watts",
           "legendFormat": "GPU {{gpu}}",
           "range": true,
           "refId": "A"
@@ -969,7 +969,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_sm_clock_mhz{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_sm_clock_mhz",
           "legendFormat": "GPU {{gpu}} SM Clock",
           "range": true,
           "refId": "A"
@@ -980,7 +980,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_memory_clock_mhz{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_memory_clock_mhz",
           "legendFormat": "GPU {{gpu}} Mem Clock",
           "range": true,
           "refId": "B"
@@ -1115,7 +1115,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_pcie_tx_throughput_kbs{gpu=~\"$gpu\"} * 1024",
+          "expr": "hsi_gpu_pcie_tx_throughput_kbs * 1024",
           "legendFormat": "GPU {{gpu}} TX",
           "range": true,
           "refId": "A"
@@ -1126,7 +1126,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_pcie_rx_throughput_kbs{gpu=~\"$gpu\"} * 1024",
+          "expr": "hsi_gpu_pcie_rx_throughput_kbs * 1024",
           "legendFormat": "GPU {{gpu}} RX",
           "range": true,
           "refId": "B"
@@ -1263,7 +1263,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_utilization{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_utilization",
           "legendFormat": "GPU {{gpu}} GPU Util",
           "range": true,
           "refId": "A"
@@ -1274,7 +1274,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "hsi_gpu_memory_bandwidth_utilization{gpu=~\"$gpu\"}",
+          "expr": "hsi_gpu_memory_bandwidth_utilization",
           "legendFormat": "GPU {{gpu}} Mem BW",
           "range": true,
           "refId": "B"
@@ -1350,7 +1350,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "(hsi_gpu_memory_used_mb{gpu=~\"$gpu\"} / hsi_gpu_memory_total_mb{gpu=~\"$gpu\"}) * 100",
+          "expr": "(hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100",
           "legendFormat": "GPU {{gpu}} Memory %",
           "range": true,
           "refId": "A"
@@ -1376,15 +1376,15 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(hsi_gpu_utilization, gpu)",
+        "definition": "label_values(hsi_gpu_utilization, job)",
         "description": "Select GPU(s) to display. Multi-select enabled for comparison across GPUs.",
-        "hide": 0,
+        "hide": 2,
         "includeAll": true,
         "label": "GPU",
         "multi": true,
         "name": "gpu",
         "options": [],
-        "query": "label_values(hsi_gpu_utilization, gpu)",
+        "query": "label_values(hsi_gpu_utilization, job)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
