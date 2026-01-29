@@ -1,0 +1,177 @@
+{
+  "defaults": {
+    "duration_seconds": 8,
+    "resolution": "720p",
+    "aspect_ratio": "16:9"
+  },
+  "categories": {
+    "mascot-variants": {
+      "output_dir": "docs/media/veo3-mascot-variants",
+      "videos": [
+        {
+          "id": "variant01-detection-alert",
+          "title": "Real-Time Detection Alert",
+          "use_case": "Mascot responds to detection with alert",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano stands monitoring a holographic camera feed. A detection event appears as a glowing red alert icon. Nano's eyes widen, points at the alert, then quickly taps a holographic 'ANALYZE' button. The alert transforms to green as Nemotron processes it. Nano gives a confident nod. Quick action sequence, tech environment with blue holographic displays."
+        },
+        {
+          "id": "variant02-gpu-power",
+          "title": "GPU Processing Power",
+          "use_case": "Mascot showcases GPU acceleration",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano stands next to a glowing GPU chip visualization. Places hand on the GPU, which pulses with bright green energy. Multiple AI model icons orbit around Nano, moving faster and faster. Nano raises both arms triumphantly as '24 MODELS RUNNING' text appears above. Tech environment with green GPU glow dominating the scene."
+        },
+        {
+          "id": "variant03-privacy-shield",
+          "title": "Privacy Shield Activation",
+          "use_case": "Mascot activates privacy protection",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano stands in center with cloud service logos (Ring, Eufy, Nest) floating around menacingly. Nano crosses arms determinedly, then sweeps both hands outward. A green energy shield expands from Nano's chest, blocking all cloud logos with red X marks. Nano dusts off hands with satisfaction. Dark background, green shield effect, red blocked logos."
+        },
+        {
+          "id": "variant04-model-selection",
+          "title": "Model Zoo Selection",
+          "use_case": "Mascot selects AI models for task",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano stands before a holographic display showing AI model options: YOLO26, Florence-2, CLIP, Nemotron. Nano points at each one sequentially, models light up green as selected. All four models shrink and flow into Nano's chest where NVIDIA logo glows brightly. Nano strikes a ready pose. Tech library aesthetic with glowing model cards."
+        },
+        {
+          "id": "variant05-alert-delivery",
+          "title": "Smart Alert Delivery",
+          "use_case": "Mascot delivers analyzed alert",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano receives a detection from the left (blue data stream). Circuit traces on body pulse with processing. Nano examines it briefly, then presents a glowing green alert card forward with both hands. Text on card reads 'THREAT: NONE' with checkmark. Nano gives friendly wave. Clean tech aesthetic, confident delivery."
+        },
+        {
+          "id": "variant06-camera-monitor",
+          "title": "Multi-Camera Monitoring",
+          "use_case": "Mascot monitors multiple camera feeds",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano stands in center surrounded by four floating holographic camera feed windows (front, back, side, porch). Nano's eyes dart between feeds, pointing at each one. All feeds show green checkmarks. Nano gives thumbs up to camera. Security operations center aesthetic with multiple blue holographic displays."
+        },
+        {
+          "id": "variant07-risk-assessment",
+          "title": "Risk Score Assessment",
+          "use_case": "Mascot analyzes and displays risk score",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano holds a glowing detection event. Circuit traces pulse as Nano processes. A holographic meter appears above: needle swings from 100 down to 15. Text 'RISK: LOW' appears in green. Nano places event in 'SAFE' holographic bin and dusts off hands. Clean analytical aesthetic with meter visualization."
+        },
+        {
+          "id": "variant08-batch-ready",
+          "title": "Batch Processing Ready",
+          "use_case": "Mascot indicates batch is ready for analysis",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano watches a transparent container fill with blue detection icons. A timer counts '45s... 60s... 90s'. Container glows green when full. Nano claps hands together, then gestures toward container as it flows into Nemotron processing. Nano nods with approval. Tech visualization with filling container and flow animation."
+        },
+        {
+          "id": "variant09-system-health",
+          "title": "System Health Check",
+          "use_case": "Mascot performs system health verification",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano holds a holographic clipboard with system checklist. Points at each item: Cameras (green check), GPU (green check), Storage (green check), Network (green check). All checks complete, clipboard transforms into 'ALL SYSTEMS GO' badge. Nano holds it proudly and gives confident thumbs up. Clean monitoring aesthetic with checklist visualization."
+        },
+        {
+          "id": "variant10-always-on",
+          "title": "24/7 Protection Active",
+          "use_case": "Mascot demonstrates continuous monitoring",
+          "prompt": "A cute chibi-style robot mascot named Nano with uniform lime green metallic body throughout, rounded head with dark visor screen showing TWO friendly glowing green cartoon eyes, the text 'NVIDIA' written in black letters directly on the green chest (no white plate, no emblem, no symbol - just black text on green metal), small ear modules, circuit traces on body. Pixar-style 3D animated character. Nano stands in center as a holographic clock cycles through 24 hours behind it (sun to moon to sun). Nano maintains vigilant pose throughout, eyes alert, scanning left and right. Green protective energy shield pulses around the scene. Text '24/7 PROTECTION' appears. Nano salutes. Dark background with day/night cycle visualization."
+        }
+      ]
+    },
+    "architecture-tech": {
+      "output_dir": "docs/media/veo3-architecture-tech",
+      "videos": [
+        {
+          "id": "arch04a-network-boundary",
+          "title": "Scene 4A: Network Boundary Emphasis",
+          "reference_image": "docs/media/arch-system-overview.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the system architecture diagram. Camera starts wide showing the full architecture, then slowly zooms in on the green boundary box labeled 'YOUR HOME NETWORK'. The boundary box pulses with bright green energy, emphasizing containment. Data flows inside the boundary between Frontend, Backend, and AI Services layers, but nothing crosses the boundary line. Tech blueprint aesthetic with neon green highlighting the network boundary. Emphasis on local processing security."
+        },
+        {
+          "id": "arch04b-data-containment",
+          "title": "Scene 4B: Data Flow Containment",
+          "reference_image": "docs/media/arch-system-overview.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the system architecture diagram. Data flows animate within the 'YOUR HOME NETWORK' green boundary box. Show camera feed entering at top, flowing down through YOLO26 detection, then to Nemotron analysis, then to dashboard. All connections glow and pulse with data flow. The green boundary remains solid - no data escapes. Outside the boundary, faded cloud service logos (Ring, Eufy, Nest) are marked with red X symbols. Tech visualization emphasizing privacy through local processing."
+        },
+        {
+          "id": "arch06a-pipeline-flow",
+          "title": "Scene 6A: AI Pipeline Sequential Flow",
+          "reference_image": "docs/media/ai-pipeline-hero.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the AI pipeline diagram. Sequential flow from left to right: Camera feed appears first and glows, then YOLO26 detection box lights up with '30-50ms' text appearing, then Nemotron reasoning stage activates with '2-5s' text, finally Smart Alert stage glows. Each stage lights up in sequence like a blueprint coming to life. Connection arrows between stages animate with flowing data. Performance metrics (30-50ms, 2-5s) appear as glowing text. Tech blueprint style with blue and green highlights."
+        },
+        {
+          "id": "arch06b-performance-metrics",
+          "title": "Scene 6B: Performance Metrics Emphasis",
+          "reference_image": "docs/media/flow-batch-aggregator.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the batch processing flow diagram. Focus on performance timing: Detection events flow into batch aggregator, timer shows '90 second window', then batch flows to Nemotron with '2-5s processing' label, output shows smart alert. Timing metrics appear as animated counters. Data flows pulse through the pipeline. Red clock icon animates showing time passing. Green checkmarks appear when stages complete. Technical visualization emphasizing speed and efficiency."
+        },
+        {
+          "id": "arch07a-model-loading",
+          "title": "Scene 7A: Model Zoo VRAM Visualization",
+          "reference_image": "docs/media/arch-model-zoo.png",
+          "duration_seconds": 6,
+          "prompt": "Animated version of the Model Zoo architecture diagram. Show AI models as glowing blocks loading into GPU memory. VRAM bar chart animates filling up as models load: yolo26-general (650MB), Florence-2 (2GB), Nemotron (21GB), etc. Total VRAM usage counter increments. Models stack up vertically in memory visualization. Text '24 AI MODELS' appears prominently. GPU icon glows green. Tech visualization with memory bars and model blocks. Futuristic style emphasizing local AI capability."
+        },
+        {
+          "id": "arch07b-concurrent-models",
+          "title": "Scene 7B: 24 Models Running Together",
+          "reference_image": "docs/media/arch-model-zoo.png",
+          "duration_seconds": 6,
+          "prompt": "Animated version of the Model Zoo diagram. Show all 24 AI models active simultaneously. Models pulse with activity: YOLO detection models (green), vision-language models (blue), classification models (yellow). Connection lines between models glow showing data exchange. Center text '24 AI MODELS' appears in large bold letters with '100% LOCAL' subtitle. GPU visualization at bottom shows 96% utilization. Tech aesthetic with many glowing model icons and high activity visualization."
+        },
+        {
+          "id": "arch09a-privacy-shield",
+          "title": "Scene 9A: Privacy Shield Activation",
+          "reference_image": "docs/media/arch-system-overview.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the system architecture with privacy emphasis. The 'YOUR HOME NETWORK' green boundary box pulses and expands into a protective shield. Outside the boundary, cloud service logos (Ring, Eufy, Nest, AWS, Azure) appear but are blocked by red X marks appearing over them. Text 'NOTHING LEAVES THIS BOX' appears prominently. Internal data flows glow within the boundary. Shield pulses with energy. Dark background outside the boundary, bright and active inside. Strong privacy protection visualization."
+        },
+        {
+          "id": "arch09b-local-processing",
+          "title": "Scene 9B: Local Data Processing",
+          "reference_image": "docs/media/security-architecture.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the security architecture diagram. Show data flow from cameras through local processing only. Camera feeds enter the local network boundary, flow through detection and analysis services, store in local database, display on local dashboard. Green arrows show data staying within boundary. Red arrows with X marks show blocked cloud uploads. Text overlay: 'ZERO CLOUD DEPENDENCY'. Privacy-first architecture visualization with strong local boundary emphasis."
+        },
+        {
+          "id": "arch14a-queue-filling",
+          "title": "Scene 14A: Batch Queue Accumulation",
+          "reference_image": "docs/media/flow-batch-aggregator.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the batch aggregator flow diagram. Detection events (shown as glowing blue icons) flow into Redis queue container. Container fills gradually from empty to 6 detections. Timer displays counting up: '15s... 30s... 45s... 60s... 90s'. When timer hits 90s, container glows green and text 'BATCH READY' appears. Queue flows into Nemotron processing. Progress bar shows batch window filling. Tech visualization of efficient batch processing."
+        },
+        {
+          "id": "arch14b-batch-trigger",
+          "title": "Scene 14B: Batch Trigger Mechanism",
+          "reference_image": "docs/media/flow-batch-aggregator.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the batch processing logic. Show two trigger conditions: Time-based (90 second timer) and idle-based (30 second idle). Timer counts up while detections accumulate. When batch triggers, all detections flow together as a glowing stream into Nemotron analysis. Text overlays: '90s time window' and '30s idle timeout'. Batch flows out as single analyzed event. Efficient processing visualization emphasizing smart batching logic."
+        },
+        {
+          "id": "arch28a-layer-reveal",
+          "title": "Scene 28A: Architecture Layer-by-Layer",
+          "reference_image": "docs/media/arch-system-overview.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the full system architecture with layer-by-layer reveal. Start with dark diagram, then illuminate layers from top to bottom: Frontend/Dashboards layer appears first with glowing UI components, Backend API layer lights up with service boxes, AI Services layer activates with model icons, Data layer at bottom glows with database icons. 'YOUR HOME NETWORK' green boundary pulses around everything. Complete tech stack visualization. Blueprint aesthetic with sequential reveals and NVIDIA branding visible."
+        },
+        {
+          "id": "arch28b-complete-system",
+          "title": "Scene 28B: Full System Pan",
+          "reference_image": "docs/media/arch-system-overview.png",
+          "duration_seconds": 8,
+          "prompt": "Animated version of the complete architecture diagram. Camera starts at top (Frontend layer) and slowly pans down through all layers: Frontend dashboards glow, Backend services pulse with activity, AI Services show model processing, Data layer displays storage. Connection lines between components animate with flowing data. All components active simultaneously. Green boundary box 'YOUR HOME NETWORK' frames everything. Smooth camera movement revealing the complete integrated system. Tech aesthetic with NVIDIA branding prominent."
+        },
+        {
+          "id": "arch29a-container-flow",
+          "title": "Scene 29A: Container GPU Passthrough",
+          "reference_image": "docs/media/container-architecture.png",
+          "duration_seconds": 6,
+          "prompt": "Animated version of the container architecture diagram. Show Docker containers as glowing boxes: frontend, backend, yolo26, nemotron, database, redis. Focus on GPU passthrough: yellow lightning bolt flows from host GPU into AI service containers (yolo26 and nemotron). Connection lines between containers glow with data flow. Text 'GPU PASSTHROUGH' appears with NVIDIA icon. Container orchestration visualization emphasizing GPU acceleration. Tech style with containers as clean boxes and glowing connections."
+        },
+        {
+          "id": "arch29b-docker-deployment",
+          "title": "Scene 29B: One-Command Deployment",
+          "reference_image": "docs/media/container-architecture.png",
+          "duration_seconds": 6,
+          "prompt": "Animated version of the container deployment architecture. Show Docker containers materializing one by one: redis appears first, then database, then backend, then AI services, finally frontend. Each container appears with a green checkmark. Connection lines between containers establish. Text overlay: 'docker-compose up' command line appears at bottom. All containers glow green when healthy. Simple deployment visualization. Clean tech aesthetic emphasizing ease of deployment and container orchestration."
+        }
+      ]
+    }
+  }
+}
