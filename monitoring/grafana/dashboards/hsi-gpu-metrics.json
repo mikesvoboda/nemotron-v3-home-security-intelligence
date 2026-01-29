@@ -1365,33 +1365,7 @@
   "style": "dark",
   "tags": ["gpu", "nvidia", "performance", "hardware", "ai", "observability"],
   "templating": {
-    "list": [
-      {
-        "current": {
-          "selected": true,
-          "text": ["All"],
-          "value": ["$__all"]
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(hsi_gpu_utilization, job)",
-        "description": "Select GPU(s) to display. Multi-select enabled for comparison across GPUs.",
-        "hide": 2,
-        "includeAll": true,
-        "label": "GPU",
-        "multi": true,
-        "name": "gpu",
-        "options": [],
-        "query": "label_values(hsi_gpu_utilization, job)",
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      }
-    ]
+    "list": []
   },
   "time": {
     "from": "now-1h",
