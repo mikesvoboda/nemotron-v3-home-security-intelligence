@@ -57,10 +57,10 @@ _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
-from compile_utils import CompileConfig, compile_model, is_compile_available  # noqa: E402
+from compile_utils import CompileConfig, compile_model, is_compile_available
 
 # Import metrics from the metrics module
-from metrics import (  # noqa: E402
+from metrics import (
     DETECTIONS_PER_IMAGE,
     GPU_MEMORY_USED_GB,
     GPU_POWER_WATTS,
@@ -1124,7 +1124,7 @@ def get_gpu_metrics() -> dict[str, float | int | None]:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for FastAPI app."""
-    global model  # noqa: PLW0603
+    global model
 
     # Startup
     logger.info("Starting YOLO26 Detection Server...")
@@ -1706,6 +1706,6 @@ if __name__ == "__main__":
     # Default to 0.0.0.0 to allow connections from Docker/Podman containers.
     # When AI servers run natively on host while backend runs in containers,
     # binding to 127.0.0.1 would prevent container-to-host connectivity.
-    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8095"))
     uvicorn.run(app, host=host, port=port, log_level="info")
