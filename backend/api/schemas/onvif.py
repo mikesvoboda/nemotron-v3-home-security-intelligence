@@ -11,6 +11,26 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+# URL validation patterns
+_HTTP_URL_PATTERN = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+_RTSP_URL_PATTERN = re.compile(r"^rtsps?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+
+
+def _validate_http_url(v: str) -> str:
+    """Validate HTTP(S) URL format."""
+    if not _HTTP_URL_PATTERN.match(v):
+        raise ValueError("Invalid device_url format - must be a valid HTTP(S) URL")
+    return v
+
+
+def _validate_rtsp_url(v: str | None) -> str | None:
+    """Validate RTSP URL format if provided."""
+    if v is None:
+        return v
+    if not _RTSP_URL_PATTERN.match(v):
+        raise ValueError("Invalid rtsp_url format - must be a valid RTSP URL")
+    return v
+
 
 class OnvifDiscoveryRequest(BaseModel):
     """Request schema for ONVIF device discovery.
@@ -98,11 +118,7 @@ class OnvifDiscoveryResult(BaseModel):
     @classmethod
     def validate_device_url(cls, v: str) -> str:
         """Validate device URL format."""
-        # Basic URL validation - must start with http:// or https://
-        url_pattern = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
-        if not url_pattern.match(v):
-            raise ValueError("Invalid device_url format - must be a valid HTTP(S) URL")
-        return v
+        return _validate_http_url(v)
 
 
 class OnvifDeviceConfig(BaseModel):
@@ -145,22 +161,13 @@ class OnvifDeviceConfig(BaseModel):
     @classmethod
     def validate_device_url(cls, v: str) -> str:
         """Validate device URL format."""
-        url_pattern = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
-        if not url_pattern.match(v):
-            raise ValueError("Invalid device_url format - must be a valid HTTP(S) URL")
-        return v
+        return _validate_http_url(v)
 
     @field_validator("rtsp_url")
     @classmethod
     def validate_rtsp_url(cls, v: str | None) -> str | None:
         """Validate RTSP URL format if provided."""
-        if v is None:
-            return v
-        # RTSP URLs must start with rtsp:// or rtsps://
-        rtsp_pattern = re.compile(r"^rtsps?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
-        if not rtsp_pattern.match(v):
-            raise ValueError("Invalid rtsp_url format - must be a valid RTSP URL")
-        return v
+        return _validate_rtsp_url(v)
 
 
 class PTZCommand(BaseModel):

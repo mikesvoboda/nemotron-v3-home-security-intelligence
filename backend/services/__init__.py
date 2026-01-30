@@ -143,6 +143,7 @@ from .florence_extractor import (
     reset_florence_extractor,
 )
 from .florence_loader import load_florence_model
+from .frame_extractor import FrameExtractor
 from .gpu_config_service import GpuAssignment, GpuConfigService
 from .gpu_detection_service import (
     AI_SERVICE_VRAM_REQUIREMENTS_MB,
@@ -332,6 +333,7 @@ from .severity import (
     severity_lt,
     severity_lte,
 )
+from .stream_manager import StreamManager
 from .thumbnail_generator import ThumbnailGenerator
 from .track_service import (
     DEFAULT_MAX_TRAJECTORY_POINTS,
@@ -465,6 +467,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FaceResult",
     "FileWatcher",
     "FlorenceExtractor",
+    "FrameExtractor",
     "GpuAssignment",
     "GpuConfigService",
     "GpuDetectionService",
@@ -523,6 +526,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DegradationServiceStatus",
     "SeverityDefinition",
     "SeverityService",
+    "StreamManager",
     "ThumbnailGenerator",
     # Track Service
     "TrackService",

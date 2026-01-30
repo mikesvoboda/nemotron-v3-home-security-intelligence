@@ -43,20 +43,11 @@ def normalize_camera_id(folder_name: str) -> str:
     if not folder_name:
         return ""
 
-    # Strip whitespace
-    normalized = folder_name.strip()
-    # Convert to lowercase
-    normalized = normalized.lower()
-    # Replace spaces and hyphens with underscores
-    normalized = re.sub(r"[\s\-]+", "_", normalized)
-    # Remove any characters that aren't alphanumeric or underscore
-    normalized = re.sub(r"[^\w]", "", normalized)
-    # Collapse multiple underscores
-    normalized = re.sub(r"_+", "_", normalized)
-    # Remove leading/trailing underscores
-    normalized = normalized.strip("_")
-
-    return normalized
+    normalized = folder_name.strip().lower()
+    normalized = re.sub(r"[\s\-]+", "_", normalized)  # spaces/hyphens -> underscore
+    normalized = re.sub(r"[^\w]", "", normalized)  # remove non-word chars
+    normalized = re.sub(r"_+", "_", normalized)  # collapse multiple underscores
+    return normalized.strip("_")
 
 
 class Base(DeclarativeBase):
@@ -160,21 +151,17 @@ class Camera(Base):
 
         SQLAlchemy's mapped_column defaults only apply at database insert time.
         This __init__ ensures defaults are available at Python object construction.
-
-        NEM-4191: Added RTSP/ONVIF streaming field parameters.
         """
         super().__init__()
         self.id = id
         self.name = name
         self.folder_path = folder_path
-        self.status = status if status is not None else CameraStatus.ONLINE.value
-        self.created_at = created_at if created_at is not None else datetime.now(UTC)
+        self.status = status or CameraStatus.ONLINE.value
+        self.created_at = created_at or datetime.now(UTC)
         self.last_seen_at = last_seen_at
         self.deleted_at = deleted_at
         self.property_id = property_id
-        self.ingestion_mode = (
-            ingestion_mode if ingestion_mode is not None else IngestionMode.FTP.value
-        )
+        self.ingestion_mode = ingestion_mode or IngestionMode.FTP.value
         self.rtsp_url = rtsp_url
         self.rtsp_username = rtsp_username
         self.rtsp_password = rtsp_password
@@ -234,19 +221,11 @@ class Camera(Base):
 
     @property
     def is_deleted(self) -> bool:
-        """Check if this camera is soft-deleted.
-
-        Returns:
-            True if deleted_at is set, False otherwise
-        """
+        """Check if this camera is soft-deleted."""
         return self.deleted_at is not None
 
     def soft_delete(self) -> None:
-        """Soft delete this camera by setting deleted_at timestamp.
-
-        This marks the camera as deleted without removing it from the database,
-        preserving referential integrity with related records.
-        """
+        """Soft delete this camera by setting deleted_at timestamp."""
         self.deleted_at = datetime.now(UTC)
 
     def restore(self) -> None:
@@ -254,11 +233,7 @@ class Camera(Base):
         self.deleted_at = None
 
     async def hard_delete(self, session: object) -> None:
-        """Hard delete this camera, permanently removing it from the database.
-
-        Args:
-            session: SQLAlchemy async session to use for deletion
-        """
+        """Permanently remove this camera from the database."""
         await session.delete(self)  # type: ignore[attr-defined]
 
     @classmethod

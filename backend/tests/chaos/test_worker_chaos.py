@@ -672,7 +672,7 @@ class TestWorkerRestartRecovery:
         await mock_redis.add_to_queue(DETECTION_QUEUE, detection_payload)
 
         # Wait for processing
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # chaos test - mocked
 
         # Assert: Worker processed the job
         assert detection_worker.stats.items_processed > 0

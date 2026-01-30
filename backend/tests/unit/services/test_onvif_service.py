@@ -157,6 +157,279 @@ class TestDiscoverDevices:
         with pytest.raises(Exception, match="Discovery failed"):
             await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
 
+    # ============================================================================
+    # Phase 2 ONVIF Discovery Tests - NEM-4388
+    # ============================================================================
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_returns_rtsp_urls(
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
+    ):
+        """Test discover_devices returns device list with RTSP URLs.
+
+        Phase 2 enhancement: Discovery results should include RTSP URLs
+        extracted from each device's media profiles.
+        """
+        # Mock WS-Discovery to return device
+        device = MagicMock()
+        device.xaddrs = "http://192.168.1.100/onvif/device_service"
+        device.scopes = [
+            MagicMock(scope="onvif://www.onvif.org/name/Hikvision"),
+            MagicMock(scope="onvif://www.onvif.org/hardware/DS-2CD2385G1"),
+        ]
+
+        mock_wsdiscovery.searchServices.return_value = [device]
+
+        # Mock ONVIFCamera to provide RTSP URLs
+        mock_onvif_instance = MagicMock()
+        mock_onvif_camera_class.return_value = mock_onvif_instance
+
+        # Mock media profiles
+        profile_main = MagicMock()
+        profile_main.token = "Profile_1"
+        profile_main.Name = "mainStream"
+
+        profile_sub = MagicMock()
+        profile_sub.token = "Profile_2"
+        profile_sub.Name = "subStream"
+
+        mock_onvif_instance.media.GetProfiles.return_value = [profile_main, profile_sub]
+
+        # Mock stream URIs
+        stream_uri_main = MagicMock()
+        stream_uri_main.Uri = "rtsp://192.168.1.100:554/Streaming/Channels/101"
+        stream_uri_sub = MagicMock()
+        stream_uri_sub.Uri = "rtsp://192.168.1.100:554/Streaming/Channels/102"
+
+        mock_onvif_instance.media.GetStreamUri.side_effect = [stream_uri_main, stream_uri_sub]
+
+        service = OnvifService(mock_session, mock_redis)
+        devices = await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
+
+        # Verify device includes RTSP URLs array
+        assert len(devices) == 1
+        device_result = devices[0]
+        assert "rtsp_urls" in device_result
+        assert isinstance(device_result["rtsp_urls"], list)
+        assert len(device_result["rtsp_urls"]) == 2
+
+        # Verify main stream
+        main_stream = device_result["rtsp_urls"][0]
+        assert main_stream["profile"] == "mainStream"
+        assert main_stream["url"] == "rtsp://192.168.1.100:554/Streaming/Channels/101"
+
+        # Verify sub stream
+        sub_stream = device_result["rtsp_urls"][1]
+        assert sub_stream["profile"] == "subStream"
+        assert sub_stream["url"] == "rtsp://192.168.1.100:554/Streaming/Channels/102"
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_extracts_manufacturer_from_scopes(
+        self, mock_session, mock_redis, mock_wsdiscovery
+    ):
+        """Test extracting manufacturer and model from device scopes.
+
+        Phase 2 requirement: Parse WS-Discovery scopes to extract
+        manufacturer and model information.
+        """
+        # Mock device with scopes containing manufacturer and model
+        device = MagicMock()
+        device.xaddrs = "http://192.168.1.100/onvif/device_service"
+        device.scopes = [
+            "onvif://www.onvif.org/type/NetworkVideoTransmitter",
+            "onvif://www.onvif.org/name/Hikvision",
+            "onvif://www.onvif.org/hardware/DS-2CD2385G1",
+            "onvif://www.onvif.org/location/Office",
+        ]
+
+        mock_wsdiscovery.searchServices.return_value = [device]
+
+        service = OnvifService(mock_session, mock_redis)
+        devices = await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
+
+        assert len(devices) == 1
+        device_result = devices[0]
+        assert device_result["manufacturer"] == "Hikvision"
+        assert device_result["model"] == "DS-2CD2385G1"
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_handles_non_standard_port(
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
+    ):
+        """Test discovering devices on non-standard ONVIF ports (e.g., 8080).
+
+        Phase 2 requirement: Support cameras that use ports other than
+        default 80 for ONVIF service.
+        """
+        # Mock device using port 8080
+        device = MagicMock()
+        device.xaddrs = "http://192.168.1.100:8080/onvif/device_service"
+        device.scopes = [
+            "onvif://www.onvif.org/name/Dahua",
+            "onvif://www.onvif.org/hardware/IPC-HDW5442T",
+        ]
+
+        mock_wsdiscovery.searchServices.return_value = [device]
+
+        # Mock ONVIFCamera
+        mock_onvif_instance = MagicMock()
+        mock_onvif_camera_class.return_value = mock_onvif_instance
+
+        profile = MagicMock()
+        profile.token = "Profile_1"
+        profile.Name = "mainStream"
+        mock_onvif_instance.media.GetProfiles.return_value = [profile]
+
+        stream_uri = MagicMock()
+        stream_uri.Uri = "rtsp://192.168.1.100:554/cam/realmonitor?channel=1&subtype=0"
+        mock_onvif_instance.media.GetStreamUri.return_value = stream_uri
+
+        service = OnvifService(mock_session, mock_redis)
+        devices = await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
+
+        # Verify device with non-standard port is discovered
+        assert len(devices) == 1
+        device_result = devices[0]
+        assert ":8080" in device_result["device_url"]
+        assert device_result["ip"] == "192.168.1.100"
+        assert device_result["port"] == 8080
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_partial_success_with_timeout(
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
+    ):
+        """Test partial success when some devices timeout during RTSP URL extraction.
+
+        Phase 2 requirement: Show successfully discovered devices even if
+        some devices timeout during detailed capability retrieval.
+        """
+        # Mock WS-Discovery returning two devices
+        device1 = MagicMock()
+        device1.xaddrs = "http://192.168.1.100/onvif/device_service"
+        device1.scopes = [
+            "onvif://www.onvif.org/name/Hikvision",
+            "onvif://www.onvif.org/hardware/DS-2CD2385G1",
+        ]
+
+        device2 = MagicMock()
+        device2.xaddrs = "http://192.168.1.101/onvif/device_service"
+        device2.scopes = [
+            "onvif://www.onvif.org/name/Dahua",
+            "onvif://www.onvif.org/hardware/IPC-HDW5442T",
+        ]
+
+        mock_wsdiscovery.searchServices.return_value = [device1, device2]
+
+        # Mock first device succeeds, second times out
+        def mock_onvif_camera_factory(device_url, *args, **kwargs):
+            mock_cam = MagicMock()
+            if "192.168.1.100" in device_url:
+                # First device succeeds
+                profile = MagicMock()
+                profile.token = "Profile_1"
+                profile.Name = "mainStream"
+                mock_cam.media.GetProfiles.return_value = [profile]
+
+                stream_uri = MagicMock()
+                stream_uri.Uri = "rtsp://192.168.1.100:554/stream1"
+                mock_cam.media.GetStreamUri.return_value = stream_uri
+            else:
+                # Second device times out
+                mock_cam.media.GetProfiles.side_effect = TimeoutError("Connection timeout")
+            return mock_cam
+
+        mock_onvif_camera_class.side_effect = mock_onvif_camera_factory
+
+        service = OnvifService(mock_session, mock_redis)
+        result = await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
+
+        # Verify partial success
+        assert "devices" in result or isinstance(result, list)
+        devices = result if isinstance(result, list) else result["devices"]
+
+        # Should have one successful device
+        successful_devices = [d for d in devices if d.get("rtsp_urls")]
+        assert len(successful_devices) == 1
+        assert successful_devices[0]["ip"] == "192.168.1.100"
+
+        # Should include timeout count in result
+        if isinstance(result, dict):
+            assert "timeout_count" in result
+            assert result["timeout_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_no_devices_found(
+        self, mock_session, mock_redis, mock_wsdiscovery
+    ):
+        """Test discovery when no ONVIF devices are found on network.
+
+        Phase 2 requirement: Gracefully handle scenario where subnet
+        scan finds no ONVIF-compatible devices.
+        """
+        # Mock empty discovery results
+        mock_wsdiscovery.searchServices.return_value = []
+
+        service = OnvifService(mock_session, mock_redis)
+        devices = await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
+
+        # Should return empty list or dict with empty devices
+        if isinstance(devices, list):
+            assert len(devices) == 0
+        else:
+            assert devices["count"] == 0
+            assert len(devices["devices"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_discover_devices_includes_capabilities(
+        self, mock_session, mock_redis, mock_wsdiscovery, mock_onvif_camera_class
+    ):
+        """Test discovery includes device capabilities.
+
+        Phase 2 requirement: Include capability flags in discovery results
+        (video, audio, ptz, events) for UI display.
+        """
+        # Mock device discovery
+        device = MagicMock()
+        device.xaddrs = "http://192.168.1.100/onvif/device_service"
+        device.scopes = [
+            "onvif://www.onvif.org/name/Hikvision",
+            "onvif://www.onvif.org/hardware/DS-2CD2385G1",
+        ]
+
+        mock_wsdiscovery.searchServices.return_value = [device]
+
+        # Mock ONVIFCamera with capabilities
+        mock_onvif_instance = MagicMock()
+        mock_onvif_camera_class.return_value = mock_onvif_instance
+
+        # Mock capabilities
+        capabilities = MagicMock()
+        capabilities.PTZ = MagicMock()  # Has PTZ
+        capabilities.Media = MagicMock()  # Has Media
+        capabilities.Events = None  # No Events
+        mock_onvif_instance.devicemgmt.GetCapabilities.return_value = capabilities
+
+        # Mock media profile
+        profile = MagicMock()
+        profile.token = "Profile_1"
+        profile.Name = "mainStream"
+        mock_onvif_instance.media.GetProfiles.return_value = [profile]
+
+        stream_uri = MagicMock()
+        stream_uri.Uri = "rtsp://192.168.1.100:554/stream1"
+        mock_onvif_instance.media.GetStreamUri.return_value = stream_uri
+
+        service = OnvifService(mock_session, mock_redis)
+        devices = await service.discover_devices(subnet="192.168.1.0/24", timeout=5)
+
+        # Verify capabilities are included
+        assert len(devices) == 1
+        device_result = devices[0]
+        assert "capabilities" in device_result
+        assert device_result["capabilities"]["video"] is True
+        assert device_result["capabilities"]["ptz"] is True
+        assert device_result["capabilities"]["events"] is False
+
 
 @pytest.mark.skipif(OnvifService is None, reason="OnvifService not implemented yet")
 class TestGetCapabilities:
