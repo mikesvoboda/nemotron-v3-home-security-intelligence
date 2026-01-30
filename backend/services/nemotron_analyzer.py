@@ -87,6 +87,7 @@ from backend.core.telemetry_ai_conventions import (
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.llm_interaction import LLMInteraction
 
 # Service facade for reduced coupling (NEM-3150)
 # Instead of importing 8+ services directly, we use a facade that aggregates
@@ -1396,6 +1397,148 @@ class NemotronAnalyzer:
             )
             return []
 
+    def _build_enrichment_snapshot(
+        self,
+        detection_ids: list[int],
+        enrichment_result: EnrichmentResult | None,
+        enriched_context: EnrichedContext | None,
+    ) -> dict[str, Any]:
+        """Build a frozen snapshot of enrichment data for LLMInteraction observability (NEM-4234).
+
+        This creates a snapshot of what enrichment data was available at analysis time,
+        enabling debugging of misattribution issues where the LLM's reasoning references
+        incorrect attributes from enrichment models.
+
+        Args:
+            detection_ids: List of detection IDs included in this analysis
+            enrichment_result: Results from enrichment pipeline (plates, faces, etc.)
+            enriched_context: Zone, baseline, and cross-camera context
+
+        Returns:
+            Dictionary containing frozen enrichment data for audit trail
+        """
+        snapshot: dict[str, Any] = {
+            "detection_ids": detection_ids,
+            "enrichment_available": enrichment_result is not None,
+            "context_available": enriched_context is not None,
+        }
+
+        if enrichment_result is not None:
+            # Capture license plate data
+            snapshot["license_plates"] = enrichment_result.license_plates or []
+            # Capture face detection data
+            snapshot["faces"] = enrichment_result.faces or []
+            # Capture weather classification
+            if enrichment_result.weather_classification:
+                snapshot["weather"] = (
+                    enrichment_result.weather_classification.model_dump()
+                    if hasattr(enrichment_result.weather_classification, "model_dump")
+                    else str(enrichment_result.weather_classification)
+                )
+            # Capture pose results
+            if enrichment_result.pose_results:
+                snapshot["pose_results"] = {
+                    str(k): v.model_dump() if hasattr(v, "model_dump") else v
+                    for k, v in enrichment_result.pose_results.items()
+                }
+            # Capture action recognition results
+            if enrichment_result.action_results:
+                snapshot["action_results"] = (
+                    enrichment_result.action_results.model_dump()
+                    if hasattr(enrichment_result.action_results, "model_dump")
+                    else enrichment_result.action_results
+                )
+
+        if enriched_context is not None:
+            # Capture baseline data
+            if enriched_context.baselines:
+                snapshot["baselines"] = {
+                    "day_of_week": enriched_context.baselines.day_of_week,
+                    "hour_of_day": enriched_context.baselines.hour_of_day,
+                    "deviation_score": enriched_context.baselines.deviation_score,
+                }
+            # Capture zone analysis summary
+            if enriched_context.zones:
+                snapshot["zones_count"] = len(enriched_context.zones)
+            # Capture cross-camera data
+            if enriched_context.cross_camera:
+                snapshot["cross_camera_count"] = len(enriched_context.cross_camera)
+
+        return snapshot
+
+    def _build_context_sources(
+        self,
+        enrichment_result: EnrichmentResult | None,
+        enriched_context: EnrichedContext | None,
+    ) -> dict[str, bool]:
+        """Track which context sources were populated vs empty (NEM-4234).
+
+        This records whether each enrichment field had data available,
+        helping identify when LLM analysis was performed with incomplete context.
+
+        Args:
+            enrichment_result: Results from enrichment pipeline
+            enriched_context: Zone, baseline, and cross-camera context
+
+        Returns:
+            Dictionary mapping context source names to populated status
+        """
+        sources: dict[str, bool] = {
+            "enrichment_available": enrichment_result is not None,
+            "context_available": enriched_context is not None,
+        }
+
+        if enrichment_result is not None:
+            sources["has_license_plates"] = enrichment_result.has_license_plates
+            sources["has_faces"] = enrichment_result.has_faces
+            sources["has_weather"] = enrichment_result.weather_classification is not None
+            sources["has_pose"] = bool(enrichment_result.pose_results)
+            sources["has_action"] = enrichment_result.action_results is not None
+            sources["has_violence"] = enrichment_result.has_violence
+            sources["has_clothing"] = enrichment_result.has_clothing_classifications
+            sources["has_vehicle_classification"] = enrichment_result.has_vehicle_classifications
+            sources["has_vehicle_damage"] = enrichment_result.has_vehicle_damage
+            sources["has_pet_classification"] = enrichment_result.has_pet_classifications
+            sources["has_image_quality"] = enrichment_result.has_image_quality
+            sources["has_vision_extraction"] = enrichment_result.has_vision_extraction
+            sources["has_person_reid"] = bool(enrichment_result.person_reid_matches)
+            sources["has_vehicle_reid"] = bool(enrichment_result.vehicle_reid_matches)
+            sources["has_household_person_matches"] = bool(
+                enrichment_result.person_household_matches
+            )
+            sources["has_household_vehicle_matches"] = bool(
+                enrichment_result.vehicle_household_matches
+            )
+        else:
+            # All enrichment sources are False when no enrichment
+            sources["has_license_plates"] = False
+            sources["has_faces"] = False
+            sources["has_weather"] = False
+            sources["has_pose"] = False
+            sources["has_action"] = False
+            sources["has_violence"] = False
+            sources["has_clothing"] = False
+            sources["has_vehicle_classification"] = False
+            sources["has_vehicle_damage"] = False
+            sources["has_pet_classification"] = False
+            sources["has_image_quality"] = False
+            sources["has_vision_extraction"] = False
+            sources["has_person_reid"] = False
+            sources["has_vehicle_reid"] = False
+            sources["has_household_person_matches"] = False
+            sources["has_household_vehicle_matches"] = False
+
+        if enriched_context is not None:
+            sources["has_baselines"] = enriched_context.baselines is not None
+            sources["has_zones"] = bool(enriched_context.zones)
+            sources["has_cross_camera"] = bool(enriched_context.cross_camera)
+        else:
+            sources["has_baselines"] = False
+            sources["has_zones"] = False
+            sources["has_cross_camera"] = False
+
+        return sources
+
     async def _get_household_context(
         self,
         detections_data: list[dict[str, Any]],  # noqa: ARG002 - Reserved for future expansion
@@ -2149,6 +2292,64 @@ class NemotronAnalyzer:
                     },
                 )
 
+            # Create LLMInteraction record for AI pipeline observability (NEM-4234)
+            # This captures what Nemotron received and responded for debugging accuracy issues
+            try:
+                # Build enrichment snapshot - frozen copy of what was passed to LLM
+                enrichment_snapshot = self._build_enrichment_snapshot(
+                    detection_ids=int_detection_ids,
+                    enrichment_result=enrichment_result,
+                    enriched_context=enriched_context,
+                )
+
+                # Build context sources - which enrichment fields were populated
+                context_sources = self._build_context_sources(
+                    enrichment_result=enrichment_result,
+                    enriched_context=enriched_context,
+                )
+
+                # Get household matches if available
+                household_matches: dict[str, Any] | None = None
+                if enrichment_result is not None:
+                    person_matches = enrichment_result.person_household_matches
+                    vehicle_matches = enrichment_result.vehicle_household_matches
+                    if person_matches or vehicle_matches:
+                        household_matches = {
+                            "persons": [
+                                m.model_dump() if hasattr(m, "model_dump") else m
+                                for m in (person_matches or [])
+                            ],
+                            "vehicles": [
+                                m.model_dump() if hasattr(m, "model_dump") else m
+                                for m in (vehicle_matches or [])
+                            ],
+                        }
+
+                llm_interaction = LLMInteraction(
+                    event_id=event.id,
+                    raw_response=risk_data.get("raw_response", ""),
+                    enrichment_snapshot=enrichment_snapshot,
+                    household_matches=household_matches,
+                    context_sources=context_sources,
+                )
+                session.add(llm_interaction)
+                await session.flush()
+                logger.debug(f"Created LLMInteraction {llm_interaction.id} for event {event.id}")
+
+            except Exception as e:
+                # NEM-4234: LLMInteraction failures should not roll back Event creation
+                # Observability is optional - we log a warning but continue
+                logger.warning(
+                    "LLMInteraction creation failed",
+                    extra={
+                        "action": "create_llm_interaction",
+                        "resource_id": str(event.id),
+                        "resource_type": "llm_interaction",
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    },
+                )
+
             # NEM-2574: Single commit at end via get_session() context manager
             # The context manager handles: commit on success, rollback on any error
 
@@ -2517,6 +2718,64 @@ class NemotronAnalyzer:
                         "action": "create_partial_audit",
                         "resource_id": str(event.id),
                         "resource_type": "event_audit",
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                    },
+                )
+
+            # Create LLMInteraction record for AI pipeline observability (NEM-4234)
+            # This captures what Nemotron received and responded for debugging accuracy issues
+            try:
+                # Build enrichment snapshot - frozen copy of what was passed to LLM
+                enrichment_snapshot = self._build_enrichment_snapshot(
+                    detection_ids=[detection_id_int],
+                    enrichment_result=enrichment_result,
+                    enriched_context=enriched_context,
+                )
+
+                # Build context sources - which enrichment fields were populated
+                context_sources = self._build_context_sources(
+                    enrichment_result=enrichment_result,
+                    enriched_context=enriched_context,
+                )
+
+                # Get household matches if available
+                household_matches: dict[str, Any] | None = None
+                if enrichment_result is not None:
+                    person_matches = enrichment_result.person_household_matches
+                    vehicle_matches = enrichment_result.vehicle_household_matches
+                    if person_matches or vehicle_matches:
+                        household_matches = {
+                            "persons": [
+                                m.model_dump() if hasattr(m, "model_dump") else m
+                                for m in (person_matches or [])
+                            ],
+                            "vehicles": [
+                                m.model_dump() if hasattr(m, "model_dump") else m
+                                for m in (vehicle_matches or [])
+                            ],
+                        }
+
+                llm_interaction = LLMInteraction(
+                    event_id=event.id,
+                    raw_response=risk_data.get("raw_response", ""),
+                    enrichment_snapshot=enrichment_snapshot,
+                    household_matches=household_matches,
+                    context_sources=context_sources,
+                )
+                session.add(llm_interaction)
+                await session.flush()
+                logger.debug(f"Created LLMInteraction {llm_interaction.id} for event {event.id}")
+
+            except Exception as e:
+                # NEM-4234: LLMInteraction failures should not roll back Event creation
+                # Observability is optional - we log a warning but continue
+                logger.warning(
+                    "LLMInteraction creation failed",
+                    extra={
+                        "action": "create_llm_interaction",
+                        "resource_id": str(event.id),
+                        "resource_type": "llm_interaction",
                         "error_type": type(e).__name__,
                         "error_message": str(e),
                     },
@@ -3391,6 +3650,10 @@ class NemotronAnalyzer:
 
         # Include the prompt in the response for debugging/improvement
         risk_data["llm_prompt"] = prompt
+
+        # Include raw response for LLMInteraction observability (NEM-4234)
+        # This preserves <think> blocks and full LLM output for debugging
+        risk_data["raw_response"] = completion_text
 
         return risk_data
 

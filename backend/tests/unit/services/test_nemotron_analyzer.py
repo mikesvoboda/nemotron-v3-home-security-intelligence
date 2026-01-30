@@ -4666,3 +4666,761 @@ async def test_execute_rollout_rollback_no_manager(analyzer):
 
     # Should not raise an error
     analyzer.execute_rollout_rollback()
+
+
+# =============================================================================
+# Test: LLMInteraction Integration (NEM-4234)
+# =============================================================================
+# These tests verify that LLMInteraction records are created alongside Event
+# records to capture observability data for AI pipeline debugging.
+
+
+@pytest.fixture
+def mock_llm_response_with_think_blocks():
+    """Create a mock LLM response that includes think blocks."""
+    raw_response = """<think>
+Let me analyze this security event...
+- Person detected at front door
+- Time is 2:30 PM which is normal daytime
+- No suspicious behavior patterns
+</think>
+{
+    "risk_score": 25,
+    "risk_level": "low",
+    "summary": "Normal daytime activity at front door",
+    "reasoning": "Person detected during normal hours with no suspicious indicators"
+}"""
+    return {
+        "content": raw_response,
+        "usage": {"prompt_tokens": 500, "completion_tokens": 150},
+    }
+
+
+@pytest.fixture
+def mock_enrichment_result():
+    """Create a mock enrichment result for testing."""
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    # Create a minimal EnrichmentResult with some data
+    result = EnrichmentResult()
+    result.license_plates = [
+        {
+            "detection_id": 1,
+            "plate_text": "ABC123",
+            "confidence": 0.92,
+        }
+    ]
+    result.faces = [
+        {
+            "detection_id": 2,
+            "face_id": "face_001",
+            "confidence": 0.88,
+        }
+    ]
+    return result
+
+
+@pytest.fixture
+def mock_household_matches():
+    """Create mock household match data."""
+    return {
+        "persons": [
+            {
+                "detection_id": 2,
+                "matched_person": "John Doe",
+                "similarity_score": 0.95,
+                "confidence": "high",
+            }
+        ],
+        "vehicles": [
+            {
+                "detection_id": 1,
+                "matched_vehicle": "Family SUV",
+                "plate_match": "ABC123",
+                "confidence": "high",
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_call_llm_returns_raw_response(analyzer):
+    """Test that _call_llm returns raw_response in the result dict.
+
+    The raw_response is needed for LLMInteraction records to capture
+    the full LLM output including <think> blocks.
+    """
+    raw_llm_output = """<think>
+Analyzing the security event...
+</think>
+{
+    "risk_score": 50,
+    "risk_level": "medium",
+    "summary": "Activity detected",
+    "reasoning": "Normal activity observed"
+}"""
+    mock_response = {
+        "content": raw_llm_output,
+        "usage": {"prompt_tokens": 100, "completion_tokens": 50},
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        result = await analyzer._call_llm(
+            camera_name="Front Door",
+            start_time="2025-12-23T14:30:00",
+            end_time="2025-12-23T14:31:00",
+            detections_list="1. 14:30:00 - person (confidence: 0.95)",
+        )
+
+    # Verify raw_response is included in result
+    assert "raw_response" in result
+    assert result["raw_response"] == raw_llm_output
+    # Verify think blocks are preserved in raw_response
+    assert "<think>" in result["raw_response"]
+    assert "</think>" in result["raw_response"]
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_creates_llm_interaction(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test that analyze_batch creates LLMInteraction record alongside Event.
+
+    Verifies that when an Event is created, an associated LLMInteraction
+    record is also created with the raw LLM response and enrichment snapshot.
+    """
+    from backend.models.llm_interaction import LLMInteraction
+
+    batch_id = "batch_llm_interaction_test"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    raw_llm_output = """<think>
+Analyzing security event...
+</think>
+{
+    "risk_score": 75,
+    "risk_level": "high",
+    "summary": "Suspicious activity",
+    "reasoning": "Person detected at unusual time"
+}"""
+    mock_llm_response = {
+        "risk_score": 75,
+        "risk_level": "high",
+        "summary": "Suspicious activity",
+        "reasoning": "Person detected at unusual time",
+        "raw_response": raw_llm_output,
+    }
+
+    # Mock database session
+    mock_session = AsyncMock()
+
+    # Mock camera query result
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    # Mock detections query result
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+    mock_insert_result = MagicMock()
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detections_result
+        else:
+            return mock_insert_result
+
+    mock_session.execute = mock_execute
+    added_objects = []
+    mock_session.add = lambda obj: added_objects.append(obj)
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    # Verify Event was created
+    assert event.batch_id == batch_id
+    assert event.risk_score == 75
+
+    # Verify LLMInteraction was added to session
+    llm_interactions = [obj for obj in added_objects if isinstance(obj, LLMInteraction)]
+    assert len(llm_interactions) == 1
+
+    llm_interaction = llm_interactions[0]
+    assert llm_interaction.raw_response == raw_llm_output
+    assert llm_interaction.enrichment_snapshot is not None
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_llm_interaction_enrichment_snapshot(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test that LLMInteraction captures correct enrichment_snapshot.
+
+    The enrichment_snapshot should be a frozen copy of the enrichment data
+    that was passed to the LLM at analysis time.
+    """
+    from backend.models.llm_interaction import LLMInteraction
+
+    batch_id = "batch_enrichment_snapshot_test"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    mock_llm_response = {
+        "risk_score": 50,
+        "risk_level": "medium",
+        "summary": "Activity detected",
+        "reasoning": "Normal activity",
+        "raw_response": '{"risk_score": 50}',
+    }
+
+    mock_session = AsyncMock()
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detections_result
+        return MagicMock()
+
+    mock_session.execute = mock_execute
+    added_objects = []
+    mock_session.add = lambda obj: added_objects.append(obj)
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    llm_interactions = [obj for obj in added_objects if isinstance(obj, LLMInteraction)]
+    assert len(llm_interactions) == 1
+
+    llm_interaction = llm_interactions[0]
+    # Verify enrichment_snapshot contains expected structure
+    assert isinstance(llm_interaction.enrichment_snapshot, dict)
+    # Should have detection_ids recorded
+    assert "detection_ids" in llm_interaction.enrichment_snapshot
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_llm_interaction_context_sources(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test that LLMInteraction tracks which context sources were populated.
+
+    The context_sources field should record which enrichment fields
+    (weather, pose, action, plates, faces, etc.) were populated vs empty.
+    """
+    from backend.models.llm_interaction import LLMInteraction
+
+    batch_id = "batch_context_sources_test"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    mock_llm_response = {
+        "risk_score": 50,
+        "risk_level": "medium",
+        "summary": "Activity detected",
+        "reasoning": "Normal activity",
+        "raw_response": '{"risk_score": 50}',
+    }
+
+    mock_session = AsyncMock()
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detections_result
+        return MagicMock()
+
+    mock_session.execute = mock_execute
+    added_objects = []
+    mock_session.add = lambda obj: added_objects.append(obj)
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    llm_interactions = [obj for obj in added_objects if isinstance(obj, LLMInteraction)]
+    assert len(llm_interactions) == 1
+
+    llm_interaction = llm_interactions[0]
+    # Verify context_sources is populated
+    assert llm_interaction.context_sources is not None
+    assert isinstance(llm_interaction.context_sources, dict)
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_llm_interaction_household_matches(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test that LLMInteraction captures household match data when available.
+
+    When household matching produces matches, the LLMInteraction should
+    record the person/vehicle matches with similarity scores.
+    """
+    from backend.models.llm_interaction import LLMInteraction
+
+    batch_id = "batch_household_matches_test"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    mock_llm_response = {
+        "risk_score": 10,
+        "risk_level": "low",
+        "summary": "Known household member",
+        "reasoning": "Person matched to John Doe",
+        "raw_response": '{"risk_score": 10}',
+    }
+
+    mock_session = AsyncMock()
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detections_result
+        return MagicMock()
+
+    mock_session.execute = mock_execute
+    added_objects = []
+    mock_session.add = lambda obj: added_objects.append(obj)
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    # Mock enrichment result with household matches
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    mock_enrichment = EnrichmentResult()
+    # Create mock household matches using dataclass-like structure
+    mock_person_match = MagicMock()
+    mock_person_match.model_dump.return_value = {
+        "detection_id": 2,
+        "matched_person": "John Doe",
+        "similarity_score": 0.95,
+    }
+    mock_enrichment.person_household_matches = [mock_person_match]
+    mock_enrichment.vehicle_household_matches = []
+
+    # Create tracking result to wrap enrichment
+    from backend.services.enrichment_pipeline import EnrichmentStatus, EnrichmentTrackingResult
+
+    mock_tracking = EnrichmentTrackingResult(status=EnrichmentStatus.FULL, data=mock_enrichment)
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    async def mock_get_enrichment(*args, **kwargs):
+        return mock_tracking
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_get_enrichment),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    llm_interactions = [obj for obj in added_objects if isinstance(obj, LLMInteraction)]
+    assert len(llm_interactions) == 1
+
+    llm_interaction = llm_interactions[0]
+    # Verify household_matches is captured
+    assert llm_interaction.household_matches is not None
+    assert "persons" in llm_interaction.household_matches
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_llm_interaction_graceful_failure(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test that LLMInteraction creation failure doesn't fail Event creation.
+
+    If creating the LLMInteraction record fails, the Event should still
+    be created successfully. This ensures observability doesn't break
+    the main event creation flow.
+    """
+    from backend.models.event import Event
+    from backend.models.llm_interaction import LLMInteraction
+
+    batch_id = "batch_graceful_failure_test"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    mock_llm_response = {
+        "risk_score": 50,
+        "risk_level": "medium",
+        "summary": "Activity detected",
+        "reasoning": "Normal activity",
+        "raw_response": '{"risk_score": 50}',
+    }
+
+    mock_session = AsyncMock()
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detections_result
+        return MagicMock()
+
+    mock_session.execute = mock_execute
+    added_objects = []
+
+    def mock_add(obj):
+        # Simulate failure when adding LLMInteraction
+        if isinstance(obj, LLMInteraction):
+            raise Exception("Database error on LLMInteraction")
+        added_objects.append(obj)
+
+    mock_session.add = mock_add
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        # Should not raise despite LLMInteraction failure
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    # Verify Event was still created successfully
+    events = [obj for obj in added_objects if isinstance(obj, Event)]
+    assert len(events) == 1
+    assert event.risk_score == 50
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_llm_interaction_partial_enrichment(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test LLMInteraction handles partial/missing enrichment gracefully.
+
+    When enrichment data is incomplete or missing, the LLMInteraction
+    should still be created with whatever data is available.
+    """
+    from backend.models.llm_interaction import LLMInteraction
+
+    batch_id = "batch_partial_enrichment_test"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    # Response without enrichment-derived fields
+    mock_llm_response = {
+        "risk_score": 50,
+        "risk_level": "medium",
+        "summary": "Activity detected",
+        "reasoning": "No enrichment available",
+        "raw_response": '{"risk_score": 50}',
+    }
+
+    mock_session = AsyncMock()
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detections_result
+        return MagicMock()
+
+    mock_session.execute = mock_execute
+    added_objects = []
+    mock_session.add = lambda obj: added_objects.append(obj)
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    # Mock enrichment to return None (no enrichment available)
+    async def mock_get_enrichment(*args, **kwargs):
+        return None
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_get_enrichment),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    llm_interactions = [obj for obj in added_objects if isinstance(obj, LLMInteraction)]
+    assert len(llm_interactions) == 1
+
+    llm_interaction = llm_interactions[0]
+    # Should still have enrichment_snapshot even if empty
+    assert llm_interaction.enrichment_snapshot is not None
+    # context_sources should indicate no enrichment was available
+    assert llm_interaction.context_sources is not None
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_creates_llm_interaction(
+    analyzer, mock_redis_client, mock_camera
+):
+    """Test that fast path analysis creates LLMInteraction record.
+
+    The fast path (single detection analysis) should also create
+    LLMInteraction records for observability consistency.
+    """
+    from backend.models.detection import Detection
+    from backend.models.llm_interaction import LLMInteraction
+
+    camera_id = "front_door"
+    detection_id = "1"
+    base_time = datetime(2025, 12, 23, 14, 30, 0)
+
+    mock_detection = Detection(
+        id=1,
+        camera_id=camera_id,
+        file_path="/export/foscam/front_door/img1.jpg",
+        detected_at=base_time,
+        object_type="person",
+        confidence=0.95,
+    )
+
+    raw_response = '{"risk_score": 60, "risk_level": "high"}'
+    mock_llm_response = {
+        "risk_score": 60,
+        "risk_level": "high",
+        "summary": "Suspicious person detected",
+        "reasoning": "Unknown person at door",
+        "raw_response": raw_response,
+    }
+
+    mock_session = AsyncMock()
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detection_result = MagicMock()
+    mock_detection_result.scalar_one_or_none.return_value = mock_detection
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        elif call_count == 2:
+            return mock_detection_result
+        return MagicMock()
+
+    mock_session.execute = mock_execute
+    added_objects = []
+    mock_session.add = lambda obj: added_objects.append(obj)
+    mock_session.commit = AsyncMock()
+    mock_session.flush = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify Event was created
+    assert event.risk_score == 60
+    assert event.is_fast_path is True
+
+    # Verify LLMInteraction was created
+    llm_interactions = [obj for obj in added_objects if isinstance(obj, LLMInteraction)]
+    assert len(llm_interactions) == 1
+
+    llm_interaction = llm_interactions[0]
+    assert llm_interaction.raw_response == raw_response
