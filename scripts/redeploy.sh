@@ -21,6 +21,7 @@
 #   --seed-files N   Touch N random images from /export/foscam to trigger AI pipeline (default: 0)
 #   --qa             QA mode: equivalent to --keep-volumes --seed-files 100
 #   --no-git-pull    Skip fetching latest code from origin/main (default: pulls latest)
+#   --reset-storage  Reset container storage to fix severe corruption (removes ALL images)
 #
 # Modes:
 #   DEFAULT (local):  Build all 9 services locally from source
@@ -60,6 +61,7 @@ SKIP_PULL="${SKIP_PULL:-false}"
 SKIP_CI_CHECK="${SKIP_CI_CHECK:-false}"
 SKIP_SEED="${SKIP_SEED:-false}"
 SKIP_GIT_PULL="${SKIP_GIT_PULL:-false}"
+RESET_STORAGE="${RESET_STORAGE:-false}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 # Note: FRONTEND_PORT default is set after .env loading (line ~90)
 SEED_FILES_COUNT="${SEED_FILES_COUNT:-0}"
@@ -163,6 +165,149 @@ run_cmd() {
     fi
 }
 
+reset_container_storage() {
+    # Nuclear option: completely reset container storage
+    # Use this when layer cache is severely corrupted and prune doesn't help
+    # WARNING: This removes ALL images, containers, and volumes
+    print_header "Resetting Container Storage"
+
+    echo ""
+    echo -e "${RED}${BOLD}  ⚠️  WARNING: NUCLEAR OPTION  ⚠️${NC}"
+    echo ""
+    echo -e "  This will ${RED}PERMANENTLY DELETE${NC}:"
+    echo "    - ALL container images (will need to rebuild/re-pull)"
+    echo "    - ALL stopped containers"
+    echo "    - ALL build cache"
+    echo "    - ALL dangling volumes"
+    echo ""
+
+    if [ "$DRY_RUN" != "true" ]; then
+        echo -e "${YELLOW}  Press Ctrl+C within 5 seconds to cancel...${NC}"
+        sleep 5
+    fi
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "Would reset all container storage"
+        return 0
+    fi
+
+    print_step "Stopping all containers..."
+    $CONTAINER_CMD stop -a 2>/dev/null || true
+    $CONTAINER_CMD rm -f -a 2>/dev/null || true
+
+    print_step "Removing all images..."
+    $CONTAINER_CMD rmi -f -a 2>/dev/null || true
+
+    print_step "Pruning all storage..."
+    $CONTAINER_CMD system prune -a -f --volumes 2>/dev/null || true
+
+    if [ "$CONTAINER_CMD" = "podman" ]; then
+        # Podman-specific: reset storage backend if still having issues
+        print_step "Resetting Podman storage backend..."
+
+        # Remove buildah containers that may hold references
+        if command -v buildah &> /dev/null; then
+            buildah rm -a 2>/dev/null || true
+            buildah prune -a -f 2>/dev/null || true
+        fi
+
+        # Clear any remaining overlay layers
+        $CONTAINER_CMD system reset --force 2>/dev/null || {
+            # If reset fails, try manual cleanup
+            print_warn "podman system reset failed, trying manual cleanup..."
+            local storage_root
+            storage_root=$($CONTAINER_CMD info --format '{{.Store.GraphRoot}}' 2>/dev/null || echo "$HOME/.local/share/containers/storage")
+            if [ -d "$storage_root/overlay-layers" ]; then
+                print_step "Clearing overlay layers at $storage_root..."
+                rm -rf "$storage_root/overlay-layers"/* 2>/dev/null || true
+                rm -rf "$storage_root/overlay"/* 2>/dev/null || true
+            fi
+        }
+    fi
+
+    print_success "Container storage reset complete"
+    print_info "All images will need to be rebuilt or re-pulled"
+
+    return 0
+}
+
+prune_build_artifacts() {
+    # Aggressively prune build artifacts to prevent:
+    # 1. Disk space exhaustion from --no-cache rebuilds
+    # 2. Corrupted layer cache causing "layer not known" errors
+    # 3. Stale intermediate images causing build failures
+    #
+    # NOTE: This is POST-BUILD cleanup. For pre-build storage reset,
+    # --reset-storage is handled separately before build_images().
+    print_header "Pruning Build Artifacts"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "Would prune dangling images, build cache, and stale layers"
+        return 0
+    fi
+
+    # Step 1: Prune dangling images (untagged images from failed builds)
+    print_step "Pruning dangling images..."
+    if $CONTAINER_CMD image prune -f > /dev/null 2>&1; then
+        print_success "Dangling images pruned"
+    fi
+
+    # Step 2: Prune build cache (can grow very large with --no-cache rebuilds)
+    print_step "Pruning build cache..."
+    if $CONTAINER_CMD builder prune -f > /dev/null 2>&1; then
+        print_success "Build cache pruned"
+    else
+        # Podman may not have 'builder prune', try buildah cache
+        if command -v buildah &> /dev/null; then
+            buildah prune -f > /dev/null 2>&1 || true
+        fi
+    fi
+
+    # Step 3: Clear intermediate/orphan layers that cause "layer not known" errors
+    # This happens when builds are interrupted or cache gets corrupted
+    print_step "Clearing orphaned layers..."
+    if [ "$CONTAINER_CMD" = "podman" ]; then
+        # Podman: Reset storage overlay to clear corrupted layers
+        # This is more aggressive but fixes "layer not known" errors
+        local storage_driver
+        storage_driver=$($CONTAINER_CMD info --format '{{.Store.GraphDriverName}}' 2>/dev/null || echo "overlay")
+
+        if [ "$storage_driver" = "overlay" ]; then
+            # Try to clear dangling overlay layers
+            # First, remove any containers that reference missing layers
+            local container_count
+            container_count=$($CONTAINER_CMD ps -aq 2>/dev/null | wc -l)
+            if [ "$container_count" -eq 0 ]; then
+                # No running containers, safe to do aggressive cleanup
+                # Remove all unused images (not just dangling) to clear layer references
+                if $CONTAINER_CMD image prune -a -f > /dev/null 2>&1; then
+                    print_success "All unused images pruned"
+                fi
+            fi
+        fi
+
+        # Final cleanup: remove any truly orphaned storage
+        $CONTAINER_CMD system prune -f > /dev/null 2>&1 || true
+    else
+        # Docker: Standard cleanup
+        $CONTAINER_CMD system prune -f > /dev/null 2>&1 || true
+    fi
+
+    # Step 4: Verify storage is healthy
+    print_step "Verifying storage health..."
+    if $CONTAINER_CMD system df > /dev/null 2>&1; then
+        # Show disk usage summary
+        local images_size
+        images_size=$($CONTAINER_CMD system df --format '{{.ImagesSize}}' 2>/dev/null | head -1 || echo "unknown")
+        print_info "Images: $images_size"
+        print_success "Storage is healthy"
+    else
+        print_warn "Could not verify storage health"
+    fi
+
+    return 0
+}
+
 show_help() {
     cat << 'EOF'
 Home Security Intelligence - Redeploy Script
@@ -183,6 +328,7 @@ OPTIONS:
     --seed-files N   Touch N random images from /export/foscam to trigger AI pipeline
     --qa             QA mode: --keep-volumes + --seed-files 100 (quick QA testing)
     --no-git-pull    Skip fetching latest code from origin/main
+    --reset-storage  Reset container storage to fix severe corruption (removes ALL images)
 
 DESCRIPTION:
     This script performs a CLEAN redeploy of all services:
@@ -1748,6 +1894,10 @@ main() {
                 SKIP_GIT_PULL="true"
                 shift
                 ;;
+            --reset-storage)
+                RESET_STORAGE="true"
+                shift
+                ;;
             --tag)
                 IMAGE_TAG="$2"
                 shift 2
@@ -1822,6 +1972,12 @@ main() {
     # Stop containers and optionally destroy volumes
     stop_and_clean
 
+    # Reset container storage if requested (fixes severe cache corruption)
+    # This must happen BEFORE building, not after
+    if [ "$RESET_STORAGE" = "true" ]; then
+        reset_container_storage
+    fi
+
     # Pull GHCR images for hybrid and ghcr modes
     if [ "$DEPLOY_MODE" != "local" ]; then
         if [ "$SKIP_PULL" = "false" ]; then
@@ -1836,8 +1992,17 @@ main() {
 
     # Build images for local and hybrid modes
     if [ "$DEPLOY_MODE" != "ghcr" ]; then
+        # Pre-build cleanup: clear corrupted layers BEFORE building
+        # This prevents "layer not known" errors during podman-compose up
+        if [ "$CONTAINER_CMD" = "podman" ]; then
+            print_step "Pre-build cleanup: clearing stale layers..."
+            $CONTAINER_CMD image prune -f > /dev/null 2>&1 || true
+            $CONTAINER_CMD system prune -f > /dev/null 2>&1 || true
+        fi
+
         if ! build_images; then
             print_fail "Failed to build images"
+            print_info "If you see 'layer not known' errors, try: ./scripts/redeploy.sh --reset-storage"
             exit 1
         fi
 
@@ -1846,15 +2011,9 @@ main() {
         rebuild_tensorrt_engine
     fi
 
-    # Clean up dangling images and build cache to prevent disk space exhaustion
-    print_step "Pruning dangling images and build cache..."
-    if run_cmd $CONTAINER_CMD image prune -f; then
-        print_success "Dangling images pruned"
-    fi
-    # Also prune build cache (can grow very large with --no-cache rebuilds)
-    if run_cmd $CONTAINER_CMD builder prune -f 2>/dev/null; then
-        print_success "Build cache pruned"
-    fi
+    # Post-build cleanup: prune dangling images and build cache
+    # This prevents disk space exhaustion from --no-cache rebuilds
+    prune_build_artifacts
 
     # Prepare directories for container volume mounts
     prepare_directories
