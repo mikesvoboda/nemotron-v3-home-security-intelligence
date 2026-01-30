@@ -1424,10 +1424,16 @@ class NemotronAnalyzer:
         }
 
         if enrichment_result is not None:
-            # Capture license plate data
-            snapshot["license_plates"] = enrichment_result.license_plates or []
-            # Capture face detection data
-            snapshot["faces"] = enrichment_result.faces or []
+            # Capture license plate data (convert to dicts for JSON serialization)
+            snapshot["license_plates"] = [
+                p.model_dump() if hasattr(p, "model_dump") else p
+                for p in (enrichment_result.license_plates or [])
+            ]
+            # Capture face detection data (convert to dicts for JSON serialization)
+            snapshot["faces"] = [
+                f.model_dump() if hasattr(f, "model_dump") else f
+                for f in (enrichment_result.faces or [])
+            ]
             # Capture weather classification
             if enrichment_result.weather_classification:
                 snapshot["weather"] = (
