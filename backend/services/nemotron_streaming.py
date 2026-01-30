@@ -30,6 +30,7 @@ from backend.core.metrics import (
 from backend.models.camera import Camera
 from backend.models.event import Event
 from backend.models.event_detection import event_detections
+from backend.models.llm_interaction import LLMInteraction
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.enrichment_pipeline import EnrichmentResult
 from backend.services.inference_semaphore import get_inference_semaphore
@@ -286,6 +287,63 @@ async def analyze_batch_streaming(  # noqa: PLR0911
                 .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
             await session.execute(stmt)
+
+        # Create LLMInteraction record for AI pipeline observability (NEM-4234)
+        # This captures what Nemotron received and responded for debugging accuracy issues
+        try:
+            # Build enrichment snapshot - frozen copy of what was passed to LLM
+            enrichment_snapshot = analyzer._build_enrichment_snapshot(
+                detection_ids=int_detection_ids,
+                enrichment_result=enrichment_result,
+                enriched_context=enriched_context,
+            )
+
+            # Build context sources - which enrichment fields were populated
+            context_sources = analyzer._build_context_sources(
+                enrichment_result=enrichment_result,
+                enriched_context=enriched_context,
+            )
+
+            # Get household matches if available
+            household_matches: dict[str, Any] | None = None
+            if enrichment_result is not None:
+                person_matches = enrichment_result.person_household_matches
+                vehicle_matches = enrichment_result.vehicle_household_matches
+                if person_matches or vehicle_matches:
+                    household_matches = {
+                        "persons": [
+                            m.model_dump() if hasattr(m, "model_dump") else m
+                            for m in (person_matches or [])
+                        ],
+                        "vehicles": [
+                            m.model_dump() if hasattr(m, "model_dump") else m
+                            for m in (vehicle_matches or [])
+                        ],
+                    }
+
+            llm_interaction = LLMInteraction(
+                event_id=event.id,
+                raw_response=accumulated_text,  # Use accumulated text as raw response for streaming
+                enrichment_snapshot=enrichment_snapshot,
+                household_matches=household_matches,
+                context_sources=context_sources,
+            )
+            session.add(llm_interaction)
+
+        except Exception as e:
+            # NEM-4234: LLMInteraction failures should not roll back Event creation
+            # Observability is optional - we log a warning but continue
+            logger.warning(
+                "LLMInteraction creation failed",
+                extra={
+                    "action": "create_llm_interaction",
+                    "resource_id": str(event.id),
+                    "resource_type": "llm_interaction",
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+
         await session.commit()
 
         await analyzer._set_idempotency(batch_id, event.id)
