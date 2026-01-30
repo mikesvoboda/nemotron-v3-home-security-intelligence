@@ -422,6 +422,144 @@ stop_standalone_containers() {
     done
 }
 
+verify_ports_available() {
+    # Verify that required ports are not in use by other containers or processes
+    # This catches cases where containers from other projects/worktrees are running
+    local -a required_ports=(
+        "5432:PostgreSQL"
+        "6379:Redis"
+        "8000:Backend API"
+        "8091:LLM"
+        "8092:Florence"
+        "8093:CLIP"
+        "8094:Enrichment"
+        "8095:YOLO26"
+    )
+
+    local ports_in_use=()
+    local blocking_containers=()
+
+    for port_info in "${required_ports[@]}"; do
+        local port="${port_info%%:*}"
+        local service="${port_info#*:}"
+
+        # Check if port is in use
+        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+            ports_in_use+=("$port ($service)")
+
+            # Try to find what's using it
+            local pid
+            pid=$(ss -tlnp 2>/dev/null | grep ":${port} " | grep -oP 'pid=\K\d+' | head -1)
+            if [ -n "$pid" ]; then
+                local process_name
+                process_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
+                # Check if it's a container
+                if [[ "$process_name" == *"conmon"* ]] || [[ "$process_name" == *"rootlessport"* ]]; then
+                    # Find the container using this port
+                    local container
+                    container=$($CONTAINER_CMD ps --format "{{.Names}}" 2>/dev/null | while read -r name; do
+                        if $CONTAINER_CMD port "$name" 2>/dev/null | grep -q ":${port}->"; then
+                            echo "$name"
+                            break
+                        fi
+                    done)
+                    if [ -n "$container" ]; then
+                        blocking_containers+=("$container")
+                    fi
+                fi
+            fi
+        fi
+    done
+
+    if [ ${#ports_in_use[@]} -gt 0 ]; then
+        print_warn "Ports still in use: ${ports_in_use[*]}"
+        if [ ${#blocking_containers[@]} -gt 0 ]; then
+            print_info "Blocking containers: ${blocking_containers[*]}"
+        fi
+        return 1
+    fi
+
+    return 0
+}
+
+stop_all_project_containers() {
+    # Nuclear option: stop ALL containers that match our project patterns
+    # This handles containers from other worktrees, compose projects, etc.
+    print_step "Stopping all project-related containers..."
+
+    # Patterns that match our containers across all worktrees and naming conventions
+    local -a patterns=(
+        "nemotron"
+        "security"
+        "ai-yolo"
+        "ai-llm"
+        "ai-florence"
+        "ai-clip"
+        "ai-enrichment"
+        "backend"
+        "frontend"
+        "postgres"
+        "redis"
+    )
+
+    # Get all running containers
+    local containers
+    containers=$($CONTAINER_CMD ps -a --format "{{.Names}}" 2>/dev/null)
+
+    if [ -z "$containers" ]; then
+        print_info "No containers found"
+        return 0
+    fi
+
+    # Stop containers matching our patterns
+    local stopped_count=0
+    while IFS= read -r container; do
+        for pattern in "${patterns[@]}"; do
+            if [[ "$container" == *"$pattern"* ]]; then
+                print_info "Stopping: $container"
+                $CONTAINER_CMD stop "$container" 2>/dev/null || true
+                $CONTAINER_CMD rm -f "$container" 2>/dev/null || true
+                ((stopped_count++))
+                break
+            fi
+        done
+    done <<< "$containers"
+
+    # Also remove all pods (they hold port mappings)
+    $CONTAINER_CMD pod rm -f -a 2>/dev/null || true
+
+    if [ "$stopped_count" -gt 0 ]; then
+        print_success "Stopped $stopped_count containers"
+    fi
+
+    # Verify ports are now available
+    if ! verify_ports_available; then
+        print_warn "Some ports still in use after cleanup"
+        print_info "Attempting to kill remaining rootlessport processes..."
+
+        # Kill any rootlessport processes holding our ports
+        for port_info in "5432" "6379" "8000" "8091" "8092" "8093" "8094" "8095"; do
+            local pids
+            pids=$(ss -tlnp 2>/dev/null | grep ":${port_info} " | grep -oP 'pid=\K\d+' || true)
+            for pid in $pids; do
+                kill "$pid" 2>/dev/null || true
+            done
+        done
+
+        sleep 2
+
+        # Final verification
+        if ! verify_ports_available; then
+            print_fail "Could not free all required ports"
+            print_info "You may need to manually stop processes or reboot"
+            return 1
+        fi
+    fi
+
+    print_success "All required ports are available"
+    return 0
+}
+
 # Legacy alias for backwards compatibility
 stop_ai_containers_podman() {
     stop_standalone_containers
@@ -1284,6 +1422,18 @@ stop_and_clean() {
         # Clean up privileged containers running in rootful podman
         print_step "Cleaning up privileged containers (sudo)..."
         stop_privileged_containers_sudo
+
+        # Verify all required ports are available
+        # If not, do aggressive cleanup of any project-related containers
+        if ! verify_ports_available; then
+            print_warn "Ports still in use after standard cleanup"
+            if ! stop_all_project_containers; then
+                print_fail "Could not free required ports"
+                print_info "Check for containers from other worktrees or sessions"
+                exit 1
+            fi
+        fi
+
         print_success "Cleanup complete"
     else
         # Docker: Use compose normally for both files
