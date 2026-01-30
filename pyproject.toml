@@ -73,6 +73,9 @@ dependencies = [
     "msgpack>=1.0.8",
     # Video analytics and tracking (NEM-3719)
     "supervision>=0.25.0",
+    # CLI tools for deployment scripts
+    "typer>=0.15.0",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
