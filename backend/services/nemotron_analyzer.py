@@ -38,6 +38,7 @@ __all__ = [
 ]
 
 import asyncio
+import dataclasses
 import json
 import re
 import time
@@ -1397,6 +1398,23 @@ class NemotronAnalyzer:
             )
             return []
 
+    @staticmethod
+    def _to_serializable(obj: Any) -> Any:
+        """Convert an object to a JSON-serializable form.
+
+        Handles Pydantic models (model_dump), dataclasses (asdict), and passthrough.
+        """
+        if obj is None:
+            return None
+        if hasattr(obj, "model_dump"):
+            # Pydantic model
+            return obj.model_dump()
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            # Dataclass instance (not the class itself)
+            return dataclasses.asdict(obj)
+        # Assume already serializable (dict, list, str, int, etc.)
+        return obj
+
     def _build_enrichment_snapshot(
         self,
         detection_ids: list[int],
@@ -1426,34 +1444,24 @@ class NemotronAnalyzer:
         if enrichment_result is not None:
             # Capture license plate data (convert to dicts for JSON serialization)
             snapshot["license_plates"] = [
-                p.model_dump() if hasattr(p, "model_dump") else p
-                for p in (enrichment_result.license_plates or [])
+                self._to_serializable(p) for p in (enrichment_result.license_plates or [])
             ]
             # Capture face detection data (convert to dicts for JSON serialization)
-            snapshot["faces"] = [
-                f.model_dump() if hasattr(f, "model_dump") else f
-                for f in (enrichment_result.faces or [])
-            ]
+            snapshot["faces"] = [self._to_serializable(f) for f in (enrichment_result.faces or [])]
             # Capture weather classification
             if enrichment_result.weather_classification:
-                snapshot["weather"] = (
-                    enrichment_result.weather_classification.model_dump()
-                    if hasattr(enrichment_result.weather_classification, "model_dump")
-                    else str(enrichment_result.weather_classification)
+                snapshot["weather"] = self._to_serializable(
+                    enrichment_result.weather_classification
                 )
             # Capture pose results
             if enrichment_result.pose_results:
                 snapshot["pose_results"] = {
-                    str(k): v.model_dump() if hasattr(v, "model_dump") else v
+                    str(k): self._to_serializable(v)
                     for k, v in enrichment_result.pose_results.items()
                 }
             # Capture action recognition results
             if enrichment_result.action_results:
-                snapshot["action_results"] = (
-                    enrichment_result.action_results.model_dump()
-                    if hasattr(enrichment_result.action_results, "model_dump")
-                    else enrichment_result.action_results
-                )
+                snapshot["action_results"] = self._to_serializable(enrichment_result.action_results)
 
         if enriched_context is not None:
             # Capture baseline data
