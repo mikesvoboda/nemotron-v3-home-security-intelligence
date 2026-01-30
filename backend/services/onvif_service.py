@@ -2,12 +2,21 @@
 
 NEM-4207: Service for ONVIF device discovery, capability retrieval,
 RTSP URL extraction, and PTZ control operations.
+
+Phase 2 enhancements (NEM-4388):
+- RTSP URL extraction during discovery
+- Manufacturer/model from ONVIF scopes
+- IP/port parsing from device URL
+- Capability detection (video, ptz, events)
+- Partial success handling for timeouts
 """
 
 from __future__ import annotations
 
 import inspect
+import re
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from sqlalchemy import select
 
@@ -35,23 +44,40 @@ except ImportError:
     ONVIFCamera = None  # type: ignore[misc, assignment]
 
 
+# ONVIF scope patterns for extracting manufacturer and model
+ONVIF_SCOPE_NAME_PATTERN = re.compile(r"onvif://www\.onvif\.org/name/(.+)", re.IGNORECASE)
+ONVIF_SCOPE_HARDWARE_PATTERN = re.compile(r"onvif://www\.onvif\.org/hardware/(.+)", re.IGNORECASE)
+
+
+def _require_onvif_library() -> Any:
+    """Return ONVIFCamera class or raise ImportError if not installed."""
+    if ONVIFCamera is None:
+        raise ImportError("onvif-zeep library not installed. Install with: pip install onvif-zeep")
+    return ONVIFCamera
+
+
+def _get_onvif_device_url(camera: Camera) -> str:
+    """Extract and validate ONVIF device URL from camera.
+
+    Raises:
+        ValueError: If camera is not an ONVIF camera.
+    """
+    device_url = camera.folder_path
+    if not device_url.startswith("http"):
+        raise ValueError(f"Camera {camera.id} is not an ONVIF camera")
+    return device_url
+
+
 class OnvifService:
     """ONVIF device management and PTZ control service.
 
-    NEM-4207: Provides functionality for:
-    - Device discovery via WS-Discovery
-    - Capability retrieval
-    - RTSP URL extraction
-    - PTZ command execution
-    - Preset navigation
+    Provides device discovery, capability retrieval, RTSP URL extraction,
+    PTZ command execution, and preset navigation.
 
     Example:
         async with get_session() as session:
             service = OnvifService(session, redis)
-            devices = await service.discover_devices(
-                subnet="192.168.1.0/24",
-                timeout=5
-            )
+            devices = await service.discover_devices(subnet="192.168.1.0/24")
     """
 
     def __init__(
@@ -59,12 +85,7 @@ class OnvifService:
         session: AsyncSession,
         redis: RedisClient | None = None,
     ) -> None:
-        """Initialize the ONVIF service.
-
-        Args:
-            session: Database session for camera lookups.
-            redis: Optional Redis client for caching.
-        """
+        """Initialize the ONVIF service."""
         self.session = session
         self.redis = redis
 
@@ -75,12 +96,20 @@ class OnvifService:
     ) -> list[dict[str, Any]]:
         """Discover ONVIF devices on the network using WS-Discovery.
 
+        Phase 2 enhanced discovery includes:
+        - RTSP URL extraction from media profiles
+        - Manufacturer/model from ONVIF-standard scopes
+        - IP address and port parsing
+        - Capability detection (video, ptz, events)
+        - Partial success handling for device timeouts
+
         Args:
             subnet: Network subnet in CIDR notation (e.g., '192.168.1.0/24').
             timeout: Discovery timeout in seconds.
 
         Returns:
-            List of discovered devices with their information.
+            List of discovered devices with their information including
+            rtsp_urls, capabilities, ip, and port.
 
         Raises:
             Exception: If discovery fails.
@@ -91,6 +120,9 @@ class OnvifService:
             raise ImportError(
                 "WSDiscovery library not installed. Install with: pip install wsdiscovery"
             )
+
+        # Use module-level ONVIFCamera for detailed device info
+        _ONVIFCamera = ONVIFCamera
 
         logger.info(
             "Starting ONVIF device discovery",
@@ -105,6 +137,8 @@ class OnvifService:
             services = wsd.searchServices(timeout=timeout)
 
             devices = []
+            timeout_count = 0
+
             for service in services:
                 # Get service address (XAddrs)
                 xaddrs = getattr(service, "xaddrs", None) or getattr(service, "XAddrs", "")
@@ -115,34 +149,134 @@ class OnvifService:
                 if not xaddrs or "onvif" not in xaddrs.lower():
                     continue
 
+                # Parse IP and port from device URL
+                parsed_url = urlparse(xaddrs)
+                ip_address = parsed_url.hostname or ""
+                port = parsed_url.port or 80  # Default ONVIF port
+
                 # Extract basic device info
                 device_info: dict[str, Any] = {
                     "device_url": xaddrs,
+                    "ip": ip_address,
+                    "port": port,
                     "manufacturer": "Unknown",
                     "model": "Unknown",
                     "firmware_version": None,
                     "serial_number": None,
                     "hardware_id": None,
+                    "rtsp_urls": [],
+                    "capabilities": {
+                        "video": True,  # Assume video if ONVIF device
+                        "ptz": False,
+                        "events": False,
+                    },
                 }
 
-                # Try to get additional info from service scopes
+                # Parse ONVIF-standard scopes for manufacturer and model
                 scopes = getattr(service, "scopes", []) or []
                 for scope in scopes:
                     scope_str = str(scope)
-                    if "manufacturer" in scope_str.lower():
-                        parts = scope_str.split("/")
-                        if parts:
-                            device_info["manufacturer"] = parts[-1]
-                    elif "model" in scope_str.lower():
-                        parts = scope_str.split("/")
-                        if parts:
-                            device_info["model"] = parts[-1]
+                    # Handle scope objects that have a .scope attribute
+                    if hasattr(scope, "scope"):
+                        scope_str = str(scope.scope)
+
+                    # Extract manufacturer from /name/ scope (ONVIF standard)
+                    name_match = ONVIF_SCOPE_NAME_PATTERN.match(scope_str)
+                    if name_match:
+                        device_info["manufacturer"] = name_match.group(1)
+                        continue
+
+                    # Extract model from /hardware/ scope (ONVIF standard)
+                    hardware_match = ONVIF_SCOPE_HARDWARE_PATTERN.match(scope_str)
+                    if hardware_match:
+                        device_info["model"] = hardware_match.group(1)
+                        continue
+
+                # Try to get detailed info via ONVIF connection
+                if _ONVIFCamera is not None:
+                    try:
+                        # Connect to device for RTSP URLs and capabilities
+                        onvif_camera = _ONVIFCamera(xaddrs)
+
+                        # Get media profiles and RTSP URLs
+                        try:
+                            profiles = onvif_camera.media.GetProfiles()
+                            rtsp_urls = []
+                            for profile in profiles:
+                                try:
+                                    stream_uri = onvif_camera.media.GetStreamUri(
+                                        ProfileToken=profile.token,
+                                        StreamSetup={
+                                            "Stream": "RTP-Unicast",
+                                            "Transport": {"Protocol": "RTSP"},
+                                        },
+                                    )
+                                    rtsp_urls.append(
+                                        {
+                                            "profile": getattr(profile, "Name", profile.token),
+                                            "url": str(stream_uri.Uri),
+                                        }
+                                    )
+                                except Exception as e:
+                                    # Skip profiles that fail to get stream URI
+                                    logger.debug(
+                                        "Failed to get stream URI for profile",
+                                        extra={
+                                            "device_url": xaddrs,
+                                            "profile_token": profile.token,
+                                            "error": str(e),
+                                        },
+                                    )
+                            device_info["rtsp_urls"] = rtsp_urls
+                        except TimeoutError:
+                            timeout_count += 1
+                            logger.warning(
+                                "Timeout getting media profiles",
+                                extra={"device_url": xaddrs},
+                            )
+                        except Exception as e:
+                            logger.debug(
+                                "Failed to get media profiles",
+                                extra={"device_url": xaddrs, "error": str(e)},
+                            )
+
+                        # Get capabilities
+                        try:
+                            capabilities = onvif_camera.devicemgmt.GetCapabilities()
+                            device_info["capabilities"] = {
+                                "video": True,  # All ONVIF devices support video
+                                "ptz": hasattr(capabilities, "PTZ")
+                                and capabilities.PTZ is not None,
+                                "events": hasattr(capabilities, "Events")
+                                and capabilities.Events is not None,
+                            }
+                        except Exception as e:
+                            logger.debug(
+                                "Failed to get capabilities",
+                                extra={"device_url": xaddrs, "error": str(e)},
+                            )
+
+                    except TimeoutError:
+                        timeout_count += 1
+                        logger.warning(
+                            "Timeout connecting to ONVIF device",
+                            extra={"device_url": xaddrs},
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            "Failed to connect to ONVIF device for details",
+                            extra={"device_url": xaddrs, "error": str(e)},
+                        )
 
                 devices.append(device_info)
 
             logger.info(
                 "ONVIF discovery completed",
-                extra={"subnet": subnet, "devices_found": len(devices)},
+                extra={
+                    "subnet": subnet,
+                    "devices_found": len(devices),
+                    "timeout_count": timeout_count,
+                },
             )
 
             return devices
@@ -166,29 +300,12 @@ class OnvifService:
             ValueError: If camera not found or not an ONVIF camera.
             Exception: If connection fails.
         """
-        # Look up camera in database first (before checking library import)
         camera = await self._get_camera(camera_id)
+        _ONVIFCamera = _require_onvif_library()
+        device_url = _get_onvif_device_url(camera)
 
-        # Use module-level ONVIFCamera (allows test patching)
-        _ONVIFCamera = ONVIFCamera
-        if _ONVIFCamera is None:
-            raise ImportError(
-                "onvif-zeep library not installed. Install with: pip install onvif-zeep"
-            )
-
-        # Parse device URL from camera folder_path (assumes ONVIF URL stored)
-        device_url = camera.folder_path
-        if not device_url.startswith("http"):
-            raise ValueError(f"Camera {camera_id} is not an ONVIF camera")
-
-        # Connect to ONVIF device
-        # Note: In production, credentials would be stored securely
         onvif_camera = _ONVIFCamera(device_url)
-
-        # Get device information
         device_info = onvif_camera.devicemgmt.GetDeviceInformation()
-
-        # Get capabilities
         capabilities = onvif_camera.devicemgmt.GetCapabilities()
 
         return {
@@ -225,63 +342,34 @@ class OnvifService:
             ValueError: If camera not found, invalid command, or value out of range.
             Exception: If connection fails.
         """
-        # Validate command first
         valid_commands = {"pan", "tilt", "zoom", "stop"}
         if command not in valid_commands:
             raise ValueError(f"Invalid PTZ command: {command}")
-
-        # Validate value range
         if not -1.0 <= value <= 1.0:
             raise ValueError("PTZ value must be between -1.0 and 1.0")
 
-        # Look up camera (before checking library import)
         camera = await self._get_camera(camera_id)
+        _ONVIFCamera = _require_onvif_library()
+        device_url = _get_onvif_device_url(camera)
 
-        # Use module-level ONVIFCamera (allows test patching)
-        _ONVIFCamera = ONVIFCamera
-        if _ONVIFCamera is None:
-            raise ImportError(
-                "onvif-zeep library not installed. Install with: pip install onvif-zeep"
-            )
-
-        # Parse device URL
-        device_url = camera.folder_path
-        if not device_url.startswith("http"):
-            raise ValueError(f"Camera {camera_id} is not an ONVIF camera")
-
-        # Connect to ONVIF device
         onvif_camera = _ONVIFCamera(device_url)
 
         if command == "stop":
-            # Stop all PTZ movement
             onvif_camera.ptz.Stop()
         else:
-            # Build velocity vector based on command type
-            velocity = {
-                "PanTilt": {"x": 0.0, "y": 0.0},
-                "Zoom": {"x": 0.0},
-            }
-
+            velocity = {"PanTilt": {"x": 0.0, "y": 0.0}, "Zoom": {"x": 0.0}}
             if command == "pan":
                 velocity["PanTilt"]["x"] = value * speed
             elif command == "tilt":
                 velocity["PanTilt"]["y"] = value * speed
             elif command == "zoom":
                 velocity["Zoom"]["x"] = value * speed
-
-            # Execute continuous move
             onvif_camera.ptz.ContinuousMove(velocity)
 
         logger.info(
             "PTZ command executed",
-            extra={
-                "camera_id": camera_id,
-                "command": command,
-                "value": value,
-                "speed": speed,
-            },
+            extra={"camera_id": camera_id, "command": command, "value": value, "speed": speed},
         )
-
         return True
 
     async def get_rtsp_url_from_device(
@@ -304,31 +392,17 @@ class OnvifService:
             ValueError: If no media profiles found.
             Exception: If connection fails.
         """
-        # Use module-level ONVIFCamera (allows test patching)
-        _ONVIFCamera = ONVIFCamera
-        if _ONVIFCamera is None:
-            raise ImportError(
-                "onvif-zeep library not installed. Install with: pip install onvif-zeep"
-            )
-
-        # Connect to ONVIF device with credentials
+        _ONVIFCamera = _require_onvif_library()
         onvif_camera = _ONVIFCamera(device_url, username, password)
 
-        # Get media profiles
         profiles = onvif_camera.media.GetProfiles()
-
         if not profiles:
             raise ValueError("No media profiles found on device")
 
-        # Use first profile
-        profile = profiles[0]
-
-        # Get stream URI
         stream_uri = onvif_camera.media.GetStreamUri(
-            ProfileToken=profile.token,
+            ProfileToken=profiles[0].token,
             StreamSetup={"Stream": "RTP-Unicast", "Transport": {"Protocol": "RTSP"}},
         )
-
         return str(stream_uri.Uri)
 
     async def get_presets(
@@ -347,34 +421,14 @@ class OnvifService:
             ValueError: If camera not found.
             Exception: If connection fails.
         """
-        # Look up camera first (before checking library import)
         camera = await self._get_camera(camera_id)
+        _ONVIFCamera = _require_onvif_library()
+        device_url = _get_onvif_device_url(camera)
 
-        # Use module-level ONVIFCamera (allows test patching)
-        _ONVIFCamera = ONVIFCamera
-        if _ONVIFCamera is None:
-            raise ImportError(
-                "onvif-zeep library not installed. Install with: pip install onvif-zeep"
-            )
-
-        # Parse device URL
-        device_url = camera.folder_path
-        if not device_url.startswith("http"):
-            raise ValueError(f"Camera {camera_id} is not an ONVIF camera")
-
-        # Connect to ONVIF device
         onvif_camera = _ONVIFCamera(device_url)
-
-        # Get presets
         presets = onvif_camera.ptz.GetPresets()
 
-        return [
-            {
-                "token": preset.token,
-                "name": getattr(preset, "Name", None),
-            }
-            for preset in presets
-        ]
+        return [{"token": p.token, "name": getattr(p, "Name", None)} for p in presets]
 
     async def goto_preset(
         self,
@@ -394,35 +448,17 @@ class OnvifService:
             ValueError: If camera not found.
             Exception: If connection fails or preset invalid.
         """
-        # Look up camera first (before checking library import)
         camera = await self._get_camera(camera_id)
+        _ONVIFCamera = _require_onvif_library()
+        device_url = _get_onvif_device_url(camera)
 
-        # Use module-level ONVIFCamera (allows test patching)
-        _ONVIFCamera = ONVIFCamera
-        if _ONVIFCamera is None:
-            raise ImportError(
-                "onvif-zeep library not installed. Install with: pip install onvif-zeep"
-            )
-
-        # Parse device URL
-        device_url = camera.folder_path
-        if not device_url.startswith("http"):
-            raise ValueError(f"Camera {camera_id} is not an ONVIF camera")
-
-        # Connect to ONVIF device
         onvif_camera = _ONVIFCamera(device_url)
-
-        # Go to preset
         onvif_camera.ptz.GotoPreset(PresetToken=preset_token)
 
         logger.info(
             "PTZ preset navigation started",
-            extra={
-                "camera_id": camera_id,
-                "preset_token": preset_token,
-            },
+            extra={"camera_id": camera_id, "preset_token": preset_token},
         )
-
         return True
 
     async def _get_camera(self, camera_id: str) -> Camera:

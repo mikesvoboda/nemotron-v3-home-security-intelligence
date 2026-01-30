@@ -24,6 +24,59 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/cameras", tags=["onvif"])
 
 
+async def _verify_camera_exists(camera_id: str, camera_service: Any) -> None:
+    """Verify camera exists, raising HTTPException 404 if not found."""
+    try:
+        await camera_service.get_camera(camera_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
+def _handle_onvif_value_error(e: ValueError) -> HTTPException:
+    """Map ValueError to appropriate HTTPException based on error message."""
+    error_msg = str(e)
+    error_lower = error_msg.lower()
+
+    if "invalid ptz command" in error_lower or "ptz value" in error_lower:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid PTZ command: {error_msg}",
+        )
+    if "invalid preset" in error_lower:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid preset token: {error_msg}",
+        )
+    if "not an onvif" in error_lower:
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Camera is not an ONVIF device: {error_msg}",
+        )
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+
+
+def _handle_onvif_error(e: Exception, camera_id: str, operation: str) -> HTTPException:
+    """Handle general ONVIF errors, logging and returning 503."""
+    error_msg = str(e)
+
+    # Check for invalid preset token in general exceptions
+    if "invalid preset token" in error_msg.lower():
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid preset token: {error_msg}",
+        )
+
+    logger.error(
+        f"Failed to {operation}",
+        extra={"camera_id": camera_id, "error": error_msg},
+        exc_info=True,
+    )
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"Device unreachable: {e}",
+    )
+
+
 async def discover_onvif_devices(
     subnet: str,
     onvif_service: Any,
@@ -43,16 +96,8 @@ async def discover_onvif_devices(
         HTTPException: 500 if discovery fails.
     """
     try:
-        devices = await onvif_service.discover_devices(
-            subnet=subnet,
-            timeout=timeout,
-        )
-
-        return {
-            "devices": devices,
-            "count": len(devices),
-        }
-
+        devices = await onvif_service.discover_devices(subnet=subnet, timeout=timeout)
+        return {"devices": devices, "count": len(devices)}
     except Exception as e:
         logger.error(
             "ONVIF device discovery failed",
@@ -81,46 +126,17 @@ async def get_device_capabilities(
         Dictionary with device capabilities.
 
     Raises:
-        HTTPException: 404 if camera not found.
-        HTTPException: 409 if camera is not an ONVIF device.
-        HTTPException: 503 if device is unreachable.
+        HTTPException: 404 if camera not found, 409 if not ONVIF, 503 if unreachable.
     """
-    # Verify camera exists
-    try:
-        await camera_service.get_camera(camera_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
+    await _verify_camera_exists(camera_id, camera_service)
 
-    # Get capabilities
     try:
         capabilities = await onvif_service.get_capabilities(camera_id=camera_id)
         return dict(capabilities)  # type: ignore[arg-type]
-
     except ValueError as e:
-        error_msg = str(e)
-        if "not an onvif" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Camera is not an ONVIF device: {error_msg}",
-            ) from e
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_msg,
-        ) from e
-
+        raise _handle_onvif_value_error(e) from e
     except Exception as e:
-        logger.error(
-            "Failed to get ONVIF capabilities",
-            extra={"camera_id": camera_id, "error": str(e)},
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Device unreachable: {e}",
-        ) from e
+        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
 
 
 async def execute_ptz_command(
@@ -145,67 +161,19 @@ async def execute_ptz_command(
         Dictionary with success status and command info.
 
     Raises:
-        HTTPException: 400 if invalid command.
-        HTTPException: 404 if camera not found.
-        HTTPException: 409 if camera is not an ONVIF device.
-        HTTPException: 503 if device is unreachable.
+        HTTPException: 400 if invalid, 404 if not found, 409 if not ONVIF, 503 if unreachable.
     """
-    # Verify camera exists
-    try:
-        await camera_service.get_camera(camera_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
+    await _verify_camera_exists(camera_id, camera_service)
 
-    # Execute PTZ command
     try:
         result = await onvif_service.execute_ptz_command(
-            camera_id=camera_id,
-            command=command,
-            value=value,
-            speed=speed,
+            camera_id=camera_id, command=command, value=value, speed=speed
         )
-
-        return {
-            "success": result,
-            "command": command,
-            "value": value,
-            "speed": speed,
-        }
-
+        return {"success": result, "command": command, "value": value, "speed": speed}
     except ValueError as e:
-        error_msg = str(e)
-        if "Invalid PTZ command" in error_msg or "PTZ value" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid PTZ command: {error_msg}",
-            ) from e
-        if "not an onvif" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Camera is not an ONVIF device: {error_msg}",
-            ) from e
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_msg,
-        ) from e
-
+        raise _handle_onvif_value_error(e) from e
     except Exception as e:
-        logger.error(
-            "Failed to execute PTZ command",
-            extra={
-                "camera_id": camera_id,
-                "command": command,
-                "error": str(e),
-            },
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Device unreachable: {e}",
-        ) from e
+        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
 
 
 async def get_ptz_presets(
@@ -224,50 +192,17 @@ async def get_ptz_presets(
         Dictionary with presets list and count.
 
     Raises:
-        HTTPException: 404 if camera not found.
-        HTTPException: 409 if camera is not an ONVIF device.
-        HTTPException: 503 if device is unreachable.
+        HTTPException: 404 if not found, 409 if not ONVIF, 503 if unreachable.
     """
-    # Verify camera exists
-    try:
-        await camera_service.get_camera(camera_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
+    await _verify_camera_exists(camera_id, camera_service)
 
-    # Get presets
     try:
         presets = await onvif_service.get_presets(camera_id=camera_id)
-
-        return {
-            "presets": presets,
-            "count": len(presets),
-        }
-
+        return {"presets": presets, "count": len(presets)}
     except ValueError as e:
-        error_msg = str(e)
-        if "not an onvif" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Camera is not an ONVIF device: {error_msg}",
-            ) from e
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_msg,
-        ) from e
-
+        raise _handle_onvif_value_error(e) from e
     except Exception as e:
-        logger.error(
-            "Failed to get PTZ presets",
-            extra={"camera_id": camera_id, "error": str(e)},
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Device unreachable: {e}",
-        ) from e
+        raise _handle_onvif_error(e, camera_id, "get PTZ presets") from e
 
 
 async def goto_ptz_preset(
@@ -288,68 +223,14 @@ async def goto_ptz_preset(
         Dictionary with success status and preset info.
 
     Raises:
-        HTTPException: 400 if invalid preset token.
-        HTTPException: 404 if camera not found.
-        HTTPException: 409 if camera is not an ONVIF device.
-        HTTPException: 503 if device is unreachable.
+        HTTPException: 400 if invalid, 404 if not found, 409 if not ONVIF, 503 if unreachable.
     """
-    # Verify camera exists
+    await _verify_camera_exists(camera_id, camera_service)
+
     try:
-        await camera_service.get_camera(camera_id)
+        result = await onvif_service.goto_preset(camera_id=camera_id, preset_token=preset_token)
+        return {"success": result, "preset_token": preset_token}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        ) from e
-
-    # Go to preset
-    try:
-        result = await onvif_service.goto_preset(
-            camera_id=camera_id,
-            preset_token=preset_token,
-        )
-
-        return {
-            "success": result,
-            "preset_token": preset_token,
-        }
-
-    except ValueError as e:
-        error_msg = str(e)
-        if "Invalid preset" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid preset token: {error_msg}",
-            ) from e
-        if "not an onvif" in error_msg.lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Camera is not an ONVIF device: {error_msg}",
-            ) from e
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_msg,
-        ) from e
-
+        raise _handle_onvif_value_error(e) from e
     except Exception as e:
-        error_msg = str(e)
-        # Check if error is from invalid preset token
-        if "Invalid preset token" in error_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid preset token: {error_msg}",
-            ) from e
-
-        logger.error(
-            "Failed to go to PTZ preset",
-            extra={
-                "camera_id": camera_id,
-                "preset_token": preset_token,
-                "error": error_msg,
-            },
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Device unreachable: {e}",
-        ) from e
+        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
