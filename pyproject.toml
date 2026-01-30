@@ -434,6 +434,7 @@ markers = [
     "enrichment: mark test as enrichment pipeline edge case test (tests model zoo orchestration, VRAM management, circuit breaker behavior)",
     "multimodal: mark test as multimodal evaluation test (compares local pipeline against NVIDIA vision ground truth)",
     "load: mark test as a load/performance test (verifies latency, memory, and throughput under load)",
+    "ai_pipeline: mark test as AI pipeline quality smoke test (fast CI validation of LLM output quality)",
 ]
 
 [tool.coverage.run]
