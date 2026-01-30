@@ -71,6 +71,7 @@ snapshot_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 # Valid fields for sparse fieldsets on list_cameras endpoint (NEM-1434)
 # NEM-3597: Added property_id and areas to valid fields
+# NEM-4191: Added RTSP/ONVIF streaming fields
 VALID_CAMERA_LIST_FIELDS = frozenset(
     {
         "id",
@@ -81,6 +82,12 @@ VALID_CAMERA_LIST_FIELDS = frozenset(
         "last_seen_at",
         "property_id",
         "areas",
+        "ingestion_mode",
+        "rtsp_url",
+        "rtsp_username",
+        "rtsp_password",
+        "stream_profile",
+        "motion_sensitivity",
     }
 )
 
@@ -204,6 +211,7 @@ async def list_cameras(
 
     # Serialize cameras for cache (SQLAlchemy objects can't be directly cached)
     # NEM-3597: Include property_id and areas in serialization
+    # NEM-4191: Include RTSP/ONVIF streaming fields
     cameras_data = [
         {
             "id": c.id,
@@ -214,6 +222,12 @@ async def list_cameras(
             "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
             "property_id": c.property_id,
             "areas": [{"id": a.id, "name": a.name} for a in c.areas] if c.areas else None,
+            "ingestion_mode": c.ingestion_mode,
+            "rtsp_url": c.rtsp_url,
+            "rtsp_username": c.rtsp_username,
+            "rtsp_password": c.rtsp_password,
+            "stream_profile": c.stream_profile,
+            "motion_sensitivity": c.motion_sensitivity,
         }
         for c in cameras
     ]
@@ -290,6 +304,7 @@ async def list_deleted_cameras(
 
     # Serialize cameras for response using Pydantic models
     # NEM-3597: Include property_id and areas in serialization
+    # NEM-4191: Include RTSP/ONVIF streaming fields
     cameras_data = [
         CameraResponse(
             id=c.id,
@@ -300,6 +315,12 @@ async def list_deleted_cameras(
             last_seen_at=c.last_seen_at,
             property_id=c.property_id,
             areas=[{"id": a.id, "name": a.name} for a in c.areas] if c.areas else None,
+            ingestion_mode=c.ingestion_mode,
+            rtsp_url=c.rtsp_url,
+            rtsp_username=c.rtsp_username,
+            rtsp_password=c.rtsp_password,
+            stream_profile=c.stream_profile,
+            motion_sensitivity=c.motion_sensitivity,
         )
         for c in deleted_cameras
     ]
@@ -371,6 +392,7 @@ async def restore_camera(
     )
 
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
+    # NEM-4191: Include RTSP/ONVIF streaming fields
     return CameraResponse(
         id=camera.id,
         name=camera.name,
@@ -380,6 +402,12 @@ async def restore_camera(
         last_seen_at=camera.last_seen_at,
         property_id=camera.property_id,
         areas=None,
+        ingestion_mode=camera.ingestion_mode,
+        rtsp_url=camera.rtsp_url,
+        rtsp_username=camera.rtsp_username,
+        rtsp_password=camera.rtsp_password,
+        stream_profile=camera.stream_profile,
+        motion_sensitivity=camera.motion_sensitivity,
     )
 
 
@@ -402,6 +430,7 @@ async def get_camera(
     """
     camera = await get_camera_or_404(camera_id, db)
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
+    # NEM-4191: Include RTSP/ONVIF streaming fields
     return CameraResponse(
         id=camera.id,
         name=camera.name,
@@ -411,6 +440,12 @@ async def get_camera(
         last_seen_at=camera.last_seen_at,
         property_id=camera.property_id,
         areas=None,
+        ingestion_mode=camera.ingestion_mode,
+        rtsp_url=camera.rtsp_url,
+        rtsp_username=camera.rtsp_username,
+        rtsp_password=camera.rtsp_password,
+        stream_profile=camera.stream_profile,
+        motion_sensitivity=camera.motion_sensitivity,
     )
 
 
@@ -468,6 +503,13 @@ async def create_camera(
         name=camera_data.name,
         folder_path=camera_data.folder_path,
         status=camera_data.status,
+        # NEM-4191: RTSP/ONVIF streaming fields
+        ingestion_mode=camera_data.ingestion_mode,
+        rtsp_url=camera_data.rtsp_url,
+        rtsp_username=camera_data.rtsp_username,
+        rtsp_password=camera_data.rtsp_password,
+        stream_profile=camera_data.stream_profile,
+        motion_sensitivity=camera_data.motion_sensitivity,
     )
 
     db.add(camera)
@@ -509,6 +551,7 @@ async def create_camera(
 
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
     # A newly created camera has no areas assigned, so we return areas=None explicitly
+    # NEM-4191: Include RTSP/ONVIF streaming fields
     return CameraResponse(
         id=camera.id,
         name=camera.name,
@@ -518,6 +561,12 @@ async def create_camera(
         last_seen_at=camera.last_seen_at,
         property_id=camera.property_id,
         areas=None,
+        ingestion_mode=camera.ingestion_mode,
+        rtsp_url=camera.rtsp_url,
+        rtsp_username=camera.rtsp_username,
+        rtsp_password=camera.rtsp_password,
+        stream_profile=camera.stream_profile,
+        motion_sensitivity=camera.motion_sensitivity,
     )
 
 
@@ -600,6 +649,7 @@ async def update_camera(
 
     # NEM-3597: Return explicit CameraResponse to avoid lazy loading of relationships
     # Areas relationship is not loaded by this endpoint, so we return None
+    # NEM-4191: Include RTSP/ONVIF streaming fields
     return CameraResponse(
         id=camera.id,
         name=camera.name,
@@ -609,6 +659,12 @@ async def update_camera(
         last_seen_at=camera.last_seen_at,
         property_id=camera.property_id,
         areas=None,
+        ingestion_mode=camera.ingestion_mode,
+        rtsp_url=camera.rtsp_url,
+        rtsp_username=camera.rtsp_username,
+        rtsp_password=camera.rtsp_password,
+        stream_profile=camera.stream_profile,
+        motion_sensitivity=camera.motion_sensitivity,
     )
 
 

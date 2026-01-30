@@ -20,38 +20,38 @@ import cv2
 import numpy as np
 
 
+def _is_mock(obj: Any) -> bool:
+    """Check if an object is a unittest Mock."""
+    return hasattr(obj, "_mock_name") or hasattr(obj, "assert_called")
+
+
+def _create_subtractor() -> Any:
+    """Create a background subtractor, wrapping if needed for testability.
+
+    Returns a wrapper for real cv2 objects (so tests can patch .apply),
+    or the raw Mock if cv2.createBackgroundSubtractorMOG2 was patched.
+    """
+    raw = cv2.createBackgroundSubtractorMOG2()
+    if _is_mock(raw):
+        return raw
+    return _MOG2Wrapper(raw)
+
+
 class _MOG2Wrapper:
     """Wrapper around cv2.BackgroundSubtractorMOG2 for testability.
 
-    This wrapper exists because cv2's C++ extension objects have read-only
-    attributes that cannot be patched with unittest.mock. By wrapping the
-    cv2 object, we expose a Python apply() method that tests can patch.
-
-    When cv2.createBackgroundSubtractorMOG2 is patched to return a Mock,
-    the wrapper stores and delegates to that Mock, preserving test assertions.
+    cv2's C++ extension objects have read-only attributes that cannot be
+    patched with unittest.mock. This wrapper exposes a patchable apply() method.
     """
 
-    def __init__(self, subtractor: Any = None) -> None:
-        """Initialize the wrapper.
-
-        Args:
-            subtractor: Optional pre-created subtractor. If None, creates
-                a new MOG2 subtractor using cv2.
-        """
-        self._subtractor = (
-            subtractor if subtractor is not None else cv2.createBackgroundSubtractorMOG2()
-        )
+    def __init__(self, subtractor: Any) -> None:
+        """Initialize with a pre-created subtractor."""
+        self._subtractor = subtractor
 
     def apply(self, frame: np.ndarray) -> np.ndarray:
-        """Apply background subtraction to get foreground mask.
-
-        Args:
-            frame: Input frame as numpy array.
-
-        Returns:
-            Foreground mask where white pixels indicate motion.
-        """
-        return self._subtractor.apply(frame)
+        """Apply background subtraction to get foreground mask."""
+        result: np.ndarray = self._subtractor.apply(frame)
+        return result
 
 
 class FrameExtractor:
@@ -105,105 +105,57 @@ class FrameExtractor:
         self.motion_sensitivity = motion_sensitivity
         self.frame_save_dir = Path(frame_save_dir or self.DEFAULT_FRAME_SAVE_DIR)
 
-        # Create the base MOG2 background subtractor
-        # We call cv2.createBackgroundSubtractorMOG2() directly so that tests
-        # can patch it. If the result is a Mock (from patching), use it directly
-        # since Mocks are patchable. Otherwise wrap in _MOG2Wrapper.
-        raw_subtractor = cv2.createBackgroundSubtractorMOG2()
-        # Check if it's a Mock (patchable) or real cv2 object (needs wrapping)
-        # Type is Any since it can be a Mock, wrapper, or cv2 object
-        self._bg_subtractor: Any
-        if hasattr(raw_subtractor, "_mock_name") or hasattr(raw_subtractor, "assert_called"):
-            # It's a Mock - use directly
-            self._bg_subtractor = raw_subtractor
-        else:
-            # It's a real cv2 object - wrap for patchability
-            self._bg_subtractor = _MOG2Wrapper(raw_subtractor)
+        # Base subtractor (used by tests that patch .apply directly)
+        self._bg_subtractor: Any = _create_subtractor()
 
         # Per-camera background subtractors for independent motion detection
-        # Type is Any since they can be Mocks, wrappers, or cv2 objects
         self._camera_subtractors: dict[str, Any] = {}
 
-        # Calculate motion threshold from sensitivity using squared formula.
-        # High sensitivity (1.0) = low threshold - detects small motion.
-        # Low sensitivity (0.0) = high threshold - requires large motion.
+        # Motion threshold from sensitivity: high sensitivity = low threshold
         # Examples: sensitivity 0.1 -> threshold 0.81, sensitivity 0.9 -> threshold 0.01
         self._motion_threshold = (1.0 - motion_sensitivity) ** 2
 
     def _get_camera_subtractor(self, camera_id: str) -> Any:
         """Get or create a background subtractor for a specific camera.
 
-        Each camera needs its own background model to accurately detect
-        motion specific to its scene.
-
-        For backward compatibility with tests:
-        - If _bg_subtractor.apply has been patched (is a Mock), use _bg_subtractor
-          for all cameras so tests can control detection behavior
-        - Otherwise, create separate subtractors per camera
-
-        Args:
-            camera_id: Unique identifier for the camera.
-
-        Returns:
-            MOG2 background subtractor for the specified camera.
+        Each camera needs its own background model for accurate motion detection.
+        If _bg_subtractor.apply is patched (for tests), uses _bg_subtractor for
+        all cameras to honor the test patch.
         """
-        if camera_id not in self._camera_subtractors:
-            # Check if _bg_subtractor.apply has been patched (is a Mock)
-            # If so, use _bg_subtractor for all cameras to honor the patch
-            bg_apply = getattr(self._bg_subtractor, "apply", None)
-            if bg_apply is not None and hasattr(bg_apply, "_mock_name"):
-                # _bg_subtractor.apply is patched - use _bg_subtractor
-                self._camera_subtractors[camera_id] = self._bg_subtractor
-            else:
-                # Create a new subtractor using cv2
-                raw_subtractor = cv2.createBackgroundSubtractorMOG2()
-                # Check if it's a Mock (patchable) or real cv2 object (needs wrapping)
-                if hasattr(raw_subtractor, "_mock_name") or hasattr(
-                    raw_subtractor, "assert_called"
-                ):
-                    # It's a Mock - use directly
-                    self._camera_subtractors[camera_id] = raw_subtractor
-                else:
-                    # It's a real cv2 object - wrap for patchability
-                    self._camera_subtractors[camera_id] = _MOG2Wrapper(raw_subtractor)
+        if camera_id in self._camera_subtractors:
+            return self._camera_subtractors[camera_id]
+
+        # Use shared subtractor if .apply is patched (test compatibility)
+        bg_apply = getattr(self._bg_subtractor, "apply", None)
+        if bg_apply is not None and _is_mock(bg_apply):
+            self._camera_subtractors[camera_id] = self._bg_subtractor
+        else:
+            self._camera_subtractors[camera_id] = _create_subtractor()
+
         return self._camera_subtractors[camera_id]
 
     def detect_motion(self, frame: np.ndarray, camera_id: str) -> bool:
         """Detect motion in a frame using MOG2 background subtraction.
 
         Compares the current frame against the learned background model
-        for the specified camera. Motion is detected when a significant
-        portion of the frame differs from the background.
+        for the specified camera.
 
         Args:
             frame: Input frame as a numpy array (BGR format, shape HxWxC).
             camera_id: Camera identifier for per-camera background model.
 
         Returns:
-            True if motion is detected, False otherwise.
+            True if motion exceeds threshold, False otherwise.
         """
-        # Handle empty frames gracefully
         if frame.size == 0:
             return False
 
-        # Get the camera-specific background subtractor
-        camera_subtractor = self._get_camera_subtractor(camera_id)
+        fg_mask = self._get_camera_subtractor(camera_id).apply(frame)
 
-        # Apply background subtraction to get foreground mask
-        # Use camera-specific subtractor for the detection
-        fg_mask = camera_subtractor.apply(frame)
-
-        # Calculate the percentage of pixels that show motion
-        # White pixels (255) in the mask indicate foreground/motion
-        total_pixels = fg_mask.size
-        if total_pixels == 0:
+        if fg_mask.size == 0:
             return False
 
-        motion_pixels = np.count_nonzero(fg_mask)
-        motion_ratio = motion_pixels / total_pixels
-
-        # Compare against threshold (inversely proportional to sensitivity)
-        # Convert numpy bool to Python bool for consistency
+        motion_ratio = np.count_nonzero(fg_mask) / fg_mask.size
         return bool(motion_ratio > self._motion_threshold)
 
     def save_frame(self, camera_id: str, frame: np.ndarray, timestamp: datetime) -> str:

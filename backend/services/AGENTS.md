@@ -232,6 +232,14 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `camera_service.py`        | Camera status with optimistic concurrency (NEM-2030) | No (import directly)       |
 | `camera_status_service.py` | Camera status changes with WebSocket broadcasting    | No (import directly)       |
 
+### RTSP/ONVIF Camera Services
+
+| Service              | Purpose                                                   | Exported via `__init__.py` |
+| -------------------- | --------------------------------------------------------- | -------------------------- |
+| `stream_manager.py`  | RTSP stream lifecycle, Redis health tracking (NEM-4197)   | No (import directly)       |
+| `frame_extractor.py` | Motion detection (MOG2), frame saving, detection queueing | No (import directly)       |
+| `onvif_service.py`   | ONVIF device discovery, PTZ control, preset management    | No (import directly)       |
+
 ### Entity Re-identification Services
 
 | Service                        | Purpose                                             | Exported via `__init__.py` |
@@ -2852,6 +2860,184 @@ await audit_logger.log_sensitive_operation(
     details={"format": "csv", "count": 1000},
 )
 ```
+
+### stream_manager.py
+
+**Purpose:** Manages RTSP stream connections for live camera feeds with automatic reconnection and health tracking.
+
+**Related Issue:** NEM-4197
+
+**Key Features:**
+
+- RTSP stream connection using TCP transport (reliable, no UDP)
+- Exponential backoff for reconnection (5s, 10s, 20s, 40s, max 60s)
+- Health tracking via Redis hash keys
+- Async-compatible design with event loop integration
+- Graceful shutdown handling
+- Support for multiple concurrent streams
+
+**Redis Schema:**
+
+```
+hsi:stream:health:{camera_id}  -> Hash with fields:
+  - status: "connecting" | "connected" | "reconnecting"
+  - connection_time: ISO timestamp
+  - fps: "25.0"
+  - retry_count: "0"
+  - last_error: error message (if any)
+```
+
+**Public API:**
+
+```python
+from backend.services.stream_manager import StreamManager
+
+# Use as async context manager
+async with StreamManager(redis_client=redis) as manager:
+    await manager.add_stream("camera1", "rtsp://192.168.1.100:554/stream")
+    health = await manager.get_stream_health("camera1")
+    print(health["status"])  # "connected"
+    await manager.remove_stream("camera1")
+
+# Or manual lifecycle
+manager = StreamManager(redis_client=redis)
+await manager.start()
+await manager.add_stream("camera1", "rtsp://...")
+# ... use stream ...
+await manager.stop()
+```
+
+**Key Classes:**
+
+- `StreamManager` - Main service class for managing RTSP streams
+
+### frame_extractor.py
+
+**Purpose:** Extracts frames from RTSP streams, performs motion detection using MOG2 background subtraction, and queues detected motion frames for the AI pipeline.
+
+**Key Features:**
+
+- 1 FPS extraction for detection (configurable)
+- MOG2 background subtraction for motion detection
+- Per-camera background models for accurate motion detection
+- Only saves frames when motion is detected (bandwidth optimization)
+- Saves to `/tmp/claude/rtsp_frames/{camera_id}/{timestamp}.jpg`
+- Queues to detection_queue with DetectionQueuePayload format
+
+**Motion Sensitivity:**
+
+The `motion_sensitivity` parameter (0.0 to 1.0) controls detection threshold:
+
+- 0.0 = lowest sensitivity (requires large motion to trigger)
+- 0.5 = balanced sensitivity (default)
+- 1.0 = highest sensitivity (triggers on small motion)
+
+**Public API:**
+
+```python
+from backend.services.frame_extractor import FrameExtractor
+
+extractor = FrameExtractor(
+    redis_client=redis,
+    motion_sensitivity=0.7,
+    frame_save_dir="/tmp/claude/rtsp_frames"
+)
+
+# Process a frame (main entry point)
+file_path = await extractor.extract_frame(
+    camera_id="front_door",
+    frame=np_frame,  # numpy array (BGR format)
+    timestamp=datetime.now()
+)
+
+if file_path:
+    print(f"Motion detected! Frame saved to {file_path}")
+
+# Individual operations
+has_motion = extractor.detect_motion(frame, camera_id="front_door")
+file_path = extractor.save_frame("front_door", frame, timestamp)
+await extractor.queue_detection("front_door", file_path, timestamp)
+```
+
+**Key Classes:**
+
+- `FrameExtractor` - Main service class for frame extraction and motion detection
+- `_MOG2Wrapper` - Wrapper around cv2.BackgroundSubtractorMOG2 for testability
+
+### onvif_service.py
+
+**Purpose:** ONVIF device management including discovery, capability retrieval, RTSP URL extraction, and PTZ control operations.
+
+**Related Issues:** NEM-4207, NEM-4388
+
+**Key Features:**
+
+- WS-Discovery for ONVIF device scanning
+- RTSP URL extraction from media profiles
+- Manufacturer/model detection from ONVIF scopes
+- Capability detection (video, PTZ, events)
+- PTZ command execution (pan, tilt, zoom, stop)
+- PTZ preset navigation
+
+**Discovery Output:**
+
+```python
+{
+    "device_url": "http://192.168.1.100:80/onvif/device_service",
+    "ip": "192.168.1.100",
+    "port": 80,
+    "manufacturer": "Hikvision",
+    "model": "DS-2CD2385G1",
+    "rtsp_urls": [
+        {"profile": "mainStream", "url": "rtsp://192.168.1.100:554/Streaming/Channels/101"}
+    ],
+    "capabilities": {"video": True, "ptz": True, "events": False}
+}
+```
+
+**Public API:**
+
+```python
+from backend.services.onvif_service import OnvifService
+
+service = OnvifService(session=db_session, redis=redis_client)
+
+# Discover devices on network
+devices = await service.discover_devices(subnet="192.168.1.0/24", timeout=10)
+
+# Get device capabilities for a configured camera
+capabilities = await service.get_capabilities(camera_id="front_door")
+
+# Execute PTZ command
+await service.execute_ptz_command(
+    camera_id="front_door",
+    command="pan",  # pan, tilt, zoom, stop
+    value=0.5,      # -1.0 to 1.0
+    speed=0.3       # 0.0 to 1.0
+)
+
+# Get PTZ presets
+presets = await service.get_presets(camera_id="front_door")
+
+# Navigate to preset
+await service.goto_preset(camera_id="front_door", preset_token="preset_1")
+
+# Extract RTSP URL from device
+rtsp_url = await service.get_rtsp_url_from_device(
+    device_url="http://192.168.1.100:80/onvif/device_service",
+    username="admin",
+    password="secret"  # pragma: allowlist secret
+)
+```
+
+**Dependencies:**
+
+- `wsdiscovery` - WS-Discovery protocol for device scanning
+- `onvif-zeep` - ONVIF protocol implementation
+
+**Key Classes:**
+
+- `OnvifService` - Main service class for ONVIF operations
 
 ## Data Flow Between Services
 

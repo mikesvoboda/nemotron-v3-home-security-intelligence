@@ -119,53 +119,26 @@ class AreaBasic(BaseModel):
 def _validate_rtsp_url(v: str | None) -> str | None:
     """Validate RTSP URL format.
 
-    NEM-4191: Validates that RTSP URLs use rtsp:// or rtsps:// scheme.
-
-    Args:
-        v: The RTSP URL string to validate, or None
-
-    Returns:
-        The validated RTSP URL, or None
-
-    Raises:
-        ValueError: If URL doesn't use rtsp:// or rtsps:// scheme
+    Validates that RTSP URLs use rtsp:// or rtsps:// scheme and have a valid host.
     """
     if v is None:
         return v
 
-    # Check for valid RTSP URL scheme
     if not v.startswith(("rtsp://", "rtsps://")):
         raise ValueError("rtsp_url must use rtsp:// or rtsps:// scheme")
 
-    # Basic URL format validation
-    # Allow: rtsp://host:port/path or rtsp://user:pass@host:port/path  # pragma: allowlist secret
     import urllib.parse
 
-    try:
-        parsed = urllib.parse.urlparse(v)
-        if not parsed.netloc:
-            raise ValueError("rtsp_url must have a valid host")
-    except Exception:
-        raise ValueError("rtsp_url is not a valid URL format") from None
+    parsed = urllib.parse.urlparse(v)
+    if not parsed.netloc:
+        raise ValueError("rtsp_url must have a valid host")
 
     return v
 
 
 def _validate_motion_sensitivity(v: float) -> float:
-    """Validate motion_sensitivity is within valid range.
-
-    NEM-4191: Validates motion sensitivity is between 0.0 and 1.0.
-
-    Args:
-        v: The motion sensitivity value
-
-    Returns:
-        The validated motion sensitivity
-
-    Raises:
-        ValueError: If value is outside 0.0-1.0 range
-    """
-    if v < 0.0 or v > 1.0:
+    """Validate motion_sensitivity is between 0.0 and 1.0."""
+    if not 0.0 <= v <= 1.0:
         raise ValueError("motion_sensitivity must be between 0.0 and 1.0")
     return v
 
@@ -244,10 +217,7 @@ class CameraCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        """Validate and sanitize camera name.
-
-        NEM-2569: Rejects control characters, strips whitespace.
-        """
+        """Validate and sanitize camera name."""
         return _validate_camera_name(v)
 
     @field_validator("folder_path")
@@ -259,23 +229,12 @@ class CameraCreate(BaseModel):
     @field_validator("rtsp_url")
     @classmethod
     def validate_rtsp_url(cls, v: str | None) -> str | None:
-        """Validate RTSP URL format.
-
-        NEM-4191: Validates rtsp:// or rtsps:// scheme.
-        """
+        """Validate RTSP URL format."""
         return _validate_rtsp_url(v)
 
     @model_validator(mode="after")
     def validate_rtsp_url_required_for_streaming_modes(self) -> CameraCreate:
-        """Validate that rtsp_url is required when ingestion_mode is rtsp or onvif.
-
-        NEM-4191: Conditional validation for streaming modes.
-
-        Only validates when rtsp_url is explicitly provided in the request.
-        This allows tests to validate ingestion_mode enum values without
-        requiring rtsp_url to be present in every test case.
-        """
-        # Only enforce rtsp_url requirement if it was explicitly provided (even as None)
+        """Validate rtsp_url is required when ingestion_mode is rtsp or onvif."""
         if "rtsp_url" in self.model_fields_set:
             if self.ingestion_mode in ("rtsp", "onvif") and self.rtsp_url is None:
                 raise ValueError("rtsp_url is required when ingestion_mode is 'rtsp' or 'onvif'")
@@ -341,30 +300,19 @@ class CameraUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
-        """Validate and sanitize camera name for updates.
-
-        NEM-2569: Rejects control characters, strips whitespace.
-        Returns None unchanged for partial updates.
-        """
-        if v is None:
-            return v
-        return _validate_camera_name(v)
+        """Validate and sanitize camera name for updates."""
+        return _validate_camera_name(v) if v is not None else v
 
     @field_validator("folder_path")
     @classmethod
     def validate_folder_path(cls, v: str | None) -> str | None:
         """Validate folder_path for security."""
-        if v is None:
-            return v
-        return _validate_folder_path(v)
+        return _validate_folder_path(v) if v is not None else v
 
     @field_validator("rtsp_url")
     @classmethod
     def validate_rtsp_url(cls, v: str | None) -> str | None:
-        """Validate RTSP URL format for updates.
-
-        NEM-4191: Validates rtsp:// or rtsps:// scheme.
-        """
+        """Validate RTSP URL format for updates."""
         return _validate_rtsp_url(v)
 
 

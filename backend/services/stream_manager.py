@@ -96,11 +96,8 @@ class StreamManager:
     async def start(self) -> None:
         """Start service and capture event loop.
 
-        This method must be called within an async context. It captures the
-        running event loop for thread-safe task scheduling.
-
-        Raises:
-            RuntimeError: If no running event loop is available.
+        Must be called within an async context. Captures the running event loop
+        for thread-safe task scheduling.
         """
         if self.running:
             logger.warning("StreamManager already running")
@@ -108,7 +105,6 @@ class StreamManager:
 
         logger.info("Starting StreamManager")
 
-        # Capture the current event loop for thread-safe operations
         try:
             self._loop = asyncio.get_running_loop()
         except RuntimeError as e:
@@ -119,13 +115,8 @@ class StreamManager:
             logger.error(error_msg, extra={"error": str(e)})
             raise RuntimeError(error_msg) from e
 
-        if self._loop is None:
-            error_msg = "Event loop capture returned None unexpectedly."
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
-
-        if not self._loop.is_running():
-            error_msg = "Captured event loop is not running."
+        if self._loop is None or not self._loop.is_running():
+            error_msg = "Event loop capture failed or loop is not running."
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
@@ -227,12 +218,8 @@ class StreamManager:
     async def get_stream_health(self, camera_id: str) -> dict[str, Any] | None:
         """Retrieve health data from Redis.
 
-        Args:
-            camera_id: Camera identifier.
-
-        Returns:
-            Health data dict with fields: status, connection_time, fps, retry_count, last_error.
-            Returns None or empty dict if stream doesn't exist.
+        Returns health dict with status, connection_time, fps, retry_count, last_error.
+        Returns None if stream doesn't exist or on error.
         """
         key = f"{REDIS_HEALTH_KEY_PREFIX}{camera_id}"
         try:
@@ -241,13 +228,12 @@ class StreamManager:
                 return None
 
             # Decode bytes if necessary (Redis returns bytes in some clients)
-            result = {}
-            for k, v in data.items():
-                key_str = k.decode() if isinstance(k, bytes) else k
-                val_str = v.decode() if isinstance(v, bytes) else v
-                result[key_str] = val_str
-
-            return result
+            return {
+                (k.decode() if isinstance(k, bytes) else k): (
+                    v.decode() if isinstance(v, bytes) else v
+                )
+                for k, v in data.items()
+            }
         except Exception as e:
             logger.warning(
                 f"Failed to get stream health for {camera_id}: {e}",
@@ -256,18 +242,9 @@ class StreamManager:
             return None
 
     def _calculate_backoff(self, retry_count: int) -> int:
-        """Calculate exponential backoff delay.
-
-        Pattern: 5s -> 10s -> 20s -> 40s -> 60s (max)
-
-        Args:
-            retry_count: Number of retry attempts (0-indexed).
-
-        Returns:
-            Backoff delay in seconds.
-        """
+        """Calculate exponential backoff delay: 5s -> 10s -> 20s -> 40s -> 60s (max)."""
         delay: int = INITIAL_BACKOFF_SECONDS * (2**retry_count)
-        return int(min(delay, MAX_BACKOFF_SECONDS))
+        return min(delay, MAX_BACKOFF_SECONDS)
 
     async def _connection_loop(self, camera_id: str, rtsp_url: str) -> None:
         """Background task for managing stream connection with reconnection.
@@ -321,19 +298,13 @@ class StreamManager:
                 await self._handle_connection_failure(camera_id, str(e))
 
     async def _handle_connection_failure(self, camera_id: str, error_message: str) -> None:
-        """Handle connection failure with exponential backoff.
-
-        Args:
-            camera_id: Camera identifier.
-            error_message: Error description.
-        """
+        """Handle connection failure with exponential backoff."""
         if camera_id not in self._streams:
             return
 
         async with self._lock:
             if camera_id not in self._streams:
                 return
-
             retry_count = self._streams[camera_id]["retry_count"]
             self._streams[camera_id]["retry_count"] = retry_count + 1
             self._streams[camera_id]["last_error"] = error_message
@@ -350,7 +321,6 @@ class StreamManager:
             },
         )
 
-        # Update health to reconnecting
         await self._update_health(
             camera_id,
             "reconnecting",
@@ -358,29 +328,15 @@ class StreamManager:
             last_error=error_message,
         )
 
-        # Wait with backoff
-        try:
-            await asyncio.sleep(backoff)
-        except asyncio.CancelledError:
-            raise
+        await asyncio.sleep(backoff)
 
     async def _create_capture(self, rtsp_url: str) -> cv2.VideoCapture | None:
-        """Create VideoCapture with TCP transport.
-
-        Args:
-            rtsp_url: RTSP URL for the stream.
-
-        Returns:
-            VideoCapture instance or None on failure.
-        """
+        """Create VideoCapture with TCP transport."""
         try:
             if self._capture_factory:
-                # Cast return from factory to expected type
                 result: cv2.VideoCapture | None = self._capture_factory(rtsp_url)
                 return result
 
-            # Create VideoCapture with FFMPEG backend and TCP transport
-            # Run in thread to avoid blocking event loop
             loop = asyncio.get_running_loop()
             capture: cv2.VideoCapture = await loop.run_in_executor(
                 None, lambda: self._create_capture_sync(rtsp_url)
@@ -394,21 +350,10 @@ class StreamManager:
             return None
 
     def _create_capture_sync(self, rtsp_url: str) -> cv2.VideoCapture:
-        """Synchronous helper to create VideoCapture with TCP transport.
-
-        Args:
-            rtsp_url: RTSP URL for the stream.
-
-        Returns:
-            VideoCapture instance.
-        """
-        # Force TCP transport using FFMPEG backend
+        """Create VideoCapture with TCP transport and timeout settings."""
         capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-
-        # Set timeout preferences for reliable streaming
         capture.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 10000)  # 10s open timeout
         capture.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)  # 5s read timeout
-
         return capture
 
     async def _health_monitoring_loop(self, camera_id: str, capture: cv2.VideoCapture) -> None:
@@ -467,11 +412,7 @@ class StreamManager:
                 break
 
     async def _release_capture(self, capture: cv2.VideoCapture) -> None:
-        """Release VideoCapture instance in thread pool.
-
-        Args:
-            capture: VideoCapture instance to release.
-        """
+        """Release VideoCapture instance in thread pool."""
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, capture.release)
@@ -479,12 +420,7 @@ class StreamManager:
             logger.warning(f"Error releasing capture: {e}")
 
     async def _cleanup_stream(self, camera_id: str) -> None:
-        """Clean up stream resources.
-
-        Args:
-            camera_id: Camera identifier.
-        """
-        # Cancel connection task
+        """Clean up stream resources."""
         task_name = f"connection_{camera_id}"
         if task_name in self._background_tasks:
             self._background_tasks[task_name].cancel()
@@ -494,7 +430,6 @@ class StreamManager:
                 pass
             self._background_tasks.pop(task_name, None)
 
-        # Release capture if exists
         if camera_id in self._streams:
             capture = self._streams[camera_id].get("capture")
             if capture is not None:
@@ -509,59 +444,37 @@ class StreamManager:
         retry_count: int | None = None,
         last_error: str | None = None,
     ) -> None:
-        """Update health data in Redis.
-
-        Args:
-            camera_id: Camera identifier.
-            status: Stream status (connected, reconnecting, failed).
-            fps: Frames per second (optional).
-            retry_count: Number of retry attempts (optional).
-            last_error: Last error message (optional).
-        """
+        """Update health data in Redis."""
         key = f"{REDIS_HEALTH_KEY_PREFIX}{camera_id}"
+        health_data: dict[str, str] = {"status": status}
 
-        # Build health data
-        health_data: dict[str, str] = {
-            "status": status,
-        }
-
-        if camera_id in self._streams:
-            connection_time = self._streams[camera_id].get("connection_time")
-            if connection_time:
-                health_data["connection_time"] = connection_time
-
-            if retry_count is None:
-                retry_count = self._streams[camera_id].get("retry_count", 0)
-            if last_error is None:
-                last_error = self._streams[camera_id].get("last_error")
+        stream = self._streams.get(camera_id, {})
+        if connection_time := stream.get("connection_time"):
+            health_data["connection_time"] = connection_time
+        if retry_count is None:
+            retry_count = stream.get("retry_count", 0)
+        if last_error is None:
+            last_error = stream.get("last_error")
 
         if fps is not None:
             health_data["fps"] = f"{fps:.1f}"
-
         if retry_count is not None:
             health_data["retry_count"] = str(retry_count)
-
         if last_error is not None:
             health_data["last_error"] = last_error
 
         try:
             await self.redis_client.hset(key, mapping=health_data)
         except Exception as e:
-            # Log but don't fail - health tracking is non-critical
             logger.warning(
                 f"Failed to update health for camera {camera_id}: {e}",
                 extra={"camera_id": camera_id, "error": str(e)},
             )
 
     async def _delete_health_key(self, camera_id: str) -> None:
-        """Delete health key from Redis.
-
-        Args:
-            camera_id: Camera identifier.
-        """
+        """Delete health key from Redis."""
         key = f"{REDIS_HEALTH_KEY_PREFIX}{camera_id}"
         try:
-            # Use delete for the entire key, not hdel for fields
             await self.redis_client.delete(key)
         except Exception as e:
             logger.warning(
@@ -570,13 +483,7 @@ class StreamManager:
             )
 
     async def __aenter__(self) -> StreamManager:
-        """Async context manager entry.
-
-        Starts the stream manager and returns self.
-
-        Returns:
-            Self for use in the context manager block.
-        """
+        """Async context manager entry - starts the stream manager."""
         await self.start()
         return self
 
@@ -586,13 +493,5 @@ class StreamManager:
         exc_val: BaseException | None,
         exc_tb: object,
     ) -> None:
-        """Async context manager exit.
-
-        Stops the stream manager, ensuring cleanup even if an exception occurred.
-
-        Args:
-            exc_type: Exception type if an exception was raised.
-            exc_val: Exception value if an exception was raised.
-            exc_tb: Exception traceback if an exception was raised.
-        """
+        """Async context manager exit - stops the stream manager."""
         await self.stop()
