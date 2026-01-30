@@ -21,6 +21,7 @@ from .household import router as household_router
 from .jobs import router as jobs_router
 from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
+from .onvif import router as onvif_router
 from .outbound_webhooks import router as outbound_webhooks_router
 from .plate_reads import router as plate_reads_router
 from .rum import router as rum_router
@@ -55,6 +56,7 @@ __all__ = [
     "jobs_router",
     "logs_router",
     "notification_preferences_router",
+    "onvif_router",
     "outbound_webhooks_router",
     "plate_reads_router",
     "property_router",

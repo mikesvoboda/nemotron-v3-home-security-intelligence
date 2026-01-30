@@ -53,6 +53,8 @@ describe('Offline Mutations Integration', () => {
       status: 'online',
       last_seen_at: '2025-01-09T10:00:00Z',
       created_at: '2025-01-01T00:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 

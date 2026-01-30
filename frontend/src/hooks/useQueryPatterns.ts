@@ -54,6 +54,8 @@ export function createPlaceholderCameras(count: number = 6): Camera[] {
     status: 'offline' as const,
     last_seen_at: null,
     created_at: new Date().toISOString(),
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
   }));
 }
 

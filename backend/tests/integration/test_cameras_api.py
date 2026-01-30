@@ -199,6 +199,396 @@ async def test_get_camera_by_id_success(client):
     assert data["name"] == camera_name
 
 
+# =============================================================================
+# RTSP/ONVIF Integration Tests (NEM-4191)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_create_camera_with_rtsp_mode(client):
+    """Test creating camera with RTSP ingestion mode.
+
+    NEM-4191: Test RTSP camera creation with all related fields.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"RTSP Camera {unique_id}",
+        "folder_path": f"/export/rtsp/camera_{unique_id}",
+        "ingestion_mode": "rtsp",
+        "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+        "rtsp_username": "admin",
+        "rtsp_password": "secret123",  # pragma: allowlist secret
+        "stream_profile": "main",
+        "motion_sensitivity": 0.75,
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == camera_data["name"]
+    assert data["ingestion_mode"] == "rtsp"
+    assert data["rtsp_url"] == "rtsp://192.168.1.100:554/stream1"
+    assert data["rtsp_username"] == "admin"
+    assert data["rtsp_password"] == "secret123"  # pragma: allowlist secret
+    assert data["stream_profile"] == "main"
+    assert data["motion_sensitivity"] == 0.75
+
+
+@pytest.mark.asyncio
+async def test_create_camera_with_onvif_mode(client):
+    """Test creating camera with ONVIF ingestion mode.
+
+    NEM-4191: Test ONVIF camera creation.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"ONVIF Camera {unique_id}",
+        "folder_path": f"/export/onvif/camera_{unique_id}",
+        "ingestion_mode": "onvif",
+        "rtsp_url": "rtsp://192.168.1.101:554/onvif1",
+        "rtsp_username": "user",
+        "rtsp_password": "pass",  # pragma: allowlist secret
+        "stream_profile": "both",
+        "motion_sensitivity": 0.6,
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["ingestion_mode"] == "onvif"
+    assert data["rtsp_url"] == "rtsp://192.168.1.101:554/onvif1"
+    assert data["stream_profile"] == "both"
+
+
+@pytest.mark.asyncio
+async def test_create_camera_ftp_mode_defaults(client):
+    """Test that FTP camera defaults are applied correctly.
+
+    NEM-4191: Test default values for FTP cameras.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"FTP Camera {unique_id}",
+        "folder_path": f"/export/foscam/camera_{unique_id}",
+        # No ingestion_mode specified - should default to 'ftp'
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["ingestion_mode"] == "ftp"
+    assert data["rtsp_url"] is None
+    assert data["rtsp_username"] is None
+    assert data["rtsp_password"] is None
+    assert data["stream_profile"] is None
+    assert data["motion_sensitivity"] == 0.5  # Default
+
+
+@pytest.mark.asyncio
+async def test_create_camera_rtsp_mode_requires_url(client):
+    """Test that RTSP mode requires rtsp_url.
+
+    NEM-4191: Test conditional validation for RTSP cameras.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Invalid RTSP Camera {unique_id}",
+        "folder_path": f"/export/rtsp/camera_{unique_id}",
+        "ingestion_mode": "rtsp",
+        # Missing rtsp_url - should fail validation
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 422  # Validation error
+    error_data = response.json()
+    # Should indicate rtsp_url is required for RTSP mode
+    assert "rtsp_url" in str(error_data).lower()
+
+
+@pytest.mark.asyncio
+async def test_update_camera_to_rtsp_mode(client):
+    """Test updating an FTP camera to RTSP mode.
+
+    NEM-4191: Test mode migration from FTP to RTSP.
+    """
+    # Create FTP camera
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Camera {unique_id}",
+        "folder_path": f"/export/camera_{unique_id}",
+        "ingestion_mode": "ftp",
+    }
+    create_response = await client.post("/api/cameras", json=camera_data)
+    camera_id = create_response.json()["id"]
+
+    # Update to RTSP mode
+    update_data = {
+        "ingestion_mode": "rtsp",
+        "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+        "rtsp_username": "admin",
+        "rtsp_password": "secret",  # pragma: allowlist secret
+        "stream_profile": "main",
+        "motion_sensitivity": 0.8,
+    }
+    response = await client.patch(f"/api/cameras/{camera_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ingestion_mode"] == "rtsp"
+    assert data["rtsp_url"] == "rtsp://192.168.1.100:554/stream1"
+    assert data["rtsp_username"] == "admin"
+    assert data["rtsp_password"] == "secret"  # pragma: allowlist secret
+    assert data["stream_profile"] == "main"
+    assert data["motion_sensitivity"] == 0.8
+
+
+@pytest.mark.asyncio
+async def test_update_camera_rtsp_credentials_only(client):
+    """Test partial update of RTSP credentials.
+
+    NEM-4191: Test updating only RTSP username/password.
+    """
+    # Create RTSP camera
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"RTSP Camera {unique_id}",
+        "folder_path": f"/export/rtsp/camera_{unique_id}",
+        "ingestion_mode": "rtsp",
+        "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+        "rtsp_username": "olduser",
+        "rtsp_password": "oldpass",  # pragma: allowlist secret
+    }
+    create_response = await client.post("/api/cameras", json=camera_data)
+    camera_id = create_response.json()["id"]
+
+    # Update only credentials
+    update_data = {
+        "rtsp_username": "newuser",
+        "rtsp_password": "newpass",  # pragma: allowlist secret
+    }
+    response = await client.patch(f"/api/cameras/{camera_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["rtsp_username"] == "newuser"
+    assert data["rtsp_password"] == "newpass"  # pragma: allowlist secret
+    # Other fields should remain unchanged
+    assert data["rtsp_url"] == "rtsp://192.168.1.100:554/stream1"
+    assert data["ingestion_mode"] == "rtsp"
+
+
+@pytest.mark.asyncio
+async def test_update_camera_stream_profile(client):
+    """Test updating stream profile.
+
+    NEM-4191: Test stream profile changes.
+    """
+    # Create RTSP camera
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"RTSP Camera {unique_id}",
+        "folder_path": f"/export/rtsp/camera_{unique_id}",
+        "ingestion_mode": "rtsp",
+        "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+        "stream_profile": "main",
+    }
+    create_response = await client.post("/api/cameras", json=camera_data)
+    camera_id = create_response.json()["id"]
+
+    # Update stream profile
+    update_data = {"stream_profile": "both"}
+    response = await client.patch(f"/api/cameras/{camera_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["stream_profile"] == "both"
+
+
+@pytest.mark.asyncio
+async def test_update_camera_motion_sensitivity(client):
+    """Test updating motion sensitivity.
+
+    NEM-4191: Test motion sensitivity changes.
+    """
+    # Create camera
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Camera {unique_id}",
+        "folder_path": f"/export/camera_{unique_id}",
+        "motion_sensitivity": 0.5,
+    }
+    create_response = await client.post("/api/cameras", json=camera_data)
+    camera_id = create_response.json()["id"]
+
+    # Update motion sensitivity
+    update_data = {"motion_sensitivity": 0.9}
+    response = await client.patch(f"/api/cameras/{camera_id}", json=update_data)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["motion_sensitivity"] == 0.9
+
+
+@pytest.mark.asyncio
+async def test_update_camera_motion_sensitivity_out_of_range(client):
+    """Test that motion sensitivity validation works in updates.
+
+    NEM-4191: Test range validation (0.0-1.0).
+    """
+    # Create camera
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Camera {unique_id}",
+        "folder_path": f"/export/camera_{unique_id}",
+    }
+    create_response = await client.post("/api/cameras", json=camera_data)
+    camera_id = create_response.json()["id"]
+
+    # Try to update with invalid value
+    update_data = {"motion_sensitivity": 1.5}
+    response = await client.patch(f"/api/cameras/{camera_id}", json=update_data)
+
+    assert response.status_code == 422  # Validation error
+
+
+@pytest.mark.asyncio
+async def test_get_camera_returns_rtsp_fields(client):
+    """Test that GET endpoint returns RTSP fields.
+
+    NEM-4191: Test RTSP fields in GET response.
+    """
+    # Create RTSP camera
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"RTSP Camera {unique_id}",
+        "folder_path": f"/export/rtsp/camera_{unique_id}",
+        "ingestion_mode": "rtsp",
+        "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+        "rtsp_username": "admin",
+        "rtsp_password": "secret",  # pragma: allowlist secret
+        "stream_profile": "main",
+        "motion_sensitivity": 0.7,
+    }
+    create_response = await client.post("/api/cameras", json=camera_data)
+    camera_id = create_response.json()["id"]
+
+    # Get camera
+    response = await client.get(f"/api/cameras/{camera_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ingestion_mode"] == "rtsp"
+    assert data["rtsp_url"] == "rtsp://192.168.1.100:554/stream1"
+    assert data["rtsp_username"] == "admin"
+    assert data["rtsp_password"] == "secret"  # pragma: allowlist secret
+    assert data["stream_profile"] == "main"
+    assert data["motion_sensitivity"] == 0.7
+
+
+@pytest.mark.asyncio
+@pytest.mark.xdist_group("clean_db")
+async def test_list_cameras_includes_rtsp_fields(client, clean_cameras):
+    """Test that list endpoint includes RTSP fields.
+
+    NEM-4191: Test RTSP fields in list response.
+    """
+    # Create mix of FTP and RTSP cameras
+    cameras = [
+        {
+            "name": "FTP Camera 1",
+            "folder_path": "/export/foscam/ftp1",
+            "ingestion_mode": "ftp",
+        },
+        {
+            "name": "RTSP Camera 1",
+            "folder_path": "/export/rtsp/rtsp1",
+            "ingestion_mode": "rtsp",
+            "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+            "stream_profile": "main",
+        },
+    ]
+
+    for camera in cameras:
+        await client.post("/api/cameras", json=camera)
+
+    # List cameras
+    response = await client.get("/api/cameras")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["items"]) == 2
+
+    # Find RTSP camera in results
+    rtsp_cam = next((c for c in data["items"] if c["ingestion_mode"] == "rtsp"), None)
+    assert rtsp_cam is not None
+    assert rtsp_cam["rtsp_url"] == "rtsp://192.168.1.100:554/stream1"
+    assert rtsp_cam["stream_profile"] == "main"
+
+    # Find FTP camera in results
+    ftp_cam = next((c for c in data["items"] if c["ingestion_mode"] == "ftp"), None)
+    assert ftp_cam is not None
+    assert ftp_cam["rtsp_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_camera_invalid_rtsp_url_format(client):
+    """Test that invalid RTSP URL format is rejected.
+
+    NEM-4191: Test URL validation.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Invalid RTSP Camera {unique_id}",
+        "folder_path": f"/export/rtsp/camera_{unique_id}",
+        "ingestion_mode": "rtsp",
+        "rtsp_url": "http://invalid-scheme.com/stream",  # Wrong scheme
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 422  # Validation error
+
+
+@pytest.mark.asyncio
+async def test_create_camera_invalid_stream_profile(client):
+    """Test that invalid stream profile is rejected.
+
+    NEM-4191: Test stream profile enum validation.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Invalid Profile Camera {unique_id}",
+        "folder_path": f"/export/camera_{unique_id}",
+        "stream_profile": "invalid",  # Invalid value
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 422  # Validation error
+
+
+@pytest.mark.asyncio
+async def test_create_camera_invalid_ingestion_mode(client):
+    """Test that invalid ingestion mode is rejected.
+
+    NEM-4191: Test ingestion mode enum validation.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    camera_data = {
+        "name": f"Invalid Mode Camera {unique_id}",
+        "folder_path": f"/export/camera_{unique_id}",
+        "ingestion_mode": "invalid_mode",
+    }
+
+    response = await client.post("/api/cameras", json=camera_data)
+
+    assert response.status_code == 422  # Validation error
+
+
 @pytest.mark.asyncio
 async def test_get_camera_by_id_not_found(client):
     """Test getting a non-existent camera returns 404."""

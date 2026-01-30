@@ -64,6 +64,8 @@ describe('useSceneChangeEvents', () => {
           status: 'online',
           last_seen_at: null,
           created_at: '2026-01-01T00:00:00Z',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
         {
           id: 'back_yard',
@@ -72,6 +74,8 @@ describe('useSceneChangeEvents', () => {
           status: 'online',
           last_seen_at: null,
           created_at: '2026-01-01T00:00:00Z',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
         {
           id: 'garage',
@@ -80,6 +84,8 @@ describe('useSceneChangeEvents', () => {
           status: 'online',
           last_seen_at: null,
           created_at: '2026-01-01T00:00:00Z',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
       ],
       isLoading: false,

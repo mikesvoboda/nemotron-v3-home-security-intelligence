@@ -95,6 +95,8 @@ function createMockCamera(overrides: Partial<Camera> = {}): Camera {
     name: 'Front Door Camera',
     folder_path: '/cameras/front_door',
     status: 'online',
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
     last_seen_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
     ...overrides,

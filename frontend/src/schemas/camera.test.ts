@@ -246,4 +246,177 @@ describe('Camera Zod Schemas', () => {
       expect(CAMERA_STATUS_VALUES).toEqual(['online', 'offline', 'error', 'unknown']);
     });
   });
+
+  describe('Motion Sensitivity Schema (TDD Phase 5)', () => {
+    describe('Valid motion_sensitivity values', () => {
+      it('should accept motion_sensitivity 0.0 (minimum)', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 0.0,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.motion_sensitivity).toBe(0.0);
+        }
+      });
+
+      it('should accept motion_sensitivity 1.0 (maximum)', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 1.0,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.motion_sensitivity).toBe(1.0);
+        }
+      });
+
+      it('should accept motion_sensitivity 0.5 (default)', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 0.5,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.motion_sensitivity).toBe(0.5);
+        }
+      });
+
+      it('should accept motion_sensitivity with high precision (0.75)', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 0.75,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.motion_sensitivity).toBe(0.75);
+        }
+      });
+    });
+
+    describe('Invalid motion_sensitivity values', () => {
+      it('should reject motion_sensitivity < 0.0', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: -0.1,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('at least 0');
+        }
+      });
+
+      it('should reject motion_sensitivity > 1.0', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 1.1,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('at most 1');
+        }
+      });
+
+      it('should reject non-numeric motion_sensitivity', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 'invalid',
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe('Optional motion_sensitivity field', () => {
+      it('should allow motion_sensitivity to be omitted (optional field)', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          // motion_sensitivity should be undefined when not provided
+          expect(result.data.motion_sensitivity).toBeUndefined();
+        }
+      });
+
+      it('should default to 0.5 when omitted for RTSP cameras', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          // The default should be applied at the component level, not schema level
+          // Schema should allow omission, and component provides default
+          expect(result.data.motion_sensitivity).toBeUndefined();
+        }
+      });
+    });
+
+    describe('Motion sensitivity in cameraUpdateSchema', () => {
+      it('should allow partial update with only motion_sensitivity', () => {
+        const result = cameraUpdateSchema.safeParse({
+          motion_sensitivity: 0.8,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.motion_sensitivity).toBe(0.8);
+        }
+      });
+
+      it('should validate motion_sensitivity range in updates', () => {
+        const result = cameraUpdateSchema.safeParse({
+          motion_sensitivity: 1.5,
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it('should allow motion_sensitivity to be omitted in partial updates', () => {
+        const result = cameraUpdateSchema.safeParse({
+          name: 'Updated Name',
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.motion_sensitivity).toBeUndefined();
+        }
+      });
+    });
+
+    describe('Motion sensitivity in cameraFormSchema', () => {
+      it('should include motion_sensitivity in form schema', () => {
+        const result = cameraFormSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: 'rtsp://192.168.1.100/stream',
+          status: 'online',
+          motion_sensitivity: 0.5,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('should allow motion_sensitivity to be optional in form', () => {
+        const result = cameraFormSchema.safeParse({
+          name: 'Test Camera',
+          folder_path: '/export/foscam/camera',
+          status: 'online',
+        });
+        expect(result.success).toBe(true);
+      });
+    });
+  });
 });

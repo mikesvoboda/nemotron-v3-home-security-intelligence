@@ -37,6 +37,8 @@ const mockDeletedCameras: api.Camera[] = [
     status: 'offline',
     created_at: '2025-01-01T00:00:00Z',
     last_seen_at: '2025-01-15T12:00:00Z',
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
   },
   {
     id: 'deleted-cam-2',
@@ -45,6 +47,8 @@ const mockDeletedCameras: api.Camera[] = [
     status: 'offline',
     created_at: '2025-01-02T00:00:00Z',
     last_seen_at: null,
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
   },
 ];
 
@@ -55,6 +59,8 @@ const mockRestoredCamera: api.Camera = {
   status: 'online',
   created_at: '2025-01-01T00:00:00Z',
   last_seen_at: '2025-01-20T10:00:00Z',
+  ingestion_mode: 'ftp',
+  motion_sensitivity: 0.5,
 };
 
 describe('useCameraDelete hooks', () => {
