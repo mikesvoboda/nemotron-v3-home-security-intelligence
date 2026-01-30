@@ -60,6 +60,17 @@ function containsControlChars(path: string): boolean {
 }
 
 /**
+ * Checks if a path is a URL (RTSP, HTTP, HTTPS).
+ * URLs are allowed to contain colons for the protocol separator.
+ */
+function isUrl(path: string): boolean {
+  const lowerPath = path.toLowerCase();
+  return lowerPath.startsWith('rtsp://') ||
+         lowerPath.startsWith('http://') ||
+         lowerPath.startsWith('https://');
+}
+
+/**
  * Validates folder path for security issues.
  * Matches backend _validate_folder_path() in camera.py
  */
@@ -69,12 +80,16 @@ function validateFolderPath(path: string): string | true {
     return 'Path traversal (..) is not allowed in folder path';
   }
 
-  // Check for forbidden printable characters
-  if (FORBIDDEN_PRINTABLE_CHARS.test(path)) {
-    return 'Folder path contains forbidden characters (< > : " | ? * or control characters)';
+  // Skip forbidden character check for URLs (RTSP/HTTP/HTTPS)
+  // URLs legitimately contain colons for the protocol separator
+  if (!isUrl(path)) {
+    // Check for forbidden printable characters
+    if (FORBIDDEN_PRINTABLE_CHARS.test(path)) {
+      return 'Folder path contains forbidden characters (< > : " | ? * or control characters)';
+    }
   }
 
-  // Check for control characters
+  // Check for control characters (always forbidden, even in URLs)
   if (containsControlChars(path)) {
     return 'Folder path contains forbidden characters (< > : " | ? * or control characters)';
   }
@@ -130,6 +145,16 @@ export const cameraFolderPathSchema = z
   .transform((val) => val.trim());
 
 /**
+ * Motion sensitivity schema - validates range 0.0-1.0.
+ * Only applicable to RTSP cameras; optional for all cameras.
+ */
+export const cameraMotionSensitivitySchema = z
+  .number()
+  .min(0, { message: 'Motion sensitivity must be at least 0' })
+  .max(1, { message: 'Motion sensitivity must be at most 1' })
+  .optional();
+
+/**
  * Schema for creating a new camera.
  * Matches backend CameraCreate Pydantic model.
  */
@@ -137,6 +162,7 @@ export const cameraCreateSchema = z.object({
   name: cameraNameSchema,
   folder_path: cameraFolderPathSchema,
   status: cameraStatusSchema.default('online'),
+  motion_sensitivity: cameraMotionSensitivitySchema,
 });
 
 /**
@@ -148,6 +174,7 @@ export const cameraUpdateSchema = z.object({
   name: cameraNameSchema.optional(),
   folder_path: cameraFolderPathSchema.optional(),
   status: cameraStatusSchema.optional(),
+  motion_sensitivity: cameraMotionSensitivitySchema,
 });
 
 /**
@@ -158,6 +185,7 @@ export const cameraFormSchema = z.object({
   name: cameraNameSchema,
   folder_path: cameraFolderPathSchema,
   status: cameraStatusSchema,
+  motion_sensitivity: cameraMotionSensitivitySchema,
 });
 
 // =============================================================================

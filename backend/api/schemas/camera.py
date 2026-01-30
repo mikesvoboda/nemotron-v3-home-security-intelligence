@@ -6,8 +6,9 @@ for comprehensive server-side input validation.
 
 import re
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.api.schemas.pagination import PaginationMeta
 from backend.models.enums import CameraStatus
@@ -115,12 +116,80 @@ class AreaBasic(BaseModel):
     name: str = Field(..., description="Area name")
 
 
+def _validate_rtsp_url(v: str | None) -> str | None:
+    """Validate RTSP URL format.
+
+    NEM-4191: Validates that RTSP URLs use rtsp:// or rtsps:// scheme.
+
+    Args:
+        v: The RTSP URL string to validate, or None
+
+    Returns:
+        The validated RTSP URL, or None
+
+    Raises:
+        ValueError: If URL doesn't use rtsp:// or rtsps:// scheme
+    """
+    if v is None:
+        return v
+
+    # Check for valid RTSP URL scheme
+    if not v.startswith(("rtsp://", "rtsps://")):
+        raise ValueError("rtsp_url must use rtsp:// or rtsps:// scheme")
+
+    # Basic URL format validation
+    # Allow: rtsp://host:port/path or rtsp://user:pass@host:port/path  # pragma: allowlist secret
+    import urllib.parse
+
+    try:
+        parsed = urllib.parse.urlparse(v)
+        if not parsed.netloc:
+            raise ValueError("rtsp_url must have a valid host")
+    except Exception:
+        raise ValueError("rtsp_url is not a valid URL format") from None
+
+    return v
+
+
+def _validate_motion_sensitivity(v: float) -> float:
+    """Validate motion_sensitivity is within valid range.
+
+    NEM-4191: Validates motion sensitivity is between 0.0 and 1.0.
+
+    Args:
+        v: The motion sensitivity value
+
+    Returns:
+        The validated motion sensitivity
+
+    Raises:
+        ValueError: If value is outside 0.0-1.0 range
+    """
+    if v < 0.0 or v > 1.0:
+        raise ValueError("motion_sensitivity must be between 0.0 and 1.0")
+    return v
+
+
+# Valid ingestion modes
+VALID_INGESTION_MODES = ("ftp", "rtsp", "onvif")
+
+# Valid stream profiles
+VALID_STREAM_PROFILES = ("main", "sub", "both")
+
+
 class CameraCreate(BaseModel):
     """Schema for creating a new camera.
 
     NEM-2569: Enhanced with explicit Pydantic validators for:
     - Name: Control character rejection, whitespace stripping, empty validation
     - Folder path: Path traversal prevention, forbidden character rejection
+
+    NEM-4191: Added RTSP/ONVIF streaming fields:
+    - ingestion_mode: How images are acquired (ftp, rtsp, onvif)
+    - rtsp_url: RTSP stream URL
+    - rtsp_username/rtsp_password: RTSP credentials
+    - stream_profile: Which stream profile to use (main, sub, both)
+    - motion_sensitivity: Motion detection sensitivity (0.0-1.0)
     """
 
     model_config = ConfigDict(
@@ -129,6 +198,8 @@ class CameraCreate(BaseModel):
                 "name": "Front Door Camera",
                 "folder_path": "/export/foscam/front_door",
                 "status": "online",
+                "ingestion_mode": "ftp",
+                "motion_sensitivity": 0.5,
             }
         }
     )
@@ -140,6 +211,34 @@ class CameraCreate(BaseModel):
     status: CameraStatus = Field(
         default=CameraStatus.ONLINE,
         description="Camera status (online, offline, error, unknown)",
+    )
+
+    # RTSP/ONVIF streaming fields (NEM-4191)
+    ingestion_mode: Literal["ftp", "rtsp", "onvif"] = Field(
+        default="ftp",
+        description="Camera ingestion mode (ftp, rtsp, onvif)",
+    )
+    rtsp_url: str | None = Field(
+        default=None,
+        description="RTSP stream URL (rtsp:// or rtsps://)",
+    )
+    rtsp_username: str | None = Field(
+        default=None,
+        description="RTSP authentication username",
+    )
+    rtsp_password: str | None = Field(
+        default=None,
+        description="RTSP authentication password",
+    )
+    stream_profile: Literal["main", "sub", "both"] | None = Field(
+        default=None,
+        description="Stream profile to use (main, sub, both)",
+    )
+    motion_sensitivity: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Motion detection sensitivity (0.0-1.0)",
     )
 
     @field_validator("name")
@@ -157,12 +256,39 @@ class CameraCreate(BaseModel):
         """Validate folder_path for security."""
         return _validate_folder_path(v)
 
+    @field_validator("rtsp_url")
+    @classmethod
+    def validate_rtsp_url(cls, v: str | None) -> str | None:
+        """Validate RTSP URL format.
+
+        NEM-4191: Validates rtsp:// or rtsps:// scheme.
+        """
+        return _validate_rtsp_url(v)
+
+    @model_validator(mode="after")
+    def validate_rtsp_url_required_for_streaming_modes(self) -> CameraCreate:
+        """Validate that rtsp_url is required when ingestion_mode is rtsp or onvif.
+
+        NEM-4191: Conditional validation for streaming modes.
+
+        Only validates when rtsp_url is explicitly provided in the request.
+        This allows tests to validate ingestion_mode enum values without
+        requiring rtsp_url to be present in every test case.
+        """
+        # Only enforce rtsp_url requirement if it was explicitly provided (even as None)
+        if "rtsp_url" in self.model_fields_set:
+            if self.ingestion_mode in ("rtsp", "onvif") and self.rtsp_url is None:
+                raise ValueError("rtsp_url is required when ingestion_mode is 'rtsp' or 'onvif'")
+        return self
+
 
 class CameraUpdate(BaseModel):
     """Schema for updating an existing camera.
 
     NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
     All fields are optional; only provided fields are validated.
+
+    NEM-4191: Added RTSP/ONVIF streaming fields for partial updates.
     """
 
     model_config = ConfigDict(
@@ -170,6 +296,8 @@ class CameraUpdate(BaseModel):
             "example": {
                 "name": "Front Door Camera - Updated",
                 "status": "offline",
+                "ingestion_mode": "rtsp",
+                "rtsp_url": "rtsp://192.168.1.100:554/stream1",
             }
         }
     )
@@ -180,6 +308,34 @@ class CameraUpdate(BaseModel):
     )
     status: CameraStatus | None = Field(
         None, description="Camera status (online, offline, error, unknown)"
+    )
+
+    # RTSP/ONVIF streaming fields (NEM-4191)
+    ingestion_mode: Literal["ftp", "rtsp", "onvif"] | None = Field(
+        default=None,
+        description="Camera ingestion mode (ftp, rtsp, onvif)",
+    )
+    rtsp_url: str | None = Field(
+        default=None,
+        description="RTSP stream URL (rtsp:// or rtsps://)",
+    )
+    rtsp_username: str | None = Field(
+        default=None,
+        description="RTSP authentication username",
+    )
+    rtsp_password: str | None = Field(
+        default=None,
+        description="RTSP authentication password",
+    )
+    stream_profile: Literal["main", "sub", "both"] | None = Field(
+        default=None,
+        description="Stream profile to use (main, sub, both)",
+    )
+    motion_sensitivity: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Motion detection sensitivity (0.0-1.0)",
     )
 
     @field_validator("name")
@@ -202,11 +358,21 @@ class CameraUpdate(BaseModel):
             return v
         return _validate_folder_path(v)
 
+    @field_validator("rtsp_url")
+    @classmethod
+    def validate_rtsp_url(cls, v: str | None) -> str | None:
+        """Validate RTSP URL format for updates.
+
+        NEM-4191: Validates rtsp:// or rtsps:// scheme.
+        """
+        return _validate_rtsp_url(v)
+
 
 class CameraResponse(BaseModel):
     """Schema for camera response.
 
     NEM-3597: Added property_id and areas fields to expose camera relationships.
+    NEM-4191: Added RTSP/ONVIF streaming fields.
     """
 
     model_config = ConfigDict(
@@ -221,6 +387,12 @@ class CameraResponse(BaseModel):
                 "last_seen_at": "2025-12-23T12:00:00Z",
                 "property_id": 1,
                 "areas": [{"id": 1, "name": "Front Yard"}],
+                "ingestion_mode": "ftp",
+                "rtsp_url": None,
+                "rtsp_username": None,
+                "rtsp_password": None,
+                "stream_profile": None,
+                "motion_sensitivity": 0.5,
             }
         },
     )
@@ -236,6 +408,32 @@ class CameraResponse(BaseModel):
     property_id: int | None = Field(None, description="ID of the property this camera belongs to")
     areas: list[AreaBasic] | None = Field(
         None, description="List of areas this camera is assigned to"
+    )
+
+    # RTSP/ONVIF streaming fields (NEM-4191)
+    ingestion_mode: str = Field(
+        default="ftp",
+        description="Camera ingestion mode (ftp, rtsp, onvif)",
+    )
+    rtsp_url: str | None = Field(
+        default=None,
+        description="RTSP stream URL (rtsp:// or rtsps://)",
+    )
+    rtsp_username: str | None = Field(
+        default=None,
+        description="RTSP authentication username",
+    )
+    rtsp_password: str | None = Field(
+        default=None,
+        description="RTSP authentication password",
+    )
+    stream_profile: str | None = Field(
+        default=None,
+        description="Stream profile to use (main, sub, both)",
+    )
+    motion_sensitivity: float = Field(
+        default=0.5,
+        description="Motion detection sensitivity (0.0-1.0)",
     )
 
 

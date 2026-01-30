@@ -545,3 +545,420 @@ class TestCameraTimezoneColumns:
             assert col.type.__class__.__name__ == "DateTime", f"{col_name} should be DateTime type"
             # Check timezone is True
             assert col.type.timezone is True, f"{col_name} must have timezone=True"
+
+
+# =============================================================================
+# RTSP/ONVIF Streaming Extension Tests (NEM-4191)
+# =============================================================================
+
+
+class TestCameraRTSPFields:
+    """Tests for Camera model RTSP/ONVIF streaming field extensions.
+
+    NEM-4191: Tests for new camera fields supporting RTSP and ONVIF streaming:
+    - ingestion_mode: 'ftp' | 'rtsp' | 'onvif'
+    - rtsp_url: nullable string
+    - rtsp_username: nullable string
+    - rtsp_password: nullable string (encrypted)
+    - stream_profile: 'main' | 'sub' | 'both' (nullable)
+    - motion_sensitivity: float 0.0-1.0 (default 0.5)
+    """
+
+    def test_camera_has_ingestion_mode_field(self):
+        """Test camera model has ingestion_mode field."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Test Camera",
+            folder_path="/path",
+            ingestion_mode="rtsp",
+        )
+
+        assert hasattr(camera, "ingestion_mode")
+        assert camera.ingestion_mode == "rtsp"
+
+    def test_camera_has_rtsp_url_field(self):
+        """Test camera model has rtsp_url field."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Test Camera",
+            folder_path="/path",
+            rtsp_url="rtsp://192.168.1.100:554/stream1",
+        )
+
+        assert hasattr(camera, "rtsp_url")
+        assert camera.rtsp_url == "rtsp://192.168.1.100:554/stream1"
+
+    def test_camera_has_rtsp_username_field(self):
+        """Test camera model has rtsp_username field."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Test Camera",
+            folder_path="/path",
+            rtsp_username="admin",
+        )
+
+        assert hasattr(camera, "rtsp_username")
+        assert camera.rtsp_username == "admin"
+
+    def test_camera_has_rtsp_password_field(self):
+        """Test camera model has rtsp_password field."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Test Camera",
+            folder_path="/path",
+            rtsp_password="secret123",  # pragma: allowlist secret
+        )
+
+        assert hasattr(camera, "rtsp_password")
+        assert camera.rtsp_password == "secret123"  # pragma: allowlist secret
+
+    def test_camera_has_stream_profile_field(self):
+        """Test camera model has stream_profile field."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Test Camera",
+            folder_path="/path",
+            stream_profile="main",
+        )
+
+        assert hasattr(camera, "stream_profile")
+        assert camera.stream_profile == "main"
+
+    def test_camera_has_motion_sensitivity_field(self):
+        """Test camera model has motion_sensitivity field."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Test Camera",
+            folder_path="/path",
+            motion_sensitivity=0.75,
+        )
+
+        assert hasattr(camera, "motion_sensitivity")
+        assert camera.motion_sensitivity == 0.75
+
+
+class TestCameraIngestionModeDefaults:
+    """Tests for Camera ingestion_mode default values."""
+
+    def test_ingestion_mode_defaults_to_ftp(self):
+        """Test that ingestion_mode defaults to 'ftp' when not specified."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+        )
+
+        assert camera.ingestion_mode == "ftp"
+
+    def test_ingestion_mode_column_has_ftp_default(self):
+        """Test that ingestion_mode column has 'ftp' as database default."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+        ingestion_mode_col = mapper.columns["ingestion_mode"]
+        assert ingestion_mode_col.default is not None
+        assert ingestion_mode_col.default.arg == "ftp"
+
+    def test_ingestion_mode_accepts_rtsp(self):
+        """Test that ingestion_mode accepts 'rtsp' value."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            ingestion_mode="rtsp",
+        )
+
+        assert camera.ingestion_mode == "rtsp"
+
+    def test_ingestion_mode_accepts_onvif(self):
+        """Test that ingestion_mode accepts 'onvif' value."""
+        camera = Camera(
+            id="test_onvif",
+            name="ONVIF Camera",
+            folder_path="/path",
+            ingestion_mode="onvif",
+        )
+
+        assert camera.ingestion_mode == "onvif"
+
+    def test_ingestion_mode_accepts_ftp(self):
+        """Test that ingestion_mode accepts 'ftp' value explicitly."""
+        camera = Camera(
+            id="test_ftp",
+            name="FTP Camera",
+            folder_path="/path",
+            ingestion_mode="ftp",
+        )
+
+        assert camera.ingestion_mode == "ftp"
+
+
+class TestCameraMotionSensitivityDefaults:
+    """Tests for Camera motion_sensitivity default values."""
+
+    def test_motion_sensitivity_defaults_to_0_5(self):
+        """Test that motion_sensitivity defaults to 0.5 when not specified."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+        )
+
+        assert camera.motion_sensitivity == 0.5
+
+    def test_motion_sensitivity_column_has_default(self):
+        """Test that motion_sensitivity column has 0.5 as database default."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Camera)
+        motion_sensitivity_col = mapper.columns["motion_sensitivity"]
+        assert motion_sensitivity_col.default is not None
+        assert motion_sensitivity_col.default.arg == 0.5
+
+    def test_motion_sensitivity_accepts_custom_value(self):
+        """Test that motion_sensitivity accepts custom values."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+            motion_sensitivity=0.8,
+        )
+
+        assert camera.motion_sensitivity == 0.8
+
+    def test_motion_sensitivity_accepts_minimum_value(self):
+        """Test that motion_sensitivity accepts 0.0 (minimum)."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+            motion_sensitivity=0.0,
+        )
+
+        assert camera.motion_sensitivity == 0.0
+
+    def test_motion_sensitivity_accepts_maximum_value(self):
+        """Test that motion_sensitivity accepts 1.0 (maximum)."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+            motion_sensitivity=1.0,
+        )
+
+        assert camera.motion_sensitivity == 1.0
+
+
+class TestCameraRTSPFieldsNullability:
+    """Tests for nullable RTSP/ONVIF fields."""
+
+    def test_rtsp_url_is_nullable(self):
+        """Test that rtsp_url can be None for non-RTSP cameras."""
+        camera = Camera(
+            id="test_ftp",
+            name="FTP Camera",
+            folder_path="/path",
+            ingestion_mode="ftp",
+            rtsp_url=None,
+        )
+
+        assert camera.rtsp_url is None
+
+    def test_rtsp_url_defaults_to_none(self):
+        """Test that rtsp_url defaults to None."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+        )
+
+        assert camera.rtsp_url is None
+
+    def test_rtsp_username_is_nullable(self):
+        """Test that rtsp_username can be None."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            ingestion_mode="rtsp",
+            rtsp_username=None,
+        )
+
+        assert camera.rtsp_username is None
+
+    def test_rtsp_username_defaults_to_none(self):
+        """Test that rtsp_username defaults to None."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+        )
+
+        assert camera.rtsp_username is None
+
+    def test_rtsp_password_is_nullable(self):
+        """Test that rtsp_password can be None."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            ingestion_mode="rtsp",
+            rtsp_password=None,
+        )
+
+        assert camera.rtsp_password is None
+
+    def test_rtsp_password_defaults_to_none(self):
+        """Test that rtsp_password defaults to None."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+        )
+
+        assert camera.rtsp_password is None
+
+    def test_stream_profile_is_nullable(self):
+        """Test that stream_profile can be None."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+            stream_profile=None,
+        )
+
+        assert camera.stream_profile is None
+
+    def test_stream_profile_defaults_to_none(self):
+        """Test that stream_profile defaults to None."""
+        camera = Camera(
+            id="test_cam",
+            name="Test Camera",
+            folder_path="/path",
+        )
+
+        assert camera.stream_profile is None
+
+
+class TestCameraStreamProfileValues:
+    """Tests for stream_profile field accepted values."""
+
+    def test_stream_profile_accepts_main(self):
+        """Test that stream_profile accepts 'main' value."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            stream_profile="main",
+        )
+
+        assert camera.stream_profile == "main"
+
+    def test_stream_profile_accepts_sub(self):
+        """Test that stream_profile accepts 'sub' value."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            stream_profile="sub",
+        )
+
+        assert camera.stream_profile == "sub"
+
+    def test_stream_profile_accepts_both(self):
+        """Test that stream_profile accepts 'both' value."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            stream_profile="both",
+        )
+
+        assert camera.stream_profile == "both"
+
+
+class TestCameraRTSPCompleteConfiguration:
+    """Tests for complete RTSP camera configuration."""
+
+    def test_rtsp_camera_with_all_fields(self):
+        """Test creating an RTSP camera with all related fields populated."""
+        camera = Camera(
+            id="rtsp_complete",
+            name="Complete RTSP Camera",
+            folder_path="/path",
+            ingestion_mode="rtsp",
+            rtsp_url="rtsp://192.168.1.100:554/stream1",
+            rtsp_username="admin",
+            rtsp_password="secret123",  # pragma: allowlist secret
+            stream_profile="main",
+            motion_sensitivity=0.7,
+        )
+
+        assert camera.ingestion_mode == "rtsp"
+        assert camera.rtsp_url == "rtsp://192.168.1.100:554/stream1"
+        assert camera.rtsp_username == "admin"
+        assert camera.rtsp_password == "secret123"  # pragma: allowlist secret
+        assert camera.stream_profile == "main"
+        assert camera.motion_sensitivity == 0.7
+
+    def test_onvif_camera_configuration(self):
+        """Test creating an ONVIF camera with related fields."""
+        camera = Camera(
+            id="onvif_complete",
+            name="Complete ONVIF Camera",
+            folder_path="/path",
+            ingestion_mode="onvif",
+            rtsp_url="rtsp://192.168.1.101:554/onvif1",
+            rtsp_username="user",
+            rtsp_password="pass",  # pragma: allowlist secret
+            stream_profile="both",
+            motion_sensitivity=0.6,
+        )
+
+        assert camera.ingestion_mode == "onvif"
+        assert camera.rtsp_url == "rtsp://192.168.1.101:554/onvif1"
+        assert camera.rtsp_username == "user"
+        assert camera.rtsp_password == "pass"  # pragma: allowlist secret
+        assert camera.stream_profile == "both"
+        assert camera.motion_sensitivity == 0.6
+
+    def test_ftp_camera_with_rtsp_fields_none(self):
+        """Test FTP camera with RTSP fields set to None."""
+        camera = Camera(
+            id="ftp_only",
+            name="FTP Only Camera",
+            folder_path="/export/foscam/front_door",
+            ingestion_mode="ftp",
+            rtsp_url=None,
+            rtsp_username=None,
+            rtsp_password=None,
+            stream_profile=None,
+            motion_sensitivity=0.5,
+        )
+
+        assert camera.ingestion_mode == "ftp"
+        assert camera.rtsp_url is None
+        assert camera.rtsp_username is None
+        assert camera.rtsp_password is None
+        assert camera.stream_profile is None
+        assert camera.motion_sensitivity == 0.5
+
+
+class TestCameraReprWithRTSPFields:
+    """Tests for Camera __repr__ with RTSP fields."""
+
+    def test_repr_includes_ingestion_mode(self):
+        """Test that repr includes ingestion_mode for RTSP cameras."""
+        camera = Camera(
+            id="test_rtsp",
+            name="RTSP Camera",
+            folder_path="/path",
+            ingestion_mode="rtsp",
+            status="online",
+        )
+
+        repr_str = repr(camera)
+        # The repr should still contain basic camera info
+        assert "Camera" in repr_str
+        assert "test_rtsp" in repr_str
+        assert "RTSP Camera" in repr_str

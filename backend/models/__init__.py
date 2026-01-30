@@ -27,7 +27,7 @@ from .enrichment import (
     ThreatDetection,
 )
 from .entity import Entity
-from .enums import CameraStatus, EntityType, Severity, TrustStatus
+from .enums import CameraStatus, EntityType, IngestionMode, Severity, StreamProfile, TrustStatus
 from .event import Event
 from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
@@ -140,6 +140,7 @@ __all__ = [
     "HeatmapResolution",
     "Household",
     "HouseholdMember",
+    "IngestionMode",
     "IntegrationType",
     "Job",
     "JobAttempt",
@@ -177,6 +178,7 @@ __all__ = [
     "SceneChangeType",
     "ScheduledReport",
     "Severity",
+    "StreamProfile",
     "Summary",
     "SummaryType",
     "SystemSetting",

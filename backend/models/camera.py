@@ -4,10 +4,10 @@ import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from .enums import CameraStatus
+from .enums import CameraStatus, IngestionMode
 
 if TYPE_CHECKING:
     from .action_event import ActionEvent
@@ -94,6 +94,21 @@ class Camera(Base):
             "status IN ('online', 'offline', 'error', 'unknown')",
             name="ck_cameras_status",
         ),
+        # CHECK constraint for ingestion_mode enum-like values (NEM-4191)
+        CheckConstraint(
+            "ingestion_mode IN ('ftp', 'rtsp', 'onvif')",
+            name="ck_cameras_ingestion_mode",
+        ),
+        # CHECK constraint for stream_profile enum-like values (NEM-4191)
+        CheckConstraint(
+            "stream_profile IS NULL OR stream_profile IN ('main', 'sub', 'both')",
+            name="ck_cameras_stream_profile",
+        ),
+        # CHECK constraint for motion_sensitivity range (NEM-4191)
+        CheckConstraint(
+            "motion_sensitivity >= 0.0 AND motion_sensitivity <= 1.0",
+            name="ck_cameras_motion_sensitivity",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -110,6 +125,61 @@ class Camera(Base):
     property_id: Mapped[int | None] = mapped_column(
         ForeignKey("properties.id"), nullable=True, default=None
     )
+
+    # RTSP/ONVIF streaming fields (NEM-4191)
+    # Note: These fields have Python-level defaults set in __init__ to ensure
+    # defaults are available at object construction time (not just at DB insert)
+    ingestion_mode: Mapped[str] = mapped_column(
+        String, default=IngestionMode.FTP.value, nullable=False
+    )
+    rtsp_url: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    rtsp_username: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    rtsp_password: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    stream_profile: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    motion_sensitivity: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
+
+    def __init__(
+        self,
+        *,
+        id: str,
+        name: str,
+        folder_path: str,
+        status: str | None = None,
+        created_at: datetime | None = None,
+        last_seen_at: datetime | None = None,
+        deleted_at: datetime | None = None,
+        property_id: int | None = None,
+        ingestion_mode: str | None = None,
+        rtsp_url: str | None = None,
+        rtsp_username: str | None = None,
+        rtsp_password: str | None = None,
+        stream_profile: str | None = None,
+        motion_sensitivity: float | None = None,
+    ):
+        """Initialize a Camera instance with Python-level defaults.
+
+        SQLAlchemy's mapped_column defaults only apply at database insert time.
+        This __init__ ensures defaults are available at Python object construction.
+
+        NEM-4191: Added RTSP/ONVIF streaming field parameters.
+        """
+        super().__init__()
+        self.id = id
+        self.name = name
+        self.folder_path = folder_path
+        self.status = status if status is not None else CameraStatus.ONLINE.value
+        self.created_at = created_at if created_at is not None else datetime.now(UTC)
+        self.last_seen_at = last_seen_at
+        self.deleted_at = deleted_at
+        self.property_id = property_id
+        self.ingestion_mode = (
+            ingestion_mode if ingestion_mode is not None else IngestionMode.FTP.value
+        )
+        self.rtsp_url = rtsp_url
+        self.rtsp_username = rtsp_username
+        self.rtsp_password = rtsp_password
+        self.stream_profile = stream_profile
+        self.motion_sensitivity = motion_sensitivity if motion_sensitivity is not None else 0.5
 
     # Relationships
     detections: Mapped[list[Detection]] = relationship(

@@ -86,3 +86,39 @@ class Severity(str, Enum):
     def __str__(self) -> str:
         """Return string representation of severity."""
         return self.value
+
+
+class IngestionMode(str, Enum):
+    """Camera ingestion mode - how images are acquired.
+
+    NEM-4191: Defines the method used to acquire images from cameras:
+    - FTP: Traditional FTP-based image uploads from cameras
+    - RTSP: Real-Time Streaming Protocol for live video streams
+    - ONVIF: Open Network Video Interface Forum standard for IP cameras
+    """
+
+    FTP = "ftp"
+    RTSP = "rtsp"
+    ONVIF = "onvif"
+
+    def __str__(self) -> str:
+        """Return string representation of ingestion mode."""
+        return self.value
+
+
+class StreamProfile(str, Enum):
+    """Camera stream profile for RTSP/ONVIF cameras.
+
+    NEM-4191: Defines which video stream profile to use:
+    - MAIN: High resolution, primary stream (typically 1080p or higher)
+    - SUB: Lower resolution, secondary stream for preview/thumbnails
+    - BOTH: Use both main and sub streams
+    """
+
+    MAIN = "main"
+    SUB = "sub"
+    BOTH = "both"
+
+    def __str__(self) -> str:
+        """Return string representation of stream profile."""
+        return self.value

@@ -40,12 +40,14 @@ interface CameraFormData {
   name: string;
   folder_path: string;
   status: CameraStatusValue;
+  motion_sensitivity?: number;
 }
 
 interface CameraFormErrors {
   name?: string;
   folder_path?: string;
   status?: string;
+  motion_sensitivity?: string;
 }
 
 /**
@@ -75,6 +77,7 @@ export default function CamerasSettings() {
     name: '',
     folder_path: '',
     status: 'online',
+    motion_sensitivity: undefined,
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,7 +136,7 @@ export default function CamerasSettings() {
 
   const handleOpenAddModal = () => {
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'online' });
+    setFormData({ name: '', folder_path: '', status: 'online', motion_sensitivity: undefined });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -144,6 +147,7 @@ export default function CamerasSettings() {
       name: camera.name,
       folder_path: camera.folder_path,
       status: camera.status,
+      motion_sensitivity: camera.motion_sensitivity,
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -152,7 +156,7 @@ export default function CamerasSettings() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'online' });
+    setFormData({ name: '', folder_path: '', status: 'online', motion_sensitivity: undefined });
     setFormErrors({});
   };
 
@@ -179,6 +183,9 @@ export default function CamerasSettings() {
 
     setFormErrors({});
 
+    // Helper to check if folder_path is RTSP
+    const isRtspPath = (path: string) => path.toLowerCase().startsWith('rtsp://');
+
     try {
       if (editingCamera) {
         // Update existing camera
@@ -187,13 +194,20 @@ export default function CamerasSettings() {
           folder_path: formData.folder_path.trim(),
           status: formData.status,
         };
+        // Include motion_sensitivity for RTSP cameras
+        if (isRtspPath(formData.folder_path)) {
+          updateData.motion_sensitivity = formData.motion_sensitivity ?? 0.5;
+        }
         await updateMutation.mutateAsync({ id: editingCamera.id, data: updateData });
       } else {
         // Create new camera
+        const isRtsp = isRtspPath(formData.folder_path);
         const createData: CameraCreate = {
           name: formData.name.trim(),
           folder_path: formData.folder_path.trim(),
           status: formData.status ?? 'online',
+          ingestion_mode: isRtsp ? 'rtsp' : 'ftp',
+          motion_sensitivity: isRtsp ? (formData.motion_sensitivity ?? 0.5) : 0.5,
         };
         await createMutation.mutateAsync(createData);
       }
@@ -719,6 +733,49 @@ export default function CamerasSettings() {
                         <p className="mt-1 text-sm text-red-500">{formErrors.status}</p>
                       )}
                     </div>
+
+                    {/* Motion Sensitivity Slider - Only for RTSP cameras */}
+                    {formData.folder_path.toLowerCase().startsWith('rtsp://') && (
+                      <div>
+                        <label
+                          htmlFor="motion_sensitivity"
+                          className="block text-sm font-medium text-text-primary"
+                        >
+                          Motion Sensitivity
+                        </label>
+                        <div className="mt-2 flex items-center gap-3">
+                          <span className="text-sm text-text-secondary">Low</span>
+                          <input
+                            type="range"
+                            id="motion_sensitivity"
+                            data-testid="motion-sensitivity-slider"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={formData.motion_sensitivity ?? 0.5}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                motion_sensitivity: parseFloat(e.target.value),
+                              })
+                            }
+                            className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <span className="text-sm text-text-secondary">High</span>
+                        </div>
+                        <div className="mt-1 text-center">
+                          <span
+                            data-testid="motion-sensitivity-value"
+                            className="text-sm font-mono text-text-secondary"
+                          >
+                            {(formData.motion_sensitivity ?? 0.5).toFixed(2)}
+                          </span>
+                        </div>
+                        {formErrors.motion_sensitivity && (
+                          <p className="mt-1 text-sm text-red-500">{formErrors.motion_sensitivity}</p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Action Buttons */}
                     <div className="flex justify-end gap-3 pt-4">

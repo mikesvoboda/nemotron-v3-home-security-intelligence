@@ -53,6 +53,8 @@ describe('SearchBar', () => {
       status: 'online' as const,
       created_at: '2024-01-01T00:00:00Z',
       last_seen_at: '2024-01-01T00:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: 'back_yard',
@@ -61,6 +63,8 @@ describe('SearchBar', () => {
       status: 'online' as const,
       created_at: '2024-01-01T00:00:00Z',
       last_seen_at: '2024-01-01T00:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: 'garage',
@@ -69,6 +73,8 @@ describe('SearchBar', () => {
       status: 'offline' as const,
       created_at: '2024-01-01T00:00:00Z',
       last_seen_at: null,
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 
