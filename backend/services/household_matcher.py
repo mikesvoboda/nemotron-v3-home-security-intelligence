@@ -9,13 +9,17 @@ The service uses:
 - Vehicle license plate matching (exact, case-insensitive)
 - Vehicle visual matching via embedding similarity (fallback)
 
+Cached Embeddings (NEM-4234 Phase 3):
+- extract_person_embedding(): Read person_reid from enrichment_data
+- extract_vehicle_embedding(): Read vehicle_visual from enrichment_data
+
 Implements NEM-3017: Implement HouseholdMatcher service for person/vehicle recognition.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from sqlalchemy import select
@@ -421,6 +425,214 @@ class HouseholdMatcher:
                 )
 
         return result
+
+    async def match_detections(
+        self,
+        detections: list,
+        enrichment_data: dict[int, dict],
+        session: AsyncSession,
+    ) -> tuple[dict[int, HouseholdMatch], dict[int, HouseholdMatch]]:
+        """Match each detection individually, returning per-detection matches.
+
+        This method implements detection-attributed household matching (NEM-4234 Phase 2)
+        to prevent household context from one detection bleeding into risk assessment
+        of other detections in the same batch.
+
+        Args:
+            detections: List of Detection objects to match
+            enrichment_data: Dict mapping detection_id to enrichment data containing
+                            cached embeddings in the "embeddings" key
+            session: Database session for queries
+
+        Returns:
+            Tuple of (person_matches, vehicle_matches) where each is a dict mapping
+            detection_id to HouseholdMatch. Detections without matches are not included.
+
+        Example:
+            >>> matcher = HouseholdMatcher()
+            >>> person_matches, vehicle_matches = await matcher.match_detections(
+            ...     detections=[det1, det2, det3],
+            ...     enrichment_data={1: {...}, 2: {...}, 3: {...}},
+            ...     session=session,
+            ... )
+            >>> # person_matches = {1: HouseholdMatch(member_name="Mike", ...)}
+            >>> # vehicle_matches = {3: HouseholdMatch(vehicle_description="Honda", ...)}
+        """
+        person_matches: dict[int, HouseholdMatch] = {}
+        vehicle_matches: dict[int, HouseholdMatch] = {}
+
+        for detection in detections:
+            det_id = detection.id
+            enrichment = enrichment_data.get(det_id)
+            if not enrichment:
+                continue
+
+            # Person matching via cached embedding
+            if detection.object_type == "person":
+                person_embedding = extract_person_embedding(enrichment)
+                if person_embedding:
+                    embedding_array = np.array(person_embedding, dtype=np.float32)
+                    match = await self.match_person(embedding_array, session)
+                    if match and match.similarity >= self._similarity_threshold:
+                        person_matches[det_id] = match
+
+            # Vehicle matching via plate or visual embedding
+            elif detection.object_type in ("car", "truck", "motorcycle", "vehicle"):
+                # Try license plate match first
+                license_plates = enrichment.get("license_plates", [])
+                plate_text = None
+                if license_plates and len(license_plates) > 0:
+                    first_plate = license_plates[0]
+                    if isinstance(first_plate, dict):
+                        plate_text = first_plate.get("text")
+                    elif hasattr(first_plate, "text"):
+                        plate_text = first_plate.text
+
+                vehicle_embedding = extract_vehicle_embedding(enrichment)
+                embedding_array = None
+                if vehicle_embedding:
+                    embedding_array = np.array(vehicle_embedding, dtype=np.float32)
+
+                match = await self.match_vehicle(
+                    license_plate=plate_text,
+                    vehicle_embedding=embedding_array,
+                    vehicle_type=detection.object_type,
+                    color=enrichment.get("color"),
+                    session=session,
+                )
+                if match:
+                    vehicle_matches[det_id] = match
+
+        logger.debug(
+            "Matched %d detections: %d person matches, %d vehicle matches",
+            len(detections),
+            len(person_matches),
+            len(vehicle_matches),
+        )
+
+        return person_matches, vehicle_matches
+
+
+# =============================================================================
+# Cached Embedding Extraction Functions (NEM-4234 Phase 3)
+# =============================================================================
+
+
+def extract_person_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
+    """Extract person_reid embedding from enrichment_data.
+
+    Reads the cached person re-identification embedding from the enrichment_data
+    structure, enabling reuse across services without recomputing.
+
+    Args:
+        enrichment_data: The enrichment_data dict from a Detection, or None.
+
+    Returns:
+        List of floats representing the 512-dim OSNet embedding, or None if not available.
+
+    Example:
+        enrichment_data = {
+            "embeddings": {
+                "person_reid": [0.1, 0.2, ...],  # 512-dim
+            }
+        }
+        embedding = extract_person_embedding(enrichment_data)
+    """
+    if enrichment_data is None:
+        return None
+
+    embeddings = enrichment_data.get("embeddings")
+    if embeddings is None:
+        return None
+
+    person_reid = embeddings.get("person_reid")
+    if person_reid is None:
+        return None
+
+    # Empty list means no valid embedding
+    if isinstance(person_reid, list) and len(person_reid) == 0:
+        return None
+
+    # Cast to list[float] for type safety
+    return list(person_reid) if isinstance(person_reid, list) else None
+
+
+def extract_vehicle_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
+    """Extract vehicle_visual embedding from enrichment_data.
+
+    Reads the cached vehicle visual embedding from the enrichment_data
+    structure, enabling reuse across services without recomputing.
+
+    Args:
+        enrichment_data: The enrichment_data dict from a Detection, or None.
+
+    Returns:
+        List of floats representing the 768-dim CLIP embedding, or None if not available.
+
+    Example:
+        enrichment_data = {
+            "embeddings": {
+                "vehicle_visual": [0.3, 0.4, ...],  # 768-dim
+            }
+        }
+        embedding = extract_vehicle_embedding(enrichment_data)
+    """
+    if enrichment_data is None:
+        return None
+
+    embeddings = enrichment_data.get("embeddings")
+    if embeddings is None:
+        return None
+
+    vehicle_visual = embeddings.get("vehicle_visual")
+    if vehicle_visual is None:
+        return None
+
+    # Empty list means no valid embedding
+    if isinstance(vehicle_visual, list) and len(vehicle_visual) == 0:
+        return None
+
+    # Cast to list[float] for type safety
+    return list(vehicle_visual) if isinstance(vehicle_visual, list) else None
+
+
+def extract_face_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
+    """Extract face_clip embedding from enrichment_data.
+
+    Reads the cached face CLIP embedding from the enrichment_data
+    structure, enabling reuse across services without recomputing.
+
+    Args:
+        enrichment_data: The enrichment_data dict from a Detection, or None.
+
+    Returns:
+        List of floats representing the 768-dim CLIP embedding, or None if not available.
+
+    Example:
+        enrichment_data = {
+            "embeddings": {
+                "face_clip": [0.5, 0.6, ...],  # 768-dim
+            }
+        }
+        embedding = extract_face_embedding(enrichment_data)
+    """
+    if enrichment_data is None:
+        return None
+
+    embeddings = enrichment_data.get("embeddings")
+    if embeddings is None:
+        return None
+
+    face_clip = embeddings.get("face_clip")
+    if face_clip is None:
+        return None
+
+    # Empty list means no valid embedding
+    if isinstance(face_clip, list) and len(face_clip) == 0:
+        return None
+
+    # Cast to list[float] for type safety
+    return list(face_clip) if isinstance(face_clip, list) else None
 
 
 # =============================================================================

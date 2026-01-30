@@ -1306,3 +1306,47 @@ class TestSSEFormat:
         assert parsed["event_type"] == "error"
         assert parsed["error_code"] == "LLM_TIMEOUT"
         assert parsed["recoverable"] is True
+
+
+# =============================================================================
+# Test: Temperature Alignment (Phase 2 Quick Wins)
+# =============================================================================
+
+
+class TestStreamingTemperature:
+    """Tests for streaming temperature configuration (NEM-4234 Phase 2).
+
+    Verifies that streaming analysis uses temperature=0.3 to align with
+    non-streaming analysis for consistent risk scores.
+    """
+
+    def test_streaming_temperature_is_0_3(self):
+        """Test that streaming payload uses temperature=0.3 (not 0.7).
+
+        This test verifies the temperature alignment fix from the design doc:
+        - nemotron_analyzer.py uses temperature=0.3 for standard analysis
+        - nemotron_streaming.py should also use 0.3 (was 0.7 before fix)
+
+        Having consistent temperature ensures reproducible risk scores
+        between streaming and non-streaming analysis paths.
+        """
+        import inspect
+        import re
+
+        from backend.services import nemotron_streaming
+
+        # Get the source code of call_llm_streaming
+        source = inspect.getsource(nemotron_streaming.call_llm_streaming)
+
+        # Find the temperature assignment in the payload dict
+        # Pattern matches: "temperature": 0.3 or "temperature": 0.7
+        pattern = r'"temperature":\s*(\d+\.?\d*)'
+        match = re.search(pattern, source)
+
+        assert match is not None, "Could not find temperature in payload"
+        temperature_value = float(match.group(1))
+
+        assert temperature_value == 0.3, (
+            f"Streaming temperature should be 0.3, got {temperature_value}. "
+            "This causes inconsistent risk scores between streaming and non-streaming analysis."
+        )

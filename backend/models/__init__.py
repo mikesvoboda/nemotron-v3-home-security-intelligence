@@ -60,6 +60,7 @@ from .job import Job, JobStatus
 from .job_attempt import JobAttempt, JobAttemptStatus
 from .job_log import JobLog, LogLevel
 from .job_transition import JobTransition, JobTransitionTrigger
+from .llm_interaction import LLMInteraction
 from .log import Log
 from .notification_preferences import (
     CameraNotificationSetting,
@@ -148,6 +149,7 @@ __all__ = [
     "JobTransition",
     "JobTransitionTrigger",
     "KnownPerson",
+    "LLMInteraction",
     "LineZone",
     "Log",
     "LogLevel",

@@ -346,7 +346,11 @@ class TestVisionExtractorIntegration:
             assert len(result.errors) > 0
             # Error message may be "Vision extraction failed" or
             # "vision_extraction failed: Unexpected error: ..."
-            assert "vision" in result.errors[0].lower() and "fail" in result.errors[0].lower()
+            # With parallel enrichment, vision error may not be first in list
+            vision_errors = [
+                err for err in result.errors if "vision" in err.lower() and "fail" in err.lower()
+            ]
+            assert len(vision_errors) > 0, f"No vision error found in: {result.errors}"
 
 
 # =============================================================================

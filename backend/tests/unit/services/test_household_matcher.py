@@ -670,3 +670,415 @@ class TestHouseholdMatcherConfiguration:
         """Test the similarity_threshold property."""
         matcher = HouseholdMatcher(similarity_threshold=0.75)
         assert matcher.similarity_threshold == 0.75
+
+
+# =============================================================================
+# HouseholdMatcher.match_detections Tests (NEM-4234 Phase 2)
+# =============================================================================
+
+
+class TestHouseholdMatcherMatchDetections:
+    """Tests for HouseholdMatcher.match_detections method.
+
+    This method implements detection-attributed household matching to prevent
+    context bleeding between detections in the same batch.
+    """
+
+    @pytest.fixture
+    def matcher(self) -> HouseholdMatcher:
+        """Create a HouseholdMatcher instance."""
+        return HouseholdMatcher()
+
+    @pytest.fixture
+    def mock_session(self) -> AsyncMock:
+        """Create a mock AsyncSession."""
+        return AsyncMock()
+
+    @pytest.mark.asyncio
+    async def test_match_detections_returns_tuple_of_dicts(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test that match_detections returns a tuple of two dicts."""
+        # Mock empty match results
+        matcher.match_person = AsyncMock(return_value=None)
+        matcher.match_vehicle = AsyncMock(return_value=None)
+
+        person_matches, vehicle_matches = await matcher.match_detections(
+            detections=[],
+            enrichment_data={},
+            session=mock_session,
+        )
+
+        assert isinstance(person_matches, dict)
+        assert isinstance(vehicle_matches, dict)
+
+    @pytest.mark.asyncio
+    async def test_match_detections_with_person_detection(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test matching a person detection with cached embedding."""
+        # Create mock detection
+        mock_detection = MagicMock()
+        mock_detection.id = 1
+        mock_detection.object_type = "person"
+
+        # Create enrichment data with cached person embedding
+        enrichment_data = {
+            1: {
+                "embeddings": {
+                    "person_reid": [0.1, 0.2, 0.3, 0.4, 0.5],
+                }
+            }
+        }
+
+        # Mock successful person match
+        expected_match = HouseholdMatch(
+            member_id=1,
+            member_name="Mike",
+            similarity=0.92,
+            match_type="person",
+        )
+        matcher.match_person = AsyncMock(return_value=expected_match)
+        matcher.match_vehicle = AsyncMock(return_value=None)
+
+        person_matches, vehicle_matches = await matcher.match_detections(
+            detections=[mock_detection],
+            enrichment_data=enrichment_data,
+            session=mock_session,
+        )
+
+        # Should have match for detection 1
+        assert 1 in person_matches
+        assert person_matches[1].member_name == "Mike"
+        assert len(vehicle_matches) == 0
+
+    @pytest.mark.asyncio
+    async def test_match_detections_with_vehicle_detection(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test matching a vehicle detection."""
+        # Create mock detection
+        mock_detection = MagicMock()
+        mock_detection.id = 2
+        mock_detection.object_type = "car"
+
+        # Create enrichment data with license plate
+        enrichment_data = {
+            2: {
+                "license_plates": [{"text": "ABC123"}],
+                "embeddings": {},
+            }
+        }
+
+        # Mock successful vehicle match
+        expected_match = HouseholdMatch(
+            vehicle_id=1,
+            vehicle_description="Honda Civic",
+            similarity=1.0,
+            match_type="license_plate",
+        )
+        matcher.match_person = AsyncMock(return_value=None)
+        matcher.match_vehicle = AsyncMock(return_value=expected_match)
+
+        person_matches, vehicle_matches = await matcher.match_detections(
+            detections=[mock_detection],
+            enrichment_data=enrichment_data,
+            session=mock_session,
+        )
+
+        # Should have match for detection 2
+        assert len(person_matches) == 0
+        assert 2 in vehicle_matches
+        assert vehicle_matches[2].vehicle_description == "Honda Civic"
+
+    @pytest.mark.asyncio
+    async def test_match_detections_multiple_detections_isolated(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test that matches are attributed to correct detections (isolation).
+
+        This is the critical test for NEM-4234 Phase 2: verify that Mike's
+        match is only associated with detection 1, not detection 2.
+        """
+        # Create mock detections
+        detection1 = MagicMock()
+        detection1.id = 1
+        detection1.object_type = "person"
+
+        detection2 = MagicMock()
+        detection2.id = 2
+        detection2.object_type = "person"
+
+        # Only detection 1 has a person embedding
+        enrichment_data = {
+            1: {
+                "embeddings": {
+                    "person_reid": [0.1, 0.2, 0.3, 0.4, 0.5],
+                }
+            },
+            2: {
+                "embeddings": {}  # No embedding for detection 2
+            },
+        }
+
+        # Mock match only for detection 1
+        mike_match = HouseholdMatch(
+            member_id=1,
+            member_name="Mike",
+            similarity=0.92,
+            match_type="person",
+        )
+
+        call_count = [0]
+
+        async def mock_match_person(embedding, session):
+            call_count[0] += 1
+            # Return Mike match only if called with detection 1's embedding
+            if call_count[0] == 1:
+                return mike_match
+            return None
+
+        matcher.match_person = mock_match_person
+        matcher.match_vehicle = AsyncMock(return_value=None)
+
+        person_matches, vehicle_matches = await matcher.match_detections(
+            detections=[detection1, detection2],
+            enrichment_data=enrichment_data,
+            session=mock_session,
+        )
+
+        # Mike should be associated with detection 1 only
+        assert 1 in person_matches
+        assert person_matches[1].member_name == "Mike"
+
+        # Detection 2 should NOT have Mike (context isolation)
+        assert 2 not in person_matches
+
+    @pytest.mark.asyncio
+    async def test_match_detections_no_enrichment_data(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test detection without enrichment data is skipped."""
+        mock_detection = MagicMock()
+        mock_detection.id = 1
+        mock_detection.object_type = "person"
+
+        # No enrichment data for this detection
+        enrichment_data = {}
+
+        matcher.match_person = AsyncMock(return_value=None)
+        matcher.match_vehicle = AsyncMock(return_value=None)
+
+        person_matches, vehicle_matches = await matcher.match_detections(
+            detections=[mock_detection],
+            enrichment_data=enrichment_data,
+            session=mock_session,
+        )
+
+        # Should have no matches
+        assert len(person_matches) == 0
+        assert len(vehicle_matches) == 0
+        # match_person should not be called
+        matcher.match_person.assert_not_called()
+
+
+# =============================================================================
+# HouseholdMatcher Cached Embedding Tests (NEM-4234 Phase 3)
+# =============================================================================
+
+
+class TestHouseholdMatcherCachedEmbeddings:
+    """Tests for HouseholdMatcher using cached embeddings from enrichment_data.
+
+    These tests verify that HouseholdMatcher can read pre-computed embeddings
+    from Detection.enrichment_data instead of recomputing them.
+
+    Related to NEM-4234: AI Pipeline Accuracy Improvements - Phase 3.
+    """
+
+    @pytest.fixture
+    def matcher(self) -> HouseholdMatcher:
+        """Create a HouseholdMatcher instance."""
+        return HouseholdMatcher()
+
+    @pytest.fixture
+    def mock_session(self) -> AsyncMock:
+        """Create a mock AsyncSession."""
+        return AsyncMock()
+
+    def test_extract_person_embedding_from_enrichment_data(self) -> None:
+        """Test extracting person_reid embedding from enrichment_data."""
+        # This tests the helper method that will read cached embeddings
+        enrichment_data = {
+            "embeddings": {
+                "person_reid": [0.1] * 512,
+                "face_clip": [0.2] * 768,
+            },
+            "license_plates": [],
+        }
+
+        # Import the helper function (will be implemented)
+        from backend.services.household_matcher import extract_person_embedding
+
+        embedding = extract_person_embedding(enrichment_data)
+
+        assert embedding is not None
+        assert len(embedding) == 512
+        assert embedding[0] == 0.1
+
+    def test_extract_person_embedding_missing_embeddings(self) -> None:
+        """Test extracting person embedding when embeddings field is missing."""
+        enrichment_data = {
+            "license_plates": [],
+            "faces": [],
+        }
+
+        from backend.services.household_matcher import extract_person_embedding
+
+        embedding = extract_person_embedding(enrichment_data)
+
+        assert embedding is None
+
+    def test_extract_person_embedding_none_person_reid(self) -> None:
+        """Test extracting person embedding when person_reid is None."""
+        enrichment_data = {
+            "embeddings": {
+                "person_reid": None,
+                "vehicle_visual": [0.3] * 768,
+            },
+        }
+
+        from backend.services.household_matcher import extract_person_embedding
+
+        embedding = extract_person_embedding(enrichment_data)
+
+        assert embedding is None
+
+    def test_extract_person_embedding_empty_list(self) -> None:
+        """Test extracting person embedding when person_reid is empty list."""
+        enrichment_data = {
+            "embeddings": {
+                "person_reid": [],
+            },
+        }
+
+        from backend.services.household_matcher import extract_person_embedding
+
+        embedding = extract_person_embedding(enrichment_data)
+
+        # Empty list should return None (no valid embedding)
+        assert embedding is None
+
+    def test_extract_vehicle_embedding_from_enrichment_data(self) -> None:
+        """Test extracting vehicle_visual embedding from enrichment_data."""
+        enrichment_data = {
+            "embeddings": {
+                "vehicle_visual": [0.5] * 768,
+            },
+            "vehicle_classifications": {"1": {"vehicle_type": "sedan"}},
+        }
+
+        from backend.services.household_matcher import extract_vehicle_embedding
+
+        embedding = extract_vehicle_embedding(enrichment_data)
+
+        assert embedding is not None
+        assert len(embedding) == 768
+        assert embedding[0] == 0.5
+
+    def test_extract_vehicle_embedding_missing(self) -> None:
+        """Test extracting vehicle embedding when not present."""
+        enrichment_data = {
+            "embeddings": {
+                "person_reid": [0.1] * 512,
+            },
+        }
+
+        from backend.services.household_matcher import extract_vehicle_embedding
+
+        embedding = extract_vehicle_embedding(enrichment_data)
+
+        assert embedding is None
+
+    @pytest.mark.asyncio
+    async def test_match_person_from_cached_embedding(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test matching a person using cached embedding from enrichment_data."""
+        # Simulate a stored member embedding
+        stored_embedding = np.array([0.1] * 512, dtype=np.float32)
+
+        matcher._get_all_member_embeddings = AsyncMock(
+            return_value=[(1, "John Doe", stored_embedding)]
+        )
+
+        # Create enrichment_data with cached person_reid embedding
+        enrichment_data = {
+            "embeddings": {
+                "person_reid": [0.1] * 512,  # Same as stored - should match
+            },
+        }
+
+        from backend.services.household_matcher import extract_person_embedding
+
+        cached_embedding = extract_person_embedding(enrichment_data)
+        assert cached_embedding is not None
+
+        # Convert to numpy array for matching
+        cached_np = np.array(cached_embedding, dtype=np.float32)
+        result = await matcher.match_person(cached_np, mock_session)
+
+        assert result is not None
+        assert result.member_id == 1
+        assert result.member_name == "John Doe"
+        assert result.similarity > 0.99
+
+    @pytest.mark.asyncio
+    async def test_match_vehicle_from_cached_embedding(
+        self,
+        matcher: HouseholdMatcher,
+        mock_session: AsyncMock,
+    ) -> None:
+        """Test matching a vehicle using cached embedding from enrichment_data."""
+        stored_embedding = np.array([0.5] * 768, dtype=np.float32)
+
+        matcher._find_by_plate = AsyncMock(return_value=None)
+        matcher._get_vehicles_with_embeddings = AsyncMock(
+            return_value=[(1, "Silver Honda Accord", VehicleType.CAR, "silver", stored_embedding)]
+        )
+
+        enrichment_data = {
+            "embeddings": {
+                "vehicle_visual": [0.5] * 768,
+            },
+        }
+
+        from backend.services.household_matcher import extract_vehicle_embedding
+
+        cached_embedding = extract_vehicle_embedding(enrichment_data)
+        assert cached_embedding is not None
+
+        cached_np = np.array(cached_embedding, dtype=np.float32)
+        result = await matcher.match_vehicle(
+            license_plate=None,
+            vehicle_embedding=cached_np,
+            vehicle_type="car",
+            color="silver",
+            session=mock_session,
+        )
+
+        assert result is not None
+        assert result.vehicle_id == 1
+        assert result.similarity > 0.99

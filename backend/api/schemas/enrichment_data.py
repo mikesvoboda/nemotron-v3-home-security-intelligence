@@ -240,6 +240,39 @@ class ImageQualityData(BaseModel):
 
 
 # ============================================================================
+# Embeddings data schema (NEM-4234 Phase 3: Embedding Caching)
+# ============================================================================
+
+
+class EmbeddingsData(BaseModel):
+    """Schema for cached embeddings in enrichment_data.
+
+    Stores pre-computed embeddings for reuse across services like household
+    matching and entity clustering. This prevents redundant embedding
+    computation and ensures consistency.
+
+    Embedding dimensions:
+    - person_reid: 512-dim OSNet embedding for person re-identification
+    - face_clip: 768-dim CLIP embedding for face recognition
+    - vehicle_visual: 768-dim CLIP embedding for vehicle matching
+
+    Related to NEM-4234: AI Pipeline Accuracy Improvements - Phase 3.
+    """
+
+    model_config = ConfigDict(extra="allow")  # Allow future embedding types
+
+    person_reid: list[float] | None = Field(
+        None, description="512-dim OSNet embedding for person re-identification"
+    )
+    face_clip: list[float] | None = Field(
+        None, description="768-dim CLIP embedding for face recognition"
+    )
+    vehicle_visual: list[float] | None = Field(
+        None, description="768-dim CLIP embedding for vehicle matching"
+    )
+
+
+# ============================================================================
 # Main enrichment data schema
 # ============================================================================
 
@@ -332,6 +365,11 @@ class EnrichmentDataSchema(BaseModel):
     # Image quality assessment
     image_quality: ImageQualityData | None = Field(
         None, description="Image quality assessment results"
+    )
+
+    # Cached embeddings for reuse (NEM-4234 Phase 3)
+    embeddings: EmbeddingsData | None = Field(
+        None, description="Cached embeddings for household matching and entity clustering"
     )
 
     # Quality change detection
