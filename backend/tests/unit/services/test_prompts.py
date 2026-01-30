@@ -7196,3 +7196,365 @@ class TestFormatEnhancedClothingContext:
         assert "**ALERT**: hoodie" in result
         assert "Carrying: large bag" in result
         assert "General attire: dark clothing" in result
+
+
+# =============================================================================
+# Mock Data Classes for Detection-Attributed Household Context (Phase 2)
+# =============================================================================
+
+
+@dataclass
+class MockDetection:
+    """Mock Detection for testing format_household_context_by_detection.
+
+    Mimics the Detection model from backend/models/detection.py.
+    """
+
+    id: int
+    object_type: str
+    detected_at: datetime
+    zone_name: str | None = None
+
+
+# =============================================================================
+# Tests for format_household_context_by_detection (NEM-4234 Phase 2)
+# =============================================================================
+
+
+class TestFormatHouseholdContextByDetection:
+    """Tests for format_household_context_by_detection function.
+
+    This function formats household matches attributed to specific detections
+    to prevent household context from one detection bleeding into risk
+    assessment of other detections in the same batch.
+
+    Format:
+    HOUSEHOLD MATCHES BY DETECTION:
+    - Detection #1 (person, front_door, 14:32:05): KNOWN PERSON "Mike" (resident, 92%)
+    - Detection #2 (person, backyard, 14:32:08): NO MATCH
+    - Detection #3 (vehicle, driveway, 14:32:10): REGISTERED VEHICLE "Honda Civic" (ABC-1234)
+    """
+
+    def test_format_household_context_by_detection_is_importable(self) -> None:
+        """Test that format_household_context_by_detection is importable."""
+        from backend.services.prompts import format_household_context_by_detection
+
+        assert callable(format_household_context_by_detection)
+
+    def test_single_detection_with_person_match(self) -> None:
+        """Test formatting a single detection with a known person match."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        detection = MockDetection(
+            id=1,
+            object_type="person",
+            detected_at=datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+            zone_name="front_door",
+        )
+        person_matches = {
+            1: MockHouseholdMatch(
+                member_id=1,
+                member_name="Mike",
+                similarity=0.92,
+                match_type="person",
+                member_role="resident",
+            )
+        }
+
+        result = format_household_context_by_detection(
+            detections=[detection],
+            person_matches=person_matches,
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        assert "HOUSEHOLD MATCHES BY DETECTION" in result
+        assert "Detection #1" in result
+        assert "person" in result
+        assert "front_door" in result
+        assert "14:32:05" in result
+        assert 'KNOWN PERSON "Mike"' in result or "KNOWN PERSON 'Mike'" in result
+        assert "resident" in result
+        assert "92%" in result
+
+    def test_single_detection_no_match(self) -> None:
+        """Test formatting a single detection with no match shows NO MATCH."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        detection = MockDetection(
+            id=2,
+            object_type="person",
+            detected_at=datetime(2026, 1, 29, 14, 32, 8, tzinfo=UTC),
+            zone_name="backyard",
+        )
+
+        result = format_household_context_by_detection(
+            detections=[detection],
+            person_matches={},
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        assert "HOUSEHOLD MATCHES BY DETECTION" in result
+        assert "Detection #2" in result
+        assert "backyard" in result
+        assert "NO MATCH" in result
+
+    def test_single_detection_with_vehicle_match(self) -> None:
+        """Test formatting a single detection with a registered vehicle match."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        detection = MockDetection(
+            id=3,
+            object_type="car",
+            detected_at=datetime(2026, 1, 29, 14, 32, 10, tzinfo=UTC),
+            zone_name="driveway",
+        )
+        vehicle_matches = {
+            3: MockHouseholdMatch(
+                vehicle_id=1,
+                vehicle_description="Honda Civic",
+                similarity=1.0,
+                match_type="license_plate",
+            )
+        }
+
+        result = format_household_context_by_detection(
+            detections=[detection],
+            person_matches={},
+            vehicle_matches=vehicle_matches,
+            current_time=datetime.now(UTC),
+        )
+
+        assert "HOUSEHOLD MATCHES BY DETECTION" in result
+        assert "Detection #3" in result
+        assert "car" in result
+        assert "driveway" in result
+        assert 'REGISTERED VEHICLE "Honda Civic"' in result or "REGISTERED VEHICLE" in result
+
+    def test_multiple_detections_mixed_matches(self) -> None:
+        """Test formatting multiple detections with mixed matches and no-matches."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        detections = [
+            MockDetection(
+                id=1,
+                object_type="person",
+                detected_at=datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+                zone_name="front_door",
+            ),
+            MockDetection(
+                id=2,
+                object_type="person",
+                detected_at=datetime(2026, 1, 29, 14, 32, 8, tzinfo=UTC),
+                zone_name="backyard",
+            ),
+            MockDetection(
+                id=3,
+                object_type="car",
+                detected_at=datetime(2026, 1, 29, 14, 32, 10, tzinfo=UTC),
+                zone_name="driveway",
+            ),
+        ]
+        person_matches = {
+            1: MockHouseholdMatch(
+                member_id=1,
+                member_name="Mike",
+                similarity=0.92,
+                match_type="person",
+                member_role="resident",
+            )
+        }
+        vehicle_matches = {
+            3: MockHouseholdMatch(
+                vehicle_id=1,
+                vehicle_description="Honda Civic",
+                similarity=1.0,
+                match_type="license_plate",
+            )
+        }
+
+        result = format_household_context_by_detection(
+            detections=detections,
+            person_matches=person_matches,
+            vehicle_matches=vehicle_matches,
+            current_time=datetime.now(UTC),
+        )
+
+        # Verify all three detections are present
+        assert "Detection #1" in result
+        assert "Detection #2" in result
+        assert "Detection #3" in result
+        # Mike should be associated with detection 1, not 2
+        assert "Mike" in result
+        # Detection 2 should show NO MATCH
+        assert "NO MATCH" in result
+        # Vehicle should be associated with detection 3
+        assert "Honda Civic" in result
+
+    def test_household_matches_attributed_to_correct_detection(self) -> None:
+        """Test that household matches are attributed to the correct detection.
+
+        This is the critical test for Phase 2: prevent household context
+        from Mike (detection #1) from bleeding into the risk assessment
+        of the unknown person (detection #2).
+        """
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        # Simulate the scenario from the design doc:
+        # Detection 1: Resident "Mike" arriving (matches household)
+        # Detection 2: Unknown person in backyard (no match)
+        detections = [
+            MockDetection(
+                id=1,
+                object_type="person",
+                detected_at=datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+                zone_name="front_door",
+            ),
+            MockDetection(
+                id=2,
+                object_type="person",
+                detected_at=datetime(2026, 1, 29, 14, 32, 8, tzinfo=UTC),
+                zone_name="backyard",
+            ),
+        ]
+
+        # Only detection 1 has a match
+        person_matches = {
+            1: MockHouseholdMatch(
+                member_id=1,
+                member_name="Mike",
+                similarity=0.92,
+                match_type="person",
+                member_role="resident",
+            )
+        }
+
+        result = format_household_context_by_detection(
+            detections=detections,
+            person_matches=person_matches,
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        # Split by detection sections to verify attribution
+        lines = result.strip().split("\n")
+
+        # Find lines for each detection
+        detection_1_line = None
+        detection_2_line = None
+        for line in lines:
+            if "Detection #1" in line:
+                detection_1_line = line
+            if "Detection #2" in line:
+                detection_2_line = line
+
+        # Detection #1 should have Mike
+        assert detection_1_line is not None, "Detection #1 line not found"
+        assert "Mike" in detection_1_line, "Mike should be in Detection #1 line"
+
+        # Detection #2 should have NO MATCH, not Mike
+        assert detection_2_line is not None, "Detection #2 line not found"
+        assert "NO MATCH" in detection_2_line, "Detection #2 should show NO MATCH"
+        assert "Mike" not in detection_2_line, "Mike should NOT appear in Detection #2 line"
+
+    def test_detection_without_zone_name(self) -> None:
+        """Test formatting a detection without a zone name uses 'unknown'."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        detection = MockDetection(
+            id=1,
+            object_type="person",
+            detected_at=datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+            zone_name=None,  # No zone
+        )
+
+        result = format_household_context_by_detection(
+            detections=[detection],
+            person_matches={},
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        assert "Detection #1" in result
+        # Should use "unknown" or similar for missing zone
+        assert "unknown" in result.lower()
+
+    def test_person_match_with_schedule_status(self) -> None:
+        """Test formatting includes schedule status when available."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        detection = MockDetection(
+            id=1,
+            object_type="person",
+            detected_at=datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+            zone_name="front_door",
+        )
+        person_matches = {
+            1: MockHouseholdMatch(
+                member_id=1,
+                member_name="Mike",
+                similarity=0.92,
+                match_type="person",
+                member_role="resident",
+                schedule_status=True,  # Within schedule
+            )
+        }
+
+        result = format_household_context_by_detection(
+            detections=[detection],
+            person_matches=person_matches,
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        # Should include schedule info
+        assert "Mike" in result
+        # Schedule status should be indicated
+        assert "Schedule" in result or "schedule" in result.lower()
+
+    def test_empty_detections_returns_header_only(self) -> None:
+        """Test formatting with no detections returns just header."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        result = format_household_context_by_detection(
+            detections=[],
+            person_matches={},
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        assert "HOUSEHOLD MATCHES BY DETECTION" in result
+        # Should not have any detection lines
+        assert "Detection #" not in result
+
+    def test_returns_string(self) -> None:
+        """Test that function always returns a string."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context_by_detection
+
+        result = format_household_context_by_detection(
+            detections=[],
+            person_matches={},
+            vehicle_matches={},
+            current_time=datetime.now(UTC),
+        )
+
+        assert isinstance(result, str)

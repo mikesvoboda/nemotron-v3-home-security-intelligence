@@ -2561,6 +2561,113 @@ def format_household_context(
 
 
 # ==============================================================================
+# Detection-Attributed Household Context (NEM-4234 Phase 2)
+# ==============================================================================
+# This function formats household matches attributed to specific detections
+# to prevent context bleeding across detections in the same batch.
+
+
+class DetectionLike(Protocol):
+    """Protocol for Detection-like objects used by format_household_context_by_detection.
+
+    This protocol allows the function to work with both the actual Detection model
+    and mock objects in tests.
+    """
+
+    id: int
+    object_type: str
+    detected_at: datetime
+    zone_name: str | None
+
+
+def format_household_context_by_detection(
+    detections: Sequence[DetectionLike],
+    person_matches: Mapping[int, HouseholdMatchLike],  # detection_id -> match
+    vehicle_matches: Mapping[int, HouseholdMatchLike],  # detection_id -> match
+    current_time: datetime,  # noqa: ARG001  # Reserved for future schedule display
+) -> str:
+    """Format household matches attributed to specific detections.
+
+    This function generates prompt context that clearly communicates which
+    household matches belong to which specific detection, preventing context
+    bleeding where a match for one detection incorrectly influences risk
+    assessment of other detections in the same batch.
+
+    NEM-4234 Phase 2: Household Matching Isolation
+
+    Format:
+        HOUSEHOLD MATCHES BY DETECTION:
+        - Detection #1 (person, front_door, 14:32:05): KNOWN PERSON "Mike" (resident, 92%)
+        - Detection #2 (person, backyard, 14:32:08): NO MATCH
+        - Detection #3 (vehicle, driveway, 14:32:10): REGISTERED VEHICLE "Honda Civic"
+
+    Args:
+        detections: List of Detection objects in the batch
+        person_matches: Dict mapping detection_id to HouseholdMatch for persons
+        vehicle_matches: Dict mapping detection_id to HouseholdMatch for vehicles
+        current_time: Current timestamp (reserved for future use)
+
+    Returns:
+        Formatted string for prompt inclusion with detection-attributed context.
+
+    Example:
+        >>> detections = [Detection(id=1, object_type="person", ...), ...]
+        >>> person_matches = {1: HouseholdMatch(member_name="Mike", ...)}
+        >>> result = format_household_context_by_detection(
+        ...     detections, person_matches, {}, datetime.now()
+        ... )
+        >>> print(result)
+        HOUSEHOLD MATCHES BY DETECTION:
+        - Detection #1 (person, front_door, 14:32:05): KNOWN PERSON "Mike" (resident, 92%)
+    """
+    lines = ["HOUSEHOLD MATCHES BY DETECTION:"]
+
+    for detection in detections:
+        det_id = detection.id
+        obj_type = detection.object_type
+        zone = detection.zone_name or "unknown"
+        time_str = detection.detected_at.strftime("%H:%M:%S")
+
+        # Check for person match
+        if det_id in person_matches:
+            match = person_matches[det_id]
+            similarity_pct = int(match.similarity * 100)
+            member_role = _get_member_role(match)
+            schedule_status = _get_schedule_status(match)
+
+            # Build the match description
+            if member_role:
+                match_desc = (
+                    f'KNOWN PERSON "{match.member_name}" ({member_role}, {similarity_pct}%)'
+                )
+            else:
+                match_desc = f'KNOWN PERSON "{match.member_name}" ({similarity_pct}%)'
+
+            line = f"- Detection #{det_id} ({obj_type}, {zone}, {time_str}): {match_desc}"
+            lines.append(line)
+
+            # Add schedule info if available
+            if schedule_status is True:
+                lines.append("  Schedule: Within expected hours")
+            elif schedule_status is False:
+                lines.append("  Schedule: Outside normal hours")
+
+        # Check for vehicle match
+        elif det_id in vehicle_matches:
+            match = vehicle_matches[det_id]
+            match_desc = f'REGISTERED VEHICLE "{match.vehicle_description}"'
+            line = f"- Detection #{det_id} ({obj_type}, {zone}, {time_str}): {match_desc}"
+            lines.append(line)
+
+        # No match
+        else:
+            line = f"- Detection #{det_id} ({obj_type}, {zone}, {time_str}): NO MATCH"
+            lines.append(line)
+
+    return "\n".join(lines)
+
+
+# ==============================================================================
 # Conditional Section Building (NEM-3020)
 # ==============================================================================
 # These functions build prompt sections conditionally, only including sections

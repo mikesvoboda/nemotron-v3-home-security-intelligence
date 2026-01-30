@@ -71,7 +71,7 @@ async def call_llm_streaming(
     settings = get_settings()
     payload = {
         "prompt": prompt,
-        "temperature": 0.7,
+        "temperature": 0.3,  # Aligned with non-streaming (NEM-4234 Phase 2)
         "top_p": 0.95,
         "max_tokens": settings.nemotron_max_output_tokens,
         "stop": ["<|im_end|>", "<|im_start|>"],
