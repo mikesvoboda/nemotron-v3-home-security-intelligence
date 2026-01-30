@@ -89,7 +89,9 @@ fi
 # Set FRONTEND_PORT default after .env loading so .env value takes precedence
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
-# Ensure POSTGRES_PASSWORD is set
+# Ensure POSTGRES_PASSWORD is set and exported
+# BUG FIX: export must be outside the if-block to ensure the variable is
+# available to subprocesses (like podman-compose) even when already set from .env
 if [ -z "$POSTGRES_PASSWORD" ]; then
     if [ -n "$DATABASE_URL" ]; then
         POSTGRES_PASSWORD=$(echo "$DATABASE_URL" | sed -n 's|.*://[^:]*:\([^@]*\)@.*|\1|p')
@@ -97,8 +99,8 @@ if [ -z "$POSTGRES_PASSWORD" ]; then
     if [ -z "$POSTGRES_PASSWORD" ]; then
         POSTGRES_PASSWORD="security_dev_password"  # pragma: allowlist secret
     fi
-    export POSTGRES_PASSWORD
 fi
+export POSTGRES_PASSWORD
 
 # Detect container runtime
 if command -v podman-compose &> /dev/null; then
