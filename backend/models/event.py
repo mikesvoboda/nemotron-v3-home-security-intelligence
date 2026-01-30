@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .event_audit import EventAudit
     from .event_detection import EventDetection
     from .event_feedback import EventFeedback
+    from .llm_interaction import LLMInteraction
 
 
 class Event(Base):
@@ -165,6 +166,15 @@ class Event(Base):
         secondary="event_detections",
         viewonly=True,  # Managed via detection_records
         lazy="selectin",  # Eager load to avoid N+1 queries (always eager for this relationship)
+    )
+    # LLM interaction observability relationship (NEM-4234)
+    # Captures what Nemotron received and responded for debugging accuracy issues
+    llm_interaction: Mapped[LLMInteraction | None] = relationship(
+        "LLMInteraction",
+        back_populates="event",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy=get_relationship_lazy_mode(),
     )
 
     # Indexes for common queries
