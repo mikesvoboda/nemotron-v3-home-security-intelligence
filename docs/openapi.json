@@ -4247,9 +4247,11 @@
         "type": "object"
       },
       "CameraCreate": {
-        "description": "Schema for creating a new camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for:\n- Name: Control character rejection, whitespace stripping, empty validation\n- Folder path: Path traversal prevention, forbidden character rejection",
+        "description": "Schema for creating a new camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for:\n- Name: Control character rejection, whitespace stripping, empty validation\n- Folder path: Path traversal prevention, forbidden character rejection\n\nNEM-4191: Added RTSP/ONVIF streaming fields:\n- ingestion_mode: How images are acquired (ftp, rtsp, onvif)\n- rtsp_url: RTSP stream URL\n- rtsp_username/rtsp_password: RTSP credentials\n- stream_profile: Which stream profile to use (main, sub, both)\n- motion_sensitivity: Motion detection sensitivity (0.0-1.0)",
         "example": {
           "folder_path": "/export/foscam/front_door",
+          "ingestion_mode": "ftp",
+          "motion_sensitivity": 0.5,
           "name": "Front Door Camera",
           "status": "online"
         },
@@ -4261,6 +4263,25 @@
             "title": "Folder Path",
             "type": "string"
           },
+          "ingestion_mode": {
+            "default": "ftp",
+            "description": "Camera ingestion mode (ftp, rtsp, onvif)",
+            "enum": [
+              "ftp",
+              "rtsp",
+              "onvif"
+            ],
+            "title": "Ingestion Mode",
+            "type": "string"
+          },
+          "motion_sensitivity": {
+            "default": 0.5,
+            "description": "Motion detection sensitivity (0.0-1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Motion Sensitivity",
+            "type": "number"
+          },
           "name": {
             "description": "Camera name",
             "maxLength": 255,
@@ -4268,10 +4289,63 @@
             "title": "Name",
             "type": "string"
           },
+          "rtsp_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP authentication password",
+            "title": "Rtsp Password"
+          },
+          "rtsp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP stream URL (rtsp:// or rtsps://)",
+            "title": "Rtsp Url"
+          },
+          "rtsp_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP authentication username",
+            "title": "Rtsp Username"
+          },
           "status": {
             "$ref": "#/components/schemas/CameraStatus",
             "default": "online",
             "description": "Camera status (online, offline, error, unknown)"
+          },
+          "stream_profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "main",
+                  "sub",
+                  "both"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream profile to use (main, sub, both)",
+            "title": "Stream Profile"
           }
         },
         "required": [
@@ -4574,7 +4648,7 @@
         "type": "object"
       },
       "CameraResponse": {
-        "description": "Schema for camera response.\n\nNEM-3597: Added property_id and areas fields to expose camera relationships.",
+        "description": "Schema for camera response.\n\nNEM-3597: Added property_id and areas fields to expose camera relationships.\nNEM-4191: Added RTSP/ONVIF streaming fields.",
         "example": {
           "areas": [
             {
@@ -4585,7 +4659,9 @@
           "created_at": "2025-12-23T10:00:00Z",
           "folder_path": "/export/foscam/front_door",
           "id": "front_door",
+          "ingestion_mode": "ftp",
           "last_seen_at": "2025-12-23T12:00:00Z",
+          "motion_sensitivity": 0.5,
           "name": "Front Door Camera",
           "property_id": 1,
           "status": "online"
@@ -4622,6 +4698,12 @@
             "title": "Id",
             "type": "string"
           },
+          "ingestion_mode": {
+            "default": "ftp",
+            "description": "Camera ingestion mode (ftp, rtsp, onvif)",
+            "title": "Ingestion Mode",
+            "type": "string"
+          },
           "last_seen_at": {
             "anyOf": [
               {
@@ -4634,6 +4716,12 @@
             ],
             "description": "Last time camera was active",
             "title": "Last Seen At"
+          },
+          "motion_sensitivity": {
+            "default": 0.5,
+            "description": "Motion detection sensitivity (0.0-1.0)",
+            "title": "Motion Sensitivity",
+            "type": "number"
           },
           "name": {
             "description": "Camera name",
@@ -4652,9 +4740,57 @@
             "description": "ID of the property this camera belongs to",
             "title": "Property Id"
           },
+          "rtsp_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP authentication password",
+            "title": "Rtsp Password"
+          },
+          "rtsp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP stream URL (rtsp:// or rtsps://)",
+            "title": "Rtsp Url"
+          },
+          "rtsp_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP authentication username",
+            "title": "Rtsp Username"
+          },
           "status": {
             "$ref": "#/components/schemas/CameraStatus",
             "description": "Camera status (online, offline, error, unknown)"
+          },
+          "stream_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream profile to use (main, sub, both)",
+            "title": "Stream Profile"
           }
         },
         "required": [
@@ -4679,9 +4815,11 @@
         "type": "string"
       },
       "CameraUpdate": {
-        "description": "Schema for updating an existing camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for partial updates.\nAll fields are optional; only provided fields are validated.",
+        "description": "Schema for updating an existing camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for partial updates.\nAll fields are optional; only provided fields are validated.\n\nNEM-4191: Added RTSP/ONVIF streaming fields for partial updates.",
         "example": {
+          "ingestion_mode": "rtsp",
           "name": "Front Door Camera - Updated",
+          "rtsp_url": "rtsp://192.168.1.100:554/stream1",
           "status": "offline"
         },
         "properties": {
@@ -4699,6 +4837,37 @@
             "description": "File system path for camera uploads",
             "title": "Folder Path"
           },
+          "ingestion_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ftp",
+                  "rtsp",
+                  "onvif"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera ingestion mode (ftp, rtsp, onvif)",
+            "title": "Ingestion Mode"
+          },
+          "motion_sensitivity": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Motion detection sensitivity (0.0-1.0)",
+            "title": "Motion Sensitivity"
+          },
           "name": {
             "anyOf": [
               {
@@ -4713,6 +4882,42 @@
             "description": "Camera name",
             "title": "Name"
           },
+          "rtsp_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP authentication password",
+            "title": "Rtsp Password"
+          },
+          "rtsp_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP stream URL (rtsp:// or rtsps://)",
+            "title": "Rtsp Url"
+          },
+          "rtsp_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RTSP authentication username",
+            "title": "Rtsp Username"
+          },
           "status": {
             "anyOf": [
               {
@@ -4723,6 +4928,23 @@
               }
             ],
             "description": "Camera status (online, offline, error, unknown)"
+          },
+          "stream_profile": {
+            "anyOf": [
+              {
+                "enum": [
+                  "main",
+                  "sub",
+                  "both"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream profile to use (main, sub, both)",
+            "title": "Stream Profile"
           }
         },
         "title": "CameraUpdate",

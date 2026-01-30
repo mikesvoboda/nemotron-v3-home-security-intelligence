@@ -98,6 +98,8 @@ const mockCamera: Camera = {
   status: 'online',
   created_at: '2025-01-01T00:00:00Z',
   last_seen_at: '2025-01-02T12:00:00Z',
+  ingestion_mode: 'ftp',
+  motion_sensitivity: 0.5,
 };
 
 const mockCameras: Camera[] = [
@@ -109,6 +111,8 @@ const mockCameras: Camera[] = [
     status: 'online',
     created_at: '2025-01-01T00:00:00Z',
     last_seen_at: null,
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
   },
 ];
 
@@ -735,7 +739,7 @@ describe('RFC 7807 Error Handling Integration', () => {
       await createCamera({
         name: 'Test',
         folder_path: '/invalid/path',
-        status: 'online',
+        status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5,
       });
     } catch (e) {
       caughtError = e as ApiError;
@@ -824,7 +828,7 @@ describe('RFC 7807 Error Handling Integration', () => {
       await createCamera({
         name: '',
         folder_path: '/bad path',
-        status: 'online',
+        status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5,
       });
     } catch (e) {
       caughtError = e as ApiError;
@@ -1028,7 +1032,7 @@ describe('Camera API', () => {
       const createData: CameraCreate = {
         name: 'New Camera',
         folder_path: '/export/foscam/new-camera',
-        status: 'online',
+        status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5,
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(
@@ -1055,6 +1059,8 @@ describe('Camera API', () => {
         name: 'Minimal Camera',
         folder_path: '/export/foscam/minimal',
         status: 'online', // Required field with backend default
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(
@@ -1072,7 +1078,7 @@ describe('Camera API', () => {
       );
 
       await expect(
-        createCamera({ name: 'Bad', folder_path: 'invalid', status: 'online' })
+        createCamera({ name: 'Bad', folder_path: 'invalid', status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5 })
       ).rejects.toThrow(ApiError);
     });
   });
@@ -2833,8 +2839,8 @@ describe('Request Deduplication Integration', () => {
     );
 
     // Start two concurrent POST requests
-    const promise1 = createCamera({ name: 'Camera 1', folder_path: '/cam1', status: 'online' });
-    const promise2 = createCamera({ name: 'Camera 2', folder_path: '/cam2', status: 'online' });
+    const promise1 = createCamera({ name: 'Camera 1', folder_path: '/cam1', status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5 });
+    const promise2 = createCamera({ name: 'Camera 2', folder_path: '/cam2', status: 'online', ingestion_mode: 'ftp', motion_sensitivity: 0.5 });
 
     await Promise.all([promise1, promise2]);
 

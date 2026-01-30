@@ -37,6 +37,8 @@ describe('ZoneEditor', () => {
     status: 'online',
     created_at: '2025-01-01T00:00:00Z',
     last_seen_at: '2025-01-10T12:00:00Z',
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
   };
 
   const mockZones: Zone[] = [

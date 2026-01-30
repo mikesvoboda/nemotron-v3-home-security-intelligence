@@ -56,6 +56,7 @@
       Schema for camera response.
       
       NEM-3597: Added property_id and areas fields to expose camera relationships.
+      NEM-4191: Added RTSP/ONVIF streaming fields.
     ''',
     'example': dict({
       'areas': list([
@@ -67,10 +68,16 @@
       'created_at': '2025-12-23T10:00:00Z',
       'folder_path': '/export/foscam/front_door',
       'id': 'front_door',
+      'ingestion_mode': 'ftp',
       'last_seen_at': '2025-12-23T12:00:00Z',
+      'motion_sensitivity': 0.5,
       'name': 'Front Door Camera',
       'property_id': 1,
+      'rtsp_password': None,
+      'rtsp_url': None,
+      'rtsp_username': None,
       'status': 'online',
+      'stream_profile': None,
     }),
     'properties': dict({
       'areas': dict({
@@ -105,6 +112,12 @@
         'title': 'Id',
         'type': 'string',
       }),
+      'ingestion_mode': dict({
+        'default': 'ftp',
+        'description': 'Camera ingestion mode (ftp, rtsp, onvif)',
+        'title': 'Ingestion Mode',
+        'type': 'string',
+      }),
       'last_seen_at': dict({
         'anyOf': list([
           dict({
@@ -118,6 +131,12 @@
         'default': None,
         'description': 'Last time camera was active',
         'title': 'Last Seen At',
+      }),
+      'motion_sensitivity': dict({
+        'default': 0.5,
+        'description': 'Motion detection sensitivity (0.0-1.0)',
+        'title': 'Motion Sensitivity',
+        'type': 'number',
       }),
       'name': dict({
         'description': 'Camera name',
@@ -137,9 +156,61 @@
         'description': 'ID of the property this camera belongs to',
         'title': 'Property Id',
       }),
+      'rtsp_password': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'RTSP authentication password',
+        'title': 'Rtsp Password',
+      }),
+      'rtsp_url': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'RTSP stream URL (rtsp:// or rtsps://)',
+        'title': 'Rtsp Url',
+      }),
+      'rtsp_username': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'RTSP authentication username',
+        'title': 'Rtsp Username',
+      }),
       'status': dict({
         '$ref': '#/$defs/CameraStatus',
         'description': 'Camera status (online, offline, error, unknown)',
+      }),
+      'stream_profile': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Stream profile to use (main, sub, both)',
+        'title': 'Stream Profile',
       }),
     }),
     'required': list([
@@ -159,10 +230,16 @@
     'created_at': '2025-01-15T12:00:00Z',
     'folder_path': '/export/foscam/front_door',
     'id': 'front_door',
+    'ingestion_mode': 'ftp',
     'last_seen_at': None,
+    'motion_sensitivity': 0.5,
     'name': 'Front Door Camera',
     'property_id': None,
+    'rtsp_password': None,
+    'rtsp_url': None,
+    'rtsp_username': None,
     'status': 'online',
+    'stream_profile': None,
   })
 # ---
 # name: TestDetectionResponseSnapshots.test_detection_list_response_json_schema

@@ -128,6 +128,8 @@ describe('selectOnlineCameras', () => {
       status: 'online',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: '2',
@@ -136,6 +138,8 @@ describe('selectOnlineCameras', () => {
       status: 'offline',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: '3',
@@ -144,6 +148,8 @@ describe('selectOnlineCameras', () => {
       status: 'online',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: '4',
@@ -152,6 +158,8 @@ describe('selectOnlineCameras', () => {
       status: 'error',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 
@@ -180,6 +188,8 @@ describe('selectCameraCountsByStatus', () => {
       status: 'online',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: '2',
@@ -188,6 +198,8 @@ describe('selectCameraCountsByStatus', () => {
       status: 'offline',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: '3',
@@ -196,6 +208,8 @@ describe('selectCameraCountsByStatus', () => {
       status: 'online',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: '4',
@@ -204,6 +218,8 @@ describe('selectCameraCountsByStatus', () => {
       status: 'error',
       last_seen_at: null,
       created_at: '2024-01-01',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 
@@ -353,6 +369,8 @@ describe('useDashboardQueries', () => {
         status: 'online',
         last_seen_at: null,
         created_at: '2024-01-01',
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       },
     ];
 

@@ -96,6 +96,8 @@ export function cameraFactory(overrides: Partial<Camera> = {}): Camera {
     status: 'online',
     created_at: '2024-01-01T00:00:00Z',
     last_seen_at: new Date().toISOString(),
+    ingestion_mode: 'ftp',
+    motion_sensitivity: 0.5,
     ...overrides,
   };
 }

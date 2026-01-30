@@ -327,6 +327,8 @@ export function useCameraMutation(): UseCameraMutationReturn {
         status: newCameraData.status ?? 'online',
         last_seen_at: null,
         created_at: new Date().toISOString(),
+        ingestion_mode: newCameraData.ingestion_mode ?? 'ftp',
+        motion_sensitivity: newCameraData.motion_sensitivity ?? 0.5,
       };
 
       // Optimistically add the camera to the cache
