@@ -147,8 +147,15 @@ class DeployOrchestrator:
         output.info(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     async def _pre_flight_checks(self) -> None:
-        """Pre-flight checks: git pull, prerequisites."""
+        """Pre-flight checks: git pull, prerequisites, .env bootstrap."""
         output.header("Pre-flight Checks")
+
+        # Bootstrap .env if missing
+        env_path = self.config.project_root / ".env"
+        if not env_path.exists():
+            output.step("Bootstrapping .env with defaults...")
+            self._bootstrap_env()
+            output.success(".env created with defaults")
 
         # Git pull (unless skipped)
         if not self.config.skip_git_pull:
@@ -342,6 +349,26 @@ class DeployOrchestrator:
         output.info("Frontend: http://localhost:5173")
         output.info(f"Backend:  http://localhost:{self.config.api_port}")
         output.info(f"API Docs: http://localhost:{self.config.api_port}/docs")
+
+    def _bootstrap_env(self) -> None:
+        """Bootstrap .env file using setup.py --defaults."""
+        import subprocess
+
+        setup_script = self.config.project_root / "setup.py"
+        if not setup_script.exists():
+            raise DeployError(f"setup.py not found at {setup_script}")
+
+        result = subprocess.run(
+            ["python3", str(setup_script), "--defaults"],
+            check=False,
+            cwd=self.config.project_root,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            output.error(f"setup.py failed: {result.stderr}")
+            raise DeployError("Failed to bootstrap .env")
 
     def _get_phase_name(self, error: DeployError) -> str:
         """Get phase name from error type."""

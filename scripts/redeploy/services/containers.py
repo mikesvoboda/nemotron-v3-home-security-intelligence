@@ -458,12 +458,12 @@ class ContainerManager:
         redis_host = f"{self.config.project_name}_redis_1"
 
         container_id = self.runtime.run(
-            image=f"{self.config.project_name}_backend",
+            image=f"localhost/{self.config.project_name}_backend:latest",
             name="backend",
             network=network,
             ports={self.config.api_port: self.config.api_port},
             volumes=[
-                "./backend/data:/app/data:z",
+                "./backend/data:/app/data:z,U",
                 f"{self.config.foscam_base_path}:/cameras:ro,z",
                 f"{self.config.ai_models_path}/model-zoo:/models/model-zoo:ro,z",
             ],

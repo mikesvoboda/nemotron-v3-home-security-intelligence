@@ -66,6 +66,7 @@ RUN (groupadd -g 1000 yolo26 || true) && \
 # Copy application files
 COPY ai/yolo26/model.py .
 COPY ai/yolo26/metrics.py .
+COPY ai/yolo26/security.py .
 # Copy shared utilities
 COPY ai/compile_utils.py .
 COPY ai/torch_optimizations.py .
