@@ -379,9 +379,13 @@ class TestGetDb:
         mock_session.rollback = AsyncMock()
         mock_session.close = AsyncMock()
 
+        # Create an async context manager mock
+        mock_context_manager = AsyncMock()
+        mock_context_manager.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_context_manager.__aexit__ = AsyncMock(return_value=None)
+
         mock_factory = MagicMock()
-        mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+        mock_factory.return_value = mock_context_manager
 
         # Save original state
         original_factory = db_module._async_session_factory

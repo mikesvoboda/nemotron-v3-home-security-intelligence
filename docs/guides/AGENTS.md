@@ -60,13 +60,14 @@ docs/guides/
 
 ## Related Documentation
 
-| Resource              | Location                                                             |
-| --------------------- | -------------------------------------------------------------------- |
-| Analytics API         | [../api/analytics-endpoints.md](../api/analytics-endpoints.md)       |
-| UI Zone Documentation | [../ui/zones.md](../ui/zones.md)                                     |
-| UI Analytics          | [../ui/analytics.md](../ui/analytics.md)                             |
-| Backend Services      | [../../backend/services/AGENTS.md](../../backend/services/AGENTS.md) |
-| AI Enrichment         | [../../ai/enrichment/AGENTS.md](../../ai/enrichment/AGENTS.md)       |
+| Resource              | Location                                                                                     |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| Analytics API         | [../api/analytics-endpoints.md](../api/analytics-endpoints.md)                               |
+| Cameras API           | [../architecture/api-reference/cameras-api.md](../architecture/api-reference/cameras-api.md) |
+| UI Zone Documentation | [../ui/zones.md](../ui/zones.md)                                                             |
+| UI Analytics          | [../ui/analytics.md](../ui/analytics.md)                                                     |
+| Backend Services      | [../../backend/services/AGENTS.md](../../backend/services/AGENTS.md)                         |
+| AI Enrichment         | [../../ai/enrichment/AGENTS.md](../../ai/enrichment/AGENTS.md)                               |
 
 ## Entry Points
 
@@ -74,3 +75,4 @@ docs/guides/
 2. **Zone setup**: See [Zone Configuration Guide](zone-configuration.md)
 3. **Household setup**: See [Face Recognition Guide](face-recognition.md)
 4. **API integration**: See [Analytics API](../api/analytics-endpoints.md)
+5. **RTSP/ONVIF cameras**: See [Cameras API](../architecture/api-reference/cameras-api.md) for RTSP configuration and ONVIF device management

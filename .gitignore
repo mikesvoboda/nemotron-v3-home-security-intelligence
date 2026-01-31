@@ -112,3 +112,14 @@ docker-compose.override.yml
 config/docker-compose.gpu-override.yml
 config/gpu-assignments.yml
 .eslintcache
+
+# Shell profile symlinks (worktree artifacts)
+.bash_profile
+.bashrc
+.profile
+.zprofile
+.zshrc
+.gitconfig
+.gitmodules
+.ripgreprc
+.claude

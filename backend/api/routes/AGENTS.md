@@ -49,6 +49,87 @@ Camera management CRUD endpoints and snapshot serving.
 - Latest snapshot serving from camera folder (finds most recently modified image)
 - Path traversal protection for snapshot serving
 
+### `onvif.py`
+
+ONVIF camera management including device discovery, capabilities, PTZ control, and preset navigation.
+
+**Router prefix:** `/api/cameras`
+
+**Related Issues:** NEM-4207, NEM-4388
+
+**Endpoints:**
+
+| Method | Path                                             | Purpose                 |
+| ------ | ------------------------------------------------ | ----------------------- |
+| POST   | `/api/cameras/onvif/discover`                    | Discover ONVIF devices  |
+| GET    | `/api/cameras/{camera_id}/onvif/capabilities`    | Get device capabilities |
+| POST   | `/api/cameras/{camera_id}/onvif/ptz`             | Execute PTZ command     |
+| GET    | `/api/cameras/{camera_id}/onvif/presets`         | List PTZ presets        |
+| POST   | `/api/cameras/{camera_id}/onvif/presets/{token}` | Navigate to preset      |
+
+**Discovery Request:**
+
+```json
+{
+  "subnet": "192.168.1.0/24",
+  "timeout": 10
+}
+```
+
+**Discovery Response:**
+
+```json
+{
+  "devices": [
+    {
+      "device_url": "http://192.168.1.100:80/onvif/device_service",
+      "ip": "192.168.1.100",
+      "port": 80,
+      "manufacturer": "Hikvision",
+      "model": "DS-2CD2385G1",
+      "rtsp_urls": [{ "profile": "mainStream", "url": "rtsp://..." }],
+      "capabilities": { "video": true, "ptz": true, "events": false }
+    }
+  ],
+  "count": 1
+}
+```
+
+**PTZ Command Request:**
+
+```json
+{
+  "command": "pan",
+  "value": 0.5,
+  "speed": 0.3
+}
+```
+
+Valid commands: `pan`, `tilt`, `zoom`, `stop`
+
+- `value`: Movement direction/amount (-1.0 to 1.0)
+- `speed`: Movement speed (0.0 to 1.0)
+
+**HTTP Status Codes:**
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 200  | Success                                   |
+| 400  | Invalid PTZ command or value out of range |
+| 404  | Camera not found                          |
+| 409  | Camera is not an ONVIF device             |
+| 500  | Discovery failed                          |
+| 503  | Device unreachable                        |
+
+**Key Features:**
+
+- WS-Discovery for automatic ONVIF device detection
+- RTSP URL extraction from device media profiles
+- Manufacturer and model detection from ONVIF scopes
+- PTZ continuous move commands with configurable speed
+- PTZ preset navigation
+- Graceful error handling with descriptive messages
+
 ### `events.py`
 
 Security event management, querying, and statistics.

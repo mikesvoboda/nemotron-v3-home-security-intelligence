@@ -69,6 +69,8 @@ describe('CamerasSettings', () => {
       status: 'online',
       created_at: '2025-01-01T00:00:00Z',
       last_seen_at: '2025-01-10T12:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: 'cam-2',
@@ -77,6 +79,8 @@ describe('CamerasSettings', () => {
       status: 'offline',
       created_at: '2025-01-01T00:00:00Z',
       last_seen_at: null,
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 
@@ -193,6 +197,8 @@ describe('CamerasSettings', () => {
           status: 'online',
           created_at: '2025-01-01T00:00:00Z',
           last_seen_at: null, // Online but no timestamp
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
         {
           id: 'cam-offline-no-timestamp',
@@ -201,6 +207,8 @@ describe('CamerasSettings', () => {
           status: 'offline',
           created_at: '2025-01-01T00:00:00Z',
           last_seen_at: null, // Offline with no timestamp
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
         {
           id: 'cam-error-no-timestamp',
@@ -209,6 +217,8 @@ describe('CamerasSettings', () => {
           status: 'error',
           created_at: '2025-01-01T00:00:00Z',
           last_seen_at: null, // Error with no timestamp
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
         {
           id: 'cam-unknown-no-timestamp',
@@ -217,6 +227,8 @@ describe('CamerasSettings', () => {
           status: 'unknown',
           created_at: '2025-01-01T00:00:00Z',
           last_seen_at: null, // Unknown status
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
       ];
 
@@ -372,6 +384,8 @@ describe('CamerasSettings', () => {
         status: 'online',
         created_at: '2025-01-10T00:00:00Z',
         last_seen_at: null,
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       };
 
       const mockCreateMutateAsync = vi.fn().mockResolvedValue(newCamera);
@@ -450,6 +464,8 @@ describe('CamerasSettings', () => {
         status: 'online',
         created_at: '2025-01-10T00:00:00Z',
         last_seen_at: null,
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       };
 
       const mockCreateMutateAsync = vi.fn().mockResolvedValue(newCamera);
@@ -1036,6 +1052,8 @@ describe('CamerasSettings', () => {
           status: 'error',
           created_at: '2025-01-01T00:00:00Z',
           last_seen_at: null,
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         },
       ];
 
@@ -1113,6 +1131,8 @@ describe('CamerasSettings', () => {
         status: 'offline',
         created_at: '2025-01-01T00:00:00Z',
         last_seen_at: '2025-01-15T12:00:00Z',
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       },
     ];
 

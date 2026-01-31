@@ -173,6 +173,58 @@ class TestMetricsRecording:
 
         assert new_value == initial_value + 1
 
+    def test_record_error_inference_failed(self):
+        """Test recording inference_failed error type (NEM-4146)."""
+        from metrics import ERRORS_TOTAL, record_error
+
+        initial_value = ERRORS_TOTAL.labels(error_type="inference_failed")._value.get()
+        record_error(error_type="inference_failed")
+        new_value = ERRORS_TOTAL.labels(error_type="inference_failed")._value.get()
+
+        assert new_value == initial_value + 1
+
+    def test_record_error_timeout(self):
+        """Test recording timeout error type (NEM-4146)."""
+        from metrics import ERRORS_TOTAL, record_error
+
+        initial_value = ERRORS_TOTAL.labels(error_type="timeout")._value.get()
+        record_error(error_type="timeout")
+        new_value = ERRORS_TOTAL.labels(error_type="timeout")._value.get()
+
+        assert new_value == initial_value + 1
+
+    def test_record_error_oom(self):
+        """Test recording oom (out of memory) error type (NEM-4146)."""
+        from metrics import ERRORS_TOTAL, record_error
+
+        initial_value = ERRORS_TOTAL.labels(error_type="oom")._value.get()
+        record_error(error_type="oom")
+        new_value = ERRORS_TOTAL.labels(error_type="oom")._value.get()
+
+        assert new_value == initial_value + 1
+
+    def test_record_all_required_error_types(self):
+        """Test that all required error types can be recorded (NEM-4146).
+
+        Required error types per acceptance criteria:
+        - inference_failed: Inference processing error
+        - invalid_image: Invalid/corrupt image input
+        - timeout: Inference timeout
+        - oom: Out of memory error
+        """
+        from metrics import ERRORS_TOTAL, record_error
+
+        required_error_types = ["inference_failed", "invalid_image", "timeout", "oom"]
+
+        for error_type in required_error_types:
+            initial_value = ERRORS_TOTAL.labels(error_type=error_type)._value.get()
+            record_error(error_type=error_type)
+            new_value = ERRORS_TOTAL.labels(error_type=error_type)._value.get()
+
+            assert new_value == initial_value + 1, (
+                f"Error type '{error_type}' counter did not increment"
+            )
+
     def test_record_batch_size(self):
         """Test recording batch size."""
         from metrics import record_batch_size
@@ -273,6 +325,69 @@ class TestBackwardsCompatibility:
         assert GPU_MEMORY_USED_GB is not None
         assert GPU_TEMPERATURE is not None
         assert GPU_POWER_WATTS is not None
+
+
+class TestErrorTrackingIntegration:
+    """Tests for error tracking integration with inference (NEM-4146).
+
+    Verifies that errors are properly categorized and tracked during
+    YOLO26 inference operations.
+    """
+
+    def test_error_types_are_documented(self):
+        """Test that error types are properly documented in module docstring."""
+        import metrics
+
+        docstring = metrics.__doc__
+        assert "inference_failed" in docstring or "error_type" in docstring
+        # The docstring mentions record_error with error types
+
+    def test_record_error_function_signature(self):
+        """Test that record_error function accepts error_type parameter."""
+        import inspect
+
+        from metrics import record_error
+
+        sig = inspect.signature(record_error)
+        assert "error_type" in sig.parameters
+        param = sig.parameters["error_type"]
+        assert param.annotation in (str, inspect.Parameter.empty)
+
+    def test_errors_metric_exported_with_labels(self):
+        """Test that errors metric is exported with error_type labels in Prometheus format."""
+        from metrics import record_error
+        from prometheus_client import generate_latest
+
+        # Record some errors to ensure labels appear in output
+        record_error(error_type="inference_failed")
+        record_error(error_type="timeout")
+
+        output = generate_latest().decode("utf-8")
+
+        # Verify metric appears with label values
+        assert 'yolo26_errors_total{error_type="inference_failed"}' in output
+        assert 'yolo26_errors_total{error_type="timeout"}' in output
+
+    def test_multiple_error_types_tracked_independently(self):
+        """Test that different error types maintain separate counters."""
+        from metrics import ERRORS_TOTAL, record_error
+
+        # Get initial values
+        initial_inference = ERRORS_TOTAL.labels(error_type="inference_failed")._value.get()
+        initial_timeout = ERRORS_TOTAL.labels(error_type="timeout")._value.get()
+        initial_oom = ERRORS_TOTAL.labels(error_type="oom")._value.get()
+
+        # Record different error types
+        record_error(error_type="inference_failed")
+        record_error(error_type="inference_failed")
+        record_error(error_type="timeout")
+
+        # Verify each type incremented independently
+        assert (
+            ERRORS_TOTAL.labels(error_type="inference_failed")._value.get() == initial_inference + 2
+        )
+        assert ERRORS_TOTAL.labels(error_type="timeout")._value.get() == initial_timeout + 1
+        assert ERRORS_TOTAL.labels(error_type="oom")._value.get() == initial_oom  # unchanged
 
 
 if __name__ == "__main__":

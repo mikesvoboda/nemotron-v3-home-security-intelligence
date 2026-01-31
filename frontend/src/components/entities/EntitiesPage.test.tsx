@@ -101,6 +101,8 @@ describe('EntitiesPage', () => {
       status: 'online',
       created_at: '2024-01-01T00:00:00Z',
       last_seen_at: '2024-01-01T12:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: 'back_yard',
@@ -109,6 +111,8 @@ describe('EntitiesPage', () => {
       status: 'online',
       created_at: '2024-01-01T00:00:00Z',
       last_seen_at: '2024-01-01T12:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 

@@ -4,10 +4,10 @@ import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from .enums import CameraStatus
+from .enums import CameraStatus, IngestionMode
 
 if TYPE_CHECKING:
     from .action_event import ActionEvent
@@ -43,20 +43,11 @@ def normalize_camera_id(folder_name: str) -> str:
     if not folder_name:
         return ""
 
-    # Strip whitespace
-    normalized = folder_name.strip()
-    # Convert to lowercase
-    normalized = normalized.lower()
-    # Replace spaces and hyphens with underscores
-    normalized = re.sub(r"[\s\-]+", "_", normalized)
-    # Remove any characters that aren't alphanumeric or underscore
-    normalized = re.sub(r"[^\w]", "", normalized)
-    # Collapse multiple underscores
-    normalized = re.sub(r"_+", "_", normalized)
-    # Remove leading/trailing underscores
-    normalized = normalized.strip("_")
-
-    return normalized
+    normalized = folder_name.strip().lower()
+    normalized = re.sub(r"[\s\-]+", "_", normalized)  # spaces/hyphens -> underscore
+    normalized = re.sub(r"[^\w]", "", normalized)  # remove non-word chars
+    normalized = re.sub(r"_+", "_", normalized)  # collapse multiple underscores
+    return normalized.strip("_")
 
 
 class Base(DeclarativeBase):
@@ -94,6 +85,21 @@ class Camera(Base):
             "status IN ('online', 'offline', 'error', 'unknown')",
             name="ck_cameras_status",
         ),
+        # CHECK constraint for ingestion_mode enum-like values (NEM-4191)
+        CheckConstraint(
+            "ingestion_mode IN ('ftp', 'rtsp', 'onvif')",
+            name="ck_cameras_ingestion_mode",
+        ),
+        # CHECK constraint for stream_profile enum-like values (NEM-4191)
+        CheckConstraint(
+            "stream_profile IS NULL OR stream_profile IN ('main', 'sub', 'both')",
+            name="ck_cameras_stream_profile",
+        ),
+        # CHECK constraint for motion_sensitivity range (NEM-4191)
+        CheckConstraint(
+            "motion_sensitivity >= 0.0 AND motion_sensitivity <= 1.0",
+            name="ck_cameras_motion_sensitivity",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -110,6 +116,57 @@ class Camera(Base):
     property_id: Mapped[int | None] = mapped_column(
         ForeignKey("properties.id"), nullable=True, default=None
     )
+
+    # RTSP/ONVIF streaming fields (NEM-4191)
+    # Note: These fields have Python-level defaults set in __init__ to ensure
+    # defaults are available at object construction time (not just at DB insert)
+    ingestion_mode: Mapped[str] = mapped_column(
+        String, default=IngestionMode.FTP.value, nullable=False
+    )
+    rtsp_url: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    rtsp_username: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    rtsp_password: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    stream_profile: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
+    motion_sensitivity: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
+
+    def __init__(
+        self,
+        *,
+        id: str,
+        name: str,
+        folder_path: str,
+        status: str | None = None,
+        created_at: datetime | None = None,
+        last_seen_at: datetime | None = None,
+        deleted_at: datetime | None = None,
+        property_id: int | None = None,
+        ingestion_mode: str | None = None,
+        rtsp_url: str | None = None,
+        rtsp_username: str | None = None,
+        rtsp_password: str | None = None,
+        stream_profile: str | None = None,
+        motion_sensitivity: float | None = None,
+    ):
+        """Initialize a Camera instance with Python-level defaults.
+
+        SQLAlchemy's mapped_column defaults only apply at database insert time.
+        This __init__ ensures defaults are available at Python object construction.
+        """
+        super().__init__()
+        self.id = id
+        self.name = name
+        self.folder_path = folder_path
+        self.status = status or CameraStatus.ONLINE.value
+        self.created_at = created_at or datetime.now(UTC)
+        self.last_seen_at = last_seen_at
+        self.deleted_at = deleted_at
+        self.property_id = property_id
+        self.ingestion_mode = ingestion_mode or IngestionMode.FTP.value
+        self.rtsp_url = rtsp_url
+        self.rtsp_username = rtsp_username
+        self.rtsp_password = rtsp_password
+        self.stream_profile = stream_profile
+        self.motion_sensitivity = motion_sensitivity if motion_sensitivity is not None else 0.5
 
     # Relationships
     detections: Mapped[list[Detection]] = relationship(
@@ -164,19 +221,11 @@ class Camera(Base):
 
     @property
     def is_deleted(self) -> bool:
-        """Check if this camera is soft-deleted.
-
-        Returns:
-            True if deleted_at is set, False otherwise
-        """
+        """Check if this camera is soft-deleted."""
         return self.deleted_at is not None
 
     def soft_delete(self) -> None:
-        """Soft delete this camera by setting deleted_at timestamp.
-
-        This marks the camera as deleted without removing it from the database,
-        preserving referential integrity with related records.
-        """
+        """Soft delete this camera by setting deleted_at timestamp."""
         self.deleted_at = datetime.now(UTC)
 
     def restore(self) -> None:
@@ -184,11 +233,7 @@ class Camera(Base):
         self.deleted_at = None
 
     async def hard_delete(self, session: object) -> None:
-        """Hard delete this camera, permanently removing it from the database.
-
-        Args:
-            session: SQLAlchemy async session to use for deletion
-        """
+        """Permanently remove this camera from the database."""
         await session.delete(self)  # type: ignore[attr-defined]
 
     @classmethod

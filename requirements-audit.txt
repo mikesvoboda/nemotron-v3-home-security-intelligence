@@ -283,7 +283,7 @@ pprintpp==0.4.0
     # via pytest-clarity
 prometheus-client==0.24.1
     # via home-security-intelligence
-protobuf==6.33.4
+protobuf==6.33.5
     # via
     #   googleapis-common-protos
     #   opentelemetry-proto

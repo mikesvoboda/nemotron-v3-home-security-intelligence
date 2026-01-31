@@ -570,40 +570,265 @@ If already acknowledged, returns existing data without modification.
 
 ---
 
+## ONVIF Camera Management
+
+ONVIF endpoints for device discovery, capabilities, and PTZ control.
+
+**Source:** `backend/api/routes/onvif.py`
+
+### Discover ONVIF Devices
+
+```
+POST /api/cameras/onvif/discover
+```
+
+Scan the network for ONVIF-compatible cameras using WS-Discovery.
+
+#### Request Body
+
+```json
+{
+  "subnet": "192.168.1.0/24",
+  "timeout": 10
+}
+```
+
+| Field     | Type    | Required | Description                      |
+| --------- | ------- | -------- | -------------------------------- |
+| `subnet`  | string  | Yes      | Network subnet in CIDR notation  |
+| `timeout` | integer | No       | Discovery timeout (default: 10s) |
+
+#### Response
+
+```json
+{
+  "devices": [
+    {
+      "device_url": "http://192.168.1.100:80/onvif/device_service",
+      "ip": "192.168.1.100",
+      "port": 80,
+      "manufacturer": "Hikvision",
+      "model": "DS-2CD2385G1",
+      "firmware_version": "V5.5.0",
+      "serial_number": "DS-2CD2385G1-20200101",
+      "hardware_id": "88D7F6",
+      "rtsp_urls": [
+        { "profile": "mainStream", "url": "rtsp://192.168.1.100:554/Streaming/Channels/101" },
+        { "profile": "subStream", "url": "rtsp://192.168.1.100:554/Streaming/Channels/102" }
+      ],
+      "capabilities": {
+        "video": true,
+        "ptz": true,
+        "events": false
+      }
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+### Get Device Capabilities
+
+```
+GET /api/cameras/{camera_id}/onvif/capabilities
+```
+
+Get ONVIF device capabilities for a configured camera.
+
+#### Response
+
+```json
+{
+  "manufacturer": "Hikvision",
+  "model": "DS-2CD2385G1",
+  "firmware_version": "V5.5.0",
+  "serial_number": "DS-2CD2385G1-20200101",
+  "hardware_id": "88D7F6",
+  "ptz_supported": true,
+  "media_supported": true,
+  "analytics_supported": false
+}
+```
+
+#### HTTP Status Codes
+
+| Code | Description                   |
+| ---- | ----------------------------- |
+| 200  | Success                       |
+| 404  | Camera not found              |
+| 409  | Camera is not an ONVIF device |
+| 503  | Device unreachable            |
+
+---
+
+### Execute PTZ Command
+
+```
+POST /api/cameras/{camera_id}/onvif/ptz
+```
+
+Execute a PTZ (Pan-Tilt-Zoom) command on the camera.
+
+#### Request Body
+
+```json
+{
+  "command": "pan",
+  "value": 0.5,
+  "speed": 0.3
+}
+```
+
+| Field     | Type   | Required | Description                         |
+| --------- | ------ | -------- | ----------------------------------- |
+| `command` | string | Yes      | Command type: pan, tilt, zoom, stop |
+| `value`   | float  | Yes      | Movement value (-1.0 to 1.0)        |
+| `speed`   | float  | Yes      | Movement speed (0.0 to 1.0)         |
+
+#### Response
+
+```json
+{
+  "success": true,
+  "command": "pan",
+  "value": 0.5,
+  "speed": 0.3
+}
+```
+
+#### HTTP Status Codes
+
+| Code | Description                           |
+| ---- | ------------------------------------- |
+| 200  | Success                               |
+| 400  | Invalid command or value out of range |
+| 404  | Camera not found                      |
+| 409  | Camera is not an ONVIF device         |
+| 503  | Device unreachable                    |
+
+---
+
+### List PTZ Presets
+
+```
+GET /api/cameras/{camera_id}/onvif/presets
+```
+
+Get available PTZ presets for a camera.
+
+#### Response
+
+```json
+{
+  "presets": [
+    { "token": "preset_1", "name": "Front Door" },
+    { "token": "preset_2", "name": "Driveway" },
+    { "token": "preset_3", "name": "Garden" }
+  ],
+  "count": 3
+}
+```
+
+---
+
+### Navigate to Preset
+
+```
+POST /api/cameras/{camera_id}/onvif/presets/{preset_token}
+```
+
+Move the camera to a saved PTZ preset position.
+
+#### Path Parameters
+
+| Parameter      | Type   | Description                   |
+| -------------- | ------ | ----------------------------- |
+| `camera_id`    | string | Camera ID                     |
+| `preset_token` | string | Preset token from preset list |
+
+#### Response
+
+```json
+{
+  "success": true,
+  "preset_token": "preset_1"
+}
+```
+
+---
+
 ## Data Models
 
 ### CameraResponse
 
 **Source:** `backend/api/schemas/camera.py:184-208`
 
-| Field          | Type     | Description                                     |
-| -------------- | -------- | ----------------------------------------------- |
-| `id`           | string   | Normalized camera ID                            |
-| `name`         | string   | Camera name                                     |
-| `folder_path`  | string   | File system path for uploads                    |
-| `status`       | string   | Camera status (online, offline, error, unknown) |
-| `created_at`   | datetime | Creation timestamp                              |
-| `last_seen_at` | datetime | Last activity timestamp                         |
+| Field                | Type     | Description                                     |
+| -------------------- | -------- | ----------------------------------------------- |
+| `id`                 | string   | Normalized camera ID                            |
+| `name`               | string   | Camera name                                     |
+| `folder_path`        | string   | File system path for uploads                    |
+| `status`             | string   | Camera status (online, offline, error, unknown) |
+| `created_at`         | datetime | Creation timestamp                              |
+| `last_seen_at`       | datetime | Last activity timestamp                         |
+| `ingestion_mode`     | string   | Ingestion mode (ftp, rtsp, onvif)               |
+| `rtsp_url`           | string   | RTSP stream URL (for rtsp/onvif modes)          |
+| `stream_profile`     | string   | Stream profile (main, sub, both)                |
+| `motion_sensitivity` | float    | Motion detection sensitivity (0.0-1.0)          |
 
 ### CameraCreate
 
 **Source:** `backend/api/schemas/camera.py:96-136`
 
-| Field         | Type   | Required | Description                      |
-| ------------- | ------ | -------- | -------------------------------- |
-| `name`        | string | Yes      | Camera name (1-255 chars)        |
-| `folder_path` | string | Yes      | File system path (1-500 chars)   |
-| `status`      | string | No       | Initial status (default: online) |
+| Field                | Type   | Required | Description                               |
+| -------------------- | ------ | -------- | ----------------------------------------- |
+| `name`               | string | Yes      | Camera name (1-255 chars)                 |
+| `folder_path`        | string | Yes      | File system path (1-500 chars)            |
+| `status`             | string | No       | Initial status (default: online)          |
+| `ingestion_mode`     | string | No       | Ingestion mode (default: ftp)             |
+| `rtsp_url`           | string | No       | RTSP stream URL                           |
+| `rtsp_username`      | string | No       | RTSP authentication username              |
+| `rtsp_password`      | string | No       | RTSP authentication password (write-only) |
+| `stream_profile`     | string | No       | Stream profile (main, sub, both)          |
+| `motion_sensitivity` | float  | No       | Motion sensitivity (default: 0.5)         |
 
 ### CameraUpdate
 
 **Source:** `backend/api/schemas/camera.py:139-181`
 
-| Field         | Type   | Required | Description     |
-| ------------- | ------ | -------- | --------------- |
-| `name`        | string | No       | New camera name |
-| `folder_path` | string | No       | New folder path |
-| `status`      | string | No       | New status      |
+| Field                | Type   | Required | Description                    |
+| -------------------- | ------ | -------- | ------------------------------ |
+| `name`               | string | No       | New camera name                |
+| `folder_path`        | string | No       | New folder path                |
+| `status`             | string | No       | New status                     |
+| `ingestion_mode`     | string | No       | New ingestion mode             |
+| `rtsp_url`           | string | No       | New RTSP URL                   |
+| `rtsp_username`      | string | No       | New RTSP username              |
+| `rtsp_password`      | string | No       | New RTSP password (write-only) |
+| `stream_profile`     | string | No       | New stream profile             |
+| `motion_sensitivity` | float  | No       | New motion sensitivity         |
+
+### IngestionMode Enum
+
+**Source:** `backend/models/enums.py`
+
+| Value   | Description                                                  |
+| ------- | ------------------------------------------------------------ |
+| `ftp`   | FTP upload mode (camera pushes images via FTP)               |
+| `rtsp`  | RTSP streaming mode (system pulls frames from RTSP stream)   |
+| `onvif` | ONVIF mode (RTSP streaming with ONVIF device management/PTZ) |
+
+### StreamProfile Enum
+
+**Source:** `backend/models/enums.py`
+
+| Value  | Description                                 |
+| ------ | ------------------------------------------- |
+| `main` | Main stream (highest quality)               |
+| `sub`  | Sub stream (lower quality, lower bandwidth) |
+| `both` | Both main and sub streams                   |
 
 ### CameraStatus Enum
 

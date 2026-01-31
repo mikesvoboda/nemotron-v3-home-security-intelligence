@@ -41,18 +41,15 @@ class StorageManager:
         self.runtime.prune_builder(force=True)
         output.success("Build cache pruned")
 
-        # For Podman: additional cleanup
+        # For Podman: additional cleanup of orphaned layers only
+        # NOTE: We intentionally do NOT use prune_images(all=True) here because
+        # the AI images have been built but their containers haven't started yet.
+        # Using all=True would delete the freshly built AI images.
         if self.runtime.is_podman:
             output.step("Clearing orphaned layers...")
-            # Check if any containers are running
-            containers = self.runtime.ps()
-            if not containers:
-                # Safe to do more aggressive cleanup
-                self.runtime.prune_images(all=True, force=True)
-                output.success("All unused images pruned")
-
-            # Final system prune
-            self.runtime.prune_system(all=False, volumes=False, force=True)
+            # Only prune truly dangling images (untagged), not all unused images
+            self.runtime.prune_images(all=False, force=True)
+            output.success("Orphaned layers pruned")
 
         # Verify storage health
         output.step("Verifying storage health...")

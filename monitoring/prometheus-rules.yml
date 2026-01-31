@@ -167,3 +167,9 @@ groups:
 
       - record: hsi:burn_rate:analysis_latency_6h
         expr: (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[6h])) / (1 - 0.95)
+
+  # NOTE: Profiling regression detection rules are defined in:
+  # monitoring/profiling-recording-rules.yml
+  # That file provides comprehensive process-level metrics for:
+  # - job:service_cpu_regression_ratio:5m_vs_24h
+  # - job:service_memory_regression_ratio:current_vs_6h

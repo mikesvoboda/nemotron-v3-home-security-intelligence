@@ -64,9 +64,19 @@ export {
 // These match the backend Pydantic schemas in backend/api/schemas/
 
 // Camera types
-export type Camera = components['schemas']['CameraResponse'];
-export type CameraCreate = components['schemas']['CameraCreate'];
-export type CameraUpdate = components['schemas']['CameraUpdate'];
+// Extend base camera types to include motion_sensitivity field for RTSP cameras (NEM-4259)
+export type Camera = components['schemas']['CameraResponse'] & {
+  /** Motion sensitivity for RTSP cameras (0.0-1.0). Only applicable to RTSP streams. */
+  motion_sensitivity?: number;
+};
+export type CameraCreate = components['schemas']['CameraCreate'] & {
+  /** Motion sensitivity for RTSP cameras (0.0-1.0). Only applicable to RTSP streams. */
+  motion_sensitivity?: number;
+};
+export type CameraUpdate = components['schemas']['CameraUpdate'] & {
+  /** Motion sensitivity for RTSP cameras (0.0-1.0). Only applicable to RTSP streams. */
+  motion_sensitivity?: number;
+};
 export type CameraListResponse = components['schemas']['CameraListResponse'];
 export type CameraValidationInfo = components['schemas']['CameraValidationInfo'];
 export type CameraPathValidationResponse = components['schemas']['CameraPathValidationResponse'];

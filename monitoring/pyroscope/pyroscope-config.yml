@@ -1,5 +1,16 @@
-# Pyroscope 1.4.0 configuration
-# Uses minimal config - most settings are configured via CLI flags
+# Pyroscope 1.18.0 configuration (NEM-3928)
+# Comprehensive retention policy to prevent disk bloat
+#
+# Retention Strategy:
+#   - Detailed profiles: 7 days (168h) - for recent debugging
+#   - Aggregated data: 30 days (720h) - for trend analysis
+#   - Disk safety: 10GB minimum free, 5% minimum free percentage
+#
+# Storage estimates (typical home security workload):
+#   - 7 services profiling at 100Hz sample rate
+#   - ~50-100MB per day per service
+#   - Total: ~350-700MB/day, ~2.5-5GB/week
+#   - With 7-day detailed + 30-day aggregated: ~10-20GB max
 
 # Storage configuration
 storage:
@@ -11,9 +22,53 @@ storage:
 server:
   http_listen_port: 4040
 
-# Compactor configuration (NEM-3443)
-# Set working directory for compactor to prevent "permission denied" errors
-# The compactor needs write access to create data-compactor directory
+# PyroscopeDB retention policy (NEM-3928)
+# Disk-based retention to prevent storage exhaustion
+# Removes oldest blocks when disk space runs low
+pyroscopedb:
+  # How much available disk space to keep in GiB
+  # When free space drops below this, oldest blocks are deleted
+  retention_policy_min_free_disk_gb: 10
+  # Minimum percentage of free disk space to maintain (5%)
+  # Acts as a secondary safety threshold
+  retention_policy_min_disk_available_percentage: 0.05
+  # How often to check and enforce retention policy
+  retention_policy_enforcement_interval: 5m
+  # Maximum duration of a single block before compaction
+  # Smaller blocks = faster compaction, larger = better compression
+  max_block_duration: 3h
+
+# Compactor configuration (NEM-3443, NEM-3928)
+# Compacts multiple blocks into larger, optimized blocks
+# Also handles time-based retention by deleting old blocks
 compactor:
   data_dir: /data/compactor
+  # How often to run compaction
   compaction_interval: 2h
+  # How often to run cleanup and apply retention
+  cleanup_interval: 15m
+  # Delay before permanently deleting marked blocks (safety buffer)
+  deletion_delay: 2h
+  # Enable block cleanup based on retention period
+  block_cleanup_enabled: true
+  # Number of concurrent block openings during compaction
+  max_opening_blocks_concurrency: 4
+  # Number of concurrent block closings during split compaction
+  max_closing_blocks_concurrency: 4
+
+# Limits configuration (NEM-3928)
+# Time-based retention and ingestion rate limits
+limits:
+  # Block retention period: 30 days (720 hours)
+  # Blocks older than this are marked for deletion by compactor
+  # This is the maximum data retention period
+  compactor_blocks_retention_period: 720h
+  # Maximum ingestion rate per tenant (MB/s)
+  # Prevents runaway ingestion from filling disk
+  ingestion_rate_mb: 4
+  # Burst size for ingestion (MB)
+  ingestion_burst_size_mb: 8
+  # Maximum label names per series
+  max_label_names_per_series: 30
+  # Maximum label value length
+  max_label_value_length: 2048

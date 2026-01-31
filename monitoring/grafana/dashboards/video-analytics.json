@@ -579,7 +579,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, hsi_reid_match_duration_seconds_bucket)",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_reid_match_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "P50",
           "refId": "A"
         },
@@ -588,7 +588,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, hsi_reid_match_duration_seconds_bucket)",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_reid_match_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "P95",
           "refId": "B"
         },
@@ -597,7 +597,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, hsi_reid_match_duration_seconds_bucket)",
+          "expr": "histogram_quantile(0.99, sum(rate(hsi_reid_match_duration_seconds_bucket[5m])) by (le))",
           "legendFormat": "P99",
           "refId": "C"
         }
@@ -805,7 +805,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "avg(hsi_track_duration_seconds)",
+          "expr": "rate(hsi_track_duration_seconds_sum[5m]) / rate(hsi_track_duration_seconds_count[5m])",
           "refId": "A"
         }
       ],

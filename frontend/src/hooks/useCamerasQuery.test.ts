@@ -222,6 +222,8 @@ describe('useCameraMutation', () => {
           name: 'New Camera',
           folder_path: '/export/foscam/new_camera',
           status: 'online',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         });
       });
 
@@ -229,6 +231,8 @@ describe('useCameraMutation', () => {
         name: 'New Camera',
         folder_path: '/export/foscam/new_camera',
         status: 'online',
+        ingestion_mode: 'ftp',
+        motion_sensitivity: 0.5,
       });
     });
 
@@ -245,6 +249,8 @@ describe('useCameraMutation', () => {
           name: 'New Camera',
           folder_path: '/export/foscam/new_camera',
           status: 'online',
+          ingestion_mode: 'ftp',
+          motion_sensitivity: 0.5,
         });
       });
 

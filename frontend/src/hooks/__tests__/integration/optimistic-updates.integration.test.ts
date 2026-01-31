@@ -47,6 +47,8 @@ describe('Optimistic Updates Integration', () => {
       status: 'online',
       last_seen_at: '2025-01-09T10:00:00Z',
       created_at: '2025-01-01T00:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
     {
       id: 'cam-2',
@@ -55,6 +57,8 @@ describe('Optimistic Updates Integration', () => {
       status: 'online',
       last_seen_at: '2025-01-09T10:00:00Z',
       created_at: '2025-01-01T00:00:00Z',
+      ingestion_mode: 'ftp',
+      motion_sensitivity: 0.5,
     },
   ];
 
@@ -389,8 +393,13 @@ describe('Optimistic Updates Integration', () => {
       const queryClient = useQueryClient();
 
       return useMutation({
-        mutationFn: (data: { name: string; folder_path: string; status: Camera['status'] }) =>
-          api.createCamera(data),
+        mutationFn: (data: {
+          name: string;
+          folder_path: string;
+          status: Camera['status'];
+          ingestion_mode: 'ftp' | 'rtsp' | 'onvif';
+          motion_sensitivity: number;
+        }) => api.createCamera(data),
 
         onMutate: async (newCamera) => {
           await queryClient.cancelQueries({ queryKey: queryKeys.cameras.all });
@@ -405,6 +414,8 @@ describe('Optimistic Updates Integration', () => {
             status: newCamera.status,
             last_seen_at: null,
             created_at: new Date().toISOString(),
+            ingestion_mode: 'ftp',
+            motion_sensitivity: 0.5,
           };
 
           queryClient.setQueryData<Camera[]>(queryKeys.cameras.list(), (old) => [
@@ -463,6 +474,8 @@ describe('Optimistic Updates Integration', () => {
             name: 'New Camera',
             folder_path: '/export/foscam/new_camera',
             status: 'online' as const,
+            ingestion_mode: 'ftp',
+            motion_sensitivity: 0.5,
           });
         } catch {
           // Expected to fail

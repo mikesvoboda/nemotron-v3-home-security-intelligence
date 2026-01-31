@@ -739,7 +739,7 @@ class TestAnalyzeBatchStreaming:
         # Mock camera lookup
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -781,7 +781,7 @@ class TestAnalyzeBatchStreaming:
 
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -821,7 +821,7 @@ class TestAnalyzeBatchStreaming:
 
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -861,7 +861,7 @@ class TestAnalyzeBatchStreaming:
         from backend.models.camera import Camera
         from backend.models.event import Event
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -946,7 +946,7 @@ class TestAnalyzeBatchStreaming:
 
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -1023,7 +1023,7 @@ class TestAnalyzeBatchStreaming:
 
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -1090,7 +1090,7 @@ class TestAnalyzeBatchStreaming:
 
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 
@@ -1158,7 +1158,7 @@ class TestAnalyzeBatchStreaming:
 
         from backend.models.camera import Camera
 
-        mock_camera = Camera(id="test_camera", name="Test Camera")
+        mock_camera = Camera(id="test_camera", name="Test Camera", folder_path="/test/path")
         mock_camera_result = MagicMock()
         mock_camera_result.scalar_one_or_none = MagicMock(return_value=mock_camera)
 

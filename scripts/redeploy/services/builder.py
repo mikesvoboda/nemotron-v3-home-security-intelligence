@@ -28,7 +28,7 @@ class ImageBuilder:
     # Mapping of AI service to Dockerfile location
     AI_DOCKERFILES: ClassVar[dict[str, str]] = {
         "ai-yolo26": "ai/yolo26/Dockerfile",
-        "ai-llm": "ai/llm/Dockerfile",
+        "ai-llm": "ai/nemotron/Dockerfile",  # ai-llm builds from nemotron
         "ai-florence": "ai/florence/Dockerfile",
         "ai-clip": "ai/clip/Dockerfile",
         "ai-enrichment": "ai/enrichment/Dockerfile",
@@ -69,7 +69,7 @@ class ImageBuilder:
         success = self.runtime.build(
             context=self.config.project_root,
             tag="ghcr.io/mikesvoboda/nemotron-base:latest",
-            file=self.config.project_root / "Dockerfile.base",
+            file=self.config.project_root / "docker" / "base.Dockerfile",
             no_cache=True,
         )
 
@@ -295,6 +295,85 @@ class ImageBuilder:
             BuildResult for the service
         """
         return await self._build_ai_service(service)
+
+    async def build_ai_with_yolo26_callback(
+        self,
+        on_yolo26_complete: asyncio.Future[BuildResult] | None = None,
+    ) -> dict[str, BuildResult]:
+        """Build AI images with early notification when ai-yolo26 completes.
+
+        This allows TensorRT engine build to start immediately after ai-yolo26
+        finishes, running in parallel with the other AI builds.
+
+        Args:
+            on_yolo26_complete: Optional future to set when ai-yolo26 build completes
+
+        Returns:
+            Dict of service -> BuildResult
+        """
+        output.header("Building AI Images (parallel)")
+
+        if self.config.dry_run:
+            output.dry_run("Would build AI images in parallel")
+            if on_yolo26_complete:
+                on_yolo26_complete.set_result(
+                    BuildResult(service="ai-yolo26", status=BuildStatus.SKIPPED, duration=0.0)
+                )
+            return {
+                svc: BuildResult(service=svc, status=BuildStatus.SKIPPED, duration=0.0)
+                for svc in self.AI_SERVICES
+            }
+
+        output.step(f"Starting parallel builds for {len(self.AI_SERVICES)} AI services...")
+
+        # Create individual tasks for each service
+        tasks: dict[str, asyncio.Task[BuildResult]] = {}
+        for service in self.AI_SERVICES:
+            tasks[service] = asyncio.create_task(
+                self._build_ai_service(service),
+                name=f"build-{service}",
+            )
+
+        # If we have a callback for yolo26, wait for it specifically first
+        if on_yolo26_complete and "ai-yolo26" in tasks:
+            yolo26_task = tasks["ai-yolo26"]
+            try:
+                result = await yolo26_task
+                on_yolo26_complete.set_result(result)
+            except Exception as e:
+                on_yolo26_complete.set_exception(e)
+
+        # Wait for all remaining tasks
+        build_results: dict[str, BuildResult] = {}
+        all_success = True
+
+        for service, task in tasks.items():
+            try:
+                result = await task
+                build_results[service] = result
+                if not result.success:
+                    all_success = False
+            except Exception as e:
+                build_results[service] = BuildResult(
+                    service=service,
+                    status=BuildStatus.FAILED,
+                    duration=0.0,
+                    error=str(e),
+                )
+                all_success = False
+
+        # Print summary
+        output.build_summary(
+            {svc: (r.status.value, r.duration) for svc, r in build_results.items()}
+        )
+
+        if all_success:
+            output.success("All AI images built")
+        else:
+            failed = [s for s, r in build_results.items() if not r.success]
+            output.fail(f"Some AI builds failed: {failed}")
+
+        return build_results
 
     # =========================================================================
     # Full build pipeline

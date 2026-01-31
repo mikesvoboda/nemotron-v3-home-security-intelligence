@@ -13035,8 +13035,17 @@ export interface components {
          *     NEM-2569: Enhanced with explicit Pydantic validators for:
          *     - Name: Control character rejection, whitespace stripping, empty validation
          *     - Folder path: Path traversal prevention, forbidden character rejection
+         *
+         *     NEM-4191: Added RTSP/ONVIF streaming fields:
+         *     - ingestion_mode: How images are acquired (ftp, rtsp, onvif)
+         *     - rtsp_url: RTSP stream URL
+         *     - rtsp_username/rtsp_password: RTSP credentials
+         *     - stream_profile: Which stream profile to use (main, sub, both)
+         *     - motion_sensitivity: Motion detection sensitivity (0.0-1.0)
          * @example {
          *       "folder_path": "/export/foscam/front_door",
+         *       "ingestion_mode": "ftp",
+         *       "motion_sensitivity": 0.5,
          *       "name": "Front Door Camera",
          *       "status": "online"
          *     }
@@ -13048,15 +13057,48 @@ export interface components {
              */
             folder_path: string;
             /**
+             * Ingestion Mode
+             * @description Camera ingestion mode (ftp, rtsp, onvif)
+             * @default ftp
+             * @enum {string}
+             */
+            ingestion_mode: "ftp" | "rtsp" | "onvif";
+            /**
+             * Motion Sensitivity
+             * @description Motion detection sensitivity (0.0-1.0)
+             * @default 0.5
+             */
+            motion_sensitivity: number;
+            /**
              * Name
              * @description Camera name
              */
             name: string;
             /**
+             * Rtsp Password
+             * @description RTSP authentication password
+             */
+            rtsp_password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP stream URL (rtsp:// or rtsps://)
+             */
+            rtsp_url?: string | null;
+            /**
+             * Rtsp Username
+             * @description RTSP authentication username
+             */
+            rtsp_username?: string | null;
+            /**
              * @description Camera status (online, offline, error, unknown)
              * @default online
              */
             status: components["schemas"]["CameraStatus"];
+            /**
+             * Stream Profile
+             * @description Stream profile to use (main, sub, both)
+             */
+            stream_profile?: ("main" | "sub" | "both") | null;
         };
         /**
          * CameraLinkRequest
@@ -13290,6 +13332,7 @@ export interface components {
          * @description Schema for camera response.
          *
          *     NEM-3597: Added property_id and areas fields to expose camera relationships.
+         *     NEM-4191: Added RTSP/ONVIF streaming fields.
          * @example {
          *       "areas": [
          *         {
@@ -13300,7 +13343,9 @@ export interface components {
          *       "created_at": "2025-12-23T10:00:00Z",
          *       "folder_path": "/export/foscam/front_door",
          *       "id": "front_door",
+         *       "ingestion_mode": "ftp",
          *       "last_seen_at": "2025-12-23T12:00:00Z",
+         *       "motion_sensitivity": 0.5,
          *       "name": "Front Door Camera",
          *       "property_id": 1,
          *       "status": "online"
@@ -13329,10 +13374,22 @@ export interface components {
              */
             id: string;
             /**
+             * Ingestion Mode
+             * @description Camera ingestion mode (ftp, rtsp, onvif)
+             * @default ftp
+             */
+            ingestion_mode: string;
+            /**
              * Last Seen At
              * @description Last time camera was active
              */
             last_seen_at?: string | null;
+            /**
+             * Motion Sensitivity
+             * @description Motion detection sensitivity (0.0-1.0)
+             * @default 0.5
+             */
+            motion_sensitivity: number;
             /**
              * Name
              * @description Camera name
@@ -13343,8 +13400,28 @@ export interface components {
              * @description ID of the property this camera belongs to
              */
             property_id?: number | null;
+            /**
+             * Rtsp Password
+             * @description RTSP authentication password
+             */
+            rtsp_password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP stream URL (rtsp:// or rtsps://)
+             */
+            rtsp_url?: string | null;
+            /**
+             * Rtsp Username
+             * @description RTSP authentication username
+             */
+            rtsp_username?: string | null;
             /** @description Camera status (online, offline, error, unknown) */
             status: components["schemas"]["CameraStatus"];
+            /**
+             * Stream Profile
+             * @description Stream profile to use (main, sub, both)
+             */
+            stream_profile?: string | null;
         };
         /**
          * CameraStatus
@@ -13364,8 +13441,12 @@ export interface components {
          *
          *     NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
          *     All fields are optional; only provided fields are validated.
+         *
+         *     NEM-4191: Added RTSP/ONVIF streaming fields for partial updates.
          * @example {
+         *       "ingestion_mode": "rtsp",
          *       "name": "Front Door Camera - Updated",
+         *       "rtsp_url": "rtsp://192.168.1.100:554/stream1",
          *       "status": "offline"
          *     }
          */
@@ -13376,12 +13457,42 @@ export interface components {
              */
             folder_path?: string | null;
             /**
+             * Ingestion Mode
+             * @description Camera ingestion mode (ftp, rtsp, onvif)
+             */
+            ingestion_mode?: ("ftp" | "rtsp" | "onvif") | null;
+            /**
+             * Motion Sensitivity
+             * @description Motion detection sensitivity (0.0-1.0)
+             */
+            motion_sensitivity?: number | null;
+            /**
              * Name
              * @description Camera name
              */
             name?: string | null;
+            /**
+             * Rtsp Password
+             * @description RTSP authentication password
+             */
+            rtsp_password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP stream URL (rtsp:// or rtsps://)
+             */
+            rtsp_url?: string | null;
+            /**
+             * Rtsp Username
+             * @description RTSP authentication username
+             */
+            rtsp_username?: string | null;
             /** @description Camera status (online, offline, error, unknown) */
             status?: components["schemas"]["CameraStatus"] | null;
+            /**
+             * Stream Profile
+             * @description Stream profile to use (main, sub, both)
+             */
+            stream_profile?: ("main" | "sub" | "both") | null;
         };
         /**
          * CameraUptimeDataPoint

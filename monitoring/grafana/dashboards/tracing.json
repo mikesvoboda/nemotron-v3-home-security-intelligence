@@ -1,17 +1,555 @@
 {
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
   },
+  "description": "Distributed tracing dashboard for HSI AI pipeline with Jaeger integration",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
-  "links": [],
-  "liveNow": false,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": true,
+      "title": "Jaeger UI",
+      "tooltip": "Open Jaeger UI for advanced trace analysis",
+      "type": "link",
+      "url": "http://localhost:16686"
+    }
+  ],
+  "liveNow": true,
   "panels": [
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 200,
+      "panels": [],
+      "title": "Service Tracing Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "description": "Guide to understanding the distributed tracing panels",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 1 },
+      "id": 201,
+      "options": {
+        "code": { "language": "markdown", "showLineNumbers": false },
+        "content": "### Distributed Tracing Guide\n**Trace Count**: Number of traces captured per service. Higher counts indicate more activity. | **Avg Duration**: Mean trace duration - helps identify slow services. Target: <1s for API calls, <30s for AI inference. | **Error Rate**: Percentage of traces with errors. Target: <1%. | **Slowest Endpoints**: Operations taking longest - prioritize optimization here.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Total number of traces (requests) processed by each service in the selected time range",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Traces/min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+      "id": 202,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "sum by (service) (rate(http_request_duration_seconds_count[5m]) * 60)",
+          "legendFormat": "{{service}}",
+          "range": true,
+          "refId": "backend"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "sum(rate(yolo26_inference_requests_total[5m]) * 60)",
+          "legendFormat": "yolo26",
+          "range": true,
+          "refId": "yolo26"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "sum(rate(florence_inference_requests_total[5m]) * 60)",
+          "legendFormat": "florence",
+          "range": true,
+          "refId": "florence"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "sum(rate(clip_inference_requests_total[5m]) * 60)",
+          "legendFormat": "clip",
+          "range": true,
+          "refId": "clip"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "sum(rate(enrichment_inference_requests_total[5m]) * 60)",
+          "legendFormat": "enrichment",
+          "range": true,
+          "refId": "enrichment"
+        }
+      ],
+      "title": "Trace Count by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Average request/trace duration by service (p50). Lower is better.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Duration",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+      "id": 203,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "backend",
+          "range": true,
+          "refId": "backend"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(yolo26_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "yolo26",
+          "range": true,
+          "refId": "yolo26"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(florence_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "florence",
+          "range": true,
+          "refId": "florence"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(clip_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "clip",
+          "range": true,
+          "refId": "clip"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(enrichment_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "enrichment",
+          "range": true,
+          "refId": "enrichment"
+        }
+      ],
+      "title": "Avg Trace Duration by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Error rate by service calculated from failed requests. Target: <1%",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Error Rate",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "id": 204,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "100 * sum(rate(http_request_duration_seconds_count{status=~\"5..\"}[5m])) / sum(rate(http_request_duration_seconds_count[5m]))",
+          "legendFormat": "backend",
+          "range": true,
+          "refId": "backend"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "100 * sum(rate(yolo26_inference_requests_total{status=\"error\"}[5m])) / sum(rate(yolo26_inference_requests_total[5m]))",
+          "legendFormat": "yolo26",
+          "range": true,
+          "refId": "yolo26"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "100 * sum(rate(florence_inference_requests_total{status=\"error\"}[5m])) / sum(rate(florence_inference_requests_total[5m]))",
+          "legendFormat": "florence",
+          "range": true,
+          "refId": "florence"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "100 * sum(rate(clip_inference_requests_total{status=\"error\"}[5m])) / sum(rate(clip_inference_requests_total[5m]))",
+          "legendFormat": "clip",
+          "range": true,
+          "refId": "clip"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "100 * sum(rate(enrichment_inference_requests_total{status=\"error\"}[5m])) / sum(rate(enrichment_inference_requests_total[5m]))",
+          "legendFormat": "enrichment",
+          "range": true,
+          "refId": "enrichment"
+        }
+      ],
+      "title": "Error Rate by Service (from Traces)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "id": 210,
+      "panels": [],
+      "title": "Span Distribution & Slowest Endpoints",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Distribution of request counts across different endpoints/operations",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": [],
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 13 },
+      "id": 211,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": ["value", "percent"]
+        },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "sum by (endpoint) (increase(http_request_duration_seconds_count[1h]))",
+          "legendFormat": "{{endpoint}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Span Count Distribution by Endpoint",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "P95 latency by endpoint - identifies the slowest operations for optimization",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "color-background", "mode": "gradient" },
+            "filterable": true,
+            "inspect": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Endpoint" },
+            "properties": [
+              { "id": "custom.width", "value": 250 },
+              { "id": "custom.cellOptions", "value": { "type": "auto" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 13 },
+      "id": 212,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "P95 Latency" }]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (endpoint, le) (rate(http_request_duration_seconds_bucket[5m]))))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ],
+      "title": "Top Slowest Endpoints (P95)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": {},
+            "renameByName": { "Value": "P95 Latency", "endpoint": "Endpoint" }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "AI service latency comparison showing P50, P95, P99 percentiles",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 13 },
+      "id": 213,
+      "options": {
+        "barRadius": 0.1,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(yolo26_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "YOLO26 P95",
+          "range": true,
+          "refId": "yolo"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(florence_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "Florence P95",
+          "range": true,
+          "refId": "florence"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(clip_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "CLIP P95",
+          "range": true,
+          "refId": "clip"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(enrichment_inference_latency_seconds_bucket[5m])))",
+          "legendFormat": "Enrichment P95",
+          "range": true,
+          "refId": "enrichment"
+        }
+      ],
+      "title": "AI Service Latency Comparison",
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
       "id": 100,
       "panels": [],
       "title": "Recent Pipeline Traces",
@@ -19,13 +557,13 @@
     },
     {
       "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "Full pipeline analysis traces showing detection → enrichment → LLM analysis",
+      "description": "Full pipeline analysis traces showing detection to enrichment to LLM analysis flow",
       "fieldConfig": {
         "defaults": {
           "custom": {
             "align": "auto",
             "cellOptions": { "type": "auto" },
-            "inspect": false
+            "inspect": true
           },
           "mappings": [],
           "thresholds": {
@@ -37,7 +575,7 @@
           {
             "matcher": { "id": "byName", "options": "duration" },
             "properties": [
-              { "id": "unit", "value": "µs" },
+              { "id": "unit", "value": "us" },
               { "id": "custom.cellOptions", "value": { "type": "color-text" } },
               {
                 "id": "thresholds",
@@ -51,17 +589,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View in Jaeger",
+                    "url": "http://localhost:16686/trace/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 1 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 22 },
       "id": 1,
       "options": {
         "cellHeight": "sm",
         "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "startTime" }]
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "datasource": { "type": "jaeger", "uid": "jaeger" },
@@ -77,7 +631,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 11 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
       "id": 101,
       "panels": [],
       "title": "Detection Traces",
@@ -85,13 +639,13 @@
     },
     {
       "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "Object detection traces from YOLO26",
+      "description": "Object detection traces from YOLO26 - click traceID to view in Jaeger",
       "fieldConfig": {
         "defaults": {
           "custom": {
             "align": "auto",
             "cellOptions": { "type": "auto" },
-            "inspect": false
+            "inspect": true
           },
           "mappings": [],
           "thresholds": {
@@ -103,7 +657,7 @@
           {
             "matcher": { "id": "byName", "options": "duration" },
             "properties": [
-              { "id": "unit", "value": "µs" },
+              { "id": "unit", "value": "us" },
               { "id": "custom.cellOptions", "value": { "type": "color-text" } },
               {
                 "id": "thresholds",
@@ -117,17 +671,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View in Jaeger",
+                    "url": "http://localhost:16686/trace/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
       "id": 2,
       "options": {
         "cellHeight": "sm",
         "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "startTime" }]
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "datasource": { "type": "jaeger", "uid": "jaeger" },
@@ -143,13 +713,13 @@
     },
     {
       "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "LLM inference traces from Nemotron",
+      "description": "LLM inference traces from Nemotron - click traceID to view in Jaeger",
       "fieldConfig": {
         "defaults": {
           "custom": {
             "align": "auto",
             "cellOptions": { "type": "auto" },
-            "inspect": false
+            "inspect": true
           },
           "mappings": [],
           "thresholds": {
@@ -161,7 +731,7 @@
           {
             "matcher": { "id": "byName", "options": "duration" },
             "properties": [
-              { "id": "unit", "value": "µs" },
+              { "id": "unit", "value": "us" },
               { "id": "custom.cellOptions", "value": { "type": "color-text" } },
               {
                 "id": "thresholds",
@@ -175,17 +745,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View in Jaeger",
+                    "url": "http://localhost:16686/trace/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
       "id": 3,
       "options": {
         "cellHeight": "sm",
         "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "startTime" }]
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "datasource": { "type": "jaeger", "uid": "jaeger" },
@@ -201,7 +787,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
       "id": 102,
       "panels": [],
       "title": "Error Traces",
@@ -209,13 +795,13 @@
     },
     {
       "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "Traces with error=true tag",
+      "description": "Traces with error=true tag - these require investigation",
       "fieldConfig": {
         "defaults": {
           "custom": {
             "align": "auto",
             "cellOptions": { "type": "auto" },
-            "inspect": false
+            "inspect": true
           },
           "mappings": [],
           "thresholds": {
@@ -226,18 +812,34 @@
         "overrides": [
           {
             "matcher": { "id": "byName", "options": "duration" },
-            "properties": [{ "id": "unit", "value": "µs" }]
+            "properties": [{ "id": "unit", "value": "us" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View in Jaeger",
+                    "url": "http://localhost:16686/trace/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 42 },
       "id": 4,
       "options": {
         "cellHeight": "sm",
         "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "startTime" }]
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "datasource": { "type": "jaeger", "uid": "jaeger" },
@@ -253,7 +855,39 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
+      "id": 220,
+      "panels": [],
+      "title": "Service Dependency Graph",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "jaeger", "uid": "jaeger" },
+      "description": "Service dependency graph showing how services communicate. Click nodes to explore traces.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 51 },
+      "id": 221,
+      "options": {
+        "nodes": {
+          "mainStatUnit": "ms"
+        },
+        "edges": {
+          "mainStatUnit": "r/s"
+        }
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": { "type": "jaeger", "uid": "jaeger" },
+          "queryType": "dependencyGraph",
+          "refId": "A"
+        }
+      ],
+      "title": "Service Dependency Graph",
+      "type": "nodeGraph"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
       "id": 103,
       "panels": [],
       "title": "All Recent Traces",
@@ -261,13 +895,13 @@
     },
     {
       "datasource": { "type": "jaeger", "uid": "jaeger" },
-      "description": "All recent traces from the backend service",
+      "description": "All recent traces from the backend service - click traceID to view details in Jaeger",
       "fieldConfig": {
         "defaults": {
           "custom": {
             "align": "auto",
             "cellOptions": { "type": "auto" },
-            "inspect": false
+            "inspect": true
           },
           "mappings": [],
           "thresholds": {
@@ -279,7 +913,7 @@
           {
             "matcher": { "id": "byName", "options": "duration" },
             "properties": [
-              { "id": "unit", "value": "µs" },
+              { "id": "unit", "value": "us" },
               { "id": "custom.cellOptions", "value": { "type": "color-text" } },
               {
                 "id": "thresholds",
@@ -293,17 +927,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "traceID" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View in Jaeger",
+                    "url": "http://localhost:16686/trace/${__value.raw}",
+                    "targetBlank": true
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 30 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 62 },
       "id": 5,
       "options": {
         "cellHeight": "sm",
         "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "startTime" }]
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "datasource": { "type": "jaeger", "uid": "jaeger" },
@@ -320,13 +970,42 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["tracing", "jaeger", "hsi"],
-  "templating": { "list": [] },
+  "tags": ["tracing", "jaeger", "hsi", "distributed-tracing"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "nemotron-backend",
+          "value": "nemotron-backend"
+        },
+        "description": "Service to filter traces",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Service",
+        "multi": false,
+        "name": "service",
+        "options": [
+          { "selected": true, "text": "nemotron-backend", "value": "nemotron-backend" },
+          { "selected": false, "text": "yolo26", "value": "yolo26" },
+          { "selected": false, "text": "florence", "value": "florence" },
+          { "selected": false, "text": "clip", "value": "clip" },
+          { "selected": false, "text": "enrichment", "value": "enrichment" }
+        ],
+        "query": "nemotron-backend,yolo26,florence,clip,enrichment",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
   "time": { "from": "now-1h", "to": "now" },
-  "timepicker": {},
-  "timezone": "",
+  "timepicker": {
+    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d"]
+  },
+  "timezone": "browser",
   "title": "HSI Distributed Tracing",
   "uid": "hsi-tracing",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

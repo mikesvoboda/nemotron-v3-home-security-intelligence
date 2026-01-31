@@ -40,8 +40,29 @@ monitoring/
   prometheus-rules.yml         # Prometheus recording rules
   prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
   pyroscope/                   # Pyroscope continuous profiling configuration
-    pyroscope-config.yml       # Pyroscope server configuration
+    pyroscope-config.yml       # Pyroscope server configuration (NEM-3928: retention policy)
+    Dockerfile                 # Custom Pyroscope image with health check tools
 ```
+
+### pyroscope-config.yml (NEM-3928)
+
+**Purpose:** Pyroscope server configuration with comprehensive retention policy to prevent disk bloat.
+
+**Retention Settings:**
+
+| Setting                                                      | Value | Description                                     |
+| ------------------------------------------------------------ | ----- | ----------------------------------------------- |
+| `limits.compactor_blocks_retention_period`                   | 720h  | Maximum block age (30 days)                     |
+| `pyroscopedb.retention_policy_min_free_disk_gb`              | 10 GB | Delete oldest blocks when free space below this |
+| `pyroscopedb.retention_policy_min_disk_available_percentage` | 5%    | Secondary disk space threshold                  |
+| `compactor.cleanup_interval`                                 | 15m   | How often retention is enforced                 |
+| `compactor.compaction_interval`                              | 2h    | How often blocks are compacted                  |
+
+**Storage Estimates:**
+
+- Per day: ~350-700 MB (7 services at 100Hz)
+- Per week: ~2.5-5 GB
+- 30 days max: ~10-20 GB
 
 ## Key Files
 

@@ -77,6 +77,14 @@ class TestListCameras:
         mock_camera.status = "online"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(2025, 1, 8, 12, 0, tzinfo=UTC)
+        mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_camera]
@@ -109,6 +117,14 @@ class TestListCameras:
         mock_camera.status = "online"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(2025, 1, 8, 12, 0, tzinfo=UTC)
+        mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_camera]
@@ -159,6 +175,14 @@ class TestListCameras:
         mock_camera.status = "offline"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = None
+        mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_camera]
@@ -190,6 +214,14 @@ class TestListCameras:
         mock_camera.status = "online"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(2025, 1, 8, 12, 0, tzinfo=UTC)
+        mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_camera]
@@ -222,6 +254,13 @@ class TestGetCamera:
         mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         with patch("backend.api.routes.cameras.get_camera_or_404", return_value=mock_camera):
             result = await get_camera("front_door", db=mock_db)
@@ -517,6 +556,13 @@ class TestUpdateCamera:
         mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
@@ -595,6 +641,13 @@ class TestUpdateCamera:
         mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
@@ -639,6 +692,13 @@ class TestUpdateCamera:
         mock_camera.created_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(1970, 1, 1, 0, 0, 1, tzinfo=UTC)
         mock_camera.property_id = 1
+        # RTSP/ONVIF fields (NEM-4191)
+        mock_camera.ingestion_mode = "ftp"
+        mock_camera.rtsp_url = None
+        mock_camera.rtsp_username = None
+        mock_camera.rtsp_password = None
+        mock_camera.stream_profile = None
+        mock_camera.motion_sensitivity = 0.5
 
         mock_db.commit = AsyncMock()
         mock_db.rollback = AsyncMock()

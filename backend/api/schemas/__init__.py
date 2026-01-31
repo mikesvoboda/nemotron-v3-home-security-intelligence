@@ -254,6 +254,15 @@ from .notification import (
     TestNotificationResponse,
 )
 
+# ONVIF schemas (NEM-4207)
+from .onvif import (
+    OnvifDeviceConfig,
+    OnvifDiscoveryRequest,
+    OnvifDiscoveryResult,
+    PTZCommand,
+    PTZPreset,
+)
+
 # OpenAPI customization utilities (NEM-3780)
 from .openapi_customization import (
     OpenAPISchemaConfig,
@@ -561,6 +570,12 @@ __all__ = [  # noqa: RUF022
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
+    # ONVIF schemas (NEM-4207)
+    "OnvifDeviceConfig",
+    "OnvifDiscoveryRequest",
+    "OnvifDiscoveryResult",
+    "PTZCommand",
+    "PTZPreset",
     # Pagination schemas (NEM-3431)
     "PaginatedResponse",
     "PaginationParams",

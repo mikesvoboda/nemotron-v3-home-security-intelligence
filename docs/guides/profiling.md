@@ -173,14 +173,53 @@ ai-yolo26:
     - PYROSCOPE_ENABLED=false
 ```
 
-### Retention
+### Retention (NEM-3928)
 
-Profiling data retention is configured in the Pyroscope server:
+Profiling data retention is configured in the Pyroscope server to prevent disk bloat while maintaining useful historical data:
 
-| Setting          | Default    | Description                   |
-| ---------------- | ---------- | ----------------------------- |
-| Retention Period | 15 days    | How long profile data is kept |
-| Resolution       | 10 seconds | Profile sampling interval     |
+| Setting                        | Value   | Description                                      |
+| ------------------------------ | ------- | ------------------------------------------------ |
+| Block Retention Period         | 30 days | Maximum time profile blocks are kept             |
+| Min Free Disk (GB)             | 10 GB   | Oldest blocks deleted when free space below this |
+| Min Free Disk (%)              | 5%      | Secondary threshold for disk space safety        |
+| Retention Enforcement Interval | 5 min   | How often disk usage is checked                  |
+| Compaction Interval            | 2 hours | How often blocks are compacted                   |
+| Block Cleanup Interval         | 15 min  | How often retention cleanup runs                 |
+| Max Block Duration             | 3 hours | Maximum duration of a single block               |
+
+**Storage Estimates** (typical workload with 7 profiled services at 100Hz):
+
+| Timeframe | Estimated Storage |
+| --------- | ----------------- |
+| Per day   | 350-700 MB        |
+| Per week  | 2.5-5 GB          |
+| 30 days   | 10-20 GB          |
+
+**How Retention Works:**
+
+1. **Time-based:** The compactor deletes blocks older than 30 days (`compactor_blocks_retention_period: 720h`)
+2. **Disk-based:** When free disk space drops below 10GB or 5%, the oldest blocks are automatically deleted regardless of age
+3. **Compaction:** Multiple small blocks are merged into optimized larger blocks every 2 hours, reducing storage overhead
+
+**Tuning Retention:**
+
+To reduce disk usage, edit `monitoring/pyroscope/pyroscope-config.yml`:
+
+```yaml
+# Reduce retention from 30 days to 7 days
+limits:
+  compactor_blocks_retention_period: 168h # 7 days
+
+# Increase minimum free disk threshold
+pyroscopedb:
+  retention_policy_min_free_disk_gb: 20
+```
+
+After changing configuration, restart Pyroscope:
+
+```bash
+podman-compose -f docker-compose.prod.yml restart pyroscope
+```
 
 ## Common Use Cases
 

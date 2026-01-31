@@ -758,7 +758,7 @@ describe('NotificationSettings - Threshold Conflict Detection', () => {
     // Mock cameras
     const { useCamerasQuery } = await import('../../hooks/useCamerasQuery');
     vi.mocked(useCamerasQuery).mockReturnValue({
-      cameras: [{ id: 'front_door', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z' }],
+      cameras: [{ id: 'front_door', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z', ingestion_mode: 'ftp', motion_sensitivity: 0.5 }],
       isLoading: false,
       isRefetching: false,
       isPlaceholderData: false,
@@ -790,7 +790,7 @@ describe('NotificationSettings - Threshold Conflict Detection', () => {
     // Mock cameras
     const { useCamerasQuery } = await import('../../hooks/useCamerasQuery');
     vi.mocked(useCamerasQuery).mockReturnValue({
-      cameras: [{ id: 'front_door', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z' }],
+      cameras: [{ id: 'front_door', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z', ingestion_mode: 'ftp', motion_sensitivity: 0.5 }],
       isLoading: false,
       isRefetching: false,
       isPlaceholderData: false,

@@ -495,7 +495,7 @@ podman logs backend 2>&1 | grep -i "pyroscope profiling initialized"
 
 ---
 
-### INC-PROF-004: Pyroscope Storage Full
+### INC-PROF-004: Pyroscope Storage Full (NEM-3928)
 
 **Symptoms:**
 
@@ -512,27 +512,58 @@ podman volume inspect pyroscope_data
 # Check container disk usage
 podman exec pyroscope df -h /data
 
-# Check retention settings
-podman exec pyroscope cat /etc/pyroscope/server.yml
+# Check retention settings (NEM-3928)
+podman exec pyroscope cat /etc/pyroscope/config.yml
+
+# Check compactor status
+podman logs pyroscope 2>&1 | grep -i "compactor\|retention\|cleanup"
 ```
+
+**Retention Configuration (NEM-3928):**
+
+The Pyroscope retention policy is configured in `monitoring/pyroscope/pyroscope-config.yml`:
+
+| Setting                                                      | Value | Description                                     |
+| ------------------------------------------------------------ | ----- | ----------------------------------------------- |
+| `limits.compactor_blocks_retention_period`                   | 720h  | Maximum block age (30 days)                     |
+| `pyroscopedb.retention_policy_min_free_disk_gb`              | 10 GB | Delete oldest blocks when free space below this |
+| `pyroscopedb.retention_policy_min_disk_available_percentage` | 5%    | Secondary disk space threshold                  |
+| `compactor.cleanup_interval`                                 | 15m   | How often retention is enforced                 |
+| `compactor.deletion_delay`                                   | 2h    | Delay before permanent deletion                 |
 
 **Resolution:**
 
 ```bash
-# Reduce retention period (requires config change)
-# Edit monitoring/pyroscope/pyroscope-config.yml
-# Set retention-period to a lower value (e.g., 7d)
+# Option 1: Wait for automatic cleanup (recommended)
+# The compactor runs every 15 minutes and will delete old blocks
+# when disk space drops below thresholds. Check logs:
+podman logs pyroscope 2>&1 | grep -i "deleting\|cleanup\|retention"
 
-# Recreate Pyroscope with new config
-podman-compose -f docker-compose.prod.yml up -d --force-recreate pyroscope
+# Option 2: Reduce retention period for faster cleanup
+# Edit monitoring/pyroscope/pyroscope-config.yml:
+# Change: compactor_blocks_retention_period: 720h
+# To:     compactor_blocks_retention_period: 168h  # 7 days
 
-# If urgent, clear old data
+# Restart Pyroscope to apply new config
+podman-compose -f docker-compose.prod.yml restart pyroscope
+
+# Option 3: Force immediate compaction
+# Trigger a compaction cycle by restarting Pyroscope
+podman-compose -f docker-compose.prod.yml restart pyroscope
+
+# Option 4: If urgent, clear all data (last resort)
 podman-compose -f docker-compose.prod.yml stop pyroscope
 podman volume rm pyroscope_data  # WARNING: Deletes all profiling history
 podman-compose -f docker-compose.prod.yml up -d pyroscope
 ```
 
-**Impact:** Reduced historical data but prevents service disruption.
+**Prevention:**
+
+- Monitor Pyroscope disk usage with the "Storage growth per day" metric
+- Alert when disk usage exceeds 80% of expected maximum (~16GB for 30-day retention)
+- Consider reducing `compactor_blocks_retention_period` for disk-constrained environments
+
+**Impact:** Automatic retention prevents disk exhaustion. Manual intervention only needed if retention policy is insufficient for workload.
 
 ---
 
@@ -701,13 +732,14 @@ done
 
 ## Performance Baselines
 
-| Metric                        | Expected | Alert Threshold |
-| ----------------------------- | -------- | --------------- |
-| Pyroscope CPU usage           | < 5%     | > 10%           |
-| Pyroscope memory usage        | < 500MB  | > 1GB           |
-| Profile push latency          | < 1s     | > 5s            |
-| Profiler overhead per service | 1-3%     | > 5%            |
-| Storage growth per day        | ~100MB   | > 500MB         |
+| Metric                        | Expected   | Alert Threshold |
+| ----------------------------- | ---------- | --------------- |
+| Pyroscope CPU usage           | < 5%       | > 10%           |
+| Pyroscope memory usage        | < 500MB    | > 1GB           |
+| Profile push latency          | < 1s       | > 5s            |
+| Profiler overhead per service | 1-3%       | > 5%            |
+| Storage growth per day        | ~350-700MB | > 1GB           |
+| Total storage (30-day)        | ~10-20GB   | > 30GB          |
 
 ---
 
@@ -724,25 +756,58 @@ done
 
 ## Appendix: Configuration Files
 
-### Pyroscope Server Configuration
+### Pyroscope Server Configuration (NEM-3928)
 
 Location: `monitoring/pyroscope/pyroscope-config.yml`
 
 ```yaml
-# Default Pyroscope configuration
-analytics-opt-out: true
+# Pyroscope 1.18.0 configuration (NEM-3928)
+# Comprehensive retention policy to prevent disk bloat
 
 # Storage configuration
 storage:
-  path: /data
-
-# Retention (15 days default)
-retention-period: 15d
+  backend: filesystem
+  filesystem:
+    dir: /data
 
 # Server configuration
 server:
-  http-listen-port: 4040
+  http_listen_port: 4040
+
+# PyroscopeDB retention policy
+# Disk-based retention to prevent storage exhaustion
+pyroscopedb:
+  retention_policy_min_free_disk_gb: 10 # Delete oldest when below 10GB free
+  retention_policy_min_disk_available_percentage: 0.05 # Or below 5% free
+  retention_policy_enforcement_interval: 5m # Check every 5 minutes
+  max_block_duration: 3h # Max block size before compaction
+
+# Compactor configuration
+# Compacts blocks and enforces time-based retention
+compactor:
+  data_dir: /data/compactor
+  compaction_interval: 2h # Compact every 2 hours
+  cleanup_interval: 15m # Apply retention every 15 minutes
+  deletion_delay: 2h # Safety buffer before deletion
+  block_cleanup_enabled: true
+
+# Limits configuration
+# Time-based retention and ingestion limits
+limits:
+  compactor_blocks_retention_period: 720h # 30 days max retention
+  ingestion_rate_mb: 4 # Max ingestion rate
+  ingestion_burst_size_mb: 8 # Burst allowance
 ```
+
+### Retention Tuning Guide
+
+| Scenario                   | Recommended Changes                                        |
+| -------------------------- | ---------------------------------------------------------- |
+| Limited disk space (<50GB) | `compactor_blocks_retention_period: 168h` (7 days)         |
+| High-volume profiling      | Increase `ingestion_rate_mb` and `ingestion_burst_size_mb` |
+| Faster cleanup             | Reduce `cleanup_interval` to `5m`                          |
+| More disk safety margin    | Increase `retention_policy_min_free_disk_gb` to 20         |
+| Development/testing        | `compactor_blocks_retention_period: 24h` (1 day)           |
 
 ### AI Entrypoint Script
 
