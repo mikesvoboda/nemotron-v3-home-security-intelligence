@@ -786,13 +786,14 @@ class TestDataConsistency:
     async def test_camera_status_enum_enforced(self, session: AsyncSession) -> None:
         """Verify that camera status must be a valid enum value."""
         # Act & Assert: Use raw SQL to bypass ORM validation
+        # Must include all NOT NULL columns
         camera_id = unique_id("camera")
         with pytest.raises(IntegrityError) as exc_info:
             await session.execute(
                 text(
                     """
-                    INSERT INTO cameras (id, name, folder_path, status, created_at)
-                    VALUES (:id, :name, :folder_path, :status, :created_at)
+                    INSERT INTO cameras (id, name, folder_path, status, created_at, ingestion_mode, motion_sensitivity)
+                    VALUES (:id, :name, :folder_path, :status, :created_at, :ingestion_mode, :motion_sensitivity)
                     """
                 ),
                 {
@@ -801,6 +802,8 @@ class TestDataConsistency:
                     "folder_path": f"/export/foscam/{camera_id}",
                     "status": "invalid_status",  # Invalid enum value
                     "created_at": utc_now(),
+                    "ingestion_mode": "ftp",
+                    "motion_sensitivity": 0.5,
                 },
             )
             await session.flush()
