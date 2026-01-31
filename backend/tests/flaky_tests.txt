@@ -1,0 +1,11 @@
+# Flaky Test Quarantine File
+#
+# List tests here that are known to be flaky and should be marked as xfail.
+# Format: one test path per line
+# Example: backend/tests/integration/test_websocket.py::test_broadcast
+#
+# Tests listed here will have failures converted to expected failures (xfail)
+# so they don't block CI while being investigated.
+#
+# To add a test: Add the full pytest node ID on a new line
+# To remove: Delete the line once the test is fixed

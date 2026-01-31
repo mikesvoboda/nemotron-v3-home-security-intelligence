@@ -1390,6 +1390,201 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("int", await client.zremrangebyscore(key, min_score, max_score))
 
+    # =========================================================================
+    # Priority Queue Operations (NEM-4537)
+    # =========================================================================
+    # Priority queues use Redis sorted sets (ZADD/ZPOPMAX) to order items
+    # by priority score. Higher scores = higher priority. This enables
+    # high-risk detections (confidence > 0.9) to be processed first.
+
+    async def add_to_priority_queue(
+        self,
+        queue_name: str,
+        data: Any,
+        priority: float,
+        max_size: int | None = None,
+    ) -> bool:
+        """Add an item to a priority queue with the given priority score.
+
+        Uses Redis sorted sets (ZADD) where higher scores = higher priority.
+        Items are retrieved in descending order by priority (highest first).
+
+        Priority Guidelines for Detection Queue:
+        - priority > 90: High-risk detections (confidence > 0.9)
+        - priority 50-90: Medium-risk detections
+        - priority < 50: Low-risk/routine detections
+
+        Args:
+            queue_name: Name of the priority queue (sorted set key)
+            data: Data to add (will be JSON-serialized)
+            priority: Priority score (higher = processed first)
+            max_size: Optional maximum queue size. If exceeded, lowest
+                priority items are trimmed.
+
+        Returns:
+            True if the item was added (new member), False if it was
+            an update to an existing member's score.
+
+        Example:
+            # Add high-risk detection with priority 95
+            await redis.add_to_priority_queue(
+                "detection_priority_queue",
+                {"batch_id": "abc123", "confidence": 0.95},
+                priority=95.0
+            )
+        """
+        serialized = json.dumps(data) if not isinstance(data, str) else data
+        payload = self._compress_payload(serialized)
+
+        # Add to sorted set with priority as score
+        added_count = await self.zadd(queue_name, {payload: priority})
+
+        # Trim if max_size is specified and exceeded
+        if max_size is not None and max_size > 0:
+            current_size = await self.zcard(queue_name)
+            if current_size > max_size:
+                # Remove lowest priority items (those at the beginning of sorted set)
+                # Keep only the max_size highest priority items
+                trim_count = current_size - max_size
+                await self.zremrangebyrank(queue_name, 0, trim_count - 1)
+                logger.debug(
+                    f"Priority queue '{queue_name}' trimmed {trim_count} low-priority items",
+                    extra={
+                        "queue_name": queue_name,
+                        "trimmed_count": trim_count,
+                        "max_size": max_size,
+                    },
+                )
+
+        return added_count > 0
+
+    async def get_from_priority_queue(
+        self,
+        queue_name: str,
+        count: int = 1,
+    ) -> list[Any]:
+        """Get and remove the highest priority item(s) from the queue.
+
+        Uses ZPOPMAX to atomically remove and return the item(s) with
+        the highest priority score.
+
+        Args:
+            queue_name: Name of the priority queue (sorted set key)
+            count: Number of items to retrieve (default: 1)
+
+        Returns:
+            List of deserialized items (highest priority first).
+            Empty list if queue is empty.
+
+        Example:
+            # Get the single highest priority detection
+            items = await redis.get_from_priority_queue("detection_priority_queue")
+            if items:
+                detection = items[0]
+                process_detection(detection)
+        """
+        result = await self.zpopmax(queue_name, count)
+
+        items = []
+        for member, _score in result:
+            try:
+                # Decompress and deserialize
+                decompressed = self._decompress_payload(member)
+                items.append(json.loads(decompressed))
+            except json.JSONDecodeError:
+                # Return raw string if not valid JSON
+                items.append(self._decompress_payload(member))
+
+        return items
+
+    async def peek_priority_queue(
+        self,
+        queue_name: str,
+        count: int = 1,
+    ) -> list[tuple[Any, float]]:
+        """Peek at the highest priority item(s) without removing them.
+
+        Args:
+            queue_name: Name of the priority queue (sorted set key)
+            count: Number of items to peek (default: 1)
+
+        Returns:
+            List of (item, priority) tuples for the highest priority items.
+            Empty list if queue is empty.
+        """
+        client = self._ensure_connected()
+        # ZREVRANGE with WITHSCORES to get items and their priorities
+        # Use ZRANGE with REV=True to get descending order (highest first)
+        result = await client.zrange(queue_name, 0, count - 1, desc=True, withscores=True)
+
+        items = []
+        for member, score in result:
+            try:
+                decompressed = self._decompress_payload(str(member))
+                items.append((json.loads(decompressed), float(score)))
+            except json.JSONDecodeError:
+                items.append((self._decompress_payload(str(member)), float(score)))
+
+        return items
+
+    async def get_priority_queue_length(self, queue_name: str) -> int:
+        """Get the number of items in a priority queue.
+
+        Args:
+            queue_name: Name of the priority queue (sorted set key)
+
+        Returns:
+            Number of items in the queue
+        """
+        return await self.zcard(queue_name)
+
+    def calculate_detection_priority(
+        self,
+        confidence: float,
+        is_high_risk_object: bool = False,
+        time_in_queue_seconds: float = 0.0,
+    ) -> float:
+        """Calculate priority score for a detection based on various factors.
+
+        This helper method computes a priority score for the detection queue
+        based on detection confidence and other risk factors.
+
+        Scoring formula:
+        - Base score: confidence * 100 (0-100 scale)
+        - High-risk object bonus: +10 (weapons, suspicious items)
+        - Time aging: +0.1 per second in queue (prevents starvation)
+
+        Args:
+            confidence: Detection confidence (0.0-1.0)
+            is_high_risk_object: True if object type indicates high risk
+                (e.g., weapon, suspicious package)
+            time_in_queue_seconds: How long the detection has been waiting
+                (used for aging to prevent starvation of low-priority items)
+
+        Returns:
+            Priority score (higher = higher priority, typically 0-110+ range)
+
+        Example:
+            priority = redis.calculate_detection_priority(
+                confidence=0.95,
+                is_high_risk_object=True,
+                time_in_queue_seconds=30.0
+            )
+            # Returns: 95 + 10 + 3.0 = 108.0
+        """
+        # Base priority from confidence (0-100 scale)
+        priority = confidence * 100.0
+
+        # Bonus for high-risk object types
+        if is_high_risk_object:
+            priority += 10.0
+
+        # Aging factor to prevent starvation (0.1 points per second)
+        # Low-priority items gradually increase priority over time
+        priority += time_in_queue_seconds * 0.1
+
+        return priority
+
     async def llen(self, key: str) -> int:
         """Get the length of a list.
 

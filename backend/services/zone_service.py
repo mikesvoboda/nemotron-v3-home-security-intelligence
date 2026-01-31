@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -416,21 +417,16 @@ def calculate_dwell_time(
         - Object never entered the zone
         - Detections have no valid bounding boxes
     """
+    # Early returns for invalid inputs
     if not detections or not zone.enabled:
         return 0.0
 
+    # Need at least 2 detections to calculate time difference
     if len(detections) < 2:
-        # Need at least 2 detections to calculate time difference
-        # Check if single detection is in zone
-        if len(detections) == 1:
-            center = _get_detection_center(detections[0], image_width, image_height)
-            if center and point_in_zone(center[0], center[1], zone):
-                # Single detection in zone, but no time span
-                return 0.0
         return 0.0
 
-    # Find continuous period(s) in zone
-    dwell_start = None
+    # Track dwell periods in zone
+    dwell_start: datetime | None = None
     total_dwell = 0.0
 
     for detection in detections:
@@ -440,27 +436,45 @@ def calculate_dwell_time(
 
         is_in_zone = point_in_zone(center[0], center[1], zone)
 
-        if is_in_zone:
-            if dwell_start is None:
-                # Start tracking dwell time
-                dwell_start = detection.detected_at
-        elif dwell_start is not None:
-            # Object left zone, calculate dwell time
-            dwell_end = detection.detected_at
-            dwell_seconds = (dwell_end - dwell_start).total_seconds()
+        # Handle zone entry: start tracking dwell time
+        if is_in_zone and dwell_start is None:
+            dwell_start = detection.detected_at
+            continue
+
+        # Handle zone exit: accumulate dwell time and reset
+        if not is_in_zone and dwell_start is not None:
+            dwell_seconds = (detection.detected_at - dwell_start).total_seconds()
             total_dwell += dwell_seconds
             dwell_start = None
 
-    # If still in zone at end of detections, add remaining dwell time
-    if dwell_start is not None and detections:
-        # Find last valid detection
-        for detection in reversed(detections):
-            if detection.detected_at is not None:
-                dwell_seconds = (detection.detected_at - dwell_start).total_seconds()
-                total_dwell += dwell_seconds
-                break
+    # Add remaining dwell time if still in zone at end
+    total_dwell += _calculate_remaining_dwell(detections, dwell_start)
 
     return total_dwell
+
+
+def _calculate_remaining_dwell(
+    detections: list[Detection],
+    dwell_start: datetime | None,
+) -> float:
+    """Calculate remaining dwell time if object is still in zone.
+
+    Args:
+        detections: List of detections to find last valid timestamp from
+        dwell_start: Start of current dwell period, or None if not in zone
+
+    Returns:
+        Remaining dwell time in seconds, or 0.0 if not in zone
+    """
+    if dwell_start is None:
+        return 0.0
+
+    # Find last detection with valid timestamp
+    for detection in reversed(detections):
+        if detection.detected_at is not None:
+            return (detection.detected_at - dwell_start).total_seconds()
+
+    return 0.0
 
 
 def detect_line_crossing(

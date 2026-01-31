@@ -17,6 +17,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 # Database connection info
 DB_USER = "security"
 DB_NAME = "security"
@@ -223,25 +225,65 @@ def compare_detections(actual: list[dict[str, Any]], expected: dict[str, Any]) -
     return results
 
 
-def calculate_metrics(all_results: dict[str, dict[str, Any]]) -> dict[str, float]:
-    """Calculate aggregate precision, recall, F1."""
+def calculate_metrics(all_results: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Calculate aggregate precision, recall, F1 with per-class and per-scenario metrics.
+
+    Extended to support NEM-4529: Add class-specific and scenario-type metrics.
+
+    Returns:
+        Dictionary containing:
+        - Overall metrics (precision, recall, f1_score, TP/FP/FN)
+        - Per-class metrics for each object type
+        - Per-scenario-type metrics (normal/suspicious/threats)
+        - Confidence distribution percentiles
+    """
+    # Overall metrics
     true_positives = 0
     false_positives = 0
     false_negatives = 0
 
-    for _scenario, result in all_results.items():
+    # Per-class tracking
+    class_stats = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
+
+    # Per-scenario-type tracking
+    scenario_stats = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0, "count": 0})
+
+    # Confidence tracking
+    all_confidences = []
+
+    for scenario, result in all_results.items():
+        # Determine scenario type from path (normal/suspicious/threats)
+        scenario_type = _infer_scenario_type(scenario)
+
         # True positives: matched detections
         for match in result["matched"]:
-            true_positives += match["expected_count"]
+            tp_count = match["expected_count"]
+            true_positives += tp_count
+            class_stats[match["class"]]["tp"] += tp_count
+            scenario_stats[scenario_type]["tp"] += tp_count
+            all_confidences.extend(match.get("confidences", []))
 
         # False negatives: missing detections
         for miss in result["missing"]:
-            false_negatives += miss["expected_count"] - miss["actual_count"]
+            fn_count = miss["expected_count"] - miss["actual_count"]
+            false_negatives += fn_count
+            class_stats[miss["class"]]["fn"] += fn_count
+            scenario_stats[scenario_type]["fn"] += fn_count
 
         # False positives: extra detections
         for extra in result["extra"]:
-            false_positives += extra["count"]
+            fp_count = extra["count"]
+            false_positives += fp_count
+            class_stats[extra["class"]]["fp"] += fp_count
+            scenario_stats[scenario_type]["fp"] += fp_count
+            # Collect confidences from extra detections
+            for det in extra.get("detections", []):
+                if "confidence" in det:
+                    all_confidences.append(det["confidence"])
 
+        scenario_stats[scenario_type]["count"] += 1
+
+    # Calculate overall metrics
     precision = (
         true_positives / (true_positives + false_positives)
         if (true_positives + false_positives) > 0
@@ -254,14 +296,104 @@ def calculate_metrics(all_results: dict[str, dict[str, Any]]) -> dict[str, float
     )
     f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
 
+    # Calculate per-class metrics
+    per_class_metrics = {}
+    for class_name, stats in class_stats.items():
+        tp = stats["tp"]
+        fp = stats["fp"]
+        fn = stats["fn"]
+
+        class_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        class_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        class_f1 = (
+            2 * (class_precision * class_recall) / (class_precision + class_recall)
+            if (class_precision + class_recall) > 0
+            else 0.0
+        )
+
+        per_class_metrics[class_name] = {
+            "precision": class_precision,
+            "recall": class_recall,
+            "f1_score": class_f1,
+            "true_positives": tp,
+            "false_positives": fp,
+            "false_negatives": fn,
+        }
+
+    # Calculate per-scenario-type metrics
+    per_scenario_type_metrics = {}
+    for scenario_type, stats in scenario_stats.items():
+        tp = stats["tp"]
+        fp = stats["fp"]
+        fn = stats["fn"]
+
+        type_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        type_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        type_f1 = (
+            2 * (type_precision * type_recall) / (type_precision + type_recall)
+            if (type_precision + type_recall) > 0
+            else 0.0
+        )
+
+        per_scenario_type_metrics[scenario_type] = {
+            "precision": type_precision,
+            "recall": type_recall,
+            "f1_score": type_f1,
+            "true_positives": tp,
+            "false_positives": fp,
+            "false_negatives": fn,
+            "scenario_count": stats["count"],
+        }
+
+    # Calculate confidence distribution percentiles
+    confidence_percentiles = {}
+    if all_confidences:
+        confidence_percentiles = {
+            "p50": float(np.percentile(all_confidences, 50)),
+            "p90": float(np.percentile(all_confidences, 90)),
+            "p95": float(np.percentile(all_confidences, 95)),
+            "p99": float(np.percentile(all_confidences, 99)),
+            "min": float(min(all_confidences)),
+            "max": float(max(all_confidences)),
+            "mean": float(np.mean(all_confidences)),
+            "std": float(np.std(all_confidences)),
+            "count": len(all_confidences),
+        }
+
     return {
-        "precision": precision,
-        "recall": recall,
-        "f1_score": f1,
-        "true_positives": true_positives,
-        "false_positives": false_positives,
-        "false_negatives": false_negatives,
+        "overall": {
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1,
+            "true_positives": true_positives,
+            "false_positives": false_positives,
+            "false_negatives": false_negatives,
+        },
+        "per_class": per_class_metrics,
+        "per_scenario_type": per_scenario_type_metrics,
+        "confidence_distribution": confidence_percentiles,
     }
+
+
+def _infer_scenario_type(scenario_name: str) -> str:
+    """Infer scenario type from scenario name.
+
+    Args:
+        scenario_name: Name of the scenario
+
+    Returns:
+        Scenario type: 'normal', 'suspicious', or 'threats'
+    """
+    scenario_lower = scenario_name.lower()
+
+    # Check for explicit markers in scenario name
+    if any(marker in scenario_lower for marker in ["suspicious", "casing", "loiter"]):
+        return "suspicious"
+    if any(marker in scenario_lower for marker in ["threat", "break", "intrude"]):
+        return "threats"
+
+    # Default to normal
+    return "normal"
 
 
 def main():
@@ -313,15 +445,76 @@ def main():
     print()
 
     print("=" * 80)
-    print("SUMMARY METRICS")
+    print("OVERALL SUMMARY METRICS")
     print("=" * 80)
-    print(f"Precision:        {metrics['precision']:.2%}")
-    print(f"Recall:           {metrics['recall']:.2%}")
-    print(f"F1 Score:         {metrics['f1_score']:.2%}")
-    print(f"True Positives:   {metrics['true_positives']}")
-    print(f"False Positives:  {metrics['false_positives']}")
-    print(f"False Negatives:  {metrics['false_negatives']}")
+    overall = metrics["overall"]
+    print(f"Precision:        {overall['precision']:.2%}")
+    print(f"Recall:           {overall['recall']:.2%}")
+    print(f"F1 Score:         {overall['f1_score']:.2%}")
+    print(f"True Positives:   {overall['true_positives']}")
+    print(f"False Positives:  {overall['false_positives']}")
+    print(f"False Negatives:  {overall['false_negatives']}")
     print()
+
+    # Per-class metrics (NEM-4529)
+    if metrics.get("per_class"):
+        print("=" * 80)
+        print("PER-CLASS METRICS")
+        print("=" * 80)
+        print(
+            f"{'Class':<15s} {'TP':>6s} {'FP':>6s} {'FN':>6s} {'Precision':>10s} {'Recall':>10s} {'F1':>10s}"
+        )
+        print("-" * 80)
+        for class_name, class_metrics in sorted(metrics["per_class"].items()):
+            print(
+                f"{class_name:<15s} "
+                f"{class_metrics['true_positives']:6d} "
+                f"{class_metrics['false_positives']:6d} "
+                f"{class_metrics['false_negatives']:6d} "
+                f"{class_metrics['precision']:10.2%} "
+                f"{class_metrics['recall']:10.2%} "
+                f"{class_metrics['f1_score']:10.2%}"
+            )
+        print()
+
+    # Per-scenario-type metrics (NEM-4529)
+    if metrics.get("per_scenario_type"):
+        print("=" * 80)
+        print("PER-SCENARIO-TYPE METRICS")
+        print("=" * 80)
+        print(
+            f"{'Type':<15s} {'Count':>7s} {'TP':>6s} {'FP':>6s} {'FN':>6s} {'Precision':>10s} {'Recall':>10s} {'F1':>10s}"
+        )
+        print("-" * 80)
+        for type_name, type_metrics in sorted(metrics["per_scenario_type"].items()):
+            print(
+                f"{type_name:<15s} "
+                f"{type_metrics['scenario_count']:7d} "
+                f"{type_metrics['true_positives']:6d} "
+                f"{type_metrics['false_positives']:6d} "
+                f"{type_metrics['false_negatives']:6d} "
+                f"{type_metrics['precision']:10.2%} "
+                f"{type_metrics['recall']:10.2%} "
+                f"{type_metrics['f1_score']:10.2%}"
+            )
+        print()
+
+    # Confidence distribution percentiles (NEM-4529)
+    if metrics.get("confidence_distribution"):
+        conf = metrics["confidence_distribution"]
+        print("=" * 80)
+        print("CONFIDENCE DISTRIBUTION PERCENTILES")
+        print("=" * 80)
+        print(f"Total Detections: {conf.get('count', 0)}")
+        print(f"Min:  {conf.get('min', 0):.3f}")
+        print(f"P50:  {conf.get('p50', 0):.3f}")
+        print(f"P90:  {conf.get('p90', 0):.3f}")
+        print(f"P95:  {conf.get('p95', 0):.3f}")
+        print(f"P99:  {conf.get('p99', 0):.3f}")
+        print(f"Max:  {conf.get('max', 0):.3f}")
+        print(f"Mean: {conf.get('mean', 0):.3f}")
+        print(f"Std:  {conf.get('std', 0):.3f}")
+        print()
 
     # Detailed gaps
     print("=" * 80)
@@ -372,7 +565,7 @@ def main():
                 )
         print()
 
-    # Save full results to JSON
+    # Save full results to JSON (enhanced for NEM-4529)
     output_file = Path("/tmp/detection_validation_results.json")  # noqa: S108
     # nosemgrep: path-traversal-open - output_file is a fixed local path
     with open(output_file, "w") as f:
@@ -385,6 +578,50 @@ def main():
                     "missing_by_class": {k: len(v) for k, v in missing_by_class.items()},
                     "extra_by_class": {k: len(v) for k, v in extra_by_class.items()},
                     "low_conf_by_class": {k: len(v) for k, v in low_conf_by_class.items()},
+                },
+                "detailed_gaps": {
+                    "missing_by_class": [
+                        {
+                            "class": cls,
+                            "instances": [
+                                {
+                                    "scenario": inst["scenario"],
+                                    "expected": inst["expected_count"],
+                                    "actual": inst["actual_count"],
+                                }
+                                for inst in instances
+                            ],
+                        }
+                        for cls, instances in missing_by_class.items()
+                    ],
+                    "extra_by_class": [
+                        {
+                            "class": cls,
+                            "instances": [
+                                {
+                                    "scenario": inst["scenario"],
+                                    "count": inst["count"],
+                                }
+                                for inst in instances
+                            ],
+                        }
+                        for cls, instances in extra_by_class.items()
+                    ],
+                    "low_confidence_by_class": [
+                        {
+                            "class": cls,
+                            "instances": [
+                                {
+                                    "scenario": inst["scenario"],
+                                    "confidence": inst["confidence"],
+                                    "min_required": inst["min_required"],
+                                    "detection_id": inst["detection_id"],
+                                }
+                                for inst in instances
+                            ],
+                        }
+                        for cls, instances in low_conf_by_class.items()
+                    ],
                 },
             },
             f,
