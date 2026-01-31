@@ -623,3 +623,69 @@ class TestExcludedPaths:
     def test_excluded_paths_contains_metrics_endpoint(self):
         """Test that metrics endpoint is excluded."""
         assert "/api/metrics" in EXCLUDED_PATHS
+
+
+class TestUnmatchedRoutePattern:
+    """Tests for unmatched route pattern normalization (NEM-4488)."""
+
+    def test_unmatched_route_uses_normalized_pattern(self, clear_prometheus_metrics):
+        """Test that unmatched routes use a normalized pattern to prevent cardinality explosion."""
+        from backend.api.middleware.prometheus import UNMATCHED_ROUTE_PATTERN
+
+        app = FastAPI()
+        app.add_middleware(PrometheusMiddleware)
+
+        # Define only one route
+        @app.get("/defined-route")
+        async def defined_route():
+            return {"message": "ok"}
+
+        client = TestClient(app, raise_server_exceptions=False)
+
+        # Make request to undefined route (404)
+        client.get("/undefined/route/with/unique/path/12345")
+
+        # The unmatched route should use the normalized pattern
+        count = REGISTRY.get_sample_value(
+            "http_request_duration_seconds_count",
+            {
+                "method": "GET",
+                "handler": "unknown",
+                "status": "404",
+                "http_route": UNMATCHED_ROUTE_PATTERN,
+            },
+        )
+        # Should record the request with normalized pattern
+        assert count is not None and count >= 1
+
+    def test_multiple_unmatched_routes_share_pattern(self, clear_prometheus_metrics):
+        """Test that multiple unmatched routes share the same metric (cardinality protection)."""
+        from backend.api.middleware.prometheus import UNMATCHED_ROUTE_PATTERN
+
+        app = FastAPI()
+        app.add_middleware(PrometheusMiddleware)
+
+        @app.get("/valid")
+        async def valid():
+            return {"message": "ok"}
+
+        client = TestClient(app, raise_server_exceptions=False)
+
+        # Make requests to multiple unique undefined routes
+        client.get("/undefined/path/1")
+        client.get("/undefined/path/2")
+        client.get("/attacker/crafted/unique/path/abc123")
+        client.get("/another/unique/path/xyz789")
+
+        # All should be recorded under the same normalized pattern
+        count = REGISTRY.get_sample_value(
+            "http_request_duration_seconds_count",
+            {
+                "method": "GET",
+                "handler": "unknown",
+                "status": "404",
+                "http_route": UNMATCHED_ROUTE_PATTERN,
+            },
+        )
+        # All 4 requests should be counted under the same metric
+        assert count is not None and count >= 4

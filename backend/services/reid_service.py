@@ -569,6 +569,9 @@ class ReIdentificationService:
 
         This method is rate-limited to prevent resource exhaustion.
 
+        NEM-4474: Uses Redis Lua script for atomic read-modify-write to prevent
+        race conditions when multiple processes store embeddings concurrently.
+
         Args:
             redis_client: Redis client instance (raw Redis or RedisClient wrapper)
             embedding: EntityEmbedding to store
@@ -586,38 +589,65 @@ class ReIdentificationService:
             key = f"entity_embeddings:{date_key}"
 
             try:
-                # Get existing embeddings
-                existing = await redis_client.get(key)
-                # Handle both raw Redis (returns bytes/string) and RedisClient wrapper (returns JSON-decoded)
-                if existing is not None:
-                    data: dict[str, list[dict[str, Any]]] = (
-                        existing if isinstance(existing, dict) else json.loads(existing)
-                    )
-                else:
-                    data = {"persons": [], "vehicles": []}
+                # NEM-4474: Use Lua script for atomic read-modify-write operation
+                # This prevents race conditions when multiple processes store embeddings
+                lua_script = """
+                local key = KEYS[1]
+                local embedding_json = ARGV[1]
+                local list_key = ARGV[2]
+                local ttl = tonumber(ARGV[3])
 
-                # Add new embedding
+                -- Get existing data or create empty structure
+                local data_json = redis.call('GET', key)
+                local data
+                if data_json then
+                    data = cjson.decode(data_json)
+                else
+                    data = {persons = {}, vehicles = {}}
+                end
+
+                -- Add new embedding to appropriate list
+                local embedding = cjson.decode(embedding_json)
+                table.insert(data[list_key], embedding)
+
+                -- Store with TTL
+                redis.call('SET', key, cjson.encode(data), 'EX', ttl)
+                return 1
+                """
+
                 list_key = "persons" if embedding.entity_type == "person" else "vehicles"
-                data[list_key].append(embedding.to_dict())
+                embedding_json = json.dumps(embedding.to_dict())
 
-                # Store with TTL - check if using RedisClient wrapper (expire) or raw redis (ex)
+                # Execute Lua script atomically using underlying Redis client
+                # NEM-4474: Use Lua script for atomic read-modify-write
                 from backend.core.redis import RedisClient
 
                 if isinstance(redis_client, RedisClient):
-                    await redis_client.set(
+                    # Access underlying Redis client for eval
+                    raw_client = redis_client._client
+                    if raw_client is None:
+                        raise RuntimeError("Redis client not connected")
+                    await raw_client.eval(  # type: ignore[misc]
+                        lua_script,
+                        1,  # Number of keys
                         key,
-                        json.dumps(data),
-                        expire=EMBEDDING_TTL_SECONDS,
+                        embedding_json,
+                        list_key,
+                        str(EMBEDDING_TTL_SECONDS),
                     )
                 else:
-                    await redis_client.set(
+                    # Raw Redis client (e.g., in tests)
+                    await redis_client.eval(  # type: ignore[misc]
+                        lua_script,
+                        1,  # Number of keys
                         key,
-                        json.dumps(data),
-                        ex=EMBEDDING_TTL_SECONDS,
+                        embedding_json,
+                        list_key,
+                        str(EMBEDDING_TTL_SECONDS),
                     )
 
                 logger.debug(
-                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id}"
+                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id} (atomic)"
                 )
 
             except Exception as e:

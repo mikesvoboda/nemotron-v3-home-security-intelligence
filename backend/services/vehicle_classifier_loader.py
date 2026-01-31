@@ -151,6 +151,10 @@ async def load_vehicle_classifier(model_path: str) -> dict[str, Any]:
     This function loads the fine-tuned ResNet-50 model for vehicle type
     classification. The model was trained on the MIO-TCD Traffic Dataset.
 
+    Security (NEM-4501): Model path is validated to prevent path traversal.
+    Security (NEM-4519): Model weights are loaded with weights_only=True
+    to prevent arbitrary code execution.
+
     Args:
         model_path: Local path to the downloaded model directory
                    (should contain pytorch_model.bin and classes.txt)
@@ -163,11 +167,23 @@ async def load_vehicle_classifier(model_path: str) -> dict[str, Any]:
 
     Raises:
         ImportError: If torch or torchvision is not installed
-        RuntimeError: If model loading fails
+        RuntimeError: If model loading fails or path validation fails
     """
     try:
         import torch
         from torchvision import models, transforms
+
+        from backend.core.security import PathSecurityError, validate_model_path
+
+        # Validate model path to prevent path traversal (NEM-4501)
+        try:
+            validate_model_path(
+                model_path,
+                allowed_extensions=frozenset(),  # Directory, no extension check
+                must_exist=True,
+            )
+        except PathSecurityError as e:
+            raise RuntimeError(f"Invalid model path: {e}") from e
 
         logger.info(f"Loading Vehicle Segment Classification model from {model_path}")
 

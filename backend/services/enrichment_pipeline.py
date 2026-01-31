@@ -536,6 +536,15 @@ class EnrichmentResult:
     Contains all additional context extracted from detections
     for use in the Nemotron LLM prompt.
 
+    Thread Safety (NEM-4471):
+    Multiple async tasks populate this object concurrently via asyncio.gather().
+    This is safe because:
+    1. asyncio uses cooperative multitasking (single-threaded event loop)
+    2. list.append() and dict assignment are atomic in CPython due to GIL
+    3. Each attribute is written by only one task (no read-modify-write races)
+
+    If migrating to true parallelism (ProcessPoolExecutor), add synchronization.
+
     Attributes:
         license_plates: Detected license plates with OCR text
         faces: Detected faces

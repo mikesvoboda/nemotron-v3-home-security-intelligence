@@ -41,6 +41,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
 from backend.api.pagination import (
     CursorData,
     decode_cursor,
@@ -70,6 +71,20 @@ frontend_logger = get_logger("frontend")
 
 router = APIRouter(prefix="/api/logs", tags=["logs"])
 
+# Maximum cumulative payload size for batch logging (100KB)
+# This prevents memory exhaustion attacks via large context payloads
+MAX_BATCH_PAYLOAD_SIZE = 100_000
+
+# Rate limiter for frontend logging endpoints
+# Uses a dedicated tier with stricter limits to prevent DoS via log spam
+# Limit: 60 requests per minute per client IP
+_logging_rate_limiter = RateLimiter(
+    tier=RateLimitTier.DEFAULT,
+    requests_per_minute=60,
+    burst=10,
+    key_prefix="rate_limit:frontend_logging",
+)
+
 # Map frontend log levels to Python logging levels
 _LOG_LEVEL_MAP = {
     "DEBUG": logging.DEBUG,
@@ -78,6 +93,26 @@ _LOG_LEVEL_MAP = {
     "ERROR": logging.ERROR,
     "CRITICAL": logging.CRITICAL,
 }
+
+
+def _estimate_context_size(context: dict | None) -> int:
+    """Estimate the size of a context dictionary in bytes.
+
+    This provides a rough estimate for payload size limiting.
+
+    Args:
+        context: The context dictionary to estimate
+
+    Returns:
+        Estimated size in bytes
+    """
+    if context is None:
+        return 0
+
+    size = 0
+    for key, value in context.items():
+        size += len(str(key)) + len(str(value))
+    return size
 
 
 def _log_frontend_entry(entry: FrontendLogEntry, request: Request | None = None) -> bool:
@@ -94,22 +129,22 @@ def _log_frontend_entry(entry: FrontendLogEntry, request: Request | None = None)
         # Build extra context for the log record
         extra: dict[str, str | None] = {
             "source": "frontend",
-            "frontend_component": sanitize_log_value(entry.component)
+            "frontend_component": sanitize_log_value(entry.component, max_length=100)
             if entry.component
             else "unknown",
         }
 
-        # Add URL if provided
+        # Add URL if provided (with stricter length limit)
         if entry.url:
-            extra["frontend_url"] = sanitize_log_value(entry.url)
+            extra["frontend_url"] = sanitize_log_value(entry.url, max_length=500)
 
-        # Add user agent from request or entry
+        # Add user agent from request or entry (with length limit)
         if entry.user_agent:
-            extra["frontend_user_agent"] = sanitize_log_value(entry.user_agent)
+            extra["frontend_user_agent"] = sanitize_log_value(entry.user_agent, max_length=500)
         elif request:
             user_agent = request.headers.get("user-agent")
             if user_agent:
-                extra["frontend_user_agent"] = sanitize_log_value(user_agent)
+                extra["frontend_user_agent"] = sanitize_log_value(user_agent, max_length=500)
 
         # Add timestamp if provided (as ISO string for structured logging)
         if entry.timestamp:
@@ -117,26 +152,50 @@ def _log_frontend_entry(entry: FrontendLogEntry, request: Request | None = None)
         else:
             extra["frontend_timestamp"] = datetime.now(UTC).isoformat()
 
-        # Add any additional context from the entry
+        # Add any additional context from the entry with size limits
         if entry.context:
+            # Limit total context size to prevent memory exhaustion
+            context_size = 0
+            max_context_size = 10000  # 10KB max for context
+            max_context_items = 20  # Maximum number of context items
+            item_count = 0
+
             # Flatten context into extra with prefix to avoid collisions
             for key, value in entry.context.items():
                 # Skip None values and limit key length
                 if value is not None and len(key) <= 50:
-                    sanitized_key = sanitize_log_value(key)
+                    # Enforce limits
+                    if item_count >= max_context_items:
+                        logger.debug("Context item limit reached, skipping remaining items")
+                        break
+
+                    value_str = str(value)
+                    item_size = len(key) + len(value_str)
+
+                    if context_size + item_size > max_context_size:
+                        logger.debug("Context size limit reached, skipping remaining items")
+                        break
+
+                    sanitized_key = sanitize_log_value(key, max_length=50)
                     # Prefix context keys to distinguish from system fields
-                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value)
+                    # Limit individual value length
+                    extra[f"ctx_{sanitized_key}"] = sanitize_log_value(value, max_length=1000)
+                    context_size += item_size
+                    item_count += 1
 
         # Get the Python log level
         log_level = _LOG_LEVEL_MAP.get(entry.level.value, logging.INFO)
 
-        # Sanitize the message to prevent log injection
-        sanitized_message = sanitize_log_value(entry.message)
+        # Sanitize the message to prevent log injection (with enforced max length)
+        sanitized_message = sanitize_log_value(entry.message, max_length=5000)
+
+        # Sanitize component name for log message
+        sanitized_component = sanitize_log_value(entry.component or "frontend", max_length=100)
 
         # Log with the frontend logger
         frontend_logger.log(
             log_level,
-            f"[{entry.component or 'frontend'}] {sanitized_message}",
+            f"[{sanitized_component}] {sanitized_message}",
             extra=extra,
         )
 
@@ -155,12 +214,14 @@ def _log_frontend_entry(entry: FrontendLogEntry, request: Request | None = None)
     description="Receive a single log entry from the frontend for structured logging.",
     responses={
         422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
         500: {"description": "Internal server error"},
     },
 )
 async def ingest_frontend_log(
     entry: FrontendLogEntry,
     request: Request,
+    _rate_limit: None = Depends(_logging_rate_limiter),
 ) -> FrontendLogResponse:
     """Ingest a single frontend log entry.
 
@@ -190,13 +251,16 @@ async def ingest_frontend_log(
     summary="Ingest batch of frontend logs",
     description="Receive a batch of log entries from the frontend for structured logging.",
     responses={
+        400: {"description": "Payload too large"},
         422: {"description": "Validation error"},
+        429: {"description": "Rate limit exceeded"},
         500: {"description": "Internal server error"},
     },
 )
 async def ingest_frontend_logs_batch(
     batch: FrontendLogBatchRequest,
     request: Request,
+    _rate_limit: None = Depends(_logging_rate_limiter),
 ) -> FrontendLogResponse:
     """Ingest a batch of frontend log entries.
 
@@ -210,7 +274,30 @@ async def ingest_frontend_logs_batch(
 
     Returns:
         FrontendLogResponse with ingestion status and count
+
+    Raises:
+        HTTPException: 400 if cumulative payload size exceeds limit
     """
+    # Validate cumulative payload size to prevent memory exhaustion
+    total_payload_size = 0
+    for entry in batch.entries:
+        total_payload_size += len(entry.message)
+        if entry.url:
+            total_payload_size += len(entry.url)
+        if entry.component:
+            total_payload_size += len(entry.component)
+        if entry.user_agent:
+            total_payload_size += len(entry.user_agent)
+        if entry.context:
+            total_payload_size += _estimate_context_size(entry.context)
+
+    if total_payload_size > MAX_BATCH_PAYLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Batch payload size ({total_payload_size} bytes) exceeds maximum allowed "
+            f"({MAX_BATCH_PAYLOAD_SIZE} bytes). Reduce batch size or message lengths.",
+        )
+
     success_count = 0
     total_count = len(batch.entries)
 

@@ -2967,13 +2967,11 @@ class TestExportDetections:
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "text/csv"
 
-        # Mock empty results
-        mock_result1 = MagicMock()
-        mock_result1.scalars.return_value.all.return_value = []
-        mock_result2 = MagicMock()
-        mock_result2.scalars.return_value.all.return_value = []
+        # Mock empty results - now only one query due to joinedload (NEM-4462)
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.unique.return_value.all.return_value = []
 
-        mock_db.execute = AsyncMock(side_effect=[mock_result1, mock_result2])
+        mock_db.execute = AsyncMock(return_value=mock_result)
 
         # Call with filters
         response = await export_detections(
@@ -2989,5 +2987,5 @@ class TestExportDetections:
 
         # Verify response
         assert response.media_type == "text/csv"
-        # Verify database was queried
-        assert mock_db.execute.call_count == 2
+        # Verify database was queried only once (NEM-4462: joinedload instead of N+1)
+        assert mock_db.execute.call_count == 1

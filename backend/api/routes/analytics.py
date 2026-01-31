@@ -30,6 +30,42 @@ from backend.models.event import Event
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
+# Maximum allowed date range for analytics queries (NEM-4484)
+# This prevents unbounded queries that could cause performance issues
+# or denial of service through expensive database scans.
+MAX_DATE_RANGE_DAYS = 365
+
+
+def _validate_date_range(start_date: Date, end_date: Date) -> None:
+    """Validate analytics date range.
+
+    Checks that:
+    1. start_date is not after end_date
+    2. Date range does not exceed MAX_DATE_RANGE_DAYS (NEM-4484)
+
+    Args:
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+
+    Raises:
+        HTTPException: 400 if validation fails
+    """
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date must be before or equal to end_date",
+        )
+
+    # Check for unbounded date ranges (NEM-4484)
+    date_range_days = (end_date - start_date).days + 1
+    if date_range_days > MAX_DATE_RANGE_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Date range exceeds maximum allowed ({MAX_DATE_RANGE_DAYS} days). "
+            f"Requested range: {date_range_days} days. "
+            "Please narrow your date range.",
+        )
+
 
 @router.get(
     "/detection-trends",
@@ -59,14 +95,10 @@ async def get_detection_trends(
         DetectionTrendsResponse with daily detection counts
 
     Raises:
-        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
     """
-    # Validate date range
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date",
-        )
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
 
     # Query detection counts grouped by date
     # Cast detected_at (datetime with tz) to date for grouping
@@ -136,14 +168,10 @@ async def get_risk_history(
         RiskHistoryResponse with daily risk level counts
 
     Raises:
-        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
     """
-    # Validate date range
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date",
-        )
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
 
     # Query events grouped by date and risk_level
     # Cast started_at (datetime with tz) to date for grouping
@@ -221,14 +249,10 @@ async def get_camera_uptime(
         CameraUptimeResponse with per-camera uptime data
 
     Raises:
-        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
     """
-    # Validate date range
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date",
-        )
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
 
     # Calculate total days in range
     total_days = (end_date - start_date).days + 1
@@ -299,14 +323,10 @@ async def get_object_distribution(
         ObjectDistributionResponse with object type counts and percentages
 
     Raises:
-        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
     """
-    # Validate date range
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date",
-        )
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
 
     # Query detection counts grouped by object_type
     query = (
@@ -379,14 +399,10 @@ async def get_risk_score_distribution(
         RiskScoreDistributionResponse with histogram buckets
 
     Raises:
-        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
     """
-    # Validate date range
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date",
-        )
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
 
     # Calculate number of buckets (100 / bucket_size, ensuring last bucket includes 100)
     num_buckets = 100 // bucket_size
@@ -475,14 +491,10 @@ async def get_risk_score_trends(
         RiskScoreTrendsResponse with daily average scores and event counts
 
     Raises:
-        HTTPException: 400 if start_date is after end_date
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
     """
-    # Validate date range
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_date must be before or equal to end_date",
-        )
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
 
     # Query events grouped by date with average risk score
     query = (

@@ -647,22 +647,30 @@ build_ai_images_podman() {
 
     cd "$PROJECT_ROOT"
 
-    # Format: "image-name:dockerfile-path"
-    # All builds use project root as context (required by Dockerfiles that COPY from ai/*)
+    # Format: "image-name:dockerfile-path:context-path"
+    # NEM-4500: Each service specifies its own build context to ensure COPY commands work correctly.
+    # Most AI services use project root (.) as context because their Dockerfiles COPY from paths
+    # like "ai/clip/requirements.txt" which are relative to project root, not the Dockerfile directory.
+    #
+    # IMPORTANT: If you add a new service, check its Dockerfile COPY commands:
+    # - If COPY uses paths like "ai/<service>/..." -> use "." (project root) as context
+    # - If COPY uses paths like "./requirements.txt" -> use the Dockerfile's directory as context
     local -a ai_services=(
-        "ai-yolo26:ai/yolo26/Dockerfile"
-        "ai-llm:ai/nemotron/Dockerfile"
-        "ai-florence:ai/florence/Dockerfile"
-        "ai-clip:ai/clip/Dockerfile"
-        "ai-enrichment:ai/enrichment/Dockerfile"
+        "ai-yolo26:ai/yolo26/Dockerfile:."
+        "ai-llm:ai/nemotron/Dockerfile:."
+        "ai-florence:ai/florence/Dockerfile:."
+        "ai-clip:ai/clip/Dockerfile:."
+        "ai-enrichment:ai/enrichment/Dockerfile:."
     )
 
     if [ "$DRY_RUN" = "true" ]; then
         # In dry-run mode, just show what would be built
         for svc in "${ai_services[@]}"; do
             local name="${svc%%:*}"
-            local dockerfile="${svc#*:}"
-            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $name -f $dockerfile ."
+            local rest="${svc#*:}"
+            local dockerfile="${rest%%:*}"
+            local context="${rest#*:}"
+            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $name -f $dockerfile $context"
         done
         return 0
     fi
@@ -677,12 +685,15 @@ build_ai_images_podman() {
     print_info "Build logs: $log_dir/"
 
     for svc in "${ai_services[@]}"; do
+        # NEM-4500: Parse name:dockerfile:context format
         local name="${svc%%:*}"
-        local dockerfile="${svc#*:}"
+        local rest="${svc#*:}"
+        local dockerfile="${rest%%:*}"
+        local context="${rest#*:}"
         local log_file="$log_dir/${name}.log"
 
-        print_info "  Starting $name build..."
-        $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" . > "$log_file" 2>&1 &
+        print_info "  Starting $name build (context: $context)..."
+        $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" "$context" > "$log_file" 2>&1 &
         pids+=($!)
         names+=("$name")
     done

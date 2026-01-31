@@ -107,7 +107,21 @@ async def create_feedback(
         model_failures=feedback_data.model_failures,
     )
     db.add(feedback)
-    await db.commit()
+
+    # NEM-4489: Add try/except with explicit rollback handling for database commit failures
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.error(
+            f"Database commit failed for feedback on event {feedback_data.event_id}: {e}",
+            extra={"event_id": feedback_data.event_id, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database commit failed",
+        ) from e
+
     await db.refresh(feedback)
 
     logger.info(

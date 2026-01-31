@@ -130,6 +130,25 @@ class TestDetectionTrends:
         assert "start_date must be before or equal to end_date" in exc_info.value.detail
 
     @pytest.mark.asyncio
+    async def test_detection_trends_unbounded_date_range(self, mock_db_session: AsyncMock) -> None:
+        """Test detection trends raises 400 when date range exceeds maximum allowed (NEM-4484)."""
+        from datetime import timedelta
+
+        from backend.api.routes.analytics import MAX_DATE_RANGE_DAYS
+
+        start_date = date(2024, 1, 1)
+        end_date = start_date + timedelta(days=MAX_DATE_RANGE_DAYS + 1)  # Exceeds limit
+
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_detection_trends(start_date=start_date, end_date=end_date, db=mock_db_session)
+
+        assert exc_info.value.status_code == 400
+        assert "Date range exceeds maximum allowed" in exc_info.value.detail
+        assert str(MAX_DATE_RANGE_DAYS) in exc_info.value.detail
+
+    @pytest.mark.asyncio
     async def test_detection_trends_long_range(self, mock_db_session: AsyncMock) -> None:
         """Test detection trends handles long date ranges correctly."""
         start_date = date(2025, 1, 1)

@@ -240,9 +240,11 @@ async def acknowledge_anomaly(
     anomaly = result.scalar_one_or_none()
 
     if anomaly is None:
+        # Return generic error message to prevent information disclosure
+        # Do not echo back the requested ID as it could reveal valid ID patterns
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Anomaly with ID '{anomaly_id}' not found",
+            detail="Anomaly not found",
         )
 
     # Acknowledge the anomaly

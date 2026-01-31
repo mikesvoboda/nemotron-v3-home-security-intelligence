@@ -2578,7 +2578,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_passwords(self) -> Settings:
-        """Validate that production environments don't use weak/default passwords (NEM-3141).
+        """Validate that production environments don't use weak/default passwords (NEM-3141, NEM-4505).
 
         This security check ensures that known weak passwords (like development defaults)
         are not used in production or staging environments. Weak passwords include:
@@ -2586,11 +2586,16 @@ class Settings(BaseSettings):
         - Old hardcoded development defaults (security_dev_password, ftp_dev_password)
         - Passwords shorter than 16 characters
 
+        Also validates that Redis password is set in production (NEM-4505):
+        - Redis without password authentication is a security vulnerability
+        - Production/staging environments must have REDIS_PASSWORD configured
+
         Returns:
             self: The validated Settings instance
 
         Raises:
             ValueError: If a weak password is detected in production/staging environment
+            ValueError: If Redis password is not set in production/staging environment
         """
         # Only enforce in production and staging environments
         # Skip validation for development, test, and local environments
@@ -2641,6 +2646,34 @@ class Settings(BaseSettings):
                 f"Weak database password detected in DATABASE_URL for {self.environment} environment. "
                 "Production/staging deployments must use strong, unique passwords. "
                 "Run ./setup.sh to generate secure credentials or set DATABASE_URL with a strong password."
+            )
+
+        # NEM-4505: Validate Redis password is set in production
+        # Redis without password authentication is a security vulnerability that could allow
+        # unauthorized access to cache data, session data, and pub/sub channels
+        redis_password_value = None
+        if self.redis_password is not None:
+            redis_password_value = (
+                self.redis_password.get_secret_value()
+                if hasattr(self.redis_password, "get_secret_value")
+                else str(self.redis_password)
+            )
+
+        if not redis_password_value:
+            raise ValueError(
+                f"REDIS_PASSWORD must be set for {self.environment} environment. "
+                "Redis without password authentication is a security vulnerability that could "
+                "allow unauthorized access to cache data and session data. "
+                "Set REDIS_PASSWORD environment variable or use Docker secrets. "
+                "Generate a secure password with: openssl rand -base64 32"
+            )
+
+        # Check if Redis password is weak
+        if is_weak(redis_password_value):
+            raise ValueError(
+                f"Weak Redis password detected for {self.environment} environment. "
+                "Production/staging deployments must use strong, unique passwords (16+ characters). "
+                "Generate a secure password with: openssl rand -base64 32"
             )
 
         return self

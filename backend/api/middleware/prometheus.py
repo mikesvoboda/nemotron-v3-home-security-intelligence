@@ -80,6 +80,12 @@ EXCLUDED_PATHS = frozenset(
     }
 )
 
+# Fallback route pattern for unmatched requests (NEM-4488)
+# This prevents high cardinality DoS attacks where attackers craft
+# unique URLs (e.g., /api/events/123456789) that would create unlimited
+# unique metric label combinations, consuming memory.
+UNMATCHED_ROUTE_PATTERN = "/__unmatched__"
+
 
 def _get_route_pattern(request: Request) -> str:
     """Extract the route pattern from a request.
@@ -87,12 +93,16 @@ def _get_route_pattern(request: Request) -> str:
     This function matches the request against FastAPI's router to find
     the original route pattern (with path parameters like {event_id}).
 
+    High Cardinality Protection (NEM-4488):
+        Unmatched routes are normalized to UNMATCHED_ROUTE_PATTERN to prevent
+        metric cardinality explosion from attackers crafting unique URLs.
+
     Args:
         request: The incoming HTTP request
 
     Returns:
         Route pattern string (e.g., "/api/events/{event_id}") or
-        the raw path if no route matches.
+        UNMATCHED_ROUTE_PATTERN if no route matches.
     """
     # Try to get the route from FastAPI's routing system
     app = request.app
@@ -104,8 +114,9 @@ def _get_route_pattern(request: Request) -> str:
                     return str(route.path)
                 break
 
-    # Fallback to the raw path
-    return str(request.url.path)
+    # Fallback to normalized pattern to prevent cardinality explosion (NEM-4488)
+    # Do NOT return the raw path as it could contain unique attacker-controlled values
+    return UNMATCHED_ROUTE_PATTERN
 
 
 def _get_handler_name(request: Request) -> str:

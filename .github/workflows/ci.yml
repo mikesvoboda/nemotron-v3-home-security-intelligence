@@ -2289,6 +2289,23 @@ jobs:
             -v \
             --tb=short
 
+      # NEM-4459: Explicit admin endpoint security validation
+      # This validates that admin endpoints return 403 when DEBUG=false
+      # Critical security check to prevent admin exposure in production
+      - name: Validate admin endpoint protection (DEBUG=false)
+        env:
+          DEBUG: 'false'
+          ADMIN_ENABLED: 'false'
+          ENVIRONMENT: 'production'
+        run: |
+          echo "Validating admin endpoints are blocked in production mode..."
+          uv run pytest backend/tests/security/test_admin_access_control.py \
+            -n0 \
+            --timeout=30 \
+            -v \
+            --tb=short \
+            -k "production or blocked"
+
   # TDD Compliance Tracking (PR-only, non-blocking)
   # Analyzes commit patterns to detect TDD practice compliance
   # Reports warnings for potential test-after-implementation patterns

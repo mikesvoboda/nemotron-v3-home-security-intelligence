@@ -36111,7 +36111,7 @@
     },
     "/api/analytics/camera-uptime": {
       "get": {
-        "description": "Get uptime percentage per camera.\n\nReturns uptime percentage and detection count for each camera.\nUptime is calculated based on the number of days with at least one detection\ndivided by the total days in the date range.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    CameraUptimeResponse with per-camera uptime data\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get uptime percentage per camera.\n\nReturns uptime percentage and detection count for each camera.\nUptime is calculated based on the number of days with at least one detection\ndivided by the total days in the date range.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    CameraUptimeResponse with per-camera uptime data\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
         "operationId": "analytics_get_camera_uptime",
         "parameters": [
           {
@@ -36168,7 +36168,7 @@
     },
     "/api/analytics/detection-trends": {
       "get": {
-        "description": "Get detection counts aggregated by day.\n\nReturns daily detection counts for the specified date range.\nCreates one data point per day even if there are no detections.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    DetectionTrendsResponse with daily detection counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get detection counts aggregated by day.\n\nReturns daily detection counts for the specified date range.\nCreates one data point per day even if there are no detections.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    DetectionTrendsResponse with daily detection counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
         "operationId": "analytics_get_detection_trends",
         "parameters": [
           {
@@ -36225,7 +36225,7 @@
     },
     "/api/analytics/object-distribution": {
       "get": {
-        "description": "Get detection counts by object type.\n\nReturns detection counts grouped by object type with percentages.\nOnly includes detections with non-null object_type.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    ObjectDistributionResponse with object type counts and percentages\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get detection counts by object type.\n\nReturns detection counts grouped by object type with percentages.\nOnly includes detections with non-null object_type.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    ObjectDistributionResponse with object type counts and percentages\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
         "operationId": "analytics_get_object_distribution",
         "parameters": [
           {
@@ -36282,7 +36282,7 @@
     },
     "/api/analytics/risk-history": {
       "get": {
-        "description": "Get risk score distribution over time.\n\nReturns daily counts of events grouped by risk level (low, medium, high, critical).\nCreates one data point per day even if there are no events.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    RiskHistoryResponse with daily risk level counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get risk score distribution over time.\n\nReturns daily counts of events grouped by risk level (low, medium, high, critical).\nCreates one data point per day even if there are no events.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    RiskHistoryResponse with daily risk level counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
         "operationId": "analytics_get_risk_history",
         "parameters": [
           {
@@ -36339,7 +36339,7 @@
     },
     "/api/analytics/risk-score-distribution": {
       "get": {
-        "description": "Get risk score distribution as a histogram.\n\nReturns counts of events grouped into score buckets (e.g., 0-10, 10-20, ..., 90-100).\nOnly includes events with non-null risk_score.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    bucket_size: Size of each bucket (default 10 for buckets 0-10, 10-20, etc.)\n    db: Database session\n\nReturns:\n    RiskScoreDistributionResponse with histogram buckets\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get risk score distribution as a histogram.\n\nReturns counts of events grouped into score buckets (e.g., 0-10, 10-20, ..., 90-100).\nOnly includes events with non-null risk_score.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    bucket_size: Size of each bucket (default 10 for buckets 0-10, 10-20, etc.)\n    db: Database session\n\nReturns:\n    RiskScoreDistributionResponse with histogram buckets\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
         "operationId": "analytics_get_risk_score_distribution",
         "parameters": [
           {
@@ -36410,7 +36410,7 @@
     },
     "/api/analytics/risk-score-trends": {
       "get": {
-        "description": "Get average risk score trends over time.\n\nReturns daily average risk scores for the specified date range.\nCreates one data point per day even if there are no events.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    RiskScoreTrendsResponse with daily average scores and event counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Get average risk score trends over time.\n\nReturns daily average risk scores for the specified date range.\nCreates one data point per day even if there are no events.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    RiskScoreTrendsResponse with daily average scores and event counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
         "operationId": "analytics_get_risk_score_trends",
         "parameters": [
           {
@@ -45466,6 +45466,9 @@
           "422": {
             "description": "Validation error"
           },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
           "500": {
             "description": "Internal server error"
           }
@@ -45501,8 +45504,14 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "description": "Payload too large"
+          },
           "422": {
             "description": "Validation error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           },
           "500": {
             "description": "Internal server error"

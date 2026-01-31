@@ -65,7 +65,9 @@ def _get_pandas() -> Any:
 
 
 # Default Nemotron endpoint
-DEFAULT_NEMOTRON_URL = "http://localhost:8091/v1/completions"
+# Security: Use HTTPS by default to prevent MITM attacks (NEM-4506)
+# For local development, override via --nemotron-url flag or environment variable
+DEFAULT_NEMOTRON_URL = "https://localhost:8091/v1/completions"
 
 # Timeout configuration
 NEMOTRON_CONNECT_TIMEOUT = 10.0
