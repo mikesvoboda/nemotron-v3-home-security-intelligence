@@ -25,10 +25,12 @@ from backend.core.config import get_settings
 from backend.core.metrics import (
     observe_zone_dwell_time,
     record_zone_crossing,
+    record_zone_intrusion,
     set_zone_occupancy,
 )
 from backend.core.redis import get_redis
 from backend.core.time_utils import utc_now
+from backend.models.camera_zone import CameraZoneType
 from backend.services.zone_service import (
     _get_detection_center,
     point_in_zone,
@@ -554,6 +556,25 @@ class ZoneCrossingService:
 
         # Record Prometheus metrics for zone crossing (enter direction)
         record_zone_crossing(zone_id=zone_id, direction="enter", entity_type=entity_type)
+
+        # Record intrusion metric for entry_point zones (NEM-4138)
+        # Entry point zones are considered secure perimeters - any entry is an intrusion
+        if zone.zone_type == CameraZoneType.ENTRY_POINT:
+            # Determine severity based on entity type
+            # Persons at entry points are high severity, vehicles are medium
+            severity = "high" if entity_type == "person" else "medium"
+            record_zone_intrusion(zone_id=zone_id, severity=severity)
+            logger.info(
+                "Zone intrusion detected: %s entered entry_point zone %s",
+                entity_type,
+                zone.name,
+                extra={
+                    "zone_id": zone_id,
+                    "zone_name": zone.name,
+                    "entity_type": entity_type,
+                    "severity": severity,
+                },
+            )
 
         # Update zone occupancy gauge
         occupancy = len(self._zone_occupants.get(zone_id, set())) + 1

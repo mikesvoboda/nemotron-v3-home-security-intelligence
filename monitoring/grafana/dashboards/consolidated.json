@@ -10418,7 +10418,7 @@
           "refId": "A"
         }
       ],
-      "title": "Traffic Split",
+      "title": "Traffic Split [PENDING: A/B testing not implemented]",
       "type": "piechart"
     },
     {
@@ -13367,7 +13367,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "### Real User Monitoring (RUM) Metrics\n\n**What these metrics measure:**\n- **FCP (First Contentful Paint)**: Time until first content renders - indicates initial load speed\n- **LCP (Largest Contentful Paint)**: Time until largest content element renders - key Core Web Vital\n- **Page Load Time**: Total time to fully load the page\n- **CLS (Cumulative Layout Shift)**: Visual stability score - measures unexpected layout shifts\n\n**Criticality:** HIGH - These are Core Web Vitals that directly impact user experience and SEO rankings.\n\n**Healthy thresholds:** FCP < 1.8s (good), LCP < 2.5s (good), Page Load < 3s (good), CLS < 0.1 (good)",
+        "content": "### Real User Monitoring (RUM) Metrics [PENDING IMPLEMENTATION]\n\n**Status:** These metrics require frontend RUM instrumentation (e.g., @opentelemetry/sdk-trace-web).\nPanels will show 'No data' until RUM metrics are implemented.\n\n**What these metrics measure:**\n- **FCP (First Contentful Paint)**: Time until first content renders - indicates initial load speed\n- **LCP (Largest Contentful Paint)**: Time until largest content element renders - key Core Web Vital\n- **Page Load Time**: Total time to fully load the page\n- **CLS (Cumulative Layout Shift)**: Visual stability score - measures unexpected layout shifts\n\n**Criticality:** HIGH - These are Core Web Vitals that directly impact user experience and SEO rankings.\n\n**Healthy thresholds:** FCP < 1.8s (good), LCP < 2.5s (good), Page Load < 3s (good), CLS < 0.1 (good)",
         "mode": "markdown"
       },
       "pluginVersion": "10.0.0",
