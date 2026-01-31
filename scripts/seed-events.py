@@ -4596,6 +4596,8 @@ async def seed_face_recognition_metrics(num_samples: int = 50) -> dict[str, int]
     - hsi_face_quality_score (Histogram)
     - hsi_face_embeddings_generated_total (Counter)
     - hsi_face_matches_total (Counter)
+    - hsi_face_recognition_confidence (Histogram) - NEM-3979
+    - hsi_face_embedding_duration_seconds (Histogram) - NEM-3979
 
     Args:
         num_samples: Number of face detection samples to generate
@@ -4605,9 +4607,11 @@ async def seed_face_recognition_metrics(num_samples: int = 50) -> dict[str, int]
     """
     from backend.core.metrics import (
         FACE_DETECTIONS_TOTAL,
+        FACE_EMBEDDING_DURATION_SECONDS,
         FACE_EMBEDDINGS_GENERATED_TOTAL,
         FACE_MATCHES_TOTAL,
         FACE_QUALITY_SCORE,
+        FACE_RECOGNITION_CONFIDENCE,
     )
 
     cameras = await get_cameras()
@@ -4618,6 +4622,8 @@ async def seed_face_recognition_metrics(num_samples: int = 50) -> dict[str, int]
         "face_quality_scores": 0,
         "face_embeddings": 0,
         "face_matches": 0,
+        "face_recognition_confidences": 0,
+        "face_embedding_durations": 0,
     }
 
     # Generate face detections across cameras
@@ -4639,16 +4645,28 @@ async def seed_face_recognition_metrics(num_samples: int = 50) -> dict[str, int]
             FACE_EMBEDDINGS_GENERATED_TOTAL.labels(match_status=match_status).inc()
             counts["face_embeddings"] += 1
 
+            # NEM-3979: Record embedding generation duration (10ms to 500ms typical range)
+            duration = random.uniform(0.01, 0.5)  # noqa: S311
+            FACE_EMBEDDING_DURATION_SECONDS.labels(camera_id=camera_id).observe(duration)
+            counts["face_embedding_durations"] += 1
+
         # Known faces match to a person_id
         if match_status == "known":
             person_id = f"person_{random.randint(1, 5)}"  # noqa: S311
             FACE_MATCHES_TOTAL.labels(person_id=person_id).inc()
             counts["face_matches"] += 1
 
+            # NEM-3979: Record recognition confidence (0.3 to 0.99 realistic range)
+            confidence = random.uniform(0.3, 0.99)  # noqa: S311
+            FACE_RECOGNITION_CONFIDENCE.labels(camera_id=camera_id).observe(confidence)
+            counts["face_recognition_confidences"] += 1
+
     print(f"  Seeded {counts['face_detections']} face detections")
     print(f"  Seeded {counts['face_quality_scores']} face quality scores")
     print(f"  Seeded {counts['face_embeddings']} face embeddings")
     print(f"  Seeded {counts['face_matches']} face matches")
+    print(f"  Seeded {counts['face_recognition_confidences']} face recognition confidences")
+    print(f"  Seeded {counts['face_embedding_durations']} face embedding durations")
     return counts
 
 
@@ -4749,6 +4767,11 @@ async def seed_circuit_breaker_metrics(num_samples: int = 20) -> dict[str, int]:
     Seeds:
     - hsi_circuit_breaker_state (Gauge)
     - hsi_circuit_breaker_trips_total (Counter)
+    - circuit_breaker_state (Gauge) - legacy metric
+    - circuit_breaker_failures_total (Counter) - NEM-3983
+    - circuit_breaker_state_changes_total (Counter) - NEM-3983
+    - circuit_breaker_calls_total (Counter) - NEM-3983
+    - circuit_breaker_rejected_total (Counter) - NEM-3983
 
     Args:
         num_samples: Number of state transitions to simulate
@@ -4757,6 +4780,11 @@ async def seed_circuit_breaker_metrics(num_samples: int = 20) -> dict[str, int]:
         Dictionary with counts of seeded metrics
     """
     from backend.services.circuit_breaker import (
+        CIRCUIT_BREAKER_CALLS_TOTAL,
+        CIRCUIT_BREAKER_FAILURES_TOTAL,
+        CIRCUIT_BREAKER_REJECTED_TOTAL,
+        CIRCUIT_BREAKER_STATE,
+        CIRCUIT_BREAKER_STATE_CHANGES_TOTAL,
         HSI_CIRCUIT_BREAKER_STATE,
         HSI_CIRCUIT_BREAKER_TRIPS_TOTAL,
     )
@@ -4767,42 +4795,173 @@ async def seed_circuit_breaker_metrics(num_samples: int = 20) -> dict[str, int]:
     counts = {
         "state_updates": 0,
         "trips": 0,
+        "failures": 0,
+        "state_changes": 0,
+        "successful_calls": 0,
+        "failed_calls": 0,
+        "rejected_calls": 0,
     }
 
     for service in services:
-        # Set initial closed state (0)
+        # Set initial closed state (0) for both metric sets
         HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+        CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
         counts["state_updates"] += 1
 
     # Simulate some circuit breaker activity
     for _ in range(num_samples):
         service = random.choice(services)  # noqa: S311
 
+        # Simulate calls through the circuit breaker (NEM-3983)
+        num_calls = random.randint(5, 20)  # noqa: S311
+        for _ in range(num_calls):
+            # 85% success rate when circuit is closed
+            if random.random() < 0.85:  # noqa: S311
+                CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=service, result="success").inc()
+                counts["successful_calls"] += 1
+            else:
+                CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=service, result="failure").inc()
+                CIRCUIT_BREAKER_FAILURES_TOTAL.labels(service=service).inc()
+                counts["failed_calls"] += 1
+                counts["failures"] += 1
+
         # Occasionally trip a breaker (20% chance)
         if random.random() < 0.2:  # noqa: S311
+            # Track previous state for state change metric
+            prev_state = "closed"
+
             # Open state
             HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(1)
+            CIRCUIT_BREAKER_STATE.labels(service=service).set(1)
             HSI_CIRCUIT_BREAKER_TRIPS_TOTAL.labels(service=service).inc()
+            CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+                service=service, from_state=prev_state, to_state="open"
+            ).inc()
             counts["state_updates"] += 1
             counts["trips"] += 1
+            counts["state_changes"] += 1
+
+            # Simulate some rejected calls while open (NEM-3983)
+            rejected = random.randint(1, 5)  # noqa: S311
+            for _ in range(rejected):
+                CIRCUIT_BREAKER_REJECTED_TOTAL.labels(service=service).inc()
+                counts["rejected_calls"] += 1
 
             # 50% chance to transition to half-open
             if random.random() < 0.5:  # noqa: S311
                 HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(2)
+                CIRCUIT_BREAKER_STATE.labels(service=service).set(2)
+                CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+                    service=service, from_state="open", to_state="half_open"
+                ).inc()
                 counts["state_updates"] += 1
+                counts["state_changes"] += 1
 
                 # 70% chance to recover to closed
                 if random.random() < 0.7:  # noqa: S311
                     HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+                    CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+                    CIRCUIT_BREAKER_STATE_CHANGES_TOTAL.labels(
+                        service=service, from_state="half_open", to_state="closed"
+                    ).inc()
                     counts["state_updates"] += 1
+                    counts["state_changes"] += 1
 
     # Ensure most breakers end up closed (healthy state)
     for service in services:
         if random.random() < 0.9:  # noqa: S311
             HSI_CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
+            CIRCUIT_BREAKER_STATE.labels(service=service).set(0)
 
     print(f"  Seeded {counts['state_updates']} circuit breaker state updates")
     print(f"  Seeded {counts['trips']} circuit breaker trips")
+    print(f"  Seeded {counts['failures']} circuit breaker failures")
+    print(f"  Seeded {counts['state_changes']} circuit breaker state changes")
+    print(f"  Seeded {counts['successful_calls']} successful calls")
+    print(f"  Seeded {counts['failed_calls']} failed calls")
+    print(f"  Seeded {counts['rejected_calls']} rejected calls")
+    return counts
+
+
+async def seed_ab_testing_metrics(num_samples: int = 50) -> dict[str, int]:
+    """Seed A/B testing and shadow prompt experiment metrics (NEM-3980).
+
+    Seeds:
+    - hsi_ab_rollout_analysis_total (Counter)
+    - hsi_ab_rollout_avg_latency_ms (Gauge)
+    - hsi_ab_rollout_avg_risk_score (Gauge)
+    - hsi_ab_rollout_feedback_total (Counter)
+    - hsi_ab_rollout_fp_rate (Gauge)
+
+    Args:
+        num_samples: Number of experiment samples to generate
+
+    Returns:
+        Dictionary with counts of seeded metrics
+    """
+    from backend.core.metrics import (
+        AB_ROLLOUT_ANALYSIS_TOTAL,
+        AB_ROLLOUT_AVG_LATENCY_MS,
+        AB_ROLLOUT_AVG_RISK_SCORE,
+        AB_ROLLOUT_FEEDBACK_TOTAL,
+        AB_ROLLOUT_FP_RATE,
+    )
+
+    # A/B test groups
+    groups = ["control", "treatment"]
+
+    counts = {
+        "analyses": 0,
+        "latency_updates": 0,
+        "risk_score_updates": 0,
+        "feedback_submissions": 0,
+        "fp_rate_updates": 0,
+    }
+
+    # Simulate experiment analyses for each group
+    for _ in range(num_samples):
+        group = random.choice(groups)  # noqa: S311
+
+        # Record an analysis event
+        AB_ROLLOUT_ANALYSIS_TOTAL.labels(group=group).inc()
+        counts["analyses"] += 1
+
+    # Set realistic gauge values for each group
+    for group in groups:
+        # Control group typically has slightly higher latency than treatment
+        base_latency = 450 if group == "control" else 380
+        latency_variance = random.uniform(-50, 50)  # noqa: S311
+        AB_ROLLOUT_AVG_LATENCY_MS.labels(group=group).set(base_latency + latency_variance)
+        counts["latency_updates"] += 1
+
+        # Risk scores: control group baseline, treatment may differ
+        base_risk = 55 if group == "control" else 52
+        risk_variance = random.uniform(-5, 5)  # noqa: S311
+        AB_ROLLOUT_AVG_RISK_SCORE.labels(group=group).set(base_risk + risk_variance)
+        counts["risk_score_updates"] += 1
+
+        # False positive rates: treatment should be lower if experiment is successful
+        base_fp_rate = 0.12 if group == "control" else 0.08
+        fp_variance = random.uniform(-0.02, 0.02)  # noqa: S311
+        AB_ROLLOUT_FP_RATE.labels(group=group).set(max(0, base_fp_rate + fp_variance))
+        counts["fp_rate_updates"] += 1
+
+    # Generate feedback submissions
+    feedback_samples = num_samples // 5  # 20% of samples have feedback
+    for _ in range(feedback_samples):
+        group = random.choice(groups)  # noqa: S311
+
+        # 15% of feedback indicates false positive, 85% correct
+        is_false_positive = random.random() < 0.15  # noqa: S311
+        feedback_type = "false_positive" if is_false_positive else "correct"
+        AB_ROLLOUT_FEEDBACK_TOTAL.labels(group=group, feedback_type=feedback_type).inc()
+        counts["feedback_submissions"] += 1
+
+    print(f"  Seeded {counts['analyses']} A/B rollout analyses")
+    print(f"  Seeded {counts['latency_updates']} latency gauge updates")
+    print(f"  Seeded {counts['risk_score_updates']} risk score gauge updates")
+    print(f"  Seeded {counts['fp_rate_updates']} false positive rate updates")
+    print(f"  Seeded {counts['feedback_submissions']} feedback submissions")
     return counts
 
 
@@ -5570,6 +5729,11 @@ async def seed_metrics_layer() -> dict[str, int]:
     print("\n  Step 13: Seeding event metrics...")
     event_counts = await seed_event_metrics()
     counts["events_metrics"] = event_counts.get("events_created", 0)
+
+    print("\n  Step 14: Seeding A/B testing metrics...")
+    ab_counts = await seed_ab_testing_metrics()
+    counts["ab_analyses"] = ab_counts.get("analyses", 0)
+    counts["ab_feedback"] = ab_counts.get("feedback_submissions", 0)
 
     return counts
 

@@ -574,49 +574,67 @@ class UnifiedEnrichmentResult:
     inference_time_ms: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
+        """Convert to dictionary for JSON serialization.
+
+        Uses a data-driven approach to reduce branching complexity.
+        Fields with to_dict() methods are converted, others are added directly.
+        """
         result: dict[str, Any] = {}
-        if self.pose:
-            result["pose"] = self.pose.to_dict()
-        if self.clothing:
-            result["clothing"] = self.clothing.to_dict()
-        if self.demographics:
-            result["demographics"] = self.demographics.to_dict()
-        if self.vehicle:
-            result["vehicle"] = self.vehicle.to_dict()
-        if self.pet:
-            result["pet"] = self.pet
-        if self.threat:
-            result["threat"] = self.threat.to_dict()
-        if self.reid_embedding:
-            result["reid_embedding"] = self.reid_embedding
-        if self.action:
-            result["action"] = self.action
-        if self.depth:
-            result["depth"] = self.depth
-        if self.models_loaded:
-            result["models_loaded"] = self.models_loaded
+
+        # Fields that have to_dict() conversion
+        convertible_fields = [
+            ("pose", self.pose),
+            ("clothing", self.clothing),
+            ("demographics", self.demographics),
+            ("vehicle", self.vehicle),
+            ("threat", self.threat),
+        ]
+        for field_name, field_value in convertible_fields:
+            if field_value is not None:
+                result[field_name] = field_value.to_dict()
+
+        # Fields that are passed through directly (no conversion needed)
+        direct_fields: list[tuple[str, dict[str, Any] | list[float] | list[str] | None]] = [
+            ("pet", self.pet),
+            ("reid_embedding", self.reid_embedding),
+            ("action", self.action),
+            ("depth", self.depth),
+            ("models_loaded", self.models_loaded),
+        ]
+        for direct_name, direct_value in direct_fields:
+            if direct_value is not None:
+                result[direct_name] = direct_value
+
         result["inference_time_ms"] = self.inference_time_ms
         return result
 
     def to_context_string(self) -> str:
-        """Generate context string for LLM prompt."""
-        lines = []
-        if self.threat and self.threat.has_threat:
+        """Generate context string for LLM prompt.
+
+        Builds a newline-separated context from available enrichment data.
+        Priority order: threat (if active) > pose > demographics > clothing > vehicle > action.
+        """
+        lines: list[str] = []
+
+        # Add threat context only if threat is active
+        if self.threat is not None and self.threat.has_threat:
             lines.append(self.threat.to_context_string())
-        if self.pose:
-            lines.append(self.pose.to_context_string())
-        if self.demographics:
-            lines.append(self.demographics.to_context_string())
-        if self.clothing:
-            lines.append(self.clothing.to_context_string())
-        if self.vehicle:
-            lines.append(self.vehicle.to_context_string())
-        if self.action:
+
+        # Add context from other enrichment types
+        context_fields = [self.pose, self.demographics, self.clothing, self.vehicle]
+        for field in context_fields:
+            if field is not None:
+                lines.append(field.to_context_string())
+
+        # Format action context separately (different structure)
+        if self.action is not None:
             action_str = self.action.get("top_action", "unknown")
-            conf = self.action.get("confidence", 0)
-            lines.append(f"Action: {action_str} (confidence: {conf:.0%})")
-        return "\n".join(lines) if lines else "No enrichment data available"
+            confidence = self.action.get("confidence", 0)
+            lines.append(f"Action: {action_str} (confidence: {confidence:.0%})")
+
+        if not lines:
+            return "No enrichment data available"
+        return "\n".join(lines)
 
     def has_security_alerts(self) -> bool:
         """Check if any security alerts are present.

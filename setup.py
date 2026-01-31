@@ -246,6 +246,7 @@ def generate_env_content(config: dict) -> str:
         "",
         "# -- Credentials " + "-" * 44,
         f"POSTGRES_PASSWORD={config.get('postgres_password', '')}",
+        f"REDIS_PASSWORD={config.get('redis_password', '')}",
         f"FTP_PASSWORD={config.get('ftp_password', '')}",
         "",
         "# -- Database " + "-" * 47,
@@ -703,6 +704,41 @@ def configure_firewall(ports: list[int]) -> bool:
     return False
 
 
+def run_defaults_mode() -> dict:
+    """Run non-interactive setup with all defaults.
+
+    Used by redeploy.py to bootstrap .env without user interaction.
+
+    Returns:
+        Configuration dictionary with all defaults applied
+    """
+    # Check port conflicts silently
+    ports = {}
+    assigned_ports: set[int] = set()
+    for service, info in SERVICES.items():
+        default_port = info["port"]
+        if check_port_available(default_port) and default_port not in assigned_ports:
+            ports[service] = default_port
+        else:
+            ports[service] = find_available_port(default_port, exclude=assigned_ports)
+        assigned_ports.add(ports[service])
+
+    # Generate unique passwords (including redis for production security)
+    postgres_password = generate_password(32)
+    redis_password = generate_password(32)
+    ftp_password = generate_password(16)
+
+    return {
+        "foscam_base_path": "/export/foscam",
+        "ai_models_path": "/export/ai_models",
+        "postgres_password": postgres_password,
+        "redis_password": redis_password,
+        "grafana_password": "",
+        "ftp_password": ftp_password,
+        "ports": ports,
+    }
+
+
 def main() -> None:
     """Main entry point for setup script."""
     parser = argparse.ArgumentParser(description="Interactive setup for Home Security Intelligence")
@@ -710,6 +746,11 @@ def main() -> None:
         "--guided",
         action="store_true",
         help="Run in guided mode with detailed explanations",
+    )
+    parser.add_argument(
+        "--defaults",
+        action="store_true",
+        help="Non-interactive mode: use all defaults without prompting",
     )
     parser.add_argument(
         "--output-dir",
@@ -724,11 +765,17 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        config = run_guided_mode() if args.guided else run_quick_mode()
+        if args.defaults:
+            config = run_defaults_mode()
+            print("[setup.py] Running in defaults mode (non-interactive)")
+        elif args.guided:
+            config = run_guided_mode()
+        else:
+            config = run_quick_mode()
 
-        # Ask about Docker secrets if not specified via command line
+        # Ask about Docker secrets if not specified via command line (skip in defaults mode)
         create_secrets = args.create_secrets
-        if not create_secrets:
+        if not create_secrets and not args.defaults:
             print("\n" + "=" * 60)
             print("Docker Secrets (Optional - Recommended for Production)")
             print("=" * 60)
@@ -746,10 +793,11 @@ def main() -> None:
             config, args.output_dir, create_secret_files=create_secrets
         )
 
-        # Install pre-commit hooks after config files written
-        print("\n" + "=" * 60)
-        print("Installing pre-commit hooks...")
-        print("=" * 60)
+        # Install pre-commit hooks after config files written (quiet in defaults mode)
+        if not args.defaults:
+            print("\n" + "=" * 60)
+            print("Installing pre-commit hooks...")
+            print("=" * 60)
 
         try:
             # Install pre-commit hook (linting/formatting)
@@ -758,7 +806,8 @@ def main() -> None:
                 check=True,
                 capture_output=True,
             )
-            print("+ Pre-commit hook installed")
+            if not args.defaults:
+                print("+ Pre-commit hook installed")
 
             # Install pre-push hook (unit tests)
             subprocess.run(
@@ -766,50 +815,56 @@ def main() -> None:
                 check=True,
                 capture_output=True,
             )
-            print("+ Pre-push hook installed (unit tests run before push)")
+            if not args.defaults:
+                print("+ Pre-push hook installed (unit tests run before push)")
         except (FileNotFoundError, subprocess.CalledProcessError):
-            print("! Could not install pre-commit hooks")
-            print("  Install manually with:")
-            print("    pre-commit install")
-            print("    pre-commit install --hook-type pre-push")
+            if not args.defaults:
+                print("! Could not install pre-commit hooks")
+                print("  Install manually with:")
+                print("    pre-commit install")
+                print("    pre-commit install --hook-type pre-push")
 
-        print("=" * 60)
-        print("Generated:")
-        print(f"  - {env_path}")
-        print(f"  - {override_path}")
-        if secrets_path:
-            print(f"  - {secrets_path}")
-        print()
-
-        # Security reminder
-        print("! SECURITY NOTES:")
-        print("  - .env file permissions set to 600 (owner only)")
-        print("  - POSTGRES_PASSWORD is required - containers will fail without it")
-        print("  - Never commit .env or secrets/ to version control")
-        if secrets_path:
+        if args.defaults:
+            # Minimal output in defaults mode
+            print(f"[setup.py] Generated: {env_path}, {override_path}")
+        else:
+            print("=" * 60)
+            print("Generated:")
+            print(f"  - {env_path}")
+            print(f"  - {override_path}")
+            if secrets_path:
+                print(f"  - {secrets_path}")
             print()
-            print("  Docker Secrets Created:")
-            print(f"    - Directory: {secrets_path}/")
-            print("    - Files with secure permissions (600):")
-            print("      * postgres_password.txt (database authentication)")
-            if config.get("redis_password"):
-                print("      * redis_password.txt (Redis authentication)")
-            if config.get("grafana_password"):
-                print("      * grafana_admin_password.txt (Grafana dashboard)")
-            print()
-            print("  Next Steps to Enable Docker Secrets:")
-            print(
-                "    1. Uncomment the 'secrets:' section at the bottom of docker-compose.prod.yml"
-            )
-            print("    2. Uncomment the 'secrets:' subsections in each service")
-            print("    3. Validate configuration:")
-            print("       docker compose -f docker-compose.prod.yml config")
-            print("    4. Start services with secrets:")
-            print("       docker compose -f docker-compose.prod.yml up -d")
-        print()
 
-        # Offer firewall configuration on Linux
-        if platform.system() == "Linux":
+            # Security reminder
+            print("! SECURITY NOTES:")
+            print("  - .env file permissions set to 600 (owner only)")
+            print("  - POSTGRES_PASSWORD is required - containers will fail without it")
+            print("  - Never commit .env or secrets/ to version control")
+            if secrets_path:
+                print()
+                print("  Docker Secrets Created:")
+                print(f"    - Directory: {secrets_path}/")
+                print("    - Files with secure permissions (600):")
+                print("      * postgres_password.txt (database authentication)")
+                if config.get("redis_password"):
+                    print("      * redis_password.txt (Redis authentication)")
+                if config.get("grafana_password"):
+                    print("      * grafana_admin_password.txt (Grafana dashboard)")
+                print()
+                print("  Next Steps to Enable Docker Secrets:")
+                print(
+                    "    1. Uncomment the 'secrets:' section at the bottom of docker-compose.prod.yml"
+                )
+                print("    2. Uncomment the 'secrets:' subsections in each service")
+                print("    3. Validate configuration:")
+                print("       docker compose -f docker-compose.prod.yml config")
+                print("    4. Start services with secrets:")
+                print("       docker compose -f docker-compose.prod.yml up -d")
+            print()
+
+        # Offer firewall configuration on Linux (skip in defaults mode)
+        if platform.system() == "Linux" and not args.defaults:
             frontend_port = config["ports"].get("frontend", 5173)
             grafana_port = config["ports"].get("grafana", 3002)
 
@@ -823,9 +878,10 @@ def main() -> None:
                 else:
                     print("Could not configure firewall (may need sudo)")
 
-        print()
-        print("Ready! Run: docker compose -f docker-compose.prod.yml up -d")
-        print("=" * 60)
+        if not args.defaults:
+            print()
+            print("Ready! Run: docker compose -f docker-compose.prod.yml up -d")
+            print("=" * 60)
 
     except KeyboardInterrupt:
         print("\n\nSetup cancelled.")

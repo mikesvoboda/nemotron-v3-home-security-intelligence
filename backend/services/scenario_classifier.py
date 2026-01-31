@@ -51,6 +51,13 @@ class ScenarioType(str, Enum):
     CASING = "casing"
     PHOTOGRAPHING_PROPERTY = "photographing_property"
 
+    # Package theft - minimum HIGH risk (70+)
+    PACKAGE_THEFT = "package_theft"
+
+    # Critical threats - minimum CRITICAL risk (85+)
+    WEAPON_VISIBLE = "weapon_visible"
+    BREAK_IN_ATTEMPT = "break_in_attempt"
+
     # Not classified as a specific scenario
     UNCLASSIFIED = "unclassified"
 
@@ -347,6 +354,88 @@ SCENARIO_FLOOR_SCORES: dict[ScenarioType, ScenarioFloorScore] = {
         ),
         description="Photographing property detected",
     ),
+    # Package theft - minimum HIGH risk (70+)
+    ScenarioType.PACKAGE_THEFT: ScenarioFloorScore(
+        scenario_type=ScenarioType.PACKAGE_THEFT,
+        floor_score=70,  # Ensures HIGH classification - theft in progress
+        keywords=frozenset(
+            {
+                "package theft",
+                "stealing package",
+                "taking package",
+                "porch pirate",
+                "delivery theft",
+                "stolen package",
+                "grabbing package",
+                "package taken",
+            }
+        ),
+        action_patterns=frozenset(
+            {
+                "stealing",
+                "taking package",
+                "grabbing delivery",
+                "porch piracy",
+            }
+        ),
+        description="Package theft detected",
+    ),
+    # Critical threats - minimum CRITICAL risk
+    ScenarioType.WEAPON_VISIBLE: ScenarioFloorScore(
+        scenario_type=ScenarioType.WEAPON_VISIBLE,
+        floor_score=95,  # Ensures CRITICAL classification - immediate threat
+        keywords=frozenset(
+            {
+                "weapon",
+                "gun",
+                "knife",
+                "firearm",
+                "armed",
+                "pistol",
+                "rifle",
+                "machete",
+                "blade",
+            }
+        ),
+        action_patterns=frozenset(
+            {
+                "wielding weapon",
+                "holding gun",
+                "armed person",
+                "brandishing",
+            }
+        ),
+        description="Visible weapon detected - CRITICAL",
+    ),
+    ScenarioType.BREAK_IN_ATTEMPT: ScenarioFloorScore(
+        scenario_type=ScenarioType.BREAK_IN_ATTEMPT,
+        floor_score=85,  # Ensures CRITICAL classification - active threat
+        keywords=frozenset(
+            {
+                "break-in",
+                "break in",
+                "breaking in",
+                "forced entry",
+                "forcing entry",
+                "breaking window",
+                "smashing window",
+                "picking lock",
+                "prying door",
+                "kicking door",
+                "home invasion",
+            }
+        ),
+        action_patterns=frozenset(
+            {
+                "breaking_in",
+                "forcing entry",
+                "breaking window",
+                "kicking door",
+                "prying open",
+            }
+        ),
+        description="Break-in attempt detected - CRITICAL",
+    ),
 }
 
 
@@ -444,6 +533,100 @@ def apply_hysteresis(
 # =============================================================================
 
 
+def _has_person_detected(
+    detections: list[dict[str, Any]] | None,
+    combined_text: str,
+) -> bool:
+    """Check if a person is detected in the scene.
+
+    This helper determines if there's evidence of a person (perpetrator) present,
+    which is critical for distinguishing active crimes from historical evidence.
+
+    Args:
+        detections: List of detection dictionaries
+        combined_text: Combined lowercase text from summary/reasoning
+
+    Returns:
+        True if a person is detected or mentioned, False otherwise
+    """
+    # Check detections for person object type
+    if detections:
+        for detection in detections:
+            obj_type = str(detection.get("object_type", "")).lower()
+            label = str(detection.get("label", "")).lower()
+            if "person" in obj_type or "person" in label:
+                return True
+            # Also check for human-related labels
+            if any(h in obj_type or h in label for h in ("human", "man", "woman", "individual")):
+                return True
+
+    # Negative person indicators - phrases that explicitly say NO person is present
+    # These override positive person mentions in the same text
+    no_person_indicators = (
+        "no person",
+        "no one",
+        "no individuals",
+        "no people",
+        "empty scene",
+        "no suspect",
+        "no perpetrator",
+        "nobody",
+        "no humans",
+    )
+    if any(neg in combined_text for neg in no_person_indicators):
+        return False
+
+    # Check text for person-related keywords indicating active perpetrator
+    person_indicators = (
+        "person",
+        "individual",
+        "suspect",
+        "perpetrator",
+        "man",
+        "woman",
+        "someone",
+        "intruder",
+        "vandal",
+    )
+    return any(indicator in combined_text for indicator in person_indicators)
+
+
+def _is_historical_graffiti(combined_text: str) -> bool:
+    """Check if graffiti is explicitly historical (pre-existing) rather than active.
+
+    Pre-existing graffiti without a perpetrator should score LOW (0-20),
+    while active graffiti with perpetrator should score HIGH (65-85).
+
+    This returns True ONLY if there are explicit historical indicators.
+    If no explicit indicators are found, we default to treating graffiti
+    as potentially active (since seeing graffiti usually means recent vandalism).
+
+    Args:
+        combined_text: Combined lowercase text from summary/reasoning
+
+    Returns:
+        True if graffiti is explicitly marked as historical/pre-existing
+    """
+    # Keywords indicating historical/pre-existing graffiti
+    historical_indicators = (
+        "pre-existing",
+        "preexisting",
+        "existing graffiti",
+        "old graffiti",
+        "previous graffiti",
+        "historical graffiti",
+        "already there",
+        "was already",
+        "no person detected",
+        "no one detected",
+        "empty scene",
+        "no perpetrator",
+        "no suspect",
+        "no individuals",
+    )
+    return any(indicator in combined_text for indicator in historical_indicators)
+
+
 def classify_scenario(
     detections: list[dict[str, Any]] | None = None,
     action_result: dict[str, Any] | None = None,
@@ -454,6 +637,10 @@ def classify_scenario(
 
     Examines detection labels, action recognition results, and LLM output
     to identify specific security scenarios that require floor scores.
+
+    Special handling for temporal context:
+    - Graffiti with perpetrator present = HIGH risk (65-85)
+    - Pre-existing graffiti without person = LOW risk (0-20, no floor applied)
 
     Args:
         detections: List of detection dictionaries with object_type, labels, etc.
@@ -485,25 +672,60 @@ def classify_scenario(
 
     combined_text = " ".join(text_sources)
 
+    # Pre-compute person presence for scenarios that require it
+    has_person = _has_person_detected(detections, combined_text)
+    is_historical = _is_historical_graffiti(combined_text)
+
     # Check each scenario's keywords against the combined text
     for scenario_type, floor_config in SCENARIO_FLOOR_SCORES.items():
+        matched = False
+
         # Check keywords
         for keyword in floor_config.keywords:
             if keyword in combined_text:
-                identified_scenarios.add(scenario_type)
-                logger.debug(f"Scenario {scenario_type.value} identified via keyword: {keyword}")
+                matched = True
+                logger.debug(f"Scenario {scenario_type.value} matched keyword: {keyword}")
                 break
 
         # Check action patterns
-        if action_result:
+        if not matched and action_result:
             detected_action = action_result.get("detected_action", "").lower()
             for pattern in floor_config.action_patterns:
                 if pattern.lower() in detected_action or detected_action in pattern.lower():
-                    identified_scenarios.add(scenario_type)
+                    matched = True
                     logger.debug(
-                        f"Scenario {scenario_type.value} identified via action: {detected_action}"
+                        f"Scenario {scenario_type.value} matched action: {detected_action}"
                     )
                     break
+
+        if matched:
+            # Special handling for graffiti: check for historical context
+            # NEM-4543: Active vandalism with perpetrator = HIGH (65-85)
+            #           Pre-existing graffiti with explicit "no person" = LOW (0-20)
+            #
+            # Default behavior: If graffiti is mentioned without explicit
+            # historical markers, treat it as active vandalism (apply floor score).
+            # Only skip the floor score if explicitly marked as historical AND
+            # no person is detected.
+            if scenario_type == ScenarioType.GRAFFITI:
+                if is_historical and not has_person:
+                    # Explicitly historical graffiti with no person = skip floor
+                    logger.debug(
+                        f"Scenario {scenario_type.value} NOT classified: "
+                        f"explicitly historical graffiti with no person detected"
+                    )
+                else:
+                    # Either:
+                    # 1. Person is detected (active vandalism)
+                    # 2. No explicit historical markers (assume recent/active)
+                    identified_scenarios.add(scenario_type)
+                    logger.debug(
+                        f"Scenario {scenario_type.value} classified: "
+                        f"active vandalism (has_person={has_person}, "
+                        f"is_historical={is_historical})"
+                    )
+            else:
+                identified_scenarios.add(scenario_type)
 
     if identified_scenarios:
         logger.info(

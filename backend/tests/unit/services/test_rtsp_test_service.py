@@ -73,6 +73,7 @@ class TestRTSPTestService:
             assert result.capabilities.fps == 25
 
     @pytest.mark.asyncio
+    @pytest.mark.timeout(10)  # Allow 10 seconds for this test (service timeout is 5s)
     async def test_connection_timeout(self, service: RTSPTestService) -> None:
         """Test that connection attempts timeout after 5 seconds.
 

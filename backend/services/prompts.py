@@ -19,6 +19,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Protocol
 
 from backend.services.prompt_sanitizer import (
@@ -143,6 +144,36 @@ Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored as THR
 
 CRITICAL: Do NOT under-score property crimes. These are criminal acts, not just suspicious behavior.
 
+## GRAFFITI TEMPORAL CONTEXT (ACTIVE vs HISTORICAL)
+Graffiti scoring DEPENDS on whether a perpetrator is present:
+- ACTIVE VANDALISM (person detected spray-painting/tagging) = HIGH risk (65-85)
+  - Person holding spray can, paint, or marker = 65-75
+  - Person actively applying graffiti to surface = 70-85
+  - Person fleeing after graffiti = 75-85 (awareness of wrongdoing)
+- PRE-EXISTING GRAFFITI (no person detected) = LOW risk (0-20)
+  - Graffiti visible on wall but no perpetrator = 5-15
+  - Historical tagging with empty scene = 0-10
+  - Only property damage visible, no active crime = 10-20
+
+CRITICAL: Seeing graffiti is NOT the same as catching someone doing graffiti.
+Only score HIGH (65+) if a PERSON is detected committing the act.
+
+## CAMERA TAMPERING DETECTION (VISUAL EVIDENCE REQUIRED)
+Camera tampering claims require SPECIFIC visual evidence:
+- VALID tampering indicators (score HIGH 60-80):
+  - Hand/object approaching camera lens directly
+  - Spray paint or obstruction being applied to camera
+  - Camera physically moved or covered
+  - Sudden view blockage with person nearby
+- NOT valid tampering indicators (do NOT claim tampering):
+  - Image quality degradation alone (may be weather/lighting)
+  - Scene changes due to time of day
+  - Lens flare, rain drops, or condensation
+  - Motion blur from movement
+
+CRITICAL: Do NOT attribute camera issues to tampering without specific visual evidence.
+Technical issues (blur, noise, artifacts) are NOT evidence of tampering.
+
 ## ACCESS CONTROL VIOLATION GUIDELINES
 Tailgating, piggybacking, and unauthorized entry attempts are ALWAYS scored as MEDIUM-HIGH risk (55+):
 - Tailgating (following authorized person through door) = Minimum score 55
@@ -186,6 +217,101 @@ IMPORTANT DEFAULTS:
 
 HOUSEHOLD_CONTEXT_TEMPLATE = """## HOUSEHOLD CONTEXT
 {household_context}"""
+
+
+# ==============================================================================
+# Cached Static Prompt Sections (NEM-4541)
+# ==============================================================================
+# These functions cache the static portions of prompts to avoid rebuilding
+# them on every LLM request. The system prompt, scoring reference, and
+# non-risk factors are constants that never change at runtime.
+#
+# Performance benefit: Reduces prompt building overhead for high-throughput
+# scenarios. Context utilization was only 1.5% of available window, and
+# prompt caching helps reduce unnecessary string operations.
+
+
+@lru_cache(maxsize=1)
+def get_cached_system_prompt() -> str:
+    """Cache the static calibrated system prompt with reasoning.
+
+    Returns:
+        The CALIBRATED_SYSTEM_PROMPT_WITH_REASONING constant.
+        Cached after first access to avoid repeated string operations.
+
+    Note:
+        This function caches the system prompt that instructs Nemotron
+        to use chain-of-thought reasoning (<think>...</think> blocks)
+        before generating the JSON response.
+    """
+    return CALIBRATED_SYSTEM_PROMPT_WITH_REASONING
+
+
+@lru_cache(maxsize=1)
+def get_cached_scoring_reference() -> str:
+    """Cache the static scoring reference table.
+
+    Returns:
+        The SCORING_REFERENCE_TABLE constant with scenario-to-score mappings.
+        Cached after first access to avoid repeated string operations.
+
+    Note:
+        This table provides concrete scoring examples that anchor the LLM's
+        risk assessment calibration. It includes guidance for property crimes,
+        access control violations, and routine activities.
+    """
+    return SCORING_REFERENCE_TABLE
+
+
+@lru_cache(maxsize=1)
+def get_cached_non_risk_factors() -> str:
+    """Cache the static non-risk factors guidance.
+
+    Returns:
+        The NON_RISK_FACTORS constant listing items that should never
+        be flagged as suspicious (trees, timestamps, weather, etc.).
+        Cached after first access to avoid repeated string operations.
+
+    Note:
+        This guidance prevents over-alerting by explicitly listing
+        common false positive triggers that LLMs tend to misidentify.
+    """
+    return NON_RISK_FACTORS
+
+
+@lru_cache(maxsize=1)
+def get_cached_static_prompt_sections() -> tuple[str, str, str]:
+    """Cache all static prompt sections as a single cached tuple.
+
+    Returns:
+        Tuple of (system_prompt, scoring_reference, non_risk_factors).
+        All three are cached together for efficient batch retrieval.
+
+    Note:
+        Use this function when you need all static sections at once
+        to minimize cache lookup overhead.
+    """
+    return (
+        CALIBRATED_SYSTEM_PROMPT_WITH_REASONING,
+        SCORING_REFERENCE_TABLE,
+        NON_RISK_FACTORS,
+    )
+
+
+def clear_prompt_caches() -> None:
+    """Clear all prompt caches.
+
+    This function is primarily for testing purposes, allowing tests
+    to reset the cached values between test cases.
+
+    Note:
+        In production, these caches should never need clearing as
+        the cached values are compile-time constants.
+    """
+    get_cached_system_prompt.cache_clear()
+    get_cached_scoring_reference.cache_clear()
+    get_cached_non_risk_factors.cache_clear()
+    get_cached_static_prompt_sections.cache_clear()
 
 
 # Protocol for Entity-like objects (to avoid circular imports)
