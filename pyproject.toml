@@ -73,6 +73,9 @@ dependencies = [
     "msgpack>=1.0.8",
     # Video analytics and tracking (NEM-3719)
     "supervision>=0.25.0",
+    # CLI tools for deployment scripts
+    "typer>=0.15.0",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
@@ -434,6 +437,7 @@ markers = [
     "enrichment: mark test as enrichment pipeline edge case test (tests model zoo orchestration, VRAM management, circuit breaker behavior)",
     "multimodal: mark test as multimodal evaluation test (compares local pipeline against NVIDIA vision ground truth)",
     "load: mark test as a load/performance test (verifies latency, memory, and throughput under load)",
+    "ai_pipeline: mark test as AI pipeline quality smoke test (fast CI validation of LLM output quality)",
 ]
 
 [tool.coverage.run]
