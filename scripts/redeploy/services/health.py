@@ -285,14 +285,16 @@ class HealthChecker:
         self,
         services: list[str],
         timeout: int = 120,
-        interval: int = 5,
+        interval: int = 2,
     ) -> bool:
         """Wait for services to become healthy.
+
+        OPTIMIZATION: Checks all services in parallel instead of sequentially.
 
         Args:
             services: List of service names to wait for
             timeout: Maximum seconds to wait
-            interval: Seconds between checks
+            interval: Seconds between check rounds (reduced from 5 to 2)
 
         Returns:
             True if all services healthy within timeout
@@ -300,7 +302,7 @@ class HealthChecker:
         Raises:
             HealthCheckError: If timeout exceeded
         """
-        output.step(f"Waiting for services to become healthy (timeout: {timeout}s)...")
+        output.step(f"Waiting for {len(services)} services (timeout: {timeout}s)...")
 
         service_checks = {
             "backend": self.check_backend,
@@ -314,22 +316,44 @@ class HealthChecker:
             "frontend": self.check_frontend,
         }
 
+        # Validate service names upfront
+        unknown = [s for s in services if s not in service_checks]
+        if unknown:
+            output.warn(f"Unknown services (skipping): {unknown}")
+
+        valid_services = [s for s in services if s in service_checks]
+        if not valid_services:
+            return True
+
         start = time.monotonic()
-        pending = set(services)
+        pending = set(valid_services)
 
         while pending and (time.monotonic() - start) < timeout:
-            for service in list(pending):
-                if service not in service_checks:
-                    output.warn(f"Unknown service: {service}")
-                    pending.discard(service)
-                    continue
+            # OPTIMIZATION: Check all pending services in parallel
+            check_tasks = [(service, service_checks[service]()) for service in pending]
 
-                status = await service_checks[service]()
-                if status.healthy:
-                    output.success(f"{service} is healthy")
-                    pending.discard(service)
+            # Run all checks concurrently
+            results = await asyncio.gather(
+                *[task for _, task in check_tasks],
+                return_exceptions=True,
+            )
+
+            # Process results
+            newly_healthy = []
+            for (service, _), result in zip(check_tasks, results, strict=False):
+                if isinstance(result, Exception):
+                    continue
+                if result.healthy:
+                    newly_healthy.append(service)
+
+            # Report and remove healthy services
+            for service in newly_healthy:
+                output.success(f"{service} is healthy")
+                pending.discard(service)
 
             if pending:
+                elapsed = time.monotonic() - start
+                output.info(f"  Waiting on {len(pending)} services ({elapsed:.0f}s elapsed)...")
                 await asyncio.sleep(interval)
 
         if pending:

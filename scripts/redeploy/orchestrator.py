@@ -184,7 +184,12 @@ class DeployOrchestrator:
         self.containers.ensure_ports_available()
 
     async def _build_phase(self) -> dict:
-        """Build phase: build all images."""
+        """Build phase: build all images.
+
+        OPTIMIZATION: Starts infrastructure in parallel with AI builds to reduce
+        total deployment time. Infrastructure typically takes 10-15s to become
+        healthy, which overlaps with AI build time.
+        """
         import asyncio
 
         # Pre-build cleanup
@@ -197,6 +202,21 @@ class DeployOrchestrator:
 
         # Build core images (backend, frontend)
         core_results = await self.builder.build_core()
+
+        # OPTIMIZATION: Start infrastructure early while building AI images
+        # This runs postgres/redis startup in parallel with AI builds
+        output.header("Starting Infrastructure + Building AI (parallel)")
+
+        async def start_infra_early() -> None:
+            """Start infrastructure services early."""
+            try:
+                await self.containers.start_infrastructure()
+                output.success("Infrastructure started (parallel with AI builds)")
+            except Exception as e:
+                output.warn(f"Early infrastructure start failed: {e}")
+
+        # Start infrastructure task
+        infra_task = asyncio.create_task(start_infra_early())
 
         # Build AI images in parallel, with TensorRT starting as soon as ai-yolo26 completes
         # This saves ~4 minutes by overlapping TensorRT build with other AI builds
@@ -220,8 +240,9 @@ class DeployOrchestrator:
         # Build all AI images, signaling when ai-yolo26 completes
         ai_results = await self.builder.build_ai_with_yolo26_callback(yolo26_ready)
 
-        # Wait for TensorRT to complete (should already be done or nearly done)
+        # Wait for TensorRT and infrastructure to complete
         await tensorrt_task
+        await infra_task
 
         # Post-build cleanup
         self.storage.prune_build_artifacts()
@@ -233,20 +254,23 @@ class DeployOrchestrator:
         }
 
     async def _start_phase(self) -> list[str]:
-        """Start phase: start all containers in order."""
+        """Start phase: start all containers in order.
+
+        OPTIMIZATION: Infrastructure may already be started during build phase
+        for parallel startup. This phase handles the remaining services.
+        """
         output.header("Starting Containers")
         started: list[str] = []
 
         # Phase 1: Infrastructure (postgres, redis)
-        output.step("Phase 1: Starting infrastructure services...")
-        await self.containers.start_infrastructure()
+        # May already be running from parallel start during build phase
+        infra_running = self._check_infrastructure_running()
+        if not infra_running:
+            output.step("Phase 1: Starting infrastructure services...")
+            await self.containers.start_infrastructure()
+        else:
+            output.info("Infrastructure already running (started during build)")
         started.extend(["postgres", "redis"])
-
-        # Wait for infrastructure to be ready (short delay)
-        import asyncio
-
-        output.step("Waiting for infrastructure to initialize...")
-        await asyncio.sleep(5)
 
         # Phase 2: AI services
         if self.config.mode != DeployMode.GHCR:
@@ -266,6 +290,17 @@ class DeployOrchestrator:
 
         output.success("All containers started")
         return started
+
+    def _check_infrastructure_running(self) -> bool:
+        """Check if infrastructure services are already running."""
+        try:
+            containers = self.containers.runtime.ps()
+            names = [c.name.lower() for c in containers]
+            postgres_up = any("postgres" in n for n in names)
+            redis_up = any("redis" in n for n in names)
+            return postgres_up and redis_up
+        except Exception:
+            return False
 
     async def _post_deploy(self) -> None:
         """Post-deploy tasks: migrations, seeding."""
