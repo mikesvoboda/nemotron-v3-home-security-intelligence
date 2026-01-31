@@ -1360,6 +1360,7 @@ services:
     #   - Specific capabilities (SYS_ADMIN, BPF, PERFMON, etc.): Still blocked
     #   - apparmor=unconfined + seccomp=unconfined: Still blocked
     # TODO: Re-test with newer alloy versions or when rootless Podman SELinux handling improves
+    # nosemgrep: yaml.docker-compose.security.privileged-service.privileged-service
     privileged: true
     pid: host
     user: root
