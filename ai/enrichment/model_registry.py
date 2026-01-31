@@ -399,7 +399,7 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
     # - Text-to-Image MRR: 0.239 vs 0.165
     # - Text-to-Image Recall@1: 0.121 vs 0.077
     # - Text-to-Image Recall@10: 0.340 vs 0.249
-    clothing_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-siglip")
+    clothing_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-clip")
     registry["fashion_clip"] = ModelConfig(
         name="fashion_clip",
         vram_mb=800,

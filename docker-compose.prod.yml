@@ -193,6 +193,12 @@ services:
       - GPU_LAYERS=${GPU_LAYERS:-45}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-65536}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - security-net
@@ -238,6 +244,12 @@ services:
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
       - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
       - PYTORCH_PROFILE_DIR=/tmp/profiles
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - security-net
@@ -284,6 +296,12 @@ services:
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
       - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
       - PYTORCH_PROFILE_DIR=/tmp/profiles
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - security-net
@@ -351,6 +369,12 @@ services:
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
       - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
       - PYTORCH_PROFILE_DIR=/tmp/profiles
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - security-net
@@ -414,6 +438,12 @@ services:
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
       - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
       - PYTORCH_PROFILE_DIR=/tmp/profiles
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     networks:
       - security-net
