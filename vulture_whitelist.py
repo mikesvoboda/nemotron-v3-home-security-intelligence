@@ -88,6 +88,8 @@ _.cleanup_redis_keys
 _.cleanup_stale_databases
 _.inputs2
 _.trace_state
+_.clear_prometheus_metrics
+_.clear_action_metrics
 
 # SQLAlchemy event handler parameters (required by signature but unused in handler body)
 _.flush_context
