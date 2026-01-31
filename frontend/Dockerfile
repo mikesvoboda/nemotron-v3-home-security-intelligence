@@ -97,7 +97,7 @@ RUN npm run build
 # =============================================================================
 # Use nginx-unprivileged for better security (runs as non-root by default)
 # stable-alpine-slim: smallest footprint with security patches, auto-updated weekly
-FROM nginxinc/nginx-unprivileged:stable-alpine-slim AS prod
+FROM docker.io/nginxinc/nginx-unprivileged:stable-alpine-slim AS prod
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -107,8 +107,8 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="nginxinc/nginx-unprivileged:stable-alpine-slim"
-LABEL org.opencontainers.image.base.digest="nginxinc/nginx-unprivileged:stable-alpine-slim"
+LABEL org.opencontainers.image.base.name="docker.io/nginxinc/nginx-unprivileged:stable-alpine-slim"
+LABEL org.opencontainers.image.base.digest="docker.io/nginxinc/nginx-unprivileged:stable-alpine-slim"
 
 # Switch to root temporarily to install wget and configure files
 USER root
