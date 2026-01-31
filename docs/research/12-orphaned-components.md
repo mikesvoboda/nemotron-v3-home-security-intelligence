@@ -2,168 +2,85 @@
 
 ## Executive Summary
 
-Analysis identified **5 orphaned components** that are exported but never imported elsewhere in the codebase. After detailed code review:
+Analysis identified **5 orphaned components** that are exported but never imported elsewhere in the codebase. These represent dead code that should be deleted.
 
-- **3 components are VALUABLE** and should be integrated (1,021 lines of production-ready code)
-- **2 components are SUPERSEDED** and should be deleted (523 lines of redundant code)
+## Identified Orphaned Components
 
-## Updated Assessment
-
-### INTEGRATE: Valuable Components
-
-| Component                | Lines | Integration Target   | Value                             |
-| ------------------------ | ----- | -------------------- | --------------------------------- |
-| FeedbackPanel            | 390   | EventDetailModal     | AI feedback with calibration      |
-| NotificationHistoryPanel | 403   | NotificationSettings | Notification history viewer       |
-| BatchProcessingIndicator | 328   | Dashboard header     | Real-time batch processing status |
-
-### DELETE: Superseded Components
-
-| Component       | Lines | Reason                                                     |
-| --------------- | ----- | ---------------------------------------------------------- |
-| DateRangePicker | 300   | Superseded by DateRangePickerModal & CustomDateRangePicker |
-| RetryIndicator  | 223   | Superseded by RetryingIndicator (used in App.tsx)          |
-
----
-
-## Detailed Analysis
-
-### 1. FeedbackPanel - INTEGRATE ⭐
+### 1. FeedbackPanel (HIGH CONFIDENCE - DELETE)
 
 **Location:** `frontend/src/components/feedback/FeedbackPanel.tsx`
 
-**Features:**
+**Evidence:**
 
-- Complete AI feedback system for event classification
-- Calibration field editing (person detection sensitivity, loitering threshold, etc.)
-- Feedback submission with useTransition for non-blocking UI
-- References: NEM-2353, NEM-3552
+- Exported from `feedback/index.ts`
+- Only references found are in the export barrel file itself
+- No imports in any other component or page
+- Comment says "for EventDetailModal" but EventDetailModal doesn't import it
 
-**Why it's valuable:**
+**Recommendation:** DELETE
 
-- Enables users to correct AI classifications, improving model accuracy over time
-- Fully implemented with proper error handling and loading states
-- Has comprehensive test coverage
-
-**Integration target:** EventDetailModal (the comment says this, but it was never connected)
-
-**Recommendation:** INTEGRATE into EventDetailModal
-
-### 2. NotificationHistoryPanel - INTEGRATE ⭐
+### 2. NotificationHistoryPanel (HIGH CONFIDENCE - DELETE)
 
 **Location:** `frontend/src/components/notifications/NotificationHistoryPanel.tsx`
 
-**Features:**
+**Evidence:**
 
-- Notification delivery history with pagination
-- Filter by channel (email, SMS, push, webhook) and status
-- Retry failed notifications
-- WebSocket integration for real-time updates
-- Comprehensive test coverage
+- Exported from `notifications/index.ts`
+- Only references are in export barrel and test files
+- Never imported elsewhere in the codebase
+- Has comprehensive test coverage suggesting it was planned but not integrated
 
-**Why it's valuable:**
+**Recommendation:** DELETE
 
-- Users need visibility into notification delivery status
-- Critical for debugging why alerts weren't received
-- Fully implemented with proper UX patterns
+### 3. BatchProcessingIndicator (MEDIUM-HIGH CONFIDENCE - DELETE)
 
-**Integration target:** NotificationSettings page or dedicated Notification History page
-
-**Recommendation:** INTEGRATE into NotificationSettings
-
-### 3. BatchProcessingIndicator - INTEGRATE ⭐
-
-**Location:** `frontend/src/components/BatchProcessingIndicator.tsx`
-
-**Features:**
-
-- Real-time display of batch processing status
-- Shows batch state (idle, collecting, processing, complete)
-- Detection count, time remaining, progress bar
-- WebSocket integration for live updates
-- Reference: NEM-3607
-
-**Why it's valuable:**
-
-- Critical UX - users need to know when AI is processing batches
-- Explains why events may not appear immediately
-- Fully implemented with proper styling
-
-**Integration target:** Dashboard header or status bar
-
-**Recommendation:** INTEGRATE into dashboard header
-
-### 4. DateRangePicker - DELETE 🗑️
-
-**Location:** `frontend/src/components/DateRangePicker.tsx`
+**Location:** `frontend/src/components/BatchProcessingIndicator.tsx` (root components)
 
 **Evidence:**
 
-- Uses React 19 useTransition pattern
-- Two other implementations exist that ARE used:
-  - `DateRangePickerModal.tsx` (used in analytics)
-  - `CustomDateRangePicker.tsx` (used in event filtering)
-- Likely an earlier implementation before more specific versions
+- No imports found outside of test files
+- Exported as root component but never used
+- Has test file (`BatchProcessingIndicator.test.tsx`)
+- Comment suggests it should show "real-time batch processing status"
 
-**Recommendation:** DELETE (superseded by specific implementations)
+**Recommendation:** DELETE (or move to appropriate directory and integrate if planned feature)
 
-### 5. RetryIndicator - DELETE 🗑️
+### 4. DateRangePicker (MEDIUM CONFIDENCE - DELETE)
+
+**Location:** `frontend/src/components/DateRangePicker.tsx` (root components)
+
+**Evidence:**
+
+- Root-level component with test file
+- Not imported anywhere in the application
+- Similar components exist that ARE used:
+  - `DateRangePickerModal`
+  - `CustomDateRangePicker`
+- Likely superseded by more specific implementations
+
+**Recommendation:** DELETE (replaced by specific implementations)
+
+### 5. RetryIndicator (LOW CONFIDENCE - DELETE)
 
 **Location:** `frontend/src/components/RetryIndicator.tsx`
 
 **Evidence:**
 
-- Shows retry countdown for rate limiting
-- `RetryingIndicator.tsx` IS actively used in `App.tsx` for WebSocket reconnection
-- This is a duplicate/earlier version that was never connected
+- Has test file but no imports found
+- Similar component `RetryingIndicator` IS used in App.tsx
+- May have been an earlier version before RetryingIndicator
 
-**Recommendation:** DELETE (superseded by RetryingIndicator)
+**Recommendation:** DELETE (keep RetryingIndicator which is in use)
 
----
+## Summary Table
 
-## Action Items
-
-### Files to Delete
-
-```bash
-# Superseded components
-rm frontend/src/components/DateRangePicker.tsx
-rm frontend/src/components/RetryIndicator.tsx
-
-# Test files for deleted components
-rm frontend/src/components/DateRangePicker.test.tsx
-rm frontend/src/components/RetryIndicator.test.tsx
-```
-
-### Files to KEEP and INTEGRATE
-
-```bash
-# These are VALUABLE - integrate, don't delete!
-frontend/src/components/feedback/FeedbackPanel.tsx          # → EventDetailModal
-frontend/src/components/notifications/NotificationHistoryPanel.tsx  # → NotificationSettings
-frontend/src/components/BatchProcessingIndicator.tsx        # → Dashboard header
-```
-
-### Integration Tasks
-
-1. **FeedbackPanel → EventDetailModal**
-
-   - Add FeedbackPanel as a tab or section in EventDetailModal
-   - Wire up feedback submission to API
-   - Connect calibration fields to settings
-
-2. **NotificationHistoryPanel → NotificationSettings**
-
-   - Add as new section in NotificationSettings page
-   - Or create dedicated /notifications/history route
-   - Wire up WebSocket for real-time updates
-
-3. **BatchProcessingIndicator → Dashboard**
-   - Add to dashboard header or create status bar component
-   - Wire up WebSocket for batch status updates
-   - Show only when batch is in progress
-
----
+| Component                | Confidence  | Reason                          | Action |
+| ------------------------ | ----------- | ------------------------------- | ------ |
+| FeedbackPanel            | HIGH        | Exported but never imported     | DELETE |
+| NotificationHistoryPanel | HIGH        | Exported but never imported     | DELETE |
+| BatchProcessingIndicator | MEDIUM-HIGH | Never integrated                | DELETE |
+| DateRangePicker          | MEDIUM      | Superseded                      | DELETE |
+| RetryIndicator           | MEDIUM      | Superseded by RetryingIndicator | DELETE |
 
 ## Components with Limited But Valid Usage
 
@@ -182,8 +99,8 @@ These directories export only one or two components and may indicate incomplete 
 | Directory       | Components               | Status                   |
 | --------------- | ------------------------ | ------------------------ |
 | ai-performance/ | AIPerformanceSummaryRow  | USED                     |
-| feedback/       | FeedbackPanel            | **UNUSED - INTEGRATE**   |
-| notifications/  | NotificationHistoryPanel | **UNUSED - INTEGRATE**   |
+| feedback/       | FeedbackPanel            | **UNUSED**               |
+| notifications/  | NotificationHistoryPanel | **UNUSED**               |
 | forms/          | FormField, SubmitButton  | USED (React 19 patterns) |
 | logs/           | LogsPage                 | USED                     |
 | status/         | AIServiceStatus          | USED (Header)            |
@@ -191,6 +108,40 @@ These directories export only one or two components and may indicate incomplete 
 | tracing/        | TracingPage              | USED                     |
 | video/          | VideoPlayer              | USED                     |
 | pyroscope/      | PyroscopePage            | USED                     |
+
+## Cleanup Actions
+
+### Files to Delete
+
+```bash
+# Components
+rm frontend/src/components/feedback/FeedbackPanel.tsx
+rm frontend/src/components/notifications/NotificationHistoryPanel.tsx
+rm frontend/src/components/BatchProcessingIndicator.tsx
+rm frontend/src/components/DateRangePicker.tsx
+rm frontend/src/components/RetryIndicator.tsx
+
+# Test files
+rm frontend/src/components/feedback/FeedbackPanel.test.tsx
+rm frontend/src/components/notifications/NotificationHistoryPanel.test.tsx
+rm frontend/src/components/BatchProcessingIndicator.test.tsx
+rm frontend/src/components/DateRangePicker.test.tsx
+rm frontend/src/components/RetryIndicator.test.tsx
+```
+
+### Export Barrel Updates
+
+Update `feedback/index.ts`:
+
+```typescript
+// Remove: export { FeedbackPanel } from './FeedbackPanel';
+```
+
+Update `notifications/index.ts`:
+
+```typescript
+// Remove: export { NotificationHistoryPanel } from './NotificationHistoryPanel';
+```
 
 ## Automated Detection
 
