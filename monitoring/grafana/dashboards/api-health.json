@@ -56,6 +56,220 @@
         "x": 0,
         "y": 0
       },
+      "id": 105,
+      "panels": [],
+      "title": "RED Method Summary",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Total request rate across all API endpoints. Part of the RED method (Rate, Errors, Duration) for service monitoring.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 106,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(http_request_duration_seconds_count[5m])) or vector(0)",
+          "legendFormat": "Request Rate",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Rate (req/s)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Percentage of requests returning 5xx server errors. Part of the RED method (Rate, Errors, Duration) for service monitoring.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 107,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum(rate(http_request_duration_seconds_count{status=~\"5..\"}[5m])) / sum(rate(http_request_duration_seconds_count[5m])) or vector(0)",
+          "legendFormat": "Error Rate",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Error Rate (%)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "95th percentile request latency across all endpoints. Part of the RED method (Rate, Errors, Duration) for service monitoring.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 108,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) or vector(0)",
+          "legendFormat": "P95 Latency",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "P95 Latency (s)",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 100,
       "panels": [],
       "title": "API Deprecation Tracking",
@@ -102,7 +316,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 1
+        "y": 6
       },
       "id": 1,
       "options": {
@@ -171,7 +385,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 1
+        "y": 6
       },
       "id": 2,
       "options": {
@@ -244,7 +458,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 1
+        "y": 6
       },
       "id": 3,
       "options": {
@@ -313,7 +527,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 1
+        "y": 6
       },
       "id": 4,
       "options": {
@@ -426,7 +640,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 5
+        "y": 10
       },
       "id": 5,
       "options": {
@@ -537,7 +751,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 5
+        "y": 10
       },
       "id": 6,
       "options": {
@@ -575,7 +789,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 18
       },
       "id": 101,
       "panels": [],
@@ -625,7 +839,7 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 14
+        "y": 19
       },
       "id": 7,
       "options": {
@@ -696,7 +910,7 @@
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 14
+        "y": 19
       },
       "id": 8,
       "options": {
@@ -769,7 +983,7 @@
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 14
+        "y": 19
       },
       "id": 9,
       "options": {
@@ -830,7 +1044,7 @@
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 14
+        "y": 19
       },
       "id": 10,
       "options": {
@@ -952,7 +1166,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 24
       },
       "id": 11,
       "options": {
@@ -1084,7 +1298,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 19
+        "y": 24
       },
       "id": 12,
       "options": {
@@ -1122,7 +1336,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 32
       },
       "id": 102,
       "panels": [],
@@ -1214,7 +1428,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 28
+        "y": 33
       },
       "id": 13,
       "options": {
@@ -1351,7 +1565,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 28
+        "y": 33
       },
       "id": 14,
       "options": {
@@ -1409,7 +1623,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 43
       },
       "id": 103,
       "panels": [],
@@ -1564,7 +1778,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 39
+        "y": 44
       },
       "id": 15,
       "options": {
@@ -1662,7 +1876,7 @@
         "h": 8,
         "w": 16,
         "x": 8,
-        "y": 39
+        "y": 44
       },
       "id": 16,
       "options": {
@@ -1700,7 +1914,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 52
       },
       "id": 104,
       "panels": [],
@@ -1812,7 +2026,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 53
       },
       "id": 17,
       "options": {
