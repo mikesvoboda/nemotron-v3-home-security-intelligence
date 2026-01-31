@@ -590,3 +590,194 @@ class TestTailgatingEscalation:
         )
         # Should detect tailgating from rapid succession
         assert meta.get("tailgating") is not None or adjusted > 25
+
+
+class TestPackageTheftScoring:
+    """Tests for package theft scenario (NEM-4532).
+
+    Package theft should have a floor score of 70 to ensure consistent
+    HIGH classification regardless of other contextual factors.
+    """
+
+    def test_package_theft_floor_score_exists(self) -> None:
+        """Package theft should have a floor score configured."""
+        assert ScenarioType.PACKAGE_THEFT in SCENARIO_FLOOR_SCORES
+        config = SCENARIO_FLOOR_SCORES[ScenarioType.PACKAGE_THEFT]
+        assert config.floor_score >= 70
+
+    def test_package_theft_keyword_classification(self) -> None:
+        """Package theft keywords should trigger classification."""
+        test_cases = [
+            "package theft detected",
+            "person stealing package from porch",
+            "porch pirate taking delivery",
+            "delivery theft in progress",
+        ]
+        for summary in test_cases:
+            scenarios = classify_scenario(summary=summary)
+            assert ScenarioType.PACKAGE_THEFT in scenarios, (
+                f"'{summary}' should classify as PACKAGE_THEFT"
+            )
+
+    def test_package_theft_floor_score_applied(self) -> None:
+        """Package theft should enforce minimum floor score of 70."""
+        test_cases = [
+            "package theft on porch",
+            "someone stealing package",
+            "porch pirate detected",
+        ]
+        for summary in test_cases:
+            adjusted, meta = adjust_risk_score(raw_score=35, summary=summary)
+            assert adjusted >= 70, f"'{summary}' should score >= 70, got {adjusted}"
+            assert "package_theft" in meta["scenarios"]
+
+
+class TestWeaponVisibleScoring:
+    """Tests for weapon visible scenario (NEM-4544).
+
+    Visible weapons should have a floor score of 95 to ensure CRITICAL
+    classification - immediate threat response required.
+    """
+
+    def test_weapon_visible_floor_score_exists(self) -> None:
+        """Weapon visible should have a floor score configured."""
+        assert ScenarioType.WEAPON_VISIBLE in SCENARIO_FLOOR_SCORES
+        config = SCENARIO_FLOOR_SCORES[ScenarioType.WEAPON_VISIBLE]
+        assert config.floor_score >= 95
+
+    def test_weapon_visible_keyword_classification(self) -> None:
+        """Weapon keywords should trigger classification."""
+        test_cases = [
+            "weapon detected in frame",
+            "person with gun visible",
+            "knife detected near intruder",
+            "armed individual at entrance",
+            "firearm visible",
+        ]
+        for summary in test_cases:
+            scenarios = classify_scenario(summary=summary)
+            assert ScenarioType.WEAPON_VISIBLE in scenarios, (
+                f"'{summary}' should classify as WEAPON_VISIBLE"
+            )
+
+    def test_weapon_visible_floor_score_applied(self) -> None:
+        """Weapon visible should enforce minimum floor score of 95."""
+        test_cases = [
+            "person with weapon detected",
+            "gun visible in hand",
+            "armed suspect on property",
+        ]
+        for summary in test_cases:
+            adjusted, meta = adjust_risk_score(raw_score=50, summary=summary)
+            assert adjusted >= 95, f"'{summary}' should score >= 95, got {adjusted}"
+            assert "weapon_visible" in meta["scenarios"]
+
+
+class TestBreakInAttemptScoring:
+    """Tests for break-in attempt scenario (NEM-4544).
+
+    Break-in attempts should have a floor score of 85 to ensure HIGH/CRITICAL
+    classification - active threat requiring immediate response.
+    """
+
+    def test_break_in_attempt_floor_score_exists(self) -> None:
+        """Break-in attempt should have a floor score configured."""
+        assert ScenarioType.BREAK_IN_ATTEMPT in SCENARIO_FLOOR_SCORES
+        config = SCENARIO_FLOOR_SCORES[ScenarioType.BREAK_IN_ATTEMPT]
+        assert config.floor_score >= 85
+
+    def test_break_in_attempt_keyword_classification(self) -> None:
+        """Break-in keywords should trigger classification."""
+        test_cases = [
+            "break-in attempt at rear door",
+            "person breaking in through window",
+            "forced entry detected",
+            "someone forcing entry to home",
+            "picking lock at front door",
+            "kicking door to gain entry",
+            "home invasion in progress",
+        ]
+        for summary in test_cases:
+            scenarios = classify_scenario(summary=summary)
+            assert ScenarioType.BREAK_IN_ATTEMPT in scenarios, (
+                f"'{summary}' should classify as BREAK_IN_ATTEMPT"
+            )
+
+    def test_break_in_attempt_floor_score_applied(self) -> None:
+        """Break-in attempt should enforce minimum floor score of 85."""
+        test_cases = [
+            "break-in detected",
+            "person forcing entry",
+            "breaking window to enter",
+        ]
+        for summary in test_cases:
+            adjusted, meta = adjust_risk_score(raw_score=40, summary=summary)
+            assert adjusted >= 85, f"'{summary}' should score >= 85, got {adjusted}"
+            assert "break_in_attempt" in meta["scenarios"]
+
+
+class TestGraffitiTemporalContext:
+    """Tests for graffiti temporal context handling (NEM-4543).
+
+    Active vandalism with perpetrator = HIGH (65-85)
+    Pre-existing graffiti with no person = LOW (0-20, no floor applied)
+    """
+
+    def test_active_graffiti_with_person_scores_high(self) -> None:
+        """Active graffiti with person detected should score HIGH."""
+        test_cases = [
+            "person spraying graffiti on wall",
+            "vandal tagging fence with spray paint",
+            "suspect painting graffiti on building",
+        ]
+        for summary in test_cases:
+            adjusted, meta = adjust_risk_score(raw_score=25, summary=summary)
+            assert adjusted >= 65, f"'{summary}' should score >= 65, got {adjusted}"
+            assert "graffiti" in meta["scenarios"]
+
+    def test_graffiti_without_explicit_historical_scores_high(self) -> None:
+        """Graffiti mentioned without historical context should default to HIGH.
+
+        When graffiti is detected without explicit "pre-existing" or "historical"
+        markers, assume it's recent/active and apply floor score.
+        """
+        test_cases = [
+            "graffiti on wall",
+            "spray paint detected",
+            "tagging visible on fence",
+        ]
+        for summary in test_cases:
+            adjusted, meta = adjust_risk_score(raw_score=25, summary=summary)
+            assert adjusted >= 65, f"'{summary}' should score >= 65, got {adjusted}"
+            assert "graffiti" in meta["scenarios"]
+
+    def test_historical_graffiti_without_person_scores_low(self) -> None:
+        """Pre-existing graffiti with no person should NOT apply floor score."""
+        test_cases = [
+            "pre-existing graffiti visible, no person detected",
+            "old graffiti on wall, empty scene",
+            "historical graffiti, no individuals in frame",
+        ]
+        for summary in test_cases:
+            adjusted, meta = adjust_risk_score(raw_score=15, summary=summary)
+            # Should NOT apply graffiti floor since explicitly historical
+            assert adjusted == 15, f"'{summary}' should keep score 15 (no floor), got {adjusted}"
+            assert "graffiti" not in meta["scenarios"]
+
+    def test_historical_graffiti_with_person_still_scores_high(self) -> None:
+        """Even if graffiti is mentioned as historical, person presence triggers floor."""
+        # If someone is detected near historical graffiti, it's suspicious
+        summary = "pre-existing graffiti visible, person lingering nearby"
+        adjusted, meta = adjust_risk_score(raw_score=25, summary=summary)
+        # Person presence should override historical indicator
+        assert adjusted >= 65, f"Person near graffiti should score >= 65, got {adjusted}"
+        assert "graffiti" in meta["scenarios"]
+
+    def test_graffiti_action_detection_scores_high(self) -> None:
+        """Action recognition of graffiti activity should score HIGH."""
+        adjusted, meta = adjust_risk_score(
+            raw_score=20,
+            action_result={"detected_action": "spraying graffiti"},
+        )
+        assert adjusted >= 65
+        assert "graffiti" in meta["scenarios"]
