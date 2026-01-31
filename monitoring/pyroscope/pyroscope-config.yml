@@ -36,7 +36,8 @@ pyroscopedb:
   enforcement_interval: 5m
   # Maximum duration of a single block before compaction
   # Smaller blocks = faster compaction, larger = better compression
-  max_block_duration: 3h
+  # Must match block_ranges period (default 1h)
+  max_block_duration: 1h
 
 # Compactor configuration (NEM-3443, NEM-3928)
 # Compacts multiple blocks into larger, optimized blocks
