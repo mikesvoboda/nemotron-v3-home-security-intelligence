@@ -902,8 +902,14 @@ class TestConcurrentSessionAccess:
         import backend.core.database as db_module
 
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
+            # Set engine to None to prevent _check_loop_mismatch from triggering init_db
+            db_module._engine = None
+            db_module._bound_loop_id = None
+
             sessions_created = []
 
             mock_factory = MagicMock()
@@ -945,6 +951,8 @@ class TestConcurrentSessionAccess:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
     @pytest.mark.asyncio
     async def test_concurrent_error_handling_independent(self) -> None:
@@ -952,8 +960,14 @@ class TestConcurrentSessionAccess:
         import backend.core.database as db_module
 
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
+            # Set engine to None to prevent _check_loop_mismatch from triggering init_db
+            db_module._engine = None
+            db_module._bound_loop_id = None
+
             sessions_created = []
 
             mock_factory = MagicMock()
@@ -1002,6 +1016,8 @@ class TestConcurrentSessionAccess:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
 
 # =============================================================================
