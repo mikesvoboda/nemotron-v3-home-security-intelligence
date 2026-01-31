@@ -28,12 +28,12 @@ server:
 pyroscopedb:
   # How much available disk space to keep in GiB
   # When free space drops below this, oldest blocks are deleted
-  retention_policy_min_free_disk_gb: 10
+  min_free_disk_gb: 10
   # Minimum percentage of free disk space to maintain (5%)
   # Acts as a secondary safety threshold
-  retention_policy_min_disk_available_percentage: 0.05
+  min_disk_available_percentage: 0.05
   # How often to check and enforce retention policy
-  retention_policy_enforcement_interval: 5m
+  enforcement_interval: 5m
   # Maximum duration of a single block before compaction
   # Smaller blocks = faster compaction, larger = better compression
   max_block_duration: 3h
@@ -49,12 +49,8 @@ compactor:
   cleanup_interval: 15m
   # Delay before permanently deleting marked blocks (safety buffer)
   deletion_delay: 2h
-  # Enable block cleanup based on retention period
-  block_cleanup_enabled: true
   # Number of concurrent block openings during compaction
   max_opening_blocks_concurrency: 4
-  # Number of concurrent block closings during split compaction
-  max_closing_blocks_concurrency: 4
 
 # Limits configuration (NEM-3928)
 # Time-based retention and ingestion rate limits
