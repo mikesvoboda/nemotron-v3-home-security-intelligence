@@ -21,58 +21,27 @@ class DatabaseManager:
         self.config = config
 
     def run_migrations(self) -> bool:
-        """Run database migrations with Alembic.
+        """Initialize database schema.
+
+        Note: We use a flat schema without Alembic migrations.
+        The backend creates tables on startup via SQLAlchemy metadata.create_all().
+        This simplifies deployment - no migration history to maintain.
 
         Returns:
-            True if migrations successful
+            True always (schema created by backend on startup)
         """
-        output.step("Running database migrations...")
-
-        if self.config.dry_run:
-            output.dry_run("Would run: alembic upgrade head")
-            return True
-
-        result = self.process.run(
-            ["uv", "run", "alembic", "upgrade", "head"],
-            check=False,
-            cwd=self.config.project_root,
-            env={"DATABASE_URL": self.config.database_url},
-        )
-
-        if result.success:
-            output.success("Migrations complete")
-            return True
-        else:
-            output.fail("Migration failed")
-            if result.stderr:
-                output.error(result.stderr[:500])
-            return False
+        output.step("Database schema will be created by backend on startup...")
+        output.success("Using flat schema (no migrations)")
+        return True
 
     def stamp_head(self) -> bool:
-        """Stamp database as current (skip migrations).
+        """No-op: migrations disabled.
 
         Returns:
-            True if stamp successful
+            True always
         """
-        output.step("Stamping database as current...")
-
-        if self.config.dry_run:
-            output.dry_run("Would run: alembic stamp head")
-            return True
-
-        result = self.process.run(
-            ["uv", "run", "alembic", "stamp", "head"],
-            check=False,
-            cwd=self.config.project_root,
-            env={"DATABASE_URL": self.config.database_url},
-        )
-
-        if result.success:
-            output.success("Database stamped")
-            return True
-        else:
-            output.warn("Stamp failed (may already be stamped)")
-            return True  # Not fatal
+        # No-op: using flat schema without Alembic
+        return True
 
     def seed_database(self) -> bool:
         """Seed database with initial data.

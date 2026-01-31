@@ -773,6 +773,14 @@ class ClothingClassifier:
         self.model, self.preprocess = create_model_from_pretrained(hub_path, device=target_device)
         self.tokenizer = get_tokenizer(hub_path)
 
+        # Check if tokenizer is a T5Tokenizer (which doesn't support batch_encode_plus in transformers 5.0+)
+        # Store a flag to use direct tokenization for T5-based models
+        self.is_t5_tokenizer = (
+            hasattr(self.tokenizer, "tokenizer")
+            and hasattr(self.tokenizer.tokenizer, "__class__")
+            and "T5" in self.tokenizer.tokenizer.__class__.__name__
+        )
+
         logger.info(f"ClothingClassifier loaded on {self.device}")
         self.model.eval()
         logger.info("ClothingClassifier loaded successfully")
@@ -806,7 +814,21 @@ class ClothingClassifier:
         image_tensor = self.preprocess(rgb_image).unsqueeze(0).to(self.device)
 
         # Tokenize text prompts
-        text_tokens = self.tokenizer(prompts).to(self.device)
+        # T5Tokenizer in transformers 5.0+ doesn't support batch_encode_plus
+        # Use direct tokenization for T5-based models
+        if hasattr(self, "is_t5_tokenizer") and self.is_t5_tokenizer:
+            # Tokenize directly using the underlying T5Tokenizer
+            tokens = self.tokenizer.tokenizer(
+                prompts,
+                padding="max_length",
+                truncation=True,
+                max_length=77,  # Standard CLIP context length
+                return_tensors="pt",
+            )
+            text_tokens = tokens["input_ids"].to(self.device)
+        else:
+            # Standard open_clip tokenization
+            text_tokens = self.tokenizer(prompts).to(self.device)
 
         # Get image and text features
         with torch.inference_mode():
@@ -898,7 +920,21 @@ class ClothingClassifier:
 
         # Tokenize all prompts
         all_prompts = SECURITY_CLOTHING_PROMPTS
-        text_tokens = self.tokenizer(all_prompts).to(self.device)
+        # T5Tokenizer in transformers 5.0+ doesn't support batch_encode_plus
+        # Use direct tokenization for T5-based models
+        if hasattr(self, "is_t5_tokenizer") and self.is_t5_tokenizer:
+            # Tokenize directly using the underlying T5Tokenizer
+            tokens = self.tokenizer.tokenizer(
+                all_prompts,
+                padding="max_length",
+                truncation=True,
+                max_length=77,  # Standard CLIP context length
+                return_tensors="pt",
+            )
+            text_tokens = tokens["input_ids"].to(self.device)
+        else:
+            # Standard open_clip tokenization
+            text_tokens = self.tokenizer(all_prompts).to(self.device)
 
         # Get image and text features
         with torch.inference_mode():
