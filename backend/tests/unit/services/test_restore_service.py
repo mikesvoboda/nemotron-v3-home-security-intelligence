@@ -81,12 +81,14 @@ def sample_camera_data():
         {
             "id": "camera-1",
             "name": "Front Door",
+            "folder_path": "/cameras/front_door",
             "status": "online",
             "created_at": "2024-01-15T10:00:00Z",
         },
         {
             "id": "camera-2",
             "name": "Back Yard",
+            "folder_path": "/cameras/back_yard",
             "status": "offline",
             "created_at": "2024-01-15T10:05:00Z",
         },
