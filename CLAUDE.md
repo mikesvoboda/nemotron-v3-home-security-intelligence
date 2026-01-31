@@ -172,16 +172,29 @@ docs/decisions/        # Architectural decision records
 
 ## Linear Task Management
 
-Use the `/linear-python` skill for all Linear operations. This skill handles:
+**CRITICAL: Use ONLY the `/linear-python` skill for all Linear operations.** Do NOT use Linear MCP tools directly.
 
+```bash
+# Invoke the skill
+/linear-python <command>
+
+# Common commands:
+/linear-python get-issue NEM-123           # Get issue details
+/linear-python update-status NEM-123 done  # Update status
+/linear-python list-issues todo            # List issues by status
+/linear-python search "keyword"            # Search issues
+/linear-python my-issues                   # List assigned issues
+```
+
+The skill handles:
 - Searching and listing issues
-- Updating issue status (uses human-readable status names like "Done")
-- Creating issues and epics with proper parent-child linking
-- Batch operations
+- Updating issue status (uses human-readable names: `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled`)
+- Creating issues and epics with proper TDD structure
+- Batch operations and epic hydration
 
 **Team ID:** `998946a2-aa75-491b-a39d-189660131392`
 
-For detailed documentation, see **[Linear Integration Guide](docs/development/linear-integration.md)**.
+For skill documentation, see `~/.claude/skills/linear-python/README.md`.
 
 ## One-Task-One-PR Policy
 
@@ -312,7 +325,7 @@ Key services for video analytics features:
 | [Git Workflow](docs/development/git-workflow.md)             | Git safety, pre-commit rules, NEVER DISABLE TESTING |
 | [Pre-commit Hooks](docs/development/hooks.md)                | Detailed hook documentation                         |
 | [Code Quality](docs/development/code-quality.md)             | Linting, formatting, static analysis                |
-| [Linear Integration](docs/development/linear-integration.md) | API reference (use `/linear-python` skill instead)  |
+| [Linear Integration](docs/development/linear-integration.md) | Legacy API reference (use `/linear-python` skill)   |
 | [Contributing](docs/development/contributing.md)             | PR process and code standards                       |
 | [Multi-GPU Support](docs/development/multi-gpu.md)           | GPU configuration and assignment strategies         |
 | [Video Analytics](docs/guides/video-analytics.md)            | AI detection pipeline and features                  |
