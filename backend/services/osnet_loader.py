@@ -86,6 +86,10 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
     The model uses a lightweight CNN architecture optimized for
     person re-identification tasks.
 
+    Security (NEM-4501): Model path is validated to prevent path traversal.
+    Security (NEM-4519): Model weights are loaded with weights_only=True
+    to prevent arbitrary code execution. Key mismatches are validated.
+
     Args:
         model_path: Local path to the model directory
                    (e.g., "/models/model-zoo/osnet-x0-25")
@@ -98,11 +102,25 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
 
     Raises:
         ImportError: If torch or torchvision is not installed
-        RuntimeError: If model loading fails
+        RuntimeError: If model loading fails or path validation fails
     """
     try:
         import torch
         from torchvision import transforms
+
+        from backend.core.security import PathSecurityError, validate_model_path
+
+        # Validate model path to prevent path traversal (NEM-4501)
+        # Note: must_exist=False because the downstream code checks for file existence
+        # and provides more specific error messages
+        try:
+            validate_model_path(
+                model_path,
+                allowed_extensions=frozenset(),  # Directory, no extension check
+                must_exist=False,
+            )
+        except PathSecurityError as e:
+            raise RuntimeError(f"Invalid model path: {e}") from e
 
         logger.info(f"Loading OSNet-x0-25 model from {model_path}")
 
@@ -151,8 +169,40 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
                         del state_dict[key]
                     logger.debug(f"Filtered out classifier keys: {classifier_keys}")
 
-                model.load_state_dict(state_dict, strict=False)
-                logger.info(f"Loaded OSNet weights from {weights_file}")
+                # NEM-4521: Load state dict and validate key matching
+                missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+
+                # Define critical keys that must be present (convolution and feature extraction layers)
+                critical_prefixes = ["conv1.", "conv2.", "conv3.", "conv4.", "conv5.", "bn"]
+
+                # Check if any critical keys are missing
+                critical_missing = [
+                    k for k in missing_keys if any(k.startswith(p) for p in critical_prefixes)
+                ]
+                if critical_missing:
+                    error_msg = (
+                        f"Critical OSNet weights missing: {critical_missing[:5]}... "
+                        f"(total {len(critical_missing)} missing). "
+                        "This will cause degraded Re-ID accuracy. "
+                        "Check model architecture compatibility."
+                    )
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
+
+                # Log warnings for non-critical missing keys
+                if missing_keys:
+                    logger.warning(
+                        f"OSNet state dict: {len(missing_keys)} missing keys "
+                        f"(expected for classifier): {missing_keys[:3]}..."
+                    )
+
+                # Log info about unexpected keys (shouldn't happen but good to know)
+                if unexpected_keys:
+                    logger.warning(
+                        f"OSNet state dict: {len(unexpected_keys)} unexpected keys: {unexpected_keys[:3]}..."
+                    )
+
+                logger.info(f"Loaded OSNet weights from {weights_file} (verified critical layers)")
 
             except ImportError:
                 # Fallback: load as generic feature extractor

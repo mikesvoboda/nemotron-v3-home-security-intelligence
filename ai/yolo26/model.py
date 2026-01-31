@@ -47,6 +47,54 @@ from typing import Any
 
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
+
+# =============================================================================
+# Pre-compiled Regex Patterns for TensorRT Error Detection (NEM-4517)
+# =============================================================================
+# These patterns are pre-compiled at module load time for O(1) matching
+# instead of O(n) pattern list iteration on every error check.
+
+# TensorRT version mismatch patterns (single compiled regex)
+_TENSORRT_VERSION_MISMATCH_PATTERN = re.compile(
+    r"|".join(
+        re.escape(p)
+        for p in [
+            "older plan file",
+            "newer plan file",
+            "deserialization",
+            "failed due to an old",
+            "version mismatch",
+            "incompatible",
+            "exported with a different version",
+            "deserializecudaengine",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+# TensorRT fallback patterns (single compiled regex)
+_TENSORRT_FALLBACK_PATTERN = re.compile(
+    r"|".join(
+        re.escape(p)
+        for p in [
+            # TensorRT not installed
+            "tensorrt is not available",
+            "no module named 'tensorrt'",
+            "tensorrt library not found",
+            # Engine loading failures
+            "failed to load tensorrt",
+            "failed to load engine",
+            "cannot load tensorrt engine",
+            # GPU architecture mismatch
+            "no kernel image is available for execution",
+            "cuda error: no kernel image",
+            # File not found
+            "engine file not found",
+            "engine not found",
+        ]
+    ),
+    re.IGNORECASE,
+)
 from fastapi.responses import JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
 from prometheus_client import generate_latest
@@ -225,29 +273,21 @@ def get_tensorrt_version() -> str | None:
 def is_tensorrt_version_mismatch_error(error: Exception) -> bool:
     """Check if an exception indicates a TensorRT version mismatch.
 
+    Uses pre-compiled regex pattern for O(1) matching (NEM-4517).
+
     Args:
         error: The exception to check.
 
     Returns:
         True if the error indicates a TensorRT version mismatch, False otherwise.
     """
-    error_str = str(error).lower()
-    # Common TensorRT version mismatch error patterns
-    mismatch_patterns = [
-        "older plan file",
-        "newer plan file",
-        "deserialization",
-        "failed due to an old",
-        "version mismatch",
-        "incompatible",
-        "exported with a different version",
-        "deserializecudaengine",
-    ]
-    return any(pattern in error_str for pattern in mismatch_patterns)
+    return bool(_TENSORRT_VERSION_MISMATCH_PATTERN.search(str(error)))
 
 
 def is_tensorrt_fallback_error(error: Exception) -> bool:
     """Check if an exception indicates TensorRT is unavailable and should fall back to PyTorch.
+
+    Uses pre-compiled regex pattern for O(1) matching (NEM-4517).
 
     This function identifies errors that indicate TensorRT cannot be used, such as:
     - TensorRT not being installed
@@ -265,28 +305,8 @@ def is_tensorrt_fallback_error(error: Exception) -> bool:
     Returns:
         True if the error indicates TensorRT is unavailable and PyTorch fallback should be used.
     """
-    error_str = str(error).lower()
-
-    # Patterns that indicate TensorRT is unavailable or cannot be used
-    fallback_patterns = [
-        # TensorRT not installed
-        "tensorrt is not available",
-        "no module named 'tensorrt'",
-        "tensorrt library not found",
-        # Engine loading failures
-        "failed to load tensorrt",
-        "failed to load engine",
-        "cannot load tensorrt engine",
-        # GPU architecture mismatch
-        "no kernel image is available for execution",
-        "cuda error: no kernel image",
-        # File not found
-        "engine file not found",
-        "engine not found",
-    ]
-
-    # Check for fallback patterns
-    if any(pattern in error_str for pattern in fallback_patterns):
+    # Check for fallback patterns using pre-compiled regex
+    if _TENSORRT_FALLBACK_PATTERN.search(str(error)):
         return True
 
     # Also check if it's a FileNotFoundError for engine files
@@ -300,36 +320,50 @@ def get_pt_model_path_for_engine(engine_path: str) -> str | None:
     - yolo26m_fp16.engine -> yolo26m.pt
     - yolo26m.engine -> yolo26m.pt
 
+    Security (NEM-4511): All paths are validated to prevent path traversal
+    attacks. Only paths within allowed model directories are returned.
+
     Args:
         engine_path: Path to the TensorRT engine file.
 
     Returns:
-        Path to the corresponding .pt file if it exists, None otherwise.
+        Path to the corresponding .pt file if it exists and is valid, None otherwise.
     """
+    from security import PathSecurityError, validate_model_path
+
     engine_path_obj = Path(engine_path)
 
     # Remove precision suffix if present (e.g., _fp16, _int8, _fp32)
     stem = engine_path_obj.stem
     stem = re.sub(r"_(fp16|fp32|int8)$", "", stem, flags=re.IGNORECASE)
 
-    # Look for .pt file in same directory
-    pt_path = engine_path_obj.parent / f"{stem}.pt"
-    if pt_path.exists():
-        return str(pt_path)
-
-    # Look for .pt file in parent directory
-    pt_path = engine_path_obj.parent.parent / f"{stem}.pt"
-    if pt_path.exists():
-        return str(pt_path)
-
-    # Check common model paths
-    common_paths = [
-        f"/models/yolo26/{stem}.pt",
-        f"/models/yolo26/exports/{stem}.pt",
+    # Define candidate paths to check
+    candidate_paths = [
+        # Same directory
+        engine_path_obj.parent / f"{stem}.pt",
+        # Parent directory
+        engine_path_obj.parent.parent / f"{stem}.pt",
+        # Common model paths
+        Path(f"/models/yolo26/{stem}.pt"),
+        Path(f"/models/yolo26/exports/{stem}.pt"),
     ]
-    for path in common_paths:
-        if Path(path).exists():
-            return path
+
+    for pt_path in candidate_paths:
+        if not pt_path.exists():
+            continue
+
+        # Validate the path for security (NEM-4511)
+        try:
+            validated_path = validate_model_path(
+                str(pt_path),
+                allowed_extensions=frozenset({".pt", ".pth"}),
+                must_exist=True,
+            )
+            logger.debug(f"Found valid .pt model path: {validated_path}")
+            return str(validated_path)
+        except PathSecurityError as e:
+            logger.warning(f"Rejected unsafe model path {pt_path}: {e}")
+            continue
 
     return None
 
@@ -342,6 +376,10 @@ def rebuild_tensorrt_engine(
 ) -> bool:
     """Rebuild a TensorRT engine from a PyTorch model.
 
+    NEM-4516: Uses file-based locking to prevent concurrent rebuilds from
+    multiple processes. This prevents file corruption and wasted resources
+    from duplicate rebuild operations.
+
     Args:
         pt_model_path: Path to the source PyTorch model (.pt file).
         engine_output_path: Path to write the rebuilt engine.
@@ -351,44 +389,91 @@ def rebuild_tensorrt_engine(
     Returns:
         True if rebuild succeeded, False otherwise.
     """
+    import fcntl
+
     try:
         from ultralytics import YOLO
 
-        logger.info(f"Rebuilding TensorRT engine from {pt_model_path}...")
-        logger.info(f"  Output: {engine_output_path}")
-        logger.info(f"  Image size: {imgsz}")
-        logger.info(f"  FP16: {half}")
+        # NEM-4516: Acquire file lock to prevent concurrent rebuilds
+        # The engine_output_path is already validated via validate_model_path
+        lock_file_path = f"{engine_output_path}.lock"
+        lock_file = None
 
-        # Load the PyTorch model
-        model = YOLO(pt_model_path)
+        try:
+            # Create lock file (path derived from validated engine_output_path)
+            lock_file = open(lock_file_path, "w")  # noqa: SIM115 # nosemgrep: path-traversal-open
 
-        # Export to TensorRT
-        start_time = time.time()
-        exported_path = model.export(
-            format="engine",
-            imgsz=imgsz,
-            half=half,
-            device=0 if torch.cuda.is_available() else "cpu",
-            dynamic=False,
-            simplify=True,
-            workspace=4,  # 4GB workspace
-        )
-        export_time = time.time() - start_time
+            # Try to acquire exclusive lock (non-blocking)
+            # If another process is rebuilding, this will raise BlockingIOError
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
-        # Move exported file to target location if needed
-        exported_path = Path(str(exported_path))
-        target_path = Path(engine_output_path)
+            # Double-check if engine exists after acquiring lock
+            # Another process might have built it while we were waiting
+            if Path(engine_output_path).exists():
+                logger.info(
+                    f"TensorRT engine already exists at {engine_output_path}, skipping rebuild"
+                )
+                return True
 
-        if exported_path != target_path:
-            # Ensure parent directory exists
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(exported_path), str(target_path))
+            logger.info(f"Rebuilding TensorRT engine from {pt_model_path}...")
+            logger.info(f"  Output: {engine_output_path}")
+            logger.info(f"  Image size: {imgsz}")
+            logger.info(f"  FP16: {half}")
 
-        logger.info(f"TensorRT engine rebuilt successfully in {export_time:.1f}s")
-        trt_version = get_tensorrt_version()
-        logger.info(f"Engine built with TensorRT version: {trt_version}")
+            # Load the PyTorch model
+            model = YOLO(pt_model_path)
 
-        return True
+            # Export to TensorRT
+            start_time = time.time()
+            exported_path = model.export(
+                format="engine",
+                imgsz=imgsz,
+                half=half,
+                device=0 if torch.cuda.is_available() else "cpu",
+                dynamic=False,
+                simplify=True,
+                workspace=4,  # 4GB workspace
+            )
+            export_time = time.time() - start_time
+
+            # Move exported file to target location if needed
+            exported_path = Path(str(exported_path))
+            target_path = Path(engine_output_path)
+
+            if exported_path != target_path:
+                # Ensure parent directory exists
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(exported_path), str(target_path))
+
+            logger.info(f"TensorRT engine rebuilt successfully in {export_time:.1f}s")
+            trt_version = get_tensorrt_version()
+            logger.info(f"Engine built with TensorRT version: {trt_version}")
+
+            return True
+
+        except BlockingIOError:
+            # Another process is rebuilding, wait briefly and check if engine exists
+            logger.info("Another process is rebuilding engine, waiting...")
+            time.sleep(1)  # Brief wait
+            if Path(engine_output_path).exists():
+                logger.info("Engine rebuilt by another process")
+                return True
+            logger.warning("Engine rebuild in progress by another process, returning False")
+            return False
+
+        finally:
+            # Release lock and clean up
+            if lock_file is not None:
+                try:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                    lock_file.close()
+                    # Try to remove lock file
+                    try:
+                        Path(lock_file_path).unlink(missing_ok=True)
+                    except Exception as cleanup_err:
+                        logger.debug(f"Lock file cleanup failed: {cleanup_err}")
+                except Exception as e:
+                    logger.debug(f"Failed to release lock: {e}")
 
     except Exception as e:
         logger.error(f"Failed to rebuild TensorRT engine: {e}")
@@ -398,13 +483,30 @@ def rebuild_tensorrt_engine(
 def delete_stale_engine(engine_path: str) -> bool:
     """Delete a stale TensorRT engine file.
 
+    Security (NEM-4514): Validates that the path is within allowed directories
+    and has an expected file extension before deletion. This prevents arbitrary
+    file deletion through path manipulation.
+
     Args:
         engine_path: Path to the engine file to delete.
 
     Returns:
         True if deletion succeeded, False otherwise.
     """
+    from security import is_safe_path_for_deletion
+
     try:
+        # Validate path before deletion (NEM-4514)
+        if not is_safe_path_for_deletion(
+            engine_path,
+            allowed_extensions=frozenset({".engine"}),
+        ):
+            logger.error(
+                f"Refusing to delete file at unsafe path: {engine_path}. "
+                "Path must be within allowed directories and have .engine extension."
+            )
+            return False
+
         engine_path_obj = Path(engine_path)
         if engine_path_obj.exists():
             engine_path_obj.unlink()
@@ -733,13 +835,15 @@ class YOLO26Model:
         # Find the source .pt model
         pt_path = self.pt_model_path or get_pt_model_path_for_engine(engine_path)
 
+        # NEM-4507: Add explicit None check before attempting to load
         if pt_path is None:
-            logger.error(
-                f"TensorRT fallback failed: no source .pt model found for {engine_path}. "
-                "Set YOLO26_PT_MODEL_PATH to specify the fallback model path."
+            error_msg = (
+                f"Cannot fallback to PyTorch: no .pt model found for {engine_path}. "
+                "Set YOLO26_PT_MODEL_PATH environment variable to specify the fallback model path."
             )
-            # Re-raise the original error since we can't fall back
-            raise original_error
+            logger.error(error_msg)
+            # Re-raise with informative message
+            raise RuntimeError(error_msg) from original_error
 
         logger.info(f"Found fallback PyTorch model: {pt_path}")
 
@@ -1126,11 +1230,27 @@ async def lifespan(_app: FastAPI):
     """Lifespan context manager for FastAPI app."""
     global model
 
+    from security import PathSecurityError, validate_model_path_env
+
     # Startup
     logger.info("Starting YOLO26 Detection Server...")
 
     # Load model configuration from environment or defaults
-    model_path = os.environ.get("YOLO26_MODEL_PATH", "/models/yolo26/exports/yolo26m_fp16.engine")
+    # Validate model path from environment variable (NEM-4513)
+    default_model_path = "/models/yolo26/exports/yolo26m_fp16.engine"
+    try:
+        model_path = validate_model_path_env(
+            "YOLO26_MODEL_PATH",
+            os.environ.get("YOLO26_MODEL_PATH"),
+            default=default_model_path,
+        )
+        if model_path is None:
+            model_path = default_model_path
+    except PathSecurityError as e:
+        logger.error(f"Invalid YOLO26_MODEL_PATH environment variable: {e}")
+        logger.error("Falling back to default model path")
+        model_path = default_model_path
+
     confidence_threshold = float(os.environ.get("YOLO26_CONFIDENCE", "0.5"))
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     # Cache clear frequency: default 1 (every detection), 0 to disable

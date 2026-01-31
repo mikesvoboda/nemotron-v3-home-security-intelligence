@@ -128,6 +128,7 @@ import psycopg2
 import pytest
 from hypothesis import HealthCheck, Phase, Verbosity
 from hypothesis import settings as hypothesis_settings
+from psycopg2 import sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 # NEM-1061: Logger for test cleanup handlers
@@ -634,6 +635,97 @@ def _build_database_url(base_url: str, db_name: str) -> str:
     return result.replace("postgresql://", "postgresql+asyncpg://")
 
 
+def _get_advisory_lock_key(db_name: str) -> int:
+    """Generate a consistent advisory lock key from database name.
+
+    NEM-4491: Uses a hash-based approach to generate a lock key that's
+    consistent across processes but unique per database name.
+
+    Args:
+        db_name: The database name to generate a lock key for
+
+    Returns:
+        Integer lock key for use with pg_advisory_lock
+    """
+    import hashlib
+
+    # Use hash to generate consistent lock key from db_name
+    hash_val = hashlib.sha256(f"test_db_cleanup:{db_name}".encode()).hexdigest()
+    # PostgreSQL advisory locks use bigint, so we need to fit within int64
+    return int(hash_val[:15], 16) % (2**31)
+
+
+def _drop_database_with_lock(cur, db_name: str, max_retries: int = 3) -> bool:
+    """Drop a database with advisory lock protection and retry logic.
+
+    NEM-4491: Uses PostgreSQL advisory locks to prevent race conditions when
+    multiple workers try to drop the same database concurrently.
+
+    Args:
+        cur: Database cursor
+        db_name: Name of the database to drop
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        True if database was dropped successfully, False otherwise
+    """
+    lock_key = _get_advisory_lock_key(db_name)
+
+    for attempt in range(max_retries):
+        try:
+            # Try to acquire advisory lock (non-blocking)
+            cur.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
+            lock_acquired = cur.fetchone()[0]
+
+            if not lock_acquired:
+                # Lock held by another process, wait briefly and retry
+                import time
+
+                delay = 0.1 * (2**attempt)  # Exponential backoff
+                logger.debug(
+                    f"Advisory lock for {db_name} held by another process, "
+                    f"retrying in {delay:.2f}s (attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
+                continue
+
+            try:
+                # Terminate connections to the database
+                cur.execute(
+                    """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = %s AND pid <> pg_backend_pid()
+                    """,
+                    (db_name,),
+                )
+                # Drop the database using sql.Identifier for safe escaping (NEM-4452)
+                # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name)))
+                logger.info(f"Cleaned up stale test database: {db_name}")
+                return True
+            finally:
+                # Always release the advisory lock
+                cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                import time
+
+                delay = 0.1 * (2**attempt)
+                logger.debug(
+                    f"Error dropping {db_name}: {e}, retrying in {delay:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
+            else:
+                logger.warning(
+                    f"Failed to drop stale database {db_name} after {max_retries} attempts: {e}"
+                )
+
+    return False
+
+
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
     """Remove leftover test databases from previous failed runs.
@@ -644,6 +736,9 @@ def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
 
     Only runs on the master process (or when running without xdist) to avoid
     race conditions between workers.
+
+    NEM-4491: Uses advisory locks and retry logic to prevent race conditions
+    when multiple test sessions try to clean up databases concurrently.
     """
     # Only run cleanup on master process
     try:
@@ -679,31 +774,19 @@ def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
         try:
             with conn.cursor() as cur:
                 # Find stale test databases
+                # NEM-4491: Use stricter pattern matching to avoid accidental drops
                 cur.execute(
                     """
                     SELECT datname FROM pg_database
-                    WHERE datname LIKE 'test_db_gw%'
+                    WHERE (datname LIKE 'test_db_gw%%' AND datname ~ '^test_db_gw[0-9]+$')
                        OR datname = 'template_test'
                     """
                 )
                 stale_dbs = [row[0] for row in cur.fetchall()]
 
                 for db_name in stale_dbs:
-                    try:
-                        # Terminate connections to the database
-                        cur.execute(
-                            """
-                            SELECT pg_terminate_backend(pid)
-                            FROM pg_stat_activity
-                            WHERE datname = %s AND pid <> pg_backend_pid()
-                            """,
-                            (db_name,),
-                        )
-                        # Drop the database
-                        cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-                        logger.info(f"Cleaned up stale test database: {db_name}")
-                    except Exception as e:
-                        logger.warning(f"Failed to drop stale database {db_name}: {e}")
+                    # NEM-4491: Use advisory lock protected drop with retries
+                    _drop_database_with_lock(cur, db_name)
         finally:
             conn.close()
     except Exception as e:
@@ -816,6 +899,9 @@ def template_database(
     schema applied. Worker databases are then created as instant copies of this
     template using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
 
+    NEM-4491: Uses advisory locks to prevent race conditions when multiple
+    test sessions try to create the template database concurrently.
+
     Args:
         request: pytest fixture request (for worker_id detection)
         cleanup_stale_databases: Ensures stale databases are cleaned first
@@ -859,21 +945,34 @@ def template_database(
 
         try:
             with conn.cursor() as cur:
-                # Drop existing template database if it exists
-                # First terminate any connections
-                cur.execute(
-                    """
-                    SELECT pg_terminate_backend(pid)
-                    FROM pg_stat_activity
-                    WHERE datname = %s AND pid <> pg_backend_pid()
-                    """,
-                    (template_name,),
-                )
-                cur.execute(f'DROP DATABASE IF EXISTS "{template_name}"')
+                # NEM-4491: Acquire advisory lock to prevent race conditions
+                lock_key = _get_advisory_lock_key(template_name)
+                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
 
-                # Create fresh template database
-                cur.execute(f'CREATE DATABASE "{template_name}"')
-                logger.info(f"Created template database: {template_name}")
+                try:
+                    # Drop existing template database if it exists
+                    # First terminate any connections
+                    cur.execute(
+                        """
+                        SELECT pg_terminate_backend(pid)
+                        FROM pg_stat_activity
+                        WHERE datname = %s AND pid <> pg_backend_pid()
+                        """,
+                        (template_name,),
+                    )
+                    # Use sql.Identifier for safe escaping (NEM-4452)
+                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                    cur.execute(
+                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(template_name))
+                    )
+
+                    # Create fresh template database
+                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                    cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(template_name)))
+                    logger.info(f"Created template database: {template_name}")
+                finally:
+                    # Release advisory lock
+                    cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
         finally:
             conn.close()
 
@@ -902,6 +1001,9 @@ def worker_database(request: pytest.FixtureRequest, template_database: str) -> G
     - gw0 -> test_db_gw0
     - gw1 -> test_db_gw1
     - master (non-xdist) -> test_db_main
+
+    NEM-4491: Uses advisory locks to prevent race conditions when multiple
+    test sessions try to create/drop worker databases concurrently.
 
     Args:
         request: pytest fixture request (for worker_id detection)
@@ -945,22 +1047,42 @@ def worker_database(request: pytest.FixtureRequest, template_database: str) -> G
 
         try:
             with conn.cursor() as cur:
-                # Terminate any existing connections to the worker database
-                cur.execute(
-                    """
-                    SELECT pg_terminate_backend(pid)
-                    FROM pg_stat_activity
-                    WHERE datname = %s AND pid <> pg_backend_pid()
-                    """,
-                    (db_name,),
-                )
+                # NEM-4491: Acquire advisory lock to prevent race conditions
+                lock_key = _get_advisory_lock_key(db_name)
+                cur.execute("SELECT pg_advisory_lock(%s)", (lock_key,))
 
-                # Drop existing worker database if it exists
-                cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+                try:
+                    # Terminate any existing connections to the worker database
+                    cur.execute(
+                        """
+                        SELECT pg_terminate_backend(pid)
+                        FROM pg_stat_activity
+                        WHERE datname = %s AND pid <> pg_backend_pid()
+                        """,
+                        (db_name,),
+                    )
 
-                # Create worker database from template (instant copy)
-                cur.execute(f'CREATE DATABASE "{db_name}" TEMPLATE "{template_database}"')
-                logger.info(f"Created worker database: {db_name} from template {template_database}")
+                    # Drop existing worker database if it exists
+                    # Use sql.Identifier for safe escaping (NEM-4452)
+                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                    cur.execute(
+                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name))
+                    )
+
+                    # Create worker database from template (instant copy)
+                    # nosemgrep: sql-injection-format-string - sql.Identifier() is safe parameterization
+                    cur.execute(
+                        sql.SQL("CREATE DATABASE {} TEMPLATE {}").format(
+                            sql.Identifier(db_name),
+                            sql.Identifier(template_database),
+                        )
+                    )
+                    logger.info(
+                        f"Created worker database: {db_name} from template {template_database}"
+                    )
+                finally:
+                    # Release advisory lock
+                    cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
         finally:
             conn.close()
 
@@ -974,6 +1096,7 @@ def worker_database(request: pytest.FixtureRequest, template_database: str) -> G
 
     finally:
         # Cleanup: drop worker database at session end
+        # NEM-4491: Use advisory lock protected drop with retries
         try:
             conn = psycopg2.connect(
                 host=params["host"],
@@ -986,17 +1109,7 @@ def worker_database(request: pytest.FixtureRequest, template_database: str) -> G
 
             try:
                 with conn.cursor() as cur:
-                    # Terminate connections before dropping
-                    cur.execute(
-                        """
-                        SELECT pg_terminate_backend(pid)
-                        FROM pg_stat_activity
-                        WHERE datname = %s AND pid <> pg_backend_pid()
-                        """,
-                        (db_name,),
-                    )
-                    cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-                    logger.info(f"Dropped worker database: {db_name}")
+                    _drop_database_with_lock(cur, db_name)
             finally:
                 conn.close()
         except Exception as e:

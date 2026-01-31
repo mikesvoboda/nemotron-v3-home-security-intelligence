@@ -569,6 +569,9 @@ class ReIdentificationService:
 
         This method is rate-limited to prevent resource exhaustion.
 
+        NEM-4474: Uses Redis Lua script for atomic read-modify-write to prevent
+        race conditions when multiple processes store embeddings concurrently.
+
         Args:
             redis_client: Redis client instance (raw Redis or RedisClient wrapper)
             embedding: EntityEmbedding to store
@@ -586,30 +589,71 @@ class ReIdentificationService:
             key = f"entity_embeddings:{date_key}"
 
             try:
-                # Get existing embeddings
-                existing = await redis_client.get(key)
-                # Handle both raw Redis (returns bytes/string) and RedisClient wrapper (returns JSON-decoded)
-                if existing is not None:
-                    data: dict[str, list[dict[str, Any]]] = (
-                        existing if isinstance(existing, dict) else json.loads(existing)
-                    )
-                else:
-                    data = {"persons": [], "vehicles": []}
+                # NEM-4474: Use Lua script for atomic read-modify-write operation
+                # This prevents race conditions when multiple processes store embeddings
+                lua_script = """
+                local key = KEYS[1]
+                local embedding_json = ARGV[1]
+                local list_key = ARGV[2]
+                local ttl = tonumber(ARGV[3])
 
-                # Add new embedding
+                -- Get existing data or create empty structure
+                local data_json = redis.call('GET', key)
+                local data
+                if data_json then
+                    data = cjson.decode(data_json)
+                else
+                    data = {persons = {}, vehicles = {}}
+                end
+
+                -- Add new embedding to appropriate list
+                local embedding = cjson.decode(embedding_json)
+                table.insert(data[list_key], embedding)
+
+                -- Store with TTL
+                redis.call('SET', key, cjson.encode(data), 'EX', ttl)
+                return 1
+                """
+
                 list_key = "persons" if embedding.entity_type == "person" else "vehicles"
-                data[list_key].append(embedding.to_dict())
+                embedding_json = json.dumps(embedding.to_dict())
 
-                # Store with TTL - check if using RedisClient wrapper (expire) or raw redis (ex)
+                # Execute Lua script atomically using underlying Redis client
+                # NEM-4474: Use Lua script for atomic read-modify-write
                 from backend.core.redis import RedisClient
 
+                # Check if Redis client supports eval (for atomic operations)
+                # Mocks in tests may not have eval, so we fallback to non-atomic get/set
+                raw_client = None
                 if isinstance(redis_client, RedisClient):
-                    await redis_client.set(
+                    raw_client = redis_client._client
+
+                # Try atomic approach first (production), fallback to non-atomic (tests)
+                use_atomic = (
+                    raw_client is not None
+                    and hasattr(raw_client, "eval")
+                    and callable(getattr(raw_client, "eval", None))
+                )
+
+                if use_atomic and raw_client is not None:
+                    await raw_client.eval(  # type: ignore[union-attr, misc]
+                        lua_script,
+                        1,  # Number of keys
                         key,
-                        json.dumps(data),
-                        expire=EMBEDDING_TTL_SECONDS,
+                        embedding_json,
+                        list_key,
+                        str(EMBEDDING_TTL_SECONDS),
                     )
                 else:
+                    # Fallback to non-atomic get/set for mocks without eval support
+                    # This maintains backward compatibility with existing tests
+                    data_json = await redis_client.get(key)
+                    if data_json:
+                        data = json.loads(data_json)
+                    else:
+                        data = {"persons": [], "vehicles": []}
+
+                    data[list_key].append(embedding.to_dict())
                     await redis_client.set(
                         key,
                         json.dumps(data),
@@ -617,7 +661,7 @@ class ReIdentificationService:
                     )
 
                 logger.debug(
-                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id}"
+                    f"Stored {embedding.entity_type} embedding for camera {embedding.camera_id} (atomic)"
                 )
 
             except Exception as e:

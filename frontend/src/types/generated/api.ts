@@ -1398,7 +1398,7 @@ export interface paths {
          *         CameraUptimeResponse with per-camera uptime data
          *
          *     Raises:
-         *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_camera_uptime"];
         put?: never;
@@ -1432,7 +1432,7 @@ export interface paths {
          *         DetectionTrendsResponse with daily detection counts
          *
          *     Raises:
-         *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_detection_trends"];
         put?: never;
@@ -1466,7 +1466,7 @@ export interface paths {
          *         ObjectDistributionResponse with object type counts and percentages
          *
          *     Raises:
-         *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_object_distribution"];
         put?: never;
@@ -1500,7 +1500,7 @@ export interface paths {
          *         RiskHistoryResponse with daily risk level counts
          *
          *     Raises:
-         *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_risk_history"];
         put?: never;
@@ -1535,7 +1535,7 @@ export interface paths {
          *         RiskScoreDistributionResponse with histogram buckets
          *
          *     Raises:
-         *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_risk_score_distribution"];
         put?: never;
@@ -1569,7 +1569,7 @@ export interface paths {
          *         RiskScoreTrendsResponse with daily average scores and event counts
          *
          *     Raises:
-         *         HTTPException: 400 if start_date is after end_date
+         *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_risk_score_trends"];
         put?: never;
@@ -41752,6 +41752,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Internal server error */
             500: {
                 headers: {
@@ -41783,8 +41790,22 @@ export interface operations {
                     "application/json": components["schemas"]["FrontendLogResponse"];
                 };
             };
+            /** @description Payload too large */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

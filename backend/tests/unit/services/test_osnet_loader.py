@@ -192,7 +192,8 @@ class TestLoadOSNetModel:
         # Create mock model
         mock_model = MagicMock()
         mock_model.eval.return_value = None
-        mock_model.load_state_dict.return_value = None
+        # NEM-4521: load_state_dict returns (missing_keys, unexpected_keys) tuple
+        mock_model.load_state_dict.return_value = ([], [])
 
         # Create mock torchreid
         mock_torchreid = MagicMock()
@@ -209,6 +210,12 @@ class TestLoadOSNetModel:
         mock_weights_file.exists.return_value = True
         mock_path.__truediv__ = lambda self, other: mock_weights_file
         mock_path.glob.return_value = [mock_weights_file]
+
+        # Mock security validation
+        monkeypatch.setattr(
+            "backend.core.security.validate_model_path",
+            lambda *args, **kwargs: Path("/test/model"),
+        )
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
@@ -241,7 +248,8 @@ class TestLoadOSNetModel:
 
         mock_model = MagicMock()
         mock_model.cuda.return_value = mock_cuda_model
-        mock_model.load_state_dict.return_value = None
+        # NEM-4521: load_state_dict returns (missing_keys, unexpected_keys) tuple
+        mock_model.load_state_dict.return_value = ([], [])
 
         # Create mock torchreid
         mock_torchreid = MagicMock()
@@ -257,6 +265,12 @@ class TestLoadOSNetModel:
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
         mock_path.__truediv__ = lambda self, other: mock_weights_file
+
+        # Mock security validation
+        monkeypatch.setattr(
+            "backend.core.security.validate_model_path",
+            lambda *args, **kwargs: Path("/test/model"),
+        )
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
@@ -299,6 +313,8 @@ class TestLoadOSNetModel:
         def capture_state_dict(sd, strict=True):
             nonlocal loaded_state_dict
             loaded_state_dict = sd
+            # NEM-4521: load_state_dict returns (missing_keys, unexpected_keys) tuple
+            return ([], [])
 
         mock_model.load_state_dict.side_effect = capture_state_dict
 
@@ -315,6 +331,12 @@ class TestLoadOSNetModel:
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
         mock_path.__truediv__ = lambda self, other: mock_weights_file
+
+        # Mock security validation
+        monkeypatch.setattr(
+            "backend.core.security.validate_model_path",
+            lambda *args, **kwargs: Path("/test/model"),
+        )
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
@@ -359,6 +381,8 @@ class TestLoadOSNetModel:
         def capture_state_dict(sd, strict=True):
             nonlocal loaded_state_dict
             loaded_state_dict = sd
+            # NEM-4521: load_state_dict returns (missing_keys, unexpected_keys) tuple
+            return ([], [])
 
         mock_model.load_state_dict.side_effect = capture_state_dict
 
@@ -375,6 +399,12 @@ class TestLoadOSNetModel:
         mock_weights_file = MagicMock()
         mock_weights_file.exists.return_value = True
         mock_path.__truediv__ = lambda self, other: mock_weights_file
+
+        # Mock security validation
+        monkeypatch.setattr(
+            "backend.core.security.validate_model_path",
+            lambda *args, **kwargs: Path("/test/model"),
+        )
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)

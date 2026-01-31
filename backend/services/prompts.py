@@ -21,7 +21,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
-from backend.services.prompt_sanitizer import sanitize_object_type
+from backend.services.prompt_sanitizer import (
+    sanitize_for_prompt,
+    sanitize_object_type,
+)
 
 # ==============================================================================
 # Calibrated System Prompt (NEM-3019)
@@ -2525,13 +2528,17 @@ def format_household_context(
             member_role = _get_member_role(match)
             schedule_status = _get_schedule_status(match)
 
+            # Sanitize member_name to prevent prompt injection (NEM-4518)
+            # User-controlled household member names could contain malicious content
+            safe_member_name = sanitize_for_prompt(match.member_name)
+
             # Format person line with role if available
             if member_role:
                 person_line = (
-                    f"| KNOWN PERSON: {match.member_name} ({member_role}, {similarity_pct}% match)"
+                    f"| KNOWN PERSON: {safe_member_name} ({member_role}, {similarity_pct}% match)"
                 )
             else:
-                person_line = f"| KNOWN PERSON: {match.member_name} ({similarity_pct}% match)"
+                person_line = f"| KNOWN PERSON: {safe_member_name} ({similarity_pct}% match)"
             lines.append(person_line)
 
             # Format schedule status if available (NEM-3315)
@@ -2550,7 +2557,10 @@ def format_household_context(
     # Format vehicle matches
     if vehicle_matches:
         for match in vehicle_matches:
-            lines.append(f"| REGISTERED VEHICLE: {match.vehicle_description}")
+            # Sanitize vehicle_description to prevent prompt injection (NEM-4518)
+            # User-controlled vehicle descriptions could contain malicious content
+            safe_vehicle_desc = sanitize_for_prompt(match.vehicle_description)
+            lines.append(f"| REGISTERED VEHICLE: {safe_vehicle_desc}")
             # Vehicle match caps base risk at 10 (takes minimum)
             base_risk = min(base_risk, 10)
 
@@ -2635,13 +2645,14 @@ def format_household_context_by_detection(
             member_role = _get_member_role(match)
             schedule_status = _get_schedule_status(match)
 
+            # Sanitize member_name to prevent prompt injection (NEM-4518)
+            safe_member_name = sanitize_for_prompt(match.member_name)
+
             # Build the match description
             if member_role:
-                match_desc = (
-                    f'KNOWN PERSON "{match.member_name}" ({member_role}, {similarity_pct}%)'
-                )
+                match_desc = f'KNOWN PERSON "{safe_member_name}" ({member_role}, {similarity_pct}%)'
             else:
-                match_desc = f'KNOWN PERSON "{match.member_name}" ({similarity_pct}%)'
+                match_desc = f'KNOWN PERSON "{safe_member_name}" ({similarity_pct}%)'
 
             line = f"- Detection #{det_id} ({obj_type}, {zone}, {time_str}): {match_desc}"
             lines.append(line)
@@ -2655,7 +2666,9 @@ def format_household_context_by_detection(
         # Check for vehicle match
         elif det_id in vehicle_matches:
             match = vehicle_matches[det_id]
-            match_desc = f'REGISTERED VEHICLE "{match.vehicle_description}"'
+            # Sanitize vehicle_description to prevent prompt injection (NEM-4518)
+            safe_vehicle_desc = sanitize_for_prompt(match.vehicle_description)
+            match_desc = f'REGISTERED VEHICLE "{safe_vehicle_desc}"'
             line = f"- Detection #{det_id} ({obj_type}, {zone}, {time_str}): {match_desc}"
             lines.append(line)
 

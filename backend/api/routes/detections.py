@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, R
 from fastapi.responses import FileResponse, ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import undefer
+from sqlalchemy.orm import joinedload, undefer
 
 from backend.api.dependencies import (
     get_cache_service_dep,
@@ -2109,8 +2109,9 @@ async def export_detections(
     # Normalize end_date to end of day
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
-    # Build query
-    query = select(Detection)
+    # Build query with eager loading of camera relationship (NEM-4462)
+    # This uses a single JOIN query instead of N+1 queries for camera names
+    query = select(Detection).options(joinedload(Detection.camera))
 
     # Apply filters
     if camera_id:
@@ -2127,22 +2128,16 @@ async def export_detections(
     # Sort by detected_at descending (newest first)
     query = query.order_by(Detection.detected_at.desc())
 
-    # Execute query
+    # Execute query - use unique() to handle joined load duplicates
     result = await db.execute(query)
-    detections = result.scalars().all()
-
-    # Get all camera IDs to fetch camera names
-    camera_ids = {d.camera_id for d in detections if d.camera_id}
-    camera_query = select(Camera).where(Camera.id.in_(camera_ids))
-    camera_result = await db.execute(camera_query)
-    cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
+    detections = result.scalars().unique().all()
 
     # Convert detections to export rows
+    # Camera relationship is already loaded via joinedload (NEM-4462)
     export_rows: list[DetectionExportRow] = []
     for detection in detections:
-        camera_name = (
-            cameras.get(detection.camera_id, "Unknown") if detection.camera_id else "Unknown"
-        )
+        # Access the eagerly loaded camera relationship directly
+        camera_name = detection.camera.name if detection.camera else "Unknown"
 
         export_rows.append(
             DetectionExportRow(

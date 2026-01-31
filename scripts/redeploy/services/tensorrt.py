@@ -20,31 +20,43 @@ class TensorRTBuilder:
         self.runtime = runtime
         self.config = config
 
-    async def rebuild_yolo26_engine(self) -> bool:
+    async def rebuild_yolo26_engine(self, force: bool = False) -> bool:
         """Rebuild YOLO26 TensorRT engine.
 
         This runs the export inside the ai-yolo26 container to ensure
         the engine is compatible with the container's TensorRT version.
 
+        Args:
+            force: If True, rebuild even if valid engine exists
+
         Returns:
-            True if engine built successfully
+            True if engine built successfully or already valid
         """
-        output.header("Rebuilding YOLO26 TensorRT Engine")
+        output.header("Checking YOLO26 TensorRT Engine")
 
         model_path = self.config.ai_models_path / "model-zoo/yolo26/yolo26m.pt"
         engine_path = self.config.ai_models_path / "model-zoo/yolo26/exports/yolo26m_fp16.engine"
 
-        output.step(f"Building TensorRT engine from {model_path}...")
-        output.info("This may take 2-5 minutes...")
-
         if self.config.dry_run:
-            output.dry_run("Would rebuild TensorRT engine")
+            output.dry_run("Would check/rebuild TensorRT engine")
             return True
 
         # Check if model exists
         if not model_path.exists():
             output.fail(f"Model not found: {model_path}")
             return False
+
+        # OPTIMIZATION: Check if engine already exists and is valid
+        if not force and self.verify_engine():
+            # Additional check: ensure engine is newer than model
+            if engine_path.stat().st_mtime >= model_path.stat().st_mtime:
+                output.success("TensorRT engine is valid and up-to-date, skipping rebuild")
+                return True
+            else:
+                output.info("TensorRT engine is older than model, rebuilding...")
+
+        output.step(f"Building TensorRT engine from {model_path}...")
+        output.info("This may take 2-5 minutes...")
 
         # Ensure exports directory exists
         exports_dir = engine_path.parent

@@ -326,15 +326,38 @@ class Repository[T: "Base"]:
         # Use savepoint for atomic upsert operation
         async with self.session.begin_nested():
             # Build the INSERT ... ON CONFLICT DO UPDATE statement
+            # Security Note (NEM-4470): pk_column_names comes from model's table definition
+            # (self.model_class.__table__.columns), not from user input, so this is safe
+            # from SQL injection. SQLAlchemy's on_conflict_do_update uses these names
+            # as identifiers in a parameterized way.
             pk_column_names = [col.name for col in pk_columns]
 
-            # Columns to update on conflict (all non-PK columns with non-None values)
+            # Validate that all column names are valid identifiers as a defensive measure
+            # This prevents SQL injection if column names were somehow user-controlled
+            valid_column_names = {col.name for col in self.model_class.__table__.columns}
+
+            # NEM-4473: Columns to update on conflict - include all non-PK columns
+            # that are explicitly set on the entity, even if they are None.
+            # This allows intentional NULL updates (e.g., clearing a field).
+            # We use hasattr with __dict__ to check if the attribute was explicitly set.
+            # Security Note (NEM-4470): update_columns keys come from model definition,
+            # not user input. Values are passed as bound parameters by SQLAlchemy.
             update_columns = {}
             for col in self.model_class.__table__.columns:
+                # Defensive check: ensure column name is in the valid set
+                if col.name not in valid_column_names:
+                    continue
                 if col.name not in pk_column_names:
-                    value = getattr(entity, col.name, None)
-                    if value is not None:
-                        update_columns[col.name] = value
+                    # Check if attribute exists and was explicitly set (even to None)
+                    if col.name in entity_data:
+                        update_columns[col.name] = entity_data[col.name]
+                    elif hasattr(entity, col.name):
+                        # Include the value even if it's None (intentional NULL update)
+                        value = getattr(entity, col.name)
+                        # Only include if the attribute is in the entity's __dict__
+                        # (i.e., it was explicitly set, not just a default)
+                        if col.name in getattr(entity, "__dict__", {}):
+                            update_columns[col.name] = value
 
             insert_stmt = pg_insert(self.model_class).values(**entity_data)
 

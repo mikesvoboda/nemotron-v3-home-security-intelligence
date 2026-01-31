@@ -898,12 +898,19 @@ async def get_event_clusters(
             unclustered_events=0,
         )
 
-    # Clustering algorithm
+    # Clustering algorithm - O(n) sliding window approach (NEM-4469)
+    # Since events are sorted by timestamp, we only need to check recent clusters
+    # within the time window. Old clusters that are outside the window can be
+    # skipped, making this O(n) instead of O(n^2).
     time_window = timedelta(minutes=time_window_minutes)
     cross_camera_window = timedelta(minutes=2)  # Shorter window for cross-camera correlation
 
     # Each cluster is represented as a dict with events list and metadata
     clusters: list[dict] = []
+
+    # Track the index of the first cluster that could still accept new events
+    # Clusters before this index are too old (their end_time + time_window < current event)
+    active_cluster_start_idx = 0
 
     for event in events:
         # Ensure event timestamp is timezone-aware
@@ -911,9 +918,23 @@ async def get_event_clusters(
         if event_ts.tzinfo is None:
             event_ts = event_ts.replace(tzinfo=UTC)
 
-        # Try to find a matching cluster
+        # Advance the active window: skip clusters that are too old
+        # A cluster is too old if even the longest window (same camera) wouldn't match
+        while active_cluster_start_idx < len(clusters):
+            cluster = clusters[active_cluster_start_idx]
+            cluster_end = cluster["end_time"]
+            if cluster_end.tzinfo is None:
+                cluster_end = cluster_end.replace(tzinfo=UTC)
+
+            # If this cluster is still within reach, stop advancing
+            if event_ts <= cluster_end + time_window:
+                break
+            active_cluster_start_idx += 1
+
+        # Try to find a matching cluster (only search from active window)
         matched_cluster = None
-        for cluster in clusters:
+        for i in range(active_cluster_start_idx, len(clusters)):
+            cluster = clusters[i]
             cluster_end = cluster["end_time"]
             if cluster_end.tzinfo is None:
                 cluster_end = cluster_end.replace(tzinfo=UTC)

@@ -465,10 +465,17 @@ def _create_worker_database(base_url: str, db_name: str) -> str:
 
     Returns:
         The full PostgreSQL URL pointing to the worker's database
+
+    Note:
+        Security (NEM-4452): Uses psycopg2.sql.Identifier for proper escaping
+        of database names to prevent SQL injection, even though db_name is
+        generated internally. This follows best practices and prevents
+        potential issues if the name generation logic changes.
     """
     from urllib.parse import urlparse, urlunparse
 
     import psycopg2
+    from psycopg2 import sql
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
     # Parse the base URL to get connection details
@@ -497,8 +504,9 @@ def _create_worker_database(base_url: str, db_name: str) -> str:
                 (db_name,),
             )
             if not cur.fetchone():
-                # Create the database (safe: db_name is generated internally)
-                cur.execute(f'CREATE DATABASE "{db_name}"')
+                # Create the database using sql.Identifier for safe escaping
+                # NEM-4452: Use proper identifier escaping instead of f-string
+                cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name)))
                 logger.info(f"Created worker database: {db_name}")
     finally:
         conn.close()
@@ -514,16 +522,46 @@ def _create_worker_database(base_url: str, db_name: str) -> str:
     return worker_url
 
 
-def _drop_worker_database(base_url: str, db_name: str) -> None:
+def _get_advisory_lock_key(db_name: str) -> int:
+    """Generate a consistent advisory lock key from database name.
+
+    NEM-4491: Uses a hash-based approach to generate a lock key that's
+    consistent across processes but unique per database name.
+
+    Args:
+        db_name: The database name to generate a lock key for
+
+    Returns:
+        Integer lock key for use with pg_advisory_lock
+    """
+    import hashlib
+
+    # Use hash to generate consistent lock key from db_name
+    hash_val = hashlib.sha256(f"test_db_cleanup:{db_name}".encode()).hexdigest()
+    # PostgreSQL advisory locks use bigint, so we need to fit within int64
+    return int(hash_val[:15], 16) % (2**31)
+
+
+def _drop_worker_database(base_url: str, db_name: str, max_retries: int = 3) -> None:
     """Drop a worker-specific database during cleanup.
+
+    NEM-4491: Uses advisory locks and retry logic to prevent race conditions
+    when multiple test sessions try to drop databases concurrently.
 
     Args:
         base_url: The base PostgreSQL URL (pointing to the main database)
         db_name: The name of the database to drop
+        max_retries: Maximum number of retry attempts
+
+    Note:
+        Security (NEM-4452): Uses psycopg2.sql.Identifier for proper escaping
+        of database names to prevent SQL injection.
     """
+    import time
     from urllib.parse import urlparse
 
     import psycopg2
+    from psycopg2 import sql
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
     # Don't drop the main database
@@ -537,36 +575,71 @@ def _drop_worker_database(base_url: str, db_name: str) -> None:
     user = parsed.username or "postgres"
     password = parsed.password or "postgres"
 
-    # Connect to postgres database (not the one we're dropping)
-    try:
-        conn = psycopg2.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            dbname="postgres",
-        )
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+    lock_key = _get_advisory_lock_key(db_name)
 
+    for attempt in range(max_retries):
+        # Connect to postgres database (not the one we're dropping)
         try:
-            with conn.cursor() as cur:
-                # Terminate connections to the database
-                cur.execute(
-                    """
-                    SELECT pg_terminate_backend(pid)
-                    FROM pg_stat_activity
-                    WHERE datname = %s AND pid <> pg_backend_pid()
-                    """,
-                    (db_name,),
+            conn = psycopg2.connect(
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                dbname="postgres",
+            )
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+            try:
+                with conn.cursor() as cur:
+                    # NEM-4491: Try to acquire advisory lock (non-blocking)
+                    cur.execute("SELECT pg_try_advisory_lock(%s)", (lock_key,))
+                    lock_acquired = cur.fetchone()[0]
+
+                    if not lock_acquired:
+                        # Lock held by another process, wait and retry
+                        delay = 0.1 * (2**attempt)  # Exponential backoff
+                        logger.debug(
+                            f"Advisory lock for {db_name} held by another process, "
+                            f"retrying in {delay:.2f}s (attempt {attempt + 1}/{max_retries})"
+                        )
+                        time.sleep(delay)
+                        continue
+
+                    try:
+                        # Terminate connections to the database
+                        cur.execute(
+                            """
+                            SELECT pg_terminate_backend(pid)
+                            FROM pg_stat_activity
+                            WHERE datname = %s AND pid <> pg_backend_pid()
+                            """,
+                            (db_name,),
+                        )
+                        # Drop the database using sql.Identifier for safe escaping
+                        # NEM-4452: Use proper identifier escaping instead of f-string
+                        cur.execute(
+                            sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name))
+                        )
+                        logger.info(f"Dropped worker database: {db_name}")
+                        return  # Success
+                    finally:
+                        # Always release the advisory lock
+                        cur.execute("SELECT pg_advisory_unlock(%s)", (lock_key,))
+            finally:
+                conn.close()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                delay = 0.1 * (2**attempt)
+                logger.debug(
+                    f"Error dropping {db_name}: {e}, retrying in {delay:.2f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
                 )
-                # Drop the database (safe: db_name is generated internally)
-                cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-                logger.info(f"Dropped worker database: {db_name}")
-        finally:
-            conn.close()
-    except Exception as e:
-        # Log but don't fail - cleanup errors shouldn't fail tests
-        logger.warning(f"Failed to drop worker database {db_name}: {e}")
+                time.sleep(delay)
+            else:
+                # Log but don't fail - cleanup errors shouldn't fail tests
+                logger.warning(
+                    f"Failed to drop worker database {db_name} after {max_retries} attempts: {e}"
+                )
 
 
 # =============================================================================

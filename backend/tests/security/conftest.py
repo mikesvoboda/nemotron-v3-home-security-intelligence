@@ -71,15 +71,22 @@ def security_client() -> Generator[TestClient]:
     """
     mocks = _create_mock_services()
 
-    # Ensure DATABASE_URL is set
+    # Store original environment values
     original_db_url = os.environ.get("DATABASE_URL")
+    original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
+    original_environment = os.environ.get("ENVIRONMENT")
+
+    # Use development environment to bypass password validation for security tests
+    # The tests themselves mock the settings to test specific behaviors
+    os.environ["ENVIRONMENT"] = "development"
+
+    # Ensure DATABASE_URL is set
     if not original_db_url:
         os.environ["DATABASE_URL"] = (
             "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
         )
 
     # Disable database logging for tests (no logs table in test DB)
-    original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
     os.environ["LOG_DB_ENABLED"] = "false"
 
     # Clear settings cache before creating app
@@ -134,5 +141,10 @@ def security_client() -> Generator[TestClient]:
         os.environ["LOG_DB_ENABLED"] = original_log_db_enabled
     else:
         os.environ.pop("LOG_DB_ENABLED", None)
+
+    if original_environment is not None:
+        os.environ["ENVIRONMENT"] = original_environment
+    else:
+        os.environ.pop("ENVIRONMENT", None)
 
     get_settings.cache_clear()

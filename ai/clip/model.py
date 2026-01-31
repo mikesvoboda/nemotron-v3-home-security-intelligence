@@ -1118,6 +1118,10 @@ class CLIPEmbeddingModel:
 
 
 # Global model instance
+# NEM-4509: Add thread lock to prevent race conditions during concurrent access
+import threading
+
+_model_lock = threading.Lock()
 model: CLIPEmbeddingModel | None = None
 
 
@@ -1143,28 +1147,34 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     model_path = os.environ.get("CLIP_MODEL_PATH", "/models/clip-vit-l")
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    try:
-        model = CLIPEmbeddingModel(
-            model_path=model_path,
-            device=device,
-        )
-        model.load_model()
-        logger.info("Model loaded successfully")
-    except FileNotFoundError:
-        logger.warning(f"Model not found at {model_path}")
-        logger.warning("Server will start but embed endpoints will fail until model is available")
-    except Exception as e:
-        logger.error(f"Failed to load model: {e}")
-        logger.warning("Server will start but embed endpoints will fail")
+    # NEM-4509: Use lock during model initialization to prevent race conditions
+    with _model_lock:
+        try:
+            model = CLIPEmbeddingModel(
+                model_path=model_path,
+                device=device,
+            )
+            model.load_model()
+            logger.info("Model loaded successfully")
+        except FileNotFoundError:
+            logger.warning(f"Model not found at {model_path}")
+            logger.warning(
+                "Server will start but embed endpoints will fail until model is available"
+            )
+        except Exception as e:
+            logger.error(f"Failed to load model: {e}")
+            logger.warning("Server will start but embed endpoints will fail")
 
     yield
 
     # Shutdown
     logger.info("Shutting down CLIP Embedding Server...")
-    if model is not None and hasattr(model, "model") and model.model is not None:
-        del model.model
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    # NEM-4509: Use lock during model cleanup to prevent race conditions
+    with _model_lock:
+        if model is not None and hasattr(model, "model") and model.model is not None:
+            del model.model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
 # Create FastAPI app

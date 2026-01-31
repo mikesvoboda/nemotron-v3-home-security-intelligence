@@ -305,6 +305,11 @@ class DepthEstimator:
 # =============================================================================
 # Global Model Instances
 # =============================================================================
+# NEM-4509: Add thread lock to prevent race conditions during concurrent model access
+import threading
+
+_model_lock = threading.Lock()
+
 # Models can be loaded resident at startup or on-demand based on ENRICHMENT_PRELOAD_MODELS
 pose_estimator: Any = None
 threat_detector: Any = None
@@ -340,6 +345,9 @@ def _should_load_model(model_name: str) -> bool:
 def _should_preload_model(model_name: str) -> bool:
     """Check if a model should be preloaded at startup based on ENRICHMENT_PRELOAD_MODELS.
 
+    Security (NEM-4513): Validates that only allowed model names are preloaded.
+    Invalid model names are rejected and logged.
+
     Args:
         model_name: Model identifier (pose_estimator, threat_detector, person_reid,
                    pet_classifier, depth_estimator)
@@ -347,11 +355,20 @@ def _should_preload_model(model_name: str) -> bool:
     Returns:
         True if model should be preloaded at startup
     """
-    preload_models = os.environ.get("ENRICHMENT_PRELOAD_MODELS", "").strip()
-    if not preload_models:
+    from security import validate_preload_models_env
+
+    preload_models_env = os.environ.get("ENRICHMENT_PRELOAD_MODELS", "").strip()
+    if not preload_models_env:
         # Empty means no preloading - all on-demand
         return False
-    model_list = [m.strip() for m in preload_models.split(",") if m.strip()]
+
+    # Validate the preload models list (NEM-4513)
+    try:
+        model_list = validate_preload_models_env(preload_models_env)
+    except ValueError as e:
+        logger.error(f"Invalid ENRICHMENT_PRELOAD_MODELS configuration: {e}")
+        return False
+
     return model_name in model_list
 
 
@@ -379,14 +396,21 @@ def load_all_models() -> None:
 
     # Load Pose Estimator (if assigned to light service AND in preload list)
     if _should_load_model("pose") and _should_preload_model("pose_estimator"):
+        from security import PathSecurityError, validate_model_path_env
+
         pose_path = os.environ.get("POSE_MODEL_PATH", "/models/yolov8n-pose/yolov8n-pose.pt")
         try:
+            # Validate model path (NEM-4513)
+            pose_path = validate_model_path_env("POSE_MODEL_PATH", pose_path)
             from models.pose_estimator import PoseEstimator
 
             pose_estimator = PoseEstimator(model_path=pose_path, device=device)
             pose_estimator.load_model()
             MODEL_LOADED.labels(model="pose_estimator").set(1)
             logger.info("Pose estimator loaded (resident)")
+        except PathSecurityError as e:
+            logger.error(f"Invalid POSE_MODEL_PATH: {e}")
+            MODEL_LOADED.labels(model="pose_estimator").set(0)
         except Exception as e:
             logger.error(f"Failed to load pose estimator: {e}")
             MODEL_LOADED.labels(model="pose_estimator").set(0)
@@ -399,16 +423,23 @@ def load_all_models() -> None:
 
     # Load Threat Detector (if assigned to light service AND in preload list)
     if _should_load_model("threat") and _should_preload_model("threat_detector"):
+        from security import PathSecurityError, validate_model_path_env
+
         threat_path = os.environ.get(
             "THREAT_MODEL_PATH", "/models/threat-detection-yolov8n/weights/best.pt"
         )
         try:
+            # Validate model path (NEM-4513)
+            threat_path = validate_model_path_env("THREAT_MODEL_PATH", threat_path)
             from models.threat_detector import ThreatDetector
 
             threat_detector = ThreatDetector(model_path=threat_path, device=device)
             threat_detector.load_model()
             MODEL_LOADED.labels(model="threat_detector").set(1)
             logger.info("Threat detector loaded (resident)")
+        except PathSecurityError as e:
+            logger.error(f"Invalid THREAT_MODEL_PATH: {e}")
+            MODEL_LOADED.labels(model="threat_detector").set(0)
         except Exception as e:
             logger.error(f"Failed to load threat detector: {e}")
             MODEL_LOADED.labels(model="threat_detector").set(0)
