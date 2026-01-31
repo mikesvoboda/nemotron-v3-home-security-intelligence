@@ -242,6 +242,14 @@ from .monitoring_stack_validator import (
     ScrapeTargetHealth,
 )
 from .nemotron_analyzer import NemotronAnalyzer
+from .nemotron_latency_optimizer import (
+    LatencyOptimizerConfig,
+    LatencyStats,
+    NemotronLatencyOptimizer,
+    SemaphoreAcquireTimeout,
+    get_nemotron_optimizer,
+    reset_nemotron_optimizer,
+)
 from .notification import (
     DeliveryResult,
     NotificationChannel,
@@ -494,6 +502,11 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "ModelConfig",
     "ModelManager",
     "NemotronAnalyzer",
+    # Nemotron Latency Optimizer (NEM-4522)
+    "LatencyOptimizerConfig",
+    "LatencyStats",
+    "NemotronLatencyOptimizer",
+    "SemaphoreAcquireTimeout",
     "NotificationChannel",
     "NotificationDelivery",
     "NotificationService",
@@ -599,6 +612,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_model_config",
     "get_model_manager",
     "get_model_zoo",
+    "get_nemotron_optimizer",
     "get_notification_service",
     "get_pg_notify_listener",
     "get_reid_service",
@@ -647,6 +661,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_job_tracker",
     "reset_model_manager",
     "reset_model_zoo",
+    "reset_nemotron_optimizer",
     "reset_notification_service",
     "reset_reid_service",
     "reset_retry_handler",

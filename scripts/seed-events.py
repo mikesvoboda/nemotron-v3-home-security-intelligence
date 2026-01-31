@@ -781,9 +781,9 @@ async def validate_synthetic_results(
             cutoff = datetime.now(UTC) - timedelta(hours=1)
             result = await session.execute(
                 select(Event)
-                .where(Event.created_at >= cutoff)
+                .where(Event.started_at >= cutoff)
                 .where(Event.deleted_at.is_(None))
-                .order_by(Event.created_at.desc())
+                .order_by(Event.started_at.desc())
                 .limit(100)
             )
             recent_events = list(result.scalars().all())

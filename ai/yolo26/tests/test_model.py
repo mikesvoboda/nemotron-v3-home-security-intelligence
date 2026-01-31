@@ -23,6 +23,7 @@ if str(_yolo26_dir) not in sys.path:
 # Now import from the local model module
 import model as model_module
 from model import (
+    CLASS_CONFIDENCE_THRESHOLDS,
     COCO_CLASSES,
     MAX_BASE64_SIZE_BYTES,
     MAX_IMAGE_SIZE_BYTES,
@@ -238,6 +239,90 @@ class TestYOLO26Model:
 
         # Should filter out non-security class
         assert len(detections) == 0
+
+    def test_detect_applies_class_specific_confidence_thresholds(self):
+        """Test that class-specific confidence thresholds filter detections (NEM-4522)."""
+        model = YOLO26Model(
+            model_path="test_path", confidence_threshold=0.5, device="cpu", cache_clear_frequency=0
+        )
+
+        # Create mock model with detections at various confidence levels
+        mock_model = MagicMock()
+        mock_result = MagicMock()
+        mock_boxes = MagicMock()
+
+        # Create mock detections with proper tensor-like xyxy
+        # 1. Person at 0.55 - should pass (threshold 0.50)
+        mock_person = MagicMock()
+        mock_person.cls.item.return_value = 0  # person
+        mock_person.conf.item.return_value = 0.55
+        mock_person_xyxy = MagicMock()
+        mock_person_xyxy.tolist.return_value = [100.0, 150.0, 200.0, 350.0]
+        mock_person.xyxy = [mock_person_xyxy]
+
+        # 2. Car at 0.65 - should FAIL (threshold 0.70)
+        mock_car_low = MagicMock()
+        mock_car_low.cls.item.return_value = 2  # car
+        mock_car_low.conf.item.return_value = 0.65
+        mock_car_low_xyxy = MagicMock()
+        mock_car_low_xyxy.tolist.return_value = [300.0, 200.0, 500.0, 400.0]
+        mock_car_low.xyxy = [mock_car_low_xyxy]
+
+        # 3. Car at 0.75 - should pass (threshold 0.70)
+        mock_car_high = MagicMock()
+        mock_car_high.cls.item.return_value = 2  # car
+        mock_car_high.conf.item.return_value = 0.75
+        mock_car_high_xyxy = MagicMock()
+        mock_car_high_xyxy.tolist.return_value = [600.0, 250.0, 800.0, 450.0]
+        mock_car_high.xyxy = [mock_car_high_xyxy]
+
+        # 4. Dog at 0.52 - should FAIL (threshold 0.55)
+        mock_dog_low = MagicMock()
+        mock_dog_low.cls.item.return_value = 16  # dog
+        mock_dog_low.conf.item.return_value = 0.52
+        mock_dog_low_xyxy = MagicMock()
+        mock_dog_low_xyxy.tolist.return_value = [50.0, 300.0, 150.0, 400.0]
+        mock_dog_low.xyxy = [mock_dog_low_xyxy]
+
+        # 5. Dog at 0.60 - should pass (threshold 0.55)
+        mock_dog_high = MagicMock()
+        mock_dog_high.cls.item.return_value = 16  # dog
+        mock_dog_high.conf.item.return_value = 0.60
+        mock_dog_high_xyxy = MagicMock()
+        mock_dog_high_xyxy.tolist.return_value = [200.0, 350.0, 280.0, 450.0]
+        mock_dog_high.xyxy = [mock_dog_high_xyxy]
+
+        mock_boxes.__len__.return_value = 5
+        mock_boxes.__iter__.return_value = iter(
+            [mock_person, mock_car_low, mock_car_high, mock_dog_low, mock_dog_high]
+        )
+        mock_result.boxes = mock_boxes
+        mock_model.predict.return_value = [mock_result]
+
+        model.model = mock_model
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+        detections, _ = model.detect(test_image)
+
+        # Should only have 3 detections (person, high-conf car, high-conf dog)
+        assert len(detections) == 3
+
+        # Verify the correct detections passed
+        classes = [d["class"] for d in detections]
+        confidences = [d["confidence"] for d in detections]
+
+        assert "person" in classes
+        assert "car" in classes
+        assert "dog" in classes
+
+        # Verify only high-confidence detections passed
+        person_conf = next(d["confidence"] for d in detections if d["class"] == "person")
+        car_conf = next(d["confidence"] for d in detections if d["class"] == "car")
+        dog_conf = next(d["confidence"] for d in detections if d["class"] == "dog")
+
+        assert person_conf == 0.55  # Passed with 0.50 threshold
+        assert car_conf == 0.75  # High confidence car passed (0.65 car filtered)
+        assert dog_conf == 0.60  # High confidence dog passed (0.52 dog filtered)
 
     def test_detect_with_empty_results(self, mock_empty_yolo_model):
         """Test detect with no detections."""
@@ -851,6 +936,45 @@ class TestMagicByteValidation:
         is_valid, result = validate_image_magic_bytes(random_data)
         assert is_valid is False
         assert "Unknown file format" in result
+
+
+class TestClassConfidenceThresholds:
+    """Tests for class-specific confidence thresholds (NEM-4522).
+
+    These tests verify that different object classes use appropriate
+    confidence thresholds to reduce false positives.
+    """
+
+    def test_class_confidence_thresholds_defined(self):
+        """Test that CLASS_CONFIDENCE_THRESHOLDS is properly defined."""
+        assert CLASS_CONFIDENCE_THRESHOLDS is not None
+        assert isinstance(CLASS_CONFIDENCE_THRESHOLDS, dict)
+        assert len(CLASS_CONFIDENCE_THRESHOLDS) > 0
+
+    def test_vehicle_classes_have_higher_thresholds(self):
+        """Test that vehicle classes have higher thresholds to reduce false positives."""
+        # Vehicles should have 0.70 threshold (higher than default 0.5)
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("car") == 0.70
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("truck") == 0.70
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("bus") == 0.70
+
+    def test_person_has_reasonable_threshold(self):
+        """Test that person detection uses reasonable threshold."""
+        # Person should have 0.50 threshold (same as default)
+        assert CLASS_CONFIDENCE_THRESHOLDS.get("person") == 0.50
+
+    def test_all_security_classes_covered(self):
+        """Test that all security-relevant classes have defined thresholds."""
+        # All classes in SECURITY_CLASSES should have thresholds defined
+        for cls in SECURITY_CLASSES:
+            assert cls in CLASS_CONFIDENCE_THRESHOLDS, f"Missing threshold for {cls}"
+
+    def test_threshold_values_are_reasonable(self):
+        """Test that all threshold values are in reasonable range."""
+        for cls, threshold in CLASS_CONFIDENCE_THRESHOLDS.items():
+            assert 0.0 <= threshold <= 1.0, f"Threshold for {cls} out of range: {threshold}"
+            # Should be at least 0.5 for production use
+            assert threshold >= 0.5, f"Threshold for {cls} too low: {threshold}"
 
 
 class TestFileExtensionValidation:

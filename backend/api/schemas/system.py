@@ -1159,6 +1159,122 @@ class PipelineLatencyHistoryResponse(BaseModel):
     )
 
 
+class NemotronLatencyStatsResponse(BaseModel):
+    """Latency statistics for the Nemotron optimizer (NEM-4522).
+
+    Provides rolling window statistics for monitoring Nemotron inference latency.
+    """
+
+    rolling_average_seconds: float = Field(
+        ...,
+        description="Rolling average latency in seconds",
+    )
+    p95_latency_seconds: float = Field(
+        ...,
+        description="95th percentile latency in seconds",
+    )
+    last_latency_seconds: float = Field(
+        ...,
+        description="Most recent request latency in seconds",
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of samples in the rolling window",
+    )
+    total_requests: int = Field(
+        ...,
+        description="Total requests processed since startup",
+    )
+    shed_requests: int = Field(
+        ...,
+        description="Total requests shed due to high latency/queue depth",
+    )
+    circuit_trips: int = Field(
+        ...,
+        description="Number of times the circuit breaker tripped",
+    )
+
+
+class NemotronOptimizerConfigResponse(BaseModel):
+    """Configuration settings for the Nemotron latency optimizer (NEM-4522)."""
+
+    target_latency_seconds: float = Field(
+        ...,
+        description="Target p95 latency in seconds",
+    )
+    max_acceptable_latency_seconds: float = Field(
+        ...,
+        description="Maximum latency before circuit breaker opens",
+    )
+    max_queue_depth: int = Field(
+        ...,
+        description="Maximum pending requests before shedding",
+    )
+    semaphore_acquire_timeout: float = Field(
+        ...,
+        description="Maximum time to wait for semaphore acquisition",
+    )
+
+
+class NemotronLatencyOptimizerResponse(BaseModel):
+    """Response schema for Nemotron latency optimizer status (NEM-4522).
+
+    Provides visibility into the latency optimizer state including circuit breaker
+    status, queue depth, and latency statistics for monitoring and debugging.
+    """
+
+    circuit_state: str = Field(
+        ...,
+        description="Circuit breaker state: closed, open, or half_open",
+    )
+    pending_requests: int = Field(
+        ...,
+        description="Number of requests currently waiting for inference",
+    )
+    consecutive_high_latency: int = Field(
+        ...,
+        description="Number of consecutive high-latency requests",
+    )
+    latency_stats: NemotronLatencyStatsResponse = Field(
+        ...,
+        description="Rolling latency statistics",
+    )
+    config: NemotronOptimizerConfigResponse = Field(
+        ...,
+        description="Current optimizer configuration",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp when status was retrieved",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "circuit_state": "closed",
+                "pending_requests": 3,
+                "consecutive_high_latency": 0,
+                "latency_stats": {
+                    "rolling_average_seconds": 8.5,
+                    "p95_latency_seconds": 15.2,
+                    "last_latency_seconds": 7.3,
+                    "sample_count": 20,
+                    "total_requests": 150,
+                    "shed_requests": 5,
+                    "circuit_trips": 1,
+                },
+                "config": {
+                    "target_latency_seconds": 10.0,
+                    "max_acceptable_latency_seconds": 30.0,
+                    "max_queue_depth": 50,
+                    "semaphore_acquire_timeout": 30.0,
+                },
+                "timestamp": "2026-01-31T10:30:00Z",
+            }
+        }
+    )
+
+
 class CleanupResponse(BaseModel):
     """Response schema for data cleanup endpoint.
 

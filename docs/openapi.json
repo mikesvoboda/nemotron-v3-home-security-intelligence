@@ -20820,6 +20820,122 @@
         "title": "MovementMetrics",
         "type": "object"
       },
+      "NemotronLatencyOptimizerResponse": {
+        "description": "Response schema for Nemotron latency optimizer status (NEM-4522).\n\nProvides visibility into the latency optimizer state including circuit breaker\nstatus, queue depth, and latency statistics for monitoring and debugging.",
+        "example": {
+          "circuit_state": "closed",
+          "config": {
+            "max_acceptable_latency_seconds": 30.0,
+            "max_queue_depth": 50,
+            "semaphore_acquire_timeout": 30.0,
+            "target_latency_seconds": 10.0
+          },
+          "consecutive_high_latency": 0,
+          "latency_stats": {
+            "circuit_trips": 1,
+            "last_latency_seconds": 7.3,
+            "p95_latency_seconds": 15.2,
+            "rolling_average_seconds": 8.5,
+            "sample_count": 20,
+            "shed_requests": 5,
+            "total_requests": 150
+          },
+          "pending_requests": 3,
+          "timestamp": "2026-01-31T10:30:00Z"
+        },
+        "properties": {
+          "circuit_state": {
+            "description": "Circuit breaker state: closed, open, or half_open",
+            "title": "Circuit State",
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/components/schemas/NemotronOptimizerConfigResponse",
+            "description": "Current optimizer configuration"
+          },
+          "consecutive_high_latency": {
+            "description": "Number of consecutive high-latency requests",
+            "title": "Consecutive High Latency",
+            "type": "integer"
+          },
+          "latency_stats": {
+            "$ref": "#/components/schemas/NemotronLatencyStatsResponse",
+            "description": "Rolling latency statistics"
+          },
+          "pending_requests": {
+            "description": "Number of requests currently waiting for inference",
+            "title": "Pending Requests",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "Timestamp when status was retrieved",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "circuit_state",
+          "pending_requests",
+          "consecutive_high_latency",
+          "latency_stats",
+          "config",
+          "timestamp"
+        ],
+        "title": "NemotronLatencyOptimizerResponse",
+        "type": "object"
+      },
+      "NemotronLatencyStatsResponse": {
+        "description": "Latency statistics for the Nemotron optimizer (NEM-4522).\n\nProvides rolling window statistics for monitoring Nemotron inference latency.",
+        "properties": {
+          "circuit_trips": {
+            "description": "Number of times the circuit breaker tripped",
+            "title": "Circuit Trips",
+            "type": "integer"
+          },
+          "last_latency_seconds": {
+            "description": "Most recent request latency in seconds",
+            "title": "Last Latency Seconds",
+            "type": "number"
+          },
+          "p95_latency_seconds": {
+            "description": "95th percentile latency in seconds",
+            "title": "P95 Latency Seconds",
+            "type": "number"
+          },
+          "rolling_average_seconds": {
+            "description": "Rolling average latency in seconds",
+            "title": "Rolling Average Seconds",
+            "type": "number"
+          },
+          "sample_count": {
+            "description": "Number of samples in the rolling window",
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "shed_requests": {
+            "description": "Total requests shed due to high latency/queue depth",
+            "title": "Shed Requests",
+            "type": "integer"
+          },
+          "total_requests": {
+            "description": "Total requests processed since startup",
+            "title": "Total Requests",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rolling_average_seconds",
+          "p95_latency_seconds",
+          "last_latency_seconds",
+          "sample_count",
+          "total_requests",
+          "shed_requests",
+          "circuit_trips"
+        ],
+        "title": "NemotronLatencyStatsResponse",
+        "type": "object"
+      },
       "NemotronMetrics": {
         "description": "Metrics for Nemotron LLM.",
         "example": {
@@ -20860,6 +20976,39 @@
           "context_size"
         ],
         "title": "NemotronMetrics",
+        "type": "object"
+      },
+      "NemotronOptimizerConfigResponse": {
+        "description": "Configuration settings for the Nemotron latency optimizer (NEM-4522).",
+        "properties": {
+          "max_acceptable_latency_seconds": {
+            "description": "Maximum latency before circuit breaker opens",
+            "title": "Max Acceptable Latency Seconds",
+            "type": "number"
+          },
+          "max_queue_depth": {
+            "description": "Maximum pending requests before shedding",
+            "title": "Max Queue Depth",
+            "type": "integer"
+          },
+          "semaphore_acquire_timeout": {
+            "description": "Maximum time to wait for semaphore acquisition",
+            "title": "Semaphore Acquire Timeout",
+            "type": "number"
+          },
+          "target_latency_seconds": {
+            "description": "Target p95 latency in seconds",
+            "title": "Target Latency Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "target_latency_seconds",
+          "max_acceptable_latency_seconds",
+          "max_queue_depth",
+          "semaphore_acquire_timeout"
+        ],
+        "title": "NemotronOptimizerConfigResponse",
         "type": "object"
       },
       "NotificationChannel": {
@@ -49347,6 +49496,54 @@
           }
         },
         "summary": "Get Monitoring Targets",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/nemotron-optimizer": {
+      "get": {
+        "description": "Get Nemotron latency optimizer status.\n\nReturns the current state of the latency optimizer including:\n- Circuit breaker state (closed, open, half_open)\n- Pending request count (queue depth)\n- Rolling latency statistics (average, p95, sample count)\n- Shed request count and circuit trip count\n- Current configuration settings\n\nThe latency optimizer implements adaptive strategies to reduce pipeline\nlatency from 39.6s to <10s target:\n- Latency-based circuit breaker: Opens when average latency exceeds threshold\n- Semaphore acquire timeout: Prevents queue backlog by timing out waiting requests\n- Adaptive timeout: Reduces LLM timeout when queue depth is high\n- Request shedding: Drops requests when system is overloaded\n\nReturns:\n    NemotronLatencyOptimizerResponse with optimizer status and statistics",
+        "operationId": "system_get_nemotron_optimizer_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NemotronLatencyOptimizerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Nemotron Optimizer Status",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/system/nemotron-optimizer/reset": {
+      "post": {
+        "description": "Reset the Nemotron latency optimizer circuit breaker.\n\nManually resets the circuit breaker to the closed state, allowing\nrequests to proceed even if the circuit was previously open due to\nhigh latency. Use this after resolving underlying performance issues.\n\nReturns:\n    Success message confirming circuit reset",
+        "operationId": "system_reset_nemotron_optimizer_circuit",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response System Reset Nemotron Optimizer Circuit",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reset Nemotron Optimizer Circuit",
         "tags": [
           "system"
         ]
