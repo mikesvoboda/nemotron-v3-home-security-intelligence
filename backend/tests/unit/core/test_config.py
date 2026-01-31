@@ -563,6 +563,11 @@ class TestProductionPasswordValidation:
             "DATABASE_URL",
             "postgresql+asyncpg://security:a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6@localhost:5432/security",  # pragma: allowlist secret
         )
+        # Also set strong Redis password for production
+        clean_env.setenv(
+            "REDIS_PASSWORD",
+            "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",  # pragma: allowlist secret
+        )
         get_settings.cache_clear()
 
         # Should not raise
