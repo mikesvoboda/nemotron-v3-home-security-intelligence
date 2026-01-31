@@ -1352,29 +1352,17 @@ services:
   alloy:
     image: docker.io/grafana/alloy:v1.0.0
     container_name: alloy
-    # Security hardening (NEM-4499): Use specific capabilities instead of privileged mode
-    # Use specific capabilities instead of privileged mode for eBPF
-    # CAP_SYS_ADMIN: Required for BPF operations
-    # CAP_SYS_PTRACE: Required for process tracing
-    # CAP_PERFMON: Linux 5.8+ perf event access
-    # CAP_BPF: Linux 5.8+ BPF program loading
-    # CAP_DAC_READ_SEARCH: Read files without permission checks
-    # CAP_SYS_RESOURCE: Resource limits for cgroup access
-    cap_drop:
-      - ALL
-    cap_add:
-      - SYS_ADMIN
-      - SYS_PTRACE
-      - PERFMON
-      - BPF
-      - DAC_READ_SEARCH
-      - SYS_RESOURCE
+    # WORKAROUND (NEM-4499): Using privileged mode due to SELinux blocking /bin/alloy execution
+    # Issue: Rootless Podman + SELinux Enforcing prevents execution of /bin/alloy even with label=disable
+    # Root cause: grafana/alloy:v1.0.0 image has SELinux context that conflicts with rootless execution
+    # Alternative approaches attempted:
+    #   - label=disable alone: Still blocked
+    #   - Specific capabilities (SYS_ADMIN, BPF, PERFMON, etc.): Still blocked
+    #   - apparmor=unconfined + seccomp=unconfined: Still blocked
+    # TODO: Re-test with newer alloy versions or when rootless Podman SELinux handling improves
+    privileged: true
     pid: host
     user: root
-    security_opt:
-      - label:disable
-      - seccomp:unconfined
-      - no-new-privileges:true
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
       - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
@@ -1383,6 +1371,11 @@ services:
       - /proc:/host/proc:ro
       # eBPF profiler symbol cache for stack trace resolution (NEM-3922)
       - alloy_symb_cache:/tmp/symb-cache
+    ulimits:
+      # eBPF profiling requires increased memory lock limit
+      memlock:
+        soft: -1
+        hard: -1
     environment:
       - HOST_PROC=/host/proc
     command:
