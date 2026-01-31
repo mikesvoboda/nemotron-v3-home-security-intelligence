@@ -7,8 +7,16 @@ Provides connection validation, capability detection, and error reporting.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from urllib.parse import urlparse
+
+import cv2
+
+if TYPE_CHECKING:
+    from urllib.parse import ParseResult
 
 
 @dataclass
@@ -41,6 +49,40 @@ class RTSPTestService:
     """
 
     CONNECTION_TIMEOUT = 5.0  # seconds
+    VALID_SCHEMES = ("rtsp", "rtsps")
+
+    def _validate_url(self, rtsp_url: str) -> str | None:
+        """Validate RTSP URL format.
+
+        Returns error message if invalid, None if valid.
+        """
+        # Check for invalid characters (spaces, etc.)
+        if re.search(r"\s", rtsp_url):
+            return "Invalid URL format - URL contains spaces or invalid characters"
+
+        # Parse the URL
+        try:
+            parsed = urlparse(rtsp_url)
+        except Exception:
+            return "Invalid URL format - could not parse URL"
+
+        # Check scheme and host
+        error = self._check_url_components(parsed)
+        return error
+
+    def _check_url_components(self, parsed: ParseResult) -> str | None:
+        """Check URL scheme and host components."""
+        if not parsed.scheme:
+            return "Invalid URL format - missing protocol (expected rtsp:// or rtsps://)"
+
+        if parsed.scheme.lower() not in self.VALID_SCHEMES:
+            return f"Invalid URL format - unsupported protocol '{parsed.scheme}' (expected rtsp:// or rtsps://)"
+
+        # Check host (netloc includes user:pass@host:port)
+        if not parsed.netloc or not parsed.hostname:
+            return "Invalid URL format - missing host"
+
+        return None
 
     async def test_connection(
         self,
@@ -58,9 +100,18 @@ class RTSPTestService:
         Returns:
             RTSPTestResult with success status, latency, and capabilities
         """
+        # Validate URL format first
+        validation_error = self._validate_url(rtsp_url)
+        if validation_error:
+            return RTSPTestResult(
+                success=False,
+                error_message=validation_error,
+            )
+
+        has_credentials = bool(username and password)
 
         # Build authenticated URL if credentials provided
-        if username and password:
+        if has_credentials:
             # Insert credentials into URL
             if "://" in rtsp_url:
                 protocol, rest = rtsp_url.split("://", 1)
@@ -72,11 +123,11 @@ class RTSPTestService:
             # Run capture in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
             result = await asyncio.wait_for(
-                loop.run_in_executor(None, self._test_capture, rtsp_url),
+                loop.run_in_executor(None, self._test_capture, rtsp_url, has_credentials),
                 timeout=self.CONNECTION_TIMEOUT,
             )
 
-            latency_ms = int((time.monotonic() - start_time) * 1000)
+            latency_ms = max(1, int((time.monotonic() - start_time) * 1000))
             result.latency_ms = latency_ms
             return result
 
@@ -91,16 +142,15 @@ class RTSPTestService:
                 error_message=f"Connection failed: {e!s}",
             )
 
-    def _test_capture(self, rtsp_url: str) -> RTSPTestResult:
+    def _test_capture(self, rtsp_url: str, has_credentials: bool = False) -> RTSPTestResult:
         """Synchronous capture test (run in executor)."""
-        import cv2
-
         cap = cv2.VideoCapture(rtsp_url)
 
         try:
             if not cap.isOpened():
-                # Check if it's an auth failure
-                if "401" in str(cap) or "Unauthorized" in str(cap):
+                # If credentials were provided and connection failed,
+                # suggest authentication issue
+                if has_credentials:
                     return RTSPTestResult(
                         success=False,
                         error_message="Authentication failed - check username and password",

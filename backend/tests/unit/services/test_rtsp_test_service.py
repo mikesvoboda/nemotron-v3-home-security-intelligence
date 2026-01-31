@@ -12,7 +12,6 @@ Tests cover:
 - Error message clarity
 """
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -44,7 +43,7 @@ class TestRTSPTestService:
         """
         url = "rtsp://192.168.1.100:554/stream1"
         username = "admin"
-        password = "secret123"  # pragma: allowlist secret
+        password = "secret123"  # nosemgrep: hardcoded-password # pragma: allowlist secret
 
         # Mock successful connection
         with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
@@ -82,11 +81,14 @@ class TestRTSPTestService:
         - Returns success=False
         - Includes clear timeout error message
         """
+        import time
+
         url = "rtsp://192.168.1.100:554/stream1"
 
-        # Mock a hanging connection
-        async def slow_connection(*args, **kwargs):
-            await asyncio.sleep(10)  # Exceed 5 second timeout
+        # Mock a hanging connection - use synchronous sleep since
+        # _test_capture runs in a thread pool executor
+        def slow_connection(*args, **kwargs):
+            time.sleep(6)  # Exceed 5 second timeout
             return MagicMock()
 
         with patch(
@@ -110,7 +112,7 @@ class TestRTSPTestService:
         """
         url = "rtsp://192.168.1.100:554/stream1"
         username = "wrong_user"
-        password = "wrong_password"  # pragma: allowlist secret
+        password = "wrong_password"  # nosemgrep: hardcoded-password # pragma: allowlist secret
 
         # Mock authentication failure
         with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
