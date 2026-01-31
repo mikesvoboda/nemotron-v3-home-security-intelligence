@@ -8076,6 +8076,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/nemotron-optimizer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Nemotron Optimizer Status
+         * @description Get Nemotron latency optimizer status.
+         *
+         *     Returns the current state of the latency optimizer including:
+         *     - Circuit breaker state (closed, open, half_open)
+         *     - Pending request count (queue depth)
+         *     - Rolling latency statistics (average, p95, sample count)
+         *     - Shed request count and circuit trip count
+         *     - Current configuration settings
+         *
+         *     The latency optimizer implements adaptive strategies to reduce pipeline
+         *     latency from 39.6s to <10s target:
+         *     - Latency-based circuit breaker: Opens when average latency exceeds threshold
+         *     - Semaphore acquire timeout: Prevents queue backlog by timing out waiting requests
+         *     - Adaptive timeout: Reduces LLM timeout when queue depth is high
+         *     - Request shedding: Drops requests when system is overloaded
+         *
+         *     Returns:
+         *         NemotronLatencyOptimizerResponse with optimizer status and statistics
+         */
+        get: operations["system_get_nemotron_optimizer_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/nemotron-optimizer/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Nemotron Optimizer Circuit
+         * @description Reset the Nemotron latency optimizer circuit breaker.
+         *
+         *     Manually resets the circuit breaker to the closed state, allowing
+         *     requests to proceed even if the circuit was previously open due to
+         *     high latency. Use this after resolving underlying performance issues.
+         *
+         *     Returns:
+         *         Success message confirming circuit reset
+         */
+        post: operations["system_reset_nemotron_optimizer_circuit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/performance": {
         parameters: {
             query?: never;
@@ -24777,6 +24841,104 @@ export interface components {
             total_distance: number;
         };
         /**
+         * NemotronLatencyOptimizerResponse
+         * @description Response schema for Nemotron latency optimizer status (NEM-4522).
+         *
+         *     Provides visibility into the latency optimizer state including circuit breaker
+         *     status, queue depth, and latency statistics for monitoring and debugging.
+         * @example {
+         *       "circuit_state": "closed",
+         *       "config": {
+         *         "max_acceptable_latency_seconds": 30,
+         *         "max_queue_depth": 50,
+         *         "semaphore_acquire_timeout": 30,
+         *         "target_latency_seconds": 10
+         *       },
+         *       "consecutive_high_latency": 0,
+         *       "latency_stats": {
+         *         "circuit_trips": 1,
+         *         "last_latency_seconds": 7.3,
+         *         "p95_latency_seconds": 15.2,
+         *         "rolling_average_seconds": 8.5,
+         *         "sample_count": 20,
+         *         "shed_requests": 5,
+         *         "total_requests": 150
+         *       },
+         *       "pending_requests": 3,
+         *       "timestamp": "2026-01-31T10:30:00Z"
+         *     }
+         */
+        NemotronLatencyOptimizerResponse: {
+            /**
+             * Circuit State
+             * @description Circuit breaker state: closed, open, or half_open
+             */
+            circuit_state: string;
+            /** @description Current optimizer configuration */
+            config: components["schemas"]["NemotronOptimizerConfigResponse"];
+            /**
+             * Consecutive High Latency
+             * @description Number of consecutive high-latency requests
+             */
+            consecutive_high_latency: number;
+            /** @description Rolling latency statistics */
+            latency_stats: components["schemas"]["NemotronLatencyStatsResponse"];
+            /**
+             * Pending Requests
+             * @description Number of requests currently waiting for inference
+             */
+            pending_requests: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp when status was retrieved
+             */
+            timestamp: string;
+        };
+        /**
+         * NemotronLatencyStatsResponse
+         * @description Latency statistics for the Nemotron optimizer (NEM-4522).
+         *
+         *     Provides rolling window statistics for monitoring Nemotron inference latency.
+         */
+        NemotronLatencyStatsResponse: {
+            /**
+             * Circuit Trips
+             * @description Number of times the circuit breaker tripped
+             */
+            circuit_trips: number;
+            /**
+             * Last Latency Seconds
+             * @description Most recent request latency in seconds
+             */
+            last_latency_seconds: number;
+            /**
+             * P95 Latency Seconds
+             * @description 95th percentile latency in seconds
+             */
+            p95_latency_seconds: number;
+            /**
+             * Rolling Average Seconds
+             * @description Rolling average latency in seconds
+             */
+            rolling_average_seconds: number;
+            /**
+             * Sample Count
+             * @description Number of samples in the rolling window
+             */
+            sample_count: number;
+            /**
+             * Shed Requests
+             * @description Total requests shed due to high latency/queue depth
+             */
+            shed_requests: number;
+            /**
+             * Total Requests
+             * @description Total requests processed since startup
+             */
+            total_requests: number;
+        };
+        /**
          * NemotronMetrics
          * @description Metrics for Nemotron LLM.
          * @example {
@@ -24807,6 +24969,32 @@ export interface components {
              * @description Health status: healthy, unhealthy, unreachable
              */
             status: string;
+        };
+        /**
+         * NemotronOptimizerConfigResponse
+         * @description Configuration settings for the Nemotron latency optimizer (NEM-4522).
+         */
+        NemotronOptimizerConfigResponse: {
+            /**
+             * Max Acceptable Latency Seconds
+             * @description Maximum latency before circuit breaker opens
+             */
+            max_acceptable_latency_seconds: number;
+            /**
+             * Max Queue Depth
+             * @description Maximum pending requests before shedding
+             */
+            max_queue_depth: number;
+            /**
+             * Semaphore Acquire Timeout
+             * @description Maximum time to wait for semaphore acquisition
+             */
+            semaphore_acquire_timeout: number;
+            /**
+             * Target Latency Seconds
+             * @description Target p95 latency in seconds
+             */
+            target_latency_seconds: number;
         };
         /**
          * NotificationChannel
@@ -44977,6 +45165,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonitoringTargetsResponse"];
+                };
+            };
+        };
+    };
+    system_get_nemotron_optimizer_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NemotronLatencyOptimizerResponse"];
+                };
+            };
+        };
+    };
+    system_reset_nemotron_optimizer_circuit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
         };

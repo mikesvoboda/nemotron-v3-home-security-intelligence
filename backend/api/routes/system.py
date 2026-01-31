@@ -88,6 +88,9 @@ from backend.api.schemas.system import (
     ModelZooStatusResponse,
     MonitoringHealthResponse,
     MonitoringTargetsResponse,
+    NemotronLatencyOptimizerResponse,
+    NemotronLatencyStatsResponse,
+    NemotronOptimizerConfigResponse,
     OrphanedFileCleanupResponse,
     PipelineLatencies,
     PipelineLatencyHistoryResponse,
@@ -4013,6 +4016,88 @@ async def get_pipeline_status(
         degradation=degradation_status,
         timestamp=datetime.now(UTC),
     )
+
+
+# =============================================================================
+# Nemotron Latency Optimizer Endpoints (NEM-4522)
+# =============================================================================
+
+
+@router.get("/nemotron-optimizer", response_model=NemotronLatencyOptimizerResponse)
+async def get_nemotron_optimizer_status() -> NemotronLatencyOptimizerResponse:
+    """Get Nemotron latency optimizer status.
+
+    Returns the current state of the latency optimizer including:
+    - Circuit breaker state (closed, open, half_open)
+    - Pending request count (queue depth)
+    - Rolling latency statistics (average, p95, sample count)
+    - Shed request count and circuit trip count
+    - Current configuration settings
+
+    The latency optimizer implements adaptive strategies to reduce pipeline
+    latency from 39.6s to <10s target:
+    - Latency-based circuit breaker: Opens when average latency exceeds threshold
+    - Semaphore acquire timeout: Prevents queue backlog by timing out waiting requests
+    - Adaptive timeout: Reduces LLM timeout when queue depth is high
+    - Request shedding: Drops requests when system is overloaded
+
+    Returns:
+        NemotronLatencyOptimizerResponse with optimizer status and statistics
+    """
+    from backend.services.nemotron_latency_optimizer import get_nemotron_optimizer
+
+    optimizer = get_nemotron_optimizer()
+    status = optimizer.get_status()
+
+    return NemotronLatencyOptimizerResponse(
+        circuit_state=status["circuit_state"],
+        pending_requests=status["pending_requests"],
+        consecutive_high_latency=status["consecutive_high_latency"],
+        latency_stats=NemotronLatencyStatsResponse(
+            rolling_average_seconds=status["latency_stats"]["rolling_average_seconds"],
+            p95_latency_seconds=status["latency_stats"]["p95_latency_seconds"],
+            last_latency_seconds=status["latency_stats"]["last_latency_seconds"],
+            sample_count=status["latency_stats"]["sample_count"],
+            total_requests=status["latency_stats"]["total_requests"],
+            shed_requests=status["latency_stats"]["shed_requests"],
+            circuit_trips=status["latency_stats"]["circuit_trips"],
+        ),
+        config=NemotronOptimizerConfigResponse(
+            target_latency_seconds=status["config"]["target_latency_seconds"],
+            max_acceptable_latency_seconds=status["config"]["max_acceptable_latency_seconds"],
+            max_queue_depth=status["config"]["max_queue_depth"],
+            semaphore_acquire_timeout=status["config"]["semaphore_acquire_timeout"],
+        ),
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.post("/nemotron-optimizer/reset")
+async def reset_nemotron_optimizer_circuit() -> dict[str, str]:
+    """Reset the Nemotron latency optimizer circuit breaker.
+
+    Manually resets the circuit breaker to the closed state, allowing
+    requests to proceed even if the circuit was previously open due to
+    high latency. Use this after resolving underlying performance issues.
+
+    Returns:
+        Success message confirming circuit reset
+    """
+    from backend.services.nemotron_latency_optimizer import get_nemotron_optimizer
+
+    optimizer = get_nemotron_optimizer()
+    previous_state = optimizer.circuit_state.value
+    optimizer.reset_circuit()
+
+    logger.info(
+        "Nemotron latency optimizer circuit reset",
+        extra={"previous_state": previous_state},
+    )
+
+    return {
+        "message": f"Circuit breaker reset from {previous_state} to closed",
+        "previous_state": previous_state,
+    }
 
 
 # =============================================================================

@@ -42,8 +42,8 @@ SCORE CALIBRATION GUIDELINES:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 DISTRIBUTION: In a typical day, expect:
 - 85% of events to be LOW (0-20): Normal household activity
@@ -52,6 +52,7 @@ DISTRIBUTION: In a typical day, expect:
 - 1% to be CRITICAL (81-100): Immediate threats only
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS HIGH/CRITICAL (60+).
 If you're scoring delivery drivers above 15 or flagging trees/timestamps, you are miscalibrated.
 
 Output ONLY valid JSON. No preamble, no explanation."""
@@ -77,8 +78,8 @@ SCORE CALIBRATION GUIDELINES:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance workers)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 DISTRIBUTION: In a typical day, expect:
 - 85% of events to be LOW (0-20): Normal household activity
@@ -87,14 +88,16 @@ DISTRIBUTION: In a typical day, expect:
 - 1% to be CRITICAL (81-100): Immediate threats only
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS HIGH/CRITICAL (60+).
 If you're scoring delivery drivers above 15 or flagging trees/timestamps, you are miscalibrated.
 
 REASONING INSTRUCTIONS:
 1. First, output your reasoning in <think>...</think> tags
 2. Consider: time of day, location, object types, household context, and behavioral patterns
 3. Do NOT flag: trees, timestamps, normal presence, weather, or scene elements
-4. Evaluate each factor systematically before determining the risk score
-5. After </think>, output ONLY valid JSON with no additional text
+4. ALWAYS flag property crimes (theft, vandalism, breaking & entering) as HIGH risk (60+)
+5. Evaluate each factor systematically before determining the risk score
+6. After </think>, output ONLY valid JSON with no additional text
 
 Output format after </think>:
 {"risk_score": N, "risk_level": "level", "summary": "...", "reasoning": "..."}"""
@@ -119,9 +122,36 @@ SCORING_REFERENCE_TABLE = """## SCORING REFERENCE
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person checking vehicle doors | 65-80 | Clear suspicious intent |
 | Person testing house door handles | 70-85 | Clear suspicious intent |
+| Tailgating through secure door/gate | 55-75 | ACCESS VIOLATION - unauthorized entry |
+| Multiple persons entering in quick succession | 50-70 | Potential tailgating or piggybacking |
+| Person holding door for unknown individual | 45-65 | Potential access control bypass |
+| Graffiti or vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
+| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
+| Breaking window or damaging property | 75-90 | PROPERTY CRIME - destruction |
 | Attempted forced entry | 80-95 | Active threat |
+| Breaking and entering in progress | 80-95 | PROPERTY CRIME - home invasion |
 | Active break-in or violence | 90-100 | Immediate threat |
-| Visible weapon present | 85-100 | Immediate threat |"""
+| Visible weapon present | 85-100 | Immediate threat |
+
+## PROPERTY CRIME SCORING GUIDELINES
+Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored as THREATS (60+):
+- ANY active property damage or theft = Minimum score 65
+- Package/delivery theft = 70-90 (higher if person flees or shows awareness of cameras)
+- Vandalism (graffiti, keying car, breaking items) = 65-85
+- Breaking and entering attempt = 80-95 (CRITICAL if successful entry)
+- Property crimes at night = Add +5-10 points for suspicious timing
+
+CRITICAL: Do NOT under-score property crimes. These are criminal acts, not just suspicious behavior.
+
+## ACCESS CONTROL VIOLATION GUIDELINES
+Tailgating, piggybacking, and unauthorized entry attempts are ALWAYS scored as MEDIUM-HIGH risk (55+):
+- Tailgating (following authorized person through door) = Minimum score 55
+- Multiple unknown persons entering in quick succession = 50-70
+- Holding door for unknown individual at secure entry = 45-65
+- Forced entry through access-controlled door = 75-95 (CRITICAL)
+- Bypassing gate/fence via climbing = 55-75
+
+These scenarios indicate potential security policy violations even without visible criminal intent."""
 
 # ==============================================================================
 # Non-Risk Factors (NEM-3880)
@@ -435,10 +465,11 @@ SCORE CALIBRATION:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
@@ -452,7 +483,16 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
+| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
+| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
 | Active break-in or violence | 90-100 | Immediate threat |
+
+## PROPERTY CRIME SCORING (ALWAYS 60+)
+- Package/delivery theft = 70-90
+- Vandalism (graffiti, property damage) = 65-85
+- Breaking and entering = 80-95
+- Vehicle break-in = 70-85
 
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
@@ -497,10 +537,11 @@ SCORE CALIBRATION:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
@@ -514,7 +555,16 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
+| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
+| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
 | Active break-in or violence | 90-100 | Immediate threat |
+
+## PROPERTY CRIME SCORING (ALWAYS 60+)
+- Package/delivery theft = 70-90
+- Vandalism (graffiti, property damage) = 65-85
+- Breaking and entering = 80-95
+- Vehicle break-in = 70-85
 
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
@@ -578,10 +628,11 @@ SCORE CALIBRATION:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
@@ -595,7 +646,16 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
+| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
+| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
 | Active break-in or violence | 90-100 | Immediate threat |
+
+## PROPERTY CRIME SCORING (ALWAYS 60+)
+- Package/delivery theft = 70-90
+- Vandalism (graffiti, property damage) = 65-85
+- Breaking and entering = 80-95
+- Vehicle break-in = 70-85
 
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
@@ -663,10 +723,11 @@ SCORE CALIBRATION:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
@@ -680,7 +741,16 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown visitor at reasonable hour | 20-35 | Unusual but likely benign |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
+| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
+| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
 | Active break-in or violence | 90-100 | Immediate threat |
+
+## PROPERTY CRIME SCORING (ALWAYS 60+)
+- Package/delivery theft = 70-90
+- Vandalism (graffiti, property damage) = 65-85
+- Breaking and entering = 80-95
+- Vehicle break-in = 70-85
 
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
@@ -768,10 +838,11 @@ SCORE CALIBRATION:
 - 0-20 (LOW): Routine activity (deliveries, residents, pets, maintenance)
 - 21-40 (ELEVATED): Unusual but likely benign (unknown visitors at reasonable hours)
 - 41-60 (MODERATE): Suspicious, requires attention (loitering 10+ min, unusual hours)
-- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering)
-- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence)
+- 61-80 (HIGH): Clear threat indicators (trespassing, aggressive behavior, tampering, property crimes)
+- 81-100 (CRITICAL): Active threat (weapons, forced entry, violence, active theft/vandalism)
 
 IMPORTANT: Default to LOWER scores without clear threat indicators.
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS scored 60+ as they are criminal acts.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 <|im_start|>user
@@ -787,7 +858,18 @@ Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
 | Unknown person lingering 5-10 min | 35-50 | Worth monitoring |
 | Unknown person lingering 10+ min | 50-65 | Suspicious, requires attention |
 | Person testing door handles | 70-85 | Clear suspicious intent |
+| Graffiti/vandalism in progress | 65-85 | PROPERTY CRIME - active damage |
+| Package theft from porch | 70-90 | PROPERTY CRIME - theft in progress |
+| Breaking and entering | 80-95 | PROPERTY CRIME - home invasion |
 | Active break-in or violence | 90-100 | Immediate threat |
+
+## PROPERTY CRIME SCORING (ALWAYS 60+)
+Property crimes are criminal acts and must ALWAYS be scored as threats:
+- Package/delivery theft = 70-90 (higher if fleeing or camera-aware)
+- Vandalism (graffiti, property damage, keying vehicles) = 65-85
+- Breaking and entering = 80-95 (CRITICAL if entry is successful)
+- Vehicle break-in = 70-85
+- Nighttime property crimes = Add +5-10 points
 
 ## NOT RISK FACTORS - NEVER flag these as suspicious:
 - Trees, bushes, plants, vegetation
@@ -900,6 +982,15 @@ Deviation score: {deviation_score}
 - Climbing over fence = unauthorized entry attempt, HIGH
 - Looking through window = suspicious, MEDIUM
 - Normal walking = LOW risk baseline
+
+### Property Crime Recognition (ALWAYS score 60+)
+Property crimes are CRIMINAL ACTS, not just suspicious behavior:
+- Vandalism/graffiti in progress = 65-85 (HIGH priority)
+- Package theft = 70-90 (person taking delivered packages)
+- Vehicle break-in = 70-85 (checking car doors, breaking windows)
+- Breaking and entering = 80-95 (forced entry attempt)
+- Property destruction = 65-85 (keying cars, breaking objects)
+- Fleeing after crime = Add +10 points (awareness of wrongdoing)
 
 ### Demographics Context
 - Age and gender are contextual factors only

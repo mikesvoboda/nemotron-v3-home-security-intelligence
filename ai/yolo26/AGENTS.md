@@ -64,6 +64,17 @@ def _warmup(self, num_iterations: int = 3) -> None:
 ```python
 SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
+CLASS_CONFIDENCE_THRESHOLDS = {
+    "car": 0.70,  # Higher threshold to reduce false positives
+    "truck": 0.70,
+    "bus": 0.70,
+    "person": 0.50,
+    "bicycle": 0.60,
+    "motorcycle": 0.60,
+    "dog": 0.55,
+    "cat": 0.55,
+    "bird": 0.55,
+}
 ```
 
 **Security Features:**
@@ -226,10 +237,14 @@ before falling back to PyTorch.
 2. Validate image magic bytes (security check)
 3. Convert to RGB if needed
 4. Run inference with Ultralytics YOLO (TensorRT engine)
-5. Filter by confidence threshold (0.5)
+5. Filter by global confidence threshold (default: 0.5)
 6. Filter to security-relevant classes only (9 classes)
-7. Convert bounding boxes to x, y, width, height format
-8. Return detections
+7. Apply class-specific confidence thresholds (NEM-4522):
+   - Cars/trucks/buses: 0.70 (reduces false positives)
+   - Persons: 0.50 (reasonable threshold)
+   - Other classes: 0.55-0.60
+8. Convert bounding boxes to x, y, width, height format
+9. Return detections
 
 ## Backend Integration
 

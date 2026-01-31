@@ -148,6 +148,20 @@ COCO_CLASSES = {
     16: "dog",
 }
 
+# Class-specific confidence thresholds to reduce false positives (NEM-4522)
+# Higher thresholds for classes with common false positives
+CLASS_CONFIDENCE_THRESHOLDS = {
+    "car": 0.70,  # Higher threshold to reduce false positives from reflections, shadows
+    "truck": 0.70,  # Similar to car
+    "bus": 0.70,  # Similar to car
+    "person": 0.50,  # Keep reasonable for person detection
+    "bicycle": 0.60,  # Slightly higher for smaller objects
+    "motorcycle": 0.60,  # Slightly higher for smaller objects
+    "dog": 0.55,  # Slightly higher than default
+    "cat": 0.55,  # Slightly higher than default
+    "bird": 0.55,  # Slightly higher than default
+}
+
 # Size limits for image uploads (10MB is reasonable for security camera images)
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 # Base64 encoding increases size by ~33%, so pre-decode limit is ~13.3MB
@@ -989,6 +1003,14 @@ class YOLO26Model:
                         # Get confidence
                         confidence = float(box.conf.item())
 
+                        # Apply class-specific confidence threshold (NEM-4522)
+                        # Use class-specific threshold if defined, otherwise use default
+                        class_threshold = CLASS_CONFIDENCE_THRESHOLDS.get(
+                            class_name, self.confidence_threshold
+                        )
+                        if confidence < class_threshold:
+                            continue
+
                         # Get bounding box coordinates (xyxy format)
                         x1, y1, x2, y2 = box.xyxy[0].tolist()
 
@@ -1122,6 +1144,14 @@ class YOLO26Model:
 
                         # Get confidence
                         confidence = float(box.conf.item())
+
+                        # Apply class-specific confidence threshold (NEM-4522)
+                        # Use class-specific threshold if defined, otherwise use default
+                        class_threshold = CLASS_CONFIDENCE_THRESHOLDS.get(
+                            class_name, self.confidence_threshold
+                        )
+                        if confidence < class_threshold:
+                            continue
 
                         # Get bounding box coordinates (xyxy format)
                         x1, y1, x2, y2 = box.xyxy[0].tolist()

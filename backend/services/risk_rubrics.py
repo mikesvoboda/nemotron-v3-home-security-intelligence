@@ -45,8 +45,8 @@ THREAT_LEVEL_RUBRIC = Rubric(
         "0": "No threat - Normal expected activity (resident, family, service worker)",
         "1": "Minimal threat - Unusual but explainable (unknown person on public sidewalk)",
         "2": "Moderate threat - Warrants attention (lingering, repeated passes)",
-        "3": "High threat - Clear suspicious intent (testing doors, peering in windows)",
-        "4": "Critical threat - Active danger (break-in, weapon visible, violence)",
+        "3": "High threat - Clear suspicious intent or property crime (testing doors, vandalism, theft)",
+        "4": "Critical threat - Active danger (break-in, weapon visible, violence, active theft)",
     },
 )
 
@@ -56,8 +56,8 @@ INTENT_RUBRIC = Rubric(
     scoring={
         "0": "Benign intent - Clear legitimate purpose (delivery, visiting, work)",
         "1": "Unclear intent - Cannot determine purpose",
-        "2": "Questionable intent - Behavior suggests reconnaissance",
-        "3": "Malicious intent - Actions indicate criminal purpose",
+        "2": "Questionable intent - Behavior suggests reconnaissance or casing",
+        "3": "Malicious intent - Actions indicate criminal purpose (theft, vandalism, break-in)",
     },
 )
 
@@ -178,6 +178,7 @@ CALIBRATION: In a typical day, expect:
 - 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
 - 1% to be CRITICAL (85-100): Immediate threats only
 
+EXCEPTION: Property crimes (theft, vandalism, breaking & entering) are ALWAYS HIGH/CRITICAL (60+).
 If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
 
 Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
@@ -197,8 +198,8 @@ Assessment of immediate physical threat to property or persons
 - **0**: No threat - Normal expected activity (resident, family, service worker)
 - **1**: Minimal threat - Unusual but explainable (unknown person on public sidewalk)
 - **2**: Moderate threat - Warrants attention (lingering, repeated passes)
-- **3**: High threat - Clear suspicious intent (testing doors, peering in windows)
-- **4**: Critical threat - Active danger (break-in, weapon visible, violence)
+- **3**: High threat - Clear suspicious intent (testing doors, peering in windows, vandalism)
+- **4**: Critical threat - Active danger (break-in, weapon visible, violence, active theft)
 
 ### Apparent Intent
 Assessment of individual's apparent purpose at property
@@ -206,7 +207,7 @@ Assessment of individual's apparent purpose at property
 - **0**: Benign intent - Clear legitimate purpose (delivery, visiting, work)
 - **1**: Unclear intent - Cannot determine purpose
 - **2**: Questionable intent - Behavior suggests reconnaissance
-- **3**: Malicious intent - Actions indicate criminal purpose
+- **3**: Malicious intent - Actions indicate criminal purpose (theft, vandalism, break-in)
 
 ### Time Context
 Appropriateness of activity for the time of day
@@ -224,7 +225,19 @@ Appropriateness of activity for the time of day
 | Unknown person on sidewalk | 1 | 1 | 0 | 40 | MEDIUM |
 | Unknown person lingering (night) | 2 | 2 | 2 | 90 | CRITICAL |
 | Person testing door handles | 3 | 3 | 0 | 100 | CRITICAL |
+| Graffiti/vandalism in progress | 3 | 3 | 0 | 100 | CRITICAL |
+| Package theft from porch | 3 | 3 | 0 | 100 | CRITICAL |
+| Breaking and entering attempt | 4 | 3 | 1 | 100 | CRITICAL |
+| Vehicle break-in | 3 | 3 | 1 | 100 | CRITICAL |
 | Active break-in | 4 | 3 | 2 | 100 | CRITICAL |
+
+## PROPERTY CRIME SCORING RULES
+Property crimes are CRIMINAL ACTS and MUST be scored as threats (60+):
+- Vandalism (graffiti, property damage): Threat=3, Intent=3 -> Score 65-85
+- Package/delivery theft: Threat=3, Intent=3 -> Score 70-90
+- Vehicle break-in: Threat=3, Intent=3 -> Score 70-85
+- Breaking and entering: Threat=4, Intent=3 -> Score 80-95
+- Add +10 points (via Time Context) if crime occurs at night
 
 ## EVENT CONTEXT
 Camera: {camera_name}
