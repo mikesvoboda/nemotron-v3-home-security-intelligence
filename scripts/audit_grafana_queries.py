@@ -26,6 +26,11 @@ from pathlib import Path
 
 # Metrics exported by backend /api/metrics endpoint (from metrics.py)
 BACKEND_HSI_METRICS = {
+    # HTTP request metrics (standard FastAPI/Starlette metrics)
+    "http_request_duration_seconds",
+    "http_requests_total",
+    # API deprecation tracking
+    "hsi_api_deprecated_calls_total",
     # Queue depth gauges
     "hsi_detection_queue_depth",
     "hsi_analysis_queue_depth",
@@ -424,12 +429,123 @@ NOT_IMPLEMENTED_METRICS = {
 # =============================================================================
 
 
+def normalize_histogram_metric(
+    metric: str, known_metrics: set[str], not_impl_metrics: set[str]
+) -> str:
+    """Normalize histogram metric by removing _bucket/_count/_sum suffix.
+
+    Prometheus auto-generates these suffixes for histogram metrics.
+    e.g., yolo26_inference_duration_seconds_bucket -> yolo26_inference_duration_seconds
+
+    Args:
+        metric: The metric name to normalize
+        known_metrics: Set of known base metric names to check against
+        not_impl_metrics: Set of not-yet-implemented metric names
+
+    Returns:
+        The base metric name if it's a known histogram, otherwise the original
+    """
+    for suffix in ("_bucket", "_count", "_sum"):
+        if metric.endswith(suffix):
+            base = metric[: -len(suffix)]
+            # Check if the base metric exists in known or not-implemented metrics
+            if base in known_metrics or base in not_impl_metrics:
+                return base
+    return metric
+
+
 def extract_metric_names_from_promql(expr: str) -> set[str]:
     """Extract base metric names from a PromQL expression."""
     metric_names: set[str] = set()
 
     # Pattern to match metric names (including recording rules with colons)
     metric_pattern = re.compile(r"([a-zA-Z_:][a-zA-Z0-9_:]*)")
+
+    # Common label names that should NOT be treated as metrics
+    label_names = {
+        "action",
+        "action_type",
+        "ai_service",
+        "alertname",
+        "alertstate",
+        "backend",  # part of job names like "hsi-backend-metrics"
+        "camera",
+        "camera_id",
+        "category",
+        "class",
+        "class_name",
+        "code",
+        "container",
+        "device",
+        "endpoint",
+        "env",
+        "environment",
+        "error_type",
+        "fstype",
+        "gpu",
+        "handler",
+        "host",
+        "hsi",  # part of job names like "hsi-backend-metrics"
+        "http_route",  # HTTP route label
+        "id",
+        "image",
+        "index",
+        "instance",
+        "interface",
+        "interval",
+        "job",
+        "kind",
+        "label",
+        "le",  # histogram bucket label
+        "level",
+        "location",
+        "method",
+        "metrics",  # part of job names like "hsi-backend-metrics"
+        "mode",
+        "model",
+        "model_name",
+        "mountpoint",
+        "name",
+        "namespace",
+        "node",
+        "operation",
+        "path",
+        "phase",
+        "pod",
+        "port",
+        "priority",
+        "quantile",
+        "reason",
+        "region",
+        "result",
+        "risk_level",
+        "route",
+        "service",
+        "service_type",
+        "severity",
+        "source",
+        "stage",
+        "state",
+        "status",
+        "task",
+        "template",
+        "treatment",
+        "type",
+        "url",
+        "variant",
+        "version",
+        "zone",
+        "zone_id",
+        "zone_name",
+        # Additional labels found in queries
+        "client_id",
+        "entity_type",
+        "match_status",
+        "is_suspicious",
+        "detection",
+        "exporter",
+        "scrape_job",
+    }
 
     promql_keywords = {
         "sum",
@@ -520,27 +636,107 @@ def extract_metric_names_from_promql(expr: str) -> set[str]:
         "__rate_interval",
     }
 
+    # Common label values that should NOT be treated as metrics
+    label_values = {
+        # Status values
+        "healthy",
+        "unhealthy",
+        "ready",
+        "degraded",
+        "not_ready",
+        "success",
+        "error",
+        "firing",
+        "resolved",
+        "active",
+        "suppressed",
+        "true",
+        "false",
+        "open",
+        "closed",
+        "pending",
+        "running",
+        "stopped",
+        "failed",
+        "unknown",
+        "idle",
+        "authorized",
+        "critical",
+        # Alert names and severity levels
+        "CRITICAL",
+        "ERROR",
+        "WARNING",
+        "INFO",
+        "HighLatency",
+        "PotentialMemoryLeak",
+        "ServiceCPUSpike",
+        "ServiceMemory",
+        # Service/job name components
+        "analytics",
+        "api",
+        "batch",
+        "blackbox",
+        "clip",
+        "enrichment",
+        "florence",
+        "nemotron",
+        "yolo26",
+        "http",
+        "connection",
+        "integration",
+        # Task/operation names
+        "analyze",
+        "brisque",
+        "caption",
+        "checkpoint",
+        "classification",
+        "connect",
+        "control",
+        "daily",
+        "damage",
+        "deadlock",
+        "dense_caption",
+        "depth",
+        "detect",
+        "detection",
+        "direction",
+        "distribution",
+        "enter",
+        "for",
+        "high",
+        "history",
+        "known",
+        "monthly",
+        "object",
+    }
+
+    # Grafana template variables that should be ignored
+    grafana_vars = {
+        "__interval",
+        "__interval_ms",
+        "__range",
+        "__range_s",
+        "__range_ms",
+        "__rate_interval",
+        "__from",
+        "__to",
+        "__name",
+        "__auto_interval",
+    }
+
     for match in metric_pattern.finditer(expr):
         candidate = match.group(1)
         if candidate.lower() in promql_keywords:
             continue
+        if candidate in label_names:
+            continue
+        if candidate in label_values:
+            continue
+        if candidate in grafana_vars:
+            continue
         if candidate.isdigit():
             continue
         if len(candidate) < 3:
-            continue
-        if candidate in (
-            "healthy",
-            "unhealthy",
-            "ready",
-            "degraded",
-            "not_ready",
-            "success",
-            "error",
-            "firing",
-            "resolved",
-            "active",
-            "suppressed",
-        ):
             continue
         metric_names.add(candidate)
 
@@ -592,12 +788,15 @@ def analyze_query(expr: str) -> tuple[set[str], set[str], set[str]]:
     not_impl = set()
 
     for metric in metrics:
-        if metric in ALL_KNOWN_METRICS:
-            known.add(metric)
-        elif metric in NOT_IMPLEMENTED_METRICS:
-            not_impl.add(metric)
+        # First, try to normalize histogram metrics (remove _bucket/_count/_sum)
+        normalized = normalize_histogram_metric(metric, ALL_KNOWN_METRICS, NOT_IMPLEMENTED_METRICS)
+
+        if normalized in ALL_KNOWN_METRICS:
+            known.add(normalized)
+        elif normalized in NOT_IMPLEMENTED_METRICS:
+            not_impl.add(normalized)
         else:
-            unknown.add(metric)
+            unknown.add(metric)  # Keep original for error reporting
 
     return known, unknown, not_impl
 
