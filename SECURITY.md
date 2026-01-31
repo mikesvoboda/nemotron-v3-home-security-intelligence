@@ -30,6 +30,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 ### Scope
 
 This security policy applies to:
+
 - The main application codebase
 - Docker/container configurations
 - AI model integration code
@@ -44,6 +45,7 @@ This security policy applies to:
 ## Security Measures
 
 This project implements:
+
 - GitHub Secret Scanning and Push Protection
 - Dependabot security updates
 - CodeQL static analysis
