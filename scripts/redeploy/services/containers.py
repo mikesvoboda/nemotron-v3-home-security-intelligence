@@ -44,6 +44,16 @@ class ContainerManager:
         "frontend",
         "postgres",
         "redis",
+        # Observability services
+        "pyroscope",
+        "loki",
+        "alloy",
+        "prometheus",
+        "grafana",
+        "alertmanager",
+        "cadvisor",
+        "node-exporter",
+        "jaeger",
     ]
 
     # Standalone containers (started with 'run', not compose)
@@ -289,7 +299,7 @@ class ContainerManager:
     # =========================================================================
 
     async def start_infrastructure(self) -> None:
-        """Start PostgreSQL and Redis."""
+        """Start PostgreSQL, Redis, and observability services."""
         output.step("Starting infrastructure services...")
 
         # Ensure network exists
@@ -297,7 +307,7 @@ class ContainerManager:
         if not self.runtime.network_exists(network):
             self.runtime.network_create(network)
 
-        # Start via compose
+        # Start core infrastructure (postgres, redis)
         success = self.runtime.compose_up(
             self.config.compose_file_prod,
             services=["postgres", "redis"],
@@ -306,6 +316,35 @@ class ContainerManager:
 
         if not success:
             raise ContainerError("infrastructure", "start", "Failed to start postgres/redis")
+
+        output.success("Core infrastructure started")
+
+        # Start observability services (pyroscope, loki must start before alloy)
+        output.step("Starting observability services...")
+        observability_services = ["pyroscope", "loki", "prometheus", "grafana"]
+
+        success = self.runtime.compose_up(
+            self.config.compose_file_prod,
+            services=observability_services,
+            detach=True,
+        )
+
+        if not success:
+            output.warn("Some observability services failed to start (non-fatal)")
+        else:
+            output.success("Observability services started")
+
+        # Start alloy after pyroscope and loki are up (has depends_on)
+        success = self.runtime.compose_up(
+            self.config.compose_file_prod,
+            services=["alloy"],
+            detach=True,
+        )
+
+        if not success:
+            output.warn("Alloy failed to start (non-fatal)")
+        else:
+            output.success("Alloy started")
 
         output.success("Infrastructure services started")
 
