@@ -44,7 +44,7 @@ class TestRTSPTestService:
         """
         url = "rtsp://192.168.1.100:554/stream1"
         username = "admin"
-        password = "secret123"  # pragma: allowlist secret
+        password = "secret123"  # nosemgrep: hardcoded-password # pragma: allowlist secret
 
         # Mock successful connection
         with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
@@ -110,7 +110,7 @@ class TestRTSPTestService:
         """
         url = "rtsp://192.168.1.100:554/stream1"
         username = "wrong_user"
-        password = "wrong_password"  # pragma: allowlist secret
+        password = "wrong_password"  # nosemgrep: hardcoded-password # pragma: allowlist secret
 
         # Mock authentication failure
         with patch("backend.services.rtsp_test_service.cv2.VideoCapture") as mock_cap:
