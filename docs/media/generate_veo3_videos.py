@@ -77,7 +77,6 @@ def load_specs() -> dict[str, Any]:
     if not SPECS_PATH.exists():
         print(f"Error: Specs file not found at {SPECS_PATH}", file=sys.stderr)
         sys.exit(1)
-    # nosemgrep: path-traversal-open - SPECS_PATH is a hardcoded constant
     with open(SPECS_PATH) as f:
         return json.load(f)
 
@@ -87,7 +86,6 @@ def load_mascot_image_base64() -> str:
     if not MASCOT_IMAGE.exists():
         print(f"Error: Mascot image not found at {MASCOT_IMAGE}", file=sys.stderr)
         sys.exit(1)
-    # nosemgrep: path-traversal-open - MASCOT_IMAGE is a hardcoded constant
     with open(MASCOT_IMAGE, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
@@ -96,7 +94,6 @@ def load_nvidia_logo_base64() -> str | None:
     """Load and encode the NVIDIA logo as base64 if it exists."""
     if not NVIDIA_LOGO.exists():
         return None
-    # nosemgrep: path-traversal-open - NVIDIA_LOGO is a hardcoded constant
     with open(NVIDIA_LOGO, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
@@ -107,7 +104,6 @@ def load_reference_image_base64(path: str) -> str:
     if not image_path.exists():
         print(f"Error: Reference image not found at {image_path}", file=sys.stderr)
         sys.exit(1)
-    # nosemgrep: path-traversal-open - CLI tool with user-provided path is intentional
     with open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
@@ -122,9 +118,7 @@ def get_all_videos(specs: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]
     return videos
 
 
-def find_video_by_id(
-    specs: dict[str, Any], video_id: str
-) -> tuple[str, str, dict[str, Any]] | None:
+def find_video_by_id(specs: dict[str, Any], video_id: str) -> tuple[str, str, dict[str, Any]] | None:
     """Find a video by its ID."""
     for cat_name, output_dir, video in get_all_videos(specs):
         if video["id"] == video_id:
@@ -166,8 +160,13 @@ def generate_video_with_reference(
     # Build reference images list (mascot only - logo didn't work for chest placement)
     reference_images = [
         {
-            "image": {"inlineData": {"mimeType": "image/jpeg", "data": reference_image_b64}},
-            "referenceType": "asset",
+            "image": {
+                "inlineData": {
+                    "mimeType": "image/jpeg",
+                    "data": reference_image_b64
+                }
+            },
+            "referenceType": "asset"
         }
     ]
 
@@ -297,9 +296,7 @@ def poll_and_download(job_id: str, output_path: Path, headers: dict[str, str]) -
                                 print(f"    GCS URI: {gcs_uri}")
                                 # Try converting GCS URI to HTTP URL
                                 if gcs_uri.startswith("gs://"):
-                                    http_url = gcs_uri.replace(
-                                        "gs://", "https://storage.googleapis.com/"
-                                    )
+                                    http_url = gcs_uri.replace("gs://", "https://storage.googleapis.com/")
                                     return download_video_url(http_url, output_path, headers)
                             # Try downloading by video ID
                             print("    Trying to download video by ID...")
@@ -325,7 +322,7 @@ def poll_and_download(job_id: str, output_path: Path, headers: dict[str, str]) -
 
 def download_video_url(url: str, output_path: Path, headers: dict[str, str]) -> bool:
     """Download video from URL."""
-    print("    Downloading from URL...")
+    print(f"    Downloading from URL...")
     try:
         with httpx.Client(timeout=120.0) as client:
             response = client.get(url, headers=headers)
@@ -384,7 +381,6 @@ def save_video(data: bytes, output_path: Path) -> bool:
 # Async parallel generation functions
 # ============================================================================
 
-
 async def async_submit_job(
     client: httpx.AsyncClient,
     headers: dict[str, str],
@@ -397,8 +393,13 @@ async def async_submit_job(
     """Submit a video generation job and return the job ID."""
     reference_images = [
         {
-            "image": {"inlineData": {"mimeType": "image/jpeg", "data": reference_image_b64}},
-            "referenceType": "asset",
+            "image": {
+                "inlineData": {
+                    "mimeType": "image/jpeg",
+                    "data": reference_image_b64
+                }
+            },
+            "referenceType": "asset"
         }
     ]
 
@@ -514,13 +515,13 @@ async def generate_videos_parallel(
     async with httpx.AsyncClient(timeout=300.0) as client:
         # Process in batches
         for batch_start in range(0, len(to_generate), parallel):
-            batch = to_generate[batch_start : batch_start + parallel]
+            batch = to_generate[batch_start:batch_start + parallel]
             batch_num = batch_start // parallel + 1
             total_batches = (len(to_generate) + parallel - 1) // parallel
 
-            print(f"\n{'=' * 60}")
+            print(f"\n{'='*60}")
             print(f"BATCH {batch_num}/{total_batches}: Submitting {len(batch)} jobs...")
-            print(f"{'=' * 60}")
+            print(f"{'='*60}")
 
             # Submit all jobs in batch
             jobs = {}  # job_id -> (video_id, output_path)
@@ -688,7 +689,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
                 args.force,
             )
         )
-        print(f"\n{'=' * 40}")
+        print(f"\n{'='*40}")
         print(f"Complete: {success} succeeded, {failed} failed, {skipped} skipped")
         return 0 if failed == 0 else 1
 
@@ -740,7 +741,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
             print(f"  Waiting {DELAY_BETWEEN_REQUESTS}s before next request...")
             time.sleep(DELAY_BETWEEN_REQUESTS)
 
-    print(f"\n{'=' * 40}")
+    print(f"\n{'='*40}")
     print(f"Complete: {success} succeeded, {failed} failed, {skipped} skipped")
 
     return 0 if failed == 0 else 1
@@ -757,7 +758,7 @@ def cmd_custom(args: argparse.Namespace) -> int:
         reference_b64 = load_reference_image_base64(args.reference_image)
         print(f"  Reference: {len(reference_b64)} bytes (base64)")
 
-    print("\nGenerating custom video...")
+    print(f"\nGenerating custom video...")
     print(f"  Output: {output_path}")
     print(f"  Duration: {args.duration}s")
     print(f"  Prompt: {args.prompt[:100]}{'...' if len(args.prompt) > 100 else ''}")
@@ -776,12 +777,14 @@ def cmd_custom(args: argparse.Namespace) -> int:
         print(f"✓ Successfully generated: {output_path}")
         return 0
     else:
-        print("✗ Failed to generate video", file=sys.stderr)
+        print(f"✗ Failed to generate video", file=sys.stderr)
         return 1
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate Nano mascot videos using Veo 3.1")
+    parser = argparse.ArgumentParser(
+        description="Generate Nano mascot videos using Veo 3.1"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # List command
@@ -798,17 +801,13 @@ def main() -> int:
     gen_parser.add_argument("--id", help="Generate a specific video by ID")
     gen_parser.add_argument("--force", action="store_true", help="Regenerate existing")
     gen_parser.add_argument("--dry-run", action="store_true", help="Preview without generating")
-    gen_parser.add_argument(
-        "--parallel", type=int, default=1, help="Number of concurrent jobs (default: 1)"
-    )
+    gen_parser.add_argument("--parallel", type=int, default=1, help="Number of concurrent jobs (default: 1)")
 
     # Custom command for ad-hoc video generation
     custom_parser = subparsers.add_parser("custom", help="Generate custom video with prompt")
     custom_parser.add_argument("--prompt", required=True, help="Video generation prompt")
     custom_parser.add_argument("--output", required=True, help="Output video path")
-    custom_parser.add_argument(
-        "--duration", type=int, default=8, help="Video duration in seconds (default: 8)"
-    )
+    custom_parser.add_argument("--duration", type=int, default=8, help="Video duration in seconds (default: 8)")
     custom_parser.add_argument("--reference-image", help="Optional reference image path")
 
     args = parser.parse_args()
