@@ -109,9 +109,15 @@ class HouseholdMatchResponse(BaseModel):
     member_id: int | None = Field(
         None, description="ID of the matched household member (for person matches)"
     )
-    member_name: str | None = Field(None, description="Name of the matched household member")
-    vehicle_id: int | None = Field(None, description="ID of the matched registered vehicle")
-    vehicle_description: str | None = Field(None, description="Description of the matched vehicle")
+    member_name: str | None = Field(
+        None, description="Name of the matched household member"
+    )
+    vehicle_id: int | None = Field(
+        None, description="ID of the matched registered vehicle"
+    )
+    vehicle_description: str | None = Field(
+        None, description="Description of the matched vehicle"
+    )
     similarity: float = Field(
         0.0, ge=0.0, le=1.0, description="Similarity score (1.0 for exact plate match)"
     )
@@ -238,4 +244,6 @@ class MatcherConfigResponse(BaseModel):
     total_member_embeddings: int = Field(
         ..., description="Total number of person embeddings in database"
     )
-    total_registered_vehicles: int = Field(..., description="Total number of registered vehicles")
+    total_registered_vehicles: int = Field(
+        ..., description="Total number of registered vehicles"
+    )
