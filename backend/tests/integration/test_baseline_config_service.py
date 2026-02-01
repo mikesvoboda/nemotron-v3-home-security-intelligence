@@ -166,8 +166,7 @@ class TestResetCameraBaseline:
                 camera_id=camera_id,
                 day_of_week=1,
                 hour=hour,
-                count_mean=10.0,
-                count_std=2.0,
+                avg_count=10.0,
                 sample_count=50,
                 last_updated=datetime.now(UTC),
             )
@@ -192,14 +191,12 @@ class TestResetCameraBaseline:
         camera_id = "integration_test_camera_2"
 
         # Create test class baseline records
-        for class_name in ["person", "car", "dog"]:
+        for detection_class_name in ["person", "car", "dog"]:
             baseline = ClassBaseline(
                 camera_id=camera_id,
-                class_name=class_name,
-                day_of_week=1,
+                detection_class=detection_class_name,
                 hour=12,
-                count_mean=5.0,
-                count_std=1.0,
+                frequency=5.0,
                 sample_count=30,
                 last_updated=datetime.now(UTC),
             )
@@ -245,8 +242,7 @@ class TestResetCameraBaseline:
                 camera_id=camera_id,
                 day_of_week=1,
                 hour=10,
-                count_mean=10.0,
-                count_std=2.0,
+                avg_count=10.0,
                 sample_count=50,
                 last_updated=datetime.now(UTC),
             )
