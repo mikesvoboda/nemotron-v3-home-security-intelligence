@@ -295,7 +295,9 @@ describe('DailyPatternChart', () => {
     it('displays color scale legend', () => {
       render(<DailyPatternChart patterns={mockVaryingActivityPatterns} />);
 
-      expect(screen.getByText(/Activity Level/i)).toBeInTheDocument();
+      // Use getAllByText since "Activity Level" appears in both legend and screen reader text
+      const activityLevelElements = screen.getAllByText(/Activity Level/i);
+      expect(activityLevelElements.length).toBeGreaterThan(0);
       expect(screen.getByText(/Low/i)).toBeInTheDocument();
       expect(screen.getByText(/High/i)).toBeInTheDocument();
     });

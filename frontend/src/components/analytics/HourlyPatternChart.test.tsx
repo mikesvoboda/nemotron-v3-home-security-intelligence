@@ -273,7 +273,9 @@ describe('HourlyPatternChart', () => {
 
       // Low sample data point should have lower opacity
       const lowSamplePoint = screen.getByTestId('hourly-data-point-0');
-      expect(lowSamplePoint).toHaveStyle({ opacity: expect.stringMatching(/0\.[3-5]/) });
+      const lowOpacity = window.getComputedStyle(lowSamplePoint).opacity;
+      expect(parseFloat(lowOpacity)).toBeGreaterThanOrEqual(0.3);
+      expect(parseFloat(lowOpacity)).toBeLessThanOrEqual(0.5);
 
       // High sample data point should have full opacity
       const highSamplePoint = screen.getByTestId('hourly-data-point-17');
