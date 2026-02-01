@@ -139,6 +139,9 @@ const PlateReadsPage = lazy(() =>
   import('./components/plate-reads').then((m) => ({ default: m.PlateReadsPage }))
 );
 
+// Household Members Page
+const HouseholdPage = lazy(() => import('./pages/HouseholdPage'));
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -211,6 +214,7 @@ export default function App() {
                           <Route path="/webhooks" element={<WebhooksPage />} />
                           <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
                           <Route path="/plate-reads" element={<PlateReadsPage />} />
+                          <Route path="/household" element={<HouseholdPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>

@@ -387,7 +387,6 @@ export function useMembersQuery() {
     queryKey: householdQueryKeys.members(),
     queryFn: fetchMembers,
     staleTime: STATIC_STALE_TIME,
-    retry: 1,
   });
 }
 
@@ -442,7 +441,6 @@ export function useVehiclesQuery() {
     queryKey: householdQueryKeys.vehicles(),
     queryFn: fetchVehicles,
     staleTime: STATIC_STALE_TIME,
-    retry: 1,
   });
 }
 
