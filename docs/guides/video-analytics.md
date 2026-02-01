@@ -246,6 +246,75 @@ The system learns normal activity patterns and detects anomalies:
 - **Unusual dwell**: Object lingering 2x longer than typical
 - **Unusual entity**: First-time visitor to sensitive zone
 
+### Baseline Visualization
+
+The dashboard provides four visualization components for understanding learned activity patterns:
+
+#### 24-Hour Activity Pattern (HourlyPatternChart)
+
+A line chart showing average detections for each hour of the day (0-23):
+
+- **Green line**: Average detections per hour
+- **Shaded band**: Confidence interval (+/- 1 standard deviation)
+- **Orange dot**: Peak activity hour
+- **Point opacity**: Data quality indicator (more samples = more opaque)
+
+**Interpreting the chart:**
+
+- Full opacity points have 20+ samples (high confidence)
+- Faded points have fewer samples (still learning)
+- Hover over points to see exact values and sample counts
+
+#### Weekly Activity Pattern (DailyPatternChart)
+
+A bar chart showing activity levels for each day of the week:
+
+- **Bar height**: Average detections for that day
+- **Bar color intensity**: Activity level relative to the busiest day
+- **Orange dot on bar**: Peak hour for that day
+- **Weekend bars**: Highlighted in blue
+
+**Interpreting the chart:**
+
+- Hover over bars to see average detections, peak hour, and total samples
+- "Busiest day" and "Quietest day" badges identify patterns
+
+#### Current Deviation Status (BaselineDeviationCard)
+
+A color-coded card showing how current activity compares to baseline:
+
+| Color  | Interpretation           | Deviation Range      |
+| ------ | ------------------------ | -------------------- |
+| Blue   | Far below / Below normal | < -1.5 std dev       |
+| Green  | Normal                   | -1.5 to +1.5 std dev |
+| Yellow | Slightly above normal    | +1.5 to +2.0 std dev |
+| Orange | Above normal             | +2.0 to +3.0 std dev |
+| Red    | Far above normal         | > +3.0 std dev       |
+
+The card displays:
+
+- **Deviation score**: Number of standard deviations from baseline
+- **Contributing factors**: What's causing the deviation (e.g., "high_person_count")
+- **Last updated**: When the deviation was calculated
+
+#### Object Baseline Chart (ObjectBaselineChart)
+
+Per-class detection statistics showing frequency patterns by object type:
+
+- **Grouped bars per class**: Average hourly rate, peak hour, total detections
+- **Color-coded by class**: Person (blue), Vehicle (green), Animal (orange), etc.
+- **Sort options**: By frequency, total detections, peak hour, or alphabetically
+
+### Baseline Tuning
+
+For per-camera baseline configuration, see the **Baseline Tuning Panel** in the camera settings:
+
+- **Sensitivity threshold**: Adjusts how many standard deviations trigger an anomaly (0.5-5.0)
+- **Minimum samples**: Sets how many data points are needed before detection is reliable
+- **Reset baseline**: Clears all learned data to start fresh
+
+API endpoints for programmatic control are documented in [Baseline Configuration API](../api/analytics-endpoints.md#baseline-configuration-api).
+
 ---
 
 ## Person Analysis
