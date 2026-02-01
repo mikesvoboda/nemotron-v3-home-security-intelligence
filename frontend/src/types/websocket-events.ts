@@ -249,6 +249,10 @@ export interface WebSocketEventMap {
   'queue.status': QueueStatusPayload;
   /** Pipeline throughput event */
   'pipeline.throughput': PipelineThroughputPayload;
+
+  // Plate read events (NEM-4865)
+  /** Plate read created event - new license plate detected */
+  'plate_read.created': PlateReadDetectedPayload;
 }
 
 // ============================================================================
@@ -372,6 +376,8 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   // Queue metrics events (NEM-3637)
   'queue.status',
   'pipeline.throughput',
+  // Plate read events (NEM-4865)
+  'plate_read.created',
 ] as const;
 
 /**
@@ -1145,6 +1151,29 @@ export interface PipelineThroughputPayload {
   timestamp?: string;
   /** Measurement window in seconds */
   window_seconds?: number;
+}
+
+// =============================================================================
+// Plate Read Event Payloads (NEM-4865)
+// =============================================================================
+
+/**
+ * Payload for plate_read.created events.
+ * Sent when a new license plate is detected by the ALPR system.
+ */
+export interface PlateReadDetectedPayload {
+  /** Database record ID */
+  id: number;
+  /** Camera ID where plate was detected */
+  camera_id: string;
+  /** Recognized plate text (alphanumeric only) */
+  plate_text: string;
+  /** Plate detection confidence (0-1) */
+  detection_confidence: number;
+  /** Text recognition confidence (0-1) */
+  ocr_confidence: number;
+  /** Detection timestamp (ISO 8601 format) */
+  timestamp: string;
 }
 
 /**

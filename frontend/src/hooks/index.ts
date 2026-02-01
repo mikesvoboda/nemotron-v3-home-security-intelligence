@@ -940,3 +940,30 @@ export type {
 // Event clip generation hook (NEM-3870)
 export { useEventClip } from './useEventClip';
 export type { UseEventClipOptions, UseEventClipResult } from './useEventClip';
+
+// Plate read WebSocket hook (NEM-4865)
+export { usePlateReadWebSocket, plateReadsQueryKeys } from './usePlateReadWebSocket';
+export type {
+  PlateReadEventHandler,
+  UsePlateReadWebSocketOptions,
+  UsePlateReadWebSocketReturn,
+} from './usePlateReadWebSocket';
+
+// Plate statistics query hook
+export { usePlateStatisticsQuery, plateStatisticsQueryKeys } from './usePlateStatisticsQuery';
+export type {
+  UsePlateStatisticsQueryOptions,
+  UsePlateStatisticsQueryReturn,
+} from './usePlateStatisticsQuery';
+
+// Plate search query hook (NEM-4865)
+export {
+  usePlateSearchQuery,
+  useDebouncedValue,
+  plateSearchQueryKeys,
+} from './usePlateSearchQuery';
+export type {
+  PlateSearchFilters,
+  UsePlateSearchQueryOptions,
+  UsePlateSearchQueryReturn,
+} from './usePlateSearchQuery';

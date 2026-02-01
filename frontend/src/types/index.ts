@@ -428,3 +428,29 @@ export {
   isRestoreJobPending,
   isRestoreJobFailed,
 } from './backup';
+
+// ============================================================================
+// Plate Read Types (NEM-4865)
+// ============================================================================
+
+export type {
+  BoundingBox,
+  PlateRead,
+  PlateReadListResponse,
+  PlateStatisticsResponse,
+  PlateSearchParams,
+  PlateReadFilters,
+  PlateRecognizeRequest,
+  PlateRecognizeResponse,
+  PlateReadSortField,
+  SortDirection,
+  PlateReadQueryParams,
+} from './plateRead';
+
+export {
+  isPlateRead,
+  isPlateStatisticsResponse,
+  formatConfidence,
+  getQualityLabel,
+  getConfidenceLevel,
+} from './plateRead';
