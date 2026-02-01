@@ -20536,6 +20536,62 @@
         "title": "LinkPersonResponse",
         "type": "object"
       },
+      "LoadModelResponse": {
+        "description": "Response schema for POST /api/system/models/{name}/load.\n\nReturns success status and details about the loaded model.",
+        "example": {
+          "gpu_id": 1,
+          "load_time_ms": 1250.0,
+          "model_name": "threat-detection-yolov8n",
+          "service": "ai-enrichment-light",
+          "success": true,
+          "vram_mb": 287
+        },
+        "properties": {
+          "gpu_id": {
+            "description": "GPU index where the model is loaded",
+            "minimum": 0.0,
+            "title": "Gpu Id",
+            "type": "integer"
+          },
+          "load_time_ms": {
+            "description": "Time taken to load the model in milliseconds",
+            "minimum": 0.0,
+            "title": "Load Time Ms",
+            "type": "number"
+          },
+          "model_name": {
+            "description": "Name of the model that was loaded",
+            "title": "Model Name",
+            "type": "string"
+          },
+          "service": {
+            "description": "Enrichment service that loaded the model",
+            "title": "Service",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the model was loaded successfully",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "vram_mb": {
+            "description": "VRAM consumed by the loaded model in megabytes",
+            "minimum": 0.0,
+            "title": "Vram Mb",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "success",
+          "model_name",
+          "service",
+          "gpu_id",
+          "load_time_ms",
+          "vram_mb"
+        ],
+        "title": "LoadModelResponse",
+        "type": "object"
+      },
       "LogEntryResponse": {
         "description": "Schema for a single log entry in query responses.\n\nThis schema is used for GET /api/logs responses and represents\na log record from the database.\n\nAttributes:\n    id: Unique log entry identifier\n    timestamp: When the log was created (UTC)\n    level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n    component: Component that generated the log (e.g., \"backend.api.routes.events\")\n    message: The log message content\n    camera_id: Optional camera ID associated with this log\n    event_id: Optional event ID associated with this log\n    request_id: Optional request ID for correlation\n    detection_id: Optional detection ID associated with this log\n    duration_ms: Optional duration in milliseconds (for timing logs)\n    extra: Additional structured context data (JSON)\n    source: Log source (backend or frontend)",
         "example": {
@@ -21775,6 +21831,86 @@
         "title": "ModelContributions",
         "type": "object"
       },
+      "ModelDetailResponse": {
+        "description": "Response schema for GET /api/system/models/{name}/status.\n\nReturns detailed information about a specific model.",
+        "example": {
+          "available": true,
+          "category": "detection",
+          "enabled": true,
+          "estimated_vram_mb": 300,
+          "gpu_id": 1,
+          "name": "threat-detection-yolov8n",
+          "path": "/models/model-zoo/threat-detection-yolov8n",
+          "runtime": {
+            "actual_vram_mb": 287,
+            "last_used": "2025-01-31T10:30:00Z",
+            "load_count": 5,
+            "loaded": true
+          },
+          "service": "ai-enrichment-light"
+        },
+        "properties": {
+          "available": {
+            "description": "Whether the model has been verified as working",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "category": {
+            "description": "Model category",
+            "title": "Category",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether the model is enabled",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "estimated_vram_mb": {
+            "description": "Estimated VRAM usage in megabytes",
+            "minimum": 0.0,
+            "title": "Estimated Vram Mb",
+            "type": "integer"
+          },
+          "gpu_id": {
+            "description": "GPU index assigned to this model",
+            "minimum": 0.0,
+            "title": "Gpu Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique model identifier",
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "description": "Model file path or HuggingFace repo",
+            "title": "Path",
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ModelRuntimeInfo",
+            "description": "Current runtime state"
+          },
+          "service": {
+            "description": "Enrichment service handling this model",
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "path",
+          "estimated_vram_mb",
+          "enabled",
+          "available",
+          "service",
+          "gpu_id",
+          "runtime"
+        ],
+        "title": "ModelDetailResponse",
+        "type": "object"
+      },
       "ModelLatencyHistoryResponse": {
         "description": "Response schema for Model Zoo latency history endpoint.\n\nReturns time-series latency data for a specific Model Zoo model.\nUsed to populate the dropdown-controlled latency chart.",
         "example": {
@@ -21956,6 +22092,67 @@
         "title": "ModelLeaderboardEntry",
         "type": "object"
       },
+      "ModelListResponse": {
+        "description": "Response schema for GET /api/system/models.\n\nReturns all models from the registry with their runtime state,\nplus service health status for both enrichment services.",
+        "example": {
+          "models": [
+            {
+              "category": "detection",
+              "enabled": true,
+              "estimated_vram_mb": 300,
+              "gpu_id": 1,
+              "name": "threat-detection-yolov8n",
+              "runtime": {
+                "actual_vram_mb": 287,
+                "last_used": "2025-01-31T10:30:00Z",
+                "load_count": 5,
+                "loaded": true
+              },
+              "service": "ai-enrichment-light"
+            },
+            {
+              "category": "classification",
+              "enabled": true,
+              "estimated_vram_mb": 1500,
+              "gpu_id": 0,
+              "name": "vehicle-segment-classification",
+              "runtime": {
+                "load_count": 0,
+                "loaded": false
+              },
+              "service": "ai-enrichment"
+            }
+          ],
+          "service_status": {
+            "ai-enrichment": "healthy",
+            "ai-enrichment-light": "healthy"
+          }
+        },
+        "properties": {
+          "models": {
+            "description": "List of all models with registry metadata and runtime state",
+            "items": {
+              "$ref": "#/components/schemas/ModelStatus"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "service_status": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Health status of each enrichment service (healthy/unhealthy/unknown)",
+            "title": "Service Status",
+            "type": "object"
+          }
+        },
+        "required": [
+          "models",
+          "service_status"
+        ],
+        "title": "ModelListResponse",
+        "type": "object"
+      },
       "ModelPromptConfig": {
         "description": "Configuration for a specific AI model.",
         "example": {
@@ -22089,6 +22286,128 @@
           "models"
         ],
         "title": "ModelRegistryResponse",
+        "type": "object"
+      },
+      "ModelRuntimeInfo": {
+        "description": "Runtime state information for a loaded model.\n\nThis information comes from the enrichment service at runtime,\nreflecting the actual state of models in GPU memory.",
+        "example": {
+          "actual_vram_mb": 287,
+          "last_used": "2025-01-31T10:30:00Z",
+          "load_count": 5,
+          "loaded": true
+        },
+        "properties": {
+          "actual_vram_mb": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Actual VRAM usage in megabytes (null if not loaded)",
+            "title": "Actual Vram Mb"
+          },
+          "last_used": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last inference (null if never used or not loaded)",
+            "title": "Last Used"
+          },
+          "load_count": {
+            "default": 0,
+            "description": "Number of times this model has been loaded since service start",
+            "minimum": 0.0,
+            "title": "Load Count",
+            "type": "integer"
+          },
+          "loaded": {
+            "description": "Whether the model is currently loaded in GPU memory",
+            "title": "Loaded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "loaded"
+        ],
+        "title": "ModelRuntimeInfo",
+        "type": "object"
+      },
+      "ModelStatus": {
+        "description": "Combined registry metadata and runtime state for a model.\n\nMerges static configuration from the Model Zoo registry with\nruntime state from the enrichment service.",
+        "example": {
+          "category": "detection",
+          "enabled": true,
+          "estimated_vram_mb": 300,
+          "gpu_id": 1,
+          "name": "threat-detection-yolov8n",
+          "runtime": {
+            "actual_vram_mb": 287,
+            "last_used": "2025-01-31T10:30:00Z",
+            "load_count": 5,
+            "loaded": true
+          },
+          "service": "ai-enrichment-light"
+        },
+        "properties": {
+          "category": {
+            "description": "Model category (detection, classification, embedding, etc.)",
+            "title": "Category",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether the model is enabled for use in the system",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "estimated_vram_mb": {
+            "description": "Estimated VRAM usage in megabytes from registry",
+            "minimum": 0.0,
+            "title": "Estimated Vram Mb",
+            "type": "integer"
+          },
+          "gpu_id": {
+            "description": "GPU index assigned to this model (0 for heavy, 1 for light)",
+            "minimum": 0.0,
+            "title": "Gpu Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Unique model identifier (e.g., 'threat-detection-yolov8n')",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ModelRuntimeInfo",
+            "description": "Runtime state from enrichment service"
+          },
+          "service": {
+            "description": "Enrichment service handling this model (ai-enrichment or ai-enrichment-light)",
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "estimated_vram_mb",
+          "enabled",
+          "service",
+          "gpu_id",
+          "runtime"
+        ],
+        "title": "ModelStatus",
         "type": "object"
       },
       "ModelStatusEnum": {
@@ -33585,6 +33904,86 @@
         "title": "UnknownStrangerListResponse",
         "type": "object"
       },
+      "UnloadAllResponse": {
+        "description": "Response schema for POST /api/system/models/unload-all.\n\nReturns summary of models unloaded from both enrichment services.",
+        "example": {
+          "freed_vram_mb": 2550,
+          "services": {
+            "ai-enrichment": 2,
+            "ai-enrichment-light": 2
+          },
+          "success": true,
+          "unloaded_count": 4
+        },
+        "properties": {
+          "freed_vram_mb": {
+            "description": "Total VRAM freed in megabytes",
+            "minimum": 0.0,
+            "title": "Freed Vram Mb",
+            "type": "integer"
+          },
+          "services": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Number of models unloaded per service",
+            "title": "Services",
+            "type": "object"
+          },
+          "success": {
+            "description": "Whether all models were unloaded successfully",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "unloaded_count": {
+            "description": "Number of models unloaded",
+            "minimum": 0.0,
+            "title": "Unloaded Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "success",
+          "unloaded_count",
+          "freed_vram_mb",
+          "services"
+        ],
+        "title": "UnloadAllResponse",
+        "type": "object"
+      },
+      "UnloadModelResponse": {
+        "description": "Response schema for POST /api/system/models/{name}/unload.\n\nReturns success status and VRAM freed by unloading.",
+        "example": {
+          "freed_vram_mb": 287,
+          "model_name": "threat-detection-yolov8n",
+          "success": true
+        },
+        "properties": {
+          "freed_vram_mb": {
+            "description": "VRAM freed by unloading the model in megabytes",
+            "minimum": 0.0,
+            "title": "Freed Vram Mb",
+            "type": "integer"
+          },
+          "model_name": {
+            "description": "Name of the model that was unloaded",
+            "title": "Model Name",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the model was unloaded successfully",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "model_name",
+          "freed_vram_mb"
+        ],
+        "title": "UnloadModelResponse",
+        "type": "object"
+      },
       "UserCalibrationResponse": {
         "description": "Schema for user calibration response.\n\nReturned when retrieving or modifying calibration settings.\nIncludes feedback counts to show calibration history.",
         "example": {
@@ -34009,6 +34408,177 @@
           }
         },
         "title": "ViolenceEnrichment",
+        "type": "object"
+      },
+      "VramGpuInfo": {
+        "description": "VRAM information for a single GPU.\n\nProvides detailed VRAM breakdown for one GPU including\nbudget, usage, and loaded models.",
+        "example": {
+          "available_mb": 4700,
+          "budget_mb": 6800,
+          "gpu_id": 0,
+          "loaded_models": [
+            "fashion-clip",
+            "vehicle-segment-classification"
+          ],
+          "service": "ai-enrichment",
+          "used_mb": 2100,
+          "utilization_percent": 30.9
+        },
+        "properties": {
+          "available_mb": {
+            "description": "Available VRAM in megabytes (budget - used)",
+            "minimum": 0.0,
+            "title": "Available Mb",
+            "type": "integer"
+          },
+          "budget_mb": {
+            "description": "VRAM budget allocated to this GPU in megabytes",
+            "minimum": 0.0,
+            "title": "Budget Mb",
+            "type": "integer"
+          },
+          "gpu_id": {
+            "description": "GPU index (0-based)",
+            "minimum": 0.0,
+            "title": "Gpu Id",
+            "type": "integer"
+          },
+          "loaded_models": {
+            "description": "Names of models currently loaded on this GPU",
+            "items": {
+              "type": "string"
+            },
+            "title": "Loaded Models",
+            "type": "array"
+          },
+          "service": {
+            "description": "Enrichment service assigned to this GPU",
+            "title": "Service",
+            "type": "string"
+          },
+          "used_mb": {
+            "description": "Currently used VRAM in megabytes",
+            "minimum": 0.0,
+            "title": "Used Mb",
+            "type": "integer"
+          },
+          "utilization_percent": {
+            "description": "VRAM utilization percentage (0-100)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Utilization Percent",
+            "type": "number"
+          }
+        },
+        "required": [
+          "gpu_id",
+          "service",
+          "budget_mb",
+          "used_mb",
+          "available_mb",
+          "utilization_percent"
+        ],
+        "title": "VramGpuInfo",
+        "type": "object"
+      },
+      "VramSummaryResponse": {
+        "description": "Response schema for GET /api/system/models/vram-summary.\n\nReturns per-GPU VRAM breakdown plus aggregate totals.",
+        "example": {
+          "gpus": [
+            {
+              "available_mb": 4700,
+              "budget_mb": 6800,
+              "gpu_id": 0,
+              "loaded_models": [
+                "fashion-clip",
+                "vehicle-segment-classification"
+              ],
+              "service": "ai-enrichment",
+              "used_mb": 2100,
+              "utilization_percent": 30.9
+            },
+            {
+              "available_mb": 750,
+              "budget_mb": 1200,
+              "gpu_id": 1,
+              "loaded_models": [
+                "threat-detection-yolov8n",
+                "osnet-x0-25"
+              ],
+              "service": "ai-enrichment-light",
+              "used_mb": 450,
+              "utilization_percent": 37.5
+            }
+          ],
+          "totals": {
+            "available_mb": 5450,
+            "budget_mb": 8000,
+            "model_count": 4,
+            "used_mb": 2550
+          }
+        },
+        "properties": {
+          "gpus": {
+            "description": "Per-GPU VRAM information",
+            "items": {
+              "$ref": "#/components/schemas/VramGpuInfo"
+            },
+            "title": "Gpus",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/VramTotals",
+            "description": "Aggregate VRAM totals across all GPUs"
+          }
+        },
+        "required": [
+          "gpus",
+          "totals"
+        ],
+        "title": "VramSummaryResponse",
+        "type": "object"
+      },
+      "VramTotals": {
+        "description": "Aggregate VRAM totals across all GPUs.",
+        "example": {
+          "available_mb": 5450,
+          "budget_mb": 8000,
+          "model_count": 4,
+          "used_mb": 2550
+        },
+        "properties": {
+          "available_mb": {
+            "description": "Total available VRAM across all GPUs in megabytes",
+            "minimum": 0.0,
+            "title": "Available Mb",
+            "type": "integer"
+          },
+          "budget_mb": {
+            "description": "Total VRAM budget across all GPUs in megabytes",
+            "minimum": 0.0,
+            "title": "Budget Mb",
+            "type": "integer"
+          },
+          "model_count": {
+            "description": "Total number of models currently loaded",
+            "minimum": 0.0,
+            "title": "Model Count",
+            "type": "integer"
+          },
+          "used_mb": {
+            "description": "Total VRAM used across all GPUs in megabytes",
+            "minimum": 0.0,
+            "title": "Used Mb",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "budget_mb",
+          "used_mb",
+          "available_mb",
+          "model_count"
+        ],
+        "title": "VramTotals",
         "type": "object"
       },
       "WeatherEnrichment": {
@@ -53958,6 +54528,59 @@
         ]
       }
     },
+    "/api/system/models/unload-all": {
+      "post": {
+        "description": "Unload all models from both enrichment services.\n\nReturns:\n    Summary of unloaded models and freed VRAM\n\nRaises:\n    HTTPException: 502 if service error, 503 if unavailable",
+        "operationId": "model-management_unload_all_models",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnloadAllResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "502": {
+            "description": "Enrichment service error"
+          },
+          "503": {
+            "description": "Enrichment service unavailable"
+          }
+        },
+        "summary": "Unload All Models",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/api/system/models/vram-summary": {
+      "get": {
+        "description": "Get per-GPU VRAM usage summary from both enrichment services.\n\nReturns:\n    Per-GPU VRAM breakdown plus aggregate totals",
+        "operationId": "model-management_get_vram_summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VramSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Vram Summary",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
     "/api/system/models/{model_name}": {
       "get": {
         "description": "Get detailed status information for a specific model.\n\nArgs:\n    model_name: Unique identifier of the model (e.g., 'yolo11-license-plate')\n\nReturns:\n    ModelStatusResponse with detailed model information\n\nRaises:\n    HTTPException: 404 if model not found in registry",
@@ -53998,6 +54621,217 @@
         "summary": "Get Model Status",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/system/models/{model_name}/load": {
+      "post": {
+        "description": "Load a model via the enrichment service.\n\nProxies the load request to the appropriate enrichment service\nbased on model-to-service mapping.\n\nArgs:\n    model_name: Name of the model to load\n\nReturns:\n    Load result with timing and VRAM info\n\nRaises:\n    HTTPException: 404 if model not found, 400 if disabled,\n                  502 if service error, 503 if unavailable",
+        "operationId": "model-management_load_model",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_name",
+            "required": true,
+            "schema": {
+              "title": "Model Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadModelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Model is disabled"
+          },
+          "404": {
+            "description": "Model not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "Enrichment service error"
+          },
+          "503": {
+            "description": "Enrichment service unavailable"
+          }
+        },
+        "summary": "Load Model",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/api/system/models/{model_name}/reload": {
+      "post": {
+        "description": "Reload a model by unloading and then loading it.\n\nArgs:\n    model_name: Name of the model to reload\n\nReturns:\n    Load result with timing and VRAM info\n\nRaises:\n    HTTPException: 404 if model not found, 400 if disabled,\n                  502 if service error, 503 if unavailable",
+        "operationId": "model-management_reload_model",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_name",
+            "required": true,
+            "schema": {
+              "title": "Model Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadModelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Model is disabled"
+          },
+          "404": {
+            "description": "Model not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "Enrichment service error"
+          },
+          "503": {
+            "description": "Enrichment service unavailable"
+          }
+        },
+        "summary": "Reload Model",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/api/system/models/{model_name}/status": {
+      "get": {
+        "description": "Get detailed status for a specific model.\n\nArgs:\n    model_name: Name of the model to get status for\n\nReturns:\n    Detailed model information including runtime state\n\nRaises:\n    HTTPException: 404 if model not found",
+        "operationId": "model-management_get_model_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_name",
+            "required": true,
+            "schema": {
+              "title": "Model Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Model not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Model Status",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/api/system/models/{model_name}/unload": {
+      "post": {
+        "description": "Unload a model via the enrichment service.\n\nProxies the unload request to the appropriate enrichment service\nbased on model-to-service mapping.\n\nArgs:\n    model_name: Name of the model to unload\n\nReturns:\n    Unload result with freed VRAM info\n\nRaises:\n    HTTPException: 404 if model not found,\n                  502 if service error, 503 if unavailable",
+        "operationId": "model-management_unload_model",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_name",
+            "required": true,
+            "schema": {
+              "title": "Model Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnloadModelResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Model not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "Enrichment service error"
+          },
+          "503": {
+            "description": "Enrichment service unavailable"
+          }
+        },
+        "summary": "Unload Model",
+        "tags": [
+          "model-management"
         ]
       }
     },

@@ -9,7 +9,7 @@ Analysis of 150+ backend services identified significant functionality NOT expos
 | Priority | Service                  | Unexposed Methods | Impact                              |
 | -------- | ------------------------ | ----------------- | ----------------------------------- |
 | ~~HIGH~~ | ~~Notification Service~~ | ~~8~~ → 0         | ✅ **RESOLVED** - Full API coverage |
-| **HIGH** | Model Zoo                | 7                 | Cannot manage AI model lifecycle    |
+| ~~HIGH~~ | ~~Model Zoo~~            | ~~7~~ → 0         | ✅ **RESOLVED** - Full API coverage |
 | **HIGH** | Baseline Service         | 11                | Limited analytics access            |
 | **HIGH** | Track Service            | 8                 | Motion tracking data hidden         |
 | MEDIUM   | Alert Service            | 5                 | No manual alert management          |
@@ -38,31 +38,33 @@ Analysis of 150+ backend services identified significant functionality NOT expos
 >
 > **Linear:** NEM-4794 (Epic: Notification Service API) - Re-scoped as already complete
 
-### 2. Model Zoo (`backend/services/model_zoo.py`)
+### 2. ~~Model Zoo~~ ✅ RESOLVED
 
-**1 of 8 methods exposed**
-
-| Method              | Description        | Status              |
-| ------------------- | ------------------ | ------------------- |
-| `load()`            | Load model         | NOT EXPOSED         |
-| `preload()`         | Preload model      | NOT EXPOSED         |
-| `unload()`          | Unload model       | NOT EXPOSED         |
-| `unload_all()`      | Unload all models  | NOT EXPOSED         |
-| `reload()`          | Reload model       | NOT EXPOSED         |
-| `get_status()`      | Get model status   | Partial (in health) |
-| `loaded_models`     | List loaded models | NOT EXPOSED         |
-| `total_loaded_vram` | VRAM usage         | NOT EXPOSED         |
-
-**Recommended Endpoints:**
-
-```
-GET /api/system/models - List models with load state
-POST /api/system/models/{model}/load
-POST /api/system/models/{model}/unload
-POST /api/system/models/{model}/reload
-POST /api/system/models/unload-all
-GET /api/system/models/{model}/status
-```
+> **Status:** Fully implemented as of 2025-02-01
+>
+> **Implementation:**
+>
+> - Backend API routes: `backend/api/routes/model_management.py`
+> - API schemas: `backend/api/schemas/model_management.py`
+> - Frontend components: `frontend/src/components/settings/ModelZooPanel.tsx`, `ModelCard.tsx`
+> - Frontend hooks: `frontend/src/hooks/useModelZoo.ts`
+> - API client: `frontend/src/services/modelZooApi.ts`
+>
+> **Endpoints Added:**
+>
+> - `GET /api/system/models` - List all models with registry + runtime state
+> - `GET /api/system/models/{name}/status` - Specific model status
+> - `POST /api/system/models/{name}/load` - Load model into GPU
+> - `POST /api/system/models/{name}/unload` - Unload model from GPU
+> - `POST /api/system/models/{name}/reload` - Reload model
+> - `POST /api/system/models/unload-all` - Unload all models
+> - `GET /api/system/models/vram-summary` - Per-GPU VRAM breakdown
+>
+> **Frontend:** Model Zoo admin panel in AI Models settings with per-GPU sections
+>
+> **Tests:** 227+ tests (77 backend unit, 150 frontend)
+>
+> **Linear:** NEM-4780 (Epic: Model Zoo Management API)
 
 ### 3. Baseline Service (`backend/services/baseline.py`)
 
