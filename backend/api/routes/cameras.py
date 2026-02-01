@@ -29,6 +29,7 @@ from backend.api.schemas.baseline import (
     ClassBaselineResponse,
 )
 from backend.api.schemas.camera import (
+    BaselineConfigUpdate,
     CameraCreate,
     CameraListResponse,
     CameraPathValidationResponse,
@@ -63,6 +64,7 @@ from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.models.scene_change import SceneChange
 from backend.services.audit import AuditService
+from backend.services.baseline_config import baseline_config_service
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
@@ -1977,3 +1979,113 @@ async def stop_camera_preview(
     )
 
     return {"status": "ok", "message": f"Preview stopped for camera {camera_id}"}
+
+
+# =============================================================================
+# Baseline Configuration Endpoints (NEM-4921)
+# =============================================================================
+
+
+@router.put("/{camera_id}/baseline/config")
+async def update_baseline_config(
+    camera_id: str,
+    config: BaselineConfigUpdate,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Update per-camera baseline configuration.
+
+    Allows tuning anomaly detection parameters for individual cameras.
+    Only provided fields are updated; omitted fields retain their current values.
+
+    Args:
+        camera_id: ID of the camera
+        config: Configuration update parameters
+        db: Database session
+
+    Returns:
+        Dictionary with updated configuration values
+
+    Raises:
+        HTTPException: 404 if camera not found
+        ValueError: If threshold_stdev < 0.5 or min_samples < 1
+    """
+    # Validate parameters before checking camera existence
+    if config.threshold_stdev is not None and config.threshold_stdev < 0.5:
+        raise ValueError("threshold_stdev must be at least 0.5")
+    if config.min_samples is not None and config.min_samples < 1:
+        raise ValueError("min_samples must be at least 1")
+
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Update configuration via service
+    await baseline_config_service.set_camera_config(
+        camera_id,
+        threshold_stdev=config.threshold_stdev,
+        min_samples=config.min_samples,
+        override_global_config=config.override_global_config,
+        session=db,
+    )
+
+    # Return updated configuration
+    return await baseline_config_service.get_camera_config(camera_id, session=db)
+
+
+@router.post("/{camera_id}/baseline/reset")
+async def reset_baseline(
+    camera_id: str,
+    db: DbSession,
+) -> dict[str, int]:
+    """Reset all baseline data for a camera.
+
+    Deletes all ActivityBaseline and ClassBaseline records for the camera,
+    forcing the baseline to be re-learned from new detections.
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        Dictionary with counts of deleted records:
+        - activity_baselines_deleted: Number of ActivityBaseline records deleted
+        - class_baselines_deleted: Number of ClassBaseline records deleted
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Reset baseline data via service
+    return await baseline_config_service.reset_camera_baseline(camera_id=camera_id, session=db)
+
+
+@router.get("/{camera_id}/baseline/config")
+async def get_baseline_config(
+    camera_id: str,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Get baseline configuration for a camera.
+
+    Returns the active configuration for the camera, which may be either
+    per-camera overrides or global defaults based on override_global_config.
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        Dictionary containing:
+        - threshold_stdev: Active threshold value
+        - min_samples: Active minimum samples value
+        - override_global_config: Whether per-camera overrides are active
+        - global_config: Dictionary of global defaults
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Get configuration via service
+    return await baseline_config_service.get_camera_config(camera_id, session=db)
