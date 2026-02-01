@@ -2035,6 +2035,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/onvif/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discover ONVIF devices on the network
+         * @description Discover ONVIF devices on the network using WS-Discovery.
+         *
+         *     Scans the specified subnet for ONVIF-compatible cameras and returns
+         *     device information including IP, manufacturer, model, and RTSP URLs.
+         *
+         *     Args:
+         *         request: Discovery request with subnet and timeout
+         *
+         *     Returns:
+         *         Dictionary with discovered devices and count:
+         *         - devices: List of discovered device information
+         *         - count: Total number of devices found
+         *
+         *     Raises:
+         *         HTTPException: 500 if discovery fails
+         */
+        post: operations["cameras_discover_onvif_devices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/preview/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start RTSP preview stream (no camera lookup)
+         * @description Start an RTSP preview stream via go2rtc WebRTC conversion.
+         *
+         *     This endpoint accepts RTSP URL directly without requiring a camera ID.
+         *     Useful for testing connections before saving camera configuration.
+         *     Sessions automatically expire after 5 minutes (300 seconds).
+         *
+         *     Args:
+         *         request: Preview start request with RTSP URL and optional credentials
+         *
+         *     Returns:
+         *         PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+         *
+         *     Raises:
+         *         HTTPException: 503 if go2rtc service is unavailable
+         *         HTTPException: 422 if RTSP URL is invalid
+         */
+        post: operations["cameras_start_preview_direct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/preview/{stream_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop RTSP preview stream by stream ID
+         * @description Stop an RTSP preview stream and cleanup go2rtc resources.
+         *
+         *     This endpoint is idempotent - calling it for a non-existent stream is OK.
+         *     404 responses from go2rtc are treated as success.
+         *
+         *     Args:
+         *         stream_id: The stream ID returned from start_preview
+         *
+         *     Returns:
+         *         No content on success
+         */
+        delete: operations["cameras_stop_preview_by_stream_id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/rtsp/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test RTSP connection
+         * @description Test an RTSP camera connection without creating a camera.
+         *
+         *     This endpoint validates RTSP URL connectivity and detects stream capabilities.
+         *     Useful for validating camera settings before adding a new camera.
+         *
+         *     SECURITY: Password is never included in the response.
+         *
+         *     Args:
+         *         request: RTSP test request with URL and optional credentials
+         *
+         *     Returns:
+         *         RTSPTestResponse with success status, latency, and capabilities or error
+         */
+        post: operations["cameras_test_rtsp_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/validation/paths": {
         parameters: {
             query?: never;
@@ -2270,64 +2398,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cameras/{camera_id}/baseline/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Baseline Config
-         * @description Get baseline configuration for a camera.
-         *
-         *     Returns the active configuration for anomaly detection, including both
-         *     per-camera overrides (if enabled) and global defaults.
-         *
-         *     Args:
-         *         camera_id: ID of the camera
-         *         db: Database session
-         *
-         *     Returns:
-         *         Dictionary containing:
-         *         - threshold_stdev: Active threshold value
-         *         - min_samples: Active minimum samples value
-         *         - override_global_config: Whether per-camera overrides are active
-         *         - global_config: Dictionary of global defaults
-         *
-         *     Raises:
-         *         HTTPException: 404 if camera not found
-         */
-        get: operations["cameras_get_baseline_config"];
-        /**
-         * Update Baseline Config
-         * @description Update baseline configuration for a camera.
-         *
-         *     Updates per-camera configuration overrides for anomaly detection.
-         *     If override_global_config is set to False, per-camera values are
-         *     ignored in favor of global defaults.
-         *
-         *     Args:
-         *         camera_id: ID of the camera
-         *         config: Configuration update payload
-         *         db: Database session
-         *
-         *     Returns:
-         *         Updated configuration dictionary
-         *
-         *     Raises:
-         *         HTTPException: 404 if camera not found
-         *         HTTPException: 422 if invalid values are provided
-         */
-        put: operations["cameras_update_baseline_config"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/cameras/{camera_id}/baseline/reset": {
+    "/api/cameras/{camera_id}/preview/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -2337,26 +2408,56 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reset Baseline
-         * @description Reset all baseline data for a camera.
+         * Start preview for a specific camera
+         * @description Start an RTSP preview stream for a specific camera.
          *
-         *     Deletes all ActivityBaseline and ClassBaseline records for the camera.
-         *     This forces the baseline to be re-learned from new detections.
+         *     Looks up the camera's RTSP configuration and registers the stream with go2rtc.
+         *     Sessions automatically expire after 5 minutes (300 seconds).
          *
          *     Args:
-         *         camera_id: ID of the camera
+         *         camera_id: The camera ID to start preview for
          *         db: Database session
          *
          *     Returns:
-         *         Dictionary with counts of deleted records:
-         *         - activity_baselines_deleted: Number of ActivityBaseline records deleted
-         *         - class_baselines_deleted: Number of ClassBaseline records deleted
+         *         PreviewStartResponse with WebRTC URL, stream ID, and expiry time
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
+         *         HTTPException: 400 if camera does not have RTSP configured
+         *         HTTPException: 503 if go2rtc service is unavailable
          */
-        post: operations["cameras_reset_baseline"];
+        post: operations["cameras_start_camera_preview"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/preview/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop preview for a specific camera
+         * @description Stop an RTSP preview stream for a specific camera.
+         *
+         *     This endpoint is idempotent - calling it for a camera without active preview is OK.
+         *     404 responses from go2rtc are treated as success.
+         *
+         *     Args:
+         *         camera_id: The camera ID to stop preview for
+         *         db: Database session
+         *
+         *     Returns:
+         *         Success message
+         */
+        delete: operations["cameras_stop_camera_preview"];
         options?: never;
         head?: never;
         patch?: never;
@@ -12896,37 +12997,6 @@ export interface components {
             };
             /** Total Events */
             total_events: number;
-        };
-        /**
-         * BaselineConfigUpdate
-         * @description Schema for updating baseline configuration for a camera.
-         *
-         *     NEM-4921: Baseline tuning UI for per-camera anomaly detection settings.
-         *
-         *     Note: Validation of threshold_stdev (0.5-5.0) and min_samples (>=1)
-         *     is done in the endpoint handler to allow tests to verify error handling.
-         * @example {
-         *       "min_samples": 15,
-         *       "override_global_config": true,
-         *       "threshold_stdev": 2.5
-         *     }
-         */
-        BaselineConfigUpdate: {
-            /**
-             * Min Samples
-             * @description Minimum samples required before anomaly detection is reliable
-             */
-            min_samples?: number | null;
-            /**
-             * Override Global Config
-             * @description Whether to use per-camera settings instead of global defaults
-             */
-            override_global_config?: boolean | null;
-            /**
-             * Threshold Stdev
-             * @description Number of standard deviations from mean for anomaly detection (0.5-5.0)
-             */
-            threshold_stdev?: number | null;
         };
         /**
          * BaselineSummaryResponse
@@ -26122,6 +26192,29 @@ export interface components {
             wait_seconds: number;
         };
         /**
+         * OnvifDiscoveryRequest
+         * @description Request schema for ONVIF device discovery.
+         *
+         *     NEM-4207: Defines the network subnet to scan and timeout for WS-Discovery.
+         * @example {
+         *       "subnet": "192.168.1.0/24",
+         *       "timeout": 10
+         *     }
+         */
+        OnvifDiscoveryRequest: {
+            /**
+             * Subnet
+             * @description Network subnet in CIDR notation (e.g., '192.168.1.0/24')
+             */
+            subnet: string;
+            /**
+             * Timeout
+             * @description Discovery timeout in seconds (1-300)
+             * @default 10
+             */
+            timeout: number;
+        };
+        /**
          * OrphanCleanupRequest
          * @description Request schema for orphan cleanup endpoint.
          */
@@ -27631,6 +27724,76 @@ export interface components {
             security_alerts?: string[];
         };
         /**
+         * PreviewStartRequest
+         * @description Request schema for starting an RTSP preview.
+         *
+         *     NEM-4762: Schema for POST /api/cameras/preview/start endpoint.
+         *     Initiates WebRTC signaling with go2rtc for live preview.
+         * @example {
+         *       "offer": "v=0\r\no=- ...",
+         *       "password": "password123",
+         *       "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+         *       "username": "admin"
+         *     }
+         */
+        PreviewStartRequest: {
+            /**
+             * Offer
+             * @description WebRTC SDP offer (optional, for direct signaling)
+             */
+            offer?: string | null;
+            /**
+             * Password
+             * @description Optional password for RTSP authentication
+             */
+            password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP URL for preview stream
+             */
+            rtsp_url: string;
+            /**
+             * Username
+             * @description Optional username for RTSP authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * PreviewStartResponse
+         * @description Response schema for starting an RTSP preview.
+         *
+         *     NEM-4762: Response from POST /api/cameras/preview/start endpoint.
+         *     Contains WebRTC connection details and session info.
+         * @example {
+         *       "expires_in": 300,
+         *       "sdp": "v=0\r\no=- ...",
+         *       "stream_id": "camera_front_door_abc123",
+         *       "webrtc_url": "ws://localhost:1984/api/ws?src=camera_front_door_abc123"
+         *     }
+         */
+        PreviewStartResponse: {
+            /**
+             * Expires In
+             * @description Session expiry time in seconds (default 300)
+             */
+            expires_in: number;
+            /**
+             * Sdp
+             * @description WebRTC SDP answer (if offer was provided)
+             */
+            sdp?: string | null;
+            /**
+             * Stream Id
+             * @description Unique stream identifier for cleanup
+             */
+            stream_id: string;
+            /**
+             * Webrtc Url
+             * @description WebRTC WebSocket URL for connecting to go2rtc
+             */
+            webrtc_url: string;
+        };
+        /**
          * ProcessMemoryResponse
          * @description Process memory metrics for the backend service (NEM-3890).
          *
@@ -28775,6 +28938,121 @@ export interface components {
             items: components["schemas"]["QuietHoursPeriodResponse"][];
             /** @description Pagination metadata */
             pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * RTSPCapabilitiesResponse
+         * @description Response schema for RTSP stream capabilities.
+         *
+         *     NEM-4748: Detected capabilities of an RTSP stream including
+         *     video/audio support, resolution, codec, and framerate.
+         * @example {
+         *       "audio": true,
+         *       "codec": "H.264",
+         *       "fps": 30,
+         *       "ptz": false,
+         *       "resolution": "1920x1080",
+         *       "video": true
+         *     }
+         */
+        RTSPCapabilitiesResponse: {
+            /**
+             * Audio
+             * @description Whether the stream supports audio
+             */
+            audio: boolean;
+            /**
+             * Codec
+             * @description Video codec (e.g., 'H.264', 'H.265')
+             */
+            codec: string;
+            /**
+             * Fps
+             * @description Stream framerate
+             */
+            fps?: number | null;
+            /**
+             * Ptz
+             * @description Whether PTZ control is available
+             */
+            ptz: boolean;
+            /**
+             * Resolution
+             * @description Stream resolution (e.g., '1920x1080')
+             */
+            resolution?: string | null;
+            /**
+             * Video
+             * @description Whether the stream supports video
+             */
+            video: boolean;
+        };
+        /**
+         * RTSPTestRequest
+         * @description Request schema for testing an RTSP connection.
+         *
+         *     NEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.
+         *     Validates RTSP URL format and accepts optional credentials.
+         * @example {
+         *       "password": "password123",
+         *       "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+         *       "username": "admin"
+         *     }
+         */
+        RTSPTestRequest: {
+            /**
+             * Password
+             * @description Optional password for RTSP authentication
+             */
+            password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP URL to test (rtsp:// or rtsps://)
+             */
+            rtsp_url: string;
+            /**
+             * Username
+             * @description Optional username for RTSP authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * RTSPTestResponse
+         * @description Response schema for RTSP connection test result.
+         *
+         *     NEM-4748: Result of testing an RTSP connection including
+         *     success status, latency, capabilities, or error details.
+         *     Note: Never includes password in response for security.
+         * @example {
+         *       "capabilities": {
+         *         "audio": true,
+         *         "codec": "H.264",
+         *         "fps": 30,
+         *         "ptz": false,
+         *         "resolution": "1920x1080",
+         *         "video": true
+         *       },
+         *       "latency_ms": 245,
+         *       "success": true
+         *     }
+         */
+        RTSPTestResponse: {
+            /** @description Stream capabilities (only present on success) */
+            capabilities?: components["schemas"]["RTSPCapabilitiesResponse"] | null;
+            /**
+             * Error Message
+             * @description Error message (only present on failure)
+             */
+            error_message?: string | null;
+            /**
+             * Latency Ms
+             * @description Connection latency in milliseconds
+             */
+            latency_ms?: number | null;
+            /**
+             * Success
+             * @description Whether the connection test succeeded
+             */
+            success: boolean;
         };
         /**
          * RUMBatchRequest
@@ -37425,6 +37703,151 @@ export interface operations {
             };
         };
     };
+    cameras_discover_onvif_devices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnvifDiscoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description List of discovered ONVIF devices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Discovery failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cameras_start_preview_direct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview stream started successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewStartResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description go2rtc service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cameras_stop_preview_by_stream_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stream_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview stream stopped successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stream not found (acceptable, idempotent) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_test_rtsp_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RTSPTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Connection test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RTSPTestResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     cameras_validate_camera_paths: {
         parameters: {
             query?: never;
@@ -37674,7 +38097,7 @@ export interface operations {
             };
         };
     };
-    cameras_get_baseline_config: {
+    cameras_start_camera_preview: {
         parameters: {
             query?: never;
             header?: never;
@@ -37685,16 +38108,28 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Preview stream started successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PreviewStartResponse"];
                 };
+            };
+            /** @description Camera does not have RTSP configured */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -37705,46 +38140,16 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-        };
-    };
-    cameras_update_baseline_config: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                camera_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BaselineConfigUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description go2rtc service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
-    cameras_reset_baseline: {
+    cameras_stop_camera_preview: {
         parameters: {
             query?: never;
             header?: never;
@@ -37755,7 +38160,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Preview stream stopped successfully */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -37765,6 +38170,13 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
