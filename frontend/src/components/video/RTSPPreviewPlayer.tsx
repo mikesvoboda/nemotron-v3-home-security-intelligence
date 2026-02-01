@@ -8,13 +8,15 @@
  * - Session expiry countdown (5 minutes)
  * - Retry button on error
  * - Cleanup on unmount
+ * - PTZ controls overlay (NEM-4885)
  */
 
 import { clsx } from 'clsx';
-import { AlertCircle, Loader2, RefreshCw, Video, VideoOff } from 'lucide-react';
+import { AlertCircle, Loader2, Move, RefreshCw, Video, VideoOff, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRtspPreview } from '../../hooks/useRtspPreview';
+import { PTZControls } from '../ptz';
 
 import type { PreviewConfig } from '../../types/preview';
 
@@ -33,6 +35,10 @@ export interface RTSPPreviewPlayerProps {
   className?: string;
   /** Session expiry time in seconds (default: 300) */
   expiresIn?: number;
+  /** Whether camera supports PTZ control (NEM-4885) */
+  hasPtz?: boolean;
+  /** Camera ID for PTZ control (required if hasPtz is true) */
+  cameraId?: string;
 }
 
 /** Default session expiry time (5 minutes) */
@@ -61,11 +67,14 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
   onStopped,
   className,
   expiresIn = DEFAULT_EXPIRY_SECONDS,
+  hasPtz = false,
+  cameraId,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { state, error, peerConnection, startPreview, stopPreview } = useRtspPreview();
   const [timeRemaining, setTimeRemaining] = useState(expiresIn);
   const [hasStarted, setHasStarted] = useState(false);
+  const [showPtzControls, setShowPtzControls] = useState(false);
 
   // Start preview on mount if autoStart is enabled
   useEffect(() => {
@@ -138,6 +147,18 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
     stopPreview();
     setHasStarted(false);
   }, [stopPreview]);
+
+  // Toggle PTZ controls overlay
+  const togglePtzControls = useCallback(() => {
+    setShowPtzControls((prev) => !prev);
+  }, []);
+
+  // Hide PTZ controls when video stops
+  useEffect(() => {
+    if (state !== 'connected') {
+      setShowPtzControls(false);
+    }
+  }, [state]);
 
   // Render based on state
   return (
@@ -238,7 +259,7 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
               <span className="text-sm font-medium text-white">LIVE</span>
             </div>
 
-            {/* Session expiry countdown */}
+            {/* Session expiry countdown and controls */}
             <div className="flex items-center gap-4">
               <span
                 className={clsx(
@@ -249,6 +270,27 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
               >
                 {formatTimeRemaining(timeRemaining)} remaining
               </span>
+
+              {/* PTZ toggle button */}
+              {hasPtz && cameraId && (
+                <button
+                  onClick={togglePtzControls}
+                  className={clsx(
+                    'flex items-center gap-1.5 rounded-md px-2 py-1',
+                    'text-sm font-medium transition-colors',
+                    'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-black',
+                    showPtzControls
+                      ? 'bg-primary text-gray-900'
+                      : 'bg-gray-800/80 text-gray-200 hover:bg-gray-700'
+                  )}
+                  aria-label={showPtzControls ? 'Hide PTZ controls' : 'Show PTZ controls'}
+                  aria-pressed={showPtzControls}
+                  data-testid="ptz-toggle-button"
+                >
+                  <Move className="h-4 w-4" />
+                  PTZ
+                </button>
+              )}
 
               {/* Stop button */}
               <button
@@ -262,6 +304,45 @@ const RTSPPreviewPlayer: React.FC<RTSPPreviewPlayerProps> = ({
                 Stop Preview
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* PTZ Controls Overlay (NEM-4885) */}
+      {state === 'connected' && hasPtz && cameraId && showPtzControls && (
+        <div
+          className={clsx(
+            'absolute right-3 bottom-16',
+            'transition-all duration-200 ease-in-out',
+            'animate-in fade-in slide-in-from-right-2'
+          )}
+          data-testid="ptz-overlay"
+        >
+          <div className="relative">
+            {/* Close button */}
+            <button
+              onClick={togglePtzControls}
+              className={clsx(
+                'absolute -top-2 -right-2 z-10',
+                'flex items-center justify-center',
+                'h-6 w-6 rounded-full',
+                'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white',
+                'transition-colors',
+                'focus:outline-none focus:ring-2 focus:ring-primary'
+              )}
+              aria-label="Close PTZ controls"
+              data-testid="ptz-close-button"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+
+            {/* PTZ Controls */}
+            <PTZControls
+              cameraId={cameraId}
+              compact
+              ptzSupported
+              className="shadow-lg"
+            />
           </div>
         </div>
       )}
