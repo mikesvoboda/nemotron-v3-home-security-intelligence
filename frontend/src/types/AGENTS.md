@@ -66,6 +66,9 @@ frontend/src/types/
 | `summary.ts`                | AI summary data types                                      |
 | `websocket.ts`              | Discriminated unions for WebSocket message handling        |
 | `websocket-events.ts`       | WebSocket event payloads and handlers                      |
+| `rtsp.ts`                   | RTSP testing types (RTSPTestRequest, RTSPTestResult, RTSPCapabilities) |
+| `onvif.ts`                  | ONVIF types (OnvifDevice, OnvifDiscoveryRequest/Response, OnvifCapabilities) |
+| `preview.ts`                | Preview types (PreviewState, PreviewConfig)                |
 | `generated/`                | Auto-generated types from backend OpenAPI spec             |
 
 ## Type System Patterns
@@ -238,6 +241,93 @@ interface EnrichmentData {
 ```
 
 **Note:** These types correspond to backend enrichment services (see backend/services/enrichment_*.py files).
+
+## RTSP/ONVIF Types
+
+### rtsp.ts
+
+Types for RTSP connection testing:
+
+```typescript
+interface RTSPTestRequest {
+  url: string;
+  username?: string;
+  password?: string;
+  timeout?: number;
+}
+
+interface RTSPCapabilities {
+  video: boolean;
+  audio: boolean;
+  ptz: boolean;
+  resolution?: { width: number; height: number };
+  codec?: string;
+  framerate?: number;
+}
+
+interface RTSPTestResult {
+  success: boolean;
+  latency_ms?: number;
+  capabilities?: RTSPCapabilities;
+  error?: string;
+  error_code?: string;
+}
+```
+
+### onvif.ts
+
+Types for ONVIF device discovery:
+
+```typescript
+interface OnvifCapabilities {
+  video: boolean;
+  ptz: boolean;
+  events: boolean;
+  analytics: boolean;
+}
+
+interface OnvifDevice {
+  device_url: string;
+  ip: string;
+  port: number;
+  manufacturer?: string;
+  model?: string;
+  rtsp_urls: Array<{ profile: string; url: string }>;
+  capabilities: OnvifCapabilities;
+}
+
+interface OnvifDiscoveryRequest {
+  subnet?: string;
+  timeout?: number;
+}
+
+interface OnvifDiscoveryResponse {
+  devices: OnvifDevice[];
+  count: number;
+  scan_duration_ms: number;
+}
+```
+
+### preview.ts
+
+Types for RTSP preview state management:
+
+```typescript
+type PreviewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'failed';
+
+interface PreviewConfig {
+  rtspUrl: string;
+  cameraId?: string;
+  autoStart?: boolean;
+}
+
+interface PreviewState {
+  streamId: string | null;
+  connectionState: PreviewConnectionState;
+  error: string | null;
+  startedAt: Date | null;
+}
+```
 
 ## Generated Types
 

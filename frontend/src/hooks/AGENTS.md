@@ -93,6 +93,14 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useRedisDebugInfoQuery` | Redis debug info | `{ enabled? }` | `{ data, info, isLoading, error }` | `/api/debug/redis` |
 | `useWebSocketConnectionsQuery` | Active WebSocket connections | `{ enabled? }` | `{ data, connections, isLoading, error }` | `/api/debug/websocket-connections` |
 
+### RTSP/ONVIF Mutation Hooks
+
+| Hook | Purpose | Parameters | Return Value | Endpoint |
+|------|---------|------------|--------------|----------|
+| `useRtspTest` | RTSP connection testing mutation | None | `{ mutate, mutateAsync, isPending, error, data: RTSPTestResult }` | `POST /api/cameras/rtsp/test` |
+| `useOnvifDiscovery` | ONVIF device discovery mutation | None | `{ mutate, mutateAsync, isPending, error, data: OnvifDiscoveryResponse }` | `POST /api/cameras/onvif/discover` |
+| `useRtspPreview` | WebRTC preview with RTCPeerConnection lifecycle | `{ streamId?: string }` | `{ startPreview, stopPreview, peerConnection, connectionState, error }` | `POST /api/cameras/preview/start`, `DELETE /api/cameras/preview/{stream_id}/stop` |
+
 ### Data Mutation Hooks (TanStack Query)
 
 | Hook | Purpose | Parameters | Return Value | Endpoint |

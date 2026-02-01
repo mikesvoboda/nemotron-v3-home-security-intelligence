@@ -47,6 +47,10 @@ Contains components for application configuration and system settings. Includes 
 | `StorageDashboard.tsx`                  | Disk usage and storage breakdown dashboard         |
 | `StorageDashboard.test.tsx`             | Test suite for StorageDashboard                    |
 | `StorageDashboard.msw.test.tsx`         | MSW-based integration tests for StorageDashboard   |
+| `ONVIFDiscoveryPanel.tsx`               | Modal for network camera discovery via ONVIF       |
+| `ONVIFDiscoveryPanel.test.tsx`          | Test suite for ONVIFDiscoveryPanel                 |
+| `ConnectionStatusCard.tsx`              | Displays RTSP test results with capabilities       |
+| `ConnectionStatusCard.test.tsx`         | Test suite for ConnectionStatusCard                |
 | `prompts/`                              | Prompt management subdirectory                     |
 
 ## Key Components
@@ -646,6 +650,56 @@ Comprehensive test coverage:
 - `GET /api/dlq/:queueName/jobs` - Fetch failed jobs for a queue
 - `POST /api/dlq/:queueName/requeue` - Requeue all failed jobs
 - `DELETE /api/dlq/:queueName` - Clear all failed jobs
+
+### ONVIFDiscoveryPanel.tsx
+
+**Purpose:** Modal component for discovering network cameras using ONVIF protocol
+
+**Key Features:**
+
+- Network subnet scanning for ONVIF-compatible cameras
+- Device list with manufacturer, model, and IP information
+- Auto-extraction of RTSP stream URLs from discovered devices
+- One-click camera addition from discovery results
+- Progress indicator during network scan
+- Error handling for network timeouts and unreachable devices
+
+**Props:**
+
+```typescript
+interface ONVIFDiscoveryPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectDevice: (device: OnvifDevice) => void;
+  className?: string;
+}
+```
+
+### ConnectionStatusCard.tsx
+
+**Purpose:** Displays RTSP connection test results with stream capabilities
+
+**Key Features:**
+
+- Connection status indicator (success/failure/testing)
+- Stream capabilities display (resolution, codec, framerate)
+- Audio stream detection
+- PTZ capability detection
+- Latency and bitrate information
+- Error message display with troubleshooting hints
+
+**Props:**
+
+```typescript
+interface ConnectionStatusCardProps {
+  testResult: RTSPTestResult | null;
+  isLoading: boolean;
+  error?: string;
+  className?: string;
+}
+```
+
+---
 
 ## Future Enhancements
 
