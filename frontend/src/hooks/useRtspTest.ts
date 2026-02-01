@@ -3,43 +3,6 @@
  *
  * Hook for testing RTSP camera connections before adding them.
  * Uses TanStack Query's useMutation for the test request.
- */
-
-import { useMutation } from '@tanstack/react-query';
-
-import type { RTSPTestRequest, RTSPTestResult } from '../types/rtsp';
-
-/**
- * Calls the backend RTSP test endpoint.
- */
-async function testRtspConnection(request: RTSPTestRequest): Promise<RTSPTestResult> {
-  const response = await fetch('/api/cameras/rtsp/test', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  return response.json() as Promise<RTSPTestResult>;
-}
-
-/**
- * Return type for useRtspTest hook.
- */
-export interface UseRtspTestReturn {
-  testConnection: ReturnType<typeof useMutation<RTSPTestResult, Error, RTSPTestRequest>>;
-}
-
-/**
- * Hook for testing RTSP camera connections.
- *
- * Provides a mutation for testing RTSP URLs without creating a camera.
- * The test is read-only and does not invalidate any queries.
  *
  * @example
  * ```tsx
@@ -54,12 +17,31 @@ export interface UseRtspTestReturn {
  * };
  * ```
  */
-export function useRtspTest(): UseRtspTestReturn {
-  const testConnection = useMutation({
-    mutationFn: testRtspConnection,
-    // This is a read-only test - we don't want to invalidate any queries
-    // since testing a connection doesn't change any camera data
+
+import { useMutation } from '@tanstack/react-query';
+
+import type { RTSPTestRequest, RTSPTestResult } from '../types/rtsp';
+
+async function testRtspConnection(request: RTSPTestRequest): Promise<RTSPTestResult> {
+  const response = await fetch('/api/cameras/rtsp/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
   });
 
-  return { testConnection };
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json() as Promise<RTSPTestResult>;
+}
+
+export type UseRtspTestReturn = ReturnType<typeof useRtspTest>;
+
+export function useRtspTest() {
+  return {
+    testConnection: useMutation({
+      mutationFn: testRtspConnection,
+    }),
+  };
 }

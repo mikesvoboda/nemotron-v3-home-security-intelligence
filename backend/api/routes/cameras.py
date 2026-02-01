@@ -64,7 +64,7 @@ from backend.services.cache_service import (
     CacheKeys,
     CacheService,
 )
-from backend.services.rtsp_test_service import RTSPTestService
+from backend.services.rtsp_test_service import RTSPCapabilities, RTSPTestService
 from backend.services.websocket_emitter import get_websocket_emitter
 
 logger = get_logger(__name__)
@@ -269,6 +269,22 @@ async def list_cameras(
 # =============================================================================
 
 
+def _to_rtsp_capabilities_response(
+    capabilities: RTSPCapabilities | None,
+) -> RTSPCapabilitiesResponse | None:
+    """Convert service capabilities to response schema."""
+    if not capabilities:
+        return None
+    return RTSPCapabilitiesResponse(
+        video=capabilities.video,
+        audio=capabilities.audio,
+        ptz=capabilities.ptz,
+        resolution=capabilities.resolution,
+        codec=capabilities.codec,
+        fps=capabilities.fps,
+    )
+
+
 @router.post(
     "/rtsp/test",
     response_model=RTSPTestResponse,
@@ -301,22 +317,10 @@ async def test_rtsp_connection(
         password=request.password,
     )
 
-    # Convert service result to response schema
-    capabilities = None
-    if result.capabilities:
-        capabilities = RTSPCapabilitiesResponse(
-            video=result.capabilities.video,
-            audio=result.capabilities.audio,
-            ptz=result.capabilities.ptz,
-            resolution=result.capabilities.resolution,
-            codec=result.capabilities.codec,
-            fps=result.capabilities.fps,
-        )
-
     return RTSPTestResponse(
         success=result.success,
         latency_ms=result.latency_ms,
-        capabilities=capabilities,
+        capabilities=_to_rtsp_capabilities_response(result.capabilities),
         error_message=result.error_message,
     )
 
