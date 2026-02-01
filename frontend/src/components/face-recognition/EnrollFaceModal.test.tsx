@@ -32,8 +32,46 @@ vi.mock('../../hooks/useToast', () => ({
   default: () => mockUseToast(),
 }));
 
-// Mock the types
-vi.mock('../../types/faceRecognition', () => ({}));
+// Mock the types - include quality assessment functions needed by FaceQualityAssessment
+vi.mock('../../types/faceRecognition', () => ({
+  computeQualityFactorsFromScore: (score: number) => ({
+    blur: {
+      score: score,
+      label: 'Sharpness',
+      status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
+      recommendation: score < 0.8 ? 'Hold camera steady' : undefined,
+    },
+    lighting: {
+      score: score,
+      label: 'Lighting',
+      status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
+      recommendation: score < 0.8 ? 'Improve lighting' : undefined,
+    },
+    angle: {
+      score: score,
+      label: 'Face Angle',
+      status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
+      recommendation: score < 0.8 ? 'Face the camera' : undefined,
+    },
+    occlusion: {
+      score: score,
+      label: 'Visibility',
+      status: score >= 0.8 ? 'good' : score >= 0.6 ? 'fair' : 'poor',
+      recommendation: score < 0.8 ? 'Remove obstructions' : undefined,
+    },
+  }),
+  getQualityStatus: (score: number) => {
+    if (score >= 0.8) return 'good';
+    if (score >= 0.7) return 'fair';
+    return 'poor';
+  },
+  isQualityEnrollable: (score: number) => score >= 0.7,
+  getOverallRecommendation: (score: number) => {
+    if (score >= 0.8) return undefined;
+    if (score < 0.7) return 'Image quality is too low for enrollment.';
+    return 'Recognition accuracy may be reduced.';
+  },
+}));
 
 const mockKnownPersons = [
   {
@@ -172,7 +210,9 @@ describe('EnrollFaceModal', () => {
     it('displays quality score', () => {
       renderModal();
       expect(screen.getByText(/quality score/i)).toBeInTheDocument();
-      expect(screen.getByText(/0\.85/)).toBeInTheDocument();
+      // FaceQualityAssessment shows percentage format (85%)
+      const overallSection = screen.getByTestId('quality-overall-score');
+      expect(within(overallSection).getByText('85%')).toBeInTheDocument();
     });
 
     it('displays camera name', () => {
@@ -230,20 +270,23 @@ describe('EnrollFaceModal', () => {
 
     it('displays warning message for quality 0.7-0.8', () => {
       renderModal({ qualityScore: 0.75 });
-      expect(screen.getByText(/quality is below 0\.8/i)).toBeInTheDocument();
-      expect(screen.getByText(/recognition may be less accurate/i)).toBeInTheDocument();
+      // FaceQualityAssessment shows "Moderate Quality" warning for fair scores
+      expect(screen.getByTestId('quality-fair-warning')).toBeInTheDocument();
+      expect(screen.getByText(/moderate quality/i)).toBeInTheDocument();
     });
 
     it('displays blocking message and disables enroll for quality < 0.7', () => {
       renderModal({ qualityScore: 0.65 });
+      // FaceQualityAssessment shows "Quality Too Low" for poor scores
       expect(screen.getByText(/quality too low/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /enroll face/i })).toBeDisabled();
     });
 
     it('does not display warning for quality >= 0.8', () => {
       renderModal({ qualityScore: 0.85 });
-      expect(screen.queryByText(/quality is below/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/quality too low/i)).not.toBeInTheDocument();
+      // FaceQualityAssessment shows "Excellent quality" message for good scores
+      expect(screen.queryByTestId('quality-fair-warning')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('quality-blocked-warning')).not.toBeInTheDocument();
     });
 
     it('displays visual progress bar for quality score', () => {

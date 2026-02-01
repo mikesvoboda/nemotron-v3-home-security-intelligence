@@ -49,6 +49,7 @@ import DwellStatisticsCard from '../components/zones/DwellStatisticsCard';
 import LineZoneCrossingCard from '../components/zones/LineZoneCrossingCard';
 import LoiteringConfigModal from '../components/zones/LoiteringConfigModal';
 import ZoneAnomalyFeed from '../components/zones/ZoneAnomalyFeed';
+import ZoneEntityDistributionPanel from '../components/zones/ZoneEntityDistributionPanel';
 import ZoneTrustMatrix from '../components/zones/ZoneTrustMatrix';
 import { useCamerasQuery } from '../hooks/useCamerasQuery';
 import {
@@ -986,6 +987,18 @@ function ZonesPageComponent() {
                     </p>
                   </div>
                 )}
+
+                {/* Entity Distribution Section (NEM-4937) */}
+                <div className="flex items-center gap-4 pt-4">
+                  <div className="h-px flex-1 bg-gray-700" />
+                  <span className="text-sm text-gray-500">Entity Distribution</span>
+                  <div className="h-px flex-1 bg-gray-700" />
+                </div>
+
+                <ZoneEntityDistributionPanel
+                  cameraId={firstCameraId}
+                  data-testid="entity-distribution-panel"
+                />
               </div>
             </Tab.Panel>
 

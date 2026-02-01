@@ -187,6 +187,7 @@ docs/decisions/        # Architectural decision records
 ```
 
 The skill handles:
+
 - Searching and listing issues
 - Updating issue status (uses human-readable names: `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled`)
 - Creating issues and epics with proper TDD structure

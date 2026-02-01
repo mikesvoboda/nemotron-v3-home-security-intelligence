@@ -610,3 +610,322 @@ class IdentifyFaceEventResponse(BaseModel):
         ...,
         description="Whether a new face embedding was created (quality >= 0.7)",
     )
+
+
+# =============================================================================
+# Face Similarity Comparison Schemas (NEM-4955)
+# =============================================================================
+
+
+class FaceSimilarityCompareResponse(BaseModel):
+    """Schema for face similarity comparison response.
+
+    Returns the result of comparing two face images:
+    - similarity_score: Cosine similarity between embeddings (0-1)
+    - is_match: Whether similarity exceeds the threshold
+    - threshold: The threshold used for matching
+    - embedding_dimension: Dimension of the embeddings used (768 for CLIP)
+    - processing_time_ms: Time taken to process both images
+
+    Note: This debug tool uses CLIP embeddings (768-dim) for visual similarity,
+    not ArcFace embeddings (512-dim) used in production face recognition.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "similarity_score": 0.85,
+                "is_match": True,
+                "threshold": 0.7,
+                "embedding_dimension": 768,
+                "processing_time_ms": 245,
+                "error": None,
+            }
+        }
+    )
+
+    similarity_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Cosine similarity score between the two faces"
+    )
+    is_match: bool = Field(
+        ..., description="Whether the similarity exceeds the threshold (same person)"
+    )
+    threshold: float = Field(..., ge=0.0, le=1.0, description="The threshold used for matching")
+    embedding_dimension: int = Field(..., description="Dimension of the embeddings (768 for CLIP)")
+    processing_time_ms: int = Field(
+        ..., ge=0, description="Time taken to process both images in milliseconds"
+    )
+    error: str | None = Field(None, description="Error message if comparison failed")
+
+
+# =============================================================================
+# Bulk Enrollment Schemas (NEM-4954)
+# =============================================================================
+
+
+class BulkEnrollmentImageResult(BaseModel):
+    """Schema for individual image result in bulk enrollment.
+
+    Each image in a bulk enrollment request produces a result with:
+    - filename: Original filename of the uploaded image
+    - success: Whether enrollment succeeded
+    - embedding_id: ID of created embedding (if successful)
+    - quality_score: Quality score of the face (if detected)
+    - error: Error message if enrollment failed
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "filename": "face_001.jpg",
+                "success": True,
+                "embedding_id": 1,
+                "quality_score": 0.92,
+                "error": None,
+            }
+        }
+    )
+
+    filename: str = Field(..., description="Original filename of the uploaded image")
+    success: bool = Field(..., description="Whether enrollment succeeded for this image")
+    embedding_id: int | None = Field(None, description="ID of created embedding if successful")
+    quality_score: float | None = Field(
+        None, ge=0.0, le=1.0, description="Quality score of detected face"
+    )
+    error: str | None = Field(None, description="Error message if enrollment failed")
+
+
+class BulkEnrollmentResponse(BaseModel):
+    """Schema for bulk enrollment response.
+
+    Returns summary of bulk face enrollment:
+    - total_images: Number of images submitted
+    - successful: Number of successful enrollments
+    - failed: Number of failed enrollments
+    - results: Per-image results with details
+    - person_id: ID of the person images were enrolled to
+    - person_name: Name of the person
+    - created_new_person: Whether a new person was created
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_images": 5,
+                "successful": 4,
+                "failed": 1,
+                "results": [
+                    {
+                        "filename": "face_001.jpg",
+                        "success": True,
+                        "embedding_id": 1,
+                        "quality_score": 0.92,
+                        "error": None,
+                    },
+                    {
+                        "filename": "face_002.jpg",
+                        "success": False,
+                        "embedding_id": None,
+                        "quality_score": 0.55,
+                        "error": "Quality score below threshold (0.7)",
+                    },
+                ],
+                "person_id": 1,
+                "person_name": "John Doe",
+                "created_new_person": False,
+            }
+        }
+    )
+
+    total_images: int = Field(..., ge=0, description="Total number of images submitted")
+    successful: int = Field(..., ge=0, description="Number of successful enrollments")
+    failed: int = Field(..., ge=0, description="Number of failed enrollments")
+    results: list[BulkEnrollmentImageResult] = Field(
+        ..., description="Per-image enrollment results"
+    )
+    person_id: int = Field(..., description="ID of the person images were enrolled to")
+    person_name: str = Field(..., description="Name of the person")
+    created_new_person: bool = Field(
+        ..., description="Whether a new person was created for this enrollment"
+    )
+
+
+# =============================================================================
+# Auto-Enrollment Schemas (NEM-4941)
+# =============================================================================
+
+
+class EnrollmentCandidateResponse(BaseModel):
+    """Schema for enrollment candidate response.
+
+    Represents a face detection that meets quality thresholds and is
+    pending review for enrollment as a known person.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "face_event_id": 100,
+                "quality_score": 0.92,
+                "status": "pending",
+                "suggested_name": None,
+                "enrolled_person_id": None,
+                "camera_id": "front_door",
+                "timestamp": "2025-01-31T10:30:00Z",
+                "created_at": "2025-01-31T10:31:00Z",
+            }
+        },
+    )
+
+    id: int = Field(..., description="Unique identifier for the enrollment candidate")
+    face_event_id: int = Field(..., description="ID of the source face detection event")
+    quality_score: float = Field(..., ge=0.0, le=1.0, description="Face quality score")
+    status: str = Field(
+        ..., description="Enrollment status: pending/approved/rejected/auto_enrolled"
+    )
+    suggested_name: str | None = Field(None, description="Auto-generated or suggested name")
+    enrolled_person_id: int | None = Field(None, description="ID of enrolled person if approved")
+    camera_id: str | None = Field(None, description="Camera ID where face was detected")
+    timestamp: datetime | None = Field(None, description="When the face was detected")
+    created_at: datetime = Field(..., description="When the candidate was added to queue")
+
+
+class EnrollmentCandidateListResponse(BaseModel):
+    """Schema for list of enrollment candidates."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "items": [
+                    {
+                        "id": 1,
+                        "face_event_id": 100,
+                        "quality_score": 0.92,
+                        "status": "pending",
+                        "suggested_name": None,
+                        "enrolled_person_id": None,
+                        "camera_id": "front_door",
+                        "timestamp": "2025-01-31T10:30:00Z",
+                        "created_at": "2025-01-31T10:31:00Z",
+                    }
+                ],
+                "total": 1,
+            }
+        }
+    )
+
+    items: list[EnrollmentCandidateResponse] = Field(
+        ..., description="List of enrollment candidates"
+    )
+    total: int = Field(..., description="Total number of candidates")
+
+
+class ApproveEnrollmentRequest(BaseModel):
+    """Schema for approving an enrollment candidate.
+
+    Either provide a name for a new person, or provide an existing
+    person_id to link the face to an existing known person.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "John Doe",
+                "is_household_member": True,
+            }
+        }
+    )
+
+    name: str | None = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        description="Name for new person (required if person_id not provided)",
+    )
+    person_id: int | None = Field(
+        None,
+        description="ID of existing person to link to (optional)",
+    )
+    is_household_member: bool = Field(
+        default=False,
+        description="Whether to mark as household member",
+    )
+
+
+class ApproveEnrollmentResponse(BaseModel):
+    """Schema for approve enrollment response."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "person_id": 1,
+                "person_name": "John Doe",
+                "embedding_id": 5,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether approval was successful")
+    person_id: int | None = Field(None, description="ID of the person")
+    person_name: str | None = Field(None, description="Name of the person")
+    embedding_id: int | None = Field(None, description="ID of created embedding")
+    error: str | None = Field(None, description="Error message if failed")
+
+
+class RejectEnrollmentRequest(BaseModel):
+    """Schema for rejecting an enrollment candidate."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "reason": "Not a household member",
+            }
+        }
+    )
+
+    reason: str | None = Field(
+        None,
+        max_length=500,
+        description="Optional reason for rejection",
+    )
+
+
+class RejectEnrollmentResponse(BaseModel):
+    """Schema for reject enrollment response."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether rejection was successful")
+
+
+class AutoEnrollmentSettingsResponse(BaseModel):
+    """Schema for auto-enrollment settings response."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "enabled": True,
+                "quality_threshold": 0.8,
+                "similarity_threshold": 0.85,
+                "auto_approve": False,
+            }
+        }
+    )
+
+    enabled: bool = Field(..., description="Whether auto-enrollment is enabled")
+    quality_threshold: float = Field(
+        ..., ge=0.0, le=1.0, description="Minimum quality score for enrollment"
+    )
+    similarity_threshold: float = Field(
+        ..., ge=0.0, le=1.0, description="Similarity threshold for duplicate detection"
+    )
+    auto_approve: bool = Field(..., description="Whether to auto-approve without review queue")

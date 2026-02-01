@@ -6,8 +6,10 @@
  * - Assignment strategy selection
  * - Service-to-GPU assignment management
  * - Configuration save and apply functionality
+ * - Batch operations (Assign All, Reset to Defaults, Auto-Balance)
  *
  * @see NEM-3320 - Create GPU Settings UI component
+ * @see NEM-4943 - GPU Batch Operations
  */
 
 import { screen, waitFor } from '@testing-library/react';
@@ -24,6 +26,7 @@ import type {
   GpuConfigUpdateResponse,
   GpuApplyResult,
   ServiceHealthResponse,
+  StrategyPreviewResponse,
 } from '../services/gpuConfigApi';
 
 // Mock the GPU config API module
@@ -118,6 +121,16 @@ const mockServiceHealth: ServiceHealthResponse = {
       restart_status: null,
     },
   ],
+};
+
+const mockBalancedPreview: StrategyPreviewResponse = {
+  strategy: 'balanced',
+  proposed_assignments: [
+    { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
+    { service: 'ai-yolo26', gpu_index: 1, vram_budget_override: null },
+    { service: 'ai-enrichment', gpu_index: 0, vram_budget_override: null },
+  ],
+  warnings: [],
 };
 
 // ============================================================================
@@ -534,6 +547,125 @@ describe('GpuSettingsPage', () => {
       await waitFor(() => {
         const gpuSelect = screen.getByTestId('gpu-select-ai-llm');
         expect(gpuSelect).toHaveAttribute('aria-label', 'GPU assignment for ai-llm');
+      });
+    });
+  });
+
+  describe('batch operations (NEM-4943)', () => {
+    it('should render batch actions component', async () => {
+      (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
+      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
+      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
+
+      renderWithProviders(<GpuSettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('gpu-batch-actions')).toBeInTheDocument();
+      });
+    });
+
+    it('should render all batch action buttons', async () => {
+      (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
+      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
+      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
+
+      renderWithProviders(<GpuSettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('assign-all-button')).toBeInTheDocument();
+        expect(screen.getByTestId('reset-defaults-button')).toBeInTheDocument();
+        expect(screen.getByTestId('auto-balance-button')).toBeInTheDocument();
+      });
+    });
+
+    it('should mark changes when Assign All is used', async () => {
+      (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
+      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
+      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
+
+      const { user } = renderWithProviders(<GpuSettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('assign-all-button')).toBeInTheDocument();
+      });
+
+      // Click Assign All
+      await user.click(screen.getByTestId('assign-all-button'));
+
+      // Wait for dialog to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('assign-all-dialog')).toBeInTheDocument();
+      });
+
+      // Click confirm
+      await user.click(screen.getByTestId('assign-all-confirm-button'));
+
+      // Save button should be enabled due to changes
+      await waitFor(() => {
+        expect(screen.getByTestId('save-config-button')).not.toBeDisabled();
+      });
+    });
+
+    it('should mark changes when Reset to Defaults is used', async () => {
+      (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
+      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
+      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
+
+      const { user } = renderWithProviders(<GpuSettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reset-defaults-button')).toBeInTheDocument();
+      });
+
+      // Click Reset to Defaults
+      await user.click(screen.getByTestId('reset-defaults-button'));
+
+      // Wait for confirmation dialog
+      await waitFor(() => {
+        expect(screen.getByTestId('reset-confirm-dialog')).toBeInTheDocument();
+      });
+
+      // Confirm reset
+      await user.click(screen.getByTestId('reset-confirm-button'));
+
+      // Save button should be enabled due to changes
+      await waitFor(() => {
+        expect(screen.getByTestId('save-config-button')).not.toBeDisabled();
+      });
+    });
+
+    it('should apply balanced strategy when Auto-Balance is clicked', async () => {
+      (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
+      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
+      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
+      (gpuConfigApi.previewStrategy as ReturnType<typeof vi.fn>).mockResolvedValue(mockBalancedPreview);
+
+      const { user } = renderWithProviders(<GpuSettingsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('auto-balance-button')).toBeInTheDocument();
+      });
+
+      // Click Auto-Balance
+      await user.click(screen.getByTestId('auto-balance-button'));
+
+      // Wait for the preview call to be made - the API is called with 'balanced' as the first argument
+      await waitFor(() => {
+        expect(gpuConfigApi.previewStrategy).toHaveBeenCalled();
+        // Check that the first call's first argument is 'balanced'
+        const calls = (gpuConfigApi.previewStrategy as ReturnType<typeof vi.fn>).mock.calls;
+        expect(calls.length).toBeGreaterThan(0);
+        expect(calls[0][0]).toBe('balanced');
+      });
+
+      // Save button should be enabled after assignments are updated
+      await waitFor(() => {
+        expect(screen.getByTestId('save-config-button')).not.toBeDisabled();
       });
     });
   });

@@ -99,12 +99,13 @@ describe('FaceRecognitionPage', () => {
   // ==========================================================================
 
   describe('tab navigation', () => {
-    it('displays all three tabs', () => {
+    it('displays all four tabs', () => {
       renderWithProviders(<FaceRecognitionPage />);
 
       expect(screen.getByRole('tab', { name: /Known Persons/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Face Events/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Person Tracking/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Debug Tools/i })).toBeInTheDocument();
     });
 
     it('has Known Persons tab selected by default', () => {
@@ -218,12 +219,13 @@ describe('FaceRecognitionPage', () => {
       expect(tablist).toBeInTheDocument();
 
       const tabs = screen.getAllByRole('tab');
-      expect(tabs).toHaveLength(3);
+      expect(tabs).toHaveLength(4);
 
       // Selected tab should have aria-selected=true
       expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
       expect(tabs[1]).toHaveAttribute('aria-selected', 'false');
       expect(tabs[2]).toHaveAttribute('aria-selected', 'false');
+      expect(tabs[3]).toHaveAttribute('aria-selected', 'false');
     });
 
     it('has proper tabpanel roles', () => {

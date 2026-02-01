@@ -109,7 +109,13 @@ class GpuDevicesResponse(BaseModel):
 class GpuAssignment(BaseModel):
     """Schema for a single service-to-GPU assignment.
 
-    Maps an AI service to a specific GPU with optional VRAM budget override.
+    Maps an AI service to a specific GPU with optional VRAM budget override
+    and affinity constraints.
+
+    Affinity Constraints (NEM-4944):
+    - exclusive_gpu: If True, service requires a dedicated GPU (no sharing)
+    - priority_weight: Priority for auto-assignment (higher = more important, 1-100)
+    - incompatible_with: List of services that cannot share the same GPU
     """
 
     service: str = Field(
@@ -128,6 +134,21 @@ class GpuAssignment(BaseModel):
         description="Override VRAM budget in GB (for services with dynamic VRAM needs)",
         ge=0.0,
     )
+    # Affinity constraints (NEM-4944)
+    exclusive_gpu: bool = Field(
+        default=False,
+        description="If True, service requires a dedicated GPU (no sharing with other services)",
+    )
+    priority_weight: int = Field(
+        default=50,
+        description="Priority for auto-assignment algorithms (1-100, higher = more important)",
+        ge=1,
+        le=100,
+    )
+    incompatible_with: list[str] | None = Field(
+        default=None,
+        description="List of service names that cannot share the same GPU with this service",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -135,6 +156,9 @@ class GpuAssignment(BaseModel):
                 "service": "ai-enrichment",
                 "gpu_index": 1,
                 "vram_budget_override": 3.5,
+                "exclusive_gpu": False,
+                "priority_weight": 50,
+                "incompatible_with": None,
             }
         }
     )
@@ -525,6 +549,485 @@ class GpuConfigPreviewResponse(BaseModel):
     )
 
 
+# =============================================================================
+# Version History Schemas (NEM-4945)
+# =============================================================================
+
+
+class GpuConfigVersionSummary(BaseModel):
+    """Summary of a GPU configuration version for listing.
+
+    Provides a brief overview of each version for the history list,
+    including version number, strategy, timestamp, and description.
+    """
+
+    id: str = Field(
+        ...,
+        description="Unique version identifier",
+    )
+    version_number: int = Field(
+        ...,
+        description="Sequential version number (higher = newer)",
+        ge=1,
+    )
+    strategy: str = Field(
+        ...,
+        description="Assignment strategy used in this version",
+    )
+    description: str | None = Field(
+        None,
+        description="Optional description of changes",
+    )
+    created_at: datetime = Field(
+        ...,
+        description="When this version was created",
+    )
+    created_by: str | None = Field(
+        None,
+        description="Who created this version (if tracked)",
+    )
+    assignment_count: int = Field(
+        ...,
+        description="Number of service assignments in this version",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "version_number": 3,
+                "strategy": "vram_based",
+                "description": "Moved LLM to GPU 0 for better VRAM utilization",
+                "created_at": "2026-01-23T10:30:00Z",
+                "created_by": "system",
+                "assignment_count": 5,
+            }
+        }
+    )
+
+
+class GpuConfigVersionDetail(GpuConfigVersionSummary):
+    """Full details of a GPU configuration version.
+
+    Extends the summary with complete assignment data for viewing
+    or restoring a specific version.
+    """
+
+    assignments: list[GpuAssignment] = Field(
+        ...,
+        description="Complete service-to-GPU assignments for this version",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "version_number": 3,
+                "strategy": "vram_based",
+                "description": "Moved LLM to GPU 0 for better VRAM utilization",
+                "created_at": "2026-01-23T10:30:00Z",
+                "created_by": "system",
+                "assignment_count": 3,
+                "assignments": [
+                    {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
+                    {"service": "ai-yolo26", "gpu_index": 0, "vram_budget_override": None},
+                    {"service": "ai-enrichment", "gpu_index": 1, "vram_budget_override": 3.5},
+                ],
+            }
+        }
+    )
+
+
+class GpuConfigVersionListResponse(BaseModel):
+    """Response schema for listing configuration versions.
+
+    Returns paginated version history with summary information.
+    """
+
+    versions: list[GpuConfigVersionSummary] = Field(
+        ...,
+        description="List of version summaries, newest first",
+    )
+    total_count: int = Field(
+        ...,
+        description="Total number of versions",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "versions": [
+                    {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "version_number": 3,
+                        "strategy": "vram_based",
+                        "description": "Updated for multi-GPU setup",
+                        "created_at": "2026-01-23T10:30:00Z",
+                        "created_by": "system",
+                        "assignment_count": 5,
+                    }
+                ],
+                "total_count": 3,
+            }
+        }
+    )
+
+
+class GpuConfigAssignmentChange(BaseModel):
+    """A single assignment change in a version diff.
+
+    Describes what changed for a specific service between two versions.
+    """
+
+    service: str = Field(
+        ...,
+        description="Service name",
+    )
+    change_type: str = Field(
+        ...,
+        description="Type of change: 'added', 'removed', or 'modified'",
+    )
+    old_gpu_index: int | None = Field(
+        None,
+        description="Previous GPU index (for modified/removed)",
+    )
+    new_gpu_index: int | None = Field(
+        None,
+        description="New GPU index (for added/modified)",
+    )
+    old_vram_override: float | None = Field(
+        None,
+        description="Previous VRAM override (for modified/removed)",
+    )
+    new_vram_override: float | None = Field(
+        None,
+        description="New VRAM override (for added/modified)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "service": "ai-llm",
+                "change_type": "modified",
+                "old_gpu_index": 1,
+                "new_gpu_index": 0,
+                "old_vram_override": None,
+                "new_vram_override": None,
+            }
+        }
+    )
+
+
+class GpuConfigVersionDiffResponse(BaseModel):
+    """Response schema for comparing two configuration versions.
+
+    Shows the differences between two versions including strategy
+    and assignment changes.
+    """
+
+    from_version: int = Field(
+        ...,
+        description="Source version number",
+    )
+    to_version: int = Field(
+        ...,
+        description="Target version number",
+    )
+    strategy_changed: bool = Field(
+        ...,
+        description="Whether the strategy changed between versions",
+    )
+    old_strategy: str | None = Field(
+        None,
+        description="Strategy in source version",
+    )
+    new_strategy: str | None = Field(
+        None,
+        description="Strategy in target version",
+    )
+    assignment_changes: list[GpuConfigAssignmentChange] = Field(
+        default_factory=list,
+        description="List of assignment changes",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "from_version": 2,
+                "to_version": 3,
+                "strategy_changed": True,
+                "old_strategy": "manual",
+                "new_strategy": "vram_based",
+                "assignment_changes": [
+                    {
+                        "service": "ai-llm",
+                        "change_type": "modified",
+                        "old_gpu_index": 1,
+                        "new_gpu_index": 0,
+                        "old_vram_override": None,
+                        "new_vram_override": None,
+                    }
+                ],
+            }
+        }
+    )
+
+
+# =============================================================================
+# Export/Import Schemas (NEM-4945)
+# =============================================================================
+
+
+class GpuConfigExportData(BaseModel):
+    """Exported GPU configuration data.
+
+    Contains all information needed to restore a configuration,
+    including metadata for validation.
+    """
+
+    export_version: str = Field(
+        default="1.0",
+        description="Export format version for compatibility",
+    )
+    exported_at: datetime = Field(
+        ...,
+        description="When the export was created",
+    )
+    strategy: str = Field(
+        ...,
+        description="Assignment strategy",
+    )
+    assignments: list[GpuAssignment] = Field(
+        ...,
+        description="Service-to-GPU assignments",
+    )
+    source_version: int | None = Field(
+        None,
+        description="Version number this was exported from (if applicable)",
+    )
+    description: str | None = Field(
+        None,
+        description="Optional description for this configuration",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "export_version": "1.0",
+                "exported_at": "2026-01-23T10:30:00Z",
+                "strategy": "vram_based",
+                "assignments": [
+                    {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
+                    {"service": "ai-yolo26", "gpu_index": 0, "vram_budget_override": None},
+                ],
+                "source_version": 3,
+                "description": "Production GPU configuration",
+            }
+        }
+    )
+
+
+class GpuConfigImportRequest(BaseModel):
+    """Request schema for importing a GPU configuration.
+
+    Accepts exported configuration data and optional parameters
+    for how to handle the import.
+    """
+
+    config: GpuConfigExportData = Field(
+        ...,
+        description="Configuration data to import",
+    )
+    apply_immediately: bool = Field(
+        default=False,
+        description="Whether to apply the config after import (restart services)",
+    )
+    description: str | None = Field(
+        None,
+        description="Description for the new version (overrides export description)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "config": {
+                    "export_version": "1.0",
+                    "exported_at": "2026-01-23T10:30:00Z",
+                    "strategy": "vram_based",
+                    "assignments": [
+                        {"service": "ai-llm", "gpu_index": 0, "vram_budget_override": None},
+                    ],
+                    "source_version": None,
+                    "description": None,
+                },
+                "apply_immediately": False,
+                "description": "Imported from backup",
+            }
+        }
+    )
+
+
+class GpuConfigImportValidation(BaseModel):
+    """Validation results for an imported configuration.
+
+    Reports any issues found during validation before import.
+    """
+
+    valid: bool = Field(
+        ...,
+        description="Whether the configuration is valid for import",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="Non-blocking warnings about the configuration",
+    )
+    errors: list[str] = Field(
+        default_factory=list,
+        description="Blocking errors that prevent import",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "valid": True,
+                "warnings": [
+                    "Service 'ai-florence' not found - will be skipped",
+                    "GPU 2 is over VRAM budget by 512 MB",
+                ],
+                "errors": [],
+            }
+        }
+    )
+
+
+class GpuConfigImportResponse(BaseModel):
+    """Response schema for GPU configuration import.
+
+    Returns the result of the import operation including
+    validation results and the new version if created.
+    """
+
+    success: bool = Field(
+        ...,
+        description="Whether the import was successful",
+    )
+    validation: GpuConfigImportValidation = Field(
+        ...,
+        description="Validation results",
+    )
+    new_version: GpuConfigVersionSummary | None = Field(
+        None,
+        description="The newly created version (if import succeeded)",
+    )
+    applied: bool = Field(
+        default=False,
+        description="Whether the config was applied (services restarted)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "validation": {
+                    "valid": True,
+                    "warnings": [],
+                    "errors": [],
+                },
+                "new_version": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "version_number": 4,
+                    "strategy": "vram_based",
+                    "description": "Imported from backup",
+                    "created_at": "2026-01-23T10:35:00Z",
+                    "created_by": "import",
+                    "assignment_count": 5,
+                },
+                "applied": False,
+            }
+        }
+    )
+
+
+class GpuConfigRollbackRequest(BaseModel):
+    """Request schema for rolling back to a previous configuration version.
+
+    Specifies which version to restore and how to handle the rollback.
+    """
+
+    version_id: str = Field(
+        ...,
+        description="ID of the version to roll back to",
+    )
+    apply_immediately: bool = Field(
+        default=True,
+        description="Whether to apply the rollback (restart services)",
+    )
+    description: str | None = Field(
+        None,
+        description="Description for the new version created by rollback",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "version_id": "550e8400-e29b-41d4-a716-446655440000",
+                "apply_immediately": True,
+                "description": "Rollback to stable configuration",
+            }
+        }
+    )
+
+
+class GpuConfigRollbackResponse(BaseModel):
+    """Response schema for configuration rollback.
+
+    Returns the result of the rollback operation.
+    """
+
+    success: bool = Field(
+        ...,
+        description="Whether the rollback was successful",
+    )
+    rolled_back_from: int = Field(
+        ...,
+        description="Version number before rollback",
+    )
+    rolled_back_to: int = Field(
+        ...,
+        description="Version number that was restored",
+    )
+    new_version: GpuConfigVersionSummary = Field(
+        ...,
+        description="The newly created version after rollback",
+    )
+    applied: bool = Field(
+        ...,
+        description="Whether the config was applied (services restarted)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "rolled_back_from": 5,
+                "rolled_back_to": 3,
+                "new_version": {
+                    "id": "660f9500-f30c-52e5-b827-557766550111",
+                    "version_number": 6,
+                    "strategy": "vram_based",
+                    "description": "Rollback to version 3",
+                    "created_at": "2026-01-23T11:00:00Z",
+                    "created_by": "rollback",
+                    "assignment_count": 5,
+                },
+                "applied": True,
+            }
+        }
+    )
+
+
 # Export all schemas
 __all__ = [
     "AiServiceInfo",
@@ -532,11 +1035,22 @@ __all__ = [
     "GpuApplyResponse",
     "GpuAssignment",
     "GpuAssignmentStrategy",
+    "GpuConfigAssignmentChange",
+    "GpuConfigExportData",
+    "GpuConfigImportRequest",
+    "GpuConfigImportResponse",
+    "GpuConfigImportValidation",
     "GpuConfigPreviewResponse",
     "GpuConfigResponse",
+    "GpuConfigRollbackRequest",
+    "GpuConfigRollbackResponse",
     "GpuConfigStatusResponse",
     "GpuConfigUpdateRequest",
     "GpuConfigUpdateResponse",
+    "GpuConfigVersionDetail",
+    "GpuConfigVersionDiffResponse",
+    "GpuConfigVersionListResponse",
+    "GpuConfigVersionSummary",
     "GpuDeviceResponse",
     "GpuDevicesResponse",
     "ServiceHealthResponse",

@@ -546,9 +546,270 @@ class IntrusionEvent(BaseModel):
     )
 
 
+# ============================================================================
+# Entity Distribution Schemas (NEM-4937)
+# ============================================================================
+
+
+class EntityTypeCount(BaseModel):
+    """Count of entities by type within a zone."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "entity_type": "person",
+                "count": 42,
+                "percentage": 65.5,
+            }
+        }
+    )
+
+    entity_type: str = Field(..., description="Entity type (e.g., person, vehicle, car)")
+    count: int = Field(..., ge=0, description="Number of entities of this type")
+    percentage: float = Field(..., ge=0, le=100, description="Percentage of total entities")
+
+
+class ZoneEntityDistribution(BaseModel):
+    """Entity distribution for a single zone."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "zone_id": 1,
+                "zone_name": "Front Yard",
+                "total_entities": 64,
+                "entity_types": [
+                    {"entity_type": "person", "count": 42, "percentage": 65.63},
+                    {"entity_type": "vehicle", "count": 15, "percentage": 23.44},
+                    {"entity_type": "dog", "count": 7, "percentage": 10.94},
+                ],
+            }
+        }
+    )
+
+    zone_id: int = Field(..., description="Zone ID")
+    zone_name: str = Field(..., description="Zone name for display")
+    total_entities: int = Field(..., ge=0, description="Total number of entities in this zone")
+    entity_types: list[EntityTypeCount] = Field(
+        ..., description="Breakdown of entity types in this zone"
+    )
+
+
+class ZoneEntityDistributionResponse(BaseModel):
+    """Response containing entity distribution across multiple zones."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "zones": [
+                    {
+                        "zone_id": 1,
+                        "zone_name": "Front Yard",
+                        "total_entities": 64,
+                        "entity_types": [
+                            {"entity_type": "person", "count": 42, "percentage": 65.63},
+                            {"entity_type": "vehicle", "count": 15, "percentage": 23.44},
+                            {"entity_type": "dog", "count": 7, "percentage": 10.94},
+                        ],
+                    }
+                ],
+                "grand_total": 64,
+                "start_time": "2026-01-31T00:00:00Z",
+                "end_time": "2026-01-31T23:59:59Z",
+            }
+        }
+    )
+
+    zones: list[ZoneEntityDistribution] = Field(..., description="Entity distribution per zone")
+    grand_total: int = Field(..., ge=0, description="Total entities across all zones")
+    start_time: datetime = Field(..., description="Start of the query time window")
+    end_time: datetime = Field(..., description="End of the query time window")
+
+
+# ============================================================================
+# Approach Vector Schemas (NEM-4936)
+# ============================================================================
+
+
+class ApproachUrgency(StrEnum):
+    """Urgency level based on ETA to zone."""
+
+    IMMINENT = "imminent"  # ETA < 3 seconds (red)
+    APPROACHING = "approaching"  # ETA 3-10 seconds (yellow)
+    DISTANT = "distant"  # ETA > 10 seconds (green)
+    NOT_APPROACHING = "not_approaching"  # Moving away or stationary
+
+
+class ApproachVectorData(BaseModel):
+    """Approach vector data for a single entity approaching a zone.
+
+    Contains movement trajectory analysis including direction, speed, and ETA.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "track_id": 42,
+                "object_class": "person",
+                "is_approaching": True,
+                "direction_degrees": 45.0,
+                "speed_normalized": 0.05,
+                "distance_to_zone": 0.15,
+                "estimated_arrival_seconds": 3.0,
+                "urgency": "imminent",
+                "current_position": {"x": 0.35, "y": 0.40},
+                "zone_centroid": {"x": 0.50, "y": 0.50},
+            }
+        }
+    )
+
+    track_id: int = Field(..., description="Tracking ID of the approaching entity")
+    object_class: str = Field(..., description="Object classification (person, vehicle, etc.)")
+    is_approaching: bool = Field(..., description="Whether entity is moving toward the zone")
+    direction_degrees: float = Field(
+        ...,
+        ge=0,
+        lt=360,
+        description="Direction of movement in degrees (0=up, 90=right, 180=down, 270=left)",
+    )
+    speed_normalized: float = Field(
+        ...,
+        ge=0,
+        description="Speed of movement in normalized units per second",
+    )
+    distance_to_zone: float = Field(
+        ...,
+        ge=0,
+        description="Current distance to zone boundary (normalized units, 0 = inside zone)",
+    )
+    estimated_arrival_seconds: float | None = Field(
+        None,
+        ge=0,
+        description="Estimated time to reach zone in seconds (None if not approaching)",
+    )
+    urgency: ApproachUrgency = Field(
+        ...,
+        description="Urgency level based on ETA (imminent/approaching/distant/not_approaching)",
+    )
+    current_position: dict[str, float] = Field(
+        ...,
+        description="Current position as {x, y} in normalized coordinates (0-1)",
+    )
+    zone_centroid: dict[str, float] = Field(
+        ...,
+        description="Zone centroid as {x, y} in normalized coordinates",
+    )
+
+
+class ZoneApproachVectorsResponse(BaseModel):
+    """Response containing approach vectors for a zone.
+
+    Provides real-time movement analysis for all tracked entities
+    approaching a specific zone.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "zone_id": 1,
+                "zone_name": "Front Door",
+                "approach_vectors": [
+                    {
+                        "track_id": 42,
+                        "object_class": "person",
+                        "is_approaching": True,
+                        "direction_degrees": 45.0,
+                        "speed_normalized": 0.05,
+                        "distance_to_zone": 0.15,
+                        "estimated_arrival_seconds": 3.0,
+                        "urgency": "imminent",
+                        "current_position": {"x": 0.35, "y": 0.40},
+                        "zone_centroid": {"x": 0.50, "y": 0.50},
+                    }
+                ],
+                "total_approaching": 1,
+                "imminent_count": 1,
+                "timestamp": "2026-01-31T12:00:00Z",
+            }
+        }
+    )
+
+    zone_id: int = Field(..., description="ID of the polygon zone")
+    zone_name: str = Field(..., description="Zone name for display")
+    approach_vectors: list[ApproachVectorData] = Field(
+        ...,
+        description="Approach vectors for all tracked entities",
+    )
+    total_approaching: int = Field(
+        ...,
+        ge=0,
+        description="Total number of entities approaching the zone",
+    )
+    imminent_count: int = Field(
+        ...,
+        ge=0,
+        description="Number of entities with imminent arrival (ETA < 3s)",
+    )
+    timestamp: datetime = Field(..., description="Timestamp of the analysis")
+
+
+class CameraApproachVectorsResponse(BaseModel):
+    """Response containing approach vectors for all zones on a camera.
+
+    Aggregates approach vector data across all zones for a single camera,
+    enabling efficient visualization of approaching entities.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "camera_id": "front_door",
+                "zones": [
+                    {
+                        "zone_id": 1,
+                        "zone_name": "Front Door",
+                        "approach_vectors": [
+                            {
+                                "track_id": 42,
+                                "object_class": "person",
+                                "is_approaching": True,
+                                "direction_degrees": 45.0,
+                                "speed_normalized": 0.05,
+                                "distance_to_zone": 0.15,
+                                "estimated_arrival_seconds": 3.0,
+                                "urgency": "imminent",
+                                "current_position": {"x": 0.35, "y": 0.40},
+                                "zone_centroid": {"x": 0.50, "y": 0.50},
+                            }
+                        ],
+                        "total_approaching": 1,
+                        "imminent_count": 1,
+                        "timestamp": "2026-01-31T12:00:00Z",
+                    }
+                ],
+                "total_zones": 1,
+                "total_approaching_entities": 1,
+            }
+        }
+    )
+
+    camera_id: str = Field(..., description="Camera ID")
+    zones: list[ZoneApproachVectorsResponse] = Field(
+        ...,
+        description="Approach vectors for each zone",
+    )
+    total_zones: int = Field(..., ge=0, description="Total number of zones analyzed")
+    total_approaching_entities: int = Field(
+        ...,
+        ge=0,
+        description="Total approaching entities across all zones",
+    )
+
+
 # Export all schemas
 __all__ = [  # noqa: RUF022
     # Enums
+    "ApproachUrgency",
     "CrossingDirection",
     "IntrusionSeverity",
     "PolygonZoneType",
@@ -567,4 +828,12 @@ __all__ = [  # noqa: RUF022
     # Event schemas
     "IntrusionEvent",
     "LineCrossingEvent",
+    # Entity distribution schemas (NEM-4937)
+    "EntityTypeCount",
+    "ZoneEntityDistribution",
+    "ZoneEntityDistributionResponse",
+    # Approach vector schemas (NEM-4936)
+    "ApproachVectorData",
+    "CameraApproachVectorsResponse",
+    "ZoneApproachVectorsResponse",
 ]

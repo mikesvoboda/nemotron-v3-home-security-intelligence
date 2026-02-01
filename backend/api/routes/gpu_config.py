@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.gpu_config import (
@@ -36,11 +36,22 @@ from backend.api.schemas.gpu_config import (
     GpuApplyResponse,
     GpuAssignment,
     GpuAssignmentStrategy,
+    GpuConfigAssignmentChange,
+    GpuConfigExportData,
+    GpuConfigImportRequest,
+    GpuConfigImportResponse,
+    GpuConfigImportValidation,
     GpuConfigPreviewResponse,
     GpuConfigResponse,
+    GpuConfigRollbackRequest,
+    GpuConfigRollbackResponse,
     GpuConfigStatusResponse,
     GpuConfigUpdateRequest,
     GpuConfigUpdateResponse,
+    GpuConfigVersionDetail,
+    GpuConfigVersionDiffResponse,
+    GpuConfigVersionListResponse,
+    GpuConfigVersionSummary,
     GpuDeviceResponse,
     GpuDevicesResponse,
     ServiceHealthResponse,
@@ -52,6 +63,7 @@ from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis_client_sync
 from backend.models.gpu_config import (
     GpuConfiguration,
+    GpuConfigurationVersion,
     SystemSetting,
 )
 from backend.models.gpu_config import (
@@ -215,6 +227,12 @@ async def _get_assignments_from_db(db: AsyncSession) -> list[GpuAssignment]:
                 service=config.service_name,
                 gpu_index=config.gpu_index,
                 vram_budget_override=config.vram_budget_override,
+                # Affinity constraints with defaults if None (NEM-4944)
+                exclusive_gpu=config.exclusive_gpu if config.exclusive_gpu is not None else False,
+                priority_weight=config.priority_weight
+                if config.priority_weight is not None
+                else 50,
+                incompatible_with=config.incompatible_with,
             )
         )
 
@@ -281,6 +299,58 @@ def _validate_vram_assignments(
     return warnings
 
 
+def _validate_affinity_constraints(assignments: list[GpuAssignment]) -> list[str]:
+    """Validate GPU affinity constraints and return warnings for violations.
+
+    Checks for:
+    1. Exclusive GPU violations: services marked exclusive sharing a GPU
+    2. Incompatibility violations: services marked as incompatible on same GPU
+
+    Args:
+        assignments: List of service-to-GPU assignments
+
+    Returns:
+        List of warning messages for any affinity constraint violations
+    """
+    warnings: list[str] = []
+
+    # Build map of GPU index to assigned services
+    gpu_services: dict[int, list[GpuAssignment]] = {}
+    for assignment in assignments:
+        if assignment.gpu_index is not None:
+            if assignment.gpu_index not in gpu_services:
+                gpu_services[assignment.gpu_index] = []
+            gpu_services[assignment.gpu_index].append(assignment)
+
+    # Check exclusive GPU constraints
+    for gpu_index, services in gpu_services.items():
+        exclusive_services = [s for s in services if s.exclusive_gpu]
+        if exclusive_services:
+            for exclusive in exclusive_services:
+                other_services = [s for s in services if s.service != exclusive.service]
+                if other_services:
+                    other_names = [s.service for s in other_services]
+                    warnings.append(
+                        f"Service '{exclusive.service}' requires exclusive GPU but shares "
+                        f"GPU {gpu_index} with: {', '.join(other_names)}"
+                    )
+
+    # Check incompatibility constraints
+    for gpu_index, services in gpu_services.items():
+        for assignment in services:
+            if assignment.incompatible_with:
+                for incompatible_service in assignment.incompatible_with:
+                    # Check if incompatible service is on the same GPU
+                    for other in services:
+                        if other.service == incompatible_service:
+                            warnings.append(
+                                f"Service '{assignment.service}' is incompatible with "
+                                f"'{incompatible_service}' but both are on GPU {gpu_index}"
+                            )
+
+    return warnings
+
+
 async def _save_assignments_to_db(
     db: AsyncSession,
     assignments: list[GpuAssignment],
@@ -299,6 +369,10 @@ async def _save_assignments_to_db(
             config.strategy = strategy.value
             config.vram_budget_override = assignment.vram_budget_override
             config.enabled = True
+            # Update affinity constraints (NEM-4944)
+            config.exclusive_gpu = assignment.exclusive_gpu
+            config.priority_weight = assignment.priority_weight
+            config.incompatible_with = assignment.incompatible_with
         else:
             # Create new
             config = GpuConfiguration(
@@ -307,6 +381,10 @@ async def _save_assignments_to_db(
                 strategy=strategy.value,
                 vram_budget_override=assignment.vram_budget_override,
                 enabled=True,
+                # Affinity constraints (NEM-4944)
+                exclusive_gpu=assignment.exclusive_gpu,
+                priority_weight=assignment.priority_weight,
+                incompatible_with=assignment.incompatible_with,
             )
             db.add(config)
 
@@ -665,11 +743,24 @@ async def update_gpu_config(
         vram_warnings = _validate_vram_assignments(assignments, gpus)
         warnings.extend(vram_warnings)
 
+        # Validate affinity constraints (NEM-4944)
+        affinity_warnings = _validate_affinity_constraints(assignments)
+        warnings.extend(affinity_warnings)
+
         # Save strategy
         await _set_current_strategy(db, strategy)
 
         # Save assignments
         await _save_assignments_to_db(db, assignments, strategy)
+
+        # Save version history (NEM-4945)
+        await _save_version(
+            db,
+            strategy=strategy.value if hasattr(strategy, "value") else str(strategy),
+            assignments=assignments,
+            description="Configuration update",
+            created_by="user",
+        )
 
         await db.commit()
 
@@ -1207,4 +1298,716 @@ async def get_service_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get service health: {e}",
+        ) from e
+
+
+# =============================================================================
+# Version History Endpoints (NEM-4945)
+# =============================================================================
+
+
+async def _get_next_version_number(db: AsyncSession) -> int:
+    """Get the next version number for a new configuration version.
+
+    Args:
+        db: Database session
+
+    Returns:
+        Next version number (1 if no versions exist)
+    """
+    result = await db.execute(select(func.max(GpuConfigurationVersion.version_number)))
+    max_version = result.scalar_one_or_none()
+    return (max_version or 0) + 1
+
+
+async def _save_version(
+    db: AsyncSession,
+    strategy: str,
+    assignments: list[GpuAssignment],
+    description: str | None = None,
+    created_by: str | None = None,
+) -> GpuConfigurationVersion:
+    """Save a new configuration version to the database.
+
+    Args:
+        db: Database session
+        strategy: Assignment strategy
+        assignments: List of service-to-GPU assignments
+        description: Optional description of changes
+        created_by: Who created this version
+
+    Returns:
+        The newly created GpuConfigurationVersion
+    """
+    version_number = await _get_next_version_number(db)
+
+    # Convert assignments to JSON-serializable format
+    assignments_json = [
+        {
+            "service": a.service,
+            "gpu_index": a.gpu_index,
+            "vram_budget_override": a.vram_budget_override,
+        }
+        for a in assignments
+    ]
+
+    version = GpuConfigurationVersion(
+        version_number=version_number,
+        strategy=strategy,
+        assignments=assignments_json,
+        description=description,
+        created_by=created_by,
+    )
+    db.add(version)
+
+    return version
+
+
+def _compute_diff(
+    old_assignments: list[dict],
+    new_assignments: list[dict],
+) -> list[GpuConfigAssignmentChange]:
+    """Compute the differences between two sets of assignments.
+
+    Args:
+        old_assignments: Assignments from the older version
+        new_assignments: Assignments from the newer version
+
+    Returns:
+        List of assignment changes
+    """
+    changes: list[GpuConfigAssignmentChange] = []
+
+    old_by_service = {a["service"]: a for a in old_assignments}
+    new_by_service = {a["service"]: a for a in new_assignments}
+
+    all_services = set(old_by_service.keys()) | set(new_by_service.keys())
+
+    for service in sorted(all_services):
+        old_a = old_by_service.get(service)
+        new_a = new_by_service.get(service)
+
+        if old_a is None and new_a is not None:
+            # Added
+            changes.append(
+                GpuConfigAssignmentChange(
+                    service=service,
+                    change_type="added",
+                    old_gpu_index=None,
+                    new_gpu_index=new_a.get("gpu_index"),
+                    old_vram_override=None,
+                    new_vram_override=new_a.get("vram_budget_override"),
+                )
+            )
+        elif old_a is not None and new_a is None:
+            # Removed
+            changes.append(
+                GpuConfigAssignmentChange(
+                    service=service,
+                    change_type="removed",
+                    old_gpu_index=old_a.get("gpu_index"),
+                    new_gpu_index=None,
+                    old_vram_override=old_a.get("vram_budget_override"),
+                    new_vram_override=None,
+                )
+            )
+        elif old_a is not None and new_a is not None:
+            # Check if modified
+            if old_a.get("gpu_index") != new_a.get("gpu_index") or old_a.get(
+                "vram_budget_override"
+            ) != new_a.get("vram_budget_override"):
+                changes.append(
+                    GpuConfigAssignmentChange(
+                        service=service,
+                        change_type="modified",
+                        old_gpu_index=old_a.get("gpu_index"),
+                        new_gpu_index=new_a.get("gpu_index"),
+                        old_vram_override=old_a.get("vram_budget_override"),
+                        new_vram_override=new_a.get("vram_budget_override"),
+                    )
+                )
+
+    return changes
+
+
+@router.get(
+    "/gpu-config/history",
+    response_model=GpuConfigVersionListResponse,
+    summary="List configuration version history",
+    description="Returns paginated list of GPU configuration versions.",
+    responses={
+        500: {"description": "Failed to load version history"},
+    },
+)
+async def list_config_versions(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum versions to return"),
+    offset: int = Query(default=0, ge=0, description="Number of versions to skip"),
+) -> GpuConfigVersionListResponse:
+    """List GPU configuration version history.
+
+    Returns a paginated list of configuration versions ordered by creation time
+    (newest first). Each version includes a summary with strategy, description,
+    and timestamp.
+
+    Args:
+        db: Database session
+        limit: Maximum number of versions to return (1-100)
+        offset: Number of versions to skip for pagination
+
+    Returns:
+        GpuConfigVersionListResponse with version summaries and total count
+    """
+    try:
+        # Get total count
+        count_result = await db.execute(select(func.count()).select_from(GpuConfigurationVersion))
+        total_count = count_result.scalar_one()
+
+        # Get versions
+        result = await db.execute(
+            select(GpuConfigurationVersion)
+            .order_by(desc(GpuConfigurationVersion.version_number))
+            .limit(limit)
+            .offset(offset)
+        )
+        versions = result.scalars().all()
+
+        version_summaries = [
+            GpuConfigVersionSummary(
+                id=v.id,
+                version_number=v.version_number,
+                strategy=v.strategy,
+                description=v.description,
+                created_at=v.created_at,
+                created_by=v.created_by,
+                assignment_count=len(v.assignments) if v.assignments else 0,
+            )
+            for v in versions
+        ]
+
+        return GpuConfigVersionListResponse(
+            versions=version_summaries,
+            total_count=total_count,
+        )
+
+    except Exception as e:
+        logger.exception("Failed to load version history")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load version history: {e}",
+        ) from e
+
+
+@router.get(
+    "/gpu-config/history/{version_id}",
+    response_model=GpuConfigVersionDetail,
+    summary="Get configuration version details",
+    description="Returns full details of a specific configuration version.",
+    responses={
+        404: {"description": "Version not found"},
+        500: {"description": "Failed to load version"},
+    },
+)
+async def get_config_version(
+    version_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> GpuConfigVersionDetail:
+    """Get details of a specific configuration version.
+
+    Returns the full configuration including all assignments for a given
+    version ID.
+
+    Args:
+        version_id: Unique version identifier
+        db: Database session
+
+    Returns:
+        GpuConfigVersionDetail with full configuration data
+    """
+    try:
+        result = await db.execute(
+            select(GpuConfigurationVersion).where(GpuConfigurationVersion.id == version_id)
+        )
+        version = result.scalar_one_or_none()
+
+        if version is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Configuration version {version_id} not found",
+            )
+
+        # Convert assignments JSON to GpuAssignment objects
+        assignments = [
+            GpuAssignment(
+                service=a["service"],
+                gpu_index=a.get("gpu_index"),
+                vram_budget_override=a.get("vram_budget_override"),
+            )
+            for a in (version.assignments or [])
+        ]
+
+        return GpuConfigVersionDetail(
+            id=version.id,
+            version_number=version.version_number,
+            strategy=version.strategy,
+            description=version.description,
+            created_at=version.created_at,
+            created_by=version.created_by,
+            assignment_count=len(assignments),
+            assignments=assignments,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to load version")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load version: {e}",
+        ) from e
+
+
+@router.get(
+    "/gpu-config/history/diff",
+    response_model=GpuConfigVersionDiffResponse,
+    summary="Compare two configuration versions",
+    description="Returns the differences between two configuration versions.",
+    responses={
+        404: {"description": "Version not found"},
+        500: {"description": "Failed to compute diff"},
+    },
+)
+async def diff_config_versions(
+    from_version: int = Query(..., description="Source version number"),
+    to_version: int = Query(..., description="Target version number"),
+    db: AsyncSession = Depends(get_db),
+) -> GpuConfigVersionDiffResponse:
+    """Compare two configuration versions.
+
+    Returns the differences between two versions including strategy changes
+    and assignment changes (added, removed, modified).
+
+    Args:
+        from_version: Source version number
+        to_version: Target version number
+        db: Database session
+
+    Returns:
+        GpuConfigVersionDiffResponse with changes between versions
+    """
+    try:
+        # Get both versions
+        result = await db.execute(
+            select(GpuConfigurationVersion).where(
+                GpuConfigurationVersion.version_number.in_([from_version, to_version])
+            )
+        )
+        versions = {v.version_number: v for v in result.scalars().all()}
+
+        if from_version not in versions:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Version {from_version} not found",
+            )
+        if to_version not in versions:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Version {to_version} not found",
+            )
+
+        old_version = versions[from_version]
+        new_version = versions[to_version]
+
+        strategy_changed = old_version.strategy != new_version.strategy
+        assignment_changes = _compute_diff(
+            old_version.assignments or [],
+            new_version.assignments or [],
+        )
+
+        return GpuConfigVersionDiffResponse(
+            from_version=from_version,
+            to_version=to_version,
+            strategy_changed=strategy_changed,
+            old_strategy=old_version.strategy if strategy_changed else None,
+            new_strategy=new_version.strategy if strategy_changed else None,
+            assignment_changes=assignment_changes,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to compute diff")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to compute diff: {e}",
+        ) from e
+
+
+# =============================================================================
+# Export/Import Endpoints (NEM-4945)
+# =============================================================================
+
+
+@router.get(
+    "/gpu-config/export",
+    response_model=GpuConfigExportData,
+    summary="Export current GPU configuration",
+    description="Exports current configuration in a format suitable for backup/restore.",
+    responses={
+        500: {"description": "Failed to export configuration"},
+    },
+)
+async def export_gpu_config(
+    db: AsyncSession = Depends(get_db),
+    version_id: str | None = Query(None, description="Export specific version (default: current)"),
+) -> GpuConfigExportData:
+    """Export GPU configuration.
+
+    Exports the current configuration (or a specific version) in JSON format
+    that can be saved and later imported. Includes strategy, assignments,
+    and metadata.
+
+    Args:
+        db: Database session
+        version_id: Optional version ID to export (default: current config)
+
+    Returns:
+        GpuConfigExportData with exportable configuration
+    """
+    try:
+        if version_id:
+            # Export specific version
+            result = await db.execute(
+                select(GpuConfigurationVersion).where(GpuConfigurationVersion.id == version_id)
+            )
+            version = result.scalar_one_or_none()
+
+            if version is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Version {version_id} not found",
+                )
+
+            assignments = [
+                GpuAssignment(
+                    service=a["service"],
+                    gpu_index=a.get("gpu_index"),
+                    vram_budget_override=a.get("vram_budget_override"),
+                )
+                for a in (version.assignments or [])
+            ]
+
+            return GpuConfigExportData(
+                export_version="1.0",
+                exported_at=datetime.now(UTC),
+                strategy=version.strategy,
+                assignments=assignments,
+                source_version=version.version_number,
+                description=version.description,
+            )
+
+        # Export current configuration
+        strategy = await _get_current_strategy(db)
+        assignments = await _get_assignments_from_db(db)
+
+        # Get current version number if any
+        result = await db.execute(select(func.max(GpuConfigurationVersion.version_number)))
+        current_version = result.scalar_one_or_none()
+
+        return GpuConfigExportData(
+            export_version="1.0",
+            exported_at=datetime.now(UTC),
+            strategy=strategy.value,
+            assignments=assignments,
+            source_version=current_version,
+            description="Current configuration export",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to export configuration")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export configuration: {e}",
+        ) from e
+
+
+@router.post(
+    "/gpu-config/import",
+    response_model=GpuConfigImportResponse,
+    summary="Import GPU configuration",
+    description="Imports a previously exported configuration with validation.",
+    responses={
+        400: {"description": "Invalid configuration"},
+        500: {"description": "Failed to import configuration"},
+    },
+)
+async def import_gpu_config(
+    request: GpuConfigImportRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GpuConfigImportResponse:
+    """Import GPU configuration.
+
+    Validates and imports a configuration from export data. Optionally applies
+    the configuration immediately (restarting services).
+
+    Args:
+        request: Import request with configuration data
+        db: Database session
+
+    Returns:
+        GpuConfigImportResponse with import result
+    """
+    try:
+        config = request.config
+        warnings: list[str] = []
+        errors: list[str] = []
+
+        # Validate export version
+        if config.export_version != "1.0":
+            errors.append(f"Unsupported export version: {config.export_version}")
+
+        # Validate strategy
+        try:
+            strategy = GpuAssignmentStrategy(config.strategy)
+        except ValueError:
+            errors.append(f"Invalid strategy: {config.strategy}")
+            strategy = GpuAssignmentStrategy.MANUAL
+
+        # Validate assignments
+        known_services = set(AI_SERVICE_VRAM_REQUIREMENTS_MB.keys())
+        valid_assignments: list[GpuAssignment] = []
+
+        for assignment in config.assignments:
+            if assignment.service not in known_services:
+                warnings.append(f"Service '{assignment.service}' not found - will be skipped")
+            else:
+                valid_assignments.append(assignment)
+
+        # Validate VRAM budgets
+        detection_service = get_gpu_detection_service()
+        gpus = await detection_service.detect_gpus()
+        vram_warnings = _validate_vram_assignments(valid_assignments, gpus)
+        warnings.extend(vram_warnings)
+
+        if not valid_assignments:
+            errors.append("No valid assignments in configuration")
+
+        validation = GpuConfigImportValidation(
+            valid=len(errors) == 0,
+            warnings=warnings,
+            errors=errors,
+        )
+
+        if not validation.valid:
+            return GpuConfigImportResponse(
+                success=False,
+                validation=validation,
+                new_version=None,
+                applied=False,
+            )
+
+        # Save the configuration
+        await _set_current_strategy(db, strategy)
+        await _save_assignments_to_db(db, valid_assignments, strategy)
+
+        # Create version record
+        description = request.description or config.description or "Imported configuration"
+        version = await _save_version(
+            db,
+            strategy=strategy.value,
+            assignments=valid_assignments,
+            description=description,
+            created_by="import",
+        )
+
+        await db.commit()
+
+        new_version_summary = GpuConfigVersionSummary(
+            id=version.id,
+            version_number=version.version_number,
+            strategy=version.strategy,
+            description=version.description,
+            created_at=version.created_at,
+            created_by=version.created_by,
+            assignment_count=len(valid_assignments),
+        )
+
+        # Apply if requested
+        applied = False
+        if request.apply_immediately:
+            # Trigger apply (reuse existing apply logic)
+            # For now, just write config files
+            config_assignments = [
+                GpuAssignmentDataclass(
+                    service_name=a.service,
+                    gpu_index=a.gpu_index if a.gpu_index is not None else 0,
+                    vram_budget_override=a.vram_budget_override,
+                )
+                for a in valid_assignments
+                if a.gpu_index is not None
+            ]
+
+            redis = await _get_redis_client()
+            config_service = GpuConfigService(redis_client=redis)
+            await config_service.write_config_files(
+                assignments=config_assignments,
+                strategy=strategy.value,
+            )
+            applied = True
+
+        logger.info(
+            f"GPU configuration imported: version={version.version_number}, "
+            f"assignments={len(valid_assignments)}, applied={applied}"
+        )
+
+        return GpuConfigImportResponse(
+            success=True,
+            validation=validation,
+            new_version=new_version_summary,
+            applied=applied,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.exception("Failed to import configuration")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import configuration: {e}",
+        ) from e
+
+
+@router.post(
+    "/gpu-config/rollback",
+    response_model=GpuConfigRollbackResponse,
+    summary="Rollback to previous configuration",
+    description="Restores a previous configuration version.",
+    responses={
+        404: {"description": "Version not found"},
+        500: {"description": "Failed to rollback"},
+    },
+)
+async def rollback_gpu_config(
+    request: GpuConfigRollbackRequest,
+    db: AsyncSession = Depends(get_db),
+) -> GpuConfigRollbackResponse:
+    """Rollback to a previous configuration version.
+
+    Restores the configuration from a specific version, creating a new
+    version record for the rollback. Optionally applies the configuration
+    immediately.
+
+    Args:
+        request: Rollback request with version ID
+        db: Database session
+
+    Returns:
+        GpuConfigRollbackResponse with rollback result
+    """
+    try:
+        # Get the version to rollback to
+        result = await db.execute(
+            select(GpuConfigurationVersion).where(GpuConfigurationVersion.id == request.version_id)
+        )
+        target_version = result.scalar_one_or_none()
+
+        if target_version is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Version {request.version_id} not found",
+            )
+
+        # Get current version number
+        current_version_result = await db.execute(
+            select(func.max(GpuConfigurationVersion.version_number))
+        )
+        current_version_number = current_version_result.scalar_one_or_none() or 0
+
+        # Parse strategy
+        try:
+            strategy = GpuAssignmentStrategy(target_version.strategy)
+        except ValueError:
+            strategy = GpuAssignmentStrategy.MANUAL
+
+        # Convert assignments
+        assignments = [
+            GpuAssignment(
+                service=a["service"],
+                gpu_index=a.get("gpu_index"),
+                vram_budget_override=a.get("vram_budget_override"),
+            )
+            for a in (target_version.assignments or [])
+        ]
+
+        # Apply the configuration
+        await _set_current_strategy(db, strategy)
+        await _save_assignments_to_db(db, assignments, strategy)
+
+        # Create new version record for the rollback
+        description = request.description or f"Rollback to version {target_version.version_number}"
+        new_version = await _save_version(
+            db,
+            strategy=target_version.strategy,
+            assignments=assignments,
+            description=description,
+            created_by="rollback",
+        )
+
+        await db.commit()
+
+        # Apply if requested
+        applied = False
+        if request.apply_immediately:
+            config_assignments = [
+                GpuAssignmentDataclass(
+                    service_name=a.service,
+                    gpu_index=a.gpu_index if a.gpu_index is not None else 0,
+                    vram_budget_override=a.vram_budget_override,
+                )
+                for a in assignments
+                if a.gpu_index is not None
+            ]
+
+            redis = await _get_redis_client()
+            config_service = GpuConfigService(redis_client=redis)
+            await config_service.write_config_files(
+                assignments=config_assignments,
+                strategy=strategy.value,
+            )
+            applied = True
+
+        new_version_summary = GpuConfigVersionSummary(
+            id=new_version.id,
+            version_number=new_version.version_number,
+            strategy=new_version.strategy,
+            description=new_version.description,
+            created_at=new_version.created_at,
+            created_by=new_version.created_by,
+            assignment_count=len(assignments),
+        )
+
+        logger.info(
+            f"GPU configuration rolled back: from_version={current_version_number}, "
+            f"to_version={target_version.version_number}, new_version={new_version.version_number}"
+        )
+
+        return GpuConfigRollbackResponse(
+            success=True,
+            rolled_back_from=current_version_number,
+            rolled_back_to=target_version.version_number,
+            new_version=new_version_summary,
+            applied=applied,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.exception("Failed to rollback configuration")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to rollback configuration: {e}",
         ) from e

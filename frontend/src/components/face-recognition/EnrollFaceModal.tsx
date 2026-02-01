@@ -3,8 +3,10 @@
  *
  * Features:
  * - Display face preview/thumbnail from detection
- * - Show quality score with visual indicator
+ * - Show quality score with visual indicator and factors breakdown (NEM-4953)
  * - Quality warnings: block < 0.7, warn 0.7-0.8, green >= 0.8
+ * - Quality factors breakdown: blur, lighting, angle, occlusion
+ * - Recommendations for better enrollment
  * - Two modes: add to existing person OR create new person
  * - Person selector dropdown (searchable)
  * - New person form with name and household checkbox
@@ -13,12 +15,14 @@
  *
  * @module components/face-recognition/EnrollFaceModal
  * @see NEM-4688 Phase 2 - Face Enrollment Modal
+ * @see NEM-4953 - Face Quality Assessment Visualization During Enrollment
  */
 
 import { Dialog, Listbox, Transition } from '@headlessui/react';
 import { Check, ChevronDown, Home, Loader2, X } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
+import FaceQualityAssessment from './FaceQualityAssessment';
 import {
   useKnownPersonsQuery,
   useEnrollFace,
@@ -26,7 +30,7 @@ import {
 } from '../../hooks/useFaceRecognitionApi';
 import { useToast } from '../../hooks/useToast';
 
-import type { KnownPerson } from '../../types/faceRecognition';
+import type { KnownPerson, QualityFactors } from '../../types/faceRecognition';
 
 // ============================================================================
 // Types
@@ -43,10 +47,14 @@ export interface EnrollFaceModalProps {
   facePreviewUrl?: string;
   /** Quality score of the detected face (0-1) */
   qualityScore: number;
+  /** Optional quality factors breakdown (NEM-4953) */
+  qualityFactors?: QualityFactors;
   /** Name of the camera that captured the detection */
   cameraName: string;
   /** ISO timestamp of the detection */
   timestamp?: string;
+  /** Whether to show detailed quality factors (default: true) */
+  showDetailedQuality?: boolean;
 }
 
 type EnrollMode = 'existing' | 'new';
@@ -56,9 +64,6 @@ const MAX_EMBEDDINGS = 10;
 
 /** Quality threshold for blocking enrollment */
 const QUALITY_BLOCK_THRESHOLD = 0.7;
-
-/** Quality threshold for warning */
-const QUALITY_WARN_THRESHOLD = 0.8;
 
 // ============================================================================
 // Helper Functions
@@ -85,35 +90,10 @@ function formatTimestamp(timestamp: string | undefined): string {
 }
 
 /**
- * Get quality indicator color class.
- */
-function getQualityColorClass(score: number): string {
-  if (score >= QUALITY_WARN_THRESHOLD) return 'bg-green-500';
-  if (score >= QUALITY_BLOCK_THRESHOLD) return 'bg-yellow-500';
-  return 'bg-red-500';
-}
-
-/**
- * Get quality label text.
- */
-function getQualityLabel(score: number): string {
-  if (score >= QUALITY_WARN_THRESHOLD) return 'Good';
-  if (score >= QUALITY_BLOCK_THRESHOLD) return 'Fair';
-  return 'Poor';
-}
-
-/**
  * Check if enrollment is blocked due to quality.
  */
 function isQualityBlocked(score: number): boolean {
   return score < QUALITY_BLOCK_THRESHOLD;
-}
-
-/**
- * Check if quality warning should be shown.
- */
-function shouldShowQualityWarning(score: number): boolean {
-  return score >= QUALITY_BLOCK_THRESHOLD && score < QUALITY_WARN_THRESHOLD;
 }
 
 // ============================================================================
@@ -126,8 +106,10 @@ export default function EnrollFaceModal({
   detectionId,
   facePreviewUrl,
   qualityScore,
+  qualityFactors,
   cameraName,
   timestamp,
+  showDetailedQuality = true,
 }: EnrollFaceModalProps) {
   // Form state
   const [mode, setMode] = useState<EnrollMode>('existing');
@@ -163,7 +145,6 @@ export default function EnrollFaceModal({
 
   // Validation
   const qualityBlocked = isQualityBlocked(qualityScore);
-  const showQualityWarning = shouldShowQualityWarning(qualityScore);
   const selectedAtMax = selectedPerson && selectedPerson.embedding_count >= MAX_EMBEDDINGS;
 
   const canEnroll = useMemo(() => {
@@ -244,9 +225,6 @@ export default function EnrollFaceModal({
     setSearchQuery('');
   }, []);
 
-  // Calculate progress bar width
-  const progressWidth = Math.min(100, Math.max(0, qualityScore * 100));
-
   const imageUrl = facePreviewUrl || '/placeholder-face.png';
 
   return (
@@ -292,7 +270,7 @@ export default function EnrollFaceModal({
                   </button>
                 </div>
 
-                {/* Face Preview and Info */}
+                {/* Face Preview and Detection Info */}
                 <div className="flex gap-6 mb-6">
                   {/* Face Preview */}
                   <div className="flex-shrink-0">
@@ -301,63 +279,30 @@ export default function EnrollFaceModal({
                       alt="Face preview"
                       className="w-24 h-24 object-cover rounded-lg border border-gray-700"
                     />
+                    {/* Detection Info under image */}
+                    <div className="mt-2 space-y-1">
+                      <div className="flex items-center text-xs">
+                        <span className="text-gray-500 w-14">Camera:</span>
+                        <span className="text-gray-300 truncate" title={cameraName}>{cameraName}</span>
+                      </div>
+                      <div className="flex items-center text-xs">
+                        <span className="text-gray-500 w-14">Time:</span>
+                        <span className="text-gray-300">{formatTimestamp(timestamp)}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Quality and Detection Info */}
-                  <div className="flex-1 space-y-3">
-                    {/* Quality Score */}
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="text-gray-400">Quality Score:</span>
-                        <span className="text-white font-medium">{qualityScore.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            data-testid="quality-progress-bar"
-                            className={`h-full transition-all ${getQualityColorClass(qualityScore)}`}
-                            style={{ width: `${progressWidth}%` }}
-                          />
-                        </div>
-                        <div
-                          data-testid="quality-indicator"
-                          className={`w-3 h-3 rounded-full ${getQualityColorClass(qualityScore)}`}
-                          aria-label={`Quality: ${getQualityLabel(qualityScore)}`}
-                        />
-                        <span className="text-sm text-gray-300">{getQualityLabel(qualityScore)}</span>
-                      </div>
-                    </div>
-
-                    {/* Camera */}
-                    <div className="flex items-center text-sm">
-                      <span className="text-gray-400 w-16">Camera:</span>
-                      <span className="text-white">{cameraName}</span>
-                    </div>
-
-                    {/* Time */}
-                    <div className="flex items-center text-sm">
-                      <span className="text-gray-400 w-16">Time:</span>
-                      <span className="text-white">{formatTimestamp(timestamp)}</span>
-                    </div>
+                  {/* Quality Assessment (NEM-4953) */}
+                  <div className="flex-1">
+                    <FaceQualityAssessment
+                      qualityScore={qualityScore}
+                      qualityFactors={qualityFactors}
+                      showFactors={showDetailedQuality}
+                      showRecommendations={true}
+                      compact={false}
+                    />
                   </div>
                 </div>
-
-                {/* Quality Warnings */}
-                {qualityBlocked && (
-                  <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                    <p className="text-sm text-red-400">
-                      Quality too low (below 0.7). Face cannot be enrolled.
-                    </p>
-                  </div>
-                )}
-
-                {showQualityWarning && (
-                  <div className="mb-6 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                    <p className="text-sm text-yellow-400">
-                      Quality is below 0.8 - recognition may be less accurate.
-                    </p>
-                  </div>
-                )}
 
                 {/* Mode Selection */}
                 <fieldset className="mb-6" disabled={isPending}>
