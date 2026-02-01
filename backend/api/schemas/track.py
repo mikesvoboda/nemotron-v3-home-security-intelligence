@@ -193,3 +193,63 @@ class TrackListResponse(BaseModel):
     total: int = Field(..., ge=0, description="Total number of tracks matching the query")
     page: int = Field(..., ge=1, description="Current page number (1-indexed)")
     page_size: int = Field(..., ge=1, le=1000, description="Number of items per page")
+
+
+class CameraTrackStats(BaseModel):
+    """Statistics for tracks on a specific camera.
+
+    Aggregated statistics useful for dashboard displays
+    and camera health monitoring.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "active_count": 3,
+                "total_today": 47,
+                "avg_duration_seconds": 12.5,
+                "by_object_type": {"person": 35, "car": 10, "dog": 2},
+            }
+        }
+    )
+
+    active_count: int = Field(
+        ..., ge=0, description="Number of currently active tracks (updated in last 5 minutes)"
+    )
+    total_today: int = Field(..., ge=0, description="Total tracks created today")
+    avg_duration_seconds: float = Field(..., ge=0, description="Average track duration in seconds")
+    by_object_type: dict[str, int] = Field(..., description="Track counts grouped by object type")
+
+
+class ActiveTracksResponse(BaseModel):
+    """Response for active tracks endpoint.
+
+    Returns currently active tracks with count.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "tracks": [
+                    {
+                        "id": 1,
+                        "track_id": 42,
+                        "camera_id": "front_door",
+                        "object_class": "person",
+                        "first_seen": "2026-01-26T12:00:00Z",
+                        "last_seen": "2026-01-26T12:00:27Z",
+                        "metrics": {
+                            "total_distance": 1250.5,
+                            "avg_speed": 45.2,
+                            "direction": 135.0,
+                            "duration_seconds": 27.7,
+                        },
+                    },
+                ],
+                "count": 1,
+            }
+        }
+    )
+
+    tracks: list[TrackResponse] = Field(..., description="List of active tracks")
+    count: int = Field(..., ge=0, description="Number of active tracks")

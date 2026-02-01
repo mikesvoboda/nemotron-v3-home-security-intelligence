@@ -957,6 +957,50 @@
         "title": "ActiveDwellersListResponse",
         "type": "object"
       },
+      "ActiveTracksResponse": {
+        "description": "Response for active tracks endpoint.\n\nReturns currently active tracks with count.",
+        "example": {
+          "count": 1,
+          "tracks": [
+            {
+              "camera_id": "front_door",
+              "first_seen": "2026-01-26T12:00:00Z",
+              "id": 1,
+              "last_seen": "2026-01-26T12:00:27Z",
+              "metrics": {
+                "avg_speed": 45.2,
+                "direction": 135.0,
+                "duration_seconds": 27.7,
+                "total_distance": 1250.5
+              },
+              "object_class": "person",
+              "track_id": 42
+            }
+          ]
+        },
+        "properties": {
+          "count": {
+            "description": "Number of active tracks",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "tracks": {
+            "description": "List of active tracks",
+            "items": {
+              "$ref": "#/components/schemas/TrackResponse"
+            },
+            "title": "Tracks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tracks",
+          "count"
+        ],
+        "title": "ActiveTracksResponse",
+        "type": "object"
+      },
       "ActivityBaselineEntry": {
         "description": "A single activity baseline entry for a specific hour and day combination.\n\nThis represents one cell in the 24x7 activity heatmap (168 total entries).",
         "example": {
@@ -5582,6 +5626,55 @@
         ],
         "title": "CameraStatus",
         "type": "string"
+      },
+      "CameraTrackStats": {
+        "description": "Statistics for tracks on a specific camera.\n\nAggregated statistics useful for dashboard displays\nand camera health monitoring.",
+        "example": {
+          "active_count": 3,
+          "avg_duration_seconds": 12.5,
+          "by_object_type": {
+            "car": 10,
+            "dog": 2,
+            "person": 35
+          },
+          "total_today": 47
+        },
+        "properties": {
+          "active_count": {
+            "description": "Number of currently active tracks (updated in last 5 minutes)",
+            "minimum": 0.0,
+            "title": "Active Count",
+            "type": "integer"
+          },
+          "avg_duration_seconds": {
+            "description": "Average track duration in seconds",
+            "minimum": 0.0,
+            "title": "Avg Duration Seconds",
+            "type": "number"
+          },
+          "by_object_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Track counts grouped by object type",
+            "title": "By Object Type",
+            "type": "object"
+          },
+          "total_today": {
+            "description": "Total tracks created today",
+            "minimum": 0.0,
+            "title": "Total Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active_count",
+          "total_today",
+          "avg_duration_seconds",
+          "by_object_type"
+        ],
+        "title": "CameraTrackStats",
+        "type": "object"
       },
       "CameraUpdate": {
         "description": "Schema for updating an existing camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for partial updates.\nAll fields are optional; only provided fields are validated.\n\nNEM-4191: Added RTSP/ONVIF streaming fields for partial updates.",
@@ -42246,6 +42339,159 @@
         ]
       }
     },
+    "/api/cameras/{camera_id}/tracks": {
+      "get": {
+        "description": "List all tracks for a specific camera with optional filtering by object class. Results are paginated and ordered by first_seen descending (newest first).",
+        "operationId": "tracks_list_camera_tracks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by object class (e.g., person, car)",
+            "in": "query",
+            "name": "object_class",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by object class (e.g., person, car)",
+              "title": "Object Class"
+            }
+          },
+          {
+            "description": "Page number (1-indexed)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page number (1-indexed)",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Number of items per page",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackListResponse"
+                }
+              }
+            },
+            "description": "Successful response with list of tracks"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "List tracks for a camera",
+        "tags": [
+          "tracks"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/tracks/active": {
+      "get": {
+        "description": "Retrieve currently active tracks for a camera. Active tracks are those updated within the last 5 minutes.",
+        "operationId": "tracks_get_active_tracks",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveTracksResponse"
+                }
+              }
+            },
+            "description": "Successful response with active tracks"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get active tracks for a camera",
+        "tags": [
+          "tracks"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/tracks/stats": {
+      "get": {
+        "description": "Retrieve aggregated track statistics for a camera including active count, total today, average duration, and counts by object type.",
+        "operationId": "tracks_get_camera_track_stats",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraTrackStats"
+                }
+              }
+            },
+            "description": "Successful response with track statistics"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get track statistics for a camera",
+        "tags": [
+          "tracks"
+        ]
+      }
+    },
     "/api/cameras/{camera_id}/zones": {
       "get": {
         "description": "List all zones for a camera with optional filtering.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    enabled: Optional filter for enabled/disabled zones\n\nReturns:\n    ZoneListResponse containing list of zones and total count",
@@ -55864,60 +56110,31 @@
         ]
       }
     },
-    "/api/tracks/camera/{camera_id}": {
+    "/api/tracks": {
       "get": {
-        "description": "Get paginated list of tracks for a camera.\n\nReturns a list of tracks observed on a specific camera with optional\nfiltering by time range and object class. Results are ordered by\nfirst_seen timestamp (newest first).\n\nArgs:\n    camera_id: ID of the camera to query tracks for.\n    db: Database session.\n    start_time: Optional start time filter (inclusive, ISO format).\n    end_time: Optional end time filter (inclusive, ISO format).\n    object_class: Optional filter by object class (e.g., 'person', 'car').\n    page: Page number (1-indexed, default 1).\n    page_size: Number of items per page (1-100, default 50).\n\nReturns:\n    TrackListResponse with paginated tracks and total count.\n\nExample:\n    GET /api/tracks/camera/front_door?object_class=person&page=1&page_size=25\n    Returns first 25 person tracks from front_door camera.",
-        "operationId": "tracks_get_tracks_by_camera",
+        "description": "List all tracks with optional filtering by camera and object class. Results are paginated and ordered by first_seen descending (newest first).",
+        "operationId": "tracks_list_tracks",
         "parameters": [
           {
-            "in": "path",
+            "description": "Filter by camera ID",
+            "in": "query",
             "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Filter tracks starting after this time (ISO format)",
-            "in": "query",
-            "name": "start_time",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "format": "date-time",
                   "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "Filter tracks starting after this time (ISO format)",
-              "title": "Start Time"
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
             }
           },
           {
-            "description": "Filter tracks starting before this time (ISO format)",
-            "in": "query",
-            "name": "end_time",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Filter tracks starting before this time (ISO format)",
-              "title": "End Time"
-            }
-          },
-          {
-            "description": "Filter by object class (e.g., 'person', 'car')",
+            "description": "Filter by object class (e.g., person, car)",
             "in": "query",
             "name": "object_class",
             "required": false,
@@ -55930,7 +56147,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by object class (e.g., 'person', 'car')",
+              "description": "Filter by object class (e.g., person, car)",
               "title": "Object Class"
             }
           },
@@ -55955,7 +56172,7 @@
             "schema": {
               "default": 50,
               "description": "Number of items per page",
-              "maximum": 100,
+              "maximum": 1000,
               "minimum": 1,
               "title": "Page Size",
               "type": "integer"
@@ -55971,39 +56188,62 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful response with list of tracks"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
           }
         },
-        "summary": "Get Tracks By Camera",
+        "summary": "List all tracks",
         "tags": [
           "tracks"
         ]
       }
     },
-    "/api/tracks/{camera_id}/{track_id}": {
+    "/api/tracks/{track_id}": {
       "get": {
-        "description": "Get full track history with trajectory and metrics.\n\nReturns the complete trajectory data and computed movement metrics\nfor a specific track, suitable for visualization and analysis.\n\nArgs:\n    camera_id: ID of the camera where the track was observed.\n    track_id: Tracker-assigned track ID (unique per camera session).\n    db: Database session.\n\nReturns:\n    TrackHistoryResponse with full trajectory and movement metrics.\n\nRaises:\n    HTTPException: 404 if track not found.\n\nExample:\n    GET /api/tracks/front_door/42\n    Returns trajectory points and metrics for track 42 on front_door camera.",
-        "operationId": "tracks_get_track_history",
+        "description": "Retrieve a single track by its database primary key ID.",
+        "operationId": "tracks_get_track_by_id",
         "parameters": [
           {
             "in": "path",
-            "name": "camera_id",
+            "name": "track_id",
             "required": true,
             "schema": {
-              "title": "Camera Id",
-              "type": "string"
+              "title": "Track Id",
+              "type": "integer"
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackResponse"
+                }
+              }
+            },
+            "description": "Successful response with track details"
           },
+          "404": {
+            "description": "Track not found"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Get track by ID",
+        "tags": [
+          "tracks"
+        ]
+      }
+    },
+    "/api/tracks/{track_id}/history": {
+      "get": {
+        "description": "Retrieve a track with its complete trajectory data and movement metrics. Use this endpoint for trajectory visualization and detailed analysis.",
+        "operationId": "tracks_get_track_history",
+        "parameters": [
           {
             "in": "path",
             "name": "track_id",
@@ -56023,90 +56263,16 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful response with track history and trajectory"
+          },
+          "404": {
+            "description": "Track not found"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "Validation error"
           }
         },
-        "summary": "Get Track History",
-        "tags": [
-          "tracks"
-        ]
-      }
-    },
-    "/api/tracks/{camera_id}/{track_id}/trajectory": {
-      "get": {
-        "description": "Get just the trajectory points for a track.\n\nReturns only the position data (x, y, timestamp) for efficient\ntrajectory plotting without full track metadata.\n\nArgs:\n    camera_id: ID of the camera where the track was observed.\n    track_id: Tracker-assigned track ID (unique per camera session).\n    db: Database session.\n    limit: Maximum number of trajectory points to return (default 100, max 1000).\n        Returns the most recent points if trajectory exceeds limit.\n\nReturns:\n    List of TrajectoryPoint objects ordered by timestamp.\n\nRaises:\n    HTTPException: 404 if track not found.\n\nExample:\n    GET /api/tracks/front_door/42/trajectory?limit=50\n    Returns up to 50 most recent trajectory points.",
-        "operationId": "tracks_get_track_trajectory",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "camera_id",
-            "required": true,
-            "schema": {
-              "title": "Camera Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "track_id",
-            "required": true,
-            "schema": {
-              "title": "Track Id",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Maximum number of trajectory points",
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "description": "Maximum number of trajectory points",
-              "maximum": 1000,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TrajectoryPoint"
-                  },
-                  "title": "Response Tracks Get Track Trajectory",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Track Trajectory",
+        "summary": "Get track with full trajectory",
         "tags": [
           "tracks"
         ]
