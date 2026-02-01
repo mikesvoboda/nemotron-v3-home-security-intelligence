@@ -54,6 +54,26 @@ export type TrustLevel = 'full' | 'partial' | 'monitor';
 export type VehicleType = 'car' | 'truck' | 'motorcycle' | 'suv' | 'van' | 'other';
 
 /**
+ * Day of week for schedule.
+ */
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+/**
+ * Weekly schedule structure - maps day names to arrays of allowed hours (0-23).
+ * Empty array means no hours allowed (no access).
+ * Array with hours means those hours are allowed.
+ */
+export interface WeeklySchedule {
+  monday: number[];
+  tuesday: number[];
+  wednesday: number[];
+  thursday: number[];
+  friday: number[];
+  saturday: number[];
+  sunday: number[];
+}
+
+/**
  * Household member response from the API.
  */
 export interface HouseholdMember {
@@ -387,7 +407,6 @@ export function useMembersQuery() {
     queryKey: householdQueryKeys.members(),
     queryFn: fetchMembers,
     staleTime: STATIC_STALE_TIME,
-    retry: 1,
   });
 }
 
@@ -442,7 +461,6 @@ export function useVehiclesQuery() {
     queryKey: householdQueryKeys.vehicles(),
     queryFn: fetchVehicles,
     staleTime: STATIC_STALE_TIME,
-    retry: 1,
   });
 }
 
@@ -540,6 +558,235 @@ export function useDeleteHousehold() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: householdQueryKeys.households() });
     },
+  });
+}
+
+// ============================================================================
+// Person-Entity Linking Types (Phase 2)
+// ============================================================================
+
+/**
+ * Request payload for linking a detection to a household member.
+ */
+export interface LinkDetectionRequest {
+  notes?: string;
+  confidence?: number;
+}
+
+/**
+ * Response from linking a detection to a member.
+ */
+export interface PersonDetectionLink {
+  id: number;
+  member_id: number;
+  detection_id: number;
+  event_id?: number;
+  linked_at: string;
+  linked_by: 'user' | 'auto-match';
+  confidence: number;
+  notes: string | null;
+}
+
+/**
+ * Detection linked to a member with event context.
+ */
+export interface MemberDetection {
+  detection_id: number;
+  event_id: number;
+  camera_name: string;
+  detected_at: string;
+  confidence: number;
+  thumbnail_url: string | null;
+  linked_at: string;
+  event_summary: string;
+  event_risk_score: number;
+  notes?: string | null;
+}
+
+/**
+ * Paginated response for member detections.
+ */
+export interface MemberDetectionsResponse {
+  items: MemberDetection[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+/**
+ * Query parameters for fetching member detections.
+ */
+export interface MemberDetectionsParams {
+  limit?: number;
+  offset?: number;
+  camera?: string;
+  from_date?: string;
+  to_date?: string;
+  sort?: 'date_desc' | 'date_asc' | 'confidence_desc' | 'confidence_asc';
+}
+
+// ============================================================================
+// Person-Entity Linking Query Keys
+// ============================================================================
+
+// Extend householdQueryKeys with member detection keys
+export const memberDetectionQueryKeys = {
+  /** Member detections list */
+  memberDetections: (memberId: number, params?: MemberDetectionsParams) =>
+    [...householdQueryKeys.member(memberId), 'detections', params] as const,
+};
+
+// ============================================================================
+// Person-Entity Linking API Functions
+// ============================================================================
+
+/**
+ * Link a detection to a household member.
+ */
+export async function linkDetectionToMember(
+  memberId: number,
+  detectionId: number,
+  data?: LinkDetectionRequest
+): Promise<PersonDetectionLink> {
+  const response = await fetch(
+    `${BASE_URL}/api/household/members/${memberId}/detections/${detectionId}`,
+    {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify(data ?? {}),
+    }
+  );
+  return handleResponse<PersonDetectionLink>(response);
+}
+
+/**
+ * Unlink a detection from a household member.
+ */
+export async function unlinkDetectionFromMember(
+  memberId: number,
+  detectionId: number
+): Promise<void> {
+  const response = await fetch(
+    `${BASE_URL}/api/household/members/${memberId}/detections/${detectionId}`,
+    {
+      method: 'DELETE',
+      headers: buildHeaders(),
+    }
+  );
+  return handleResponse<void>(response);
+}
+
+/**
+ * Get detections linked to a household member.
+ */
+export async function getMemberDetections(
+  memberId: number,
+  params?: MemberDetectionsParams
+): Promise<MemberDetectionsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.limit !== undefined) {
+    queryParams.set('limit', String(params.limit));
+  }
+  if (params?.offset !== undefined) {
+    queryParams.set('offset', String(params.offset));
+  }
+  if (params?.camera) {
+    queryParams.set('camera_id', params.camera.toLowerCase());
+  }
+  if (params?.from_date) {
+    queryParams.set('start_date', params.from_date);
+  }
+  if (params?.to_date) {
+    queryParams.set('end_date', params.to_date);
+  }
+  if (params?.sort) {
+    // Map sort to sort_by and sort_order
+    const sortMap: Record<string, { sort_by: string; sort_order: string }> = {
+      date_desc: { sort_by: 'detected_at', sort_order: 'desc' },
+      date_asc: { sort_by: 'detected_at', sort_order: 'asc' },
+      confidence_desc: { sort_by: 'confidence', sort_order: 'desc' },
+      confidence_asc: { sort_by: 'confidence', sort_order: 'asc' },
+    };
+    const sortConfig = sortMap[params.sort];
+    if (sortConfig) {
+      queryParams.set('sort_by', sortConfig.sort_by);
+      queryParams.set('sort_order', sortConfig.sort_order);
+    }
+  }
+
+  const queryString = queryParams.toString();
+  const url = `${BASE_URL}/api/household/members/${memberId}/detections${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildHeaders(),
+  });
+  return handleResponse<MemberDetectionsResponse>(response);
+}
+
+// ============================================================================
+// Person-Entity Linking Hooks
+// ============================================================================
+
+/**
+ * Hook to link a detection to a household member.
+ */
+export function useLinkDetection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      detectionId,
+      notes,
+      confidence,
+    }: {
+      memberId: number;
+      detectionId: number;
+      notes?: string;
+      confidence?: number;
+    }) => linkDetectionToMember(memberId, detectionId, { notes, confidence }),
+    onSuccess: (_data, variables) => {
+      // Invalidate member detections query
+      void queryClient.invalidateQueries({
+        queryKey: householdQueryKeys.member(variables.memberId),
+      });
+      // Also invalidate events queries as the detection is now linked
+      void queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+}
+
+/**
+ * Hook to unlink a detection from a household member.
+ */
+export function useUnlinkDetection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ memberId, detectionId }: { memberId: number; detectionId: number }) =>
+      unlinkDetectionFromMember(memberId, detectionId),
+    onSuccess: (_data, variables) => {
+      // Invalidate member detections query
+      void queryClient.invalidateQueries({
+        queryKey: householdQueryKeys.member(variables.memberId),
+      });
+      // Also invalidate events queries
+      void queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+}
+
+/**
+ * Hook to fetch detections linked to a household member.
+ */
+export function useMemberDetectionsQuery(memberId: number, params?: MemberDetectionsParams) {
+  return useQuery({
+    queryKey: memberDetectionQueryKeys.memberDetections(memberId, params),
+    queryFn: () => getMemberDetections(memberId, params),
+    staleTime: STATIC_STALE_TIME,
+    enabled: memberId > 0,
   });
 }
 
