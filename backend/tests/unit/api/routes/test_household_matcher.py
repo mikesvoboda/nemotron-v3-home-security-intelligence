@@ -82,7 +82,9 @@ class TestMatchPerson:
             similarity_threshold=0.95,
         )
 
-        with patch.object(HouseholdMatcher, "match_person", new_callable=AsyncMock) as mock_match:
+        with patch.object(
+            HouseholdMatcher, "match_person", new_callable=AsyncMock
+        ) as mock_match:
             mock_match.return_value = None
             result = await match_person(request=request, db=mock_db)
 
@@ -91,7 +93,9 @@ class TestMatchPerson:
     @pytest.mark.asyncio
     async def test_match_person_empty_embedding(self) -> None:
         """Test that empty embedding returns 400 error."""
+        from fastapi import HTTPException
 
+        from backend.api.routes.household_matcher import match_person
         from backend.api.schemas.household_matcher import PersonMatchRequest
 
         mock_db = AsyncMock()
