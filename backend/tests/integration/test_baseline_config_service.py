@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.baseline import ActivityBaseline, ClassBaseline
+from backend.models.camera import Camera
 from backend.services.baseline_config import (
     BaselineConfigService,
     _camera_configs,
@@ -40,6 +41,26 @@ def clear_camera_configs():
     _camera_configs.clear()
     yield
     _camera_configs.clear()
+
+
+async def create_test_camera(session: AsyncSession, camera_id: str) -> Camera:
+    """Helper function to create a test camera in the database.
+
+    Args:
+        session: Database session
+        camera_id: ID for the camera
+
+    Returns:
+        Created Camera instance
+    """
+    camera = Camera(
+        id=camera_id,
+        name=f"Test Camera {camera_id}",
+        folder_path=f"/export/test/{camera_id}",
+    )
+    session.add(camera)
+    await session.commit()
+    return camera
 
 
 # ============================================================================
@@ -160,6 +181,9 @@ class TestResetCameraBaseline:
         """Reset baseline deletes ActivityBaseline records for camera."""
         camera_id = "integration_test_camera"
 
+        # Create camera first (required for foreign key constraint)
+        await create_test_camera(db_session, camera_id)
+
         # Create test activity baseline records
         for hour in range(3):
             baseline = ActivityBaseline(
@@ -189,6 +213,9 @@ class TestResetCameraBaseline:
     ):
         """Reset baseline deletes ClassBaseline records for camera."""
         camera_id = "integration_test_camera_2"
+
+        # Create camera first (required for foreign key constraint)
+        await create_test_camera(db_session, camera_id)
 
         # Create test class baseline records
         for detection_class_name in ["person", "car", "dog"]:
@@ -235,6 +262,10 @@ class TestResetCameraBaseline:
         """Reset baseline only deletes records for specified camera."""
         target_camera = "target_camera"
         other_camera = "other_camera"
+
+        # Create cameras first (required for foreign key constraint)
+        await create_test_camera(db_session, target_camera)
+        await create_test_camera(db_session, other_camera)
 
         # Create records for both cameras
         for camera_id in [target_camera, other_camera]:
