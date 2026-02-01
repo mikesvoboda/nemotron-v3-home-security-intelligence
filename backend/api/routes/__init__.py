@@ -1,5 +1,6 @@
 """API route handlers."""
 
+from .alert_service import router as alert_service_router
 from .alertmanager import router as alertmanager_router
 from .alerts import alerts_instance_router
 from .alerts import router as alerts_router
@@ -18,6 +19,7 @@ from .hierarchy import area_router as area_router
 from .hierarchy import property_router as property_router
 from .hierarchy import router as hierarchy_router
 from .household import router as household_router
+from .household_matcher import router as household_matcher_router
 from .jobs import router as jobs_router
 from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
@@ -36,6 +38,7 @@ from .zone_household import router as zone_household_router
 from .zones import router as zones_router
 
 __all__ = [
+    "alert_service_router",
     "alertmanager_router",
     "alerts_instance_router",
     "alerts_router",
@@ -52,6 +55,7 @@ __all__ = [
     "gpu_config_router",
     "heatmaps_router",
     "hierarchy_router",
+    "household_matcher_router",
     "household_router",
     "jobs_router",
     "logs_router",

@@ -43,6 +43,7 @@ from backend.api.routes import (
     action_events,
     admin,
     ai_audit,
+    alert_service,
     alertmanager,
     alerts,
     analytics,
@@ -64,8 +65,10 @@ from backend.api.routes import (
     heatmaps,
     hierarchy,
     household,
+    household_matcher,
     jobs,
     logs,
+    materialized_views,
     media,
     metrics,
     notification,
@@ -75,6 +78,7 @@ from backend.api.routes import (
     plate_reads,
     prompt_management,
     queues,
+    reid,
     rum,
     scheduled_reports,
     services,
@@ -1215,6 +1219,7 @@ register_exception_handlers(app)
 app.include_router(action_events.router)
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
+app.include_router(alert_service.router)
 app.include_router(alertmanager.router)
 app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
@@ -1239,8 +1244,10 @@ app.include_router(hierarchy.router)
 app.include_router(hierarchy.property_router)
 app.include_router(hierarchy.area_router)
 app.include_router(household.router)
+app.include_router(household_matcher.router)
 app.include_router(jobs.router)
 app.include_router(logs.router)
+app.include_router(materialized_views.router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
@@ -1250,6 +1257,7 @@ app.include_router(outbound_webhooks.router)
 app.include_router(plate_reads.router)
 app.include_router(prompt_management.router)
 app.include_router(queues.router)
+app.include_router(reid.router)
 app.include_router(rum.router)
 app.include_router(scheduled_reports.router)
 app.include_router(services.router)

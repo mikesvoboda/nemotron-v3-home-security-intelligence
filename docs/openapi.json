@@ -367,6 +367,28 @@
         "title": "AccessSchedule",
         "type": "object"
       },
+      "AcknowledgeRequest": {
+        "description": "Schema for acknowledging an alert.",
+        "example": {
+          "correlation_id": "req-12345"
+        },
+        "properties": {
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional correlation ID for request tracing",
+            "title": "Correlation Id"
+          }
+        },
+        "title": "AcknowledgeRequest",
+        "type": "object"
+      },
       "ActionAnalyzeRequest": {
         "description": "Schema for action analysis request.\n\nUsed to trigger action recognition on a set of frames.",
         "example": {
@@ -2150,6 +2172,339 @@
           }
         },
         "title": "AlertRuleUpdate",
+        "type": "object"
+      },
+      "AlertServiceCreateRequest": {
+        "description": "Schema for creating an alert via the Alert Service.\n\nThis bypasses alert rules and creates an alert directly. Useful for\nprogrammatic alert creation from external systems or internal services.",
+        "example": {
+          "channels": [
+            "pushover",
+            "webhook"
+          ],
+          "dedup_key": "front_door:manual_alert",
+          "event_id": 123,
+          "metadata": {
+            "note": "Manual alert",
+            "source": "external_system"
+          },
+          "severity": "high",
+          "status": "pending"
+        },
+        "properties": {
+          "channels": {
+            "description": "Notification channels for delivery",
+            "items": {
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "dedup_key": {
+            "description": "Deduplication key for alert grouping. Only alphanumeric, underscore, hyphen, and colon characters allowed.",
+            "maxLength": 255,
+            "title": "Dedup Key",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "Event ID that this alert relates to",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional context metadata for the alert",
+            "title": "Metadata"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional alert rule UUID that triggered this alert",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AlertSeverity",
+            "default": "medium",
+            "description": "Alert severity level"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus",
+            "default": "pending",
+            "description": "Initial alert status"
+          }
+        },
+        "required": [
+          "event_id",
+          "dedup_key"
+        ],
+        "title": "AlertServiceCreateRequest",
+        "type": "object"
+      },
+      "AlertServiceDeleteResponse": {
+        "description": "Schema for alert deletion response.",
+        "example": {
+          "deleted_id": "019477e6-8c5e-7abc-def0-123456789abc",
+          "message": "Alert deleted successfully",
+          "success": true
+        },
+        "properties": {
+          "deleted_id": {
+            "description": "ID of the deleted alert",
+            "title": "Deleted Id",
+            "type": "string"
+          },
+          "message": {
+            "default": "Alert deleted successfully",
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the deletion was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "deleted_id"
+        ],
+        "title": "AlertServiceDeleteResponse",
+        "type": "object"
+      },
+      "AlertServiceListResponse": {
+        "description": "Schema for alert list response with pagination.",
+        "example": {
+          "items": [
+            {
+              "channels": [
+                "pushover"
+              ],
+              "created_at": "2025-01-31T12:00:00Z",
+              "dedup_key": "front_door:manual_alert",
+              "event_id": 123,
+              "id": "019477e6-8c5e-7abc-def0-123456789abc",
+              "metadata": {},
+              "severity": "high",
+              "status": "pending",
+              "updated_at": "2025-01-31T12:00:00Z"
+            }
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
+        },
+        "properties": {
+          "items": {
+            "description": "List of alerts",
+            "items": {
+              "$ref": "#/components/schemas/AlertServiceResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "AlertServiceListResponse",
+        "type": "object"
+      },
+      "AlertServiceResponse": {
+        "description": "Schema for alert response from Alert Service operations.",
+        "example": {
+          "channels": [
+            "pushover"
+          ],
+          "created_at": "2025-01-31T12:00:00Z",
+          "dedup_key": "front_door:manual_alert",
+          "event_id": 123,
+          "id": "019477e6-8c5e-7abc-def0-123456789abc",
+          "metadata": {
+            "source": "external_system"
+          },
+          "severity": "high",
+          "status": "pending",
+          "updated_at": "2025-01-31T12:00:00Z"
+        },
+        "properties": {
+          "channels": {
+            "description": "Notification channels",
+            "items": {
+              "type": "string"
+            },
+            "title": "Channels",
+            "type": "array"
+          },
+          "created_at": {
+            "description": "Creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dedup_key": {
+            "description": "Deduplication key",
+            "title": "Dedup Key",
+            "type": "string"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Delivery timestamp",
+            "title": "Delivered At"
+          },
+          "event_id": {
+            "description": "Associated event ID",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Alert UUID",
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional context metadata",
+            "title": "Metadata"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alert rule UUID that triggered this",
+            "title": "Rule Id"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AlertSeverity",
+            "description": "Alert severity level"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus",
+            "description": "Alert status"
+          },
+          "updated_at": {
+            "description": "Last update timestamp",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "severity",
+          "status",
+          "dedup_key",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AlertServiceResponse",
+        "type": "object"
+      },
+      "AlertServiceUpdateRequest": {
+        "description": "Schema for updating an alert via the Alert Service.\n\nAll fields are optional. Only provided fields will be updated.",
+        "example": {
+          "metadata": {
+            "acknowledged_by": "admin"
+          },
+          "severity": "high",
+          "status": "acknowledged"
+        },
+        "properties": {
+          "channels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated notification channels",
+            "title": "Channels"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated metadata (replaces existing)",
+            "title": "Metadata"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlertSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New severity level"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlertStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New alert status"
+          }
+        },
+        "title": "AlertServiceUpdateRequest",
         "type": "object"
       },
       "AlertSeverity": {
@@ -4130,6 +4485,132 @@
           "last_activity_seconds"
         ],
         "title": "BatchInfoResponse",
+        "type": "object"
+      },
+      "BatchMatchRequest": {
+        "description": "Schema for batch matching multiple detections.\n\nAllows matching multiple person and vehicle detections in a single request,\nusing the enrichment_data structure that contains cached embeddings.",
+        "example": {
+          "detections": [
+            {
+              "id": 1,
+              "object_type": "person"
+            },
+            {
+              "id": 2,
+              "object_type": "car"
+            }
+          ],
+          "enrichment_data": {
+            "1": {
+              "embeddings": {
+                "person_reid": [
+                  0.1,
+                  0.2,
+                  0.3
+                ]
+              }
+            },
+            "2": {
+              "embeddings": {
+                "vehicle_visual": [
+                  0.4,
+                  0.5,
+                  0.6
+                ]
+              },
+              "license_plates": [
+                {
+                  "text": "ABC123"
+                }
+              ]
+            }
+          }
+        },
+        "properties": {
+          "detections": {
+            "description": "List of detection objects with id and object_type",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "minItems": 1,
+            "title": "Detections",
+            "type": "array"
+          },
+          "enrichment_data": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "Dict mapping detection_id to enrichment data containing embeddings",
+            "title": "Enrichment Data",
+            "type": "object"
+          }
+        },
+        "required": [
+          "detections",
+          "enrichment_data"
+        ],
+        "title": "BatchMatchRequest",
+        "type": "object"
+      },
+      "BatchMatchResponse": {
+        "description": "Schema for batch match results.\n\nReturns separate dictionaries for person and vehicle matches,\nkeyed by detection ID.",
+        "example": {
+          "person_matches": {
+            "1": {
+              "match_type": "person",
+              "matched": true,
+              "member_id": 1,
+              "member_name": "John Doe",
+              "similarity": 0.92
+            }
+          },
+          "total_detections": 2,
+          "total_matches": 2,
+          "vehicle_matches": {
+            "2": {
+              "match_type": "license_plate",
+              "matched": true,
+              "similarity": 1.0,
+              "vehicle_description": "Silver Tesla Model 3",
+              "vehicle_id": 5
+            }
+          }
+        },
+        "properties": {
+          "person_matches": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/HouseholdMatchResponse"
+            },
+            "description": "Dict mapping detection_id to person match result",
+            "title": "Person Matches",
+            "type": "object"
+          },
+          "total_detections": {
+            "description": "Total number of detections processed",
+            "title": "Total Detections",
+            "type": "integer"
+          },
+          "total_matches": {
+            "description": "Total number of matches found",
+            "title": "Total Matches",
+            "type": "integer"
+          },
+          "vehicle_matches": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/HouseholdMatchResponse"
+            },
+            "description": "Dict mapping detection_id to vehicle match result",
+            "title": "Vehicle Matches",
+            "type": "object"
+          }
+        },
+        "required": [
+          "total_detections",
+          "total_matches"
+        ],
+        "title": "BatchMatchResponse",
         "type": "object"
       },
       "BatchSettings": {
@@ -9277,6 +9758,41 @@
         ],
         "title": "DeviationInterpretation",
         "type": "string"
+      },
+      "DismissRequest": {
+        "description": "Schema for dismissing an alert.",
+        "example": {
+          "correlation_id": "req-12345",
+          "reason": "False positive - neighbor's cat"
+        },
+        "properties": {
+          "correlation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional correlation ID for request tracing",
+            "title": "Correlation Id"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reason for dismissing the alert",
+            "title": "Reason"
+          }
+        },
+        "title": "DismissRequest",
+        "type": "object"
       },
       "DwellHistoryResponse": {
         "description": "Historical dwell time records for a zone.",
@@ -17215,6 +17731,116 @@
         "title": "HouseholdListResponse",
         "type": "object"
       },
+      "HouseholdMatchResponse": {
+        "description": "Schema for household match result.\n\nReturned when a person or vehicle matches a known household member or vehicle.",
+        "example": {
+          "match_type": "person",
+          "matched": true,
+          "member_id": 1,
+          "member_name": "John Doe",
+          "member_role": "resident",
+          "schedule_status": true,
+          "similarity": 0.92
+        },
+        "properties": {
+          "match_type": {
+            "default": "",
+            "description": "Type of match: 'person', 'license_plate', or 'vehicle_visual'",
+            "title": "Match Type",
+            "type": "string"
+          },
+          "matched": {
+            "description": "Whether a match was found",
+            "title": "Matched",
+            "type": "boolean"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the matched household member (for person matches)",
+            "title": "Member Id"
+          },
+          "member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the matched household member",
+            "title": "Member Name"
+          },
+          "member_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Role of the matched member (resident, family, service_worker, etc.)",
+            "title": "Member Role"
+          },
+          "schedule_status": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether member is within expected schedule (True/False/None if no schedule)",
+            "title": "Schedule Status"
+          },
+          "similarity": {
+            "default": 0.0,
+            "description": "Similarity score (1.0 for exact plate match)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity",
+            "type": "number"
+          },
+          "vehicle_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description of the matched vehicle",
+            "title": "Vehicle Description"
+          },
+          "vehicle_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the matched registered vehicle",
+            "title": "Vehicle Id"
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "title": "HouseholdMatchResponse",
+        "type": "object"
+      },
       "HouseholdMemberCreate": {
         "description": "Schema for creating a new household member.",
         "example": {
@@ -20425,6 +21051,413 @@
         "title": "LoiteringConfigUpdate",
         "type": "object"
       },
+      "MatcherConfigResponse": {
+        "description": "Schema for household matcher configuration response.",
+        "example": {
+          "similarity_threshold": 0.85,
+          "total_member_embeddings": 5,
+          "total_registered_vehicles": 3
+        },
+        "properties": {
+          "similarity_threshold": {
+            "description": "Current similarity threshold for matching",
+            "title": "Similarity Threshold",
+            "type": "number"
+          },
+          "total_member_embeddings": {
+            "description": "Total number of person embeddings in database",
+            "title": "Total Member Embeddings",
+            "type": "integer"
+          },
+          "total_registered_vehicles": {
+            "description": "Total number of registered vehicles",
+            "title": "Total Registered Vehicles",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "similarity_threshold",
+          "total_member_embeddings",
+          "total_registered_vehicles"
+        ],
+        "title": "MatcherConfigResponse",
+        "type": "object"
+      },
+      "MaterializedViewInfo": {
+        "description": "Schema for materialized view information.",
+        "example": {
+          "exists": true,
+          "row_count": 1500,
+          "size_bytes": 102400,
+          "size_human": "100 KB",
+          "view_name": "mv_daily_detection_counts"
+        },
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if stats collection failed",
+            "title": "Error"
+          },
+          "exists": {
+            "description": "Whether the view exists in the database",
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "row_count": {
+            "default": 0,
+            "description": "Number of rows in the view",
+            "minimum": 0.0,
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "default": 0,
+            "description": "Size of the view in bytes",
+            "minimum": 0.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "size_human": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable size (e.g., '100 KB')",
+            "title": "Size Human"
+          },
+          "view_name": {
+            "description": "Name of the materialized view",
+            "title": "View Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "view_name",
+          "exists"
+        ],
+        "title": "MaterializedViewInfo",
+        "type": "object"
+      },
+      "MaterializedViewListResponse": {
+        "description": "Response schema for listing all materialized views.",
+        "example": {
+          "total_size_bytes": 512000,
+          "total_size_human": "500 KB",
+          "total_views": 6,
+          "views": [
+            {
+              "exists": true,
+              "row_count": 1500,
+              "size_bytes": 102400,
+              "size_human": "100 KB",
+              "view_name": "mv_daily_detection_counts"
+            },
+            {
+              "exists": true,
+              "row_count": 5000,
+              "size_bytes": 256000,
+              "size_human": "250 KB",
+              "view_name": "mv_hourly_event_stats"
+            }
+          ]
+        },
+        "properties": {
+          "total_size_bytes": {
+            "default": 0,
+            "description": "Total size of all views in bytes",
+            "minimum": 0.0,
+            "title": "Total Size Bytes",
+            "type": "integer"
+          },
+          "total_size_human": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable total size",
+            "title": "Total Size Human"
+          },
+          "total_views": {
+            "description": "Total number of managed views",
+            "minimum": 0.0,
+            "title": "Total Views",
+            "type": "integer"
+          },
+          "views": {
+            "description": "List of materialized views with their stats",
+            "items": {
+              "$ref": "#/components/schemas/MaterializedViewInfo"
+            },
+            "title": "Views",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total_views"
+        ],
+        "title": "MaterializedViewListResponse",
+        "type": "object"
+      },
+      "MaterializedViewRefreshRequest": {
+        "description": "Request schema for refreshing materialized views.",
+        "example": {
+          "concurrently": true,
+          "view_name": "mv_daily_detection_counts"
+        },
+        "properties": {
+          "concurrently": {
+            "default": true,
+            "description": "If True, use CONCURRENTLY option which allows reads during refresh. Requires unique index on the view. If False, blocks reads during refresh.",
+            "title": "Concurrently",
+            "type": "boolean"
+          },
+          "view_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of a specific view to refresh. If not provided, all views are refreshed.",
+            "title": "View Name"
+          }
+        },
+        "title": "MaterializedViewRefreshRequest",
+        "type": "object"
+      },
+      "MaterializedViewRefreshResponse": {
+        "description": "Response schema for materialized view refresh operation.",
+        "example": {
+          "concurrently": true,
+          "failure_count": 0,
+          "refreshed_at": "2025-12-23T14:30:00Z",
+          "results": [
+            {
+              "duration_ms": 150,
+              "success": true,
+              "view_name": "mv_daily_detection_counts"
+            },
+            {
+              "duration_ms": 200,
+              "success": true,
+              "view_name": "mv_hourly_event_stats"
+            }
+          ],
+          "success_count": 6,
+          "total_duration_ms": 850,
+          "total_refreshed": 6
+        },
+        "properties": {
+          "concurrently": {
+            "description": "Whether CONCURRENTLY option was used",
+            "title": "Concurrently",
+            "type": "boolean"
+          },
+          "failure_count": {
+            "description": "Number of views that failed to refresh",
+            "minimum": 0.0,
+            "title": "Failure Count",
+            "type": "integer"
+          },
+          "refreshed_at": {
+            "description": "Timestamp when the refresh operation completed",
+            "format": "date-time",
+            "title": "Refreshed At",
+            "type": "string"
+          },
+          "results": {
+            "description": "Results for each view refresh",
+            "items": {
+              "$ref": "#/components/schemas/MaterializedViewRefreshResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "success_count": {
+            "description": "Number of views that refreshed successfully",
+            "minimum": 0.0,
+            "title": "Success Count",
+            "type": "integer"
+          },
+          "total_duration_ms": {
+            "default": 0,
+            "description": "Total duration of all refresh operations",
+            "minimum": 0.0,
+            "title": "Total Duration Ms",
+            "type": "number"
+          },
+          "total_refreshed": {
+            "description": "Total number of views that were refreshed",
+            "minimum": 0.0,
+            "title": "Total Refreshed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_refreshed",
+          "success_count",
+          "failure_count",
+          "concurrently",
+          "refreshed_at"
+        ],
+        "title": "MaterializedViewRefreshResponse",
+        "type": "object"
+      },
+      "MaterializedViewRefreshResult": {
+        "description": "Result of a single view refresh operation.",
+        "example": {
+          "duration_ms": 150,
+          "success": true,
+          "view_name": "mv_daily_detection_counts"
+        },
+        "properties": {
+          "duration_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Duration of the refresh operation in milliseconds",
+            "title": "Duration Ms"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if refresh failed",
+            "title": "Error"
+          },
+          "success": {
+            "description": "Whether the refresh succeeded",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "view_name": {
+            "description": "Name of the materialized view",
+            "title": "View Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "view_name",
+          "success"
+        ],
+        "title": "MaterializedViewRefreshResult",
+        "type": "object"
+      },
+      "MaterializedViewStatusResponse": {
+        "description": "Response schema for materialized view status check.",
+        "example": {
+          "exists": true,
+          "is_populated": true,
+          "last_refresh": "2025-12-23T14:00:00Z",
+          "row_count": 1500,
+          "size_bytes": 102400,
+          "size_human": "100 KB",
+          "view_name": "mv_daily_detection_counts"
+        },
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if status check failed",
+            "title": "Error"
+          },
+          "exists": {
+            "description": "Whether the view exists",
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "is_populated": {
+            "default": false,
+            "description": "Whether the view has been populated (row_count > 0)",
+            "title": "Is Populated",
+            "type": "boolean"
+          },
+          "last_refresh": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the view was last refreshed (if tracked)",
+            "title": "Last Refresh"
+          },
+          "row_count": {
+            "default": 0,
+            "description": "Number of rows in the view",
+            "minimum": 0.0,
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "default": 0,
+            "description": "Size of the view in bytes",
+            "minimum": 0.0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "size_human": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable size",
+            "title": "Size Human"
+          },
+          "view_name": {
+            "description": "Name of the materialized view",
+            "title": "View Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "view_name",
+          "exists"
+        ],
+        "title": "MaterializedViewStatusResponse",
+        "type": "object"
+      },
       "MediaErrorResponse": {
         "description": "Error response for media access failures.",
         "example": {
@@ -23191,6 +24224,49 @@
           "created_at"
         ],
         "title": "PersonEmbeddingResponse",
+        "type": "object"
+      },
+      "PersonMatchRequest": {
+        "description": "Schema for matching a person embedding against household members.\n\nThe embedding should be a 512-dimensional OSNet person re-identification\nembedding vector.",
+        "example": {
+          "embedding": [
+            0.1,
+            0.2,
+            0.3,
+            0.0,
+            0.0
+          ],
+          "similarity_threshold": 0.85
+        },
+        "properties": {
+          "embedding": {
+            "description": "Person re-identification embedding vector (512-dim OSNet)",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Embedding",
+            "type": "array"
+          },
+          "similarity_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional custom similarity threshold (default: 0.85)",
+            "title": "Similarity Threshold"
+          }
+        },
+        "required": [
+          "embedding"
+        ],
+        "title": "PersonMatchRequest",
         "type": "object"
       },
       "PetEnrichment": {
@@ -30609,6 +31685,240 @@
         "title": "SeverityThresholdsUpdateRequest",
         "type": "object"
       },
+      "SimilarityMatch": {
+        "description": "Schema for a single similarity match result.",
+        "example": {
+          "attributes": {
+            "clothing": "blue jacket"
+          },
+          "camera_id": "front_door",
+          "detection_id": "123",
+          "entity_id": "550e8400-e29b-41d4-a716-446655440000",
+          "entity_type": "person",
+          "similarity": 0.92,
+          "source": "redis",
+          "thumbnail_url": "/api/detections/123/image",
+          "time_gap_seconds": 3600.0,
+          "timestamp": "2025-12-23T10:00:00Z"
+        },
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "description": "Additional attributes from the detection (clothing, color, etc.)",
+            "title": "Attributes",
+            "type": "object"
+          },
+          "camera_id": {
+            "description": "Camera ID where entity was detected",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "detection_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detection ID if available",
+            "title": "Detection Id"
+          },
+          "entity_id": {
+            "description": "Entity or detection ID",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "description": "Type of entity: 'person' or 'vehicle'",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "similarity": {
+            "description": "Cosine similarity score (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity",
+            "type": "number"
+          },
+          "source": {
+            "description": "Data source: 'redis' (hot cache) or 'postgresql' (historical)",
+            "pattern": "^(redis|postgresql)$",
+            "title": "Source",
+            "type": "string"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to thumbnail image",
+            "title": "Thumbnail Url"
+          },
+          "time_gap_seconds": {
+            "description": "Time difference in seconds from query timestamp",
+            "title": "Time Gap Seconds",
+            "type": "number"
+          },
+          "timestamp": {
+            "description": "When the entity was detected",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_id",
+          "entity_type",
+          "camera_id",
+          "timestamp",
+          "similarity",
+          "time_gap_seconds",
+          "source"
+        ],
+        "title": "SimilarityMatch",
+        "type": "object"
+      },
+      "SimilaritySearchRequest": {
+        "description": "Request schema for similarity search.\n\nAllows searching for entities similar to a given embedding vector\nor detection ID.",
+        "example": {
+          "embedding": [
+            0.1,
+            0.2,
+            0.3
+          ],
+          "entity_type": "person",
+          "include_historical": true,
+          "limit": 10,
+          "threshold": 0.85
+        },
+        "properties": {
+          "embedding": {
+            "description": "Embedding vector to search for (typically 768-dimensional CLIP embedding)",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Embedding",
+            "type": "array"
+          },
+          "entity_type": {
+            "default": "person",
+            "description": "Type of entity to search for: 'person' or 'vehicle'",
+            "pattern": "^(person|vehicle)$",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "exclude_detection_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional detection ID to exclude from results (e.g., to exclude self-matches)",
+            "title": "Exclude Detection Id"
+          },
+          "include_historical": {
+            "default": true,
+            "description": "If True, search both Redis (hot cache) and PostgreSQL (historical). If False, only search Redis hot cache (24h window).",
+            "title": "Include Historical",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 10,
+            "description": "Maximum number of results to return (default: 10, max: 100)",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "threshold": {
+            "default": 0.85,
+            "description": "Minimum cosine similarity threshold for matches (default: 0.85)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "embedding"
+        ],
+        "title": "SimilaritySearchRequest",
+        "type": "object"
+      },
+      "SimilaritySearchResponse": {
+        "description": "Response schema for similarity search.",
+        "example": {
+          "entity_type": "person",
+          "include_historical": true,
+          "matches": [
+            {
+              "attributes": {
+                "clothing": "blue jacket"
+              },
+              "camera_id": "front_door",
+              "detection_id": "123",
+              "entity_id": "det_001",
+              "entity_type": "person",
+              "similarity": 0.92,
+              "source": "redis",
+              "thumbnail_url": "/api/detections/123/image",
+              "time_gap_seconds": 3600.0,
+              "timestamp": "2025-12-23T10:00:00Z"
+            }
+          ],
+          "threshold": 0.85,
+          "total_matches": 1
+        },
+        "properties": {
+          "entity_type": {
+            "description": "Entity type that was searched",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "include_historical": {
+            "description": "Whether historical (PostgreSQL) data was included",
+            "title": "Include Historical",
+            "type": "boolean"
+          },
+          "matches": {
+            "description": "List of matching entities sorted by similarity (highest first)",
+            "items": {
+              "$ref": "#/components/schemas/SimilarityMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "threshold": {
+            "description": "Similarity threshold used for the search",
+            "title": "Threshold",
+            "type": "number"
+          },
+          "total_matches": {
+            "description": "Total number of matches found",
+            "minimum": 0.0,
+            "title": "Total Matches",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_matches",
+          "threshold",
+          "entity_type",
+          "include_historical"
+        ],
+        "title": "SimilaritySearchResponse",
+        "type": "object"
+      },
       "SourceFilter": {
         "description": "Data source for entity queries.\n\nControls which storage backend to query for entities:\n- redis: Only query Redis hot cache (24h window)\n- postgres: Only query PostgreSQL (30d retention)\n- both: Query both and merge results (default)",
         "enum": [
@@ -32559,6 +33869,82 @@
           }
         },
         "title": "VehicleEnrichment",
+        "type": "object"
+      },
+      "VehicleMatchRequest": {
+        "description": "Schema for matching a vehicle against registered vehicles.\n\nSupports both license plate matching (exact) and visual embedding matching.\nLicense plate matching takes priority if provided.",
+        "example": {
+          "color": "silver",
+          "license_plate": "ABC123",
+          "similarity_threshold": 0.85,
+          "vehicle_type": "car"
+        },
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vehicle color for context (not used in matching currently)",
+            "title": "Color"
+          },
+          "embedding": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vehicle visual embedding vector (768-dim CLIP) for visual matching",
+            "title": "Embedding"
+          },
+          "license_plate": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "License plate text for exact matching (case-insensitive)",
+            "title": "License Plate"
+          },
+          "similarity_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional custom similarity threshold for visual matching (default: 0.85)",
+            "title": "Similarity Threshold"
+          },
+          "vehicle_type": {
+            "description": "Type of vehicle (car, truck, motorcycle, van, etc.)",
+            "title": "Vehicle Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_type"
+        ],
+        "title": "VehicleMatchRequest",
         "type": "object"
       },
       "VehicleType": {
@@ -35711,6 +37097,161 @@
         ]
       }
     },
+    "/api/admin/materialized-views": {
+      "get": {
+        "description": "List all managed materialized views with their statistics.\n\nReturns information about all materialized views managed by the service,\nincluding whether they exist, row counts, and sizes.\n\nArgs:\n    db: Database session\n\nReturns:\n    MaterializedViewListResponse with view information",
+        "operationId": "admin_list_materialized_views",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializedViewListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Materialized Views",
+        "tags": [
+          "admin",
+          "materialized-views"
+        ]
+      }
+    },
+    "/api/admin/materialized-views/list/names": {
+      "get": {
+        "description": "List the names of all managed materialized views.\n\nReturns a simple list of view names that are managed by the service.\nThis is useful for populating dropdowns or validation.\n\nReturns:\n    List of materialized view names",
+        "operationId": "admin_list_view_names",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Admin List View Names",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List View Names",
+        "tags": [
+          "admin",
+          "materialized-views"
+        ]
+      }
+    },
+    "/api/admin/materialized-views/refresh": {
+      "post": {
+        "description": "Refresh one or all materialized views.\n\nTriggers a refresh of either a specific materialized view or all\nmanaged views. The `concurrently` option allows reads during the\nrefresh (requires unique index on the view).\n\nArgs:\n    request: Refresh request with optional view name and concurrently flag\n    db: Database session\n\nReturns:\n    MaterializedViewRefreshResponse with refresh results\n\nRaises:\n    HTTPException: 404 if specified view not found",
+        "operationId": "admin_refresh_materialized_views",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterializedViewRefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializedViewRefreshResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "View not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Refresh Materialized Views",
+        "tags": [
+          "admin",
+          "materialized-views"
+        ]
+      }
+    },
+    "/api/admin/materialized-views/{view_name}": {
+      "get": {
+        "description": "Get the status of a specific materialized view.\n\nReturns detailed status information for a single materialized view,\nincluding whether it exists, row count, size, and population status.\n\nArgs:\n    view_name: Name of the materialized view\n    db: Database session\n\nReturns:\n    MaterializedViewStatusResponse with view status\n\nRaises:\n    HTTPException: 404 if view is not in the managed list",
+        "operationId": "admin_get_materialized_view_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "view_name",
+            "required": true,
+            "schema": {
+              "title": "View Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterializedViewStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "View not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Materialized View Status",
+        "tags": [
+          "admin",
+          "materialized-views"
+        ]
+      }
+    },
     "/api/admin/seed/cameras": {
       "post": {
         "description": "Seed test cameras into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
@@ -36237,6 +37778,467 @@
         "summary": "Get Audit Stats",
         "tags": [
           "ai-audit"
+        ]
+      }
+    },
+    "/api/alert-service/alerts": {
+      "get": {
+        "description": "List all alerts with optional filtering and pagination.\n\nArgs:\n    status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)\n    severity_filter: Filter by severity level (low, medium, high, critical)\n    event_id: Filter by associated event ID\n    rule_id: Filter by alert rule ID\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertServiceListResponse with alerts and pagination info",
+        "operationId": "alert-service_list_alerts",
+        "parameters": [
+          {
+            "description": "Filter by alert status",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AlertStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by alert status",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Filter by severity level",
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AlertSeverity"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by severity level",
+              "title": "Severity"
+            }
+          },
+          {
+            "description": "Filter by event ID",
+            "in": "query",
+            "name": "event_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by event ID",
+              "title": "Event Id"
+            }
+          },
+          {
+            "description": "Filter by rule ID",
+            "in": "query",
+            "name": "rule_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by rule ID",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Alerts",
+        "tags": [
+          "alert-service"
+        ]
+      },
+      "post": {
+        "description": "Create a new alert via the Alert Service.\n\nThis endpoint bypasses alert rules and creates an alert directly.\nUseful for programmatic alert creation from external systems.\n\nArgs:\n    alert_data: Alert creation data\n    db: Database session\n\nReturns:\n    Created AlertServiceResponse",
+        "operationId": "alert-service_create_alert",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertServiceCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Alert",
+        "tags": [
+          "alert-service"
+        ]
+      }
+    },
+    "/api/alert-service/alerts/{alert_id}": {
+      "delete": {
+        "description": "Delete an alert.\n\nArgs:\n    alert_id: Alert UUID to delete\n    reason: Optional reason for deletion\n    db: Database session\n\nReturns:\n    AlertServiceDeleteResponse\n\nRaises:\n    HTTPException: 404 if alert not found",
+        "operationId": "alert-service_delete_alert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional deletion reason",
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional deletion reason",
+              "title": "Reason"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Delete Alert",
+        "tags": [
+          "alert-service"
+        ]
+      },
+      "get": {
+        "description": "Get a specific alert by ID.\n\nArgs:\n    alert_id: Alert UUID\n    db: Database session\n\nReturns:\n    AlertServiceResponse\n\nRaises:\n    HTTPException: 404 if alert not found",
+        "operationId": "alert-service_get_alert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Alert",
+        "tags": [
+          "alert-service"
+        ]
+      },
+      "put": {
+        "description": "Update an existing alert.\n\nArgs:\n    alert_id: Alert UUID to update\n    alert_data: Update data (only provided fields will be updated)\n    db: Database session\n\nReturns:\n    Updated AlertServiceResponse\n\nRaises:\n    HTTPException: 404 if alert not found",
+        "operationId": "alert-service_update_alert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertServiceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Update Alert",
+        "tags": [
+          "alert-service"
+        ]
+      }
+    },
+    "/api/alert-service/alerts/{alert_id}/acknowledge": {
+      "post": {
+        "description": "Acknowledge an alert via the Alert Service.\n\nSets the alert status to ACKNOWLEDGED and records the acknowledgment time.\n\nArgs:\n    alert_id: Alert UUID to acknowledge\n    request: Optional request with correlation_id\n    db: Database session\n\nReturns:\n    Updated AlertServiceResponse\n\nRaises:\n    HTTPException: 404 if alert not found",
+        "operationId": "alert-service_acknowledge_alert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AcknowledgeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Acknowledge Alert",
+        "tags": [
+          "alert-service"
+        ]
+      }
+    },
+    "/api/alert-service/alerts/{alert_id}/dismiss": {
+      "post": {
+        "description": "Dismiss an alert via the Alert Service.\n\nSets the alert status to DISMISSED and optionally records the reason.\n\nArgs:\n    alert_id: Alert UUID to dismiss\n    request: Optional request with reason and correlation_id\n    db: Database session\n\nReturns:\n    Updated AlertServiceResponse\n\nRaises:\n    HTTPException: 404 if alert not found",
+        "operationId": "alert-service_dismiss_alert",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "title": "Alert Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DismissRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertServiceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Alert not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Dismiss Alert",
+        "tags": [
+          "alert-service"
         ]
       }
     },
@@ -45704,6 +47706,175 @@
         ]
       }
     },
+    "/api/household-matcher/config": {
+      "get": {
+        "description": "Get the current household matcher configuration.\n\nReturns the similarity threshold and counts of stored embeddings/vehicles.\n\nArgs:\n    db: Database session\n\nReturns:\n    MatcherConfigResponse with configuration details",
+        "operationId": "household-matcher_get_matcher_config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatcherConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Matcher Config",
+        "tags": [
+          "household-matcher"
+        ]
+      }
+    },
+    "/api/household-matcher/match-batch": {
+      "post": {
+        "description": "Batch match multiple detections against household members and vehicles.\n\nThis endpoint allows matching multiple person and vehicle detections in a\nsingle request, using the enrichment_data structure that contains cached\nembeddings.\n\nArgs:\n    request: BatchMatchRequest with detections and enrichment_data\n    db: Database session\n\nReturns:\n    BatchMatchResponse with person_matches and vehicle_matches dicts",
+        "operationId": "household-matcher_match_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchMatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchMatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid request format"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Match Batch",
+        "tags": [
+          "household-matcher"
+        ]
+      }
+    },
+    "/api/household-matcher/match-person": {
+      "post": {
+        "description": "Match a person embedding against known household members.\n\nCompares the provided embedding against all stored person embeddings\nand returns the best match if it exceeds the similarity threshold.\n\nArgs:\n    request: PersonMatchRequest with embedding and optional threshold\n    db: Database session\n\nReturns:\n    HouseholdMatchResponse with match details if found\n\nRaises:\n    HTTPException: 400 if embedding is invalid",
+        "operationId": "household-matcher_match_person",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonMatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid embedding format"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Match Person",
+        "tags": [
+          "household-matcher"
+        ]
+      }
+    },
+    "/api/household-matcher/match-vehicle": {
+      "post": {
+        "description": "Match a vehicle against registered vehicles.\n\nMatching priority:\n1. License plate match (exact, case-insensitive) - returns similarity 1.0\n2. Visual embedding match (if plate doesn't match or isn't provided)\n\nArgs:\n    request: VehicleMatchRequest with plate and/or embedding\n    db: Database session\n\nReturns:\n    HouseholdMatchResponse with match details if found\n\nRaises:\n    HTTPException: 400 if neither plate nor embedding is provided",
+        "operationId": "household-matcher_match_vehicle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleMatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid request - must provide plate or embedding"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Match Vehicle",
+        "tags": [
+          "household-matcher"
+        ]
+      }
+    },
     "/api/household/members": {
       "get": {
         "description": "List all household members.\n\nReturns all registered household members ordered by name.\n\nArgs:\n    session: Database session\n\nReturns:\n    List of HouseholdMember objects",
@@ -50247,6 +52418,162 @@
         "summary": "Get queue status",
         "tags": [
           "queues"
+        ]
+      }
+    },
+    "/api/reid/search": {
+      "post": {
+        "description": "Search for entities similar to the given embedding vector.\n\nThis endpoint allows searching for entities that are similar to a provided\nembedding vector. It can search across both Redis (hot cache, 24h window)\nand PostgreSQL (historical, 30-day retention) depending on the\n`include_historical` parameter.\n\nArgs:\n    request: Search request containing embedding vector and parameters\n    hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search\n\nReturns:\n    SimilaritySearchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 400 for invalid parameters, 503 for service unavailable",
+        "operationId": "reid_search_similar_entities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimilaritySearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilaritySearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Service unavailable (Redis/PostgreSQL)"
+          }
+        },
+        "summary": "Search Similar Entities",
+        "tags": [
+          "reid"
+        ]
+      }
+    },
+    "/api/reid/similar/{detection_id}": {
+      "get": {
+        "description": "Find entities similar to a specific detection.\n\nThis endpoint retrieves the embedding for the specified detection ID\nand searches for similar entities. Useful for finding re-identification\nmatches for a known detection.\n\nArgs:\n    detection_id: Detection ID to find similar entities for\n    entity_type: Type of entity ('person' or 'vehicle')\n    threshold: Minimum cosine similarity threshold\n    limit: Maximum number of results\n    include_historical: Whether to include historical PostgreSQL data\n    reid_service: Re-identification service\n    hybrid_storage: Hybrid storage service\n\nReturns:\n    SimilaritySearchResponse with matching entities\n\nRaises:\n    HTTPException: 404 if detection/embedding not found, 503 if Redis unavailable",
+        "operationId": "reid_find_similar_by_detection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "detection_id",
+            "required": true,
+            "schema": {
+              "title": "Detection Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Type of entity to search for",
+            "in": "query",
+            "name": "entity_type",
+            "required": false,
+            "schema": {
+              "default": "person",
+              "description": "Type of entity to search for",
+              "pattern": "^(person|vehicle)$",
+              "title": "Entity Type",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Minimum similarity threshold",
+            "in": "query",
+            "name": "threshold",
+            "required": false,
+            "schema": {
+              "default": 0.85,
+              "description": "Minimum similarity threshold",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "title": "Threshold",
+              "type": "number"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Maximum number of results",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include historical (PostgreSQL) data",
+            "in": "query",
+            "name": "include_historical",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Include historical (PostgreSQL) data",
+              "title": "Include Historical",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilaritySearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Detection not found or no embedding stored"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "Redis service unavailable"
+          }
+        },
+        "summary": "Find Similar By Detection",
+        "tags": [
+          "reid"
         ]
       }
     },
