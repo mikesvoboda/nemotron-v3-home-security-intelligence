@@ -17,6 +17,8 @@ import {
   Clock,
   Radio,
   Layers,
+  Wifi,
+  HeartPulse,
 } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
@@ -49,12 +51,14 @@ import DatabasesPanel from './DatabasesPanel';
 import DebugModeToggle from './DebugModeToggle';
 import FileOperationsPanel from './FileOperationsPanel';
 import GPUHistoryPanel from './GPUHistoryPanel';
+import KubernetesProbesPanel from './KubernetesProbesPanel';
 import PerformanceHistoryPanel from './PerformanceHistoryPanel';
 import PipelineFlowVisualization from './PipelineFlowVisualization';
 import PipelineLatencyHistoryPanel from './PipelineLatencyHistoryPanel';
 import PrometheusMonitoringPanel from './PrometheusMonitoringPanel';
 import QueueMetricsPanel from './QueueMetricsPanel';
 import ServicesPanel from './ServicesPanel';
+import WebSocketHealthPanel from './WebSocketHealthPanel';
 import { WorkerManagementPanel } from './WorkerManagementPanel';
 import WorkerStatusPanel from './WorkerStatusPanel';
 
@@ -600,6 +604,38 @@ export default function SystemMonitoringPage() {
                 redisDebugLoading={redisDebugLoading}
                 redisDebugError={redisDebugError?.message ?? null}
                 data-testid="databases-panel-section"
+              />
+            </CollapsibleSection>
+          </div>
+
+          {/* WebSocket Health Panel (NEM-4949) */}
+          <div id="section-websocket-health">
+            <CollapsibleSection
+              title="WebSocket Health"
+              icon={<Wifi className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['websocket-health']}
+              onToggle={() => toggleSection('websocket-health')}
+              data-testid="websocket-health-section"
+            >
+              <WebSocketHealthPanel
+                pollingInterval={30000}
+                data-testid="websocket-health-panel"
+              />
+            </CollapsibleSection>
+          </div>
+
+          {/* Kubernetes Probes Panel (NEM-4950) */}
+          <div id="section-kubernetes-probes">
+            <CollapsibleSection
+              title="Kubernetes Probes"
+              icon={<HeartPulse className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['kubernetes-probes']}
+              onToggle={() => toggleSection('kubernetes-probes')}
+              data-testid="kubernetes-probes-section"
+            >
+              <KubernetesProbesPanel
+                pollingInterval={15000}
+                data-testid="kubernetes-probes-panel"
               />
             </CollapsibleSection>
           </div>

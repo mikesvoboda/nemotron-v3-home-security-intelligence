@@ -1605,6 +1605,54 @@ export async function fetchCameraSnapshot(cameraId: string): Promise<Blob> {
 }
 
 // ============================================================================
+// Snapshot Refresh Types (NEM-4947)
+// ============================================================================
+
+/**
+ * Response from the snapshot refresh endpoint.
+ *
+ * NEM-4947: Contains metadata about the refreshed snapshot.
+ */
+export interface SnapshotRefreshResponse {
+  /** ID of the camera whose snapshot was refreshed */
+  camera_id: string;
+  /** URL to access the refreshed snapshot */
+  snapshot_url: string;
+  /** Whether the cached snapshot was invalidated */
+  cache_invalidated: boolean;
+  /** Source of the snapshot: 'image_file' or 'video_extraction' */
+  snapshot_source: string;
+  /** ISO 8601 timestamp of when the snapshot was refreshed */
+  timestamp: string;
+}
+
+/**
+ * Manually refresh a camera snapshot.
+ *
+ * NEM-4947: Invalidates any cached snapshot and captures a fresh one.
+ *
+ * @param cameraId - The camera ID to refresh snapshot for
+ * @returns Metadata about the refresh operation
+ * @throws ApiError if camera not found or refresh fails
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   const result = await refreshCameraSnapshot('front_door');
+ *   console.log(`Snapshot refreshed from ${result.snapshot_source}`);
+ * } catch (error) {
+ *   console.error('Failed to refresh snapshot:', error);
+ * }
+ * ```
+ */
+export async function refreshCameraSnapshot(cameraId: string): Promise<SnapshotRefreshResponse> {
+  return fetchApi<SnapshotRefreshResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/snapshot/refresh`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
 // Baseline Analytics Types (manual definitions until regenerated)
 // ============================================================================
 
@@ -2051,6 +2099,64 @@ export async function fetchTelemetry(): Promise<TelemetryResponse> {
  */
 export async function fetchReadiness(): Promise<ReadinessResponse> {
   return fetchApi<ReadinessResponse>('/api/system/health/ready');
+}
+
+// ============================================================================
+// WebSocket Health Types (NEM-4949)
+// ============================================================================
+
+/** Circuit breaker state for WebSocket broadcasters */
+export type WebSocketCircuitState = 'closed' | 'open' | 'half_open' | 'unavailable';
+
+/** Health status for individual WebSocket broadcaster */
+export interface WebSocketBroadcasterHealthStatus {
+  state: WebSocketCircuitState;
+  failure_count: number;
+  is_degraded: boolean;
+  message: string | null;
+}
+
+/** Response from WebSocket health endpoint */
+export interface WebSocketHealthResponse {
+  event_broadcaster: WebSocketBroadcasterHealthStatus | null;
+  system_broadcaster: WebSocketBroadcasterHealthStatus | null;
+  timestamp: string;
+}
+
+/**
+ * Fetch WebSocket broadcaster health status (NEM-4949).
+ * Returns circuit breaker state for event and system broadcasters.
+ *
+ * @param options - Optional fetch options including AbortSignal
+ * @returns WebSocketHealthResponse with broadcaster health status
+ */
+export async function fetchWebSocketHealth(options?: {
+  signal?: AbortSignal;
+}): Promise<WebSocketHealthResponse> {
+  return fetchApi<WebSocketHealthResponse>('/api/system/health/websocket', options);
+}
+
+// ============================================================================
+// Kubernetes Probes Types (NEM-4950)
+// ============================================================================
+
+/** Response from liveness probe endpoint */
+export interface LivenessProbeResponse {
+  status: string;
+  timestamp: string;
+}
+
+/**
+ * Fetch Kubernetes liveness probe status (NEM-4950).
+ * Fast endpoint that confirms process is alive.
+ *
+ * @param options - Optional fetch options including AbortSignal
+ * @returns LivenessProbeResponse with status
+ */
+export async function fetchLivenessProbe(options?: {
+  signal?: AbortSignal;
+}): Promise<LivenessProbeResponse> {
+  return fetchApi<LivenessProbeResponse>('/api/system/health/live', options);
 }
 
 /**

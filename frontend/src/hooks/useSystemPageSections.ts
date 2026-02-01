@@ -29,7 +29,9 @@ export type SystemSectionId =
   | 'test-data'
   | 'performance-history'
   | 'gpu-history'
-  | 'latency-history';
+  | 'latency-history'
+  | 'websocket-health'
+  | 'kubernetes-probes';
 
 /**
  * Default expanded state for each section
@@ -69,6 +71,8 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'performance-history': true,
   'gpu-history': true,
   'latency-history': true,
+  'websocket-health': true,
+  'kubernetes-probes': true,
 };
 
 const STORAGE_KEY = 'system-page-sections';
