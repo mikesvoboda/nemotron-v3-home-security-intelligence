@@ -1008,3 +1008,11 @@ export type {
   UsePrometheusAlertWebSocketOptions,
   UsePrometheusAlertWebSocketReturn,
 } from './usePrometheusAlertWebSocket';
+
+// Enrichment progress tracking hook
+export { useEnrichmentProgress, default as useEnrichmentProgressDefault } from './useEnrichmentProgress';
+export type {
+  EventEnrichmentProgress,
+  UseEnrichmentProgressOptions,
+  UseEnrichmentProgressReturn,
+} from './useEnrichmentProgress';

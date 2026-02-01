@@ -9,6 +9,7 @@ export type SystemSectionId =
   | 'ai-models'
   | 'model-zoo'
   | 'pipeline-metrics'
+  | 'queue-metrics'
   | 'batch-statistics'
   | 'databases'
   | 'workers'
@@ -47,6 +48,7 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'ai-models': true,
   'model-zoo': false,
   'pipeline-metrics': true,
+  'queue-metrics': true,
   'batch-statistics': true,
   databases: false,
   workers: false,

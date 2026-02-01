@@ -568,4 +568,137 @@ describe('useSceneChangeEvents', () => {
     expect(state?.isActive).toBe(true);
     expect(state?.lastChangeType).toBe('view_blocked');
   });
+
+  describe('scene_change.acknowledged events', () => {
+    it('updates recent events when scene_change.acknowledged is received', () => {
+      const { result } = renderHook(() => useSceneChangeEvents());
+
+      // First add a scene change event
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      expect(result.current.recentEvents).toHaveLength(1);
+      expect(result.current.recentEvents[0].acknowledged).toBeUndefined();
+
+      // Now receive acknowledgment
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change.acknowledged',
+          payload: {
+            id: 1,
+            camera_id: 'front_door',
+            acknowledged: true,
+            acknowledged_at: '2026-01-10T10:05:00Z',
+          },
+        });
+      });
+
+      expect(result.current.recentEvents).toHaveLength(1);
+      expect(result.current.recentEvents[0].acknowledged).toBe(true);
+      expect(result.current.recentEvents[0].acknowledgedAt).toBe('2026-01-10T10:05:00Z');
+    });
+
+    it('handles acknowledgment for non-existent event gracefully', () => {
+      const { result } = renderHook(() => useSceneChangeEvents());
+
+      // Receive acknowledgment without having the event
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change.acknowledged',
+          payload: {
+            id: 999,
+            camera_id: 'unknown_camera',
+            acknowledged: true,
+            acknowledged_at: '2026-01-10T10:05:00Z',
+          },
+        });
+      });
+
+      // Should not crash
+      expect(result.current.recentEvents).toHaveLength(0);
+    });
+
+    it('handles acknowledgment with null acknowledged_at', () => {
+      const { result } = renderHook(() => useSceneChangeEvents());
+
+      // Add a scene change event
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      // Acknowledge with null timestamp
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change.acknowledged',
+          payload: {
+            id: 1,
+            camera_id: 'front_door',
+            acknowledged: true,
+            acknowledged_at: null,
+          },
+        });
+      });
+
+      expect(result.current.recentEvents[0].acknowledged).toBe(true);
+      expect(result.current.recentEvents[0].acknowledgedAt).toBeUndefined();
+    });
+
+    it('ignores malformed scene_change.acknowledged messages', () => {
+      const { result } = renderHook(() => useSceneChangeEvents());
+
+      // Add a scene change event
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change',
+          data: {
+            id: 1,
+            camera_id: 'front_door',
+            detected_at: '2026-01-10T10:00:00Z',
+            change_type: 'view_blocked',
+            similarity_score: 0.25,
+          },
+        });
+      });
+
+      // Send malformed messages - should be ignored
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change.acknowledged',
+          // Missing payload
+        });
+      });
+
+      act(() => {
+        onMessageCallback!({
+          type: 'scene_change.acknowledged',
+          payload: {
+            // Missing required fields
+            acknowledged: true,
+          },
+        });
+      });
+
+      // Event should remain unchanged
+      expect(result.current.recentEvents[0].acknowledged).toBeUndefined();
+    });
+  });
 });

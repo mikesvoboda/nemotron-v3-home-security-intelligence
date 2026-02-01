@@ -259,6 +259,12 @@ export interface WebSocketEventMap {
   'dwell.entry': DwellEntryPayload;
   /** Dwell exit event - entity exited a zone */
   'dwell.exit': DwellExitPayload;
+
+  // Scene change events
+  /** Scene change detected event - potential camera tampering */
+  'scene_change.detected': SceneChangeDetectedPayload;
+  /** Scene change acknowledged event - user acknowledged the scene change */
+  'scene_change.acknowledged': SceneChangeAcknowledgedPayload;
 }
 
 // ============================================================================
@@ -387,6 +393,9 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   // Dwell time events (NEM-4714)
   'dwell.entry',
   'dwell.exit',
+  // Scene change events
+  'scene_change.detected',
+  'scene_change.acknowledged',
 ] as const;
 
 /**
@@ -587,6 +596,7 @@ export enum WSEventType {
 
   // Scene change events - Camera view monitoring
   SCENE_CHANGE_DETECTED = 'scene_change.detected',
+  SCENE_CHANGE_ACKNOWLEDGED = 'scene_change.acknowledged',
 
   // Worker events - Pipeline worker lifecycle (NEM-3127)
   WORKER_STARTED = 'worker.started',
@@ -1266,6 +1276,21 @@ export interface SceneChangeDetectedPayload {
   similarity_score: number;
 }
 
+/**
+ * Payload for scene_change.acknowledged events.
+ * Sent when a scene change is acknowledged by a user.
+ */
+export interface SceneChangeAcknowledgedPayload {
+  /** Scene change record ID */
+  id: number;
+  /** Camera ID where the scene change was detected */
+  camera_id: string;
+  /** Whether the scene change is now acknowledged */
+  acknowledged: boolean;
+  /** ISO 8601 timestamp when the scene change was acknowledged */
+  acknowledged_at: string | null;
+}
+
 // ============================================================================
 // Worker Event Payloads (NEM-3127)
 // Matches backend/core/websocket/event_schemas.py Worker* payloads
@@ -1519,6 +1544,7 @@ export interface WSEventPayloadMap {
   [WSEventType.GPU_STATS_UPDATED]: GpuStatsUpdatedPayload;
   [WSEventType.SERVICE_STATUS_CHANGED]: ServiceStatusChangedPayload;
   [WSEventType.SCENE_CHANGE_DETECTED]: SceneChangeDetectedPayload;
+  [WSEventType.SCENE_CHANGE_ACKNOWLEDGED]: SceneChangeAcknowledgedPayload;
   // Worker events (NEM-3127)
   [WSEventType.WORKER_STARTED]: WorkerStartedPayload;
   [WSEventType.WORKER_STOPPED]: WorkerStoppedPayload;

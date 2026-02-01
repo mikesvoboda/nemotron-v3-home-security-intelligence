@@ -84,6 +84,12 @@ export type { TruncatedTextProps } from './TruncatedText';
 export { default as WebSocketStatus } from './WebSocketStatus';
 export type { WebSocketStatusProps } from './WebSocketStatus';
 
+export { default as WebSocketStatusIndicator } from './WebSocketStatusIndicator';
+export type {
+  WebSocketStatusIndicatorProps,
+  WebSocketEndpointStatus,
+} from './WebSocketStatusIndicator';
+
 export { default as ProductTour } from './ProductTour';
 export type { ProductTourProps } from './ProductTour';
 export { restartProductTour } from '../../config/tourSteps';
