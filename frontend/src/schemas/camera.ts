@@ -35,6 +35,24 @@ export const CAMERA_STATUS_VALUES = ['online', 'offline', 'error', 'unknown'] as
 /** Type derived from camera status values */
 export type CameraStatusValue = (typeof CAMERA_STATUS_VALUES)[number];
 
+/**
+ * Ingestion mode enum values for camera configuration.
+ * Determines how the camera sends images to the system.
+ */
+export const INGESTION_MODE_VALUES = ['ftp', 'rtsp', 'onvif'] as const;
+
+/** Type derived from ingestion mode values */
+export type IngestionModeValue = (typeof INGESTION_MODE_VALUES)[number];
+
+/**
+ * Stream profile enum values for RTSP cameras.
+ * Determines which stream to use from multi-stream cameras.
+ */
+export const STREAM_PROFILE_VALUES = ['main', 'sub', 'both'] as const;
+
+/** Type derived from stream profile values */
+export type StreamProfileValue = (typeof STREAM_PROFILE_VALUES)[number];
+
 // =============================================================================
 // Custom Validators (aligned with backend _validate_folder_path)
 // =============================================================================
@@ -155,15 +173,132 @@ export const cameraMotionSensitivitySchema = z
   .optional();
 
 /**
- * Schema for creating a new camera.
+ * Ingestion mode schema - determines how camera sends images.
+ * - ftp: Camera uploads images via FTP to a folder
+ * - rtsp: System pulls video stream from camera via RTSP
+ * - onvif: System uses ONVIF protocol for camera control
+ */
+export const ingestionModeSchema = z.enum(INGESTION_MODE_VALUES, {
+  error: 'Invalid ingestion mode. Must be: ftp, rtsp, or onvif',
+});
+
+/**
+ * Stream profile schema - which stream to use from RTSP cameras.
+ * - main: High quality main stream
+ * - sub: Lower quality sub-stream (for bandwidth savings)
+ * - both: Process both streams
+ */
+export const streamProfileSchema = z.enum(STREAM_PROFILE_VALUES, {
+  error: 'Invalid stream profile. Must be: main, sub, or both',
+}).nullable().optional();
+
+/**
+ * Checks if an RTSP URL has a valid format with a host.
+ *
+ * Valid formats:
+ * - rtsp://hostname
+ * - rtsp://hostname:port
+ * - rtsp://hostname/path
+ * - rtsp://user:****@hostname:port/path (with credentials)
+ * Invalid: rtsp:///path (missing host)
+ */
+function isValidRtspUrl(url: string): { valid: boolean; message?: string } {
+  if (!url) return { valid: true }; // Empty is handled by refinement
+
+  // Check protocol
+  const lowerUrl = url.toLowerCase();
+  if (!lowerUrl.startsWith('rtsp://') && !lowerUrl.startsWith('rtsps://')) {
+    return { valid: false, message: 'RTSP URL must use rtsp:// or rtsps:// protocol' };
+  }
+
+  // Extract the part after the protocol
+  const protocolEnd = url.indexOf('://') + 3;
+  const afterProtocol = url.slice(protocolEnd);
+
+  // Find where the host ends (at / or end of string)
+  const pathStart = afterProtocol.indexOf('/');
+  const hostPart = pathStart === -1 ? afterProtocol : afterProtocol.slice(0, pathStart);
+
+  // If there's an @ for auth, get the part after it
+  const atIndex = hostPart.lastIndexOf('@');
+  const hostAndPort = atIndex === -1 ? hostPart : hostPart.slice(atIndex + 1);
+
+  // Remove port if present
+  const colonIndex = hostAndPort.lastIndexOf(':');
+  const host = colonIndex === -1 ? hostAndPort : hostAndPort.slice(0, colonIndex);
+
+  // Host must have at least one character
+  if (host.length === 0) {
+    return { valid: false, message: 'RTSP URL must have a valid host' };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * RTSP URL schema - validates RTSP stream URLs.
+ * Requires rtsp:// or rtsps:// protocol with a valid host.
+ * Nullable and optional - validation for RTSP/ONVIF mode is handled by refinement.
+ */
+export const rtspUrlSchema = z
+  .string()
+  .superRefine((val, ctx) => {
+    if (!val) return; // Empty string or null handled elsewhere
+    const result = isValidRtspUrl(val);
+    if (!result.valid && result.message) {
+      ctx.addIssue({
+        code: 'custom',
+        message: result.message,
+      });
+    }
+  })
+  .nullable()
+  .optional();
+
+/**
+ * RTSP username schema - optional authentication username.
+ */
+export const rtspUsernameSchema = z.string().nullable().optional();
+
+/**
+ * RTSP password schema - optional authentication password.
+ */
+export const rtspPasswordSchema = z.string().nullable().optional();
+
+/**
+ * Base schema for creating a new camera (without refinement).
  * Matches backend CameraCreate Pydantic model.
  */
-export const cameraCreateSchema = z.object({
+const cameraCreateBaseSchema = z.object({
   name: cameraNameSchema,
   folder_path: cameraFolderPathSchema,
   status: cameraStatusSchema.default('online'),
   motion_sensitivity: cameraMotionSensitivitySchema,
+  ingestion_mode: ingestionModeSchema.optional(),
+  rtsp_url: rtspUrlSchema,
+  rtsp_username: rtspUsernameSchema,
+  rtsp_password: rtspPasswordSchema,
+  stream_profile: streamProfileSchema,
 });
+
+/**
+ * Schema for creating a new camera with cross-field validation.
+ * Matches backend CameraCreate Pydantic model.
+ *
+ * Refinement: rtsp_url is required when ingestion_mode is 'rtsp' or 'onvif'
+ */
+export const cameraCreateSchema = cameraCreateBaseSchema.refine(
+  (data) => {
+    if (data.ingestion_mode === 'rtsp' || data.ingestion_mode === 'onvif') {
+      return data.rtsp_url && data.rtsp_url.length > 0;
+    }
+    return true;
+  },
+  {
+    message: 'RTSP URL is required when ingestion mode is RTSP or ONVIF',
+    path: ['rtsp_url'],
+  }
+);
 
 /**
  * Schema for updating an existing camera.
@@ -178,15 +313,39 @@ export const cameraUpdateSchema = z.object({
 });
 
 /**
- * Schema for the camera form (used in CamerasSettings.tsx).
+ * Base schema for the camera form (used in CamerasSettings.tsx).
  * All fields are required for form display but status has a default.
  */
-export const cameraFormSchema = z.object({
+const cameraFormBaseSchema = z.object({
   name: cameraNameSchema,
   folder_path: cameraFolderPathSchema,
   status: cameraStatusSchema,
   motion_sensitivity: cameraMotionSensitivitySchema,
+  ingestion_mode: ingestionModeSchema.default('ftp'),
+  rtsp_url: rtspUrlSchema,
+  rtsp_username: rtspUsernameSchema,
+  rtsp_password: rtspPasswordSchema,
+  stream_profile: streamProfileSchema,
 });
+
+/**
+ * Schema for the camera form with cross-field validation.
+ * Used in CamerasSettings.tsx for form validation.
+ *
+ * Refinement: rtsp_url is required when ingestion_mode is 'rtsp' or 'onvif'
+ */
+export const cameraFormSchema = cameraFormBaseSchema.refine(
+  (data) => {
+    if (data.ingestion_mode === 'rtsp' || data.ingestion_mode === 'onvif') {
+      return data.rtsp_url && data.rtsp_url.length > 0;
+    }
+    return true;
+  },
+  {
+    message: 'RTSP URL is required when ingestion mode is RTSP or ONVIF',
+    path: ['rtsp_url'],
+  }
+);
 
 // =============================================================================
 // Type Exports

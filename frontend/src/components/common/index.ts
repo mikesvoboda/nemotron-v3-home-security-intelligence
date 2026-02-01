@@ -221,3 +221,7 @@ export type { OfflineStatusIndicatorProps } from './OfflineStatusIndicator';
 
 export { default as OfflineFallback } from './OfflineFallback';
 export type { OfflineFallbackProps } from './OfflineFallback';
+
+// Password input with show/hide toggle (NEM-4744)
+export { default as PasswordInput } from './PasswordInput';
+export type { PasswordInputProps } from './PasswordInput';

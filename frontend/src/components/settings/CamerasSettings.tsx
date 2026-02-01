@@ -26,12 +26,15 @@ import {
   CAMERA_NAME_CONSTRAINTS,
   CAMERA_FOLDER_PATH_CONSTRAINTS,
   CAMERA_STATUS_VALUES,
+  INGESTION_MODE_VALUES,
   type CameraStatusValue,
+  type IngestionModeValue,
 } from '../../schemas/camera';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
 import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
 import SceneChangePanel from '../analytics/SceneChangePanel';
 import IconButton from '../common/IconButton';
+import PasswordInput from '../common/PasswordInput';
 import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
@@ -41,6 +44,10 @@ interface CameraFormData {
   folder_path: string;
   status: CameraStatusValue;
   motion_sensitivity?: number;
+  ingestion_mode: IngestionModeValue;
+  rtsp_url?: string;
+  rtsp_username?: string;
+  rtsp_password?: string;
 }
 
 interface CameraFormErrors {
@@ -48,6 +55,10 @@ interface CameraFormErrors {
   folder_path?: string;
   status?: string;
   motion_sensitivity?: string;
+  ingestion_mode?: string;
+  rtsp_url?: string;
+  rtsp_username?: string;
+  rtsp_password?: string;
 }
 
 /**
@@ -78,6 +89,10 @@ export default function CamerasSettings() {
     folder_path: '',
     status: 'online',
     motion_sensitivity: undefined,
+    ingestion_mode: 'ftp',
+    rtsp_url: '',
+    rtsp_username: '',
+    rtsp_password: '',
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,7 +151,16 @@ export default function CamerasSettings() {
 
   const handleOpenAddModal = () => {
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'online', motion_sensitivity: undefined });
+    setFormData({
+      name: '',
+      folder_path: '',
+      status: 'online',
+      motion_sensitivity: undefined,
+      ingestion_mode: 'ftp',
+      rtsp_url: '',
+      rtsp_username: '',
+      rtsp_password: '',
+    });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -148,6 +172,10 @@ export default function CamerasSettings() {
       folder_path: camera.folder_path,
       status: camera.status,
       motion_sensitivity: camera.motion_sensitivity,
+      ingestion_mode: (camera.ingestion_mode as IngestionModeValue) ?? 'ftp',
+      rtsp_url: camera.rtsp_url ?? '',
+      rtsp_username: camera.rtsp_username ?? '',
+      rtsp_password: camera.rtsp_password ?? '',
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -156,7 +184,16 @@ export default function CamerasSettings() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'online', motion_sensitivity: undefined });
+    setFormData({
+      name: '',
+      folder_path: '',
+      status: 'online',
+      motion_sensitivity: undefined,
+      ingestion_mode: 'ftp',
+      rtsp_url: '',
+      rtsp_username: '',
+      rtsp_password: '',
+    });
     setFormErrors({});
   };
 
@@ -183,8 +220,8 @@ export default function CamerasSettings() {
 
     setFormErrors({});
 
-    // Helper to check if folder_path is RTSP
-    const isRtspPath = (path: string) => path.toLowerCase().startsWith('rtsp://');
+    // Helper to check if ingestion mode requires RTSP fields
+    const isRtspMode = formData.ingestion_mode === 'rtsp' || formData.ingestion_mode === 'onvif';
 
     try {
       if (editingCamera) {
@@ -195,21 +232,32 @@ export default function CamerasSettings() {
           status: formData.status,
         };
         // Include motion_sensitivity for RTSP cameras
-        if (isRtspPath(formData.folder_path)) {
+        if (isRtspMode) {
           updateData.motion_sensitivity = formData.motion_sensitivity ?? 0.5;
         }
         await updateMutation.mutateAsync({ id: editingCamera.id, data: updateData });
       } else {
         // Create new camera
-        const isRtsp = isRtspPath(formData.folder_path);
-        const createData: CameraCreate = {
+        // Use Partial<CameraCreate> since backend provides defaults for ingestion_mode/motion_sensitivity
+        const createData: Partial<CameraCreate> & Pick<CameraCreate, 'name' | 'folder_path'> = {
           name: formData.name.trim(),
           folder_path: formData.folder_path.trim(),
           status: formData.status ?? 'online',
-          ingestion_mode: isRtsp ? 'rtsp' : 'ftp',
-          motion_sensitivity: isRtsp ? (formData.motion_sensitivity ?? 0.5) : 0.5,
         };
-        await createMutation.mutateAsync(createData);
+
+        // Include RTSP fields when mode is rtsp or onvif
+        if (isRtspMode) {
+          createData.ingestion_mode = formData.ingestion_mode;
+          createData.rtsp_url = formData.rtsp_url?.trim();
+          if (formData.rtsp_username?.trim()) {
+            createData.rtsp_username = formData.rtsp_username.trim();
+          }
+          if (formData.rtsp_password?.trim()) {
+            createData.rtsp_password = formData.rtsp_password.trim();
+          }
+        }
+
+        await createMutation.mutateAsync(createData as CameraCreate);
       }
 
       // Cache is automatically invalidated by the mutation
@@ -734,8 +782,112 @@ export default function CamerasSettings() {
                       )}
                     </div>
 
+                    {/* Ingestion Mode Select */}
+                    <div>
+                      <label
+                        htmlFor="ingestion_mode"
+                        className="block text-sm font-medium text-text-primary"
+                      >
+                        Ingestion Mode
+                      </label>
+                      <select
+                        id="ingestion_mode"
+                        data-testid="camera-ingestion-mode-select"
+                        value={formData.ingestion_mode}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            ingestion_mode: e.target.value as IngestionModeValue,
+                          })
+                        }
+                        className={clsx(
+                          'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
+                          formErrors.ingestion_mode
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-800 focus:border-primary focus:ring-primary'
+                        )}
+                      >
+                        {INGESTION_MODE_VALUES.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {mode.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                      {formErrors.ingestion_mode && (
+                        <p className="mt-1 text-sm text-red-500">{formErrors.ingestion_mode}</p>
+                      )}
+                    </div>
+
+                    {/* RTSP Configuration Section - Only when ingestion_mode is rtsp or onvif */}
+                    {(formData.ingestion_mode === 'rtsp' ||
+                      formData.ingestion_mode === 'onvif') && (
+                      <>
+                        {/* RTSP URL Input */}
+                        <div>
+                          <label
+                            htmlFor="rtsp_url"
+                            className="block text-sm font-medium text-text-primary"
+                          >
+                            RTSP URL
+                          </label>
+                          <input
+                            type="text"
+                            id="rtsp_url"
+                            data-testid="camera-rtsp-url-input"
+                            value={formData.rtsp_url ?? ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, rtsp_url: e.target.value })
+                            }
+                            className={clsx(
+                              'mt-1 block w-full rounded-lg border bg-card px-3 py-2 font-mono text-sm text-text-primary focus:outline-none focus:ring-2',
+                              formErrors.rtsp_url
+                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                : 'border-gray-800 focus:border-primary focus:ring-primary'
+                            )}
+                            placeholder="rtsp://192.168.1.100:554/stream1"
+                          />
+                          {formErrors.rtsp_url && (
+                            <p className="mt-1 text-sm text-red-500">{formErrors.rtsp_url}</p>
+                          )}
+                        </div>
+
+                        {/* RTSP Username Input */}
+                        <div>
+                          <label
+                            htmlFor="rtsp_username"
+                            className="block text-sm font-medium text-text-primary"
+                          >
+                            RTSP Username
+                          </label>
+                          <input
+                            type="text"
+                            id="rtsp_username"
+                            data-testid="camera-rtsp-username-input"
+                            value={formData.rtsp_username ?? ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, rtsp_username: e.target.value })
+                            }
+                            className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="admin"
+                          />
+                        </div>
+
+                        {/* RTSP Password Input */}
+                        <PasswordInput
+                          label="RTSP Password"
+                          value={formData.rtsp_password ?? ''}
+                          onChange={(e) =>
+                            setFormData({ ...formData, rtsp_password: e.target.value })
+                          }
+                          placeholder="Enter password"
+                          data-testid="camera-rtsp-password-input"
+                        />
+                      </>
+                    )}
+
                     {/* Motion Sensitivity Slider - Only for RTSP cameras */}
-                    {formData.folder_path.toLowerCase().startsWith('rtsp://') && (
+                    {(formData.ingestion_mode === 'rtsp' ||
+                      formData.ingestion_mode === 'onvif') && (
                       <div>
                         <label
                           htmlFor="motion_sensitivity"
