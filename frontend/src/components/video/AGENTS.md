@@ -106,20 +106,24 @@ import { VideoPlayer } from '../video';
 
 ```typescript
 interface RTSPPreviewPlayerProps {
-  /** RTSP URL to preview */
-  rtspUrl: string;
-  /** Camera ID for existing cameras, omit for URL-only preview */
-  cameraId?: string;
+  /** Preview configuration with RTSP URL and optional credentials */
+  config: PreviewConfig;
   /** Whether to auto-start preview on mount */
   autoStart?: boolean;
   /** Callback when preview starts successfully */
-  onStreamStart?: () => void;
-  /** Callback when preview stops */
-  onStreamStop?: () => void;
-  /** Callback on error */
+  onConnected?: () => void;
+  /** Callback when preview encounters an error */
   onError?: (error: string) => void;
+  /** Callback when preview stops */
+  onStopped?: () => void;
   /** Additional CSS classes */
   className?: string;
+  /** Session expiry time in seconds (default: 300) */
+  expiresIn?: number;
+  /** Whether camera supports PTZ control (NEM-4885) */
+  hasPtz?: boolean;
+  /** Camera ID for PTZ control (required if hasPtz is true) */
+  cameraId?: string;
 }
 ```
 
@@ -133,6 +137,10 @@ interface RTSPPreviewPlayerProps {
 - Error handling with user-friendly messages
 - Loading state with skeleton placeholder
 - Auto-cleanup on unmount
+- **PTZ controls overlay** (NEM-4885): Toggle button shows/hides compact PTZ controls
+  - Positioned bottom-right to avoid blocking video content
+  - Uses compact mode PTZControls component
+  - Auto-hides when video stops
 
 **WebRTC Flow:**
 

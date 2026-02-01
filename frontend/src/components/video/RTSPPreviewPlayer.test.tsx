@@ -6,6 +6,7 @@
  * - User interactions (start, stop, retry)
  * - Session expiry countdown
  * - Callback invocations
+ * - PTZ controls overlay (NEM-4885)
  */
 
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
@@ -28,6 +29,15 @@ vi.mock('../../hooks/useRtspPreview', () => ({
     startPreview: mockStartPreview,
     stopPreview: mockStopPreview,
   })),
+}));
+
+// Mock PTZControls component
+vi.mock('../ptz', () => ({
+  PTZControls: ({ cameraId, compact }: { cameraId: string; compact: boolean }) => (
+    <div data-testid="ptz-controls-mock" data-camera-id={cameraId} data-compact={compact}>
+      PTZ Controls Mock
+    </div>
+  ),
 }));
 
 const mockUseRtspPreview = vi.mocked(useRtspPreview);
@@ -401,6 +411,169 @@ describe('RTSPPreviewPlayer', () => {
 
       const player = screen.getByTestId('rtsp-preview-player');
       expect(player).toHaveClass('aspect-video');
+    });
+  });
+
+  describe('PTZ Controls Overlay (NEM-4885)', () => {
+    beforeEach(() => {
+      mockUseRtspPreview.mockReturnValue({
+        state: 'connected',
+        error: undefined,
+        peerConnection: new RTCPeerConnection(),
+        startPreview: mockStartPreview,
+        stopPreview: mockStopPreview,
+      });
+    });
+
+    it('does not show PTZ toggle button when hasPtz is false', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} />);
+
+      expect(screen.queryByTestId('ptz-toggle-button')).not.toBeInTheDocument();
+    });
+
+    it('does not show PTZ toggle button when cameraId is missing', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz />);
+
+      expect(screen.queryByTestId('ptz-toggle-button')).not.toBeInTheDocument();
+    });
+
+    it('shows PTZ toggle button when hasPtz and cameraId are provided', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      expect(screen.getByTestId('ptz-toggle-button')).toBeInTheDocument();
+      expect(screen.getByText('PTZ')).toBeInTheDocument();
+    });
+
+    it('does not show PTZ overlay initially', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      expect(screen.queryByTestId('ptz-overlay')).not.toBeInTheDocument();
+    });
+
+    it('shows PTZ overlay when toggle button is clicked', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      const toggleButton = screen.getByTestId('ptz-toggle-button');
+      fireEvent.click(toggleButton);
+
+      expect(screen.getByTestId('ptz-overlay')).toBeInTheDocument();
+      expect(screen.getByTestId('ptz-controls-mock')).toBeInTheDocument();
+    });
+
+    it('hides PTZ overlay when toggle button is clicked again', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      const toggleButton = screen.getByTestId('ptz-toggle-button');
+
+      // Open
+      fireEvent.click(toggleButton);
+      expect(screen.getByTestId('ptz-overlay')).toBeInTheDocument();
+
+      // Close
+      fireEvent.click(toggleButton);
+      expect(screen.queryByTestId('ptz-overlay')).not.toBeInTheDocument();
+    });
+
+    it('hides PTZ overlay when close button is clicked', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      // Open PTZ overlay
+      fireEvent.click(screen.getByTestId('ptz-toggle-button'));
+      expect(screen.getByTestId('ptz-overlay')).toBeInTheDocument();
+
+      // Click close button
+      fireEvent.click(screen.getByTestId('ptz-close-button'));
+      expect(screen.queryByTestId('ptz-overlay')).not.toBeInTheDocument();
+    });
+
+    it('passes correct props to PTZControls component', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      fireEvent.click(screen.getByTestId('ptz-toggle-button'));
+
+      const ptzControls = screen.getByTestId('ptz-controls-mock');
+      expect(ptzControls).toHaveAttribute('data-camera-id', 'camera-1');
+      expect(ptzControls).toHaveAttribute('data-compact', 'true');
+    });
+
+    it('toggle button has correct aria attributes', () => {
+      render(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+
+      const toggleButton = screen.getByTestId('ptz-toggle-button');
+
+      // Initially not pressed
+      expect(toggleButton).toHaveAttribute('aria-pressed', 'false');
+      expect(toggleButton).toHaveAttribute('aria-label', 'Show PTZ controls');
+
+      // After click
+      fireEvent.click(toggleButton);
+      expect(toggleButton).toHaveAttribute('aria-pressed', 'true');
+      expect(toggleButton).toHaveAttribute('aria-label', 'Hide PTZ controls');
+    });
+
+    it('hides PTZ controls when video stops', async () => {
+      const { rerender } = render(
+        <RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />
+      );
+
+      // Open PTZ controls
+      fireEvent.click(screen.getByTestId('ptz-toggle-button'));
+      expect(screen.getByTestId('ptz-overlay')).toBeInTheDocument();
+
+      // Simulate video stopping
+      mockUseRtspPreview.mockReturnValue({
+        state: 'idle',
+        error: undefined,
+        peerConnection: undefined,
+        startPreview: mockStartPreview,
+        stopPreview: mockStopPreview,
+      });
+
+      rerender(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" autoStart />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('ptz-overlay')).not.toBeInTheDocument();
+      });
+    });
+
+    it('does not show PTZ controls in non-connected states', () => {
+      // Test idle state
+      mockUseRtspPreview.mockReturnValue({
+        state: 'idle',
+        error: undefined,
+        peerConnection: undefined,
+        startPreview: mockStartPreview,
+        stopPreview: mockStopPreview,
+      });
+
+      const { rerender } = render(
+        <RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />
+      );
+      expect(screen.queryByTestId('ptz-toggle-button')).not.toBeInTheDocument();
+
+      // Test connecting state
+      mockUseRtspPreview.mockReturnValue({
+        state: 'connecting',
+        error: undefined,
+        peerConnection: undefined,
+        startPreview: mockStartPreview,
+        stopPreview: mockStopPreview,
+      });
+
+      rerender(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+      expect(screen.queryByTestId('ptz-toggle-button')).not.toBeInTheDocument();
+
+      // Test error state
+      mockUseRtspPreview.mockReturnValue({
+        state: 'error',
+        error: 'Connection failed',
+        peerConnection: undefined,
+        startPreview: mockStartPreview,
+        stopPreview: mockStopPreview,
+      });
+
+      rerender(<RTSPPreviewPlayer config={defaultConfig} hasPtz cameraId="camera-1" />);
+      expect(screen.queryByTestId('ptz-toggle-button')).not.toBeInTheDocument();
     });
   });
 });

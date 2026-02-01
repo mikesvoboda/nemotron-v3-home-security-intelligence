@@ -70,6 +70,7 @@ from backend.api.routes import (
     metrics,
     notification,
     notification_preferences,
+    onvif,
     outbound_webhooks,
     plate_reads,
     prompt_management,
@@ -1244,6 +1245,7 @@ app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
 app.include_router(notification_preferences.router)
+app.include_router(onvif.router)
 app.include_router(outbound_webhooks.router)
 app.include_router(plate_reads.router)
 app.include_router(prompt_management.router)

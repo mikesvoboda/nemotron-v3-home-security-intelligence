@@ -7,6 +7,7 @@ import {
   Camera as CameraIcon,
   Edit2,
   MapPin,
+  Move,
   Network,
   Play,
   Plus,
@@ -28,6 +29,7 @@ import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
 import SceneChangePanel from '../analytics/SceneChangePanel';
 import IconButton from '../common/IconButton';
 import PasswordInput from '../common/PasswordInput';
+import PTZControls from '../ptz/PTZControls';
 import RTSPPreviewPlayer from '../video/RTSPPreviewPlayer';
 import { ZoneEditor } from '../zones';
 import ConnectionStatusCard from './ConnectionStatusCard';
@@ -1037,6 +1039,26 @@ export default function CamerasSettings() {
                         {formErrors.motion_sensitivity && (
                           <p className="mt-1 text-sm text-red-500">{formErrors.motion_sensitivity}</p>
                         )}
+                      </div>
+                    )}
+
+                    {/* PTZ Controls Section - Only for ONVIF cameras being edited (NEM-4885) */}
+                    {editingCamera && formData.ingestion_mode === 'onvif' && (
+                      <div className="rounded-lg border border-gray-800 bg-card/50 p-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Move className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium text-text-primary">
+                            PTZ Camera Controls
+                          </span>
+                        </div>
+                        <p className="text-xs text-text-secondary mb-4">
+                          Control pan, tilt, and zoom for this ONVIF camera.
+                        </p>
+                        <PTZControls
+                          cameraId={editingCamera.id}
+                          showPresets
+                          compact
+                        />
                       </div>
                     )}
 
