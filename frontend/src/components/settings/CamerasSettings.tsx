@@ -7,6 +7,7 @@ import {
   Camera as CameraIcon,
   Edit2,
   MapPin,
+  Network,
   Plus,
   RotateCcw,
   Search,
@@ -38,8 +39,10 @@ import IconButton from '../common/IconButton';
 import PasswordInput from '../common/PasswordInput';
 import { ZoneEditor } from '../zones';
 import ConnectionStatusCard from './ConnectionStatusCard';
+import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
+import type { OnvifDevice } from '../../types/onvif';
 
 interface CameraFormData {
   name: string;
@@ -116,6 +119,9 @@ export default function CamerasSettings() {
 
   // Local error state for mutations (to display after modal closes)
   const [mutationError, setMutationError] = useState<string | null>(null);
+
+  // ONVIF discovery panel state (NEM-4754)
+  const [isOnvifDiscoveryOpen, setIsOnvifDiscoveryOpen] = useState(false);
 
   // RTSP connection test hook (NEM-4748)
   const { testConnection } = useRtspTest();
@@ -306,6 +312,29 @@ export default function CamerasSettings() {
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : 'Failed to restore camera');
     }
+  };
+
+  /**
+   * Handle ONVIF device selection from discovery panel (NEM-4754)
+   * Auto-fills the camera form with discovered device information
+   */
+  const handleOnvifDeviceSelect = (device: OnvifDevice) => {
+    // Set ingestion mode to ONVIF
+    setFormData((prev) => ({
+      ...prev,
+      ingestion_mode: 'onvif',
+      // Use manufacturer + model as suggested name if name is empty
+      name: prev.name || `${device.manufacturer} ${device.model}`.trim(),
+      // Use device IP as folder path placeholder
+      folder_path: prev.folder_path || device.device_url,
+      // Use first RTSP URL if available
+      rtsp_url: device.rtsp_urls.length > 0 ? device.rtsp_urls[0].url : prev.rtsp_url,
+      // Default motion sensitivity for ONVIF cameras
+      motion_sensitivity: prev.motion_sensitivity ?? 0.5,
+    }));
+
+    // Close the discovery panel
+    setIsOnvifDiscoveryOpen(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -837,6 +866,27 @@ export default function CamerasSettings() {
                     {/* RTSP Configuration Section - Only when ingestion_mode is rtsp or onvif */}
                     {isRtspMode && (
                       <>
+                        {/* ONVIF Discovery Button (NEM-4754) */}
+                        <div className="rounded-lg border border-gray-800 bg-card/50 p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Network className="h-4 w-4 text-primary" />
+                              <span className="text-sm text-text-secondary">
+                                Scan for ONVIF cameras on your network
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsOnvifDiscoveryOpen(true)}
+                              data-testid="discover-cameras-button"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-all hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                              <Search className="h-3.5 w-3.5" />
+                              Discover
+                            </button>
+                          </div>
+                        </div>
+
                         {/* RTSP URL Input */}
                         <div>
                           <label
@@ -1225,6 +1275,13 @@ export default function CamerasSettings() {
           </div>
         </Dialog>
       </Transition>
+
+      {/* ONVIF Discovery Panel (NEM-4754) */}
+      <ONVIFDiscoveryPanel
+        isOpen={isOnvifDiscoveryOpen}
+        onClose={() => setIsOnvifDiscoveryOpen(false)}
+        onDeviceSelect={handleOnvifDeviceSelect}
+      />
     </div>
   );
 }

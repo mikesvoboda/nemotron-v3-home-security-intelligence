@@ -22198,6 +22198,34 @@
         "title": "OldestJobInfo",
         "type": "object"
       },
+      "OnvifDiscoveryRequest": {
+        "description": "Request schema for ONVIF device discovery.\n\nNEM-4207: Defines the network subnet to scan and timeout for WS-Discovery.",
+        "example": {
+          "subnet": "192.168.1.0/24",
+          "timeout": 10
+        },
+        "properties": {
+          "subnet": {
+            "description": "Network subnet in CIDR notation (e.g., '192.168.1.0/24')",
+            "minLength": 1,
+            "title": "Subnet",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 10,
+            "description": "Discovery timeout in seconds (1-300)",
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "subnet"
+        ],
+        "title": "OnvifDiscoveryRequest",
+        "type": "object"
+      },
       "OrphanCleanupRequest": {
         "description": "Request schema for orphan cleanup endpoint.",
         "properties": {
@@ -38170,6 +38198,46 @@
           }
         },
         "summary": "List all soft-deleted cameras",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/onvif/discover": {
+      "post": {
+        "description": "Discover ONVIF devices on the network using WS-Discovery.\n\nScans the specified subnet for ONVIF-compatible cameras and returns\ndevice information including IP, manufacturer, model, and RTSP URLs.\n\nArgs:\n    request: Discovery request with subnet and timeout\n\nReturns:\n    Dictionary with discovered devices and count:\n    - devices: List of discovered device information\n    - count: Total number of devices found\n\nRaises:\n    HTTPException: 500 if discovery fails",
+        "operationId": "cameras_discover_onvif_devices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnvifDiscoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cameras Discover Onvif Devices",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of discovered ONVIF devices"
+          },
+          "422": {
+            "description": "Invalid request parameters"
+          },
+          "500": {
+            "description": "Discovery failed"
+          }
+        },
+        "summary": "Discover ONVIF devices on the network",
         "tags": [
           "cameras"
         ]

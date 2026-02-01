@@ -2035,6 +2035,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/onvif/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discover ONVIF devices on the network
+         * @description Discover ONVIF devices on the network using WS-Discovery.
+         *
+         *     Scans the specified subnet for ONVIF-compatible cameras and returns
+         *     device information including IP, manufacturer, model, and RTSP URLs.
+         *
+         *     Args:
+         *         request: Discovery request with subnet and timeout
+         *
+         *     Returns:
+         *         Dictionary with discovered devices and count:
+         *         - devices: List of discovered device information
+         *         - count: Total number of devices found
+         *
+         *     Raises:
+         *         HTTPException: 500 if discovery fails
+         */
+        post: operations["cameras_discover_onvif_devices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/rtsp/test": {
         parameters: {
             query?: never;
@@ -26030,6 +26064,29 @@ export interface components {
             wait_seconds: number;
         };
         /**
+         * OnvifDiscoveryRequest
+         * @description Request schema for ONVIF device discovery.
+         *
+         *     NEM-4207: Defines the network subnet to scan and timeout for WS-Discovery.
+         * @example {
+         *       "subnet": "192.168.1.0/24",
+         *       "timeout": 10
+         *     }
+         */
+        OnvifDiscoveryRequest: {
+            /**
+             * Subnet
+             * @description Network subnet in CIDR notation (e.g., '192.168.1.0/24')
+             */
+            subnet: string;
+            /**
+             * Timeout
+             * @description Discovery timeout in seconds (1-300)
+             * @default 10
+             */
+            timeout: number;
+        };
+        /**
          * OrphanCleanupRequest
          * @description Request schema for orphan cleanup endpoint.
          */
@@ -37445,6 +37502,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DeletedCamerasListResponse"];
                 };
+            };
+        };
+    };
+    cameras_discover_onvif_devices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnvifDiscoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description List of discovered ONVIF devices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Discovery failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -16,6 +16,7 @@ from backend.api.dependencies import (
     BaselineServiceDep,
     CacheDep,
     DbSession,
+    OnvifServiceDep,
     get_camera_or_404,
 )
 from backend.api.middleware import RateLimiter, RateLimitTier
@@ -39,6 +40,7 @@ from backend.api.schemas.camera import (
     RTSPTestRequest,
     RTSPTestResponse,
 )
+from backend.api.schemas.onvif import OnvifDiscoveryRequest
 from backend.api.schemas.pagination import create_pagination_meta
 from backend.api.schemas.scene_change import (
     SceneChangeAcknowledgeResponse,
@@ -323,6 +325,60 @@ async def test_rtsp_connection(
         capabilities=_to_rtsp_capabilities_response(result.capabilities),
         error_message=result.error_message,
     )
+
+
+# =============================================================================
+# ONVIF Discovery Endpoint (NEM-4754)
+# NOTE: This endpoint MUST be defined before /{camera_id} to avoid
+# "onvif" being matched as a camera_id
+# =============================================================================
+
+
+@router.post(
+    "/onvif/discover",
+    summary="Discover ONVIF devices on the network",
+    responses={
+        200: {"description": "List of discovered ONVIF devices"},
+        422: {"description": "Invalid request parameters"},
+        500: {"description": "Discovery failed"},
+    },
+)
+async def discover_onvif_devices(
+    request: OnvifDiscoveryRequest,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Discover ONVIF devices on the network using WS-Discovery.
+
+    Scans the specified subnet for ONVIF-compatible cameras and returns
+    device information including IP, manufacturer, model, and RTSP URLs.
+
+    Args:
+        request: Discovery request with subnet and timeout
+
+    Returns:
+        Dictionary with discovered devices and count:
+        - devices: List of discovered device information
+        - count: Total number of devices found
+
+    Raises:
+        HTTPException: 500 if discovery fails
+    """
+    try:
+        devices = await onvif_service.discover_devices(
+            subnet=request.subnet,
+            timeout=request.timeout,
+        )
+        return {"devices": devices, "count": len(devices)}
+    except Exception as e:
+        logger.error(
+            "ONVIF device discovery failed",
+            extra={"subnet": request.subnet, "error": str(e)},
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Discovery failed: {e}",
+        ) from e
 
 
 # =============================================================================

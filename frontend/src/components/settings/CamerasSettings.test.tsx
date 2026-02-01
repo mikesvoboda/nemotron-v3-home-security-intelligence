@@ -34,6 +34,26 @@ vi.mock('../../hooks/useRtspTest', () => ({
   }),
 }));
 
+// Mock the useOnvifDiscovery hook (NEM-4754)
+const mockDiscoverDevicesMutate = vi.fn();
+const mockDiscoverDevicesReset = vi.fn();
+let mockDiscoverDevicesState = {
+  mutate: mockDiscoverDevicesMutate,
+  reset: mockDiscoverDevicesReset,
+  isPending: false,
+  isSuccess: false,
+  isError: false,
+  isIdle: true,
+  data: null as import('../../types/onvif').OnvifDiscoveryResponse | null,
+  error: null as Error | null,
+};
+
+vi.mock('../../hooks/useOnvifDiscovery', () => ({
+  useOnvifDiscovery: () => ({
+    discoverDevices: mockDiscoverDevicesState,
+  }),
+}));
+
 // Helper to create mock mutation object - uses type assertions for TanStack Query compatibility
 function createMockMutation<TData, _TError, TVariables>(overrides?: {
   isPending?: boolean;
@@ -118,6 +138,18 @@ describe('CamerasSettings', () => {
       isSuccess: false,
       isError: false,
       data: null,
+    };
+
+    // Reset useOnvifDiscovery mock state (NEM-4754)
+    mockDiscoverDevicesState = {
+      mutate: mockDiscoverDevicesMutate,
+      reset: mockDiscoverDevicesReset,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      isIdle: true,
+      data: null,
+      error: null,
     };
 
     // Mock deleted cameras hooks (NEM-3643)
