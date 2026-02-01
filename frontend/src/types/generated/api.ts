@@ -5154,6 +5154,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/face-events/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Face Events Stats
+         * @description Get face detection statistics for today.
+         *
+         *     Returns aggregated statistics including:
+         *     - Total face detections today
+         *     - Count of known (matched) vs unknown faces
+         *     - Breakdown by camera
+         *
+         *     The endpoint uses an efficient single query with GROUP BY
+         *     to aggregate counts by camera.
+         *
+         *     Args:
+         *         session: Database session
+         *
+         *     Returns:
+         *         FaceEventsStatsResponse with today's face detection statistics
+         */
+        get: operations["face-recognition_get_face_events_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/face-events/unknown": {
         parameters: {
             query?: never;
@@ -5181,6 +5215,42 @@ export interface paths {
         get: operations["face-recognition_get_unknown_strangers"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/face-events/{event_id}/identify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Identify Face Event
+         * @description Manually identify an unknown face event as a known person.
+         *
+         *     Links an unknown face detection event to a known person in the system.
+         *     If the face quality score is >= 0.7, also creates a new face embedding
+         *     for the known person from this event's embedding.
+         *
+         *     Args:
+         *         event_id: ID of the face detection event to identify
+         *         data: Request body containing known_person_id
+         *         session: Database session
+         *
+         *     Returns:
+         *         IdentifyFaceEventResponse with success status and whether embedding was created
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or person not found
+         *         HTTPException: 400 if event is already identified (not unknown)
+         */
+        post: operations["face-recognition_identify_face_event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5644,9 +5714,13 @@ export interface paths {
          * Add Embedding From Event
          * @description Add a person embedding from an event to a household member.
          *
-         *     This endpoint allows linking a person detection embedding from an event
-         *     to a household member for future re-identification. The embedding data
-         *     is extracted from the event's detection.
+         *     This endpoint extracts a person embedding from the event's detection image
+         *     using the ReIdentificationService (CLIP ViT-L) and stores it in the
+         *     PersonEmbedding table for future person re-identification.
+         *
+         *     The endpoint finds the first person detection in the event, loads the
+         *     detection image, and generates a 768-dimensional CLIP embedding using
+         *     the detection's bounding box to focus on the person.
          *
          *     Args:
          *         member_id: ID of the household member
@@ -5659,13 +5733,50 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if member not found
          *         HTTPException: 404 if event not found
-         *         HTTPException: 400 if event has no embedding data
+         *         HTTPException: 400 if event has no person detection
+         *         HTTPException: 400 if detection image cannot be loaded
+         *         HTTPException: 500 if embedding generation fails
          */
         post: operations["household_add_embedding_from_event"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/household/members/{member_id}/link-person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Link Person
+         * @description Link or unlink a household member to a known person.
+         *
+         *     This endpoint allows linking a household member to a known person in the
+         *     face recognition system, or unlinking by passing null for known_person_id.
+         *
+         *     Args:
+         *         member_id: ID of the household member
+         *         request: Request containing known_person_id (or null to unlink)
+         *         session: Database session
+         *
+         *     Returns:
+         *         LinkPersonResponse with success status
+         *
+         *     Raises:
+         *         HTTPException: 404 if household member not found
+         *         HTTPException: 404 if known person not found (when linking)
+         */
+        patch: operations["household_link_person"];
         trace?: never;
     };
     "/api/household/vehicles": {
@@ -6088,6 +6199,45 @@ export interface paths {
         patch: operations["face-recognition_update_known_person"];
         trace?: never;
     };
+    "/api/known-persons/{person_id}/appearances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Person Appearances
+         * @description Get appearance timeline for a known person.
+         *
+         *     Returns a list of face detection events where this person was identified,
+         *     ordered by timestamp descending (most recent first). Supports date range
+         *     filtering, camera filtering, and pagination.
+         *
+         *     Args:
+         *         person_id: ID of the known person
+         *         start_date: Filter events after this date (optional)
+         *         end_date: Filter events before this date (optional)
+         *         camera_id: Filter by camera ID (optional)
+         *         limit: Maximum appearances to return (default: 50, max: 500)
+         *         offset: Number of appearances to skip for pagination
+         *         session: Database session
+         *
+         *     Returns:
+         *         PersonAppearancesResponse with list of appearances and total count
+         *
+         *     Raises:
+         *         HTTPException: 404 if person not found
+         */
+        get: operations["face-recognition_get_person_appearances"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/known-persons/{person_id}/embeddings": {
         parameters: {
             query?: never;
@@ -6159,6 +6309,51 @@ export interface paths {
          *         HTTPException: 404 if embedding not found
          */
         delete: operations["face-recognition_delete_face_embedding"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/known-persons/{person_id}/enroll-from-detection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enroll From Detection
+         * @description Enroll a face embedding from an existing detection.
+         *
+         *     Extracts a face embedding from the specified detection and adds it
+         *     to the known person's face embeddings. The detection must contain
+         *     a person with a visible face.
+         *
+         *     Quality thresholds:
+         *     - Block < 0.7: Returns error, face quality too low
+         *     - Warn 0.7-0.8: Success with warning about moderate quality
+         *     - Accept >= 0.8: Success without warning
+         *
+         *     Limits:
+         *     - Maximum 10 embeddings per person
+         *
+         *     Args:
+         *         person_id: ID of the known person to add embedding to
+         *         data: Request containing detection_id
+         *         session: Database session
+         *
+         *     Returns:
+         *         EnrollFromDetectionResponse with success status and embedding details
+         *
+         *     Raises:
+         *         HTTPException: 404 if person or detection not found
+         *         HTTPException: 400 if face quality too low or max embeddings reached
+         *         HTTPException: 500 if embedding extraction fails
+         */
+        post: operations["face-recognition_enroll_from_detection"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -13783,6 +13978,32 @@ export interface components {
             stream_profile?: ("main" | "sub" | "both") | null;
         };
         /**
+         * CameraFaceStats
+         * @description Schema for face detection statistics per camera.
+         * @example {
+         *       "known": 40,
+         *       "total": 50,
+         *       "unknown": 10
+         *     }
+         */
+        CameraFaceStats: {
+            /**
+             * Known
+             * @description Number of known (matched) faces
+             */
+            known: number;
+            /**
+             * Total
+             * @description Total face detections from this camera today
+             */
+            total: number;
+            /**
+             * Unknown
+             * @description Number of unknown (unmatched) faces
+             */
+            unknown: number;
+        };
+        /**
          * CameraLinkRequest
          * @description Schema for linking a camera to an area.
          *
@@ -17423,6 +17644,60 @@ export interface components {
             successful_models?: string[];
         };
         /**
+         * EnrollFromDetectionRequest
+         * @description Schema for enrolling a face from an existing detection.
+         *
+         *     Used to create a face embedding for a known person from a detection
+         *     that contains a person with a visible face.
+         * @example {
+         *       "detection_id": "123"
+         *     }
+         */
+        EnrollFromDetectionRequest: {
+            /**
+             * Detection Id
+             * @description ID of the detection to extract face embedding from
+             */
+            detection_id: string;
+        };
+        /**
+         * EnrollFromDetectionResponse
+         * @description Schema for enroll-from-detection response.
+         *
+         *     Returns the result of face enrollment including:
+         *     - success: Whether the embedding was created
+         *     - embedding_id: ID of the created face embedding
+         *     - quality_score: Quality score of the extracted face (0-1)
+         *     - warning: Optional warning message for moderate quality faces (0.7-0.8)
+         * @example {
+         *       "embedding_id": 1,
+         *       "quality_score": 0.92,
+         *       "success": true
+         *     }
+         */
+        EnrollFromDetectionResponse: {
+            /**
+             * Embedding Id
+             * @description ID of the created face embedding
+             */
+            embedding_id: number;
+            /**
+             * Quality Score
+             * @description Quality score of the extracted face
+             */
+            quality_score: number;
+            /**
+             * Success
+             * @description Whether the face was successfully enrolled
+             */
+            success: boolean;
+            /**
+             * Warning
+             * @description Warning message for moderate quality faces (0.7-0.8)
+             */
+            warning?: string | null;
+        };
+        /**
          * EntityAppearance
          * @description Schema for a single entity appearance at a specific time and camera.
          *
@@ -20387,6 +20662,54 @@ export interface components {
             model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
         };
         /**
+         * FaceEventsStatsResponse
+         * @description Schema for face events statistics response.
+         *
+         *     Returns aggregated face detection statistics for today,
+         *     broken down by camera and known/unknown status.
+         * @example {
+         *       "by_camera": {
+         *         "back_door": {
+         *           "known": 25,
+         *           "total": 40,
+         *           "unknown": 15
+         *         },
+         *         "front_door": {
+         *           "known": 45,
+         *           "total": 60,
+         *           "unknown": 15
+         *         }
+         *       },
+         *       "known_count": 70,
+         *       "total_today": 100,
+         *       "unknown_count": 30
+         *     }
+         */
+        FaceEventsStatsResponse: {
+            /**
+             * By Camera
+             * @description Face detection counts broken down by camera ID
+             */
+            by_camera?: {
+                [key: string]: components["schemas"]["CameraFaceStats"];
+            };
+            /**
+             * Known Count
+             * @description Number of known (matched person) faces today
+             */
+            known_count: number;
+            /**
+             * Total Today
+             * @description Total face detection events today
+             */
+            total_today: number;
+            /**
+             * Unknown Count
+             * @description Number of unknown (no match) faces today
+             */
+            unknown_count: number;
+        };
+        /**
          * FaceMatchRequest
          * @description Schema for face matching request.
          * @example {
@@ -22794,6 +23117,48 @@ export interface components {
             name?: string | null;
         };
         /**
+         * IdentifyFaceEventRequest
+         * @description Schema for manually identifying an unknown face as a known person.
+         *
+         *     Used when a user manually identifies an unknown face detection event
+         *     as belonging to a known person in the system.
+         * @example {
+         *       "known_person_id": 1
+         *     }
+         */
+        IdentifyFaceEventRequest: {
+            /**
+             * Known Person Id
+             * @description ID of the known person to associate with this face event
+             */
+            known_person_id: number;
+        };
+        /**
+         * IdentifyFaceEventResponse
+         * @description Schema for identify face event response.
+         *
+         *     Returns the result of manually identifying an unknown face:
+         *     - success: Whether the identification was successful
+         *     - created_embedding: Whether a new face embedding was created
+         *       (only happens when quality_score >= 0.7)
+         * @example {
+         *       "created_embedding": true,
+         *       "success": true
+         *     }
+         */
+        IdentifyFaceEventResponse: {
+            /**
+             * Created Embedding
+             * @description Whether a new face embedding was created (quality >= 0.7)
+             */
+            created_embedding: boolean;
+            /**
+             * Success
+             * @description Whether the face was successfully identified
+             */
+            success: boolean;
+        };
+        /**
          * ImageQualityEnrichment
          * @description Image quality assessment results.
          * @example {
@@ -24402,6 +24767,34 @@ export interface components {
              * @description Object classes to track for this line
              */
             target_classes?: string[] | null;
+        };
+        /**
+         * LinkPersonRequest
+         * @description Schema for linking a household member to a known person.
+         * @example {
+         *       "known_person_id": 10
+         *     }
+         */
+        LinkPersonRequest: {
+            /**
+             * Known Person Id
+             * @description ID of the known person to link, or null to unlink
+             */
+            known_person_id: number | null;
+        };
+        /**
+         * LinkPersonResponse
+         * @description Schema for link person response.
+         * @example {
+         *       "success": true
+         *     }
+         */
+        LinkPersonResponse: {
+            /**
+             * Success
+             * @description Whether the operation was successful
+             */
+            success: boolean;
         };
         /**
          * LogEntryResponse
@@ -26665,6 +27058,87 @@ export interface components {
              * @description When this update was generated (UTC)
              */
             timestamp?: string;
+        };
+        /**
+         * PersonAppearance
+         * @description Schema for a single person appearance in the timeline.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "confidence": 0.95,
+         *       "detection_id": 1,
+         *       "thumbnail_url": "/api/thumbnails/face_1.jpg",
+         *       "timestamp": "2025-01-31T10:32:00Z"
+         *     }
+         */
+        PersonAppearance: {
+            /**
+             * Camera Id
+             * @description ID of the camera that detected the person
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable name of the camera
+             */
+            camera_name: string;
+            /**
+             * Confidence
+             * @description Match confidence score (0-1)
+             */
+            confidence: number;
+            /**
+             * Detection Id
+             * @description ID of the face detection event
+             */
+            detection_id: number;
+            /**
+             * Thumbnail Url
+             * @description URL to face thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the person was detected
+             */
+            timestamp: string;
+        };
+        /**
+         * PersonAppearancesResponse
+         * @description Schema for person appearances timeline response.
+         * @example {
+         *       "appearances": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "confidence": 0.95,
+         *           "detection_id": 1,
+         *           "thumbnail_url": "/api/thumbnails/face_1.jpg",
+         *           "timestamp": "2025-01-31T10:32:00Z"
+         *         },
+         *         {
+         *           "camera_id": "driveway",
+         *           "camera_name": "Driveway",
+         *           "confidence": 0.92,
+         *           "detection_id": 2,
+         *           "timestamp": "2025-01-31T08:15:00Z"
+         *         }
+         *       ],
+         *       "total_count": 2
+         *     }
+         */
+        PersonAppearancesResponse: {
+            /**
+             * Appearances
+             * @description List of person appearances ordered by timestamp descending
+             */
+            appearances: components["schemas"]["PersonAppearance"][];
+            /**
+             * Total Count
+             * @description Total number of appearances matching filters
+             */
+            total_count: number;
         };
         /**
          * PersonEmbeddingResponse
@@ -41935,6 +42409,26 @@ export interface operations {
             };
         };
     };
+    "face-recognition_get_face_events_stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceEventsStatsResponse"];
+                };
+            };
+        };
+    };
     "face-recognition_get_unknown_strangers": {
         parameters: {
             query?: {
@@ -41960,6 +42454,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnknownStrangerListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_identify_face_event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifyFaceEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentifyFaceEventResponse"];
                 };
             };
             /** @description Validation Error */
@@ -42596,6 +43125,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PersonEmbeddingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    household_link_person: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkPersonRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPersonResponse"];
                 };
             };
             /** @description Validation Error */
@@ -43382,6 +43946,48 @@ export interface operations {
             };
         };
     };
+    "face-recognition_get_person_appearances": {
+        parameters: {
+            query?: {
+                /** @description Filter events after this date */
+                start_date?: string | null;
+                /** @description Filter events before this date */
+                end_date?: string | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Maximum appearances to return */
+                limit?: number;
+                /** @description Number of appearances to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonAppearancesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "face-recognition_list_person_embeddings": {
         parameters: {
             query?: never;
@@ -43466,6 +44072,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_enroll_from_detection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollFromDetectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollFromDetectionResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

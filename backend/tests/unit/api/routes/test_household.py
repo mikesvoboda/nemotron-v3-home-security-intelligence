@@ -637,13 +637,27 @@ class TestDeleteVehicle:
 
 
 class TestAddEmbedding:
-    """Tests for POST /api/household/members/{member_id}/embeddings endpoint."""
+    """Tests for POST /api/household/members/{member_id}/embeddings endpoint.
+
+    The endpoint extracts person embeddings from event images using the
+    ReIdentificationService and stores them in the PersonEmbedding table.
+    """
 
     @pytest.mark.asyncio
-    async def test_add_embedding_success(self) -> None:
-        """Test successfully adding an embedding from an event."""
+    async def test_add_embedding_success_from_detection(self) -> None:
+        """Test successfully extracting and storing embedding from event detection.
+
+        This is the primary use case: user selects an event containing a person
+        detection, and the system extracts the person embedding from the detection
+        image to store for future re-identification.
+        """
+        from unittest.mock import patch
+
+        from PIL import Image
+
         from backend.api.routes.household import add_embedding_from_event
         from backend.api.schemas.household import AddEmbeddingRequest
+        from backend.models.detection import Detection
 
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
@@ -653,10 +667,19 @@ class TestAddEmbedding:
         mock_member.id = 1
         mock_member.name = "John Doe"
 
-        # Mock event exists with embedding data
+        # Mock event exists with detections
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "person"
+        mock_detection.file_path = "/data/snapshots/front_door/2025-01-31/10_32_15.jpg"
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 100
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+
         mock_event = MagicMock()
         mock_event.id = 100
-        mock_event.embedding = b"fake_embedding_data"
+        mock_event.detections = [mock_detection]
 
         # First call returns member, second call returns event
         mock_result_member = MagicMock()
@@ -665,21 +688,44 @@ class TestAddEmbedding:
         mock_result_event.scalar_one_or_none.return_value = mock_event
         mock_db.execute.side_effect = [mock_result_member, mock_result_event]
 
+        # Mock ReIdentificationService to return a 768-dim embedding
+        mock_embedding = [0.1] * 768
+        mock_reid_service = AsyncMock()
+        mock_reid_service.generate_embedding.return_value = mock_embedding
+
+        # Mock image loading
+        mock_image = MagicMock(spec=Image.Image)
+        mock_image.size = (1920, 1080)
+
         embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.95)
 
-        result = await add_embedding_from_event(
-            member_id=1,
-            request=embedding_request,
-            session=mock_db,
-        )
+        with (
+            patch(
+                "backend.api.routes.household.get_reid_service",
+                return_value=mock_reid_service,
+            ),
+            patch("backend.api.routes.household.Image") as mock_pil,
+        ):
+            mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
+            mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = await add_embedding_from_event(
+                member_id=1,
+                request=embedding_request,
+                session=mock_db,
+            )
 
         assert isinstance(result, PersonEmbedding)
         assert result.member_id == 1
         assert result.source_event_id == 100
         assert result.confidence == 0.95
+        # Embedding should be serialized numpy array, not placeholder
+        assert result.embedding != b"placeholder_embedding"
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()
+        # Verify ReID service was called
+        mock_reid_service.generate_embedding.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_add_embedding_member_not_found(self) -> None:
@@ -740,28 +786,32 @@ class TestAddEmbedding:
         assert "event" in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
-    async def test_add_embedding_event_no_embedding_uses_placeholder(self) -> None:
-        """Test add embedding uses placeholder when event has no embedding data.
+    async def test_add_embedding_event_no_person_detection(self) -> None:
+        """Test add embedding returns 400 if event has no person detection.
 
-        For MVP, when an event has no embedding data (which is typical since
-        person re-ID is not yet implemented), the endpoint creates a placeholder
-        embedding to link the event to the household member. In production, this
-        would be populated from person re-ID model output.
+        The endpoint requires a person detection to extract an embedding from.
+        Events without person detections cannot be used for face recognition.
         """
+        from fastapi import HTTPException
+
         from backend.api.routes.household import add_embedding_from_event
         from backend.api.schemas.household import AddEmbeddingRequest
+        from backend.models.detection import Detection
 
         mock_db = AsyncMock()
-        mock_db.add = MagicMock()
 
         # Mock member exists
         mock_member = MagicMock(spec=HouseholdMember)
         mock_member.id = 1
 
-        # Mock event exists but has no embedding
+        # Mock event exists but has only vehicle detection, no person
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "car"  # Not a person
+
         mock_event = MagicMock()
         mock_event.id = 100
-        mock_event.embedding = None
+        mock_event.detections = [mock_detection]
 
         mock_result_member = MagicMock()
         mock_result_member.scalar_one_or_none.return_value = mock_member
@@ -771,21 +821,254 @@ class TestAddEmbedding:
 
         embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.9)
 
-        # For MVP, it should succeed with a placeholder embedding
-        result = await add_embedding_from_event(
-            member_id=1,
-            request=embedding_request,
-            session=mock_db,
+        with pytest.raises(HTTPException) as exc_info:
+            await add_embedding_from_event(
+                member_id=1,
+                request=embedding_request,
+                session=mock_db,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "person" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_event_no_detections(self) -> None:
+        """Test add embedding returns 400 if event has no detections."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.household import add_embedding_from_event
+        from backend.api.schemas.household import AddEmbeddingRequest
+
+        mock_db = AsyncMock()
+
+        # Mock member exists
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+
+        # Mock event exists but has no detections
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = []
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_event = MagicMock()
+        mock_result_event.scalar_one_or_none.return_value = mock_event
+        mock_db.execute.side_effect = [mock_result_member, mock_result_event]
+
+        embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.9)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await add_embedding_from_event(
+                member_id=1,
+                request=embedding_request,
+                session=mock_db,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert (
+            "person" in exc_info.value.detail.lower()
+            or "detection" in exc_info.value.detail.lower()
         )
 
+    @pytest.mark.asyncio
+    async def test_add_embedding_image_not_found(self) -> None:
+        """Test add embedding returns 400 if detection image file not found."""
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        from backend.api.routes.household import add_embedding_from_event
+        from backend.api.schemas.household import AddEmbeddingRequest
+        from backend.models.detection import Detection
+
+        mock_db = AsyncMock()
+
+        # Mock member exists
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+
+        # Mock event with person detection but missing image file
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "person"
+        mock_detection.file_path = "/data/snapshots/missing_image.jpg"
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 100
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = [mock_detection]
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_event = MagicMock()
+        mock_result_event.scalar_one_or_none.return_value = mock_event
+        mock_db.execute.side_effect = [mock_result_member, mock_result_event]
+
+        embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.9)
+
+        with patch("backend.api.routes.household.Image") as mock_pil:
+            mock_pil.open.side_effect = FileNotFoundError("Image file not found")
+
+            with pytest.raises(HTTPException) as exc_info:
+                await add_embedding_from_event(
+                    member_id=1,
+                    request=embedding_request,
+                    session=mock_db,
+                )
+
+            assert exc_info.value.status_code == 400
+            assert "image" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_reid_service_failure(self) -> None:
+        """Test add embedding returns 500 if ReID service fails."""
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+        from PIL import Image
+
+        from backend.api.routes.household import add_embedding_from_event
+        from backend.api.schemas.household import AddEmbeddingRequest
+        from backend.models.detection import Detection
+
+        mock_db = AsyncMock()
+
+        # Mock member exists
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+
+        # Mock event with person detection
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "person"
+        mock_detection.file_path = "/data/snapshots/test.jpg"
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 100
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = [mock_detection]
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_event = MagicMock()
+        mock_result_event.scalar_one_or_none.return_value = mock_event
+        mock_db.execute.side_effect = [mock_result_member, mock_result_event]
+
+        # Mock ReID service failure
+        mock_reid_service = AsyncMock()
+        mock_reid_service.generate_embedding.side_effect = RuntimeError("CLIP service unavailable")
+
+        # Mock image loading
+        mock_image = MagicMock(spec=Image.Image)
+        mock_image.size = (1920, 1080)
+
+        embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.9)
+
+        with (
+            patch(
+                "backend.api.routes.household.get_reid_service",
+                return_value=mock_reid_service,
+            ),
+            patch("backend.api.routes.household.Image") as mock_pil,
+        ):
+            mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
+            mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
+
+            with pytest.raises(HTTPException) as exc_info:
+                await add_embedding_from_event(
+                    member_id=1,
+                    request=embedding_request,
+                    session=mock_db,
+                )
+
+            assert exc_info.value.status_code == 500
+            assert "embedding" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_selects_first_person_detection(self) -> None:
+        """Test that the endpoint uses the first person detection when multiple exist.
+
+        When an event has multiple detections, the endpoint should use the first
+        person detection found (typically the highest confidence one from YOLO).
+        """
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from backend.api.routes.household import add_embedding_from_event
+        from backend.api.schemas.household import AddEmbeddingRequest
+        from backend.models.detection import Detection
+
+        mock_db = AsyncMock()
+        mock_db.add = MagicMock()
+
+        # Mock member exists
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+
+        # Mock event with multiple detections - car first, then person
+        mock_car_detection = MagicMock(spec=Detection)
+        mock_car_detection.id = 49
+        mock_car_detection.object_type = "car"
+
+        mock_person_detection = MagicMock(spec=Detection)
+        mock_person_detection.id = 50
+        mock_person_detection.object_type = "person"
+        mock_person_detection.file_path = "/data/snapshots/test.jpg"
+        mock_person_detection.bbox_x = 100
+        mock_person_detection.bbox_y = 100
+        mock_person_detection.bbox_width = 200
+        mock_person_detection.bbox_height = 400
+
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = [mock_car_detection, mock_person_detection]
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_event = MagicMock()
+        mock_result_event.scalar_one_or_none.return_value = mock_event
+        mock_db.execute.side_effect = [mock_result_member, mock_result_event]
+
+        # Mock ReID service
+        mock_embedding = [0.1] * 768
+        mock_reid_service = AsyncMock()
+        mock_reid_service.generate_embedding.return_value = mock_embedding
+
+        # Mock image loading
+        mock_image = MagicMock(spec=Image.Image)
+        mock_image.size = (1920, 1080)
+
+        embedding_request = AddEmbeddingRequest(event_id=100, confidence=0.95)
+
+        with (
+            patch(
+                "backend.api.routes.household.get_reid_service",
+                return_value=mock_reid_service,
+            ),
+            patch("backend.api.routes.household.Image") as mock_pil,
+        ):
+            mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
+            mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
+
+            result = await add_embedding_from_event(
+                member_id=1,
+                request=embedding_request,
+                session=mock_db,
+            )
+
+        # Should succeed using the person detection
         assert isinstance(result, PersonEmbedding)
         assert result.member_id == 1
-        assert result.source_event_id == 100
-        assert result.confidence == 0.9
-        # Placeholder embedding should be used
-        assert result.embedding == b"placeholder_embedding"
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
+        # The image should be opened from the person detection's file path
+        mock_pil.open.assert_called_with("/data/snapshots/test.jpg")
 
 
 # =============================================================================
@@ -837,3 +1120,163 @@ class TestHTTPStatusCodes:
 
         assert delete_vehicle is not None
         assert status.HTTP_204_NO_CONTENT == 204
+
+
+# =============================================================================
+# Link Person Tests
+# =============================================================================
+
+
+class TestLinkPerson:
+    """Tests for PATCH /api/household/members/{member_id}/link-person endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_link_person_success(self) -> None:
+        """Test successfully linking a household member to a known person."""
+        from backend.api.routes.household import link_person
+        from backend.api.schemas.household import LinkPersonRequest, LinkPersonResponse
+        from backend.models.face_identity import KnownPerson
+
+        mock_db = AsyncMock()
+
+        # Mock household member exists
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+        mock_member.name = "John Doe"
+        mock_member.known_person_id = None
+
+        # Mock known person exists
+        mock_known_person = MagicMock(spec=KnownPerson)
+        mock_known_person.id = 10
+        mock_known_person.name = "John"
+
+        # First call returns member, second call returns known person
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_known_person = MagicMock()
+        mock_result_known_person.scalar_one_or_none.return_value = mock_known_person
+        mock_db.execute.side_effect = [mock_result_member, mock_result_known_person]
+
+        request = LinkPersonRequest(known_person_id=10)
+
+        result = await link_person(member_id=1, request=request, session=mock_db)
+
+        assert isinstance(result, LinkPersonResponse)
+        assert result.success is True
+        assert mock_member.known_person_id == 10
+        mock_db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_unlink_person_success(self) -> None:
+        """Test successfully unlinking a household member from a known person."""
+        from backend.api.routes.household import link_person
+        from backend.api.schemas.household import LinkPersonRequest, LinkPersonResponse
+
+        mock_db = AsyncMock()
+
+        # Mock household member exists with existing link
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+        mock_member.name = "John Doe"
+        mock_member.known_person_id = 10
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_db.execute.return_value = mock_result_member
+
+        # Unlink by passing null known_person_id
+        request = LinkPersonRequest(known_person_id=None)
+
+        result = await link_person(member_id=1, request=request, session=mock_db)
+
+        assert isinstance(result, LinkPersonResponse)
+        assert result.success is True
+        assert mock_member.known_person_id is None
+        mock_db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_link_person_member_not_found(self) -> None:
+        """Test link person returns 404 if household member doesn't exist."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.household import link_person
+        from backend.api.schemas.household import LinkPersonRequest
+
+        mock_db = AsyncMock()
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        request = LinkPersonRequest(known_person_id=10)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await link_person(member_id=999, request=request, session=mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert "household member" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_link_person_known_person_not_found(self) -> None:
+        """Test link person returns 404 if known person doesn't exist."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.household import link_person
+        from backend.api.schemas.household import LinkPersonRequest
+
+        mock_db = AsyncMock()
+
+        # Mock household member exists
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+        mock_member.name = "John Doe"
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_known_person = MagicMock()
+        mock_result_known_person.scalar_one_or_none.return_value = None
+        mock_db.execute.side_effect = [mock_result_member, mock_result_known_person]
+
+        request = LinkPersonRequest(known_person_id=999)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await link_person(member_id=1, request=request, session=mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert "known person" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_link_person_update_existing_link(self) -> None:
+        """Test updating an existing link to a different known person."""
+        from backend.api.routes.household import link_person
+        from backend.api.schemas.household import LinkPersonRequest, LinkPersonResponse
+        from backend.models.face_identity import KnownPerson
+
+        mock_db = AsyncMock()
+
+        # Mock household member exists with existing link
+        mock_member = MagicMock(spec=HouseholdMember)
+        mock_member.id = 1
+        mock_member.name = "John Doe"
+        mock_member.known_person_id = 5  # Already linked to person 5
+
+        # Mock new known person exists
+        mock_known_person = MagicMock(spec=KnownPerson)
+        mock_known_person.id = 10
+        mock_known_person.name = "John New"
+
+        mock_result_member = MagicMock()
+        mock_result_member.scalar_one_or_none.return_value = mock_member
+        mock_result_known_person = MagicMock()
+        mock_result_known_person.scalar_one_or_none.return_value = mock_known_person
+        mock_db.execute.side_effect = [mock_result_member, mock_result_known_person]
+
+        # Update link to person 10
+        request = LinkPersonRequest(known_person_id=10)
+
+        result = await link_person(member_id=1, request=request, session=mock_db)
+
+        assert isinstance(result, LinkPersonResponse)
+        assert result.success is True
+        assert mock_member.known_person_id == 10
+        mock_db.commit.assert_called_once()

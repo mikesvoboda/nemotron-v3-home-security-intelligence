@@ -142,6 +142,9 @@ const PlateReadsPage = lazy(() =>
 // Household Members Page
 const HouseholdPage = lazy(() => import('./pages/HouseholdPage'));
 
+// Face Recognition Page
+const FaceRecognitionPage = lazy(() => import('./pages/FaceRecognitionPage'));
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -215,6 +218,7 @@ export default function App() {
                           <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
                           <Route path="/plate-reads" element={<PlateReadsPage />} />
                           <Route path="/household" element={<HouseholdPage />} />
+                          <Route path="/face-recognition" element={<FaceRecognitionPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>

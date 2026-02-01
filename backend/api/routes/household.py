@@ -1,6 +1,8 @@
 """API routes for household member and vehicle management.
 
 Implements NEM-3018: Build API endpoints for household member and vehicle management.
+Implements NEM-4688: Add household member link person endpoint.
+Implements NEM-4688 Phase 1: Fix household embeddings endpoint to extract real embeddings.
 
 These endpoints enable tracking of known household members and vehicles to reduce
 false positives in security monitoring. If Nemotron knows "this is Mike's car"
@@ -12,6 +14,7 @@ Endpoints:
 - GET /api/household/members/{member_id} - Get specific member
 - PATCH /api/household/members/{member_id} - Update member
 - DELETE /api/household/members/{member_id} - Delete member
+- PATCH /api/household/members/{member_id}/link-person - Link member to known person
 - GET /api/household/vehicles - List all registered vehicles
 - POST /api/household/vehicles - Create new vehicle
 - GET /api/household/vehicles/{vehicle_id} - Get specific vehicle
@@ -20,7 +23,9 @@ Endpoints:
 - POST /api/household/members/{member_id}/embeddings - Add embedding from event
 """
 
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, status
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,14 +34,21 @@ from backend.api.schemas.household import (
     HouseholdMemberCreate,
     HouseholdMemberResponse,
     HouseholdMemberUpdate,
+    LinkPersonRequest,
+    LinkPersonResponse,
     PersonEmbeddingResponse,
     RegisteredVehicleCreate,
     RegisteredVehicleResponse,
     RegisteredVehicleUpdate,
 )
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.models.event import Event
+from backend.models.face_identity import KnownPerson
 from backend.models.household import HouseholdMember, PersonEmbedding, RegisteredVehicle
+from backend.services.reid_service import get_reid_service
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/household", tags=["household"])
 
@@ -383,6 +395,64 @@ async def delete_vehicle(
 
 
 # =============================================================================
+# Link Person Endpoint
+# =============================================================================
+
+
+@router.patch("/members/{member_id}/link-person", response_model=LinkPersonResponse)
+async def link_person(
+    member_id: int,
+    request: LinkPersonRequest,
+    session: AsyncSession = Depends(get_db),
+) -> LinkPersonResponse:
+    """Link or unlink a household member to a known person.
+
+    This endpoint allows linking a household member to a known person in the
+    face recognition system, or unlinking by passing null for known_person_id.
+
+    Args:
+        member_id: ID of the household member
+        request: Request containing known_person_id (or null to unlink)
+        session: Database session
+
+    Returns:
+        LinkPersonResponse with success status
+
+    Raises:
+        HTTPException: 404 if household member not found
+        HTTPException: 404 if known person not found (when linking)
+    """
+    # Verify member exists
+    member_query = select(HouseholdMember).where(HouseholdMember.id == member_id)
+    member_result = await session.execute(member_query)
+    member = member_result.scalar_one_or_none()
+
+    if member is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Household member with id {member_id} not found",
+        )
+
+    # If linking to a known person (not null), verify the person exists
+    if request.known_person_id is not None:
+        person_query = select(KnownPerson).where(KnownPerson.id == request.known_person_id)
+        person_result = await session.execute(person_query)
+        known_person = person_result.scalar_one_or_none()
+
+        if known_person is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Known person with id {request.known_person_id} not found",
+            )
+
+    # Update the link (or unlink if null)
+    member.known_person_id = request.known_person_id
+    await session.commit()
+
+    return LinkPersonResponse(success=True)
+
+
+# =============================================================================
 # Person Embedding Endpoints
 # =============================================================================
 
@@ -399,9 +469,13 @@ async def add_embedding_from_event(
 ) -> PersonEmbedding:
     """Add a person embedding from an event to a household member.
 
-    This endpoint allows linking a person detection embedding from an event
-    to a household member for future re-identification. The embedding data
-    is extracted from the event's detection.
+    This endpoint extracts a person embedding from the event's detection image
+    using the ReIdentificationService (CLIP ViT-L) and stores it in the
+    PersonEmbedding table for future person re-identification.
+
+    The endpoint finds the first person detection in the event, loads the
+    detection image, and generates a 768-dimensional CLIP embedding using
+    the detection's bounding box to focus on the person.
 
     Args:
         member_id: ID of the household member
@@ -414,7 +488,9 @@ async def add_embedding_from_event(
     Raises:
         HTTPException: 404 if member not found
         HTTPException: 404 if event not found
-        HTTPException: 400 if event has no embedding data
+        HTTPException: 400 if event has no person detection
+        HTTPException: 400 if detection image cannot be loaded
+        HTTPException: 500 if embedding generation fails
     """
     # Verify member exists
     member_query = select(HouseholdMember).where(HouseholdMember.id == member_id)
@@ -427,7 +503,7 @@ async def add_embedding_from_event(
             detail=f"Household member with id {member_id} not found",
         )
 
-    # Verify event exists and has embedding data
+    # Verify event exists and has detections
     event_query = select(Event).where(Event.id == request.event_id)
     event_result = await session.execute(event_query)
     event = event_result.scalar_one_or_none()
@@ -438,15 +514,76 @@ async def add_embedding_from_event(
             detail=f"Event with id {request.event_id} not found",
         )
 
-    # Check if event has embedding data
-    # Note: embedding data would typically come from re-ID models in detection pipeline
-    # For now, we use a placeholder embedding since the Event model doesn't have
-    # an embedding field - this would be populated from detection metadata
-    embedding_data = getattr(event, "embedding", None)
-    if embedding_data is None:
-        # For MVP, create a placeholder embedding
-        # In production, this would come from person re-ID model output
-        embedding_data = b"placeholder_embedding"
+    # Find the first person detection in the event
+    person_detection = None
+    for detection in event.detections:
+        if detection.object_type == "person":
+            person_detection = detection
+            break
+
+    if person_detection is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Event does not contain a person detection. Cannot extract embedding.",
+        )
+
+    # Load the detection image
+    try:
+        with Image.open(person_detection.file_path) as image:
+            # Create bounding box tuple if bbox coordinates are available
+            bbox: tuple[int, int, int, int] | None = None
+            if (
+                person_detection.bbox_x is not None
+                and person_detection.bbox_y is not None
+                and person_detection.bbox_width is not None
+                and person_detection.bbox_height is not None
+            ):
+                bbox = (
+                    person_detection.bbox_x,
+                    person_detection.bbox_y,
+                    person_detection.bbox_x + person_detection.bbox_width,
+                    person_detection.bbox_y + person_detection.bbox_height,
+                )
+
+            # Generate embedding using ReIdentificationService
+            reid_service = get_reid_service()
+            try:
+                embedding_list = await reid_service.generate_embedding(image, bbox=bbox)
+            except Exception as e:
+                logger.error(
+                    "Failed to generate embedding for event %d: %s",
+                    request.event_id,
+                    str(e),
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to generate embedding: {e}",
+                ) from e
+
+            # Convert embedding list to serialized numpy array (bytes)
+            embedding_array = np.array(embedding_list, dtype=np.float32)
+            embedding_data = embedding_array.tobytes()
+
+    except FileNotFoundError as e:
+        logger.warning(
+            "Detection image not found for event %d: %s",
+            request.event_id,
+            person_detection.file_path,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Detection image not found: {person_detection.file_path}",
+        ) from e
+    except OSError as e:
+        logger.warning(
+            "Failed to open detection image for event %d: %s",
+            request.event_id,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to open detection image: {e}",
+        ) from e
 
     db_embedding = PersonEmbedding(
         member_id=member_id,

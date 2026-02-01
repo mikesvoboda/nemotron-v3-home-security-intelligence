@@ -17,6 +17,7 @@ import {
   ThumbsUp,
   Timer,
   TrendingUp,
+  UserPlus,
   X,
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -64,6 +65,7 @@ import SnoozeBadge from '../common/SnoozeBadge';
 import SnoozeButton from '../common/SnoozeButton';
 import DetectionImage from '../detection/DetectionImage';
 import EntityDetailModal from '../entities/EntityDetailModal';
+import EnrollFaceModal from '../face-recognition/EnrollFaceModal';
 import VideoPlayer from '../video/VideoPlayer';
 
 import type { DetectionThumbnail } from './ThumbnailStrip';
@@ -176,6 +178,9 @@ export default function EventDetailModal({
 
   // State for feedback
   const [feedbackFormType, setFeedbackFormType] = useState<FeedbackType | null>(null);
+
+  // State for face enrollment modal
+  const [enrollFaceModalOpen, setEnrollFaceModalOpen] = useState<boolean>(false);
 
   // Hooks for feedback
   const { success: toastSuccess, error: toastError } = useToast();
@@ -472,6 +477,14 @@ export default function EventDetailModal({
   // Determine if selected detection is a video
   const isVideoDetection = selectedDetection?.media_type === 'video';
 
+  // Determine if selected detection has a person (for face enrollment)
+  // A "person" detection can potentially have a face to enroll
+  const hasPersonDetection = useMemo(() => {
+    if (!selectedDetection) return false;
+    const objectType = selectedDetection.object_type?.toLowerCase() ?? '';
+    return objectType === 'person' || objectType.includes('person') || objectType === 'face';
+  }, [selectedDetection]);
+
   if (!event) {
     return null;
   }
@@ -764,6 +777,20 @@ export default function EventDetailModal({
                           loading={loadingDetections}
                         />
                       </div>
+
+                      {/* Add Face to Known Persons Button (NEM-4688 Phase 4) */}
+                      {hasPersonDetection && selectedDetectionId && (
+                        <div className="mb-6">
+                          <button
+                            onClick={() => setEnrollFaceModalOpen(true)}
+                            className="flex items-center gap-2 rounded-lg border border-[#76B900]/40 bg-[#76B900]/10 px-4 py-2.5 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
+                            data-testid="enroll-face-button"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Add Face to Known Persons
+                          </button>
+                        </div>
+                      )}
 
                       {/* AI Summary */}
                       <div className="mb-6" data-testid="ai-analysis-section">
@@ -1341,6 +1368,19 @@ export default function EventDetailModal({
           setSelectedEntity(null);
         }}
       />
+
+      {/* Face Enrollment Modal (NEM-4688 Phase 4) */}
+      {selectedDetectionId && selectedDetection && (
+        <EnrollFaceModal
+          isOpen={enrollFaceModalOpen}
+          onClose={() => setEnrollFaceModalOpen(false)}
+          detectionId={String(selectedDetectionId)}
+          facePreviewUrl={getDetectionFullImageUrl(selectedDetectionId)}
+          qualityScore={selectedDetection.confidence ?? 0.85}
+          cameraName={event?.camera_name ?? 'Unknown'}
+          timestamp={selectedDetection.detected_at}
+        />
+      )}
     </Transition>
   );
 }

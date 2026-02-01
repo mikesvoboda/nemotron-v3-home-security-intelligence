@@ -665,6 +665,185 @@ class FaceRecognitionService:
 
         return list(result.scalars().all())
 
+    # =========================================================================
+    # Person Appearances (NEM-4688)
+    # =========================================================================
+
+    async def get_person_appearances(
+        self,
+        session: AsyncSession,
+        person_id: int,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        camera_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict], int] | None:
+        """Get appearance timeline for a known person.
+
+        Queries FaceDetectionEvent table for events matching this person,
+        ordered by timestamp descending (most recent first).
+
+        Args:
+            session: Database session
+            person_id: ID of the known person
+            start_date: Filter events after this date (optional)
+            end_date: Filter events before this date (optional)
+            camera_id: Filter by camera ID (optional)
+            limit: Maximum events to return (default 50)
+            offset: Number of events to skip for pagination
+
+        Returns:
+            Tuple of (list of appearance dicts, total count) if person exists,
+            None if person not found.
+            Each appearance dict contains:
+            - timestamp: When detected
+            - camera_id: Camera ID
+            - camera_name: Camera display name
+            - detection_id: ID of the face detection event
+            - confidence: Match confidence score
+            - thumbnail_url: URL to face thumbnail (if available)
+        """
+        # Verify person exists
+        person = await self.get_known_person(session, person_id)
+        if person is None:
+            return None
+
+        # Build query for face detection events matching this person
+        stmt = (
+            select(FaceDetectionEvent)
+            .where(FaceDetectionEvent.matched_person_id == person_id)
+            .options(selectinload(FaceDetectionEvent.camera))
+        )
+
+        # Apply filters
+        if start_date is not None:
+            stmt = stmt.where(FaceDetectionEvent.timestamp >= start_date)
+        if end_date is not None:
+            stmt = stmt.where(FaceDetectionEvent.timestamp <= end_date)
+        if camera_id is not None:
+            stmt = stmt.where(FaceDetectionEvent.camera_id == camera_id)
+
+        # Get total count
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await session.execute(count_stmt)
+        total = count_result.scalar() or 0
+
+        # Get paginated results ordered by timestamp descending
+        stmt = stmt.order_by(FaceDetectionEvent.timestamp.desc())
+        stmt = stmt.limit(limit).offset(offset)
+        result = await session.execute(stmt)
+        events = list(result.scalars().all())
+
+        # Transform to appearance dicts
+        appearances = []
+        for event in events:
+            camera_name = event.camera.name if event.camera else event.camera_id
+            appearances.append(
+                {
+                    "timestamp": event.timestamp,
+                    "camera_id": event.camera_id,
+                    "camera_name": camera_name,
+                    "detection_id": event.id,
+                    "confidence": event.match_confidence or 0.0,
+                    "thumbnail_url": None,  # TODO: Generate thumbnail URLs
+                }
+            )
+
+        logger.debug(
+            "Retrieved %d appearances for person %d (total: %d)",
+            len(appearances),
+            person_id,
+            total,
+        )
+        return appearances, total
+
+    # =========================================================================
+    # Face Event Identification (NEM-4688 Phase 2)
+    # =========================================================================
+
+    async def identify_face_event(
+        self,
+        session: AsyncSession,
+        event_id: int,
+        known_person_id: int,
+    ) -> dict:
+        """Manually identify an unknown face event as a known person.
+
+        Updates the face detection event to link it with a known person.
+        If the face quality is >= 0.7, also creates a new face embedding
+        for the known person from this event's embedding.
+
+        Args:
+            session: Database session
+            event_id: ID of the face detection event to identify
+            known_person_id: ID of the known person to associate
+
+        Returns:
+            Dict with:
+            - success: bool - Whether identification was successful
+            - created_embedding: bool - Whether a new embedding was created
+
+        Raises:
+            ValueError: If event or person not found, or event is already identified
+        """
+        # Fetch the face event
+        event_stmt = select(FaceDetectionEvent).where(FaceDetectionEvent.id == event_id)
+        event_result = await session.execute(event_stmt)
+        event = event_result.scalar_one_or_none()
+
+        if event is None:
+            raise ValueError(f"Face event with id {event_id} not found")
+
+        # Check if event is already identified
+        if not event.is_unknown:
+            raise ValueError(f"Face event {event_id} is already identified")
+
+        # Fetch the known person
+        person_stmt = select(KnownPerson).where(KnownPerson.id == known_person_id)
+        person_result = await session.execute(person_stmt)
+        person = person_result.scalar_one_or_none()
+
+        if person is None:
+            raise ValueError(f"Known person with id {known_person_id} not found")
+
+        # Update the face event
+        event.matched_person_id = known_person_id
+        event.is_unknown = False
+
+        # Optionally create embedding if quality is high enough
+        created_embedding = False
+        if event.quality_score >= 0.7:
+            # Create a new FaceEmbedding from the event's embedding
+            new_embedding = FaceEmbedding(
+                person_id=known_person_id,
+                embedding=event.embedding,
+                quality_score=event.quality_score,
+                source_image_path=None,  # Source is from face event, not image
+            )
+            session.add(new_embedding)
+            created_embedding = True
+            logger.info(
+                "Created embedding for person %s from face event %d (quality=%.2f)",
+                person.name,
+                event_id,
+                event.quality_score,
+            )
+
+        await session.commit()
+
+        logger.info(
+            "Identified face event %d as person %s (id=%d)",
+            event_id,
+            person.name,
+            known_person_id,
+        )
+
+        return {
+            "success": True,
+            "created_embedding": created_embedding,
+        }
+
 
 # =============================================================================
 # Global Service Instance (Singleton Pattern)

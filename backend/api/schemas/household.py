@@ -297,3 +297,39 @@ class PersonEmbeddingResponse(BaseModel):
     source_event_id: int | None = Field(None, description="Event ID where embedding was captured")
     confidence: float = Field(..., description="Reliability score (0-1)")
     created_at: datetime = Field(..., description="When the embedding was created")
+
+
+# =============================================================================
+# Link Person Schemas
+# =============================================================================
+
+
+class LinkPersonRequest(BaseModel):
+    """Schema for linking a household member to a known person."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "known_person_id": 10,
+            }
+        }
+    )
+
+    known_person_id: int | None = Field(
+        ...,
+        description="ID of the known person to link, or null to unlink",
+    )
+
+
+class LinkPersonResponse(BaseModel):
+    """Schema for link person response."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether the operation was successful")

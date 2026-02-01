@@ -16,9 +16,10 @@
  */
 
 import { Dialog, Transition } from '@headlessui/react';
-import { Car, Edit2, Loader2, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
+import { Car, Edit2, Loader2, Plus, RefreshCw, Trash2, User, Users } from 'lucide-react';
 import { Fragment, useCallback, useRef, useState } from 'react';
 
+import { useKnownPersonsQuery } from '../hooks/useFaceRecognitionApi';
 import {
   useMembersQuery,
   useCreateMember,
@@ -28,6 +29,7 @@ import {
   useCreateVehicle,
   useUpdateVehicle,
   useDeleteVehicle,
+  useLinkMemberToPerson,
 } from '../hooks/useHouseholdApi';
 import { useToast } from '../hooks/useToast';
 
@@ -42,6 +44,7 @@ import type {
   RegisteredVehicleUpdate,
   VehicleType,
 } from '../hooks/useHouseholdApi';
+import type { KnownPerson } from '../types/faceRecognition';
 
 // ============================================================================
 // Constants
@@ -94,6 +97,7 @@ interface MemberFormData {
   role: MemberRole;
   trusted_level: TrustLevel;
   notes: string;
+  known_person_id: number | null;
 }
 
 interface VehicleFormData {
@@ -232,14 +236,20 @@ function DeleteConfirmDialog({
 function MemberForm({
   mode,
   initialData,
+  knownPersons,
+  knownPersonsLoading,
   onSave,
+  onLinkPerson,
   onCancel,
   isSaving,
   apiError,
 }: {
   mode: ModalMode;
   initialData?: HouseholdMember;
+  knownPersons?: KnownPerson[];
+  knownPersonsLoading: boolean;
   onSave: (data: HouseholdMemberCreate | { id: number; data: HouseholdMemberUpdate }) => void | Promise<void>;
+  onLinkPerson?: (memberId: number, knownPersonId: number | null) => void | Promise<void>;
   onCancel: () => void;
   isSaving: boolean;
   apiError?: string;
@@ -249,9 +259,16 @@ function MemberForm({
     role: initialData?.role ?? 'resident',
     trusted_level: initialData?.trusted_level ?? 'full',
     notes: initialData?.notes ?? '',
+    known_person_id: initialData?.known_person_id ?? null,
   });
   const [errors, setErrors] = useState<{ name?: string }>({});
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Get known persons that are not already linked to another household member
+  // (or are linked to this member)
+  const availableKnownPersons = knownPersons?.filter(
+    (p) => !p.household_member_id || p.household_member_id === initialData?.id
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,6 +282,9 @@ function MemberForm({
     setErrors({});
 
     if (mode === 'edit' && initialData) {
+      // Check if known_person_id changed
+      const knownPersonIdChanged = formData.known_person_id !== initialData.known_person_id;
+
       void onSave({
         id: initialData.id,
         data: {
@@ -274,6 +294,11 @@ function MemberForm({
           notes: formData.notes || null,
         },
       });
+
+      // If linking changed and callback provided, call it
+      if (knownPersonIdChanged && onLinkPerson) {
+        void onLinkPerson(initialData.id, formData.known_person_id);
+      }
     } else {
       void onSave({
         name: formData.name,
@@ -346,6 +371,32 @@ function MemberForm({
             ))}
           </select>
         </div>
+
+        {/* Linked Known Person (only shown in edit mode) */}
+        {mode === 'edit' && (
+          <div>
+            <label htmlFor="member-known-person" className="block text-sm font-medium text-gray-300 mb-1">
+              Linked Known Person
+            </label>
+            <select
+              id="member-known-person"
+              value={formData.known_person_id ?? ''}
+              onChange={(e) => setFormData({ ...formData, known_person_id: e.target.value ? Number(e.target.value) : null })}
+              disabled={knownPersonsLoading}
+              className="w-full px-3 py-2 bg-[#121212] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:border-transparent disabled:opacity-50"
+            >
+              <option value="">Not linked to any known person</option>
+              {availableKnownPersons?.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name} ({person.embedding_count} faces)
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Link this member to a known person in the face recognition system
+            </p>
+          </div>
+        )}
 
         {/* Notes */}
         <div>
@@ -614,6 +665,12 @@ export default function HouseholdPage() {
     refetch: refetchVehicles,
   } = useVehiclesQuery();
 
+  // Fetch known persons for linking
+  const {
+    data: knownPersons,
+    isLoading: knownPersonsLoading,
+  } = useKnownPersonsQuery();
+
   // Mutations
   const createMemberMutation = useCreateMember();
   const updateMemberMutation = useUpdateMember();
@@ -621,6 +678,7 @@ export default function HouseholdPage() {
   const createVehicleMutation = useCreateVehicle();
   const updateVehicleMutation = useUpdateVehicle();
   const deleteVehicleMutation = useDeleteVehicle();
+  const linkMemberToPersonMutation = useLinkMemberToPerson();
 
   // Toast
   const toast = useToast();
@@ -695,6 +753,20 @@ export default function HouseholdPage() {
       }
     },
     [createMemberMutation, updateMemberMutation, toast, handleCloseMemberModal]
+  );
+
+  const handleLinkMemberToPerson = useCallback(
+    async (memberId: number, knownPersonId: number | null) => {
+      try {
+        await linkMemberToPersonMutation.mutateAsync({ memberId, knownPersonId });
+        const action = knownPersonId ? 'linked' : 'unlinked';
+        toast.success(`Member ${action} successfully`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update link';
+        toast.error(message);
+      }
+    },
+    [linkMemberToPersonMutation, toast]
   );
 
   const handleDeleteMember = useCallback((member: HouseholdMember) => {
@@ -859,41 +931,54 @@ export default function HouseholdPage() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {members?.map((member) => (
-                <div
-                  key={member.id}
-                  className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium text-white">{member.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="role">{ROLE_LABELS[member.role]}</Badge>
-                        <Badge variant="trust">{TRUST_LEVEL_LABELS[member.trusted_level]}</Badge>
+              {members?.map((member) => {
+                // Find linked known person
+                const linkedKnownPerson = knownPersons?.find(
+                  (p) => p.household_member_id === member.id
+                );
+                return (
+                  <div
+                    key={member.id}
+                    className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-4"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium text-white">{member.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <Badge variant="role">{ROLE_LABELS[member.role]}</Badge>
+                          <Badge variant="trust">{TRUST_LEVEL_LABELS[member.trusted_level]}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditMember(member)}
+                          className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                          aria-label="Edit"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMember(member)}
+                          className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenEditMember(member)}
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-                        aria-label="Edit"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMember(member)}
-                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {/* Linked Known Person */}
+                    {linkedKnownPerson && (
+                      <div className="flex items-center gap-2 text-xs text-[#76B900] mb-2" data-testid="linked-known-person">
+                        <User className="h-3.5 w-3.5" />
+                        <span>Linked: {linkedKnownPerson.name} ({linkedKnownPerson.embedding_count} faces)</span>
+                      </div>
+                    )}
+                    {member.notes && (
+                      <p className="text-sm text-gray-400 mt-2">{member.notes}</p>
+                    )}
                   </div>
-                  {member.notes && (
-                    <p className="text-sm text-gray-400 mt-2">{member.notes}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -976,9 +1061,12 @@ export default function HouseholdPage() {
           <MemberForm
             mode={memberModalMode}
             initialData={selectedMember}
+            knownPersons={knownPersons}
+            knownPersonsLoading={knownPersonsLoading}
             onSave={handleSaveMember}
+            onLinkPerson={handleLinkMemberToPerson}
             onCancel={handleCloseMemberModal}
-            isSaving={createMemberMutation.isPending || updateMemberMutation.isPending}
+            isSaving={createMemberMutation.isPending || updateMemberMutation.isPending || linkMemberToPersonMutation.isPending}
             apiError={memberApiError}
           />
         </Modal>

@@ -19,6 +19,7 @@ import {
   Gauge,
   Home,
   LayoutDashboard,
+  ScanFace,
   ScrollText,
   Server,
   Settings,
@@ -79,6 +80,7 @@ export const navGroups: NavGroup[] = [
       { id: 'ai-services', label: 'AI Services', icon: Server, path: '/ai-services' },
       { id: 'pyroscope', label: 'Profiling', icon: Flame, path: '/pyroscope' },
       { id: 'plate-reads', label: 'Plate Reads', icon: Car, path: '/plate-reads' },
+      { id: 'face-recognition', label: 'Face Recognition', icon: ScanFace, path: '/face-recognition' },
     ],
   },
   {

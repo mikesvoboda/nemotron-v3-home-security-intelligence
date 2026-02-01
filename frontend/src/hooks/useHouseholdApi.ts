@@ -83,6 +83,7 @@ export interface HouseholdMember {
   trusted_level: TrustLevel;
   notes?: string | null;
   typical_schedule?: Record<string, unknown> | null;
+  known_person_id?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -787,6 +788,73 @@ export function useMemberDetectionsQuery(memberId: number, params?: MemberDetect
     queryFn: () => getMemberDetections(memberId, params),
     staleTime: STATIC_STALE_TIME,
     enabled: memberId > 0,
+  });
+}
+
+// ============================================================================
+// Member-Person Linking Types (Phase 4)
+// ============================================================================
+
+/**
+ * Request payload for linking a member to a known person.
+ */
+export interface LinkPersonRequest {
+  known_person_id: number | null;
+}
+
+/**
+ * Response from linking a member to a known person.
+ */
+export interface LinkPersonResponse {
+  success: boolean;
+}
+
+// ============================================================================
+// Member-Person Linking API Functions
+// ============================================================================
+
+/**
+ * Link or unlink a household member to a known person.
+ */
+export async function linkMemberToPerson(
+  memberId: number,
+  knownPersonId: number | null
+): Promise<LinkPersonResponse> {
+  const response = await fetch(
+    `${BASE_URL}/api/household/members/${memberId}/link-person`,
+    {
+      method: 'PATCH',
+      headers: buildHeaders(),
+      body: JSON.stringify({ known_person_id: knownPersonId }),
+    }
+  );
+  return handleResponse<LinkPersonResponse>(response);
+}
+
+// ============================================================================
+// Member-Person Linking Hooks
+// ============================================================================
+
+/**
+ * Hook to link a household member to a known person.
+ */
+export function useLinkMemberToPerson() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      knownPersonId,
+    }: {
+      memberId: number;
+      knownPersonId: number | null;
+    }) => linkMemberToPerson(memberId, knownPersonId),
+    onSuccess: () => {
+      // Invalidate members query to refresh the list
+      void queryClient.invalidateQueries({ queryKey: householdQueryKeys.members() });
+      // Also invalidate known persons queries to update is_household_member flags
+      void queryClient.invalidateQueries({ queryKey: ['face-recognition'] });
+    },
   });
 }
 

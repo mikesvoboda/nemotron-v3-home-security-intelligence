@@ -146,6 +146,33 @@ vi.mock('./MatchedEntitiesSection', () => ({
   ),
 }));
 
+// Mock the EnrollFaceModal component (NEM-4688 Phase 4)
+vi.mock('../face-recognition/EnrollFaceModal', () => ({
+  default: vi.fn(
+    ({
+      isOpen,
+      onClose,
+      detectionId,
+      cameraName,
+    }: {
+      isOpen: boolean;
+      onClose: () => void;
+      detectionId: string;
+      cameraName: string;
+    }) =>
+      isOpen ? (
+        <div data-testid="enroll-face-modal">
+          Mocked EnrollFaceModal
+          <span data-testid="enroll-face-detection-id">{detectionId}</span>
+          <span data-testid="enroll-face-camera-name">{cameraName}</span>
+          <button onClick={onClose} data-testid="close-enroll-face-modal">
+            Close
+          </button>
+        </div>
+      ) : null
+  ),
+}));
+
 describe('EventDetailModal', () => {
   // Mock event data
   const mockEvent: Event = {
@@ -2669,6 +2696,151 @@ describe('EventDetailModal', () => {
       expect(screen.queryByTestId('entity-detail-modal')).not.toBeInTheDocument();
 
       consoleSpy.mockRestore();
+    });
+  });
+
+  // Face Enrollment Integration (NEM-4688 Phase 4)
+  describe('face enrollment integration', () => {
+    const mockEventWithNumericId: Event = {
+      ...mockEvent,
+      id: '123',
+    };
+
+    const mockPersonDetection = {
+      id: 1,
+      camera_id: 'front_door',
+      file_path: '/export/foscam/front_door/20251223_120000.jpg',
+      file_type: 'image/jpeg',
+      detected_at: '2025-01-15T10:30:00Z',
+      object_type: 'person',
+      confidence: 0.95,
+      thumbnail_path: '/data/thumbnails/1_thumb.jpg',
+      media_type: 'image',
+      bbox_x: 100,
+      bbox_y: 100,
+      bbox_width: 200,
+      bbox_height: 300,
+    };
+
+    const mockFaceEnrollmentProps: EventDetailModalProps = {
+      event: mockEventWithNumericId,
+      isOpen: true,
+      onClose: vi.fn(),
+    };
+
+    it('shows "Add Face to Known Persons" button when person detection is selected', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockPersonDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+
+      renderWithQueryClient(<EventDetailModal {...mockFaceEnrollmentProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('enroll-face-button')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Add Face to Known Persons')).toBeInTheDocument();
+    });
+
+    it('does not show "Add Face to Known Persons" button for non-person detections', async () => {
+      const mockVehicleDetection = {
+        ...mockPersonDetection,
+        id: 2,
+        object_type: 'vehicle',
+      };
+
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockVehicleDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+
+      renderWithQueryClient(<EventDetailModal {...mockFaceEnrollmentProps} />);
+
+      // Wait for detections to load
+      await waitFor(() => {
+        expect(api.fetchEventDetections).toHaveBeenCalled();
+      });
+
+      // Wait a bit for potential button render
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(screen.queryByTestId('enroll-face-button')).not.toBeInTheDocument();
+    });
+
+    it('opens EnrollFaceModal when "Add Face to Known Persons" button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockPersonDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+
+      renderWithQueryClient(<EventDetailModal {...mockFaceEnrollmentProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('enroll-face-button')).toBeInTheDocument();
+      });
+
+      // Click the button to open the modal
+      const enrollButton = screen.getByTestId('enroll-face-button');
+      await user.click(enrollButton);
+
+      // Verify the EnrollFaceModal opens
+      await waitFor(() => {
+        expect(screen.getByTestId('enroll-face-modal')).toBeInTheDocument();
+      });
+
+      // Verify correct props are passed
+      expect(screen.getByTestId('enroll-face-detection-id')).toHaveTextContent('1');
+      expect(screen.getByTestId('enroll-face-camera-name')).toHaveTextContent('Front Door');
+    });
+
+    it('closes EnrollFaceModal when close button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockPersonDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+
+      renderWithQueryClient(<EventDetailModal {...mockFaceEnrollmentProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('enroll-face-button')).toBeInTheDocument();
+      });
+
+      // Open the modal
+      await user.click(screen.getByTestId('enroll-face-button'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('enroll-face-modal')).toBeInTheDocument();
+      });
+
+      // Close the modal
+      await user.click(screen.getByTestId('close-enroll-face-modal'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('enroll-face-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows face enrollment button for "face" object type', async () => {
+      const mockFaceDetection = {
+        ...mockPersonDetection,
+        object_type: 'face',
+      };
+
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        items: [mockFaceDetection],
+        pagination: { total: 1, limit: 100, offset: 0, has_more: false },
+      });
+
+      renderWithQueryClient(<EventDetailModal {...mockFaceEnrollmentProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('enroll-face-button')).toBeInTheDocument();
+      });
     });
   });
 });
