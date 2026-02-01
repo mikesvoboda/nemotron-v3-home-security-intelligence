@@ -9077,6 +9077,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/models/unload-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unload All Models
+         * @description Unload all models from both enrichment services.
+         *
+         *     Returns:
+         *         Summary of unloaded models and freed VRAM
+         *
+         *     Raises:
+         *         HTTPException: 502 if service error, 503 if unavailable
+         */
+        post: operations["model-management_unload_all_models"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/models/vram-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Vram Summary
+         * @description Get per-GPU VRAM usage summary from both enrichment services.
+         *
+         *     Returns:
+         *         Per-GPU VRAM breakdown plus aggregate totals
+         */
+        get: operations["model-management_get_vram_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/models/{model_name}": {
         parameters: {
             query?: never;
@@ -9100,6 +9149,131 @@ export interface paths {
         get: operations["system_get_model"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/models/{model_name}/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Load Model
+         * @description Load a model via the enrichment service.
+         *
+         *     Proxies the load request to the appropriate enrichment service
+         *     based on model-to-service mapping.
+         *
+         *     Args:
+         *         model_name: Name of the model to load
+         *
+         *     Returns:
+         *         Load result with timing and VRAM info
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found, 400 if disabled,
+         *                       502 if service error, 503 if unavailable
+         */
+        post: operations["model-management_load_model"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/models/{model_name}/reload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reload Model
+         * @description Reload a model by unloading and then loading it.
+         *
+         *     Args:
+         *         model_name: Name of the model to reload
+         *
+         *     Returns:
+         *         Load result with timing and VRAM info
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found, 400 if disabled,
+         *                       502 if service error, 503 if unavailable
+         */
+        post: operations["model-management_reload_model"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/models/{model_name}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Status
+         * @description Get detailed status for a specific model.
+         *
+         *     Args:
+         *         model_name: Name of the model to get status for
+         *
+         *     Returns:
+         *         Detailed model information including runtime state
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found
+         */
+        get: operations["model-management_get_model_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/models/{model_name}/unload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unload Model
+         * @description Unload a model via the enrichment service.
+         *
+         *     Proxies the unload request to the appropriate enrichment service
+         *     based on model-to-service mapping.
+         *
+         *     Args:
+         *         model_name: Name of the model to unload
+         *
+         *     Returns:
+         *         Unload result with freed VRAM info
+         *
+         *     Raises:
+         *         HTTPException: 404 if model not found,
+         *                       502 if service error, 503 if unavailable
+         */
+        post: operations["model-management_unload_model"];
         delete?: never;
         options?: never;
         head?: never;
@@ -25734,6 +25908,52 @@ export interface components {
             success: boolean;
         };
         /**
+         * LoadModelResponse
+         * @description Response schema for POST /api/system/models/{name}/load.
+         *
+         *     Returns success status and details about the loaded model.
+         * @example {
+         *       "gpu_id": 1,
+         *       "load_time_ms": 1250,
+         *       "model_name": "threat-detection-yolov8n",
+         *       "service": "ai-enrichment-light",
+         *       "success": true,
+         *       "vram_mb": 287
+         *     }
+         */
+        LoadModelResponse: {
+            /**
+             * Gpu Id
+             * @description GPU index where the model is loaded
+             */
+            gpu_id: number;
+            /**
+             * Load Time Ms
+             * @description Time taken to load the model in milliseconds
+             */
+            load_time_ms: number;
+            /**
+             * Model Name
+             * @description Name of the model that was loaded
+             */
+            model_name: string;
+            /**
+             * Service
+             * @description Enrichment service that loaded the model
+             */
+            service: string;
+            /**
+             * Success
+             * @description Whether the model was loaded successfully
+             */
+            success: boolean;
+            /**
+             * Vram Mb
+             * @description VRAM consumed by the loaded model in megabytes
+             */
+            vram_mb: number;
+        };
+        /**
          * LogEntryResponse
          * @description Schema for a single log entry in query responses.
          *
@@ -26679,6 +26899,72 @@ export interface components {
             zones: boolean;
         };
         /**
+         * ModelDetailResponse
+         * @description Response schema for GET /api/system/models/{name}/status.
+         *
+         *     Returns detailed information about a specific model.
+         * @example {
+         *       "available": true,
+         *       "category": "detection",
+         *       "enabled": true,
+         *       "estimated_vram_mb": 300,
+         *       "gpu_id": 1,
+         *       "name": "threat-detection-yolov8n",
+         *       "path": "/models/model-zoo/threat-detection-yolov8n",
+         *       "runtime": {
+         *         "actual_vram_mb": 287,
+         *         "last_used": "2025-01-31T10:30:00Z",
+         *         "load_count": 5,
+         *         "loaded": true
+         *       },
+         *       "service": "ai-enrichment-light"
+         *     }
+         */
+        ModelDetailResponse: {
+            /**
+             * Available
+             * @description Whether the model has been verified as working
+             */
+            available: boolean;
+            /**
+             * Category
+             * @description Model category
+             */
+            category: string;
+            /**
+             * Enabled
+             * @description Whether the model is enabled
+             */
+            enabled: boolean;
+            /**
+             * Estimated Vram Mb
+             * @description Estimated VRAM usage in megabytes
+             */
+            estimated_vram_mb: number;
+            /**
+             * Gpu Id
+             * @description GPU index assigned to this model
+             */
+            gpu_id: number;
+            /**
+             * Name
+             * @description Unique model identifier
+             */
+            name: string;
+            /**
+             * Path
+             * @description Model file path or HuggingFace repo
+             */
+            path: string;
+            /** @description Current runtime state */
+            runtime: components["schemas"]["ModelRuntimeInfo"];
+            /**
+             * Service
+             * @description Enrichment service handling this model
+             */
+            service: string;
+        };
+        /**
          * ModelLatencyHistoryResponse
          * @description Response schema for Model Zoo latency history endpoint.
          *
@@ -26802,6 +27088,61 @@ export interface components {
             quality_correlation: number | null;
         };
         /**
+         * ModelListResponse
+         * @description Response schema for GET /api/system/models.
+         *
+         *     Returns all models from the registry with their runtime state,
+         *     plus service health status for both enrichment services.
+         * @example {
+         *       "models": [
+         *         {
+         *           "category": "detection",
+         *           "enabled": true,
+         *           "estimated_vram_mb": 300,
+         *           "gpu_id": 1,
+         *           "name": "threat-detection-yolov8n",
+         *           "runtime": {
+         *             "actual_vram_mb": 287,
+         *             "last_used": "2025-01-31T10:30:00Z",
+         *             "load_count": 5,
+         *             "loaded": true
+         *           },
+         *           "service": "ai-enrichment-light"
+         *         },
+         *         {
+         *           "category": "classification",
+         *           "enabled": true,
+         *           "estimated_vram_mb": 1500,
+         *           "gpu_id": 0,
+         *           "name": "vehicle-segment-classification",
+         *           "runtime": {
+         *             "load_count": 0,
+         *             "loaded": false
+         *           },
+         *           "service": "ai-enrichment"
+         *         }
+         *       ],
+         *       "service_status": {
+         *         "ai-enrichment": "healthy",
+         *         "ai-enrichment-light": "healthy"
+         *       }
+         *     }
+         */
+        ModelListResponse: {
+            /**
+             * Models
+             * @description List of all models with registry metadata and runtime state
+             */
+            models: components["schemas"]["ModelStatus"][];
+            /**
+             * Service Status
+             * @description Health status of each enrichment service (healthy/unhealthy/unknown)
+             */
+            service_status: {
+                [key: string]: string;
+            };
+        };
+        /**
          * ModelPromptConfig
          * @description Configuration for a specific AI model.
          * @example {
@@ -26895,6 +27236,97 @@ export interface components {
              * @description Currently used VRAM by loaded models
              */
             vram_used_mb: number;
+        };
+        /**
+         * ModelRuntimeInfo
+         * @description Runtime state information for a loaded model.
+         *
+         *     This information comes from the enrichment service at runtime,
+         *     reflecting the actual state of models in GPU memory.
+         * @example {
+         *       "actual_vram_mb": 287,
+         *       "last_used": "2025-01-31T10:30:00Z",
+         *       "load_count": 5,
+         *       "loaded": true
+         *     }
+         */
+        ModelRuntimeInfo: {
+            /**
+             * Actual Vram Mb
+             * @description Actual VRAM usage in megabytes (null if not loaded)
+             */
+            actual_vram_mb?: number | null;
+            /**
+             * Last Used
+             * @description Timestamp of last inference (null if never used or not loaded)
+             */
+            last_used?: string | null;
+            /**
+             * Load Count
+             * @description Number of times this model has been loaded since service start
+             * @default 0
+             */
+            load_count: number;
+            /**
+             * Loaded
+             * @description Whether the model is currently loaded in GPU memory
+             */
+            loaded: boolean;
+        };
+        /**
+         * ModelStatus
+         * @description Combined registry metadata and runtime state for a model.
+         *
+         *     Merges static configuration from the Model Zoo registry with
+         *     runtime state from the enrichment service.
+         * @example {
+         *       "category": "detection",
+         *       "enabled": true,
+         *       "estimated_vram_mb": 300,
+         *       "gpu_id": 1,
+         *       "name": "threat-detection-yolov8n",
+         *       "runtime": {
+         *         "actual_vram_mb": 287,
+         *         "last_used": "2025-01-31T10:30:00Z",
+         *         "load_count": 5,
+         *         "loaded": true
+         *       },
+         *       "service": "ai-enrichment-light"
+         *     }
+         */
+        ModelStatus: {
+            /**
+             * Category
+             * @description Model category (detection, classification, embedding, etc.)
+             */
+            category: string;
+            /**
+             * Enabled
+             * @description Whether the model is enabled for use in the system
+             */
+            enabled: boolean;
+            /**
+             * Estimated Vram Mb
+             * @description Estimated VRAM usage in megabytes from registry
+             */
+            estimated_vram_mb: number;
+            /**
+             * Gpu Id
+             * @description GPU index assigned to this model (0 for heavy, 1 for light)
+             */
+            gpu_id: number;
+            /**
+             * Name
+             * @description Unique model identifier (e.g., 'threat-detection-yolov8n')
+             */
+            name: string;
+            /** @description Runtime state from enrichment service */
+            runtime: components["schemas"]["ModelRuntimeInfo"];
+            /**
+             * Service
+             * @description Enrichment service handling this model (ai-enrichment or ai-enrichment-light)
+             */
+            service: string;
         };
         /**
          * ModelStatusEnum
@@ -35078,6 +35510,73 @@ export interface components {
             total: number;
         };
         /**
+         * UnloadAllResponse
+         * @description Response schema for POST /api/system/models/unload-all.
+         *
+         *     Returns summary of models unloaded from both enrichment services.
+         * @example {
+         *       "freed_vram_mb": 2550,
+         *       "services": {
+         *         "ai-enrichment": 2,
+         *         "ai-enrichment-light": 2
+         *       },
+         *       "success": true,
+         *       "unloaded_count": 4
+         *     }
+         */
+        UnloadAllResponse: {
+            /**
+             * Freed Vram Mb
+             * @description Total VRAM freed in megabytes
+             */
+            freed_vram_mb: number;
+            /**
+             * Services
+             * @description Number of models unloaded per service
+             */
+            services: {
+                [key: string]: number;
+            };
+            /**
+             * Success
+             * @description Whether all models were unloaded successfully
+             */
+            success: boolean;
+            /**
+             * Unloaded Count
+             * @description Number of models unloaded
+             */
+            unloaded_count: number;
+        };
+        /**
+         * UnloadModelResponse
+         * @description Response schema for POST /api/system/models/{name}/unload.
+         *
+         *     Returns success status and VRAM freed by unloading.
+         * @example {
+         *       "freed_vram_mb": 287,
+         *       "model_name": "threat-detection-yolov8n",
+         *       "success": true
+         *     }
+         */
+        UnloadModelResponse: {
+            /**
+             * Freed Vram Mb
+             * @description VRAM freed by unloading the model in megabytes
+             */
+            freed_vram_mb: number;
+            /**
+             * Model Name
+             * @description Name of the model that was unloaded
+             */
+            model_name: string;
+            /**
+             * Success
+             * @description Whether the model was unloaded successfully
+             */
+            success: boolean;
+        };
+        /**
          * UserCalibrationResponse
          * @description Schema for user calibration response.
          *
@@ -35314,6 +35813,143 @@ export interface components {
              * @default 0
              */
             score: number;
+        };
+        /**
+         * VramGpuInfo
+         * @description VRAM information for a single GPU.
+         *
+         *     Provides detailed VRAM breakdown for one GPU including
+         *     budget, usage, and loaded models.
+         * @example {
+         *       "available_mb": 4700,
+         *       "budget_mb": 6800,
+         *       "gpu_id": 0,
+         *       "loaded_models": [
+         *         "fashion-clip",
+         *         "vehicle-segment-classification"
+         *       ],
+         *       "service": "ai-enrichment",
+         *       "used_mb": 2100,
+         *       "utilization_percent": 30.9
+         *     }
+         */
+        VramGpuInfo: {
+            /**
+             * Available Mb
+             * @description Available VRAM in megabytes (budget - used)
+             */
+            available_mb: number;
+            /**
+             * Budget Mb
+             * @description VRAM budget allocated to this GPU in megabytes
+             */
+            budget_mb: number;
+            /**
+             * Gpu Id
+             * @description GPU index (0-based)
+             */
+            gpu_id: number;
+            /**
+             * Loaded Models
+             * @description Names of models currently loaded on this GPU
+             */
+            loaded_models?: string[];
+            /**
+             * Service
+             * @description Enrichment service assigned to this GPU
+             */
+            service: string;
+            /**
+             * Used Mb
+             * @description Currently used VRAM in megabytes
+             */
+            used_mb: number;
+            /**
+             * Utilization Percent
+             * @description VRAM utilization percentage (0-100)
+             */
+            utilization_percent: number;
+        };
+        /**
+         * VramSummaryResponse
+         * @description Response schema for GET /api/system/models/vram-summary.
+         *
+         *     Returns per-GPU VRAM breakdown plus aggregate totals.
+         * @example {
+         *       "gpus": [
+         *         {
+         *           "available_mb": 4700,
+         *           "budget_mb": 6800,
+         *           "gpu_id": 0,
+         *           "loaded_models": [
+         *             "fashion-clip",
+         *             "vehicle-segment-classification"
+         *           ],
+         *           "service": "ai-enrichment",
+         *           "used_mb": 2100,
+         *           "utilization_percent": 30.9
+         *         },
+         *         {
+         *           "available_mb": 750,
+         *           "budget_mb": 1200,
+         *           "gpu_id": 1,
+         *           "loaded_models": [
+         *             "threat-detection-yolov8n",
+         *             "osnet-x0-25"
+         *           ],
+         *           "service": "ai-enrichment-light",
+         *           "used_mb": 450,
+         *           "utilization_percent": 37.5
+         *         }
+         *       ],
+         *       "totals": {
+         *         "available_mb": 5450,
+         *         "budget_mb": 8000,
+         *         "model_count": 4,
+         *         "used_mb": 2550
+         *       }
+         *     }
+         */
+        VramSummaryResponse: {
+            /**
+             * Gpus
+             * @description Per-GPU VRAM information
+             */
+            gpus: components["schemas"]["VramGpuInfo"][];
+            /** @description Aggregate VRAM totals across all GPUs */
+            totals: components["schemas"]["VramTotals"];
+        };
+        /**
+         * VramTotals
+         * @description Aggregate VRAM totals across all GPUs.
+         * @example {
+         *       "available_mb": 5450,
+         *       "budget_mb": 8000,
+         *       "model_count": 4,
+         *       "used_mb": 2550
+         *     }
+         */
+        VramTotals: {
+            /**
+             * Available Mb
+             * @description Total available VRAM across all GPUs in megabytes
+             */
+            available_mb: number;
+            /**
+             * Budget Mb
+             * @description Total VRAM budget across all GPUs in megabytes
+             */
+            budget_mb: number;
+            /**
+             * Model Count
+             * @description Total number of models currently loaded
+             */
+            model_count: number;
+            /**
+             * Used Mb
+             * @description Total VRAM used across all GPUs in megabytes
+             */
+            used_mb: number;
         };
         /**
          * WeatherEnrichment
@@ -49600,6 +50236,67 @@ export interface operations {
             };
         };
     };
+    "model-management_unload_all_models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnloadAllResponse"];
+                };
+            };
+            /** @description Enrichment service error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Enrichment service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "model-management_get_vram_summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VramSummaryResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     system_get_model: {
         parameters: {
             query?: never;
@@ -49628,6 +50325,221 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "model-management_load_model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoadModelResponse"];
+                };
+            };
+            /** @description Model is disabled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Enrichment service error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Enrichment service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "model-management_reload_model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoadModelResponse"];
+                };
+            };
+            /** @description Model is disabled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Enrichment service error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Enrichment service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "model-management_get_model_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelDetailResponse"];
+                };
+            };
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "model-management_unload_model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnloadModelResponse"];
+                };
+            };
+            /** @description Model not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Enrichment service error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Enrichment service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

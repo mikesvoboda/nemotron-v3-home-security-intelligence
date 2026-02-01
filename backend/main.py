@@ -71,6 +71,7 @@ from backend.api.routes import (
     materialized_views,
     media,
     metrics,
+    model_management,
     notification,
     notification_preferences,
     onvif,
@@ -1250,6 +1251,7 @@ app.include_router(logs.router)
 app.include_router(materialized_views.router)
 app.include_router(media.router)
 app.include_router(metrics.router)
+app.include_router(model_management.router)
 app.include_router(notification.router)
 app.include_router(notification_preferences.router)
 app.include_router(onvif.router)

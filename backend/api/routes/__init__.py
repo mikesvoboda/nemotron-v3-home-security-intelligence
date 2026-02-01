@@ -22,6 +22,7 @@ from .household import router as household_router
 from .household_matcher import router as household_matcher_router
 from .jobs import router as jobs_router
 from .logs import router as logs_router
+from .model_management import router as model_management_router
 from .notification_preferences import router as notification_preferences_router
 from .onvif import router as onvif_router
 from .outbound_webhooks import router as outbound_webhooks_router
@@ -59,6 +60,7 @@ __all__ = [
     "household_router",
     "jobs_router",
     "logs_router",
+    "model_management_router",
     "notification_preferences_router",
     "onvif_router",
     "outbound_webhooks_router",

@@ -6,72 +6,65 @@ Analysis of 150+ backend services identified significant functionality NOT expos
 
 ## Priority Summary
 
-| Priority | Service              | Unexposed Methods | Impact                            |
-| -------- | -------------------- | ----------------- | --------------------------------- |
-| **HIGH** | Notification Service | 8                 | Cannot send notifications via API |
-| **HIGH** | Model Zoo            | 7                 | Cannot manage AI model lifecycle  |
-| **HIGH** | Baseline Service     | 11                | Limited analytics access          |
-| **HIGH** | Track Service        | 8                 | Motion tracking data hidden       |
-| MEDIUM   | Alert Service        | 5                 | No manual alert management        |
-| MEDIUM   | Household Matcher    | 3                 | Matching not available for UI     |
-| MEDIUM   | Re-ID Service        | 3                 | Similarity scoring not exposed    |
-| MEDIUM   | Materialized Views   | 8                 | No admin control over refreshes   |
+| Priority | Service                  | Unexposed Methods | Impact                              |
+| -------- | ------------------------ | ----------------- | ----------------------------------- |
+| ~~HIGH~~ | ~~Notification Service~~ | ~~8~~ → 0         | ✅ **RESOLVED** - Full API coverage |
+| ~~HIGH~~ | ~~Model Zoo~~            | ~~7~~ → 0         | ✅ **RESOLVED** - Full API coverage |
+| **HIGH** | Baseline Service         | 11                | Limited analytics access            |
+| **HIGH** | Track Service            | 8                 | Motion tracking data hidden         |
+| MEDIUM   | Alert Service            | 5                 | No manual alert management          |
+| MEDIUM   | Household Matcher        | 3                 | Matching not available for UI       |
+| MEDIUM   | Re-ID Service            | 3                 | Similarity scoring not exposed      |
+| MEDIUM   | Materialized Views       | 8                 | No admin control over refreshes     |
 
 ## HIGH Priority Services
 
-### 1. Notification Service (`backend/services/notification.py`)
+### 1. ~~Notification Service~~ ✅ RESOLVED
 
-**0 of 8 methods exposed**
+> **Status:** Fully implemented as of 2025-01-31
+>
+> **Implementation:** `backend/api/routes/notification.py`
+>
+> **Endpoints Added:**
+>
+> - `GET /api/notification/config` - Channel configuration and status
+> - `POST /api/notification/test` - Test notification delivery
+> - `PATCH /api/notification/config` - Update notification config
+> - `GET /api/notification/history` - Notification history
+>
+> **Frontend:** `frontend/src/components/settings/NotificationSettings.tsx` - Full UI with channel status, test buttons, preferences management
+>
+> **Tests:** 10+ test files covering unit and integration tests
+>
+> **Linear:** NEM-4794 (Epic: Notification Service API) - Re-scoped as already complete
 
-| Method                     | Description                   | Recommended Endpoint                     |
-| -------------------------- | ----------------------------- | ---------------------------------------- |
-| `send_email()`             | Send email notifications      | `POST /api/notifications/send`           |
-| `send_webhook()`           | Send webhook notifications    | (same)                                   |
-| `send_push()`              | Send push notifications       | (same)                                   |
-| `deliver_alert()`          | Deliver via multiple channels | (same)                                   |
-| `get_available_channels()` | List notification channels    | `GET /api/notifications/channels`        |
-| `is_email_configured()`    | Check email config            | `GET /api/notifications/channels/status` |
-| `is_webhook_configured()`  | Check webhook config          | (same)                                   |
-| `is_push_configured()`     | Check push config             | (same)                                   |
+### 2. ~~Model Zoo~~ ✅ RESOLVED
 
-**Recommended Endpoints:**
-
-```
-POST /api/notifications/send
-  - channel: email|webhook|push
-  - recipients: [...]
-  - subject/body/template
-
-GET /api/notifications/channels
-GET /api/notifications/channels/status
-POST /api/notifications/test/{channel}
-```
-
-### 2. Model Zoo (`backend/services/model_zoo.py`)
-
-**1 of 8 methods exposed**
-
-| Method              | Description        | Status              |
-| ------------------- | ------------------ | ------------------- |
-| `load()`            | Load model         | NOT EXPOSED         |
-| `preload()`         | Preload model      | NOT EXPOSED         |
-| `unload()`          | Unload model       | NOT EXPOSED         |
-| `unload_all()`      | Unload all models  | NOT EXPOSED         |
-| `reload()`          | Reload model       | NOT EXPOSED         |
-| `get_status()`      | Get model status   | Partial (in health) |
-| `loaded_models`     | List loaded models | NOT EXPOSED         |
-| `total_loaded_vram` | VRAM usage         | NOT EXPOSED         |
-
-**Recommended Endpoints:**
-
-```
-GET /api/system/models - List models with load state
-POST /api/system/models/{model}/load
-POST /api/system/models/{model}/unload
-POST /api/system/models/{model}/reload
-POST /api/system/models/unload-all
-GET /api/system/models/{model}/status
-```
+> **Status:** Fully implemented as of 2025-02-01
+>
+> **Implementation:**
+>
+> - Backend API routes: `backend/api/routes/model_management.py`
+> - API schemas: `backend/api/schemas/model_management.py`
+> - Frontend components: `frontend/src/components/settings/ModelZooPanel.tsx`, `ModelCard.tsx`
+> - Frontend hooks: `frontend/src/hooks/useModelZoo.ts`
+> - API client: `frontend/src/services/modelZooApi.ts`
+>
+> **Endpoints Added:**
+>
+> - `GET /api/system/models` - List all models with registry + runtime state
+> - `GET /api/system/models/{name}/status` - Specific model status
+> - `POST /api/system/models/{name}/load` - Load model into GPU
+> - `POST /api/system/models/{name}/unload` - Unload model from GPU
+> - `POST /api/system/models/{name}/reload` - Reload model
+> - `POST /api/system/models/unload-all` - Unload all models
+> - `GET /api/system/models/vram-summary` - Per-GPU VRAM breakdown
+>
+> **Frontend:** Model Zoo admin panel in AI Models settings with per-GPU sections
+>
+> **Tests:** 227+ tests (77 backend unit, 150 frontend)
+>
+> **Linear:** NEM-4780 (Epic: Model Zoo Management API)
 
 ### 3. Baseline Service (`backend/services/baseline.py`)
 
@@ -219,14 +212,15 @@ GET /api/system/materialized-views/stats
 
 ## Well-Exposed Services (No Action Needed)
 
-| Service            | Exposed/Total | Status   |
-| ------------------ | ------------- | -------- |
-| Webhook Service    | 12/12         | Complete |
-| Face Recognition   | 13/13         | Complete |
-| Prompt Service     | 11/11         | Complete |
-| ALPR Service       | 7/8           | Good     |
-| Export Service     | 6/7           | Good     |
-| Dwell Time Service | 4/8           | Adequate |
+| Service                  | Exposed/Total | Status                             |
+| ------------------------ | ------------- | ---------------------------------- |
+| **Notification Service** | **8/8**       | **Complete** ✅ (added 2025-01-31) |
+| Webhook Service          | 12/12         | Complete                           |
+| Face Recognition         | 13/13         | Complete                           |
+| Prompt Service           | 11/11         | Complete                           |
+| ALPR Service             | 7/8           | Good                               |
+| Export Service           | 6/7           | Good                               |
+| Dwell Time Service       | 4/8           | Adequate                           |
 
 ## Internal Pipeline Services (Correctly Not Exposed)
 
@@ -240,14 +234,9 @@ These services are internal pipeline functions and should NOT be exposed:
 
 ## Recommended New Endpoints Summary
 
-### Notification Management
+### ~~Notification Management~~ ✅ IMPLEMENTED
 
-```
-POST /api/notifications/send
-GET /api/notifications/channels
-GET /api/notifications/channels/status
-POST /api/notifications/test/{channel}
-```
+> See `GET /api/notification/config`, `POST /api/notification/test`, `PATCH /api/notification/config`
 
 ### Model Management
 
