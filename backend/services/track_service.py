@@ -635,6 +635,166 @@ class TrackService:
             duration_seconds=round(duration_seconds, 2),
         )
 
+    async def get_track_count_since(self, camera_id: str, since: datetime) -> int:
+        """Get count of tracks created since a given timestamp for a camera.
+
+        This method counts tracks where first_seen >= since for the specified camera,
+        useful for time-windowed statistics and recent activity metrics.
+
+        Args:
+            camera_id: Camera ID to count tracks for.
+            since: Start timestamp (inclusive). Tracks with first_seen >= since are counted.
+
+        Returns:
+            Number of tracks created since the specified timestamp.
+
+        Example:
+            # Count tracks in the last hour
+            count = await service.get_track_count_since(
+                camera_id="front_door",
+                since=datetime.now(UTC) - timedelta(hours=1),
+            )
+            print(f"Tracks in last hour: {count}")
+        """
+        stmt = (
+            select(func.count())
+            .select_from(Track)
+            .where(
+                Track.camera_id == camera_id,
+                Track.first_seen >= since,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def get_avg_track_duration(self, camera_id: str) -> float:
+        """Calculate average track duration for a camera over the last 24 hours.
+
+        This method computes the average duration (last_seen - first_seen) in seconds
+        for all tracks on the specified camera within the last 24 hours.
+
+        Args:
+            camera_id: Camera ID to calculate average duration for.
+
+        Returns:
+            Average track duration in seconds. Returns 0.0 if no tracks found.
+
+        Example:
+            avg_duration = await service.get_avg_track_duration("front_door")
+            print(f"Average track duration: {avg_duration:.1f} seconds")
+        """
+        cutoff_time = datetime.now(UTC) - timedelta(hours=24)
+
+        # Calculate average of (last_seen - first_seen) in seconds
+        # Using extract(epoch) to get seconds from interval
+        stmt = (
+            select(
+                func.avg(
+                    func.extract("epoch", Track.last_seen) - func.extract("epoch", Track.first_seen)
+                )
+            )
+            .select_from(Track)
+            .where(
+                Track.camera_id == camera_id,
+                Track.first_seen >= cutoff_time,
+            )
+        )
+        result = await self.db.execute(stmt)
+        avg_duration = result.scalar_one()
+
+        # Return 0.0 if no tracks found (avg returns None)
+        return float(avg_duration) if avg_duration is not None else 0.0
+
+    async def get_track_counts_by_type(self, camera_id: str) -> dict[str, int]:
+        """Get track counts grouped by object class for the last 24 hours.
+
+        This method aggregates tracks by their object_class (e.g., 'person', 'car')
+        for the specified camera within the last 24 hours.
+
+        Args:
+            camera_id: Camera ID to get counts for.
+
+        Returns:
+            Dictionary mapping object class to count.
+            Example: {"person": 15, "car": 3, "dog": 2}
+
+        Example:
+            counts = await service.get_track_counts_by_type("front_door")
+            for obj_class, count in counts.items():
+                print(f"{obj_class}: {count}")
+        """
+        cutoff_time = datetime.now(UTC) - timedelta(hours=24)
+
+        stmt = (
+            select(Track.object_class, func.count().label("track_count"))
+            .where(
+                Track.camera_id == camera_id,
+                Track.first_seen >= cutoff_time,
+            )
+            .group_by(Track.object_class)
+        )
+        result = await self.db.execute(stmt)
+        rows = result.all()
+
+        return {str(row.object_class): int(row.track_count) for row in rows}
+
+    async def get_active_tracks(
+        self, camera_id: str, active_window_minutes: int = 5
+    ) -> list[Track]:
+        """Get currently active tracks for a camera.
+
+        This method retrieves tracks that have been updated recently (within the
+        specified time window), indicating they are currently being tracked.
+
+        Args:
+            camera_id: Camera ID to get active tracks for.
+            active_window_minutes: Time window in minutes for considering a track
+                as active. Default: 5 minutes.
+
+        Returns:
+            List of Track model instances ordered by last_seen descending (most recent first).
+
+        Example:
+            # Get tracks active in the last 2 minutes
+            active = await service.get_active_tracks("front_door", active_window_minutes=2)
+            for track in active:
+                print(f"Track {track.track_id}: {track.object_class}")
+        """
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=active_window_minutes)
+
+        stmt = (
+            select(Track)
+            .where(
+                Track.camera_id == camera_id,
+                Track.last_seen >= cutoff_time,
+            )
+            .order_by(Track.last_seen.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_track_by_id(self, track_db_id: int) -> Track | None:
+        """Get a track by its database primary key.
+
+        This method retrieves a track using its database primary key (id),
+        not the track_id from the tracker. Useful when you have a reference
+        to a specific database record.
+
+        Args:
+            track_db_id: The database primary key (Track.id).
+
+        Returns:
+            The Track if found, None otherwise.
+
+        Example:
+            track = await service.get_track_by_id(123)
+            if track:
+                print(f"Found track for camera {track.camera_id}")
+        """
+        stmt = select(Track).where(Track.id == track_db_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
 
 class _TrackServiceSingleton:
     """Singleton holder for TrackService factory.
