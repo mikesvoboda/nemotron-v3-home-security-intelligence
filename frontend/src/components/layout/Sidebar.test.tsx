@@ -70,8 +70,8 @@ describe('Sidebar', () => {
 
   it('renders all navigation items within groups', () => {
     renderWithRouter();
-    // Monitoring items
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+    // Monitoring items - use getAllByText for Dashboard since it appears twice
+    expect(screen.getAllByText('Dashboard').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Timeline')).toBeInTheDocument();
     expect(screen.getByText('Entities')).toBeInTheDocument();
     expect(screen.getByText('Alerts')).toBeInTheDocument();
@@ -79,6 +79,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Analytics')).toBeInTheDocument();
     expect(screen.getByText('AI Audit')).toBeInTheDocument();
     expect(screen.getByText('AI Performance')).toBeInTheDocument();
+    expect(screen.getByText('Heatmaps')).toBeInTheDocument();
     // Operations items (renamed)
     expect(screen.getByText('Jobs')).toBeInTheDocument();
     expect(screen.getByText('Pipeline')).toBeInTheDocument();
@@ -91,8 +92,10 @@ describe('Sidebar', () => {
 
   it('highlights the active navigation item based on current route', () => {
     renderWithRouter(['/']);
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
-    expect(dashboardLink).toHaveClass('bg-[#76B900]', 'text-black', 'font-semibold');
+    // Use href to distinguish between Dashboard (/) and Operations Dashboard (/operations-dashboard)
+    const dashboardLinks = screen.getAllByRole('link', { name: /^dashboard$/i });
+    const mainDashboardLink = dashboardLinks.find((link) => link.getAttribute('href') === '/');
+    expect(mainDashboardLink).toHaveClass('bg-[#76B900]', 'text-black', 'font-semibold');
   });
 
   it('does not highlight inactive navigation items', () => {
@@ -104,7 +107,10 @@ describe('Sidebar', () => {
 
   it('navigation items are links with correct hrefs', () => {
     renderWithRouter();
-    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
+    // Use getAllByRole since there are multiple "Dashboard" links
+    const dashboardLinks = screen.getAllByRole('link', { name: /^dashboard$/i });
+    const mainDashboardLink = dashboardLinks.find((link) => link.getAttribute('href') === '/');
+    expect(mainDashboardLink).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
     // Use exact match for settings since there's also GPU Settings (/settings/gpu)
     expect(screen.getByRole('link', { name: /^settings$/i })).toHaveAttribute('href', '/settings');
@@ -140,10 +146,12 @@ describe('Sidebar', () => {
     // Test with timeline route
     renderWithRouter(['/timeline']);
 
-    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    // Use getAllByRole since there are multiple "Dashboard" links
+    const dashboardLinks = screen.getAllByRole('link', { name: /^dashboard$/i });
+    const mainDashboardLink = dashboardLinks.find((link) => link.getAttribute('href') === '/');
     const timelineLink = screen.getByRole('link', { name: /timeline/i });
 
-    expect(dashboardLink).not.toHaveClass('bg-[#76B900]');
+    expect(mainDashboardLink).not.toHaveClass('bg-[#76B900]');
     expect(timelineLink).toHaveClass('bg-[#76B900]');
   });
 
@@ -158,8 +166,8 @@ describe('Sidebar', () => {
   it('renders all 17 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    // 4 monitoring + 4 analytics + 4 operations + 5 admin = 17 items
-    expect(links).toHaveLength(17);
+    // 4 monitoring + 9 analytics + 7 operations + 7 admin = 27 items
+    expect(links).toHaveLength(27);
   });
 
   it('jobs link has correct href', () => {
@@ -402,8 +410,8 @@ describe('Sidebar', () => {
     });
 
     it('exports navItems as flattened list of all items', () => {
-      // 4 monitoring + 4 analytics + 4 operations + 5 admin = 17 items
-      expect(navItems).toHaveLength(17);
+      // 4 monitoring + 9 analytics + 7 operations + 7 admin = 27 items
+      expect(navItems).toHaveLength(27);
       expect(navItems.some((item) => item.id === 'dashboard')).toBe(true);
       expect(navItems.some((item) => item.id === 'settings')).toBe(true);
       expect(navItems.some((item) => item.id === 'data')).toBe(true);

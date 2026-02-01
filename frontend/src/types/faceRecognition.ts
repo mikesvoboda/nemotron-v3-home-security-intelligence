@@ -9,6 +9,166 @@
  */
 
 // ============================================================================
+// Face Quality Assessment Types (NEM-4953)
+// ============================================================================
+
+/**
+ * Individual quality factor assessment.
+ * Each factor is scored 0-1 where 1 is best quality.
+ */
+export interface QualityFactor {
+  /** Score for this factor (0-1, higher is better) */
+  score: number;
+  /** Human-readable label for the factor */
+  label: string;
+  /** Status indicator based on score thresholds */
+  status: 'good' | 'fair' | 'poor';
+  /** Recommendation to improve this factor if not good */
+  recommendation?: string;
+}
+
+/**
+ * Quality factors breakdown for face enrollment.
+ * Provides detailed assessment of face image quality.
+ */
+export interface QualityFactors {
+  /** Sharpness/blur assessment - higher means sharper */
+  blur: QualityFactor;
+  /** Lighting/exposure assessment - higher means better lit */
+  lighting: QualityFactor;
+  /** Face angle/pose assessment - higher means more frontal */
+  angle: QualityFactor;
+  /** Face occlusion assessment - higher means less occluded */
+  occlusion: QualityFactor;
+}
+
+/**
+ * Complete face quality assessment response.
+ * Includes overall score and factor breakdown.
+ */
+export interface FaceQualityAssessment {
+  /** Overall quality score (0-1) */
+  overall_score: number;
+  /** Whether the face passes minimum quality threshold for enrollment */
+  is_enrollable: boolean;
+  /** Quality factors breakdown */
+  factors: QualityFactors;
+  /** Overall recommendation if quality is not optimal */
+  recommendation?: string;
+}
+
+/**
+ * Compute quality factors from an overall quality score.
+ * Used when backend only provides overall score.
+ *
+ * @param overallScore - Overall quality score (0-1)
+ * @returns Quality factors with estimated breakdown
+ */
+export function computeQualityFactorsFromScore(overallScore: number): QualityFactors {
+  // Simulate factor breakdown based on overall score
+  // In production, backend would provide actual factors
+  const getStatus = (score: number): 'good' | 'fair' | 'poor' => {
+    if (score >= 0.8) return 'good';
+    if (score >= 0.6) return 'fair';
+    return 'poor';
+  };
+
+  const getRecommendation = (
+    factor: string,
+    score: number
+  ): string | undefined => {
+    if (score >= 0.8) return undefined;
+    const recommendations: Record<string, string> = {
+      blur: 'Hold the camera steady or improve lighting for a sharper image',
+      lighting: 'Face towards a light source or move to a better-lit area',
+      angle: 'Look directly at the camera with face fully visible',
+      occlusion:
+        'Remove glasses, hats, or other items covering your face',
+    };
+    return recommendations[factor];
+  };
+
+  // Distribute overall score across factors with slight variation
+  const variance = 0.1;
+  const blurScore = Math.max(0, Math.min(1, overallScore + (Math.random() - 0.5) * variance));
+  const lightingScore = Math.max(0, Math.min(1, overallScore + (Math.random() - 0.5) * variance));
+  const angleScore = Math.max(0, Math.min(1, overallScore + (Math.random() - 0.5) * variance));
+  const occlusionScore = Math.max(0, Math.min(1, overallScore + (Math.random() - 0.5) * variance));
+
+  return {
+    blur: {
+      score: blurScore,
+      label: 'Sharpness',
+      status: getStatus(blurScore),
+      recommendation: getRecommendation('blur', blurScore),
+    },
+    lighting: {
+      score: lightingScore,
+      label: 'Lighting',
+      status: getStatus(lightingScore),
+      recommendation: getRecommendation('lighting', lightingScore),
+    },
+    angle: {
+      score: angleScore,
+      label: 'Face Angle',
+      status: getStatus(angleScore),
+      recommendation: getRecommendation('angle', angleScore),
+    },
+    occlusion: {
+      score: occlusionScore,
+      label: 'Visibility',
+      status: getStatus(occlusionScore),
+      recommendation: getRecommendation('occlusion', occlusionScore),
+    },
+  };
+}
+
+/**
+ * Get status from a quality score.
+ */
+export function getQualityStatus(score: number): 'good' | 'fair' | 'poor' {
+  if (score >= 0.8) return 'good';
+  if (score >= 0.7) return 'fair';
+  return 'poor';
+}
+
+/**
+ * Check if a quality score is enrollable (meets minimum threshold).
+ */
+export function isQualityEnrollable(score: number): boolean {
+  return score >= 0.7;
+}
+
+/**
+ * Get overall recommendation based on quality score and factors.
+ */
+export function getOverallRecommendation(
+  score: number,
+  factors?: QualityFactors
+): string | undefined {
+  if (score >= 0.8) return undefined;
+
+  if (score < 0.7) {
+    return 'Image quality is too low for enrollment. Please try again with better lighting and a clearer view of your face.';
+  }
+
+  // Score is 0.7-0.8 (fair)
+  if (factors) {
+    // Find the worst factor
+    const factorEntries = Object.entries(factors) as [keyof QualityFactors, QualityFactor][];
+    const worstFactor = factorEntries.reduce((worst, [, factor]) =>
+      factor.score < worst.score ? factor : worst
+    , factorEntries[0][1]);
+
+    if (worstFactor.recommendation) {
+      return worstFactor.recommendation;
+    }
+  }
+
+  return 'Recognition accuracy may be reduced. Consider capturing a clearer image.';
+}
+
+// ============================================================================
 // Known Person Types
 // ============================================================================
 
@@ -311,4 +471,58 @@ export interface UnknownStrangerSummary {
   total: number;
   /** Whether there are more items */
   has_more: boolean;
+}
+
+// ============================================================================
+// Bulk Enrollment Types (NEM-4954)
+// ============================================================================
+
+/**
+ * Result for a single image in bulk enrollment.
+ */
+export interface BulkEnrollmentImageResult {
+  /** Original filename of the uploaded image */
+  filename: string;
+  /** Whether enrollment succeeded for this image */
+  success: boolean;
+  /** ID of created embedding if successful */
+  embedding_id: number | null;
+  /** Quality score of detected face */
+  quality_score: number | null;
+  /** Error message if enrollment failed */
+  error: string | null;
+}
+
+/**
+ * Request payload for bulk face enrollment.
+ */
+export interface BulkEnrollmentRequest {
+  /** Files to upload */
+  images: File[];
+  /** ID of existing person to enroll to (optional) */
+  person_id?: number;
+  /** Name for new person if creating (optional) */
+  new_person_name?: string;
+  /** Whether new person is a household member */
+  is_household_member?: boolean;
+}
+
+/**
+ * Response from bulk enrollment.
+ */
+export interface BulkEnrollmentResponse {
+  /** Total number of images submitted */
+  total_images: number;
+  /** Number of successful enrollments */
+  successful: number;
+  /** Number of failed enrollments */
+  failed: number;
+  /** Per-image enrollment results */
+  results: BulkEnrollmentImageResult[];
+  /** ID of the person images were enrolled to */
+  person_id: number;
+  /** Name of the person */
+  person_name: string;
+  /** Whether a new person was created */
+  created_new_person: boolean;
 }

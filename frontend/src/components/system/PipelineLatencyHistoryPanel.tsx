@@ -3,13 +3,21 @@
  *
  * Displays latency for each pipeline stage (watch_to_detect, detect_to_batch,
  * batch_to_analyze, total_pipeline) over time using Tremor's AreaChart.
+ * Supports two views: Stage Averages and Percentiles (P50/P95/P99).
  */
 
 import { Card, Title, Text, AreaChart } from '@tremor/react';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { usePipelineLatencyHistory } from '../../hooks/usePipelineLatencyHistory';
+
+import type { PipelinePercentileChartDataPoint } from '../../hooks/usePipelineLatencyHistory';
+
+/**
+ * View mode for the chart display.
+ */
+export type LatencyViewMode = 'stages' | 'percentiles';
 
 /**
  * Props for PipelineLatencyHistoryPanel component.
@@ -19,6 +27,8 @@ export interface PipelineLatencyHistoryPanelProps {
   since?: number;
   /** Bucket size in seconds (default: 60) */
   bucketSeconds?: number;
+  /** Initial view mode (default: 'stages') */
+  initialViewMode?: LatencyViewMode;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -26,9 +36,9 @@ export interface PipelineLatencyHistoryPanelProps {
 }
 
 /**
- * Chart data point format for Tremor AreaChart.
+ * Chart data point format for Tremor AreaChart (stages view).
  */
-interface ChartDataPoint {
+interface StageChartDataPoint {
   time: string;
   'Watch to Detect': number;
   'Detect to Batch': number;
@@ -37,11 +47,21 @@ interface ChartDataPoint {
 }
 
 /**
- * Transform API data to chart format.
+ * Chart data point format for Tremor AreaChart (percentiles view).
  */
-function transformChartData(
+interface PercentileChartDataPoint {
+  time: string;
+  P50: number;
+  P95: number;
+  P99: number;
+}
+
+/**
+ * Transform API data to stage chart format.
+ */
+function transformStageChartData(
   chartData: ReturnType<typeof usePipelineLatencyHistory>['chartData']
-): ChartDataPoint[] {
+): StageChartDataPoint[] {
   if (!chartData) return [];
 
   return chartData.map((point) => ({
@@ -54,6 +74,67 @@ function transformChartData(
 }
 
 /**
+ * Transform API data to percentile chart format.
+ */
+function transformPercentileChartData(
+  percentileData: PipelinePercentileChartDataPoint[] | undefined
+): PercentileChartDataPoint[] {
+  if (!percentileData) return [];
+
+  return percentileData.map((point) => ({
+    time: point.timestamp,
+    P50: Math.round(point.P50),
+    P95: Math.round(point.P95),
+    P99: Math.round(point.P99),
+  }));
+}
+
+/**
+ * View mode toggle button component.
+ */
+function ViewModeToggle({
+  viewMode,
+  onViewModeChange,
+  testId,
+}: {
+  viewMode: LatencyViewMode;
+  onViewModeChange: (mode: LatencyViewMode) => void;
+  testId: string;
+}) {
+  return (
+    <div
+      className="flex rounded-md bg-gray-800 p-0.5"
+      data-testid={`${testId}-view-toggle`}
+    >
+      <button
+        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+          viewMode === 'stages'
+            ? 'bg-[#76B900] text-black'
+            : 'text-gray-400 hover:text-white'
+        }`}
+        onClick={() => onViewModeChange('stages')}
+        data-testid={`${testId}-view-stages`}
+        aria-pressed={viewMode === 'stages'}
+      >
+        Stages
+      </button>
+      <button
+        className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+          viewMode === 'percentiles'
+            ? 'bg-[#76B900] text-black'
+            : 'text-gray-400 hover:text-white'
+        }`}
+        onClick={() => onViewModeChange('percentiles')}
+        data-testid={`${testId}-view-percentiles`}
+        aria-pressed={viewMode === 'percentiles'}
+      >
+        Percentiles
+      </button>
+    </div>
+  );
+}
+
+/**
  * PipelineLatencyHistoryPanel - Displays historical pipeline latency metrics
  *
  * Shows latency for each pipeline stage over time:
@@ -62,11 +143,14 @@ function transformChartData(
  * - Batch to Analyze: Time from batching to analysis
  * - Total Pipeline: End-to-end latency
  *
+ * Also supports Percentiles view showing P50/P95/P99 for total pipeline latency.
+ *
  * @example
  * ```tsx
  * <PipelineLatencyHistoryPanel
  *   since={60}
  *   bucketSeconds={60}
+ *   initialViewMode="stages"
  *   data-testid="pipeline-latency-history"
  * />
  * ```
@@ -74,18 +158,27 @@ function transformChartData(
 export default function PipelineLatencyHistoryPanel({
   since = 60,
   bucketSeconds = 60,
+  initialViewMode = 'stages',
   className,
   'data-testid': testId = 'pipeline-latency-history-panel',
 }: PipelineLatencyHistoryPanelProps) {
-  const { chartData, isLoading, error, refetch, data } = usePipelineLatencyHistory({
+  const [viewMode, setViewMode] = useState<LatencyViewMode>(initialViewMode);
+
+  const { chartData, percentileChartData, isLoading, error, refetch, data } = usePipelineLatencyHistory({
     since,
     bucket_seconds: bucketSeconds,
   });
 
-  // Transform data for chart
-  const transformedData: ChartDataPoint[] = useMemo(
-    () => transformChartData(chartData),
+  // Transform data for stage chart
+  const stageData: StageChartDataPoint[] = useMemo(
+    () => transformStageChartData(chartData),
     [chartData]
+  );
+
+  // Transform data for percentile chart
+  const percentileData: PercentileChartDataPoint[] = useMemo(
+    () => transformPercentileChartData(percentileChartData),
+    [percentileChartData]
   );
 
   // Loading state
@@ -134,7 +227,7 @@ export default function PipelineLatencyHistoryPanel({
   }
 
   // Empty state
-  if (transformedData.length === 0) {
+  if (stageData.length === 0) {
     return (
       <Card
         className={className}
@@ -163,24 +256,47 @@ export default function PipelineLatencyHistoryPanel({
             Last {data?.window_minutes ?? since} minutes, {data?.bucket_seconds ?? bucketSeconds}s buckets
           </Text>
         </div>
-        {isLoading && (
-          <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-        )}
+        <div className="flex items-center gap-3">
+          {isLoading && (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          )}
+          <ViewModeToggle
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            testId={testId}
+          />
+        </div>
       </div>
 
-      <AreaChart
-        className="h-48"
-        data={transformedData}
-        index="time"
-        categories={['Watch to Detect', 'Detect to Batch', 'Batch to Analyze', 'Total Pipeline']}
-        colors={['emerald', 'blue', 'amber', 'violet']}
-        showLegend={true}
-        showGridLines={false}
-        curveType="monotone"
-        valueFormatter={(value) => `${value}ms`}
-        data-testid={`${testId}-chart`}
-        aria-label="Pipeline latency history chart"
-      />
+      {viewMode === 'stages' ? (
+        <AreaChart
+          className="h-48"
+          data={stageData}
+          index="time"
+          categories={['Watch to Detect', 'Detect to Batch', 'Batch to Analyze', 'Total Pipeline']}
+          colors={['emerald', 'blue', 'amber', 'violet']}
+          showLegend={true}
+          showGridLines={false}
+          curveType="monotone"
+          valueFormatter={(value) => `${value}ms`}
+          data-testid={`${testId}-chart-stages`}
+          aria-label="Pipeline latency history chart showing stage averages"
+        />
+      ) : (
+        <AreaChart
+          className="h-48"
+          data={percentileData}
+          index="time"
+          categories={['P50', 'P95', 'P99']}
+          colors={['emerald', 'amber', 'rose']}
+          showLegend={true}
+          showGridLines={false}
+          curveType="monotone"
+          valueFormatter={(value) => `${value}ms`}
+          data-testid={`${testId}-chart-percentiles`}
+          aria-label="Pipeline latency history chart showing P50, P95, and P99 percentiles"
+        />
+      )}
     </Card>
   );
 }

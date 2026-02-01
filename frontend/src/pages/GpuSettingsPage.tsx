@@ -8,9 +8,13 @@
  * - Manually assign GPUs to specific services
  * - Preview strategy-based assignments before applying
  * - Save and apply configuration changes with service restart
+ * - Batch operations: Assign All, Reset to Defaults, Auto-Balance
+ * - Version history with diff view and export/import
  *
  * @module pages/GpuSettingsPage
  * @see NEM-3320 - Create GPU Settings UI component
+ * @see NEM-4943 - GPU Batch Operations
+ * @see NEM-4945 - GPU Configuration Version History
  */
 
 import { AlertCircle, Cpu, RefreshCw } from 'lucide-react';
@@ -21,8 +25,10 @@ import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import GpuApplyButton from '../components/settings/GpuApplyButton';
 import GpuAssignmentTable from '../components/settings/GpuAssignmentTable';
+import GpuBatchActions from '../components/settings/GpuBatchActions';
 import GpuDeviceCard from '../components/settings/GpuDeviceCard';
 import GpuStrategySelector from '../components/settings/GpuStrategySelector';
+import GpuVersionHistory from '../components/settings/GpuVersionHistory';
 import {
   useGpus,
   useGpuConfig,
@@ -166,6 +172,36 @@ export default function GpuSettingsPage() {
     setLastApplyResult(null);
   }, []);
 
+  // ============================================================================
+  // Affinity Constraint Handlers (NEM-4944)
+  // ============================================================================
+
+  /**
+   * Handle exclusive GPU flag change for a service
+   */
+  const handleExclusiveGpuChange = useCallback((service: string, exclusive: boolean) => {
+    setLocalAssignments((prev) =>
+      prev.map((a) =>
+        a.service === service ? { ...a, exclusive_gpu: exclusive } : a
+      )
+    );
+    setHasChanges(true);
+    setLastApplyResult(null);
+  }, []);
+
+  /**
+   * Handle priority weight change for a service
+   */
+  const handlePriorityWeightChange = useCallback((service: string, priority: number) => {
+    setLocalAssignments((prev) =>
+      prev.map((a) =>
+        a.service === service ? { ...a, priority_weight: priority } : a
+      )
+    );
+    setHasChanges(true);
+    setLastApplyResult(null);
+  }, []);
+
   const handlePreview = useCallback(
     async (strategy: string) => {
       return previewStrategy(strategy);
@@ -215,6 +251,57 @@ export default function GpuSettingsPage() {
     void refetchStatus();
     void refetchHealth();
   }, [refetchGpus, refetchConfig, refetchStatus, refetchHealth]);
+
+  // ============================================================================
+  // Batch Operation Handlers (NEM-4943)
+  // ============================================================================
+
+  /**
+   * Assign all services to a single GPU
+   */
+  const handleAssignAll = useCallback((gpuIndex: number) => {
+    setLocalAssignments((prev) =>
+      prev.map((a) => ({ ...a, gpu_index: gpuIndex }))
+    );
+    setHasChanges(true);
+    setLastApplyResult(null);
+  }, []);
+
+  /**
+   * Reset all assignments to defaults (GPU 0, no VRAM overrides, no affinity constraints)
+   */
+  const handleResetDefaults = useCallback(() => {
+    setLocalAssignments((prev) =>
+      prev.map((a) => ({
+        ...a,
+        gpu_index: 0,
+        vram_budget_override: null,
+        exclusive_gpu: false,
+        priority_weight: 50,
+        incompatible_with: null,
+      }))
+    );
+    setHasChanges(true);
+    setLastApplyResult(null);
+  }, []);
+
+  /**
+   * Auto-balance services across available GPUs using the balanced strategy
+   */
+  const [isAutoBalancing, setIsAutoBalancing] = useState(false);
+  const handleAutoBalance = useCallback(async () => {
+    setIsAutoBalancing(true);
+    try {
+      const result = await previewStrategy('balanced');
+      if (result && result.proposed_assignments) {
+        setLocalAssignments(result.proposed_assignments);
+        setHasChanges(true);
+        setLastApplyResult(null);
+      }
+    } finally {
+      setIsAutoBalancing(false);
+    }
+  }, [previewStrategy]);
 
   // ============================================================================
   // Loading State
@@ -333,6 +420,33 @@ export default function GpuSettingsPage() {
           </div>
         </section>
 
+        {/* Batch Actions and Version History */}
+        <section className="mb-8 grid gap-4 lg:grid-cols-2">
+          {/* Batch Actions (NEM-4943) */}
+          <GpuBatchActions
+            gpus={gpus}
+            assignments={localAssignments}
+            disabled={isUpdating || isApplying}
+            onAssignAll={handleAssignAll}
+            onResetDefaults={handleResetDefaults}
+            onAutoBalance={() => void handleAutoBalance()}
+            isAutoBalancing={isAutoBalancing}
+          />
+
+          {/* Version History (NEM-4945) */}
+          <GpuVersionHistory
+            disabled={isUpdating || isApplying}
+            onRollback={() => {
+              void refetchConfig();
+              setHasChanges(false);
+            }}
+            onImport={() => {
+              void refetchConfig();
+              setHasChanges(false);
+            }}
+          />
+        </section>
+
         {/* Strategy Selector and Assignment Table */}
         <div className="grid gap-8 lg:grid-cols-5">
           {/* Strategy Selector (narrower) */}
@@ -358,6 +472,8 @@ export default function GpuSettingsPage() {
               strategy={localStrategy}
               onAssignmentChange={handleAssignmentChange}
               onVramOverrideChange={handleVramOverrideChange}
+              onExclusiveGpuChange={handleExclusiveGpuChange}
+              onPriorityWeightChange={handlePriorityWeightChange}
               isLoading={isLoadingConfig || isLoadingHealth}
               hasPendingChanges={hasChanges}
             />

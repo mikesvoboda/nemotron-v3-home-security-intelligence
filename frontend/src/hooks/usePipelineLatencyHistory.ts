@@ -35,6 +35,21 @@ export interface PipelineLatencyChartDataPoint {
 }
 
 /**
+ * Chart data point formatted for percentile visualization.
+ * Shows P50/P95/P99 for total pipeline latency.
+ */
+export interface PipelinePercentileChartDataPoint {
+  /** Formatted timestamp for display */
+  timestamp: string;
+  /** 50th percentile (median) latency (ms) */
+  P50: number;
+  /** 95th percentile latency (ms) */
+  P95: number;
+  /** 99th percentile latency (ms) */
+  P99: number;
+}
+
+/**
  * Options for the usePipelineLatencyHistory hook.
  */
 export interface UsePipelineLatencyHistoryOptions {
@@ -56,8 +71,10 @@ export interface UsePipelineLatencyHistoryResult {
   error: Error | null;
   /** Function to manually refetch the data */
   refetch: () => void;
-  /** Chart-ready data formatted for Tremor */
+  /** Chart-ready data formatted for Tremor (averages by stage) */
   chartData: PipelineLatencyChartDataPoint[] | undefined;
+  /** Percentile chart data for total pipeline (P50/P95/P99) */
+  percentileChartData: PipelinePercentileChartDataPoint[] | undefined;
 }
 
 /**
@@ -94,6 +111,24 @@ function transformToChartData(
     detect_to_batch: snapshot.stages.detect_to_batch?.avg_ms ?? 0,
     batch_to_analyze: snapshot.stages.batch_to_analyze?.avg_ms ?? 0,
     total_pipeline: snapshot.stages.total_pipeline?.avg_ms ?? 0,
+  }));
+}
+
+/**
+ * Transform pipeline latency snapshots to percentile chart format.
+ * Uses total_pipeline percentiles (P50/P95/P99).
+ *
+ * @param snapshots - Array of pipeline latency snapshots from API
+ * @returns Array of percentile chart data points
+ */
+function transformToPercentileChartData(
+  snapshots: PipelineLatencySnapshot[]
+): PipelinePercentileChartDataPoint[] {
+  return snapshots.map((snapshot) => ({
+    timestamp: formatTimestamp(snapshot.timestamp),
+    P50: snapshot.stages.total_pipeline?.p50_ms ?? 0,
+    P95: snapshot.stages.total_pipeline?.p95_ms ?? 0,
+    P99: snapshot.stages.total_pipeline?.p99_ms ?? 0,
   }));
 }
 
@@ -157,11 +192,18 @@ export function usePipelineLatencyHistory(
     return transformToChartData(data.snapshots);
   }, [data]);
 
+  // Transform data for percentile chart consumption
+  const percentileChartData = useMemo(() => {
+    if (!data?.snapshots) return undefined;
+    return transformToPercentileChartData(data.snapshots);
+  }, [data]);
+
   return {
     data,
     isLoading,
     error,
     refetch,
     chartData,
+    percentileChartData,
   };
 }

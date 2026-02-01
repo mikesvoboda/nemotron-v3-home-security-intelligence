@@ -358,6 +358,13 @@ from .transcode_cache import (
     get_transcode_cache,
     reset_transcode_cache,
 )
+from .unified_embedding_service import (
+    FaceEntityAssociation,
+    UnifiedEmbeddingService,
+    UnifiedPersonContext,
+    get_unified_embedding_service,
+    reset_unified_embedding_service,
+)
 from .worker_supervisor import (
     SupervisorConfig,
     WorkerInfo,
@@ -548,6 +555,10 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "CacheStats",
     "TranscodeCache",
     "TriggeredRule",
+    # Unified Embedding Service (NEM-4942)
+    "FaceEntityAssociation",
+    "UnifiedEmbeddingService",
+    "UnifiedPersonContext",
     "VehicleAttributes",
     "VehicleDetection",
     "ZoneContext",
@@ -624,6 +635,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_total_vram_if_loaded",
     "get_transcode_cache",
     "get_track_service",
+    "get_unified_embedding_service",
     "get_worker_supervisor",
     "get_zones_for_detection",
     "is_image_file",
@@ -670,6 +682,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_severity_service",
     "reset_transcode_cache",
     "reset_track_service",
+    "reset_unified_embedding_service",
     "reset_worker_supervisor",
     "search_events",
     "severity_from_string",

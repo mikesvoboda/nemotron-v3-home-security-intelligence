@@ -1463,3 +1463,276 @@ class TestIdentifyFaceEventService:
 
         assert result["created_embedding"] is False
         mock_db.add.assert_not_called()
+
+
+# =============================================================================
+# Face Similarity Comparison Debug Tool Tests (NEM-4955)
+# =============================================================================
+
+
+def _create_mock_upload_file(filename: str, content: bytes, content_type: str) -> MagicMock:
+    """Create a mock UploadFile with the given parameters."""
+    from io import BytesIO
+
+    mock_file = MagicMock()
+    mock_file.filename = filename
+    mock_file.content_type = content_type
+    mock_file.file = BytesIO(content)
+
+    # Make read() return the content
+    async def async_read():
+        return content
+
+    mock_file.read = AsyncMock(return_value=content)
+    return mock_file
+
+
+class TestCompareFaces:
+    """Tests for POST /api/face-events/compare endpoint (Debug Tool)."""
+
+    @pytest.mark.asyncio
+    async def test_compare_faces_success_match(self) -> None:
+        """Test successful face comparison that results in a match."""
+        import numpy as np
+
+        from backend.api.routes.face_recognition import compare_faces
+
+        # Create mock image files
+        file1 = _create_mock_upload_file("face1.jpg", b"fake image content 1", "image/jpeg")
+        file2 = _create_mock_upload_file("face2.jpg", b"fake image content 2", "image/jpeg")
+
+        # Mock PIL Image and CLIP client - these are imported inside the function
+        with (
+            patch("PIL.Image.open") as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+        ):
+            # Mock PIL Image.open
+            mock_image = MagicMock()
+            mock_image.convert.return_value = mock_image
+            mock_pil_open.return_value = mock_image
+
+            # Mock CLIP client returning similar embeddings
+            mock_clip = MagicMock()
+            embedding1 = np.random.rand(768).astype(np.float32).tolist()
+            # Create embedding2 very similar to embedding1
+            embedding2 = [e + 0.01 for e in embedding1]
+            mock_clip.embed = AsyncMock(side_effect=[embedding1, embedding2])
+            mock_get_clip.return_value = mock_clip
+
+            result = await compare_faces(
+                image1=file1,
+                image2=file2,
+                threshold=0.7,
+            )
+
+        assert result.similarity_score > 0.9  # Very similar
+        assert result.is_match is True
+        assert result.threshold == 0.7
+        assert result.embedding_dimension == 768
+        assert result.processing_time_ms >= 0
+        assert result.error is None
+
+    @pytest.mark.asyncio
+    async def test_compare_faces_success_no_match(self) -> None:
+        """Test successful face comparison that does not match."""
+        from backend.api.routes.face_recognition import compare_faces
+
+        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
+        file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
+
+        with (
+            patch("PIL.Image.open") as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+        ):
+            mock_image = MagicMock()
+            mock_image.convert.return_value = mock_image
+            mock_pil_open.return_value = mock_image
+
+            # Create very different embeddings (near orthogonal)
+            mock_clip = MagicMock()
+            embedding1 = [1.0] + [0.0] * 767
+            embedding2 = [0.0] + [1.0] + [0.0] * 766
+            mock_clip.embed = AsyncMock(side_effect=[embedding1, embedding2])
+            mock_get_clip.return_value = mock_clip
+
+            result = await compare_faces(
+                image1=file1,
+                image2=file2,
+                threshold=0.7,
+            )
+
+        assert result.similarity_score < 0.7
+        assert result.is_match is False
+        assert result.error is None
+
+    @pytest.mark.asyncio
+    async def test_compare_faces_invalid_content_type(self) -> None:
+        """Test that invalid content type returns 400 error."""
+        from fastapi import HTTPException
+
+        from backend.api.routes.face_recognition import compare_faces
+
+        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
+        file2 = _create_mock_upload_file("face2.txt", b"not an image", "text/plain")  # Invalid
+
+        with pytest.raises(HTTPException) as exc_info:
+            await compare_faces(
+                image1=file1,
+                image2=file2,
+                threshold=0.7,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "content type" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_compare_faces_clip_unavailable(self) -> None:
+        """Test that CLIP service unavailable returns error in response."""
+        from backend.api.routes.face_recognition import compare_faces
+        from backend.services.clip_client import CLIPUnavailableError
+
+        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
+        file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
+
+        with (
+            patch("PIL.Image.open") as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+        ):
+            mock_image = MagicMock()
+            mock_image.convert.return_value = mock_image
+            mock_pil_open.return_value = mock_image
+
+            mock_clip = MagicMock()
+            mock_clip.embed = AsyncMock(side_effect=CLIPUnavailableError("Service down"))
+            mock_get_clip.return_value = mock_clip
+
+            result = await compare_faces(
+                image1=file1,
+                image2=file2,
+                threshold=0.7,
+            )
+
+        assert result.similarity_score == 0.0
+        assert result.is_match is False
+        assert result.error is not None
+        assert "CLIP" in result.error
+
+    @pytest.mark.asyncio
+    async def test_compare_faces_threshold_parameter(self) -> None:
+        """Test that custom threshold is applied correctly."""
+        import numpy as np
+
+        from backend.api.routes.face_recognition import compare_faces
+
+        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
+        file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
+
+        with (
+            patch("PIL.Image.open") as mock_pil_open,
+            patch("backend.services.clip_client.get_clip_client") as mock_get_clip,
+        ):
+            mock_image = MagicMock()
+            mock_image.convert.return_value = mock_image
+            mock_pil_open.return_value = mock_image
+
+            # Create embeddings that give ~0.75 similarity
+            mock_clip = MagicMock()
+            embedding1 = np.array([1.0, 1.0, 0.0, 0.0] + [0.0] * 764, dtype=np.float32)
+            embedding1 = (embedding1 / np.linalg.norm(embedding1)).tolist()
+            embedding2 = np.array([1.0, 0.5, 0.5, 0.0] + [0.0] * 764, dtype=np.float32)
+            embedding2 = (embedding2 / np.linalg.norm(embedding2)).tolist()
+            mock_clip.embed = AsyncMock(side_effect=[embedding1, embedding2])
+            mock_get_clip.return_value = mock_clip
+
+            # Test with low threshold - should match
+            result_low = await compare_faces(
+                image1=file1,
+                image2=file2,
+                threshold=0.5,
+            )
+
+        assert result_low.threshold == 0.5
+
+
+class TestFaceSimilarityCompareResponseSchema:
+    """Tests for FaceSimilarityCompareResponse schema."""
+
+    def test_schema_valid_match(self) -> None:
+        """Test schema with valid match data."""
+        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
+
+        response = FaceSimilarityCompareResponse(
+            similarity_score=0.85,
+            is_match=True,
+            threshold=0.7,
+            embedding_dimension=768,
+            processing_time_ms=245,
+            error=None,
+        )
+
+        assert response.similarity_score == 0.85
+        assert response.is_match is True
+        assert response.threshold == 0.7
+        assert response.embedding_dimension == 768
+        assert response.processing_time_ms == 245
+        assert response.error is None
+
+    def test_schema_valid_no_match(self) -> None:
+        """Test schema with valid no-match data."""
+        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
+
+        response = FaceSimilarityCompareResponse(
+            similarity_score=0.45,
+            is_match=False,
+            threshold=0.7,
+            embedding_dimension=768,
+            processing_time_ms=180,
+            error=None,
+        )
+
+        assert response.similarity_score == 0.45
+        assert response.is_match is False
+
+    def test_schema_with_error(self) -> None:
+        """Test schema with error message."""
+        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
+
+        response = FaceSimilarityCompareResponse(
+            similarity_score=0.0,
+            is_match=False,
+            threshold=0.7,
+            embedding_dimension=768,
+            processing_time_ms=50,
+            error="CLIP service unavailable",
+        )
+
+        assert response.error == "CLIP service unavailable"
+        assert response.similarity_score == 0.0
+
+    def test_schema_similarity_score_bounds(self) -> None:
+        """Test schema enforces similarity score bounds."""
+        from pydantic import ValidationError
+
+        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
+
+        # Test lower bound
+        with pytest.raises(ValidationError):
+            FaceSimilarityCompareResponse(
+                similarity_score=-0.1,  # Invalid
+                is_match=False,
+                threshold=0.7,
+                embedding_dimension=768,
+                processing_time_ms=100,
+                error=None,
+            )
+
+        # Test upper bound
+        with pytest.raises(ValidationError):
+            FaceSimilarityCompareResponse(
+                similarity_score=1.5,  # Invalid
+                is_match=True,
+                threshold=0.7,
+                embedding_dimension=768,
+                processing_time_ms=100,
+                error=None,
+            )

@@ -212,6 +212,55 @@ The system has **comprehensive backend capabilities** for face recognition and p
 
 3. **Re-ID service doesn't leverage face embeddings** for person matching
 
+## Implementation (NEM-4942)
+
+The `UnifiedEmbeddingService` (`backend/services/unified_embedding_service.py`) addresses these issues by:
+
+1. **Face-to-Entity Mapping**: Links detected faces to tracked entities via metadata
+2. **Trust Propagation**: Automatically updates entity trust status when face recognition identifies a household member
+3. **Unified Context Building**: Combines face recognition, entity tracking, and household membership into a single context object
+4. **Cross-Reference Queries**: Find entities by face match or vice versa
+
+### Key Design Decision: No Embedding Conversion
+
+The service does NOT convert between embedding types because:
+
+- **512-dim ArcFace** embeddings are optimized for facial identity verification
+- **768-dim CLIP** embeddings are optimized for whole-person visual matching
+- Each serves a different purpose and converting would lose information
+
+Instead, the service maintains **associations** that allow systems to work together:
+
+- Face matches propagate to entity trust status
+- Entity metadata stores face match information
+- Unified context combines both for risk assessment
+
+### Usage Example
+
+```python
+from backend.services.unified_embedding_service import get_unified_embedding_service
+
+service = get_unified_embedding_service()
+
+# When a face is detected and matched to a known person
+await service.propagate_face_match_to_entity(
+    session=session,
+    face_event_id=456,
+    entity_id=entity_uuid,
+)
+
+# Get combined context for risk assessment
+context = await service.get_unified_person_context(
+    session=session,
+    entity_id=entity_uuid,
+    face_event_id=456,
+)
+
+if context.is_household:
+    # Reduce risk score based on household membership
+    pass
+```
+
 ## Recommended Actions
 
 ### High Priority

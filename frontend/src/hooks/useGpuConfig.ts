@@ -745,3 +745,343 @@ export function useServiceHealth(enabled: boolean = true): UseServiceHealthRetur
     refetch: query.refetch,
   };
 }
+
+// ============================================================================
+// Version History Hooks (NEM-4945)
+// ============================================================================
+
+// Re-export version history types
+export type {
+  GpuConfigVersionSummary,
+  GpuConfigVersionDetail,
+  GpuConfigVersionListResponse,
+  GpuConfigAssignmentChange,
+  GpuConfigVersionDiffResponse,
+  GpuConfigExportData,
+  GpuConfigImportRequest,
+  GpuConfigImportResponse,
+  GpuConfigImportValidation,
+  GpuConfigRollbackRequest,
+  GpuConfigRollbackResponse,
+} from '../services/gpuConfigApi';
+
+/**
+ * Query keys for version history queries.
+ */
+export const GPU_VERSION_QUERY_KEYS = {
+  /** Version history list */
+  versions: ['gpu', 'versions'] as const,
+  /** Single version detail */
+  version: (id: string) => ['gpu', 'versions', id] as const,
+  /** Version diff */
+  diff: (from: number, to: number) => ['gpu', 'versions', 'diff', from, to] as const,
+} as const;
+
+/**
+ * Options for configuring the useConfigVersions hook.
+ */
+export interface UseConfigVersionsOptions {
+  /**
+   * Whether to enable the query.
+   * @default true
+   */
+  enabled?: boolean;
+
+  /**
+   * Maximum versions to return.
+   * @default 20
+   */
+  limit?: number;
+
+  /**
+   * Number of versions to skip.
+   * @default 0
+   */
+  offset?: number;
+}
+
+/**
+ * Return type for the useConfigVersions hook.
+ */
+export interface UseConfigVersionsReturn {
+  /** Version list response */
+  data: gpuConfigApi.GpuConfigVersionListResponse | undefined;
+  /** List of version summaries (convenience accessor) */
+  versions: gpuConfigApi.GpuConfigVersionSummary[];
+  /** Total number of versions */
+  totalCount: number;
+  /** Whether the initial fetch is in progress */
+  isLoading: boolean;
+  /** Error object if the query failed */
+  error: Error | null;
+  /** Function to manually trigger a refetch */
+  refetch: () => Promise<unknown>;
+}
+
+/**
+ * Hook to fetch GPU configuration version history.
+ *
+ * Returns a paginated list of configuration versions ordered by creation time
+ * (newest first).
+ *
+ * @param options - Configuration options
+ * @returns Version history and query state
+ *
+ * @example
+ * ```tsx
+ * const { versions, totalCount, isLoading } = useConfigVersions({ limit: 10 });
+ *
+ * return (
+ *   <div>
+ *     {versions.map(v => (
+ *       <VersionCard key={v.id} version={v} />
+ *     ))}
+ *   </div>
+ * );
+ * ```
+ */
+export function useConfigVersions(options: UseConfigVersionsOptions = {}): UseConfigVersionsReturn {
+  const { enabled = true, limit = 20, offset = 0 } = options;
+
+  const query = useQuery({
+    queryKey: [...GPU_VERSION_QUERY_KEYS.versions, limit, offset],
+    queryFn: () => gpuConfigApi.getConfigVersions(limit, offset),
+    enabled,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: 1,
+  });
+
+  return {
+    data: query.data,
+    versions: query.data?.versions ?? [],
+    totalCount: query.data?.total_count ?? 0,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+/**
+ * Return type for the useConfigVersion hook.
+ */
+export interface UseConfigVersionReturn {
+  /** Version detail */
+  data: gpuConfigApi.GpuConfigVersionDetail | undefined;
+  /** Whether the fetch is in progress */
+  isLoading: boolean;
+  /** Error object if the query failed */
+  error: Error | null;
+  /** Function to manually trigger a refetch */
+  refetch: () => Promise<unknown>;
+}
+
+/**
+ * Hook to fetch a specific GPU configuration version.
+ *
+ * @param versionId - Version ID to fetch
+ * @returns Version details and query state
+ */
+export function useConfigVersion(versionId: string | null): UseConfigVersionReturn {
+  const query = useQuery({
+    queryKey: GPU_VERSION_QUERY_KEYS.version(versionId ?? ''),
+    queryFn: () => {
+      // Guard - enabled check ensures versionId is defined, but TypeScript needs explicit check
+      if (!versionId) throw new Error('Invariant: versionId required');
+      return gpuConfigApi.getConfigVersion(versionId);
+    },
+    enabled: !!versionId,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: 1,
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+/**
+ * Return type for the useConfigVersionDiff hook.
+ */
+export interface UseConfigVersionDiffReturn {
+  /** Diff data */
+  data: gpuConfigApi.GpuConfigVersionDiffResponse | undefined;
+  /** Whether the fetch is in progress */
+  isLoading: boolean;
+  /** Error object if the query failed */
+  error: Error | null;
+  /** Function to manually trigger a refetch */
+  refetch: () => Promise<unknown>;
+}
+
+/**
+ * Hook to compare two GPU configuration versions.
+ *
+ * @param fromVersion - Source version number
+ * @param toVersion - Target version number
+ * @returns Diff and query state
+ */
+export function useConfigVersionDiff(
+  fromVersion: number | null,
+  toVersion: number | null
+): UseConfigVersionDiffReturn {
+  const query = useQuery({
+    queryKey: GPU_VERSION_QUERY_KEYS.diff(fromVersion ?? 0, toVersion ?? 0),
+    queryFn: () => {
+      // Guard - enabled check ensures versions are defined, but TypeScript needs explicit check
+      if (fromVersion === null || toVersion === null) {
+        throw new Error('Invariant: fromVersion and toVersion required');
+      }
+      return gpuConfigApi.diffConfigVersions(fromVersion, toVersion);
+    },
+    enabled: fromVersion !== null && toVersion !== null,
+    staleTime: DEFAULT_STALE_TIME,
+    retry: 1,
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+// ============================================================================
+// Export/Import Hooks (NEM-4945)
+// ============================================================================
+
+/**
+ * Return type for the useExportConfig hook.
+ */
+export interface UseExportConfigReturn {
+  /** Export the configuration */
+  exportConfig: (versionId?: string) => Promise<gpuConfigApi.GpuConfigExportData>;
+  /** Download the configuration as a file */
+  downloadConfig: (versionId?: string, format?: 'json' | 'yaml') => Promise<void>;
+  /** Whether an export is in progress */
+  isLoading: boolean;
+  /** Error if export failed */
+  error: Error | null;
+}
+
+/**
+ * Hook for exporting GPU configuration.
+ *
+ * Provides methods to export configuration as data or download as file.
+ *
+ * @returns Export methods and state
+ *
+ * @example
+ * ```tsx
+ * const { downloadConfig, isLoading } = useExportConfig();
+ *
+ * return (
+ *   <Button onClick={() => downloadConfig(undefined, 'yaml')} disabled={isLoading}>
+ *     Export as YAML
+ *   </Button>
+ * );
+ * ```
+ */
+export function useExportConfig(): UseExportConfigReturn {
+  const exportMutation = useMutation({
+    mutationFn: (versionId?: string) => gpuConfigApi.exportGpuConfig(versionId),
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: ({ versionId, format }: { versionId?: string; format?: 'json' | 'yaml' }) =>
+      gpuConfigApi.downloadGpuConfig(versionId, format),
+  });
+
+  return {
+    exportConfig: exportMutation.mutateAsync,
+    downloadConfig: (versionId?: string, format?: 'json' | 'yaml') =>
+      downloadMutation.mutateAsync({ versionId, format }),
+    isLoading: exportMutation.isPending || downloadMutation.isPending,
+    error: exportMutation.error ?? downloadMutation.error,
+  };
+}
+
+/**
+ * Return type for the useImportConfig hook.
+ */
+export interface UseImportConfigReturn {
+  /** Import configuration */
+  importConfig: (request: gpuConfigApi.GpuConfigImportRequest) => Promise<gpuConfigApi.GpuConfigImportResponse>;
+  /** Whether import is in progress */
+  isLoading: boolean;
+  /** Error if import failed */
+  error: Error | null;
+  /** Last import result */
+  data: gpuConfigApi.GpuConfigImportResponse | undefined;
+}
+
+/**
+ * Hook for importing GPU configuration.
+ *
+ * Validates and imports configuration from export data.
+ *
+ * @returns Import method and state
+ */
+export function useImportConfig(): UseImportConfigReturn {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: gpuConfigApi.importGpuConfig,
+    onSuccess: () => {
+      // Invalidate all GPU queries to refresh data
+      void queryClient.invalidateQueries({ queryKey: GPU_QUERY_KEYS.all });
+      void queryClient.invalidateQueries({ queryKey: GPU_VERSION_QUERY_KEYS.versions });
+    },
+  });
+
+  return {
+    importConfig: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+    data: mutation.data,
+  };
+}
+
+/**
+ * Return type for the useRollbackConfig hook.
+ */
+export interface UseRollbackConfigReturn {
+  /** Rollback to a version */
+  rollback: (request: gpuConfigApi.GpuConfigRollbackRequest) => Promise<gpuConfigApi.GpuConfigRollbackResponse>;
+  /** Whether rollback is in progress */
+  isLoading: boolean;
+  /** Error if rollback failed */
+  error: Error | null;
+  /** Last rollback result */
+  data: gpuConfigApi.GpuConfigRollbackResponse | undefined;
+}
+
+/**
+ * Hook for rolling back GPU configuration.
+ *
+ * Restores configuration from a specific version.
+ *
+ * @returns Rollback method and state
+ */
+export function useRollbackConfig(): UseRollbackConfigReturn {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: gpuConfigApi.rollbackGpuConfig,
+    onSuccess: () => {
+      // Invalidate all GPU queries to refresh data
+      void queryClient.invalidateQueries({ queryKey: GPU_QUERY_KEYS.all });
+      void queryClient.invalidateQueries({ queryKey: GPU_VERSION_QUERY_KEYS.versions });
+    },
+  });
+
+  return {
+    rollback: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+    data: mutation.data,
+  };
+}

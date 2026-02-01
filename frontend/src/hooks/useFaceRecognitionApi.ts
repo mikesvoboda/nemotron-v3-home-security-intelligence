@@ -47,6 +47,8 @@ import type {
   IdentifyFaceResponse,
   FaceEventsFilter,
   FaceEventsResponse,
+  BulkEnrollmentRequest,
+  BulkEnrollmentResponse,
 } from '../types/faceRecognition';
 
 // ============================================================================
@@ -655,6 +657,139 @@ export function useFaceRecognitionApi() {
   };
 }
 
+// ============================================================================
+// Face Similarity Comparison API (NEM-4955 Debug Tool)
+// ============================================================================
+
+/**
+ * Response from the face similarity comparison endpoint.
+ */
+export interface FaceSimilarityCompareResponse {
+  /** Cosine similarity score between the two faces (0-1) */
+  similarity_score: number;
+  /** Whether the similarity exceeds the threshold (same person) */
+  is_match: boolean;
+  /** The threshold used for matching */
+  threshold: number;
+  /** Dimension of the embeddings (768 for CLIP) */
+  embedding_dimension: number;
+  /** Time taken to process both images in milliseconds */
+  processing_time_ms: number;
+  /** Error message if comparison failed */
+  error: string | null;
+}
+
+/**
+ * Compare similarity between two face images (Debug Tool).
+ *
+ * @param image1 - First face image file
+ * @param image2 - Second face image file
+ * @param threshold - Similarity threshold for match decision (default: 0.7)
+ * @returns Promise with comparison result
+ */
+export async function compareFaceSimilarity(
+  image1: File,
+  image2: File,
+  threshold: number = 0.7
+): Promise<FaceSimilarityCompareResponse> {
+  const formData = new FormData();
+  formData.append('image1', image1);
+  formData.append('image2', image2);
+  formData.append('threshold', String(threshold));
+
+  const headers: Record<string, string> = {};
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+
+  const response = await fetch(`${BASE_URL}/api/face-events/compare`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse<FaceSimilarityCompareResponse>(response);
+}
+
+/**
+ * Hook to compare face similarity between two images.
+ */
+export function useCompareFaceSimilarity() {
+  return useMutation({
+    mutationFn: ({ image1, image2, threshold }: { image1: File; image2: File; threshold?: number }) =>
+      compareFaceSimilarity(image1, image2, threshold),
+  });
+}
+
+// ============================================================================
+// Bulk Enrollment API (NEM-4954)
+// ============================================================================
+
+/**
+ * Bulk enroll multiple face images at once.
+ *
+ * @param request - Bulk enrollment request with images and person info
+ * @returns Promise with bulk enrollment response
+ */
+export async function bulkEnrollFaces(
+  request: BulkEnrollmentRequest
+): Promise<BulkEnrollmentResponse> {
+  const formData = new FormData();
+
+  // Append all images
+  for (const image of request.images) {
+    formData.append('images', image);
+  }
+
+  // Append person info
+  if (request.person_id !== undefined) {
+    formData.append('person_id', String(request.person_id));
+  }
+  if (request.new_person_name !== undefined) {
+    formData.append('new_person_name', request.new_person_name);
+  }
+  if (request.is_household_member !== undefined) {
+    formData.append('is_household_member', String(request.is_household_member));
+  }
+
+  const headers: Record<string, string> = {};
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+
+  const response = await fetch(`${BASE_URL}/api/known-persons/bulk-enroll`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse<BulkEnrollmentResponse>(response);
+}
+
+/**
+ * Hook for bulk face enrollment.
+ * Invalidates known persons and embeddings caches on success.
+ */
+export function useBulkEnrollFaces() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkEnrollFaces,
+    onSuccess: (data) => {
+      // Invalidate known persons list
+      void queryClient.invalidateQueries({ queryKey: faceRecognitionQueryKeys.knownPersons() });
+      // Invalidate specific person's embeddings
+      void queryClient.invalidateQueries({
+        queryKey: faceRecognitionQueryKeys.personEmbeddings(data.person_id),
+      });
+      // Invalidate specific person
+      void queryClient.invalidateQueries({
+        queryKey: faceRecognitionQueryKeys.knownPerson(data.person_id),
+      });
+    },
+  });
+}
+
 // Re-export types for convenience
 export type {
   KnownPerson,
@@ -672,6 +807,9 @@ export type {
   PersonAppearancesResponse,
   UnknownStrangerSummary,
   PersonAppearance,
+  BulkEnrollmentRequest,
+  BulkEnrollmentResponse,
+  BulkEnrollmentImageResult,
 } from '../types/faceRecognition';
 
 export default useFaceRecognitionApi;

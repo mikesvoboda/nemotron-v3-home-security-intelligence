@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .camera import Base
@@ -83,6 +83,11 @@ class GpuConfiguration(Base):
 
     Stores the GPU assignment for each AI service. Supports manual
     assignment or auto-assignment via strategy selection.
+
+    Affinity Constraints (NEM-4944):
+    - exclusive_gpu: If True, service requires a dedicated GPU (no sharing)
+    - priority_weight: Priority for auto-assignment (higher = more important, 1-100)
+    - incompatible_with: List of services that cannot share the same GPU
     """
 
     __tablename__ = "gpu_configurations"
@@ -90,6 +95,8 @@ class GpuConfiguration(Base):
         Index("idx_gpu_configurations_service_name", "service_name", unique=True),
         Index("idx_gpu_configurations_gpu_index", "gpu_index"),
         Index("idx_gpu_configurations_enabled", "enabled"),
+        Index("idx_gpu_configurations_exclusive", "exclusive_gpu"),
+        Index("idx_gpu_configurations_priority", "priority_weight"),
     )
 
     id: Mapped[str] = mapped_column(
@@ -106,6 +113,12 @@ class GpuConfiguration(Base):
     )
     vram_budget_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Affinity constraints (NEM-4944)
+    exclusive_gpu: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    priority_weight: Mapped[int] = mapped_column(Integer, default=50, nullable=False)
+    incompatible_with: Mapped[list[str] | None] = mapped_column(ARRAY(String(64)), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -124,7 +137,8 @@ class GpuConfiguration(Base):
         """Return string representation of GPU configuration."""
         return (
             f"<GpuConfiguration(id={self.id!r}, service_name={self.service_name!r}, "
-            f"gpu_index={self.gpu_index}, strategy={self.strategy!r})>"
+            f"gpu_index={self.gpu_index}, strategy={self.strategy!r}, "
+            f"exclusive_gpu={self.exclusive_gpu}, priority_weight={self.priority_weight})>"
         )
 
 
@@ -151,3 +165,46 @@ class SystemSetting(Base):
     def __repr__(self) -> str:
         """Return string representation of system setting."""
         return f"<SystemSetting(key={self.key!r}, value={self.value!r})>"
+
+
+class GpuConfigurationVersion(Base):
+    """Version history for GPU configurations.
+
+    Tracks configuration changes with timestamps, enabling:
+    - Viewing historical configurations
+    - Comparing differences between versions
+    - Rolling back to previous configurations
+    - Exporting and importing configurations
+
+    See NEM-4945 for implementation details.
+    """
+
+    __tablename__ = "gpu_configuration_versions"
+    __table_args__ = (
+        Index("idx_gpu_config_versions_created_at", "created_at"),
+        Index("idx_gpu_config_versions_version_number", "version_number"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    strategy: Mapped[str] = mapped_column(String(32), nullable=False)
+    assignments: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        server_default=text("now()"),
+        nullable=False,
+    )
+    created_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    def __repr__(self) -> str:
+        """Return string representation of GPU configuration version."""
+        return (
+            f"<GpuConfigurationVersion(id={self.id!r}, version={self.version_number}, "
+            f"strategy={self.strategy!r}, created_at={self.created_at!r})>"
+        )

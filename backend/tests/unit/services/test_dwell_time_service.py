@@ -521,3 +521,153 @@ class TestAlertTriggering:
             assert mock_record_alert.call_count == 1  # Still just 1
             assert mock_observe_dwell.call_count == 1  # Still just 1
             assert mock_record_event.call_count == 1  # Still just 1
+
+
+# =============================================================================
+# Entity Distribution Tests (NEM-4937)
+# =============================================================================
+
+
+class TestZoneEntityDistribution:
+    """Tests for get_zone_entity_distribution method."""
+
+    @pytest.mark.asyncio
+    async def test_get_zone_entity_distribution_empty(self) -> None:
+        """Verify empty result when no records exist."""
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = DwellTimeService(mock_db)
+        result = await service.get_zone_entity_distribution(
+            zone_id=1,
+            start_time=datetime.now(UTC) - timedelta(hours=24),
+            end_time=datetime.now(UTC),
+        )
+
+        assert result["zone_id"] == 1
+        assert result["zone_name"] == "Unknown"
+        assert result["total_entities"] == 0
+        assert result["entity_types"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_zone_entity_distribution_single_type(self) -> None:
+        """Verify distribution with single entity type."""
+        mock_db = AsyncMock()
+
+        # Create mock zone
+        mock_zone = MagicMock()
+        mock_zone.name = "Front Yard"
+
+        # Create mock records (all persons)
+        records = []
+        for i in range(5):
+            record = MagicMock(spec=DwellTimeRecord)
+            record.object_class = "person"
+            record.zone = mock_zone
+            records.append(record)
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = records
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = DwellTimeService(mock_db)
+        result = await service.get_zone_entity_distribution(
+            zone_id=1,
+            start_time=datetime.now(UTC) - timedelta(hours=24),
+            end_time=datetime.now(UTC),
+        )
+
+        assert result["zone_id"] == 1
+        assert result["zone_name"] == "Front Yard"
+        assert result["total_entities"] == 5
+        assert len(result["entity_types"]) == 1
+        assert result["entity_types"][0]["entity_type"] == "person"
+        assert result["entity_types"][0]["count"] == 5
+        assert result["entity_types"][0]["percentage"] == 100.0
+
+    @pytest.mark.asyncio
+    async def test_get_zone_entity_distribution_multiple_types(self) -> None:
+        """Verify distribution with multiple entity types."""
+        mock_db = AsyncMock()
+
+        # Create mock zone
+        mock_zone = MagicMock()
+        mock_zone.name = "Driveway"
+
+        # Create mock records with different entity types
+        records = []
+        # 6 persons (60%)
+        for _i in range(6):
+            record = MagicMock(spec=DwellTimeRecord)
+            record.object_class = "person"
+            record.zone = mock_zone
+            records.append(record)
+        # 3 vehicles (30%)
+        for _i in range(3):
+            record = MagicMock(spec=DwellTimeRecord)
+            record.object_class = "vehicle"
+            record.zone = mock_zone
+            records.append(record)
+        # 1 dog (10%)
+        record = MagicMock(spec=DwellTimeRecord)
+        record.object_class = "dog"
+        record.zone = mock_zone
+        records.append(record)
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = records
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = DwellTimeService(mock_db)
+        result = await service.get_zone_entity_distribution(
+            zone_id=2,
+            start_time=datetime.now(UTC) - timedelta(hours=24),
+            end_time=datetime.now(UTC),
+        )
+
+        assert result["zone_id"] == 2
+        assert result["zone_name"] == "Driveway"
+        assert result["total_entities"] == 10
+        assert len(result["entity_types"]) == 3
+
+        # Verify sorted by count (descending)
+        assert result["entity_types"][0]["entity_type"] == "person"
+        assert result["entity_types"][0]["count"] == 6
+        assert result["entity_types"][0]["percentage"] == 60.0
+
+        assert result["entity_types"][1]["entity_type"] == "vehicle"
+        assert result["entity_types"][1]["count"] == 3
+        assert result["entity_types"][1]["percentage"] == 30.0
+
+        assert result["entity_types"][2]["entity_type"] == "dog"
+        assert result["entity_types"][2]["count"] == 1
+        assert result["entity_types"][2]["percentage"] == 10.0
+
+    @pytest.mark.asyncio
+    async def test_get_zone_entity_distribution_missing_zone(self) -> None:
+        """Verify fallback to 'Unknown' when zone relationship not loaded."""
+        mock_db = AsyncMock()
+
+        # Create records without zone relationship
+        records = []
+        for _i in range(3):
+            record = MagicMock(spec=DwellTimeRecord)
+            record.object_class = "person"
+            record.zone = None  # Not loaded
+            records.append(record)
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = records
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = DwellTimeService(mock_db)
+        result = await service.get_zone_entity_distribution(
+            zone_id=99,
+            start_time=datetime.now(UTC) - timedelta(hours=24),
+            end_time=datetime.now(UTC),
+        )
+
+        assert result["zone_name"] == "Unknown"
+        assert result["total_entities"] == 3

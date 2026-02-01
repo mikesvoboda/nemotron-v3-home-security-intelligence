@@ -17,6 +17,7 @@ import {
   Database,
   Flame,
   Gauge,
+  Grid3X3,
   Home,
   LayoutDashboard,
   ScanFace,
@@ -81,6 +82,7 @@ export const navGroups: NavGroup[] = [
       { id: 'pyroscope', label: 'Profiling', icon: Flame, path: '/pyroscope' },
       { id: 'plate-reads', label: 'Plate Reads', icon: Car, path: '/plate-reads' },
       { id: 'face-recognition', label: 'Face Recognition', icon: ScanFace, path: '/face-recognition' },
+      { id: 'heatmaps', label: 'Heatmaps', icon: Grid3X3, path: '/heatmaps' },
     ],
   },
   {

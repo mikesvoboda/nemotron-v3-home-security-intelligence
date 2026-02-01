@@ -366,6 +366,28 @@ class PolygonZoneService:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def get_all_zones(self, active_only: bool = False) -> Sequence[PolygonZone]:
+        """Get all polygon zones across all cameras (NEM-4937).
+
+        Args:
+            active_only: If True, only return zones where is_active=True.
+                Defaults to False.
+
+        Returns:
+            A sequence of PolygonZone instances ordered by camera_id, then creation time.
+
+        Example:
+            # Get all zones for entity distribution calculation
+            zones = await service.get_all_zones()
+        """
+        stmt = select(PolygonZone)
+        if active_only:
+            stmt = stmt.where(PolygonZone.is_active == True)  # noqa: E712
+        stmt = stmt.order_by(PolygonZone.camera_id, PolygonZone.created_at)
+
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     async def reset_all_counts(self, camera_id: str) -> int:
         """Reset the current count to 0 for all zones of a camera.
 

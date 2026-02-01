@@ -539,6 +539,77 @@ class DwellTimeService:
             "alerts_triggered": alerts,
         }
 
+    async def get_zone_entity_distribution(
+        self,
+        zone_id: int,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> dict:
+        """Get entity type distribution for a zone (NEM-4937).
+
+        Counts unique entities by type that have dwelt in the zone during
+        the specified time window.
+
+        Args:
+            zone_id: The zone to query.
+            start_time: Start of the time window.
+            end_time: End of the time window.
+
+        Returns:
+            Dictionary with zone_id, zone_name, total_entities, and entity_types list.
+            Each entity_type has entity_type, count, and percentage.
+        """
+        from collections import Counter
+
+        from sqlalchemy.orm import selectinload
+
+        # Get dwell history with zone relationship loaded
+        stmt = (
+            select(DwellTimeRecord)
+            .options(selectinload(DwellTimeRecord.zone))
+            .where(
+                and_(
+                    DwellTimeRecord.zone_id == zone_id,
+                    DwellTimeRecord.entry_time <= end_time,
+                    (DwellTimeRecord.exit_time >= start_time)
+                    | (DwellTimeRecord.exit_time.is_(None)),
+                )
+            )
+        )
+        result = await self.db.execute(stmt)
+        records = result.scalars().all()
+
+        # Get zone name (use first record's zone or fallback)
+        zone_name = "Unknown"
+        if records and records[0].zone is not None:
+            zone_name = records[0].zone.name
+
+        # Count by object class
+        class_counts: Counter[str] = Counter()
+        for record in records:
+            class_counts[record.object_class] += 1
+
+        total = sum(class_counts.values())
+
+        # Build entity_types list sorted by count descending
+        entity_types = []
+        for entity_type, count in class_counts.most_common():
+            percentage = (count / total * 100.0) if total > 0 else 0.0
+            entity_types.append(
+                {
+                    "entity_type": entity_type,
+                    "count": count,
+                    "percentage": round(percentage, 2),
+                }
+            )
+
+        return {
+            "zone_id": zone_id,
+            "zone_name": zone_name,
+            "total_entities": total,
+            "entity_types": entity_types,
+        }
+
 
 def get_dwell_time_service(db: AsyncSession) -> DwellTimeService:
     """Get a DwellTimeService instance for the given session.

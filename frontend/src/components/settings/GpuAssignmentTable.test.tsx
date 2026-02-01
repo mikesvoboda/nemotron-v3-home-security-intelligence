@@ -174,8 +174,8 @@ describe('GpuAssignmentTable', () => {
 
       // Default VRAM for ai-llm is 8.0 GB
       expect(screen.getByText('8.0 GB')).toBeInTheDocument();
-      // Default VRAM for ai-yolo26 is 4.0 GB
-      expect(screen.getByText('4.0 GB')).toBeInTheDocument();
+      // Default VRAM for ai-yolo26 is 0.1 GB (~100MB for YOLO26m TensorRT)
+      expect(screen.getByText('0.1 GB')).toBeInTheDocument();
       // Default VRAM for ai-enrichment is 3.5 GB
       expect(screen.getByText('3.5 GB')).toBeInTheDocument();
     });

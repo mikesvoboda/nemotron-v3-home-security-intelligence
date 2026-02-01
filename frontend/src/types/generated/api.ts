@@ -1220,6 +1220,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics-zones/approach-vectors/camera/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get approach vectors for all zones on a camera
+         * @description Get approach vectors for all polygon zones on a camera.
+         *
+         *     Aggregates approach vector data across all zones for efficient
+         *     visualization of approaching entities on the camera view.
+         *
+         *     Args:
+         *         camera_id: ID of the camera.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Approach vectors for all zones on the camera.
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found.
+         */
+        get: operations["analytics-zones_get_camera_approach_vectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics-zones/comparison": {
         parameters: {
             query?: never;
@@ -1247,6 +1280,38 @@ export interface paths {
          *         HTTPException: 400 if metric or period is invalid.
          */
         get: operations["analytics-zones_compare_zones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics-zones/entity-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get entity distribution across all polygon zones
+         * @description Get entity type distribution across all polygon zones.
+         *
+         *     Returns aggregated entity type counts for all zones, optionally
+         *     filtered by camera.
+         *
+         *     Args:
+         *         db: Database session.
+         *         camera_id: Optional camera ID filter.
+         *         start_time: Start of time window (defaults to 24 hours ago).
+         *         end_time: End of time window (defaults to now).
+         *
+         *     Returns:
+         *         Entity distribution for all zones with grand total.
+         */
+        get: operations["analytics-zones_get_all_zones_entity_distribution"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1572,6 +1637,45 @@ export interface paths {
         patch: operations["analytics-zones_update_polygon_zone"];
         trace?: never;
     };
+    "/api/analytics-zones/polygon-zones/{zone_id}/approach-vectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get approach vectors for a polygon zone
+         * @description Get approach vector analysis for entities approaching a polygon zone.
+         *
+         *     Returns real-time movement analysis including direction, speed, and ETA
+         *     for all tracked entities outside the zone that are moving toward it.
+         *
+         *     Urgency levels:
+         *     - imminent: ETA < 3 seconds (high priority)
+         *     - approaching: ETA 3-10 seconds (medium priority)
+         *     - distant: ETA > 10 seconds (low priority)
+         *     - not_approaching: Moving away or stationary
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Approach vectors with urgency classification for all approaching entities.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         */
+        get: operations["analytics-zones_get_zone_approach_vectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics-zones/polygon-zones/{zone_id}/check-loitering": {
         parameters: {
             query?: never;
@@ -1703,6 +1807,41 @@ export interface paths {
          *         HTTPException: 404 if polygon zone not found.
          */
         get: operations["analytics-zones_get_active_dwellers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics-zones/polygon-zones/{zone_id}/entity-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get entity type distribution for a polygon zone
+         * @description Get entity type distribution for a polygon zone.
+         *
+         *     Returns counts of each entity type (person, vehicle, etc.) that have
+         *     been detected in the zone during the specified time window.
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         db: Database session.
+         *         start_time: Start of time window (defaults to 24 hours ago).
+         *         end_time: End of time window (defaults to now).
+         *
+         *     Returns:
+         *         Entity distribution with counts and percentages per type.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         */
+        get: operations["analytics-zones_get_zone_entity_distribution"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2113,6 +2252,29 @@ export interface paths {
          *         HTTPException: 404 if audit log not found
          */
         get: operations["audit_get_audit_log"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auto-enrollment/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Auto Enrollment Settings
+         * @description Get current auto-enrollment settings.
+         *
+         *     Returns:
+         *         AutoEnrollmentSettingsResponse with current settings
+         */
+        get: operations["face-recognition_get_auto_enrollment_settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4289,6 +4451,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/enrollment-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Enrollment Candidates
+         * @description List enrollment candidates from the auto-enrollment queue.
+         *
+         *     Returns face detection events that meet quality thresholds and are
+         *     pending review for enrollment as known persons.
+         *
+         *     Args:
+         *         status_filter: Filter by enrollment status (default: pending)
+         *         limit: Maximum candidates to return
+         *         offset: Number of candidates to skip
+         *         session: Database session
+         *
+         *     Returns:
+         *         EnrollmentCandidateListResponse with list of candidates
+         */
+        get: operations["face-recognition_list_enrollment_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enrollment-queue/{candidate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Enrollment Candidate
+         * @description Get a specific enrollment candidate.
+         *
+         *     Args:
+         *         candidate_id: ID of the candidate
+         *         session: Database session
+         *
+         *     Returns:
+         *         EnrollmentCandidateResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if candidate not found
+         */
+        get: operations["face-recognition_get_enrollment_candidate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enrollment-queue/{candidate_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Enrollment Candidate
+         * @description Approve an enrollment candidate.
+         *
+         *     Either creates a new KnownPerson or links to an existing one
+         *     based on the request parameters.
+         *
+         *     Args:
+         *         candidate_id: ID of the candidate to approve
+         *         data: Approval request with name or person_id
+         *         session: Database session
+         *
+         *     Returns:
+         *         ApproveEnrollmentResponse with result
+         *
+         *     Raises:
+         *         HTTPException: 404 if candidate not found
+         *         HTTPException: 400 if validation fails
+         */
+        post: operations["face-recognition_approve_enrollment_candidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/enrollment-queue/{candidate_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Enrollment Candidate
+         * @description Reject an enrollment candidate.
+         *
+         *     Marks the candidate as rejected and records the reason.
+         *
+         *     Args:
+         *         candidate_id: ID of the candidate to reject
+         *         data: Rejection request with optional reason
+         *         session: Database session
+         *
+         *     Returns:
+         *         RejectEnrollmentResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if candidate not found
+         */
+        post: operations["face-recognition_reject_enrollment_candidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/entities": {
         parameters: {
             query?: never;
@@ -5475,6 +5767,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/face-events/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compare Faces
+         * @description Compare similarity between two face images (Debug Tool).
+         *
+         *     This is a developer debug tool for testing face similarity detection.
+         *     Upload two face images and get a similarity score indicating whether
+         *     they are likely the same person.
+         *
+         *     **Note:** This debug tool uses CLIP embeddings (768-dimensional) for
+         *     visual similarity comparison. Production face recognition uses ArcFace
+         *     embeddings (512-dimensional) which are optimized specifically for face
+         *     recognition tasks.
+         *
+         *     The similarity score is computed using cosine similarity between the
+         *     two image embeddings. A higher score indicates more visual similarity.
+         *
+         *     Recommended thresholds:
+         *     - 0.70: Lenient matching (may have false positives)
+         *     - 0.75: Balanced matching
+         *     - 0.80: Strict matching (fewer false positives, may miss matches)
+         *
+         *     Args:
+         *         image1: First face image (JPEG or PNG format)
+         *         image2: Second face image (JPEG or PNG format)
+         *         threshold: Minimum similarity score to consider a match (default: 0.7)
+         *
+         *     Returns:
+         *         FaceSimilarityCompareResponse with similarity score and match decision
+         *
+         *     Raises:
+         *         HTTPException: 400 if images are invalid or CLIP service unavailable
+         */
+        post: operations["face-recognition_compare_faces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/face-events/match": {
         parameters: {
             query?: never;
@@ -6617,6 +6957,51 @@ export interface paths {
          *         Created KnownPersonResponse
          */
         post: operations["face-recognition_create_known_person"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/known-persons/bulk-enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Enroll Faces
+         * @description Bulk enroll multiple face images at once.
+         *
+         *     Supports two modes:
+         *     1. Add to existing person: Provide person_id
+         *     2. Create new person: Provide new_person_name
+         *
+         *     Each image is validated for:
+         *     - File type (JPEG/PNG only)
+         *     - Face detection (must contain a detectable face)
+         *     - Quality score (must be >= 0.7)
+         *
+         *     Maximum 10 images per request. Each person can have maximum 10 total embeddings.
+         *
+         *     Args:
+         *         images: List of face images to enroll (multipart/form-data)
+         *         person_id: ID of existing person to add faces to (optional)
+         *         new_person_name: Name for new person if creating (optional)
+         *         is_household_member: Whether new person is a household member
+         *         session: Database session
+         *
+         *     Returns:
+         *         BulkEnrollmentResponse with summary and per-image results
+         *
+         *     Raises:
+         *         HTTPException: 400 if no mode selected or invalid parameters
+         *         HTTPException: 404 if person_id not found
+         */
+        post: operations["face-recognition_bulk_enroll_faces"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8749,6 +9134,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/gpu-config/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export current GPU configuration
+         * @description Exports current configuration in a format suitable for backup/restore.
+         */
+        get: operations["gpu-config_export_gpu_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List configuration version history
+         * @description Returns paginated list of GPU configuration versions.
+         */
+        get: operations["gpu-config_list_config_versions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/history/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare two configuration versions
+         * @description Returns the differences between two configuration versions.
+         */
+        get: operations["gpu-config_diff_config_versions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/history/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get configuration version details
+         * @description Returns full details of a specific configuration version.
+         */
+        get: operations["gpu-config_get_config_version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import GPU configuration
+         * @description Imports a previously exported configuration with validation.
+         */
+        post: operations["gpu-config_import_gpu_config"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/gpu-config/preview": {
         parameters: {
             query?: never;
@@ -8763,6 +9248,26 @@ export interface paths {
         get: operations["gpu-config_preview_gpu_config"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rollback to previous configuration
+         * @description Restores a previous configuration version.
+         */
+        post: operations["gpu-config_rollback_gpu_config"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13709,6 +14214,155 @@ export interface components {
             period_days: number;
         };
         /**
+         * ApproachUrgency
+         * @description Urgency level based on ETA to zone.
+         * @enum {string}
+         */
+        ApproachUrgency: "imminent" | "approaching" | "distant" | "not_approaching";
+        /**
+         * ApproachVectorData
+         * @description Approach vector data for a single entity approaching a zone.
+         *
+         *     Contains movement trajectory analysis including direction, speed, and ETA.
+         * @example {
+         *       "current_position": {
+         *         "x": 0.35,
+         *         "y": 0.4
+         *       },
+         *       "direction_degrees": 45,
+         *       "distance_to_zone": 0.15,
+         *       "estimated_arrival_seconds": 3,
+         *       "is_approaching": true,
+         *       "object_class": "person",
+         *       "speed_normalized": 0.05,
+         *       "track_id": 42,
+         *       "urgency": "imminent",
+         *       "zone_centroid": {
+         *         "x": 0.5,
+         *         "y": 0.5
+         *       }
+         *     }
+         */
+        ApproachVectorData: {
+            /**
+             * Current Position
+             * @description Current position as {x, y} in normalized coordinates (0-1)
+             */
+            current_position: {
+                [key: string]: number;
+            };
+            /**
+             * Direction Degrees
+             * @description Direction of movement in degrees (0=up, 90=right, 180=down, 270=left)
+             */
+            direction_degrees: number;
+            /**
+             * Distance To Zone
+             * @description Current distance to zone boundary (normalized units, 0 = inside zone)
+             */
+            distance_to_zone: number;
+            /**
+             * Estimated Arrival Seconds
+             * @description Estimated time to reach zone in seconds (None if not approaching)
+             */
+            estimated_arrival_seconds?: number | null;
+            /**
+             * Is Approaching
+             * @description Whether entity is moving toward the zone
+             */
+            is_approaching: boolean;
+            /**
+             * Object Class
+             * @description Object classification (person, vehicle, etc.)
+             */
+            object_class: string;
+            /**
+             * Speed Normalized
+             * @description Speed of movement in normalized units per second
+             */
+            speed_normalized: number;
+            /**
+             * Track Id
+             * @description Tracking ID of the approaching entity
+             */
+            track_id: number;
+            /** @description Urgency level based on ETA (imminent/approaching/distant/not_approaching) */
+            urgency: components["schemas"]["ApproachUrgency"];
+            /**
+             * Zone Centroid
+             * @description Zone centroid as {x, y} in normalized coordinates
+             */
+            zone_centroid: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * ApproveEnrollmentRequest
+         * @description Schema for approving an enrollment candidate.
+         *
+         *     Either provide a name for a new person, or provide an existing
+         *     person_id to link the face to an existing known person.
+         * @example {
+         *       "is_household_member": true,
+         *       "name": "John Doe"
+         *     }
+         */
+        ApproveEnrollmentRequest: {
+            /**
+             * Is Household Member
+             * @description Whether to mark as household member
+             * @default false
+             */
+            is_household_member: boolean;
+            /**
+             * Name
+             * @description Name for new person (required if person_id not provided)
+             */
+            name?: string | null;
+            /**
+             * Person Id
+             * @description ID of existing person to link to (optional)
+             */
+            person_id?: number | null;
+        };
+        /**
+         * ApproveEnrollmentResponse
+         * @description Schema for approve enrollment response.
+         * @example {
+         *       "embedding_id": 5,
+         *       "person_id": 1,
+         *       "person_name": "John Doe",
+         *       "success": true
+         *     }
+         */
+        ApproveEnrollmentResponse: {
+            /**
+             * Embedding Id
+             * @description ID of created embedding
+             */
+            embedding_id?: number | null;
+            /**
+             * Error
+             * @description Error message if failed
+             */
+            error?: string | null;
+            /**
+             * Person Id
+             * @description ID of the person
+             */
+            person_id?: number | null;
+            /**
+             * Person Name
+             * @description Name of the person
+             */
+            person_name?: string | null;
+            /**
+             * Success
+             * @description Whether approval was successful
+             */
+            success: boolean;
+        };
+        /**
          * AreaBasic
          * @description Minimal area schema for embedding in CameraResponse.
          *
@@ -14234,6 +14888,38 @@ export interface components {
             total_events: number;
         };
         /**
+         * AutoEnrollmentSettingsResponse
+         * @description Schema for auto-enrollment settings response.
+         * @example {
+         *       "auto_approve": false,
+         *       "enabled": true,
+         *       "quality_threshold": 0.8,
+         *       "similarity_threshold": 0.85
+         *     }
+         */
+        AutoEnrollmentSettingsResponse: {
+            /**
+             * Auto Approve
+             * @description Whether to auto-approve without review queue
+             */
+            auto_approve: boolean;
+            /**
+             * Enabled
+             * @description Whether auto-enrollment is enabled
+             */
+            enabled: boolean;
+            /**
+             * Quality Threshold
+             * @description Minimum quality score for enrollment
+             */
+            quality_threshold: number;
+            /**
+             * Similarity Threshold
+             * @description Similarity threshold for duplicate detection
+             */
+            similarity_threshold: number;
+        };
+        /**
          * BaselineConfigUpdate
          * @description Request schema for updating per-camera baseline configuration.
          *
@@ -14730,6 +15416,51 @@ export interface components {
              */
             window_seconds?: number | null;
         };
+        /** Body_face-recognition_bulk_enroll_faces */
+        "Body_face-recognition_bulk_enroll_faces": {
+            /**
+             * Images
+             * @description Face images to enroll (JPEG/PNG)
+             */
+            images: string[];
+            /**
+             * Is Household Member
+             * @description Whether new person is household member
+             * @default false
+             */
+            is_household_member: boolean;
+            /**
+             * New Person Name
+             * @description Name for new person if creating
+             */
+            new_person_name?: string | null;
+            /**
+             * Person Id
+             * @description Existing person ID to enroll to
+             */
+            person_id?: number | null;
+        };
+        /** Body_face-recognition_compare_faces */
+        "Body_face-recognition_compare_faces": {
+            /**
+             * Image1
+             * Format: binary
+             * @description First face image (JPEG/PNG)
+             */
+            image1: string;
+            /**
+             * Image2
+             * Format: binary
+             * @description Second face image (JPEG/PNG)
+             */
+            image2: string;
+            /**
+             * Threshold
+             * @description Similarity threshold for match decision
+             * @default 0.7
+             */
+            threshold: number;
+        };
         /**
          * BulkCancelError
          * @description Error details for a single job in bulk cancellation.
@@ -14797,6 +15528,122 @@ export interface components {
              * @description Number of jobs that failed to cancel
              */
             failed: number;
+        };
+        /**
+         * BulkEnrollmentImageResult
+         * @description Schema for individual image result in bulk enrollment.
+         *
+         *     Each image in a bulk enrollment request produces a result with:
+         *     - filename: Original filename of the uploaded image
+         *     - success: Whether enrollment succeeded
+         *     - embedding_id: ID of created embedding (if successful)
+         *     - quality_score: Quality score of the face (if detected)
+         *     - error: Error message if enrollment failed
+         * @example {
+         *       "embedding_id": 1,
+         *       "filename": "face_001.jpg",
+         *       "quality_score": 0.92,
+         *       "success": true
+         *     }
+         */
+        BulkEnrollmentImageResult: {
+            /**
+             * Embedding Id
+             * @description ID of created embedding if successful
+             */
+            embedding_id?: number | null;
+            /**
+             * Error
+             * @description Error message if enrollment failed
+             */
+            error?: string | null;
+            /**
+             * Filename
+             * @description Original filename of the uploaded image
+             */
+            filename: string;
+            /**
+             * Quality Score
+             * @description Quality score of detected face
+             */
+            quality_score?: number | null;
+            /**
+             * Success
+             * @description Whether enrollment succeeded for this image
+             */
+            success: boolean;
+        };
+        /**
+         * BulkEnrollmentResponse
+         * @description Schema for bulk enrollment response.
+         *
+         *     Returns summary of bulk face enrollment:
+         *     - total_images: Number of images submitted
+         *     - successful: Number of successful enrollments
+         *     - failed: Number of failed enrollments
+         *     - results: Per-image results with details
+         *     - person_id: ID of the person images were enrolled to
+         *     - person_name: Name of the person
+         *     - created_new_person: Whether a new person was created
+         * @example {
+         *       "created_new_person": false,
+         *       "failed": 1,
+         *       "person_id": 1,
+         *       "person_name": "John Doe",
+         *       "results": [
+         *         {
+         *           "embedding_id": 1,
+         *           "filename": "face_001.jpg",
+         *           "quality_score": 0.92,
+         *           "success": true
+         *         },
+         *         {
+         *           "error": "Quality score below threshold (0.7)",
+         *           "filename": "face_002.jpg",
+         *           "quality_score": 0.55,
+         *           "success": false
+         *         }
+         *       ],
+         *       "successful": 4,
+         *       "total_images": 5
+         *     }
+         */
+        BulkEnrollmentResponse: {
+            /**
+             * Created New Person
+             * @description Whether a new person was created for this enrollment
+             */
+            created_new_person: boolean;
+            /**
+             * Failed
+             * @description Number of failed enrollments
+             */
+            failed: number;
+            /**
+             * Person Id
+             * @description ID of the person images were enrolled to
+             */
+            person_id: number;
+            /**
+             * Person Name
+             * @description Name of the person
+             */
+            person_name: string;
+            /**
+             * Results
+             * @description Per-image enrollment results
+             */
+            results: components["schemas"]["BulkEnrollmentImageResult"][];
+            /**
+             * Successful
+             * @description Number of successful enrollments
+             */
+            successful: number;
+            /**
+             * Total Images
+             * @description Total number of images submitted
+             */
+            total_images: number;
         };
         /**
          * BulkItemResult
@@ -14970,6 +15817,69 @@ export interface components {
              * @description Success message
              */
             message: string;
+        };
+        /**
+         * CameraApproachVectorsResponse
+         * @description Response containing approach vectors for all zones on a camera.
+         *
+         *     Aggregates approach vector data across all zones for a single camera,
+         *     enabling efficient visualization of approaching entities.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "total_approaching_entities": 1,
+         *       "total_zones": 1,
+         *       "zones": [
+         *         {
+         *           "approach_vectors": [
+         *             {
+         *               "current_position": {
+         *                 "x": 0.35,
+         *                 "y": 0.4
+         *               },
+         *               "direction_degrees": 45,
+         *               "distance_to_zone": 0.15,
+         *               "estimated_arrival_seconds": 3,
+         *               "is_approaching": true,
+         *               "object_class": "person",
+         *               "speed_normalized": 0.05,
+         *               "track_id": 42,
+         *               "urgency": "imminent",
+         *               "zone_centroid": {
+         *                 "x": 0.5,
+         *                 "y": 0.5
+         *               }
+         *             }
+         *           ],
+         *           "imminent_count": 1,
+         *           "timestamp": "2026-01-31T12:00:00Z",
+         *           "total_approaching": 1,
+         *           "zone_id": 1,
+         *           "zone_name": "Front Door"
+         *         }
+         *       ]
+         *     }
+         */
+        CameraApproachVectorsResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Total Approaching Entities
+             * @description Total approaching entities across all zones
+             */
+            total_approaching_entities: number;
+            /**
+             * Total Zones
+             * @description Total number of zones analyzed
+             */
+            total_zones: number;
+            /**
+             * Zones
+             * @description Approach vectors for each zone
+             */
+            zones: components["schemas"]["ZoneApproachVectorsResponse"][];
         };
         /**
          * CameraCreate
@@ -18825,6 +19735,100 @@ export interface components {
             warning?: string | null;
         };
         /**
+         * EnrollmentCandidateListResponse
+         * @description Schema for list of enrollment candidates.
+         * @example {
+         *       "items": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "created_at": "2025-01-31T10:31:00Z",
+         *           "face_event_id": 100,
+         *           "id": 1,
+         *           "quality_score": 0.92,
+         *           "status": "pending",
+         *           "timestamp": "2025-01-31T10:30:00Z"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        EnrollmentCandidateListResponse: {
+            /**
+             * Items
+             * @description List of enrollment candidates
+             */
+            items: components["schemas"]["EnrollmentCandidateResponse"][];
+            /**
+             * Total
+             * @description Total number of candidates
+             */
+            total: number;
+        };
+        /**
+         * EnrollmentCandidateResponse
+         * @description Schema for enrollment candidate response.
+         *
+         *     Represents a face detection that meets quality thresholds and is
+         *     pending review for enrollment as a known person.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "created_at": "2025-01-31T10:31:00Z",
+         *       "face_event_id": 100,
+         *       "id": 1,
+         *       "quality_score": 0.92,
+         *       "status": "pending",
+         *       "timestamp": "2025-01-31T10:30:00Z"
+         *     }
+         */
+        EnrollmentCandidateResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID where face was detected
+             */
+            camera_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the candidate was added to queue
+             */
+            created_at: string;
+            /**
+             * Enrolled Person Id
+             * @description ID of enrolled person if approved
+             */
+            enrolled_person_id?: number | null;
+            /**
+             * Face Event Id
+             * @description ID of the source face detection event
+             */
+            face_event_id: number;
+            /**
+             * Id
+             * @description Unique identifier for the enrollment candidate
+             */
+            id: number;
+            /**
+             * Quality Score
+             * @description Face quality score
+             */
+            quality_score: number;
+            /**
+             * Status
+             * @description Enrollment status: pending/approved/rejected/auto_enrolled
+             */
+            status: string;
+            /**
+             * Suggested Name
+             * @description Auto-generated or suggested name
+             */
+            suggested_name?: string | null;
+            /**
+             * Timestamp
+             * @description When the face was detected
+             */
+            timestamp?: string | null;
+        };
+        /**
          * EntityAppearance
          * @description Schema for a single entity appearance at a specific time and camera.
          *
@@ -19445,6 +20449,32 @@ export interface components {
             notes?: string | null;
             /** @description The trust classification to assign to the entity */
             trust_status: components["schemas"]["TrustStatus"];
+        };
+        /**
+         * EntityTypeCount
+         * @description Count of entities by type within a zone.
+         * @example {
+         *       "count": 42,
+         *       "entity_type": "person",
+         *       "percentage": 65.5
+         *     }
+         */
+        EntityTypeCount: {
+            /**
+             * Count
+             * @description Number of entities of this type
+             */
+            count: number;
+            /**
+             * Entity Type
+             * @description Entity type (e.g., person, vehicle, car)
+             */
+            entity_type: string;
+            /**
+             * Percentage
+             * @description Percentage of total entities
+             */
+            percentage: number;
         };
         /**
          * EntityTypeFilter
@@ -22415,6 +23445,59 @@ export interface components {
             similarity: number;
         };
         /**
+         * FaceSimilarityCompareResponse
+         * @description Schema for face similarity comparison response.
+         *
+         *     Returns the result of comparing two face images:
+         *     - similarity_score: Cosine similarity between embeddings (0-1)
+         *     - is_match: Whether similarity exceeds the threshold
+         *     - threshold: The threshold used for matching
+         *     - embedding_dimension: Dimension of the embeddings used (768 for CLIP)
+         *     - processing_time_ms: Time taken to process both images
+         *
+         *     Note: This debug tool uses CLIP embeddings (768-dim) for visual similarity,
+         *     not ArcFace embeddings (512-dim) used in production face recognition.
+         * @example {
+         *       "embedding_dimension": 768,
+         *       "is_match": true,
+         *       "processing_time_ms": 245,
+         *       "similarity_score": 0.85,
+         *       "threshold": 0.7
+         *     }
+         */
+        FaceSimilarityCompareResponse: {
+            /**
+             * Embedding Dimension
+             * @description Dimension of the embeddings (768 for CLIP)
+             */
+            embedding_dimension: number;
+            /**
+             * Error
+             * @description Error message if comparison failed
+             */
+            error?: string | null;
+            /**
+             * Is Match
+             * @description Whether the similarity exceeds the threshold (same person)
+             */
+            is_match: boolean;
+            /**
+             * Processing Time Ms
+             * @description Time taken to process both images in milliseconds
+             */
+            processing_time_ms: number;
+            /**
+             * Similarity Score
+             * @description Cosine similarity score between the two faces
+             */
+            similarity_score: number;
+            /**
+             * Threshold
+             * @description The threshold used for matching
+             */
+            threshold: number;
+        };
+        /**
          * FeatureSettings
          * @description Feature toggle settings for enabling/disabling AI pipeline components.
          *
@@ -23235,19 +24318,44 @@ export interface components {
          * GpuAssignment
          * @description Schema for a single service-to-GPU assignment.
          *
-         *     Maps an AI service to a specific GPU with optional VRAM budget override.
+         *     Maps an AI service to a specific GPU with optional VRAM budget override
+         *     and affinity constraints.
+         *
+         *     Affinity Constraints (NEM-4944):
+         *     - exclusive_gpu: If True, service requires a dedicated GPU (no sharing)
+         *     - priority_weight: Priority for auto-assignment (higher = more important, 1-100)
+         *     - incompatible_with: List of services that cannot share the same GPU
          * @example {
+         *       "exclusive_gpu": false,
          *       "gpu_index": 1,
+         *       "priority_weight": 50,
          *       "service": "ai-enrichment",
          *       "vram_budget_override": 3.5
          *     }
          */
         GpuAssignment: {
             /**
+             * Exclusive Gpu
+             * @description If True, service requires a dedicated GPU (no sharing with other services)
+             * @default false
+             */
+            exclusive_gpu: boolean;
+            /**
              * Gpu Index
              * @description Target GPU index (null for auto-assign)
              */
             gpu_index?: number | null;
+            /**
+             * Incompatible With
+             * @description List of service names that cannot share the same GPU with this service
+             */
+            incompatible_with?: string[] | null;
+            /**
+             * Priority Weight
+             * @description Priority for auto-assignment algorithms (1-100, higher = more important)
+             * @default 50
+             */
+            priority_weight: number;
             /**
              * Service
              * @description Service name (e.g., 'ai-llm', 'ai-yolo26')
@@ -23272,6 +24380,218 @@ export interface components {
          * @enum {string}
          */
         GpuAssignmentStrategy: "manual" | "vram_based" | "latency_optimized" | "isolation_first" | "balanced";
+        /**
+         * GpuConfigAssignmentChange
+         * @description A single assignment change in a version diff.
+         *
+         *     Describes what changed for a specific service between two versions.
+         * @example {
+         *       "change_type": "modified",
+         *       "new_gpu_index": 0,
+         *       "old_gpu_index": 1,
+         *       "service": "ai-llm"
+         *     }
+         */
+        GpuConfigAssignmentChange: {
+            /**
+             * Change Type
+             * @description Type of change: 'added', 'removed', or 'modified'
+             */
+            change_type: string;
+            /**
+             * New Gpu Index
+             * @description New GPU index (for added/modified)
+             */
+            new_gpu_index?: number | null;
+            /**
+             * New Vram Override
+             * @description New VRAM override (for added/modified)
+             */
+            new_vram_override?: number | null;
+            /**
+             * Old Gpu Index
+             * @description Previous GPU index (for modified/removed)
+             */
+            old_gpu_index?: number | null;
+            /**
+             * Old Vram Override
+             * @description Previous VRAM override (for modified/removed)
+             */
+            old_vram_override?: number | null;
+            /**
+             * Service
+             * @description Service name
+             */
+            service: string;
+        };
+        /**
+         * GpuConfigExportData
+         * @description Exported GPU configuration data.
+         *
+         *     Contains all information needed to restore a configuration,
+         *     including metadata for validation.
+         * @example {
+         *       "assignments": [
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-llm"
+         *         },
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-yolo26"
+         *         }
+         *       ],
+         *       "description": "Production GPU configuration",
+         *       "export_version": "1.0",
+         *       "exported_at": "2026-01-23T10:30:00Z",
+         *       "source_version": 3,
+         *       "strategy": "vram_based"
+         *     }
+         */
+        GpuConfigExportData: {
+            /**
+             * Assignments
+             * @description Service-to-GPU assignments
+             */
+            assignments: components["schemas"]["GpuAssignment"][];
+            /**
+             * Description
+             * @description Optional description for this configuration
+             */
+            description?: string | null;
+            /**
+             * Export Version
+             * @description Export format version for compatibility
+             * @default 1.0
+             */
+            export_version: string;
+            /**
+             * Exported At
+             * Format: date-time
+             * @description When the export was created
+             */
+            exported_at: string;
+            /**
+             * Source Version
+             * @description Version number this was exported from (if applicable)
+             */
+            source_version?: number | null;
+            /**
+             * Strategy
+             * @description Assignment strategy
+             */
+            strategy: string;
+        };
+        /**
+         * GpuConfigImportRequest
+         * @description Request schema for importing a GPU configuration.
+         *
+         *     Accepts exported configuration data and optional parameters
+         *     for how to handle the import.
+         * @example {
+         *       "apply_immediately": false,
+         *       "config": {
+         *         "assignments": [
+         *           {
+         *             "gpu_index": 0,
+         *             "service": "ai-llm"
+         *           }
+         *         ],
+         *         "export_version": "1.0",
+         *         "exported_at": "2026-01-23T10:30:00Z",
+         *         "strategy": "vram_based"
+         *       },
+         *       "description": "Imported from backup"
+         *     }
+         */
+        GpuConfigImportRequest: {
+            /**
+             * Apply Immediately
+             * @description Whether to apply the config after import (restart services)
+             * @default false
+             */
+            apply_immediately: boolean;
+            /** @description Configuration data to import */
+            config: components["schemas"]["GpuConfigExportData"];
+            /**
+             * Description
+             * @description Description for the new version (overrides export description)
+             */
+            description?: string | null;
+        };
+        /**
+         * GpuConfigImportResponse
+         * @description Response schema for GPU configuration import.
+         *
+         *     Returns the result of the import operation including
+         *     validation results and the new version if created.
+         * @example {
+         *       "applied": false,
+         *       "new_version": {
+         *         "assignment_count": 5,
+         *         "created_at": "2026-01-23T10:35:00Z",
+         *         "created_by": "import",
+         *         "description": "Imported from backup",
+         *         "id": "550e8400-e29b-41d4-a716-446655440000",
+         *         "strategy": "vram_based",
+         *         "version_number": 4
+         *       },
+         *       "success": true,
+         *       "validation": {
+         *         "errors": [],
+         *         "valid": true,
+         *         "warnings": []
+         *       }
+         *     }
+         */
+        GpuConfigImportResponse: {
+            /**
+             * Applied
+             * @description Whether the config was applied (services restarted)
+             * @default false
+             */
+            applied: boolean;
+            /** @description The newly created version (if import succeeded) */
+            new_version?: components["schemas"]["GpuConfigVersionSummary"] | null;
+            /**
+             * Success
+             * @description Whether the import was successful
+             */
+            success: boolean;
+            /** @description Validation results */
+            validation: components["schemas"]["GpuConfigImportValidation"];
+        };
+        /**
+         * GpuConfigImportValidation
+         * @description Validation results for an imported configuration.
+         *
+         *     Reports any issues found during validation before import.
+         * @example {
+         *       "errors": [],
+         *       "valid": true,
+         *       "warnings": [
+         *         "Service 'ai-florence' not found - will be skipped",
+         *         "GPU 2 is over VRAM budget by 512 MB"
+         *       ]
+         *     }
+         */
+        GpuConfigImportValidation: {
+            /**
+             * Errors
+             * @description Blocking errors that prevent import
+             */
+            errors?: string[];
+            /**
+             * Valid
+             * @description Whether the configuration is valid for import
+             */
+            valid: boolean;
+            /**
+             * Warnings
+             * @description Non-blocking warnings about the configuration
+             */
+            warnings?: string[];
+        };
         /**
          * GpuConfigPreviewResponse
          * @description Response schema for previewing auto-assignment.
@@ -23351,6 +24671,80 @@ export interface components {
              * @description Timestamp of last configuration update
              */
             updated_at?: string | null;
+        };
+        /**
+         * GpuConfigRollbackRequest
+         * @description Request schema for rolling back to a previous configuration version.
+         *
+         *     Specifies which version to restore and how to handle the rollback.
+         * @example {
+         *       "apply_immediately": true,
+         *       "description": "Rollback to stable configuration",
+         *       "version_id": "550e8400-e29b-41d4-a716-446655440000"
+         *     }
+         */
+        GpuConfigRollbackRequest: {
+            /**
+             * Apply Immediately
+             * @description Whether to apply the rollback (restart services)
+             * @default true
+             */
+            apply_immediately: boolean;
+            /**
+             * Description
+             * @description Description for the new version created by rollback
+             */
+            description?: string | null;
+            /**
+             * Version Id
+             * @description ID of the version to roll back to
+             */
+            version_id: string;
+        };
+        /**
+         * GpuConfigRollbackResponse
+         * @description Response schema for configuration rollback.
+         *
+         *     Returns the result of the rollback operation.
+         * @example {
+         *       "applied": true,
+         *       "new_version": {
+         *         "assignment_count": 5,
+         *         "created_at": "2026-01-23T11:00:00Z",
+         *         "created_by": "rollback",
+         *         "description": "Rollback to version 3",
+         *         "id": "660f9500-f30c-52e5-b827-557766550111",
+         *         "strategy": "vram_based",
+         *         "version_number": 6
+         *       },
+         *       "rolled_back_from": 5,
+         *       "rolled_back_to": 3,
+         *       "success": true
+         *     }
+         */
+        GpuConfigRollbackResponse: {
+            /**
+             * Applied
+             * @description Whether the config was applied (services restarted)
+             */
+            applied: boolean;
+            /** @description The newly created version after rollback */
+            new_version: components["schemas"]["GpuConfigVersionSummary"];
+            /**
+             * Rolled Back From
+             * @description Version number before rollback
+             */
+            rolled_back_from: number;
+            /**
+             * Rolled Back To
+             * @description Version number that was restored
+             */
+            rolled_back_to: number;
+            /**
+             * Success
+             * @description Whether the rollback was successful
+             */
+            success: boolean;
         };
         /**
          * GpuConfigStatusResponse
@@ -23449,6 +24843,220 @@ export interface components {
              * @description Warnings about the configuration (e.g., VRAM overages)
              */
             warnings?: string[];
+        };
+        /**
+         * GpuConfigVersionDetail
+         * @description Full details of a GPU configuration version.
+         *
+         *     Extends the summary with complete assignment data for viewing
+         *     or restoring a specific version.
+         * @example {
+         *       "assignment_count": 3,
+         *       "assignments": [
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-llm"
+         *         },
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-yolo26"
+         *         },
+         *         {
+         *           "gpu_index": 1,
+         *           "service": "ai-enrichment",
+         *           "vram_budget_override": 3.5
+         *         }
+         *       ],
+         *       "created_at": "2026-01-23T10:30:00Z",
+         *       "created_by": "system",
+         *       "description": "Moved LLM to GPU 0 for better VRAM utilization",
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "strategy": "vram_based",
+         *       "version_number": 3
+         *     }
+         */
+        GpuConfigVersionDetail: {
+            /**
+             * Assignment Count
+             * @description Number of service assignments in this version
+             */
+            assignment_count: number;
+            /**
+             * Assignments
+             * @description Complete service-to-GPU assignments for this version
+             */
+            assignments: components["schemas"]["GpuAssignment"][];
+            /**
+             * Created At
+             * Format: date-time
+             * @description When this version was created
+             */
+            created_at: string;
+            /**
+             * Created By
+             * @description Who created this version (if tracked)
+             */
+            created_by?: string | null;
+            /**
+             * Description
+             * @description Optional description of changes
+             */
+            description?: string | null;
+            /**
+             * Id
+             * @description Unique version identifier
+             */
+            id: string;
+            /**
+             * Strategy
+             * @description Assignment strategy used in this version
+             */
+            strategy: string;
+            /**
+             * Version Number
+             * @description Sequential version number (higher = newer)
+             */
+            version_number: number;
+        };
+        /**
+         * GpuConfigVersionDiffResponse
+         * @description Response schema for comparing two configuration versions.
+         *
+         *     Shows the differences between two versions including strategy
+         *     and assignment changes.
+         * @example {
+         *       "assignment_changes": [
+         *         {
+         *           "change_type": "modified",
+         *           "new_gpu_index": 0,
+         *           "old_gpu_index": 1,
+         *           "service": "ai-llm"
+         *         }
+         *       ],
+         *       "from_version": 2,
+         *       "new_strategy": "vram_based",
+         *       "old_strategy": "manual",
+         *       "strategy_changed": true,
+         *       "to_version": 3
+         *     }
+         */
+        GpuConfigVersionDiffResponse: {
+            /**
+             * Assignment Changes
+             * @description List of assignment changes
+             */
+            assignment_changes?: components["schemas"]["GpuConfigAssignmentChange"][];
+            /**
+             * From Version
+             * @description Source version number
+             */
+            from_version: number;
+            /**
+             * New Strategy
+             * @description Strategy in target version
+             */
+            new_strategy?: string | null;
+            /**
+             * Old Strategy
+             * @description Strategy in source version
+             */
+            old_strategy?: string | null;
+            /**
+             * Strategy Changed
+             * @description Whether the strategy changed between versions
+             */
+            strategy_changed: boolean;
+            /**
+             * To Version
+             * @description Target version number
+             */
+            to_version: number;
+        };
+        /**
+         * GpuConfigVersionListResponse
+         * @description Response schema for listing configuration versions.
+         *
+         *     Returns paginated version history with summary information.
+         * @example {
+         *       "total_count": 3,
+         *       "versions": [
+         *         {
+         *           "assignment_count": 5,
+         *           "created_at": "2026-01-23T10:30:00Z",
+         *           "created_by": "system",
+         *           "description": "Updated for multi-GPU setup",
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "strategy": "vram_based",
+         *           "version_number": 3
+         *         }
+         *       ]
+         *     }
+         */
+        GpuConfigVersionListResponse: {
+            /**
+             * Total Count
+             * @description Total number of versions
+             */
+            total_count: number;
+            /**
+             * Versions
+             * @description List of version summaries, newest first
+             */
+            versions: components["schemas"]["GpuConfigVersionSummary"][];
+        };
+        /**
+         * GpuConfigVersionSummary
+         * @description Summary of a GPU configuration version for listing.
+         *
+         *     Provides a brief overview of each version for the history list,
+         *     including version number, strategy, timestamp, and description.
+         * @example {
+         *       "assignment_count": 5,
+         *       "created_at": "2026-01-23T10:30:00Z",
+         *       "created_by": "system",
+         *       "description": "Moved LLM to GPU 0 for better VRAM utilization",
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "strategy": "vram_based",
+         *       "version_number": 3
+         *     }
+         */
+        GpuConfigVersionSummary: {
+            /**
+             * Assignment Count
+             * @description Number of service assignments in this version
+             */
+            assignment_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When this version was created
+             */
+            created_at: string;
+            /**
+             * Created By
+             * @description Who created this version (if tracked)
+             */
+            created_by?: string | null;
+            /**
+             * Description
+             * @description Optional description of changes
+             */
+            description?: string | null;
+            /**
+             * Id
+             * @description Unique version identifier
+             */
+            id: string;
+            /**
+             * Strategy
+             * @description Assignment strategy used in this version
+             */
+            strategy: string;
+            /**
+             * Version Number
+             * @description Sequential version number (higher = newer)
+             */
+            version_number: number;
         };
         /**
          * GpuDeviceResponse
@@ -31984,6 +33592,34 @@ export interface components {
             vehicle_type?: components["schemas"]["VehicleType"] | null;
         };
         /**
+         * RejectEnrollmentRequest
+         * @description Schema for rejecting an enrollment candidate.
+         * @example {
+         *       "reason": "Not a household member"
+         *     }
+         */
+        RejectEnrollmentRequest: {
+            /**
+             * Reason
+             * @description Optional reason for rejection
+             */
+            reason?: string | null;
+        };
+        /**
+         * RejectEnrollmentResponse
+         * @description Schema for reject enrollment response.
+         * @example {
+         *       "success": true
+         *     }
+         */
+        RejectEnrollmentResponse: {
+            /**
+             * Success
+             * @description Whether rejection was successful
+             */
+            success: boolean;
+        };
+        /**
          * ReplayResponse
          * @description Response for request replay.
          */
@@ -37163,6 +38799,73 @@ export interface components {
             zone_id: string;
         };
         /**
+         * ZoneApproachVectorsResponse
+         * @description Response containing approach vectors for a zone.
+         *
+         *     Provides real-time movement analysis for all tracked entities
+         *     approaching a specific zone.
+         * @example {
+         *       "approach_vectors": [
+         *         {
+         *           "current_position": {
+         *             "x": 0.35,
+         *             "y": 0.4
+         *           },
+         *           "direction_degrees": 45,
+         *           "distance_to_zone": 0.15,
+         *           "estimated_arrival_seconds": 3,
+         *           "is_approaching": true,
+         *           "object_class": "person",
+         *           "speed_normalized": 0.05,
+         *           "track_id": 42,
+         *           "urgency": "imminent",
+         *           "zone_centroid": {
+         *             "x": 0.5,
+         *             "y": 0.5
+         *           }
+         *         }
+         *       ],
+         *       "imminent_count": 1,
+         *       "timestamp": "2026-01-31T12:00:00Z",
+         *       "total_approaching": 1,
+         *       "zone_id": 1,
+         *       "zone_name": "Front Door"
+         *     }
+         */
+        ZoneApproachVectorsResponse: {
+            /**
+             * Approach Vectors
+             * @description Approach vectors for all tracked entities
+             */
+            approach_vectors: components["schemas"]["ApproachVectorData"][];
+            /**
+             * Imminent Count
+             * @description Number of entities with imminent arrival (ETA < 3s)
+             */
+            imminent_count: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of the analysis
+             */
+            timestamp: string;
+            /**
+             * Total Approaching
+             * @description Total number of entities approaching the zone
+             */
+            total_approaching: number;
+            /**
+             * Zone Id
+             * @description ID of the polygon zone
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Zone name for display
+             */
+            zone_name: string;
+        };
+        /**
          * ZoneComparisonData
          * @description Comparison data for a single zone.
          *
@@ -37332,6 +39035,111 @@ export interface components {
              * @default other
              */
             zone_type: components["schemas"]["CameraZoneType"];
+        };
+        /**
+         * ZoneEntityDistribution
+         * @description Entity distribution for a single zone.
+         * @example {
+         *       "entity_types": [
+         *         {
+         *           "count": 42,
+         *           "entity_type": "person",
+         *           "percentage": 65.63
+         *         },
+         *         {
+         *           "count": 15,
+         *           "entity_type": "vehicle",
+         *           "percentage": 23.44
+         *         },
+         *         {
+         *           "count": 7,
+         *           "entity_type": "dog",
+         *           "percentage": 10.94
+         *         }
+         *       ],
+         *       "total_entities": 64,
+         *       "zone_id": 1,
+         *       "zone_name": "Front Yard"
+         *     }
+         */
+        ZoneEntityDistribution: {
+            /**
+             * Entity Types
+             * @description Breakdown of entity types in this zone
+             */
+            entity_types: components["schemas"]["EntityTypeCount"][];
+            /**
+             * Total Entities
+             * @description Total number of entities in this zone
+             */
+            total_entities: number;
+            /**
+             * Zone Id
+             * @description Zone ID
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Zone name for display
+             */
+            zone_name: string;
+        };
+        /**
+         * ZoneEntityDistributionResponse
+         * @description Response containing entity distribution across multiple zones.
+         * @example {
+         *       "end_time": "2026-01-31T23:59:59Z",
+         *       "grand_total": 64,
+         *       "start_time": "2026-01-31T00:00:00Z",
+         *       "zones": [
+         *         {
+         *           "entity_types": [
+         *             {
+         *               "count": 42,
+         *               "entity_type": "person",
+         *               "percentage": 65.63
+         *             },
+         *             {
+         *               "count": 15,
+         *               "entity_type": "vehicle",
+         *               "percentage": 23.44
+         *             },
+         *             {
+         *               "count": 7,
+         *               "entity_type": "dog",
+         *               "percentage": 10.94
+         *             }
+         *           ],
+         *           "total_entities": 64,
+         *           "zone_id": 1,
+         *           "zone_name": "Front Yard"
+         *         }
+         *       ]
+         *     }
+         */
+        ZoneEntityDistributionResponse: {
+            /**
+             * End Time
+             * Format: date-time
+             * @description End of the query time window
+             */
+            end_time: string;
+            /**
+             * Grand Total
+             * @description Total entities across all zones
+             */
+            grand_total: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start of the query time window
+             */
+            start_time: string;
+            /**
+             * Zones
+             * @description Entity distribution per zone
+             */
+            zones: components["schemas"]["ZoneEntityDistribution"][];
         };
         /**
          * ZoneHouseholdConfigCreate
@@ -39494,6 +41302,44 @@ export interface operations {
             };
         };
     };
+    "analytics-zones_get_camera_approach_vectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approach vectors retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraApproachVectorsResponse"];
+                };
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "analytics-zones_compare_zones": {
         parameters: {
             query: {
@@ -39525,6 +41371,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "analytics-zones_get_all_zones_entity_distribution": {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID (optional) */
+                camera_id?: string | null;
+                /** @description Start of time window (defaults to 24 hours ago) */
+                start_time?: string | null;
+                /** @description End of time window (defaults to now) */
+                end_time?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Entity distribution retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneEntityDistributionResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -40011,6 +41893,44 @@ export interface operations {
             };
         };
     };
+    "analytics-zones_get_zone_approach_vectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approach vectors retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneApproachVectorsResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "analytics-zones_check_loitering": {
         parameters: {
             query?: never;
@@ -40159,6 +42079,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActiveDwellersListResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "analytics-zones_get_zone_entity_distribution": {
+        parameters: {
+            query?: {
+                /** @description Start of time window (defaults to 24 hours ago) */
+                start_time?: string | null;
+                /** @description End of time window (defaults to now) */
+                end_time?: string | null;
+            };
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Entity distribution retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneEntityDistribution"];
                 };
             };
             /** @description Polygon zone not found */
@@ -40713,6 +42676,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "face-recognition_get_auto_enrollment_settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutoEnrollmentSettingsResponse"];
+                };
             };
         };
     };
@@ -43514,6 +45497,143 @@ export interface operations {
             };
         };
     };
+    "face-recognition_list_enrollment_candidates": {
+        parameters: {
+            query?: {
+                /** @description Filter by status: pending/approved/rejected/auto_enrolled */
+                status_filter?: string | null;
+                /** @description Maximum candidates to return */
+                limit?: number;
+                /** @description Number of candidates to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentCandidateListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_get_enrollment_candidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentCandidateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_approve_enrollment_candidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveEnrollmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApproveEnrollmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_reject_enrollment_candidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectEnrollmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RejectEnrollmentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     entities_list_entities: {
         parameters: {
             query?: {
@@ -45120,6 +47240,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FaceDetectionEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_compare_faces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_face-recognition_compare_faces"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceSimilarityCompareResponse"];
                 };
             };
             /** @description Validation Error */
@@ -46763,6 +48916,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KnownPersonResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_bulk_enroll_faces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_face-recognition_bulk_enroll_faces"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkEnrollmentResponse"];
                 };
             };
             /** @description Validation Error */
@@ -50080,6 +52266,226 @@ export interface operations {
             };
         };
     };
+    "gpu-config_export_gpu_config": {
+        parameters: {
+            query?: {
+                /** @description Export specific version (default: current) */
+                version_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigExportData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to export configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "gpu-config_list_config_versions": {
+        parameters: {
+            query?: {
+                /** @description Maximum versions to return */
+                limit?: number;
+                /** @description Number of versions to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigVersionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to load version history */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "gpu-config_diff_config_versions": {
+        parameters: {
+            query: {
+                /** @description Source version number */
+                from_version: number;
+                /** @description Target version number */
+                to_version: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigVersionDiffResponse"];
+                };
+            };
+            /** @description Version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to compute diff */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "gpu-config_get_config_version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigVersionDetail"];
+                };
+            };
+            /** @description Version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to load version */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "gpu-config_import_gpu_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuConfigImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigImportResponse"];
+                };
+            };
+            /** @description Invalid configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to import configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "gpu-config_preview_gpu_config": {
         parameters: {
             query: {
@@ -50118,6 +52524,53 @@ export interface operations {
                 };
             };
             /** @description Preview generation failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "gpu-config_rollback_gpu_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuConfigRollbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigRollbackResponse"];
+                };
+            };
+            /** @description Version not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to rollback */
             500: {
                 headers: {
                     [name: string]: unknown;

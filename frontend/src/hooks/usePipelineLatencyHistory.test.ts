@@ -515,4 +515,110 @@ describe('usePipelineLatencyHistory', () => {
       expect(pipelineLatencyApi.getPipelineLatencyHistory).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('percentile chart data transformation', () => {
+    it('should return percentileChartData with P50/P95/P99 values', async () => {
+      vi.mocked(pipelineLatencyApi.getPipelineLatencyHistory).mockResolvedValue(
+        mockLatencyHistoryResponse
+      );
+
+      const { result } = renderHook(() => usePipelineLatencyHistory());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.percentileChartData).toBeDefined();
+      expect(Array.isArray(result.current.percentileChartData)).toBe(true);
+    });
+
+    it('should include P50, P95, P99 in percentile chart data', async () => {
+      vi.mocked(pipelineLatencyApi.getPipelineLatencyHistory).mockResolvedValue(
+        mockLatencyHistoryResponse
+      );
+
+      const { result } = renderHook(() => usePipelineLatencyHistory());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      result.current.percentileChartData?.forEach((point) => {
+        expect(point).toHaveProperty('timestamp');
+        expect(point).toHaveProperty('P50');
+        expect(point).toHaveProperty('P95');
+        expect(point).toHaveProperty('P99');
+      });
+    });
+
+    it('should use total_pipeline percentiles for chart values', async () => {
+      vi.mocked(pipelineLatencyApi.getPipelineLatencyHistory).mockResolvedValue(
+        mockLatencyHistoryResponse
+      );
+
+      const { result } = renderHook(() => usePipelineLatencyHistory());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const firstPoint = result.current.percentileChartData?.[0];
+      // Values from mockLatencyHistoryResponse.snapshots[0].stages.total_pipeline
+      expect(firstPoint?.P50).toBe(635);
+      expect(firstPoint?.P95).toBe(980);
+      expect(firstPoint?.P99).toBe(1250);
+    });
+
+    it('should handle missing total_pipeline percentiles gracefully', async () => {
+      vi.mocked(pipelineLatencyApi.getPipelineLatencyHistory).mockResolvedValue({
+        snapshots: [
+          {
+            timestamp: '2025-01-31T10:00:00Z',
+            stages: {
+              watch_to_detect: {
+                avg_ms: 150,
+                p50_ms: 140,
+                p95_ms: 200,
+                p99_ms: 250,
+                sample_count: 100,
+              },
+              // total_pipeline is missing
+            },
+          },
+        ],
+        window_minutes: 60,
+        bucket_seconds: 60,
+        timestamp: '2025-01-31T10:00:00Z',
+      });
+
+      const { result } = renderHook(() => usePipelineLatencyHistory());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const firstPoint = result.current.percentileChartData?.[0];
+      expect(firstPoint?.P50).toBe(0);
+      expect(firstPoint?.P95).toBe(0);
+      expect(firstPoint?.P99).toBe(0);
+    });
+
+    it('should return undefined percentileChartData when snapshots are missing', async () => {
+      vi.mocked(pipelineLatencyApi.getPipelineLatencyHistory).mockResolvedValue({
+        snapshots: [],
+        window_minutes: 60,
+        bucket_seconds: 60,
+        timestamp: '2025-01-31T10:00:00Z',
+      });
+
+      const { result } = renderHook(() => usePipelineLatencyHistory());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Empty array, not undefined
+      expect(result.current.percentileChartData).toEqual([]);
+    });
+  });
 });

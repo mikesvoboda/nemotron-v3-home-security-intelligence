@@ -48,6 +48,11 @@ export interface GpuListResponse {
 
 /**
  * GPU assignment for a single AI service.
+ *
+ * Affinity Constraints (NEM-4944):
+ * - exclusive_gpu: If true, service requires a dedicated GPU (no sharing)
+ * - priority_weight: Priority for auto-assignment (1-100, higher = more important)
+ * - incompatible_with: List of services that cannot share the same GPU
  */
 export interface GpuAssignment {
   /** Service name (e.g., "ai-llm", "ai-yolo26") */
@@ -56,6 +61,12 @@ export interface GpuAssignment {
   gpu_index: number | null;
   /** Optional VRAM budget override in GB */
   vram_budget_override?: number | null;
+  /** If true, service requires a dedicated GPU (no sharing) */
+  exclusive_gpu?: boolean;
+  /** Priority for auto-assignment algorithms (1-100, higher = more important) */
+  priority_weight?: number;
+  /** List of service names that cannot share the same GPU */
+  incompatible_with?: string[] | null;
 }
 
 /**
@@ -504,4 +515,355 @@ export async function getAiServices(): Promise<AiServicesResponse> {
  */
 export async function getServiceHealth(): Promise<ServiceHealthResponse> {
   return fetchGpuConfigApi<ServiceHealthResponse>('/gpu-config/services');
+}
+
+// ============================================================================
+// Version History Types (NEM-4945)
+// ============================================================================
+
+/**
+ * Summary of a GPU configuration version for listing.
+ */
+export interface GpuConfigVersionSummary {
+  /** Unique version identifier */
+  id: string;
+  /** Sequential version number (higher = newer) */
+  version_number: number;
+  /** Assignment strategy used in this version */
+  strategy: string;
+  /** Optional description of changes */
+  description: string | null;
+  /** When this version was created */
+  created_at: string;
+  /** Who created this version */
+  created_by: string | null;
+  /** Number of service assignments in this version */
+  assignment_count: number;
+}
+
+/**
+ * Full details of a GPU configuration version.
+ */
+export interface GpuConfigVersionDetail extends GpuConfigVersionSummary {
+  /** Complete service-to-GPU assignments for this version */
+  assignments: GpuAssignment[];
+}
+
+/**
+ * Response from version history list endpoint.
+ */
+export interface GpuConfigVersionListResponse {
+  /** List of version summaries, newest first */
+  versions: GpuConfigVersionSummary[];
+  /** Total number of versions */
+  total_count: number;
+}
+
+/**
+ * A single assignment change in a version diff.
+ */
+export interface GpuConfigAssignmentChange {
+  /** Service name */
+  service: string;
+  /** Type of change: 'added', 'removed', or 'modified' */
+  change_type: 'added' | 'removed' | 'modified';
+  /** Previous GPU index (for modified/removed) */
+  old_gpu_index: number | null;
+  /** New GPU index (for added/modified) */
+  new_gpu_index: number | null;
+  /** Previous VRAM override (for modified/removed) */
+  old_vram_override: number | null;
+  /** New VRAM override (for added/modified) */
+  new_vram_override: number | null;
+}
+
+/**
+ * Response from version diff endpoint.
+ */
+export interface GpuConfigVersionDiffResponse {
+  /** Source version number */
+  from_version: number;
+  /** Target version number */
+  to_version: number;
+  /** Whether the strategy changed between versions */
+  strategy_changed: boolean;
+  /** Strategy in source version */
+  old_strategy: string | null;
+  /** Strategy in target version */
+  new_strategy: string | null;
+  /** List of assignment changes */
+  assignment_changes: GpuConfigAssignmentChange[];
+}
+
+// ============================================================================
+// Export/Import Types (NEM-4945)
+// ============================================================================
+
+/**
+ * Exported GPU configuration data.
+ */
+export interface GpuConfigExportData {
+  /** Export format version for compatibility */
+  export_version: string;
+  /** When the export was created */
+  exported_at: string;
+  /** Assignment strategy */
+  strategy: string;
+  /** Service-to-GPU assignments */
+  assignments: GpuAssignment[];
+  /** Version number this was exported from */
+  source_version: number | null;
+  /** Optional description for this configuration */
+  description: string | null;
+}
+
+/**
+ * Request for importing a GPU configuration.
+ */
+export interface GpuConfigImportRequest {
+  /** Configuration data to import */
+  config: GpuConfigExportData;
+  /** Whether to apply the config after import */
+  apply_immediately?: boolean;
+  /** Description for the new version */
+  description?: string | null;
+}
+
+/**
+ * Validation results for an imported configuration.
+ */
+export interface GpuConfigImportValidation {
+  /** Whether the configuration is valid for import */
+  valid: boolean;
+  /** Non-blocking warnings */
+  warnings: string[];
+  /** Blocking errors */
+  errors: string[];
+}
+
+/**
+ * Response from import endpoint.
+ */
+export interface GpuConfigImportResponse {
+  /** Whether the import was successful */
+  success: boolean;
+  /** Validation results */
+  validation: GpuConfigImportValidation;
+  /** The newly created version (if import succeeded) */
+  new_version: GpuConfigVersionSummary | null;
+  /** Whether the config was applied */
+  applied: boolean;
+}
+
+/**
+ * Request for rolling back to a previous version.
+ */
+export interface GpuConfigRollbackRequest {
+  /** ID of the version to roll back to */
+  version_id: string;
+  /** Whether to apply the rollback */
+  apply_immediately?: boolean;
+  /** Description for the new version */
+  description?: string | null;
+}
+
+/**
+ * Response from rollback endpoint.
+ */
+export interface GpuConfigRollbackResponse {
+  /** Whether the rollback was successful */
+  success: boolean;
+  /** Version number before rollback */
+  rolled_back_from: number;
+  /** Version number that was restored */
+  rolled_back_to: number;
+  /** The newly created version after rollback */
+  new_version: GpuConfigVersionSummary;
+  /** Whether the config was applied */
+  applied: boolean;
+}
+
+// ============================================================================
+// Version History API Functions (NEM-4945)
+// ============================================================================
+
+/**
+ * Get list of configuration versions.
+ *
+ * Returns paginated version history ordered by creation time (newest first).
+ *
+ * @param limit - Maximum versions to return (1-100)
+ * @param offset - Number of versions to skip
+ * @returns Version list with total count
+ * @throws GpuConfigApiError on server errors
+ */
+export async function getConfigVersions(
+  limit: number = 20,
+  offset: number = 0
+): Promise<GpuConfigVersionListResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('limit', limit.toString());
+  queryParams.append('offset', offset.toString());
+
+  return fetchGpuConfigApi<GpuConfigVersionListResponse>(
+    `/gpu-config/history?${queryParams.toString()}`
+  );
+}
+
+/**
+ * Get details of a specific configuration version.
+ *
+ * Returns full configuration including all assignments.
+ *
+ * @param versionId - Version identifier
+ * @returns Version details with assignments
+ * @throws GpuConfigApiError if version not found or on server errors
+ */
+export async function getConfigVersion(versionId: string): Promise<GpuConfigVersionDetail> {
+  return fetchGpuConfigApi<GpuConfigVersionDetail>(`/gpu-config/history/${versionId}`);
+}
+
+/**
+ * Compare two configuration versions.
+ *
+ * Returns differences between versions including strategy and assignment changes.
+ *
+ * @param fromVersion - Source version number
+ * @param toVersion - Target version number
+ * @returns Diff between versions
+ * @throws GpuConfigApiError if versions not found or on server errors
+ */
+export async function diffConfigVersions(
+  fromVersion: number,
+  toVersion: number
+): Promise<GpuConfigVersionDiffResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('from_version', fromVersion.toString());
+  queryParams.append('to_version', toVersion.toString());
+
+  return fetchGpuConfigApi<GpuConfigVersionDiffResponse>(
+    `/gpu-config/history/diff?${queryParams.toString()}`
+  );
+}
+
+// ============================================================================
+// Export/Import API Functions (NEM-4945)
+// ============================================================================
+
+/**
+ * Export GPU configuration.
+ *
+ * Exports current configuration or a specific version in JSON format.
+ *
+ * @param versionId - Optional version ID to export (default: current)
+ * @returns Exportable configuration data
+ * @throws GpuConfigApiError on server errors
+ */
+export async function exportGpuConfig(versionId?: string): Promise<GpuConfigExportData> {
+  const queryParams = new URLSearchParams();
+  if (versionId) {
+    queryParams.append('version_id', versionId);
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/gpu-config/export?${queryString}` : '/gpu-config/export';
+
+  return fetchGpuConfigApi<GpuConfigExportData>(endpoint);
+}
+
+/**
+ * Import GPU configuration.
+ *
+ * Validates and imports a configuration from export data.
+ *
+ * @param request - Import request with configuration data
+ * @returns Import result with validation and new version
+ * @throws GpuConfigApiError on server errors
+ */
+export async function importGpuConfig(
+  request: GpuConfigImportRequest
+): Promise<GpuConfigImportResponse> {
+  return fetchGpuConfigApi<GpuConfigImportResponse>('/gpu-config/import', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Rollback to a previous configuration version.
+ *
+ * Restores the configuration from a specific version.
+ *
+ * @param request - Rollback request with version ID
+ * @returns Rollback result with new version
+ * @throws GpuConfigApiError if version not found or on server errors
+ */
+export async function rollbackGpuConfig(
+  request: GpuConfigRollbackRequest
+): Promise<GpuConfigRollbackResponse> {
+  return fetchGpuConfigApi<GpuConfigRollbackResponse>('/gpu-config/rollback', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Download GPU configuration as a file.
+ *
+ * Helper function that exports the configuration and triggers a file download.
+ *
+ * @param versionId - Optional version ID to export
+ * @param format - Export format ('json' or 'yaml')
+ */
+export async function downloadGpuConfig(
+  versionId?: string,
+  format: 'json' | 'yaml' = 'json'
+): Promise<void> {
+  const exportData = await exportGpuConfig(versionId);
+
+  let content: string;
+  let mimeType: string;
+  let extension: string;
+
+  if (format === 'yaml') {
+    // Simple YAML conversion (for complex YAML, consider using a library)
+    const yamlLines: string[] = [
+      '# GPU Configuration Export',
+      `# Exported at: ${exportData.exported_at}`,
+      '',
+      `export_version: "${exportData.export_version}"`,
+      `strategy: "${exportData.strategy}"`,
+      exportData.source_version !== null ? `source_version: ${exportData.source_version}` : '',
+      exportData.description ? `description: "${exportData.description}"` : '',
+      '',
+      'assignments:',
+    ];
+
+    for (const assignment of exportData.assignments) {
+      yamlLines.push(`  - service: "${assignment.service}"`);
+      yamlLines.push(`    gpu_index: ${assignment.gpu_index ?? 'null'}`);
+      if (assignment.vram_budget_override !== null && assignment.vram_budget_override !== undefined) {
+        yamlLines.push(`    vram_budget_override: ${assignment.vram_budget_override}`);
+      }
+    }
+
+    content = yamlLines.filter(line => line !== '').join('\n');
+    mimeType = 'text/yaml';
+    extension = 'yaml';
+  } else {
+    content = JSON.stringify(exportData, null, 2);
+    mimeType = 'application/json';
+    extension = 'json';
+  }
+
+  // Create and trigger download
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `gpu-config-${new Date().toISOString().slice(0, 10)}.${extension}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

@@ -33,6 +33,13 @@ export { default as ZoneAlertFeed, ZoneAlertFeed as ZoneAlertFeedNamed } from '.
 export { default as LineZoneEditor } from './LineZoneEditor';
 export { default as PolygonZoneEditor } from './PolygonZoneEditor';
 
+// Entity distribution components (NEM-4937)
+export { default as ZoneEntityDistributionCard } from './ZoneEntityDistributionCard';
+export { default as ZoneEntityDistributionPanel } from './ZoneEntityDistributionPanel';
+
+// Approach vector components (NEM-4936)
+export { default as ApproachVectorOverlay } from './ApproachVectorOverlay';
+
 // Re-export types
 export type { ZoneEditorProps, ZoneEditorLegacyProps, ZoneEditorEnhancedProps } from './ZoneEditor';
 export type { ZoneEditorSidebarProps, SidebarTab } from './ZoneEditorSidebar';
@@ -51,3 +58,6 @@ export type { CameraZoneOverlayProps, OverlayMode } from './CameraZoneOverlay';
 export type { ZoneAlertFeedProps } from '../../types/zoneAlert';
 export type { LineZoneEditorProps } from './LineZoneEditor';
 export type { PolygonZoneEditorProps, ExistingZone } from './PolygonZoneEditor';
+export type { ZoneEntityDistributionCardProps } from './ZoneEntityDistributionCard';
+export type { ZoneEntityDistributionPanelProps } from './ZoneEntityDistributionPanel';
+export type { ApproachVectorOverlayProps } from './ApproachVectorOverlay';

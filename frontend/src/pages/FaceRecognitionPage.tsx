@@ -20,9 +20,10 @@
 
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { ScanFace, Users, Activity } from 'lucide-react';
+import { ScanFace, Users, Activity, Wrench } from 'lucide-react';
 import { useState, useCallback } from 'react';
 
+import { FaceSimilarityDebugTool } from '../components/face-recognition';
 import { useUnknownStrangerAlerts } from '../hooks/useUnknownStrangerAlerts';
 
 // ============================================================================
@@ -89,6 +90,18 @@ function PersonTrackingTabContent() {
   );
 }
 
+/**
+ * Debug Tools tab content.
+ * Contains developer tools for testing and debugging face recognition features.
+ */
+function DebugToolsTabContent() {
+  return (
+    <div data-testid="debug-tools-tab-content">
+      <FaceSimilarityDebugTool />
+    </div>
+  );
+}
+
 // ============================================================================
 // Tab Configuration
 // ============================================================================
@@ -121,6 +134,12 @@ const tabs: TabConfig[] = [
     name: 'Person Tracking',
     icon: Activity,
     component: PersonTrackingTabContent,
+  },
+  {
+    id: 'debug-tools',
+    name: 'Debug Tools',
+    icon: Wrench,
+    component: DebugToolsTabContent,
   },
 ];
 

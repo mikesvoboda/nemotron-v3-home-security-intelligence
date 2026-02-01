@@ -43,6 +43,10 @@ export interface GpuAssignmentTableProps {
   onAssignmentChange: (service: string, gpuIndex: number | null) => void;
   /** Callback when VRAM budget override is changed */
   onVramOverrideChange?: (service: string, vramOverride: number | null) => void;
+  /** Callback when exclusive GPU flag is changed (NEM-4944) */
+  onExclusiveGpuChange?: (service: string, exclusive: boolean) => void;
+  /** Callback when priority weight is changed (NEM-4944) */
+  onPriorityWeightChange?: (service: string, priority: number) => void;
   /** Whether the table is in loading state */
   isLoading?: boolean;
   /** Whether changes are pending (not yet saved) */
@@ -131,6 +135,12 @@ function LoadingRow() {
       </td>
       <td className="px-4 py-3">
         <div className="h-4 w-16 rounded bg-gray-700" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="h-4 w-4 rounded bg-gray-700" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="h-4 w-12 rounded bg-gray-700" />
       </td>
       <td className="px-4 py-3">
         <div className="h-5 w-20 rounded bg-gray-700" />
@@ -240,6 +250,8 @@ export default function GpuAssignmentTable({
   strategy,
   onAssignmentChange,
   onVramOverrideChange,
+  onExclusiveGpuChange,
+  onPriorityWeightChange,
   isLoading = false,
   hasPendingChanges = false,
   className,
@@ -284,6 +296,8 @@ export default function GpuAssignmentTable({
               <th className="px-4 py-3 font-medium">Service</th>
               <th className="px-4 py-3 font-medium">Current GPU</th>
               <th className="px-4 py-3 font-medium">VRAM Required</th>
+              <th className="px-4 py-3 font-medium">Exclusive</th>
+              <th className="px-4 py-3 font-medium">Priority</th>
               <th className="px-4 py-3 font-medium">Status</th>
             </tr>
           </thead>
@@ -382,6 +396,60 @@ export default function GpuAssignmentTable({
                           {formatVram(vramRequired)}
                         </span>
                       )}
+                    </td>
+
+                    {/* Exclusive GPU (NEM-4944) */}
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={assignment.exclusive_gpu ?? false}
+                        onChange={(e) => {
+                          if (onExclusiveGpuChange) {
+                            onExclusiveGpuChange(assignment.service, e.target.checked);
+                          }
+                        }}
+                        disabled={!isManual || !onExclusiveGpuChange}
+                        className={clsx(
+                          'h-4 w-4 rounded border-gray-600 bg-gray-800 text-[#76B900]',
+                          'focus:ring-[#76B900] focus:ring-offset-0',
+                          {
+                            'cursor-not-allowed opacity-60': !isManual || !onExclusiveGpuChange,
+                          }
+                        )}
+                        data-testid={`exclusive-gpu-${assignment.service}`}
+                        aria-label={`Exclusive GPU for ${assignment.service}`}
+                        title="Requires dedicated GPU (no sharing with other services)"
+                      />
+                    </td>
+
+                    {/* Priority Weight (NEM-4944) */}
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={assignment.priority_weight ?? 50}
+                        onChange={(e) => {
+                          if (onPriorityWeightChange) {
+                            const value = parseInt(e.target.value, 10);
+                            if (!isNaN(value) && value >= 1 && value <= 100) {
+                              onPriorityWeightChange(assignment.service, value);
+                            }
+                          }
+                        }}
+                        disabled={!isManual || !onPriorityWeightChange}
+                        className={clsx(
+                          'w-16 rounded-lg border bg-gray-800 px-2 py-1 text-sm text-white',
+                          'focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]',
+                          {
+                            'border-gray-700': true,
+                            'cursor-not-allowed opacity-60': !isManual || !onPriorityWeightChange,
+                          }
+                        )}
+                        data-testid={`priority-weight-${assignment.service}`}
+                        aria-label={`Priority weight for ${assignment.service}`}
+                        title="Priority for auto-assignment (1-100, higher = more important)"
+                      />
                     </td>
 
                     {/* Status */}

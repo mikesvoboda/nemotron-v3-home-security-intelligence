@@ -1376,6 +1376,33 @@ class Settings(BaseSettings):
         description="SSIM threshold for scene change detection (below = change detected)",
     )
 
+    # Face auto-enrollment settings (NEM-4941)
+    face_auto_enroll_enabled: bool = Field(
+        default=True,
+        description="Enable automatic face enrollment from high-confidence detections. "
+        "When enabled, faces meeting quality thresholds are added to enrollment queue.",
+    )
+    face_auto_enroll_quality_threshold: float = Field(
+        default=0.8,
+        ge=0.5,
+        le=1.0,
+        description="Minimum face quality score for auto-enrollment eligibility (0.5-1.0). "
+        "Higher values require clearer, better-quality face images.",
+    )
+    face_auto_enroll_similarity_threshold: float = Field(
+        default=0.85,
+        ge=0.5,
+        le=1.0,
+        description="Cosine similarity threshold for duplicate face detection (0.5-1.0). "
+        "Prevents enrolling faces that are already known persons.",
+    )
+    face_auto_enroll_auto_approve: bool = Field(
+        default=False,
+        description="Enable fully automatic enrollment without queue review. "
+        "When True, high-quality faces are immediately enrolled as 'Unknown Person N'. "
+        "When False (default), faces are added to a review queue for manual approval.",
+    )
+
     # Detection settings
     detection_confidence_threshold: float = Field(
         default=0.5,

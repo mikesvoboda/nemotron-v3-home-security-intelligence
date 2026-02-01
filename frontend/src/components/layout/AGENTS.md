@@ -6,16 +6,17 @@ Contains the core application layout components that provide consistent structur
 
 ## Files
 
-| File                          | Purpose                                        |
-| ----------------------------- | ---------------------------------------------- |
-| `Header.tsx`                  | Top navigation with branding and status        |
-| `Header.test.tsx`             | Test suite for Header                          |
-| `Layout.tsx`                  | Main layout wrapper composing Header + Sidebar |
-| `Layout.test.tsx`             | Test suite for Layout                          |
-| `MobileBottomNav.tsx`         | Bottom navigation bar for mobile devices       |
-| `MobileBottomNav.test.tsx`    | Test suite for MobileBottomNav                 |
-| `Sidebar.tsx`                 | Left navigation menu with route links          |
-| `Sidebar.test.tsx`            | Test suite for Sidebar                         |
+| File                          | Purpose                                            |
+| ----------------------------- | -------------------------------------------------- |
+| `Header.tsx`                  | Top navigation with branding and status            |
+| `Header.test.tsx`             | Test suite for Header                              |
+| `Layout.tsx`                  | Main layout wrapper composing Header + Sidebar     |
+| `Layout.test.tsx`             | Test suite for Layout                              |
+| `MobileBottomNav.tsx`         | Bottom navigation bar with "More" menu for mobile  |
+| `MobileBottomNav.test.tsx`    | Test suite for MobileBottomNav                     |
+| `Sidebar.tsx`                 | Left navigation menu with route links              |
+| `Sidebar.test.tsx`            | Test suite for Sidebar                             |
+| `sidebarNav.ts`               | Navigation configuration (groups, items, paths)    |
 
 ## Key Components
 
@@ -174,6 +175,60 @@ interface NavItem {
 
 **No props** - Uses React Router's NavLink and useSidebarContext hook
 
+---
+
+### MobileBottomNav.tsx
+
+**Purpose:** Fixed bottom navigation bar for mobile devices with "More" menu for accessing additional routes
+
+**Key Features:**
+
+- Primary navigation icons for most common routes (Dashboard, Timeline, Alerts)
+- "More" button that opens a bottom sheet with all other navigation groups
+- Uses navigation configuration from `sidebarNav.ts` for consistency
+- Safe area inset padding for iOS notch/home indicator support
+- Notification badge support for Alerts
+- Active state highlighting with NVIDIA green
+- Minimum 44x44px touch targets for accessibility
+
+**Primary Navigation (Bottom Bar):**
+
+| ID        | Label     | Icon  | Path        |
+| --------- | --------- | ----- | ----------- |
+| dashboard | Dashboard | Home  | `/`         |
+| timeline  | Timeline  | Clock | `/timeline` |
+| alerts    | Alerts    | Bell  | `/alerts`   |
+
+**More Menu Groups:**
+
+The "More" menu displays all routes from `sidebarNav.ts` that are not in the primary navigation:
+
+- **MONITORING**: Entities
+- **ANALYTICS**: Analytics, Video Analytics, AI Audit, AI Performance, AI Services, Profiling, Plate Reads, Face Recognition
+- **OPERATIONS**: Jobs, Pipeline, Dashboard, GPU Metrics, Request Profiling, Tracing, Logs
+- **ADMIN**: Audit Log, Data Management, Scheduled Reports, Webhooks, Trash, GPU Settings, Settings
+
+**Props Interface:**
+
+```typescript
+interface MobileBottomNavProps {
+  notificationCount?: number; // Badge count for Alerts icon
+}
+```
+
+**More Menu Implementation:**
+
+- Uses `BottomSheet` component from `../common/BottomSheet`
+- Groups are displayed with collapsible headers
+- Items show active state when route matches
+- Navigation closes the bottom sheet automatically
+
+**Styling:**
+
+- Height: h-14 (56px) plus safe area padding
+- Background: #1A1A1A with gray-800 top border
+- Fixed position at bottom with z-50 for overlay stacking
+
 ## Important Patterns
 
 ### Real-time System Status
@@ -230,6 +285,17 @@ The health indicator uses a hover tooltip with delay:
 - Active state styling
 - Badge rendering (WIP on Entities)
 - Icon rendering
+
+### MobileBottomNav.test.tsx
+
+- Primary navigation items rendered (Dashboard, Timeline, Alerts, More button)
+- More button opens bottom sheet menu
+- Navigation groups displayed in More menu
+- All routes accessible via More menu
+- Notification badge display
+- Active state styling
+- Touch target sizes (44px minimum)
+- ARIA labels and accessibility attributes
 
 ## Component Hierarchy
 

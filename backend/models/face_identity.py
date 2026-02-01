@@ -4,12 +4,15 @@ This module provides database models for face recognition:
 - KnownPerson: Registered persons for face recognition
 - FaceEmbedding: ArcFace embeddings for known persons
 - FaceDetectionEvent: Face detection events from cameras
+- EnrollmentCandidate: Queue for auto-enrollment review
 
 Implements NEM-3716: Face detection with InsightFace
 Implements NEM-3717: Face quality assessment for recognition
+Implements NEM-4941: Face Auto-Enrollment from High-Confidence Detections
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, LargeBinary, String, Text
@@ -21,6 +24,22 @@ from .camera import Base
 
 if TYPE_CHECKING:
     from .camera import Camera
+
+
+class EnrollmentStatus(str, Enum):
+    """Status of an enrollment candidate.
+
+    Attributes:
+        PENDING: Candidate is waiting for review
+        APPROVED: Candidate was approved and enrolled
+        REJECTED: Candidate was rejected by user
+        AUTO_ENROLLED: Candidate was automatically enrolled (no review)
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    AUTO_ENROLLED = "auto_enrolled"
 
 
 class KnownPerson(Base):
@@ -202,4 +221,84 @@ class FaceDetectionEvent(Base):
         return (
             f"<FaceDetectionEvent(id={self.id}, camera_id={self.camera_id!r}, "
             f"{match_info}, quality={self.quality_score:.2f})>"
+        )
+
+
+class EnrollmentCandidate(Base):
+    """Candidates for face auto-enrollment.
+
+    High-confidence face detections that meet quality thresholds are
+    added to this queue for review or automatic enrollment. This allows
+    users to approve or reject candidates before they become known persons.
+
+    Implements NEM-4941: Face Auto-Enrollment from High-Confidence Detections
+
+    Attributes:
+        id: Unique identifier for the candidate
+        face_event_id: FK to the source FaceDetectionEvent
+        embedding: Copy of the face embedding (for comparison)
+        quality_score: Face quality score when captured (0-1)
+        status: Current enrollment status (pending/approved/rejected/auto_enrolled)
+        suggested_name: Auto-generated or user-suggested name
+        enrolled_person_id: FK to KnownPerson if approved
+        rejection_reason: User-provided reason if rejected
+        reviewed_at: When the candidate was reviewed
+        created_at: When the candidate was added to queue
+    """
+
+    __tablename__ = "enrollment_candidates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    face_event_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("face_detection_events.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    quality_score: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default=EnrollmentStatus.PENDING.value,
+        nullable=False,
+    )
+    suggested_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    enrolled_person_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("known_persons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    # Relationships
+    face_event: Mapped[FaceDetectionEvent] = relationship(
+        "FaceDetectionEvent",
+        foreign_keys=[face_event_id],
+    )
+    enrolled_person: Mapped[KnownPerson | None] = relationship(
+        "KnownPerson",
+        foreign_keys=[enrolled_person_id],
+    )
+
+    __table_args__ = (
+        # Index for querying by status
+        Index("idx_enrollment_candidates_status", "status"),
+        # Index for querying by face event
+        Index("idx_enrollment_candidates_face_event", "face_event_id"),
+        # Index for time-based queries
+        Index("idx_enrollment_candidates_created_at", "created_at"),
+        # Index for filtering pending candidates
+        Index(
+            "idx_enrollment_candidates_pending",
+            "status",
+            postgresql_where=(status == EnrollmentStatus.PENDING.value),
+        ),
+    )
+
+    def __repr__(self) -> str:
+        quality = f"{self.quality_score:.2f}" if self.quality_score is not None else "None"
+        return (
+            f"<EnrollmentCandidate(id={self.id}, face_event_id={self.face_event_id}, "
+            f"status={self.status}, quality={quality})>"
         )

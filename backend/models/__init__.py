@@ -35,6 +35,8 @@ from .event_feedback import EventFeedback, FeedbackType
 from .experiment_result import ExperimentResult
 from .export_job import ExportJob, ExportJobStatus, ExportType
 from .face_identity import (
+    EnrollmentCandidate,
+    EnrollmentStatus,
     FaceDetectionEvent,
     FaceEmbedding,
     KnownPerson,
@@ -119,6 +121,8 @@ __all__ = [
     "DemographicsResult",
     "Detection",
     "DwellTimeRecord",
+    "EnrollmentCandidate",
+    "EnrollmentStatus",
     "Entity",
     "EntityType",
     "Event",

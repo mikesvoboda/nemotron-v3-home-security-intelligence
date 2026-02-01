@@ -20,6 +20,13 @@ export { default as KnownPersonCard } from './KnownPersonCard';
 export { default as FaceEventCard } from './FaceEventCard';
 
 // ============================================================================
+// Debug Tools (NEM-4955)
+// ============================================================================
+
+export { default as FaceSimilarityDebugTool } from './FaceSimilarityDebugTool';
+export type { FaceSimilarityDebugToolProps } from './FaceSimilarityDebugTool';
+
+// ============================================================================
 // Type Exports
 // ============================================================================
 
@@ -53,6 +60,22 @@ export type {
   PersonAppearancesResponse,
   // Unknown Stranger types
   UnknownStrangerSummary,
+  // Bulk Enrollment types (NEM-4954)
+  BulkEnrollmentRequest,
+  BulkEnrollmentResponse,
+  BulkEnrollmentImageResult,
+  // Quality Assessment types (NEM-4953)
+  QualityFactor,
+  QualityFactors,
+  FaceQualityAssessment as FaceQualityAssessmentData,
+} from '../../types/faceRecognition';
+
+// Re-export quality assessment helper functions (NEM-4953)
+export {
+  computeQualityFactorsFromScore,
+  getQualityStatus,
+  isQualityEnrollable,
+  getOverallRecommendation,
 } from '../../types/faceRecognition';
 
 // ============================================================================
@@ -74,6 +97,12 @@ export { default as EnrollFaceModal } from './EnrollFaceModal';
 export type { EnrollFaceModalProps } from './EnrollFaceModal';
 export { default as IdentifyPersonModal } from './IdentifyPersonModal';
 export type { IdentifyPersonModalProps } from './IdentifyPersonModal';
+export { default as BulkEnrollmentModal } from './BulkEnrollmentModal';
+export type { BulkEnrollmentModalProps } from './BulkEnrollmentModal';
+
+// Quality Assessment Components (NEM-4953)
+export { default as FaceQualityAssessment } from './FaceQualityAssessment';
+export type { FaceQualityAssessmentProps } from './FaceQualityAssessment';
 
 // Panel Components (Phase 3+)
 // export { default as UnknownStrangersPanel } from './UnknownStrangersPanel';

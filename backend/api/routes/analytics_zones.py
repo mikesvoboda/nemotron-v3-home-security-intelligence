@@ -16,6 +16,10 @@ from fastapi.responses import ORJSONResponse
 
 from backend.api.dependencies import DbSession, get_camera_or_404
 from backend.api.schemas.analytics_zone import (
+    ApproachUrgency,
+    ApproachVectorData,
+    CameraApproachVectorsResponse,
+    EntityTypeCount,
     LineZoneCreate,
     LineZoneListResponse,
     LineZoneResponse,
@@ -24,6 +28,9 @@ from backend.api.schemas.analytics_zone import (
     PolygonZoneListResponse,
     PolygonZoneResponse,
     PolygonZoneUpdate,
+    ZoneApproachVectorsResponse,
+    ZoneEntityDistribution,
+    ZoneEntityDistributionResponse,
 )
 from backend.api.schemas.dwell_time import (
     ActiveDwellerResponse,
@@ -1097,6 +1104,169 @@ async def update_loitering_config(
 # ============================================================================
 
 
+# ============================================================================
+# Entity Distribution Endpoints (NEM-4937)
+# ============================================================================
+
+
+@router.get(
+    "/polygon-zones/{zone_id}/entity-distribution",
+    response_model=ZoneEntityDistribution,
+    summary="Get entity type distribution for a polygon zone",
+    responses={
+        200: {"description": "Entity distribution retrieved successfully"},
+        404: {"description": "Polygon zone not found"},
+    },
+)
+async def get_zone_entity_distribution(
+    zone_id: int,
+    db: DbSession,
+    start_time: datetime | None = Query(
+        default=None,
+        description="Start of time window (defaults to 24 hours ago)",
+    ),
+    end_time: datetime | None = Query(
+        default=None,
+        description="End of time window (defaults to now)",
+    ),
+) -> ZoneEntityDistribution:
+    """Get entity type distribution for a polygon zone.
+
+    Returns counts of each entity type (person, vehicle, etc.) that have
+    been detected in the zone during the specified time window.
+
+    Args:
+        zone_id: ID of the polygon zone.
+        db: Database session.
+        start_time: Start of time window (defaults to 24 hours ago).
+        end_time: End of time window (defaults to now).
+
+    Returns:
+        Entity distribution with counts and percentages per type.
+
+    Raises:
+        HTTPException: 404 if polygon zone not found.
+    """
+    # Verify zone exists
+    await _get_polygon_zone_or_404(zone_id, db)
+
+    # Default time window: last 24 hours
+    now = utc_now()
+    actual_end = end_time or now
+    actual_start = start_time or (now - timedelta(hours=24))
+
+    dwell_service = get_dwell_time_service(db)
+    distribution = await dwell_service.get_zone_entity_distribution(
+        zone_id=zone_id,
+        start_time=actual_start,
+        end_time=actual_end,
+    )
+
+    logger.debug(
+        f"Retrieved entity distribution for zone {zone_id}",
+        extra={
+            "zone_id": zone_id,
+            "total_entities": distribution["total_entities"],
+            "entity_types_count": len(distribution["entity_types"]),
+        },
+    )
+
+    return ZoneEntityDistribution(
+        zone_id=distribution["zone_id"],
+        zone_name=distribution["zone_name"],
+        total_entities=distribution["total_entities"],
+        entity_types=[EntityTypeCount(**et) for et in distribution["entity_types"]],
+    )
+
+
+@router.get(
+    "/entity-distribution",
+    response_model=ZoneEntityDistributionResponse,
+    summary="Get entity distribution across all polygon zones",
+    responses={
+        200: {"description": "Entity distribution retrieved successfully"},
+    },
+)
+async def get_all_zones_entity_distribution(
+    db: DbSession,
+    camera_id: str | None = Query(
+        default=None,
+        description="Filter by camera ID (optional)",
+    ),
+    start_time: datetime | None = Query(
+        default=None,
+        description="Start of time window (defaults to 24 hours ago)",
+    ),
+    end_time: datetime | None = Query(
+        default=None,
+        description="End of time window (defaults to now)",
+    ),
+) -> ZoneEntityDistributionResponse:
+    """Get entity type distribution across all polygon zones.
+
+    Returns aggregated entity type counts for all zones, optionally
+    filtered by camera.
+
+    Args:
+        db: Database session.
+        camera_id: Optional camera ID filter.
+        start_time: Start of time window (defaults to 24 hours ago).
+        end_time: End of time window (defaults to now).
+
+    Returns:
+        Entity distribution for all zones with grand total.
+    """
+    # Default time window: last 24 hours
+    now = utc_now()
+    actual_end = end_time or now
+    actual_start = start_time or (now - timedelta(hours=24))
+
+    # Get all polygon zones, optionally filtered by camera
+    polygon_service = get_polygon_zone_service(db)
+    if camera_id:
+        zones = await polygon_service.get_zones_by_camera(camera_id, active_only=False)
+    else:
+        # Get all zones across all cameras
+        zones = await polygon_service.get_all_zones()
+
+    # Get entity distribution for each zone
+    dwell_service = get_dwell_time_service(db)
+    zone_distributions = []
+    grand_total = 0
+
+    for zone in zones:
+        distribution = await dwell_service.get_zone_entity_distribution(
+            zone_id=zone.id,
+            start_time=actual_start,
+            end_time=actual_end,
+        )
+        zone_distributions.append(
+            ZoneEntityDistribution(
+                zone_id=distribution["zone_id"],
+                zone_name=distribution["zone_name"],
+                total_entities=distribution["total_entities"],
+                entity_types=[EntityTypeCount(**et) for et in distribution["entity_types"]],
+            )
+        )
+        grand_total += distribution["total_entities"]
+
+    logger.debug(
+        f"Retrieved entity distribution for {len(zones)} zones",
+        extra={
+            "zone_count": len(zones),
+            "grand_total": grand_total,
+            "camera_id": camera_id,
+        },
+    )
+
+    return ZoneEntityDistributionResponse(
+        zones=zone_distributions,
+        grand_total=grand_total,
+        start_time=actual_start,
+        end_time=actual_end,
+    )
+
+
 @router.get(
     "/comparison",
     response_model=ZoneComparisonResponse,
@@ -1189,3 +1359,228 @@ async def compare_zones(
         end_time=now,
         comparison_period=validated_period,
     )
+
+
+# ============================================================================
+# Approach Vector Endpoints (NEM-4936)
+# ============================================================================
+
+
+@router.get(
+    "/polygon-zones/{zone_id}/approach-vectors",
+    response_model=ZoneApproachVectorsResponse,
+    summary="Get approach vectors for a polygon zone",
+    responses={
+        200: {"description": "Approach vectors retrieved successfully"},
+        404: {"description": "Polygon zone not found"},
+    },
+)
+async def get_zone_approach_vectors(
+    zone_id: int,
+    db: DbSession,
+) -> ZoneApproachVectorsResponse:
+    """Get approach vector analysis for entities approaching a polygon zone.
+
+    Returns real-time movement analysis including direction, speed, and ETA
+    for all tracked entities outside the zone that are moving toward it.
+
+    Urgency levels:
+    - imminent: ETA < 3 seconds (high priority)
+    - approaching: ETA 3-10 seconds (medium priority)
+    - distant: ETA > 10 seconds (low priority)
+    - not_approaching: Moving away or stationary
+
+    Args:
+        zone_id: ID of the polygon zone.
+        db: Database session.
+
+    Returns:
+        Approach vectors with urgency classification for all approaching entities.
+
+    Raises:
+        HTTPException: 404 if polygon zone not found.
+    """
+    from backend.services.approach_vector_service import get_approach_vector_service
+
+    # Verify zone exists
+    await _get_polygon_zone_or_404(zone_id, db)
+
+    # Get polygon zone details
+    polygon_service = get_polygon_zone_service(db)
+    zone = await polygon_service.get_zone(zone_id)
+
+    if zone is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Polygon zone with id {zone_id} not found",
+        )
+
+    # Get approach vectors using the new service
+    service = get_approach_vector_service(db)
+    vectors = await service.get_zone_approach_vectors(zone_id)
+
+    now = utc_now()
+
+    # Convert service results to response schema
+    approach_vectors = []
+    imminent_count = 0
+
+    for v in vectors:
+        urgency = _calculate_urgency(v.get("estimated_arrival_seconds"))
+        if urgency == ApproachUrgency.IMMINENT:
+            imminent_count += 1
+
+        approach_vectors.append(
+            ApproachVectorData(
+                track_id=v["track_id"],
+                object_class=v["object_class"],
+                is_approaching=v["is_approaching"],
+                direction_degrees=v["direction_degrees"],
+                speed_normalized=v["speed_normalized"],
+                distance_to_zone=v["distance_to_zone"],
+                estimated_arrival_seconds=v.get("estimated_arrival_seconds"),
+                urgency=urgency,
+                current_position=v["current_position"],
+                zone_centroid=v["zone_centroid"],
+            )
+        )
+
+    total_approaching = sum(1 for v in approach_vectors if v.is_approaching)
+
+    logger.debug(
+        f"Retrieved {len(approach_vectors)} approach vectors for zone {zone_id}",
+        extra={
+            "zone_id": zone_id,
+            "total_approaching": total_approaching,
+            "imminent_count": imminent_count,
+        },
+    )
+
+    return ZoneApproachVectorsResponse(
+        zone_id=zone_id,
+        zone_name=zone.name,
+        approach_vectors=approach_vectors,
+        total_approaching=total_approaching,
+        imminent_count=imminent_count,
+        timestamp=now,
+    )
+
+
+@router.get(
+    "/approach-vectors/camera/{camera_id}",
+    response_model=CameraApproachVectorsResponse,
+    summary="Get approach vectors for all zones on a camera",
+    responses={
+        200: {"description": "Approach vectors retrieved successfully"},
+        404: {"description": "Camera not found"},
+    },
+)
+async def get_camera_approach_vectors(
+    camera_id: str,
+    db: DbSession,
+) -> CameraApproachVectorsResponse:
+    """Get approach vectors for all polygon zones on a camera.
+
+    Aggregates approach vector data across all zones for efficient
+    visualization of approaching entities on the camera view.
+
+    Args:
+        camera_id: ID of the camera.
+        db: Database session.
+
+    Returns:
+        Approach vectors for all zones on the camera.
+
+    Raises:
+        HTTPException: 404 if camera not found.
+    """
+    from backend.services.approach_vector_service import get_approach_vector_service
+
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Get all polygon zones for this camera
+    polygon_service = get_polygon_zone_service(db)
+    zones = await polygon_service.get_zones_by_camera(camera_id, active_only=True)
+
+    service = get_approach_vector_service(db)
+    now = utc_now()
+
+    zone_responses = []
+    total_approaching_entities = 0
+
+    for zone in zones:
+        vectors = await service.get_zone_approach_vectors(zone.id)
+
+        approach_vectors = []
+        imminent_count = 0
+
+        for v in vectors:
+            urgency = _calculate_urgency(v.get("estimated_arrival_seconds"))
+            if urgency == ApproachUrgency.IMMINENT:
+                imminent_count += 1
+
+            approach_vectors.append(
+                ApproachVectorData(
+                    track_id=v["track_id"],
+                    object_class=v["object_class"],
+                    is_approaching=v["is_approaching"],
+                    direction_degrees=v["direction_degrees"],
+                    speed_normalized=v["speed_normalized"],
+                    distance_to_zone=v["distance_to_zone"],
+                    estimated_arrival_seconds=v.get("estimated_arrival_seconds"),
+                    urgency=urgency,
+                    current_position=v["current_position"],
+                    zone_centroid=v["zone_centroid"],
+                )
+            )
+
+        total_approaching = sum(1 for v in approach_vectors if v.is_approaching)
+        total_approaching_entities += total_approaching
+
+        zone_responses.append(
+            ZoneApproachVectorsResponse(
+                zone_id=zone.id,
+                zone_name=zone.name,
+                approach_vectors=approach_vectors,
+                total_approaching=total_approaching,
+                imminent_count=imminent_count,
+                timestamp=now,
+            )
+        )
+
+    logger.debug(
+        f"Retrieved approach vectors for {len(zones)} zones on camera {camera_id}",
+        extra={
+            "camera_id": camera_id,
+            "zone_count": len(zones),
+            "total_approaching": total_approaching_entities,
+        },
+    )
+
+    return CameraApproachVectorsResponse(
+        camera_id=camera_id,
+        zones=zone_responses,
+        total_zones=len(zones),
+        total_approaching_entities=total_approaching_entities,
+    )
+
+
+def _calculate_urgency(estimated_arrival_seconds: float | None) -> ApproachUrgency:
+    """Calculate urgency level based on ETA.
+
+    Args:
+        estimated_arrival_seconds: ETA to zone in seconds, or None if not approaching.
+
+    Returns:
+        Urgency level (imminent, approaching, distant, or not_approaching).
+    """
+    if estimated_arrival_seconds is None:
+        return ApproachUrgency.NOT_APPROACHING
+
+    if estimated_arrival_seconds < 3.0:
+        return ApproachUrgency.IMMINENT
+    elif estimated_arrival_seconds < 10.0:
+        return ApproachUrgency.APPROACHING
+    else:
+        return ApproachUrgency.DISTANT

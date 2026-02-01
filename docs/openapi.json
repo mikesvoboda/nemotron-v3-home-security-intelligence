@@ -3316,6 +3316,232 @@
         "title": "AnomalyListResponse",
         "type": "object"
       },
+      "ApproachUrgency": {
+        "description": "Urgency level based on ETA to zone.",
+        "enum": [
+          "imminent",
+          "approaching",
+          "distant",
+          "not_approaching"
+        ],
+        "title": "ApproachUrgency",
+        "type": "string"
+      },
+      "ApproachVectorData": {
+        "description": "Approach vector data for a single entity approaching a zone.\n\nContains movement trajectory analysis including direction, speed, and ETA.",
+        "example": {
+          "current_position": {
+            "x": 0.35,
+            "y": 0.4
+          },
+          "direction_degrees": 45.0,
+          "distance_to_zone": 0.15,
+          "estimated_arrival_seconds": 3.0,
+          "is_approaching": true,
+          "object_class": "person",
+          "speed_normalized": 0.05,
+          "track_id": 42,
+          "urgency": "imminent",
+          "zone_centroid": {
+            "x": 0.5,
+            "y": 0.5
+          }
+        },
+        "properties": {
+          "current_position": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Current position as {x, y} in normalized coordinates (0-1)",
+            "title": "Current Position",
+            "type": "object"
+          },
+          "direction_degrees": {
+            "description": "Direction of movement in degrees (0=up, 90=right, 180=down, 270=left)",
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Direction Degrees",
+            "type": "number"
+          },
+          "distance_to_zone": {
+            "description": "Current distance to zone boundary (normalized units, 0 = inside zone)",
+            "minimum": 0.0,
+            "title": "Distance To Zone",
+            "type": "number"
+          },
+          "estimated_arrival_seconds": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated time to reach zone in seconds (None if not approaching)",
+            "title": "Estimated Arrival Seconds"
+          },
+          "is_approaching": {
+            "description": "Whether entity is moving toward the zone",
+            "title": "Is Approaching",
+            "type": "boolean"
+          },
+          "object_class": {
+            "description": "Object classification (person, vehicle, etc.)",
+            "title": "Object Class",
+            "type": "string"
+          },
+          "speed_normalized": {
+            "description": "Speed of movement in normalized units per second",
+            "minimum": 0.0,
+            "title": "Speed Normalized",
+            "type": "number"
+          },
+          "track_id": {
+            "description": "Tracking ID of the approaching entity",
+            "title": "Track Id",
+            "type": "integer"
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/ApproachUrgency",
+            "description": "Urgency level based on ETA (imminent/approaching/distant/not_approaching)"
+          },
+          "zone_centroid": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Zone centroid as {x, y} in normalized coordinates",
+            "title": "Zone Centroid",
+            "type": "object"
+          }
+        },
+        "required": [
+          "track_id",
+          "object_class",
+          "is_approaching",
+          "direction_degrees",
+          "speed_normalized",
+          "distance_to_zone",
+          "urgency",
+          "current_position",
+          "zone_centroid"
+        ],
+        "title": "ApproachVectorData",
+        "type": "object"
+      },
+      "ApproveEnrollmentRequest": {
+        "description": "Schema for approving an enrollment candidate.\n\nEither provide a name for a new person, or provide an existing\nperson_id to link the face to an existing known person.",
+        "example": {
+          "is_household_member": true,
+          "name": "John Doe"
+        },
+        "properties": {
+          "is_household_member": {
+            "default": false,
+            "description": "Whether to mark as household member",
+            "title": "Is Household Member",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name for new person (required if person_id not provided)",
+            "title": "Name"
+          },
+          "person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of existing person to link to (optional)",
+            "title": "Person Id"
+          }
+        },
+        "title": "ApproveEnrollmentRequest",
+        "type": "object"
+      },
+      "ApproveEnrollmentResponse": {
+        "description": "Schema for approve enrollment response.",
+        "example": {
+          "embedding_id": 5,
+          "person_id": 1,
+          "person_name": "John Doe",
+          "success": true
+        },
+        "properties": {
+          "embedding_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of created embedding",
+            "title": "Embedding Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed",
+            "title": "Error"
+          },
+          "person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the person",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the person",
+            "title": "Person Name"
+          },
+          "success": {
+            "description": "Whether approval was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "ApproveEnrollmentResponse",
+        "type": "object"
+      },
       "AreaBasic": {
         "description": "Minimal area schema for embedding in CameraResponse.\n\nNEM-3597: Basic area information for API responses that include\ncamera-area relationships without full area details.",
         "example": {
@@ -4072,6 +4298,49 @@
         "title": "AuditStatsResponse",
         "type": "object"
       },
+      "AutoEnrollmentSettingsResponse": {
+        "description": "Schema for auto-enrollment settings response.",
+        "example": {
+          "auto_approve": false,
+          "enabled": true,
+          "quality_threshold": 0.8,
+          "similarity_threshold": 0.85
+        },
+        "properties": {
+          "auto_approve": {
+            "description": "Whether to auto-approve without review queue",
+            "title": "Auto Approve",
+            "type": "boolean"
+          },
+          "enabled": {
+            "description": "Whether auto-enrollment is enabled",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "quality_threshold": {
+            "description": "Minimum quality score for enrollment",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Quality Threshold",
+            "type": "number"
+          },
+          "similarity_threshold": {
+            "description": "Similarity threshold for duplicate detection",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "quality_threshold",
+          "similarity_threshold",
+          "auto_approve"
+        ],
+        "title": "AutoEnrollmentSettingsResponse",
+        "type": "object"
+      },
       "BaselineConfigUpdate": {
         "description": "Request schema for updating per-camera baseline configuration.\n\nNEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.\nAll fields are optional; only provided fields are updated.",
         "example": {
@@ -4722,6 +4991,84 @@
         "title": "BatchSettingsUpdate",
         "type": "object"
       },
+      "Body_face-recognition_bulk_enroll_faces": {
+        "properties": {
+          "images": {
+            "description": "Face images to enroll (JPEG/PNG)",
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "is_household_member": {
+            "default": false,
+            "description": "Whether new person is household member",
+            "title": "Is Household Member",
+            "type": "boolean"
+          },
+          "new_person_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name for new person if creating",
+            "title": "New Person Name"
+          },
+          "person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Existing person ID to enroll to",
+            "title": "Person Id"
+          }
+        },
+        "required": [
+          "images"
+        ],
+        "title": "Body_face-recognition_bulk_enroll_faces",
+        "type": "object"
+      },
+      "Body_face-recognition_compare_faces": {
+        "properties": {
+          "image1": {
+            "description": "First face image (JPEG/PNG)",
+            "format": "binary",
+            "title": "Image1",
+            "type": "string"
+          },
+          "image2": {
+            "description": "Second face image (JPEG/PNG)",
+            "format": "binary",
+            "title": "Image2",
+            "type": "string"
+          },
+          "threshold": {
+            "default": 0.7,
+            "description": "Similarity threshold for match decision",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "image1",
+          "image2"
+        ],
+        "title": "Body_face-recognition_compare_faces",
+        "type": "object"
+      },
       "BulkCancelError": {
         "description": "Error details for a single job in bulk cancellation.",
         "example": {
@@ -4812,6 +5159,150 @@
           "failed"
         ],
         "title": "BulkCancelResponse",
+        "type": "object"
+      },
+      "BulkEnrollmentImageResult": {
+        "description": "Schema for individual image result in bulk enrollment.\n\nEach image in a bulk enrollment request produces a result with:\n- filename: Original filename of the uploaded image\n- success: Whether enrollment succeeded\n- embedding_id: ID of created embedding (if successful)\n- quality_score: Quality score of the face (if detected)\n- error: Error message if enrollment failed",
+        "example": {
+          "embedding_id": 1,
+          "filename": "face_001.jpg",
+          "quality_score": 0.92,
+          "success": true
+        },
+        "properties": {
+          "embedding_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of created embedding if successful",
+            "title": "Embedding Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if enrollment failed",
+            "title": "Error"
+          },
+          "filename": {
+            "description": "Original filename of the uploaded image",
+            "title": "Filename",
+            "type": "string"
+          },
+          "quality_score": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quality score of detected face",
+            "title": "Quality Score"
+          },
+          "success": {
+            "description": "Whether enrollment succeeded for this image",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "filename",
+          "success"
+        ],
+        "title": "BulkEnrollmentImageResult",
+        "type": "object"
+      },
+      "BulkEnrollmentResponse": {
+        "description": "Schema for bulk enrollment response.\n\nReturns summary of bulk face enrollment:\n- total_images: Number of images submitted\n- successful: Number of successful enrollments\n- failed: Number of failed enrollments\n- results: Per-image results with details\n- person_id: ID of the person images were enrolled to\n- person_name: Name of the person\n- created_new_person: Whether a new person was created",
+        "example": {
+          "created_new_person": false,
+          "failed": 1,
+          "person_id": 1,
+          "person_name": "John Doe",
+          "results": [
+            {
+              "embedding_id": 1,
+              "filename": "face_001.jpg",
+              "quality_score": 0.92,
+              "success": true
+            },
+            {
+              "error": "Quality score below threshold (0.7)",
+              "filename": "face_002.jpg",
+              "quality_score": 0.55,
+              "success": false
+            }
+          ],
+          "successful": 4,
+          "total_images": 5
+        },
+        "properties": {
+          "created_new_person": {
+            "description": "Whether a new person was created for this enrollment",
+            "title": "Created New Person",
+            "type": "boolean"
+          },
+          "failed": {
+            "description": "Number of failed enrollments",
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "person_id": {
+            "description": "ID of the person images were enrolled to",
+            "title": "Person Id",
+            "type": "integer"
+          },
+          "person_name": {
+            "description": "Name of the person",
+            "title": "Person Name",
+            "type": "string"
+          },
+          "results": {
+            "description": "Per-image enrollment results",
+            "items": {
+              "$ref": "#/components/schemas/BulkEnrollmentImageResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "successful": {
+            "description": "Number of successful enrollments",
+            "minimum": 0.0,
+            "title": "Successful",
+            "type": "integer"
+          },
+          "total_images": {
+            "description": "Total number of images submitted",
+            "minimum": 0.0,
+            "title": "Total Images",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_images",
+          "successful",
+          "failed",
+          "results",
+          "person_id",
+          "person_name",
+          "created_new_person"
+        ],
+        "title": "BulkEnrollmentResponse",
         "type": "object"
       },
       "BulkItemResult": {
@@ -5022,6 +5513,78 @@
           "calibration"
         ],
         "title": "CalibrationResetResponse",
+        "type": "object"
+      },
+      "CameraApproachVectorsResponse": {
+        "description": "Response containing approach vectors for all zones on a camera.\n\nAggregates approach vector data across all zones for a single camera,\nenabling efficient visualization of approaching entities.",
+        "example": {
+          "camera_id": "front_door",
+          "total_approaching_entities": 1,
+          "total_zones": 1,
+          "zones": [
+            {
+              "approach_vectors": [
+                {
+                  "current_position": {
+                    "x": 0.35,
+                    "y": 0.4
+                  },
+                  "direction_degrees": 45.0,
+                  "distance_to_zone": 0.15,
+                  "estimated_arrival_seconds": 3.0,
+                  "is_approaching": true,
+                  "object_class": "person",
+                  "speed_normalized": 0.05,
+                  "track_id": 42,
+                  "urgency": "imminent",
+                  "zone_centroid": {
+                    "x": 0.5,
+                    "y": 0.5
+                  }
+                }
+              ],
+              "imminent_count": 1,
+              "timestamp": "2026-01-31T12:00:00Z",
+              "total_approaching": 1,
+              "zone_id": 1,
+              "zone_name": "Front Door"
+            }
+          ]
+        },
+        "properties": {
+          "camera_id": {
+            "description": "Camera ID",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "total_approaching_entities": {
+            "description": "Total approaching entities across all zones",
+            "minimum": 0.0,
+            "title": "Total Approaching Entities",
+            "type": "integer"
+          },
+          "total_zones": {
+            "description": "Total number of zones analyzed",
+            "minimum": 0.0,
+            "title": "Total Zones",
+            "type": "integer"
+          },
+          "zones": {
+            "description": "Approach vectors for each zone",
+            "items": {
+              "$ref": "#/components/schemas/ZoneApproachVectorsResponse"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "camera_id",
+          "zones",
+          "total_zones",
+          "total_approaching_entities"
+        ],
+        "title": "CameraApproachVectorsResponse",
         "type": "object"
       },
       "CameraCreate": {
@@ -10555,6 +11118,144 @@
         "title": "EnrollFromDetectionResponse",
         "type": "object"
       },
+      "EnrollmentCandidateListResponse": {
+        "description": "Schema for list of enrollment candidates.",
+        "example": {
+          "items": [
+            {
+              "camera_id": "front_door",
+              "created_at": "2025-01-31T10:31:00Z",
+              "face_event_id": 100,
+              "id": 1,
+              "quality_score": 0.92,
+              "status": "pending",
+              "timestamp": "2025-01-31T10:30:00Z"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of enrollment candidates",
+            "items": {
+              "$ref": "#/components/schemas/EnrollmentCandidateResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of candidates",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "EnrollmentCandidateListResponse",
+        "type": "object"
+      },
+      "EnrollmentCandidateResponse": {
+        "description": "Schema for enrollment candidate response.\n\nRepresents a face detection that meets quality thresholds and is\npending review for enrollment as a known person.",
+        "example": {
+          "camera_id": "front_door",
+          "created_at": "2025-01-31T10:31:00Z",
+          "face_event_id": 100,
+          "id": 1,
+          "quality_score": 0.92,
+          "status": "pending",
+          "timestamp": "2025-01-31T10:30:00Z"
+        },
+        "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera ID where face was detected",
+            "title": "Camera Id"
+          },
+          "created_at": {
+            "description": "When the candidate was added to queue",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "enrolled_person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of enrolled person if approved",
+            "title": "Enrolled Person Id"
+          },
+          "face_event_id": {
+            "description": "ID of the source face detection event",
+            "title": "Face Event Id",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier for the enrollment candidate",
+            "title": "Id",
+            "type": "integer"
+          },
+          "quality_score": {
+            "description": "Face quality score",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Quality Score",
+            "type": "number"
+          },
+          "status": {
+            "description": "Enrollment status: pending/approved/rejected/auto_enrolled",
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Auto-generated or suggested name",
+            "title": "Suggested Name"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the face was detected",
+            "title": "Timestamp"
+          }
+        },
+        "required": [
+          "id",
+          "face_event_id",
+          "quality_score",
+          "status",
+          "created_at"
+        ],
+        "title": "EnrollmentCandidateResponse",
+        "type": "object"
+      },
       "EntityAppearance": {
         "description": "Schema for a single entity appearance at a specific time and camera.\n\nRepresents one sighting of an entity, including the detection it came from\nand additional attributes extracted from the image.",
         "example": {
@@ -11411,6 +12112,41 @@
           "trust_status"
         ],
         "title": "EntityTrustUpdate",
+        "type": "object"
+      },
+      "EntityTypeCount": {
+        "description": "Count of entities by type within a zone.",
+        "example": {
+          "count": 42,
+          "entity_type": "person",
+          "percentage": 65.5
+        },
+        "properties": {
+          "count": {
+            "description": "Number of entities of this type",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "entity_type": {
+            "description": "Entity type (e.g., person, vehicle, car)",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "percentage": {
+            "description": "Percentage of total entities",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Percentage",
+            "type": "number"
+          }
+        },
+        "required": [
+          "entity_type",
+          "count",
+          "percentage"
+        ],
+        "title": "EntityTypeCount",
         "type": "object"
       },
       "EntityTypeFilter": {
@@ -15348,6 +16084,69 @@
         "title": "FaceMatchResponse",
         "type": "object"
       },
+      "FaceSimilarityCompareResponse": {
+        "description": "Schema for face similarity comparison response.\n\nReturns the result of comparing two face images:\n- similarity_score: Cosine similarity between embeddings (0-1)\n- is_match: Whether similarity exceeds the threshold\n- threshold: The threshold used for matching\n- embedding_dimension: Dimension of the embeddings used (768 for CLIP)\n- processing_time_ms: Time taken to process both images\n\nNote: This debug tool uses CLIP embeddings (768-dim) for visual similarity,\nnot ArcFace embeddings (512-dim) used in production face recognition.",
+        "example": {
+          "embedding_dimension": 768,
+          "is_match": true,
+          "processing_time_ms": 245,
+          "similarity_score": 0.85,
+          "threshold": 0.7
+        },
+        "properties": {
+          "embedding_dimension": {
+            "description": "Dimension of the embeddings (768 for CLIP)",
+            "title": "Embedding Dimension",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if comparison failed",
+            "title": "Error"
+          },
+          "is_match": {
+            "description": "Whether the similarity exceeds the threshold (same person)",
+            "title": "Is Match",
+            "type": "boolean"
+          },
+          "processing_time_ms": {
+            "description": "Time taken to process both images in milliseconds",
+            "minimum": 0.0,
+            "title": "Processing Time Ms",
+            "type": "integer"
+          },
+          "similarity_score": {
+            "description": "Cosine similarity score between the two faces",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Score",
+            "type": "number"
+          },
+          "threshold": {
+            "description": "The threshold used for matching",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "similarity_score",
+          "is_match",
+          "threshold",
+          "embedding_dimension",
+          "processing_time_ms"
+        ],
+        "title": "FaceSimilarityCompareResponse",
+        "type": "object"
+      },
       "FeatureSettings": {
         "description": "Feature toggle settings for enabling/disabling AI pipeline components.\n\nControls which AI processing features are active in the detection pipeline.",
         "example": {
@@ -16757,13 +17556,21 @@
         "type": "object"
       },
       "GpuAssignment": {
-        "description": "Schema for a single service-to-GPU assignment.\n\nMaps an AI service to a specific GPU with optional VRAM budget override.",
+        "description": "Schema for a single service-to-GPU assignment.\n\nMaps an AI service to a specific GPU with optional VRAM budget override\nand affinity constraints.\n\nAffinity Constraints (NEM-4944):\n- exclusive_gpu: If True, service requires a dedicated GPU (no sharing)\n- priority_weight: Priority for auto-assignment (higher = more important, 1-100)\n- incompatible_with: List of services that cannot share the same GPU",
         "example": {
+          "exclusive_gpu": false,
           "gpu_index": 1,
+          "priority_weight": 50,
           "service": "ai-enrichment",
           "vram_budget_override": 3.5
         },
         "properties": {
+          "exclusive_gpu": {
+            "default": false,
+            "description": "If True, service requires a dedicated GPU (no sharing with other services)",
+            "title": "Exclusive Gpu",
+            "type": "boolean"
+          },
           "gpu_index": {
             "anyOf": [
               {
@@ -16776,6 +17583,29 @@
             ],
             "description": "Target GPU index (null for auto-assign)",
             "title": "Gpu Index"
+          },
+          "incompatible_with": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of service names that cannot share the same GPU with this service",
+            "title": "Incompatible With"
+          },
+          "priority_weight": {
+            "default": 50,
+            "description": "Priority for auto-assignment algorithms (1-100, higher = more important)",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Priority Weight",
+            "type": "integer"
           },
           "service": {
             "description": "Service name (e.g., 'ai-llm', 'ai-yolo26')",
@@ -16815,6 +17645,300 @@
         ],
         "title": "GpuAssignmentStrategy",
         "type": "string"
+      },
+      "GpuConfigAssignmentChange": {
+        "description": "A single assignment change in a version diff.\n\nDescribes what changed for a specific service between two versions.",
+        "example": {
+          "change_type": "modified",
+          "new_gpu_index": 0,
+          "old_gpu_index": 1,
+          "service": "ai-llm"
+        },
+        "properties": {
+          "change_type": {
+            "description": "Type of change: 'added', 'removed', or 'modified'",
+            "title": "Change Type",
+            "type": "string"
+          },
+          "new_gpu_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New GPU index (for added/modified)",
+            "title": "New Gpu Index"
+          },
+          "new_vram_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New VRAM override (for added/modified)",
+            "title": "New Vram Override"
+          },
+          "old_gpu_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Previous GPU index (for modified/removed)",
+            "title": "Old Gpu Index"
+          },
+          "old_vram_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Previous VRAM override (for modified/removed)",
+            "title": "Old Vram Override"
+          },
+          "service": {
+            "description": "Service name",
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "change_type"
+        ],
+        "title": "GpuConfigAssignmentChange",
+        "type": "object"
+      },
+      "GpuConfigExportData": {
+        "description": "Exported GPU configuration data.\n\nContains all information needed to restore a configuration,\nincluding metadata for validation.",
+        "example": {
+          "assignments": [
+            {
+              "gpu_index": 0,
+              "service": "ai-llm"
+            },
+            {
+              "gpu_index": 0,
+              "service": "ai-yolo26"
+            }
+          ],
+          "description": "Production GPU configuration",
+          "export_version": "1.0",
+          "exported_at": "2026-01-23T10:30:00Z",
+          "source_version": 3,
+          "strategy": "vram_based"
+        },
+        "properties": {
+          "assignments": {
+            "description": "Service-to-GPU assignments",
+            "items": {
+              "$ref": "#/components/schemas/GpuAssignment"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional description for this configuration",
+            "title": "Description"
+          },
+          "export_version": {
+            "default": "1.0",
+            "description": "Export format version for compatibility",
+            "title": "Export Version",
+            "type": "string"
+          },
+          "exported_at": {
+            "description": "When the export was created",
+            "format": "date-time",
+            "title": "Exported At",
+            "type": "string"
+          },
+          "source_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version number this was exported from (if applicable)",
+            "title": "Source Version"
+          },
+          "strategy": {
+            "description": "Assignment strategy",
+            "title": "Strategy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "exported_at",
+          "strategy",
+          "assignments"
+        ],
+        "title": "GpuConfigExportData",
+        "type": "object"
+      },
+      "GpuConfigImportRequest": {
+        "description": "Request schema for importing a GPU configuration.\n\nAccepts exported configuration data and optional parameters\nfor how to handle the import.",
+        "example": {
+          "apply_immediately": false,
+          "config": {
+            "assignments": [
+              {
+                "gpu_index": 0,
+                "service": "ai-llm"
+              }
+            ],
+            "export_version": "1.0",
+            "exported_at": "2026-01-23T10:30:00Z",
+            "strategy": "vram_based"
+          },
+          "description": "Imported from backup"
+        },
+        "properties": {
+          "apply_immediately": {
+            "default": false,
+            "description": "Whether to apply the config after import (restart services)",
+            "title": "Apply Immediately",
+            "type": "boolean"
+          },
+          "config": {
+            "$ref": "#/components/schemas/GpuConfigExportData",
+            "description": "Configuration data to import"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description for the new version (overrides export description)",
+            "title": "Description"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "title": "GpuConfigImportRequest",
+        "type": "object"
+      },
+      "GpuConfigImportResponse": {
+        "description": "Response schema for GPU configuration import.\n\nReturns the result of the import operation including\nvalidation results and the new version if created.",
+        "example": {
+          "applied": false,
+          "new_version": {
+            "assignment_count": 5,
+            "created_at": "2026-01-23T10:35:00Z",
+            "created_by": "import",
+            "description": "Imported from backup",
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "strategy": "vram_based",
+            "version_number": 4
+          },
+          "success": true,
+          "validation": {
+            "errors": [],
+            "valid": true,
+            "warnings": []
+          }
+        },
+        "properties": {
+          "applied": {
+            "default": false,
+            "description": "Whether the config was applied (services restarted)",
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "new_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GpuConfigVersionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The newly created version (if import succeeded)"
+          },
+          "success": {
+            "description": "Whether the import was successful",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/GpuConfigImportValidation",
+            "description": "Validation results"
+          }
+        },
+        "required": [
+          "success",
+          "validation"
+        ],
+        "title": "GpuConfigImportResponse",
+        "type": "object"
+      },
+      "GpuConfigImportValidation": {
+        "description": "Validation results for an imported configuration.\n\nReports any issues found during validation before import.",
+        "example": {
+          "errors": [],
+          "valid": true,
+          "warnings": [
+            "Service 'ai-florence' not found - will be skipped",
+            "GPU 2 is over VRAM budget by 512 MB"
+          ]
+        },
+        "properties": {
+          "errors": {
+            "description": "Blocking errors that prevent import",
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "valid": {
+            "description": "Whether the configuration is valid for import",
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "warnings": {
+            "description": "Non-blocking warnings about the configuration",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "valid"
+        ],
+        "title": "GpuConfigImportValidation",
+        "type": "object"
       },
       "GpuConfigPreviewResponse": {
         "description": "Response schema for previewing auto-assignment.\n\nReturns the proposed assignments for a given strategy without applying.",
@@ -16921,6 +18045,97 @@
           "assignments"
         ],
         "title": "GpuConfigResponse",
+        "type": "object"
+      },
+      "GpuConfigRollbackRequest": {
+        "description": "Request schema for rolling back to a previous configuration version.\n\nSpecifies which version to restore and how to handle the rollback.",
+        "example": {
+          "apply_immediately": true,
+          "description": "Rollback to stable configuration",
+          "version_id": "550e8400-e29b-41d4-a716-446655440000"
+        },
+        "properties": {
+          "apply_immediately": {
+            "default": true,
+            "description": "Whether to apply the rollback (restart services)",
+            "title": "Apply Immediately",
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description for the new version created by rollback",
+            "title": "Description"
+          },
+          "version_id": {
+            "description": "ID of the version to roll back to",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id"
+        ],
+        "title": "GpuConfigRollbackRequest",
+        "type": "object"
+      },
+      "GpuConfigRollbackResponse": {
+        "description": "Response schema for configuration rollback.\n\nReturns the result of the rollback operation.",
+        "example": {
+          "applied": true,
+          "new_version": {
+            "assignment_count": 5,
+            "created_at": "2026-01-23T11:00:00Z",
+            "created_by": "rollback",
+            "description": "Rollback to version 3",
+            "id": "660f9500-f30c-52e5-b827-557766550111",
+            "strategy": "vram_based",
+            "version_number": 6
+          },
+          "rolled_back_from": 5,
+          "rolled_back_to": 3,
+          "success": true
+        },
+        "properties": {
+          "applied": {
+            "description": "Whether the config was applied (services restarted)",
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "new_version": {
+            "$ref": "#/components/schemas/GpuConfigVersionSummary",
+            "description": "The newly created version after rollback"
+          },
+          "rolled_back_from": {
+            "description": "Version number before rollback",
+            "title": "Rolled Back From",
+            "type": "integer"
+          },
+          "rolled_back_to": {
+            "description": "Version number that was restored",
+            "title": "Rolled Back To",
+            "type": "integer"
+          },
+          "success": {
+            "description": "Whether the rollback was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "rolled_back_from",
+          "rolled_back_to",
+          "new_version",
+          "applied"
+        ],
+        "title": "GpuConfigRollbackResponse",
         "type": "object"
       },
       "GpuConfigStatusResponse": {
@@ -17053,6 +18268,293 @@
           "success"
         ],
         "title": "GpuConfigUpdateResponse",
+        "type": "object"
+      },
+      "GpuConfigVersionDetail": {
+        "description": "Full details of a GPU configuration version.\n\nExtends the summary with complete assignment data for viewing\nor restoring a specific version.",
+        "example": {
+          "assignment_count": 3,
+          "assignments": [
+            {
+              "gpu_index": 0,
+              "service": "ai-llm"
+            },
+            {
+              "gpu_index": 0,
+              "service": "ai-yolo26"
+            },
+            {
+              "gpu_index": 1,
+              "service": "ai-enrichment",
+              "vram_budget_override": 3.5
+            }
+          ],
+          "created_at": "2026-01-23T10:30:00Z",
+          "created_by": "system",
+          "description": "Moved LLM to GPU 0 for better VRAM utilization",
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "strategy": "vram_based",
+          "version_number": 3
+        },
+        "properties": {
+          "assignment_count": {
+            "description": "Number of service assignments in this version",
+            "minimum": 0.0,
+            "title": "Assignment Count",
+            "type": "integer"
+          },
+          "assignments": {
+            "description": "Complete service-to-GPU assignments for this version",
+            "items": {
+              "$ref": "#/components/schemas/GpuAssignment"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "created_at": {
+            "description": "When this version was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who created this version (if tracked)",
+            "title": "Created By"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional description of changes",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique version identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "strategy": {
+            "description": "Assignment strategy used in this version",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "version_number": {
+            "description": "Sequential version number (higher = newer)",
+            "minimum": 1.0,
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version_number",
+          "strategy",
+          "created_at",
+          "assignment_count",
+          "assignments"
+        ],
+        "title": "GpuConfigVersionDetail",
+        "type": "object"
+      },
+      "GpuConfigVersionDiffResponse": {
+        "description": "Response schema for comparing two configuration versions.\n\nShows the differences between two versions including strategy\nand assignment changes.",
+        "example": {
+          "assignment_changes": [
+            {
+              "change_type": "modified",
+              "new_gpu_index": 0,
+              "old_gpu_index": 1,
+              "service": "ai-llm"
+            }
+          ],
+          "from_version": 2,
+          "new_strategy": "vram_based",
+          "old_strategy": "manual",
+          "strategy_changed": true,
+          "to_version": 3
+        },
+        "properties": {
+          "assignment_changes": {
+            "description": "List of assignment changes",
+            "items": {
+              "$ref": "#/components/schemas/GpuConfigAssignmentChange"
+            },
+            "title": "Assignment Changes",
+            "type": "array"
+          },
+          "from_version": {
+            "description": "Source version number",
+            "title": "From Version",
+            "type": "integer"
+          },
+          "new_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Strategy in target version",
+            "title": "New Strategy"
+          },
+          "old_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Strategy in source version",
+            "title": "Old Strategy"
+          },
+          "strategy_changed": {
+            "description": "Whether the strategy changed between versions",
+            "title": "Strategy Changed",
+            "type": "boolean"
+          },
+          "to_version": {
+            "description": "Target version number",
+            "title": "To Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_version",
+          "to_version",
+          "strategy_changed"
+        ],
+        "title": "GpuConfigVersionDiffResponse",
+        "type": "object"
+      },
+      "GpuConfigVersionListResponse": {
+        "description": "Response schema for listing configuration versions.\n\nReturns paginated version history with summary information.",
+        "example": {
+          "total_count": 3,
+          "versions": [
+            {
+              "assignment_count": 5,
+              "created_at": "2026-01-23T10:30:00Z",
+              "created_by": "system",
+              "description": "Updated for multi-GPU setup",
+              "id": "550e8400-e29b-41d4-a716-446655440000",
+              "strategy": "vram_based",
+              "version_number": 3
+            }
+          ]
+        },
+        "properties": {
+          "total_count": {
+            "description": "Total number of versions",
+            "minimum": 0.0,
+            "title": "Total Count",
+            "type": "integer"
+          },
+          "versions": {
+            "description": "List of version summaries, newest first",
+            "items": {
+              "$ref": "#/components/schemas/GpuConfigVersionSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions",
+          "total_count"
+        ],
+        "title": "GpuConfigVersionListResponse",
+        "type": "object"
+      },
+      "GpuConfigVersionSummary": {
+        "description": "Summary of a GPU configuration version for listing.\n\nProvides a brief overview of each version for the history list,\nincluding version number, strategy, timestamp, and description.",
+        "example": {
+          "assignment_count": 5,
+          "created_at": "2026-01-23T10:30:00Z",
+          "created_by": "system",
+          "description": "Moved LLM to GPU 0 for better VRAM utilization",
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "strategy": "vram_based",
+          "version_number": 3
+        },
+        "properties": {
+          "assignment_count": {
+            "description": "Number of service assignments in this version",
+            "minimum": 0.0,
+            "title": "Assignment Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "When this version was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who created this version (if tracked)",
+            "title": "Created By"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional description of changes",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique version identifier",
+            "title": "Id",
+            "type": "string"
+          },
+          "strategy": {
+            "description": "Assignment strategy used in this version",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "version_number": {
+            "description": "Sequential version number (higher = newer)",
+            "minimum": 1.0,
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version_number",
+          "strategy",
+          "created_at",
+          "assignment_count"
+        ],
+        "title": "GpuConfigVersionSummary",
         "type": "object"
       },
       "GpuDeviceResponse": {
@@ -29123,6 +30625,47 @@
         "title": "RegisteredVehicleUpdate",
         "type": "object"
       },
+      "RejectEnrollmentRequest": {
+        "description": "Schema for rejecting an enrollment candidate.",
+        "example": {
+          "reason": "Not a household member"
+        },
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional reason for rejection",
+            "title": "Reason"
+          }
+        },
+        "title": "RejectEnrollmentRequest",
+        "type": "object"
+      },
+      "RejectEnrollmentResponse": {
+        "description": "Schema for reject enrollment response.",
+        "example": {
+          "success": true
+        },
+        "properties": {
+          "success": {
+            "description": "Whether rejection was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "RejectEnrollmentResponse",
+        "type": "object"
+      },
       "ReplayResponse": {
         "description": "Response for request replay.",
         "properties": {
@@ -36303,6 +37846,84 @@
         "title": "ZoneAnomalyResponse",
         "type": "object"
       },
+      "ZoneApproachVectorsResponse": {
+        "description": "Response containing approach vectors for a zone.\n\nProvides real-time movement analysis for all tracked entities\napproaching a specific zone.",
+        "example": {
+          "approach_vectors": [
+            {
+              "current_position": {
+                "x": 0.35,
+                "y": 0.4
+              },
+              "direction_degrees": 45.0,
+              "distance_to_zone": 0.15,
+              "estimated_arrival_seconds": 3.0,
+              "is_approaching": true,
+              "object_class": "person",
+              "speed_normalized": 0.05,
+              "track_id": 42,
+              "urgency": "imminent",
+              "zone_centroid": {
+                "x": 0.5,
+                "y": 0.5
+              }
+            }
+          ],
+          "imminent_count": 1,
+          "timestamp": "2026-01-31T12:00:00Z",
+          "total_approaching": 1,
+          "zone_id": 1,
+          "zone_name": "Front Door"
+        },
+        "properties": {
+          "approach_vectors": {
+            "description": "Approach vectors for all tracked entities",
+            "items": {
+              "$ref": "#/components/schemas/ApproachVectorData"
+            },
+            "title": "Approach Vectors",
+            "type": "array"
+          },
+          "imminent_count": {
+            "description": "Number of entities with imminent arrival (ETA < 3s)",
+            "minimum": 0.0,
+            "title": "Imminent Count",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "Timestamp of the analysis",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "total_approaching": {
+            "description": "Total number of entities approaching the zone",
+            "minimum": 0.0,
+            "title": "Total Approaching",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone",
+            "title": "Zone Id",
+            "type": "integer"
+          },
+          "zone_name": {
+            "description": "Zone name for display",
+            "title": "Zone Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone_id",
+          "zone_name",
+          "approach_vectors",
+          "total_approaching",
+          "imminent_count",
+          "timestamp"
+        ],
+        "title": "ZoneApproachVectorsResponse",
+        "type": "object"
+      },
       "ZoneComparisonData": {
         "description": "Comparison data for a single zone.\n\nContains the metric value and optional trend information\nfor a zone being compared.",
         "example": {
@@ -36513,6 +38134,133 @@
           "coordinates"
         ],
         "title": "ZoneCreate",
+        "type": "object"
+      },
+      "ZoneEntityDistribution": {
+        "description": "Entity distribution for a single zone.",
+        "example": {
+          "entity_types": [
+            {
+              "count": 42,
+              "entity_type": "person",
+              "percentage": 65.63
+            },
+            {
+              "count": 15,
+              "entity_type": "vehicle",
+              "percentage": 23.44
+            },
+            {
+              "count": 7,
+              "entity_type": "dog",
+              "percentage": 10.94
+            }
+          ],
+          "total_entities": 64,
+          "zone_id": 1,
+          "zone_name": "Front Yard"
+        },
+        "properties": {
+          "entity_types": {
+            "description": "Breakdown of entity types in this zone",
+            "items": {
+              "$ref": "#/components/schemas/EntityTypeCount"
+            },
+            "title": "Entity Types",
+            "type": "array"
+          },
+          "total_entities": {
+            "description": "Total number of entities in this zone",
+            "minimum": 0.0,
+            "title": "Total Entities",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "Zone ID",
+            "title": "Zone Id",
+            "type": "integer"
+          },
+          "zone_name": {
+            "description": "Zone name for display",
+            "title": "Zone Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone_id",
+          "zone_name",
+          "total_entities",
+          "entity_types"
+        ],
+        "title": "ZoneEntityDistribution",
+        "type": "object"
+      },
+      "ZoneEntityDistributionResponse": {
+        "description": "Response containing entity distribution across multiple zones.",
+        "example": {
+          "end_time": "2026-01-31T23:59:59Z",
+          "grand_total": 64,
+          "start_time": "2026-01-31T00:00:00Z",
+          "zones": [
+            {
+              "entity_types": [
+                {
+                  "count": 42,
+                  "entity_type": "person",
+                  "percentage": 65.63
+                },
+                {
+                  "count": 15,
+                  "entity_type": "vehicle",
+                  "percentage": 23.44
+                },
+                {
+                  "count": 7,
+                  "entity_type": "dog",
+                  "percentage": 10.94
+                }
+              ],
+              "total_entities": 64,
+              "zone_id": 1,
+              "zone_name": "Front Yard"
+            }
+          ]
+        },
+        "properties": {
+          "end_time": {
+            "description": "End of the query time window",
+            "format": "date-time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "grand_total": {
+            "description": "Total entities across all zones",
+            "minimum": 0.0,
+            "title": "Grand Total",
+            "type": "integer"
+          },
+          "start_time": {
+            "description": "Start of the query time window",
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "zones": {
+            "description": "Entity distribution per zone",
+            "items": {
+              "$ref": "#/components/schemas/ZoneEntityDistribution"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "zones",
+          "grand_total",
+          "start_time",
+          "end_time"
+        ],
+        "title": "ZoneEntityDistributionResponse",
         "type": "object"
       },
       "ZoneHouseholdConfigCreate": {
@@ -39330,6 +41078,52 @@
         ]
       }
     },
+    "/api/analytics-zones/approach-vectors/camera/{camera_id}": {
+      "get": {
+        "description": "Get approach vectors for all polygon zones on a camera.\n\nAggregates approach vector data across all zones for efficient\nvisualization of approaching entities on the camera view.\n\nArgs:\n    camera_id: ID of the camera.\n    db: Database session.\n\nReturns:\n    Approach vectors for all zones on the camera.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "analytics-zones_get_camera_approach_vectors",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraApproachVectorsResponse"
+                }
+              }
+            },
+            "description": "Approach vectors retrieved successfully"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get approach vectors for all zones on a camera",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
     "/api/analytics-zones/comparison": {
       "get": {
         "description": "Compare specified metric across multiple zones.\n\nReturns comparison data for the specified zones, including metric values\nand trend percentages where available.\n\nArgs:\n    db: Database session.\n    zone_ids: List of zone IDs to compare.\n    metric: The metric to compare (crossings, dwell_time, anomalies, occupancy).\n    period: Time period for comparison (day, week, month).\n\nReturns:\n    ZoneComparisonResponse with comparison data for each zone.\n\nRaises:\n    HTTPException: 400 if metric or period is invalid.",
@@ -39400,6 +41194,96 @@
           }
         },
         "summary": "Compare metrics across multiple zones",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/entity-distribution": {
+      "get": {
+        "description": "Get entity type distribution across all polygon zones.\n\nReturns aggregated entity type counts for all zones, optionally\nfiltered by camera.\n\nArgs:\n    db: Database session.\n    camera_id: Optional camera ID filter.\n    start_time: Start of time window (defaults to 24 hours ago).\n    end_time: End of time window (defaults to now).\n\nReturns:\n    Entity distribution for all zones with grand total.",
+        "operationId": "analytics-zones_get_all_zones_entity_distribution",
+        "parameters": [
+          {
+            "description": "Filter by camera ID (optional)",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID (optional)",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Start of time window (defaults to 24 hours ago)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of time window (defaults to 24 hours ago)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "End of time window (defaults to now)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of time window (defaults to now)",
+              "title": "End Time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneEntityDistributionResponse"
+                }
+              }
+            },
+            "description": "Entity distribution retrieved successfully"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get entity distribution across all polygon zones",
         "tags": [
           "analytics-zones"
         ]
@@ -40015,6 +41899,52 @@
         ]
       }
     },
+    "/api/analytics-zones/polygon-zones/{zone_id}/approach-vectors": {
+      "get": {
+        "description": "Get approach vector analysis for entities approaching a polygon zone.\n\nReturns real-time movement analysis including direction, speed, and ETA\nfor all tracked entities outside the zone that are moving toward it.\n\nUrgency levels:\n- imminent: ETA < 3 seconds (high priority)\n- approaching: ETA 3-10 seconds (medium priority)\n- distant: ETA > 10 seconds (low priority)\n- not_approaching: Moving away or stationary\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n\nReturns:\n    Approach vectors with urgency classification for all approaching entities.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_zone_approach_vectors",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneApproachVectorsResponse"
+                }
+              }
+            },
+            "description": "Approach vectors retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get approach vectors for a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
     "/api/analytics-zones/polygon-zones/{zone_id}/check-loitering": {
       "post": {
         "description": "Check for loitering in a polygon zone.\n\nIdentifies objects that have been dwelling in the zone longer than\nthe specified threshold. Returns alerts for all objects exceeding\nthe threshold, marking them as triggered in the database.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    request: Loitering check request with threshold.\n    db: Database session.\n\nReturns:\n    Loitering alerts for objects exceeding the threshold.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
@@ -40292,6 +42222,90 @@
           }
         },
         "summary": "Get active dwellers in a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}/entity-distribution": {
+      "get": {
+        "description": "Get entity type distribution for a polygon zone.\n\nReturns counts of each entity type (person, vehicle, etc.) that have\nbeen detected in the zone during the specified time window.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n    start_time: Start of time window (defaults to 24 hours ago).\n    end_time: End of time window (defaults to now).\n\nReturns:\n    Entity distribution with counts and percentages per type.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_zone_entity_distribution",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Start of time window (defaults to 24 hours ago)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of time window (defaults to 24 hours ago)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "End of time window (defaults to now)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of time window (defaults to now)",
+              "title": "End Time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneEntityDistribution"
+                }
+              }
+            },
+            "description": "Entity distribution retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get entity type distribution for a polygon zone",
         "tags": [
           "analytics-zones"
         ]
@@ -41084,6 +43098,28 @@
         "summary": "Get Audit Log",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/auto-enrollment/settings": {
+      "get": {
+        "description": "Get current auto-enrollment settings.\n\nReturns:\n    AutoEnrollmentSettingsResponse with current settings",
+        "operationId": "face-recognition_get_auto_enrollment_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutoEnrollmentSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Auto Enrollment Settings",
+        "tags": [
+          "face-recognition"
         ]
       }
     },
@@ -44810,6 +46846,235 @@
         ]
       }
     },
+    "/api/enrollment-queue": {
+      "get": {
+        "description": "List enrollment candidates from the auto-enrollment queue.\n\nReturns face detection events that meet quality thresholds and are\npending review for enrollment as known persons.\n\nArgs:\n    status_filter: Filter by enrollment status (default: pending)\n    limit: Maximum candidates to return\n    offset: Number of candidates to skip\n    session: Database session\n\nReturns:\n    EnrollmentCandidateListResponse with list of candidates",
+        "operationId": "face-recognition_list_enrollment_candidates",
+        "parameters": [
+          {
+            "description": "Filter by status: pending/approved/rejected/auto_enrolled",
+            "in": "query",
+            "name": "status_filter",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "pending",
+              "description": "Filter by status: pending/approved/rejected/auto_enrolled",
+              "title": "Status Filter"
+            }
+          },
+          {
+            "description": "Maximum candidates to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum candidates to return",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of candidates to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of candidates to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentCandidateListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Enrollment Candidates",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/enrollment-queue/{candidate_id}": {
+      "get": {
+        "description": "Get a specific enrollment candidate.\n\nArgs:\n    candidate_id: ID of the candidate\n    session: Database session\n\nReturns:\n    EnrollmentCandidateResponse\n\nRaises:\n    HTTPException: 404 if candidate not found",
+        "operationId": "face-recognition_get_enrollment_candidate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "title": "Candidate Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentCandidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Enrollment Candidate",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/enrollment-queue/{candidate_id}/approve": {
+      "post": {
+        "description": "Approve an enrollment candidate.\n\nEither creates a new KnownPerson or links to an existing one\nbased on the request parameters.\n\nArgs:\n    candidate_id: ID of the candidate to approve\n    data: Approval request with name or person_id\n    session: Database session\n\nReturns:\n    ApproveEnrollmentResponse with result\n\nRaises:\n    HTTPException: 404 if candidate not found\n    HTTPException: 400 if validation fails",
+        "operationId": "face-recognition_approve_enrollment_candidate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "title": "Candidate Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveEnrollmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproveEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve Enrollment Candidate",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/enrollment-queue/{candidate_id}/reject": {
+      "post": {
+        "description": "Reject an enrollment candidate.\n\nMarks the candidate as rejected and records the reason.\n\nArgs:\n    candidate_id: ID of the candidate to reject\n    data: Rejection request with optional reason\n    session: Database session\n\nReturns:\n    RejectEnrollmentResponse\n\nRaises:\n    HTTPException: 404 if candidate not found",
+        "operationId": "face-recognition_reject_enrollment_candidate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "candidate_id",
+            "required": true,
+            "schema": {
+              "title": "Candidate Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectEnrollmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reject Enrollment Candidate",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
     "/api/entities": {
       "get": {
         "description": "List tracked entities with optional filtering.\n\nReturns a paginated list of entities from PostgreSQL. Entities are\ntracked via re-identification and stored in the database.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    camera_id: Filter by camera ID\n    since: Filter entities seen since this timestamp\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityListResponse with filtered entities and pagination info",
@@ -47688,6 +49953,48 @@
         ]
       }
     },
+    "/api/face-events/compare": {
+      "post": {
+        "description": "Compare similarity between two face images (Debug Tool).\n\nThis is a developer debug tool for testing face similarity detection.\nUpload two face images and get a similarity score indicating whether\nthey are likely the same person.\n\n**Note:** This debug tool uses CLIP embeddings (768-dimensional) for\nvisual similarity comparison. Production face recognition uses ArcFace\nembeddings (512-dimensional) which are optimized specifically for face\nrecognition tasks.\n\nThe similarity score is computed using cosine similarity between the\ntwo image embeddings. A higher score indicates more visual similarity.\n\nRecommended thresholds:\n- 0.70: Lenient matching (may have false positives)\n- 0.75: Balanced matching\n- 0.80: Strict matching (fewer false positives, may miss matches)\n\nArgs:\n    image1: First face image (JPEG or PNG format)\n    image2: Second face image (JPEG or PNG format)\n    threshold: Minimum similarity score to consider a match (default: 0.7)\n\nReturns:\n    FaceSimilarityCompareResponse with similarity score and match decision\n\nRaises:\n    HTTPException: 400 if images are invalid or CLIP service unavailable",
+        "operationId": "face-recognition_compare_faces",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_face-recognition_compare_faces"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceSimilarityCompareResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compare Faces",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
     "/api/face-events/match": {
       "post": {
         "description": "Match a face embedding against known persons.\n\nCompares the provided 512-dimensional embedding against all stored\nembeddings and returns the best match if above the threshold.\n\nArgs:\n    data: Match request with embedding and optional threshold\n    session: Database session\n\nReturns:\n    FaceMatchResponse with match results\n\nRaises:\n    HTTPException: 400 if embedding is invalid",
@@ -50118,6 +52425,48 @@
           }
         },
         "summary": "Create Known Person",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/known-persons/bulk-enroll": {
+      "post": {
+        "description": "Bulk enroll multiple face images at once.\n\nSupports two modes:\n1. Add to existing person: Provide person_id\n2. Create new person: Provide new_person_name\n\nEach image is validated for:\n- File type (JPEG/PNG only)\n- Face detection (must contain a detectable face)\n- Quality score (must be >= 0.7)\n\nMaximum 10 images per request. Each person can have maximum 10 total embeddings.\n\nArgs:\n    images: List of face images to enroll (multipart/form-data)\n    person_id: ID of existing person to add faces to (optional)\n    new_person_name: Name for new person if creating (optional)\n    is_household_member: Whether new person is a household member\n    session: Database session\n\nReturns:\n    BulkEnrollmentResponse with summary and per-image results\n\nRaises:\n    HTTPException: 400 if no mode selected or invalid parameters\n    HTTPException: 404 if person_id not found",
+        "operationId": "face-recognition_bulk_enroll_faces",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_face-recognition_bulk_enroll_faces"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bulk Enroll Faces",
         "tags": [
           "face-recognition"
         ]
@@ -54360,6 +56709,284 @@
         ]
       }
     },
+    "/api/system/gpu-config/export": {
+      "get": {
+        "description": "Exports current configuration in a format suitable for backup/restore.",
+        "operationId": "gpu-config_export_gpu_config",
+        "parameters": [
+          {
+            "description": "Export specific version (default: current)",
+            "in": "query",
+            "name": "version_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Export specific version (default: current)",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigExportData"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to export configuration"
+          }
+        },
+        "summary": "Export current GPU configuration",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/history": {
+      "get": {
+        "description": "Returns paginated list of GPU configuration versions.",
+        "operationId": "gpu-config_list_config_versions",
+        "parameters": [
+          {
+            "description": "Maximum versions to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Maximum versions to return",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of versions to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of versions to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to load version history"
+          }
+        },
+        "summary": "List configuration version history",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/history/diff": {
+      "get": {
+        "description": "Returns the differences between two configuration versions.",
+        "operationId": "gpu-config_diff_config_versions",
+        "parameters": [
+          {
+            "description": "Source version number",
+            "in": "query",
+            "name": "from_version",
+            "required": true,
+            "schema": {
+              "description": "Source version number",
+              "title": "From Version",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Target version number",
+            "in": "query",
+            "name": "to_version",
+            "required": true,
+            "schema": {
+              "description": "Target version number",
+              "title": "To Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigVersionDiffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Version not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to compute diff"
+          }
+        },
+        "summary": "Compare two configuration versions",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/history/{version_id}": {
+      "get": {
+        "description": "Returns full details of a specific configuration version.",
+        "operationId": "gpu-config_get_config_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigVersionDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Version not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to load version"
+          }
+        },
+        "summary": "Get configuration version details",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/import": {
+      "post": {
+        "description": "Imports a previously exported configuration with validation.",
+        "operationId": "gpu-config_import_gpu_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuConfigImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid configuration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to import configuration"
+          }
+        },
+        "summary": "Import GPU configuration",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
     "/api/system/gpu-config/preview": {
       "get": {
         "description": "Preview what assignments would result from a given strategy.",
@@ -54405,6 +57032,54 @@
           }
         },
         "summary": "Preview auto-assignment",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/rollback": {
+      "post": {
+        "description": "Restores a previous configuration version.",
+        "operationId": "gpu-config_rollback_gpu_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuConfigRollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigRollbackResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Version not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to rollback"
+          }
+        },
+        "summary": "Rollback to previous configuration",
         "tags": [
           "gpu-config"
         ]
