@@ -56,11 +56,7 @@ export function useRtspPreview(): UseRtspPreviewReturn {
 
   // Stop preview and return to idle state
   const stopPreview = useCallback(() => {
-    // Only cleanup if we have an active connection or stream
-    if (peerConnectionRef.current || currentStreamRef.current) {
-      cleanup();
-      go2rtcClient.stopPreview();
-    }
+    cleanup();
     setState('idle');
     setError(undefined);
   }, [cleanup]);
@@ -71,7 +67,6 @@ export function useRtspPreview(): UseRtspPreviewReturn {
       // If already connecting or connected, stop the current preview first
       if (state === 'connecting' || state === 'connected') {
         cleanup();
-        go2rtcClient.stopPreview();
       }
 
       // Clear any previous error and transition to connecting
@@ -143,12 +138,7 @@ export function useRtspPreview(): UseRtspPreviewReturn {
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (peerConnectionRef.current || currentStreamRef.current) {
-        cleanup();
-        go2rtcClient.stopPreview();
-      }
-    };
+    return cleanup;
   }, [cleanup]);
 
   return {
