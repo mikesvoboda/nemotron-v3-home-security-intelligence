@@ -10,6 +10,7 @@ import {
   Brain,
   Briefcase,
   Calendar,
+  Car,
   ClipboardCheck,
   Clock,
   Cpu,
@@ -77,6 +78,7 @@ export const navGroups: NavGroup[] = [
       { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
       { id: 'ai-services', label: 'AI Services', icon: Server, path: '/ai-services' },
       { id: 'pyroscope', label: 'Profiling', icon: Flame, path: '/pyroscope' },
+      { id: 'plate-reads', label: 'Plate Reads', icon: Car, path: '/plate-reads' },
     ],
   },
   {

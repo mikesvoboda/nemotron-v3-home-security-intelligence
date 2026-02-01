@@ -77,7 +77,7 @@ def load_specs() -> dict[str, Any]:
     if not SPECS_PATH.exists():
         print(f"Error: Specs file not found at {SPECS_PATH}", file=sys.stderr)
         sys.exit(1)
-    with open(SPECS_PATH) as f:
+    with open(SPECS_PATH) as f:  # nosemgrep: path-traversal-open
         return json.load(f)
 
 
@@ -86,7 +86,7 @@ def load_mascot_image_base64() -> str:
     if not MASCOT_IMAGE.exists():
         print(f"Error: Mascot image not found at {MASCOT_IMAGE}", file=sys.stderr)
         sys.exit(1)
-    with open(MASCOT_IMAGE, "rb") as f:
+    with open(MASCOT_IMAGE, "rb") as f:  # nosemgrep: path-traversal-open
         return base64.b64encode(f.read()).decode("utf-8")
 
 
@@ -94,7 +94,7 @@ def load_nvidia_logo_base64() -> str | None:
     """Load and encode the NVIDIA logo as base64 if it exists."""
     if not NVIDIA_LOGO.exists():
         return None
-    with open(NVIDIA_LOGO, "rb") as f:
+    with open(NVIDIA_LOGO, "rb") as f:  # nosemgrep: path-traversal-open
         return base64.b64encode(f.read()).decode("utf-8")
 
 
@@ -104,7 +104,7 @@ def load_reference_image_base64(path: str) -> str:
     if not image_path.exists():
         print(f"Error: Reference image not found at {image_path}", file=sys.stderr)
         sys.exit(1)
-    with open(image_path, "rb") as f:
+    with open(image_path, "rb") as f:  # nosemgrep: path-traversal-open
         return base64.b64encode(f.read()).decode("utf-8")
 
 

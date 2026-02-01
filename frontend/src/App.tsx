@@ -134,6 +134,11 @@ const WebhooksPage = lazy(() => import('./pages/WebhooksPage'));
 // Scheduled Reports Page
 const ScheduledReportsPage = lazy(() => import('./pages/ScheduledReportsPage'));
 
+// Plate Reads Page (License Plate Recognition)
+const PlateReadsPage = lazy(() =>
+  import('./components/plate-reads').then((m) => ({ default: m.PlateReadsPage }))
+);
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -205,6 +210,7 @@ export default function App() {
                           <Route path="/settings/gpu" element={<GpuSettingsPage />} />
                           <Route path="/webhooks" element={<WebhooksPage />} />
                           <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
+                          <Route path="/plate-reads" element={<PlateReadsPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>
