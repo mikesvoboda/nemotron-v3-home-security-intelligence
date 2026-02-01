@@ -12,17 +12,22 @@ export type SystemSectionId =
   | 'batch-statistics'
   | 'databases'
   | 'workers'
+  | 'worker-management'
   | 'background-jobs'
   | 'containers'
   | 'host-system'
   | 'circuit-breakers'
   | 'file-operations'
   | 'services'
+  | 'prometheus-monitoring'
   | 'profiling'
   | 'recording-replay'
   | 'config-inspector'
   | 'log-level'
-  | 'test-data';
+  | 'test-data'
+  | 'performance-history'
+  | 'gpu-history'
+  | 'latency-history';
 
 /**
  * Default expanded state for each section
@@ -44,17 +49,22 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'batch-statistics': true,
   databases: false,
   workers: false,
+  'worker-management': true,
   'background-jobs': true,
   containers: true,
   'host-system': true,
   'circuit-breakers': false,
   'file-operations': false,
   services: false,
+  'prometheus-monitoring': true,
   profiling: false,
   'recording-replay': false,
   'config-inspector': false,
   'log-level': false,
   'test-data': false,
+  'performance-history': true,
+  'gpu-history': true,
+  'latency-history': true,
 };
 
 const STORAGE_KEY = 'system-page-sections';

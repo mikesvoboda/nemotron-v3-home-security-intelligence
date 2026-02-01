@@ -12,6 +12,10 @@ import {
   Database,
   Wrench,
   Server,
+  TrendingUp,
+  Cpu,
+  Clock,
+  Radio,
 } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
@@ -43,8 +47,13 @@ import CollapsibleSection from './CollapsibleSection';
 import DatabasesPanel from './DatabasesPanel';
 import DebugModeToggle from './DebugModeToggle';
 import FileOperationsPanel from './FileOperationsPanel';
+import GPUHistoryPanel from './GPUHistoryPanel';
+import PerformanceHistoryPanel from './PerformanceHistoryPanel';
 import PipelineFlowVisualization from './PipelineFlowVisualization';
+import PipelineLatencyHistoryPanel from './PipelineLatencyHistoryPanel';
+import PrometheusMonitoringPanel from './PrometheusMonitoringPanel';
 import ServicesPanel from './ServicesPanel';
+import { WorkerManagementPanel } from './WorkerManagementPanel';
 
 import type { DatabaseMetrics, RedisMetrics, DatabaseHistoryData } from './DatabasesPanel';
 import type {
@@ -516,6 +525,32 @@ export default function SystemMonitoringPage() {
             </CollapsibleSection>
           </div>
 
+          {/* Prometheus Monitoring Panel */}
+          <div id="section-prometheus-monitoring">
+            <CollapsibleSection
+              title="Prometheus Monitoring"
+              icon={<Radio className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['prometheus-monitoring']}
+              onToggle={() => toggleSection('prometheus-monitoring')}
+              data-testid="prometheus-monitoring-section"
+            >
+              <PrometheusMonitoringPanel data-testid="prometheus-monitoring-panel" />
+            </CollapsibleSection>
+          </div>
+
+          {/* Worker Management Panel */}
+          <div id="section-worker-management">
+            <CollapsibleSection
+              title="Worker Management"
+              icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['worker-management']}
+              onToggle={() => toggleSection('worker-management')}
+              data-testid="worker-management-section"
+            >
+              <WorkerManagementPanel data-testid="worker-management-panel" />
+            </CollapsibleSection>
+          </div>
+
           {/* Databases Panel */}
           <div id="section-databases">
             <CollapsibleSection
@@ -537,6 +572,55 @@ export default function SystemMonitoringPage() {
                 redisDebugError={redisDebugError?.message ?? null}
                 data-testid="databases-panel-section"
               />
+            </CollapsibleSection>
+          </div>
+        </div>
+
+        {/* Historical Metrics Section */}
+        <div className="mt-6" data-testid="historical-performance-section">
+          <div className="mb-4 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-[#76B900]" />
+            <h2 className="text-xl font-semibold text-white">Historical Metrics</h2>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Performance History */}
+            <div id="section-performance-history">
+              <CollapsibleSection
+                title="Performance History"
+                icon={<Activity className="h-5 w-5 text-[#76B900]" />}
+                isOpen={sectionStates['performance-history']}
+                onToggle={() => toggleSection('performance-history')}
+                data-testid="performance-history-section"
+              >
+                <PerformanceHistoryPanel data-testid="performance-history" />
+              </CollapsibleSection>
+            </div>
+
+            {/* GPU History */}
+            <div id="section-gpu-history">
+              <CollapsibleSection
+                title="GPU History"
+                icon={<Cpu className="h-5 w-5 text-[#76B900]" />}
+                isOpen={sectionStates['gpu-history']}
+                onToggle={() => toggleSection('gpu-history')}
+                data-testid="gpu-history-section"
+              >
+                <GPUHistoryPanel data-testid="gpu-history" />
+              </CollapsibleSection>
+            </div>
+          </div>
+
+          {/* Pipeline Latency History - Full width */}
+          <div className="mt-6" id="section-latency-history">
+            <CollapsibleSection
+              title="Pipeline Latency History"
+              icon={<Clock className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['latency-history']}
+              onToggle={() => toggleSection('latency-history')}
+              data-testid="latency-history-section"
+            >
+              <PipelineLatencyHistoryPanel data-testid="pipeline-latency" />
             </CollapsibleSection>
           </div>
         </div>

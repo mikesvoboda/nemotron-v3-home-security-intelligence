@@ -9,6 +9,8 @@ export interface TimeRangeSelectorProps {
   onRangeChange: (range: TimeRange) => void;
   /** Additional CSS classes */
   className?: string;
+  /** Test ID for testing */
+  'data-testid'?: string;
 }
 
 /** Available time range options with labels */
@@ -41,13 +43,14 @@ export default function TimeRangeSelector({
   selectedRange,
   onRangeChange,
   className,
+  'data-testid': testId = 'time-range-selector',
 }: TimeRangeSelectorProps) {
   return (
     <div
       role="group"
       aria-label="Time range selection"
       className={clsx('flex items-center gap-1 rounded-lg bg-gray-800/50 p-1', className)}
-      data-testid="time-range-selector"
+      data-testid={testId}
     >
       {TIME_RANGES.map(({ value, label }) => {
         const isSelected = selectedRange === value;
