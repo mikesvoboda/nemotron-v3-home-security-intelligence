@@ -2398,6 +2398,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/baseline/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Baseline Config
+         * @description Get baseline configuration for a camera.
+         *
+         *     Returns the active configuration for the camera, which may be either
+         *     per-camera overrides or global defaults based on override_global_config.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary containing:
+         *         - threshold_stdev: Active threshold value
+         *         - min_samples: Active minimum samples value
+         *         - override_global_config: Whether per-camera overrides are active
+         *         - global_config: Dictionary of global defaults
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["cameras_get_baseline_config"];
+        /**
+         * Update Baseline Config
+         * @description Update per-camera baseline configuration.
+         *
+         *     Allows tuning anomaly detection parameters for individual cameras.
+         *     Only provided fields are updated; omitted fields retain their current values.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         config: Configuration update parameters
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary with updated configuration values
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         *         ValueError: If threshold_stdev < 0.5 or min_samples < 1
+         */
+        put: operations["cameras_update_baseline_config"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/baseline/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Baseline
+         * @description Reset all baseline data for a camera.
+         *
+         *     Deletes all ActivityBaseline and ClassBaseline records for the camera,
+         *     forcing the baseline to be re-learned from new detections.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary with counts of deleted records:
+         *         - activity_baselines_deleted: Number of ActivityBaseline records deleted
+         *         - class_baselines_deleted: Number of ClassBaseline records deleted
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        post: operations["cameras_reset_baseline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/preview/start": {
         parameters: {
             query?: never;
@@ -12997,6 +13088,35 @@ export interface components {
             };
             /** Total Events */
             total_events: number;
+        };
+        /**
+         * BaselineConfigUpdate
+         * @description Request schema for updating per-camera baseline configuration.
+         *
+         *     NEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.
+         *     All fields are optional; only provided fields are updated.
+         * @example {
+         *       "min_samples": 15,
+         *       "override_global_config": true,
+         *       "threshold_stdev": 3
+         *     }
+         */
+        BaselineConfigUpdate: {
+            /**
+             * Min Samples
+             * @description Minimum samples required for reliable anomaly detection (minimum 1)
+             */
+            min_samples?: number | null;
+            /**
+             * Override Global Config
+             * @description Whether to use per-camera overrides instead of global defaults
+             */
+            override_global_config?: boolean | null;
+            /**
+             * Threshold Stdev
+             * @description Anomaly detection threshold in standard deviations (minimum 0.5)
+             */
+            threshold_stdev?: number | null;
         };
         /**
          * BaselineSummaryResponse
@@ -38084,6 +38204,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassBaselineResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_get_baseline_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_update_baseline_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaselineConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_reset_baseline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -3673,6 +3673,54 @@
         "title": "AuditStatsResponse",
         "type": "object"
       },
+      "BaselineConfigUpdate": {
+        "description": "Request schema for updating per-camera baseline configuration.\n\nNEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.\nAll fields are optional; only provided fields are updated.",
+        "example": {
+          "min_samples": 15,
+          "override_global_config": true,
+          "threshold_stdev": 3.0
+        },
+        "properties": {
+          "min_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minimum samples required for reliable anomaly detection (minimum 1)",
+            "title": "Min Samples"
+          },
+          "override_global_config": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether to use per-camera overrides instead of global defaults",
+            "title": "Override Global Config"
+          },
+          "threshold_stdev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Anomaly detection threshold in standard deviations (minimum 0.5)",
+            "title": "Threshold Stdev"
+          }
+        },
+        "title": "BaselineConfigUpdate",
+        "type": "object"
+      },
       "BaselineSummaryResponse": {
         "description": "Response schema for camera baseline summary endpoint.\n\nProvides comprehensive baseline data for a camera including:\n- Hourly activity patterns (0-23 hours)\n- Daily patterns (by day of week)\n- Object-specific baselines\n- Current deviation from baseline",
         "example": {
@@ -38795,6 +38843,151 @@
           }
         },
         "summary": "Get Camera Class Baseline",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/baseline/config": {
+      "get": {
+        "description": "Get baseline configuration for a camera.\n\nReturns the active configuration for the camera, which may be either\nper-camera overrides or global defaults based on override_global_config.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    Dictionary containing:\n    - threshold_stdev: Active threshold value\n    - min_samples: Active minimum samples value\n    - override_global_config: Whether per-camera overrides are active\n    - global_config: Dictionary of global defaults\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "operationId": "cameras_get_baseline_config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cameras Get Baseline Config",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Baseline Config",
+        "tags": [
+          "cameras"
+        ]
+      },
+      "put": {
+        "description": "Update per-camera baseline configuration.\n\nAllows tuning anomaly detection parameters for individual cameras.\nOnly provided fields are updated; omitted fields retain their current values.\n\nArgs:\n    camera_id: ID of the camera\n    config: Configuration update parameters\n    db: Database session\n\nReturns:\n    Dictionary with updated configuration values\n\nRaises:\n    HTTPException: 404 if camera not found\n    ValueError: If threshold_stdev < 0.5 or min_samples < 1",
+        "operationId": "cameras_update_baseline_config",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaselineConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cameras Update Baseline Config",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Baseline Config",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/baseline/reset": {
+      "post": {
+        "description": "Reset all baseline data for a camera.\n\nDeletes all ActivityBaseline and ClassBaseline records for the camera,\nforcing the baseline to be re-learned from new detections.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    Dictionary with counts of deleted records:\n    - activity_baselines_deleted: Number of ActivityBaseline records deleted\n    - class_baselines_deleted: Number of ClassBaseline records deleted\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "operationId": "cameras_reset_baseline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Cameras Reset Baseline",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Baseline",
         "tags": [
           "cameras"
         ]

@@ -533,6 +533,256 @@ curl "http://localhost:8000/api/analytics/detection-trends?start_date=$START&end
 
 ---
 
+## Baseline Configuration API
+
+The Baseline Configuration API provides per-camera control over anomaly detection settings, allowing users to tune sensitivity and reset learned patterns.
+
+**Base URL:** `/api/cameras/{camera_id}/baseline`
+
+---
+
+### Get Baseline Configuration
+
+Get the active configuration for a camera's anomaly detection.
+
+#### Endpoint
+
+```
+GET /api/cameras/{camera_id}/baseline/config
+```
+
+#### Path Parameters
+
+| Parameter   | Type   | Required | Description       |
+| ----------- | ------ | -------- | ----------------- |
+| `camera_id` | String | Yes      | Camera identifier |
+
+#### Response
+
+```json
+{
+  "threshold_stdev": 2.0,
+  "min_samples": 10,
+  "override_global_config": false,
+  "global_config": {
+    "threshold_stdev": 2.0,
+    "min_samples": 10,
+    "decay_factor": 0.1,
+    "window_days": 7
+  }
+}
+```
+
+#### Response Fields
+
+| Field                    | Type    | Description                                          |
+| ------------------------ | ------- | ---------------------------------------------------- |
+| `threshold_stdev`        | Float   | Active threshold in standard deviations              |
+| `min_samples`            | Integer | Minimum samples before anomaly detection is reliable |
+| `override_global_config` | Boolean | Whether per-camera settings are active               |
+| `global_config`          | Object  | Global default configuration for reference           |
+
+#### Example
+
+```bash
+curl "http://localhost:8000/api/cameras/front_door/baseline/config"
+```
+
+---
+
+### Update Baseline Configuration
+
+Update per-camera anomaly detection settings.
+
+#### Endpoint
+
+```
+PUT /api/cameras/{camera_id}/baseline/config
+```
+
+#### Path Parameters
+
+| Parameter   | Type   | Required | Description       |
+| ----------- | ------ | -------- | ----------------- |
+| `camera_id` | String | Yes      | Camera identifier |
+
+#### Request Body
+
+```json
+{
+  "threshold_stdev": 3.0,
+  "min_samples": 15,
+  "override_global_config": true
+}
+```
+
+#### Request Fields
+
+| Field                    | Type    | Required | Description                                 |
+| ------------------------ | ------- | -------- | ------------------------------------------- |
+| `threshold_stdev`        | Float   | No       | New threshold (0.5-5.0 standard deviations) |
+| `min_samples`            | Integer | No       | New minimum samples requirement (>= 1)      |
+| `override_global_config` | Boolean | No       | Enable/disable per-camera overrides         |
+
+#### Validation Rules
+
+- `threshold_stdev` must be between 0.5 and 5.0
+- `min_samples` must be at least 1
+- When `override_global_config` is `false`, per-camera values are ignored
+
+#### Response
+
+Returns the updated configuration (same format as GET).
+
+#### Example
+
+```bash
+# Enable custom settings for a camera
+curl -X PUT "http://localhost:8000/api/cameras/front_door/baseline/config" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "threshold_stdev": 3.0,
+    "min_samples": 15,
+    "override_global_config": true
+  }'
+
+# Revert to global settings
+curl -X PUT "http://localhost:8000/api/cameras/front_door/baseline/config" \
+  -H "Content-Type: application/json" \
+  -d '{"override_global_config": false}'
+```
+
+---
+
+### Reset Baseline Data
+
+Delete all learned baseline data for a camera, forcing re-learning from new detections.
+
+#### Endpoint
+
+```
+POST /api/cameras/{camera_id}/baseline/reset
+```
+
+#### Path Parameters
+
+| Parameter   | Type   | Required | Description       |
+| ----------- | ------ | -------- | ----------------- |
+| `camera_id` | String | Yes      | Camera identifier |
+
+#### Response
+
+```json
+{
+  "activity_baselines_deleted": 168,
+  "class_baselines_deleted": 42
+}
+```
+
+#### Response Fields
+
+| Field                        | Type    | Description                                |
+| ---------------------------- | ------- | ------------------------------------------ |
+| `activity_baselines_deleted` | Integer | Number of ActivityBaseline records deleted |
+| `class_baselines_deleted`    | Integer | Number of ClassBaseline records deleted    |
+
+#### Example
+
+```bash
+curl -X POST "http://localhost:8000/api/cameras/front_door/baseline/reset"
+```
+
+---
+
+### Error Responses
+
+#### 404 Not Found
+
+Camera does not exist:
+
+```json
+{
+  "detail": "Camera with id front_door not found"
+}
+```
+
+#### 422 Validation Error
+
+Invalid configuration values:
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "threshold_stdev"],
+      "msg": "ensure this value is greater than or equal to 0.5",
+      "type": "value_error.number.not_ge"
+    }
+  ]
+}
+```
+
+---
+
+### Usage Examples
+
+#### Python
+
+```python
+import requests
+
+# Get current configuration
+config = requests.get(
+    "http://localhost:8000/api/cameras/front_door/baseline/config"
+).json()
+
+print(f"Using {'custom' if config['override_global_config'] else 'global'} settings")
+print(f"Threshold: {config['threshold_stdev']} std dev")
+
+# Make camera more sensitive
+requests.put(
+    "http://localhost:8000/api/cameras/front_door/baseline/config",
+    json={
+        "threshold_stdev": 1.5,
+        "override_global_config": True
+    }
+)
+
+# Reset baseline after camera moved
+result = requests.post(
+    "http://localhost:8000/api/cameras/front_door/baseline/reset"
+).json()
+
+print(f"Deleted {result['activity_baselines_deleted']} activity baselines")
+```
+
+#### JavaScript
+
+```javascript
+// Get configuration
+const config = await fetch('/api/cameras/front_door/baseline/config').then((r) => r.json());
+
+// Update settings
+await fetch('/api/cameras/front_door/baseline/config', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    threshold_stdev: 2.5,
+    min_samples: 20,
+    override_global_config: true,
+  }),
+});
+
+// Reset baseline
+const resetResult = await fetch('/api/cameras/front_door/baseline/reset', {
+  method: 'POST',
+}).then((r) => r.json());
+
+console.log(`Deleted ${resetResult.activity_baselines_deleted} baselines`);
+```
+
+---
+
 ## Related Documentation
 
 - [Video Analytics Guide](../guides/video-analytics.md) - Feature overview

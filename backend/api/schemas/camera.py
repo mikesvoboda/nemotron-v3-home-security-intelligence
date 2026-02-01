@@ -16,6 +16,7 @@ from backend.models.enums import CameraStatus
 # Re-export CameraStatus for convenient imports from this module
 __all__ = [
     "AreaBasic",
+    "BaselineConfigUpdate",
     "CameraCreate",
     "CameraListResponse",
     "CameraPathValidationResponse",
@@ -736,4 +737,40 @@ class PreviewStartResponse(BaseModel):
     sdp: str | None = Field(
         default=None,
         description="WebRTC SDP answer (if offer was provided)",
+    )
+
+
+# =============================================================================
+# Baseline Configuration Schemas (NEM-4921)
+# =============================================================================
+
+
+class BaselineConfigUpdate(BaseModel):
+    """Request schema for updating per-camera baseline configuration.
+
+    NEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.
+    All fields are optional; only provided fields are updated.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "threshold_stdev": 3.0,
+                "min_samples": 15,
+                "override_global_config": True,
+            }
+        }
+    )
+
+    threshold_stdev: float | None = Field(
+        default=None,
+        description="Anomaly detection threshold in standard deviations (minimum 0.5)",
+    )
+    min_samples: int | None = Field(
+        default=None,
+        description="Minimum samples required for reliable anomaly detection (minimum 1)",
+    )
+    override_global_config: bool | None = Field(
+        default=None,
+        description="Whether to use per-camera overrides instead of global defaults",
     )
