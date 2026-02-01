@@ -16,6 +16,7 @@ from backend.models.enums import CameraStatus
 # Re-export CameraStatus for convenient imports from this module
 __all__ = [
     "AreaBasic",
+    "BaselineConfigUpdate",
     "CameraCreate",
     "CameraListResponse",
     "CameraPathValidationResponse",
@@ -24,6 +25,11 @@ __all__ = [
     "CameraUpdate",
     "CameraValidationInfo",
     "DeletedCamerasListResponse",
+    "PreviewStartRequest",
+    "PreviewStartResponse",
+    "RTSPCapabilitiesResponse",
+    "RTSPTestRequest",
+    "RTSPTestResponse",
 ]
 
 # Regex pattern for forbidden path characters (beyond path traversal)
@@ -530,4 +536,241 @@ class CameraPathValidationResponse(BaseModel):
     valid_cameras: list[CameraValidationInfo] = Field(..., description="Cameras with valid paths")
     invalid_cameras: list[CameraValidationInfo] = Field(
         ..., description="Cameras with validation issues"
+    )
+
+
+# =============================================================================
+# RTSP Connection Testing Schemas (NEM-4748)
+# =============================================================================
+
+
+class RTSPTestRequest(BaseModel):
+    """Request schema for testing an RTSP connection.
+
+    NEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.
+    Validates RTSP URL format and accepts optional credentials.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+                "username": "admin",
+                "password": "password123",  # pragma: allowlist secret
+            }
+        }
+    )
+
+    rtsp_url: str = Field(
+        ...,
+        min_length=10,
+        max_length=500,
+        description="RTSP URL to test (rtsp:// or rtsps://)",
+    )
+    username: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional username for RTSP authentication",
+    )
+    password: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional password for RTSP authentication",
+    )
+
+    @field_validator("rtsp_url")
+    @classmethod
+    def validate_rtsp_url(cls, v: str) -> str:
+        """Validate RTSP URL format."""
+        result = _validate_rtsp_url(v)
+        if result is None:
+            raise ValueError("rtsp_url is required")
+        return result
+
+
+class RTSPCapabilitiesResponse(BaseModel):
+    """Response schema for RTSP stream capabilities.
+
+    NEM-4748: Detected capabilities of an RTSP stream including
+    video/audio support, resolution, codec, and framerate.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "video": True,
+                "audio": True,
+                "ptz": False,
+                "resolution": "1920x1080",
+                "codec": "H.264",
+                "fps": 30,
+            }
+        }
+    )
+
+    video: bool = Field(..., description="Whether the stream supports video")
+    audio: bool = Field(..., description="Whether the stream supports audio")
+    ptz: bool = Field(..., description="Whether PTZ control is available")
+    resolution: str | None = Field(None, description="Stream resolution (e.g., '1920x1080')")
+    codec: str = Field(..., description="Video codec (e.g., 'H.264', 'H.265')")
+    fps: int | None = Field(None, description="Stream framerate")
+
+
+class RTSPTestResponse(BaseModel):
+    """Response schema for RTSP connection test result.
+
+    NEM-4748: Result of testing an RTSP connection including
+    success status, latency, capabilities, or error details.
+    Note: Never includes password in response for security.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "latency_ms": 245,
+                "capabilities": {
+                    "video": True,
+                    "audio": True,
+                    "ptz": False,
+                    "resolution": "1920x1080",
+                    "codec": "H.264",
+                    "fps": 30,
+                },
+                "error_message": None,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether the connection test succeeded")
+    latency_ms: int | None = Field(None, description="Connection latency in milliseconds")
+    capabilities: RTSPCapabilitiesResponse | None = Field(
+        None, description="Stream capabilities (only present on success)"
+    )
+    error_message: str | None = Field(None, description="Error message (only present on failure)")
+
+
+# =============================================================================
+# RTSP Live Preview Schemas (NEM-4762)
+# =============================================================================
+
+
+class PreviewStartRequest(BaseModel):
+    """Request schema for starting an RTSP preview.
+
+    NEM-4762: Schema for POST /api/cameras/preview/start endpoint.
+    Initiates WebRTC signaling with go2rtc for live preview.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+                "username": "admin",
+                "password": "password123",  # pragma: allowlist secret
+                "offer": "v=0\r\no=- ...",  # SDP offer
+            }
+        }
+    )
+
+    rtsp_url: str = Field(
+        ...,
+        min_length=10,
+        max_length=500,
+        description="RTSP URL for preview stream",
+    )
+    username: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional username for RTSP authentication",
+    )
+    password: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional password for RTSP authentication",
+    )
+    offer: str | None = Field(
+        default=None,
+        description="WebRTC SDP offer (optional, for direct signaling)",
+    )
+
+    @field_validator("rtsp_url")
+    @classmethod
+    def validate_rtsp_url(cls, v: str) -> str:
+        """Validate RTSP URL format."""
+        result = _validate_rtsp_url(v)
+        if result is None:
+            raise ValueError("rtsp_url is required")
+        return result
+
+
+class PreviewStartResponse(BaseModel):
+    """Response schema for starting an RTSP preview.
+
+    NEM-4762: Response from POST /api/cameras/preview/start endpoint.
+    Contains WebRTC connection details and session info.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "webrtc_url": "ws://localhost:1984/api/ws?src=camera_front_door_abc123",
+                "stream_id": "camera_front_door_abc123",
+                "expires_in": 300,
+                "sdp": "v=0\r\no=- ...",  # SDP answer
+            }
+        }
+    )
+
+    webrtc_url: str = Field(
+        ...,
+        description="WebRTC WebSocket URL for connecting to go2rtc",
+    )
+    stream_id: str = Field(
+        ...,
+        description="Unique stream identifier for cleanup",
+    )
+    expires_in: int = Field(
+        ...,
+        description="Session expiry time in seconds (default 300)",
+    )
+    sdp: str | None = Field(
+        default=None,
+        description="WebRTC SDP answer (if offer was provided)",
+    )
+
+
+# =============================================================================
+# Baseline Configuration Schemas (NEM-4921)
+# =============================================================================
+
+
+class BaselineConfigUpdate(BaseModel):
+    """Request schema for updating per-camera baseline configuration.
+
+    NEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.
+    All fields are optional; only provided fields are updated.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "threshold_stdev": 3.0,
+                "min_samples": 15,
+                "override_global_config": True,
+            }
+        }
+    )
+
+    threshold_stdev: float | None = Field(
+        default=None,
+        description="Anomaly detection threshold in standard deviations (minimum 0.5)",
+    )
+    min_samples: int | None = Field(
+        default=None,
+        description="Minimum samples required for reliable anomaly detection (minimum 1)",
+    )
+    override_global_config: bool | None = Field(
+        default=None,
+        description="Whether to use per-camera overrides instead of global defaults",
     )

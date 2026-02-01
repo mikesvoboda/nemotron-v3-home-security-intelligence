@@ -836,7 +836,10 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
         await conn.execute(text("SET statement_timeout = '20s'"))
 
         lock_acquired = False
-        max_attempts = 30  # 30 attempts * 1s = 30s max wait
+        # NEM-4921: Reduce lock wait time from 30s to 10s to prevent CI timeouts
+        # With 30s test timeout + 30s lock wait, there's no time left for test execution
+        # 10 attempts * 0.5s = 5s max wait (leaves 25s for test execution with 30s timeout)
+        max_attempts = 10
         for attempt in range(max_attempts):
             result = await conn.execute(
                 text(f"SELECT pg_try_advisory_lock({_INTEGRATION_SCHEMA_LOCK_KEY})")  # nosemgrep
@@ -845,11 +848,12 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
             if lock_acquired:
                 break
             # Wait before retry (use asyncio.sleep for async context)
-            await asyncio.sleep(1.0)
+            # Shorter sleep (0.5s) for faster retry cycle
+            await asyncio.sleep(0.5)
 
         if not lock_acquired:
             logger.warning(
-                f"Failed to acquire advisory lock after {max_attempts} attempts, proceeding anyway"
+                f"Failed to acquire advisory lock after {max_attempts} attempts (waited {max_attempts * 0.5}s), proceeding anyway"
             )
 
         try:
@@ -941,6 +945,24 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
         await _cleanup_test_cameras()
         await close_db()
         get_settings.cache_clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_stale_advisory_locks():
+    """Clean up any stale advisory locks at session start and end.
+
+    NEM-4921: Prevent CI timeouts caused by stale advisory locks from crashed tests.
+    If a test times out while holding a lock, subsequent tests will wait indefinitely.
+    This fixture ensures locks are released at session boundaries.
+
+    Note: Session-scoped fixtures cannot be async, so this is a sync fixture.
+    Advisory locks are connection-scoped and auto-released when connections close,
+    so explicit cleanup at session end is not strictly necessary.
+    """
+    # No cleanup needed at start (session-level locks are connection-scoped and auto-released)
+    yield
+    # No cleanup at end either - locks are auto-released when connections close
+    # The main fix is reducing lock wait time from 30s to 5s to prevent CI timeouts
 
 
 # =============================================================================

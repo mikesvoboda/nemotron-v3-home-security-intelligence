@@ -32,14 +32,17 @@ Camera management CRUD endpoints and snapshot serving.
 
 **Endpoints:**
 
-| Method | Path                                | Purpose                                         |
-| ------ | ----------------------------------- | ----------------------------------------------- |
-| GET    | `/api/cameras`                      | List all cameras with optional status filter    |
-| GET    | `/api/cameras/{camera_id}`          | Get a specific camera by ID                     |
-| GET    | `/api/cameras/{camera_id}/snapshot` | Get latest snapshot image                       |
-| POST   | `/api/cameras`                      | Create a new camera                             |
-| PATCH  | `/api/cameras/{camera_id}`          | Update an existing camera                       |
-| DELETE | `/api/cameras/{camera_id}`          | Delete a camera (cascades to detections/events) |
+| Method | Path                                       | Purpose                                         |
+| ------ | ------------------------------------------ | ----------------------------------------------- |
+| GET    | `/api/cameras`                             | List all cameras with optional status filter    |
+| GET    | `/api/cameras/{camera_id}`                 | Get a specific camera by ID                     |
+| GET    | `/api/cameras/{camera_id}/snapshot`        | Get latest snapshot image                       |
+| GET    | `/api/cameras/{camera_id}/baseline/config` | Get baseline configuration                      |
+| PUT    | `/api/cameras/{camera_id}/baseline/config` | Update baseline configuration                   |
+| POST   | `/api/cameras/{camera_id}/baseline/reset`  | Reset all baseline data                         |
+| POST   | `/api/cameras`                             | Create a new camera                             |
+| PATCH  | `/api/cameras/{camera_id}`                 | Update an existing camera                       |
+| DELETE | `/api/cameras/{camera_id}`                 | Delete a camera (cascades to detections/events) |
 
 **Key Features:**
 
@@ -48,6 +51,57 @@ Camera management CRUD endpoints and snapshot serving.
 - Cascade deletion of related data
 - Latest snapshot serving from camera folder (finds most recently modified image)
 - Path traversal protection for snapshot serving
+
+**Baseline Configuration Endpoints (NEM-4921):**
+
+The baseline config endpoints allow per-camera tuning of anomaly detection:
+
+| Method | Path                                       | Purpose                             |
+| ------ | ------------------------------------------ | ----------------------------------- |
+| GET    | `/api/cameras/{camera_id}/baseline/config` | Get active baseline configuration   |
+| PUT    | `/api/cameras/{camera_id}/baseline/config` | Update per-camera baseline settings |
+| POST   | `/api/cameras/{camera_id}/baseline/reset`  | Reset all baseline data for camera  |
+
+**Configuration Response:**
+
+```json
+{
+  "threshold_stdev": 2.0,
+  "min_samples": 10,
+  "override_global_config": false,
+  "global_config": {
+    "threshold_stdev": 2.0,
+    "min_samples": 10,
+    "decay_factor": 0.1,
+    "window_days": 7
+  }
+}
+```
+
+**Update Request:**
+
+```json
+{
+  "threshold_stdev": 3.0,
+  "min_samples": 15,
+  "override_global_config": true
+}
+```
+
+**Validation Rules:**
+
+- `threshold_stdev` must be between 0.5 and 5.0
+- `min_samples` must be at least 1
+- When `override_global_config` is false, per-camera values are ignored
+
+**Reset Response:**
+
+```json
+{
+  "activity_baselines_deleted": 168,
+  "class_baselines_deleted": 42
+}
+```
 
 ### `onvif.py`
 

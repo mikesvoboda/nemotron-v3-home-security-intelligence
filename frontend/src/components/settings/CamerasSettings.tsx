@@ -7,13 +7,15 @@ import {
   Camera as CameraIcon,
   Edit2,
   MapPin,
+  Network,
+  Play,
   Plus,
   RotateCcw,
   Search,
   Trash2,
   X,
 } from 'lucide-react';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
 import {
   useCamerasQuery,
@@ -21,26 +23,39 @@ import {
   useDeletedCamerasQuery,
   useRestoreCameraMutation,
 } from '../../hooks';
+import { useRtspTest } from '../../hooks/useRtspTest';
+import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
+import SceneChangePanel from '../analytics/SceneChangePanel';
+import IconButton from '../common/IconButton';
+import PasswordInput from '../common/PasswordInput';
+import RTSPPreviewPlayer from '../video/RTSPPreviewPlayer';
+import { ZoneEditor } from '../zones';
+import ConnectionStatusCard from './ConnectionStatusCard';
+import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
 import {
   cameraFormSchema,
   CAMERA_NAME_CONSTRAINTS,
   CAMERA_FOLDER_PATH_CONSTRAINTS,
   CAMERA_STATUS_VALUES,
+  INGESTION_MODE_VALUES,
   type CameraStatusValue,
+  type IngestionModeValue,
 } from '../../schemas/camera';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
-import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
-import SceneChangePanel from '../analytics/SceneChangePanel';
-import IconButton from '../common/IconButton';
-import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
+import type { OnvifDevice } from '../../types/onvif';
+import type { PreviewConfig } from '../../types/preview';
 
 interface CameraFormData {
   name: string;
   folder_path: string;
   status: CameraStatusValue;
   motion_sensitivity?: number;
+  ingestion_mode: IngestionModeValue;
+  rtsp_url?: string;
+  rtsp_username?: string;
+  rtsp_password?: string;
 }
 
 interface CameraFormErrors {
@@ -48,6 +63,10 @@ interface CameraFormErrors {
   folder_path?: string;
   status?: string;
   motion_sensitivity?: string;
+  ingestion_mode?: string;
+  rtsp_url?: string;
+  rtsp_username?: string;
+  rtsp_password?: string;
 }
 
 /**
@@ -78,6 +97,10 @@ export default function CamerasSettings() {
     folder_path: '',
     status: 'online',
     motion_sensitivity: undefined,
+    ingestion_mode: 'ftp',
+    rtsp_url: '',
+    rtsp_username: '',
+    rtsp_password: '',
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,6 +123,23 @@ export default function CamerasSettings() {
   // Local error state for mutations (to display after modal closes)
   const [mutationError, setMutationError] = useState<string | null>(null);
 
+  // ONVIF discovery panel state (NEM-4754)
+  const [isOnvifDiscoveryOpen, setIsOnvifDiscoveryOpen] = useState(false);
+
+  // Live preview state (NEM-4762)
+  const [isLivePreviewOpen, setIsLivePreviewOpen] = useState(false);
+
+  // RTSP connection test hook (NEM-4748)
+  const { testConnection } = useRtspTest();
+
+  // Clear test results when RTSP URL changes
+  useEffect(() => {
+    if (testConnection.data || testConnection.isError) {
+      testConnection.reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.rtsp_url]);
+
   // Derive loading/error states from query and mutations
   const loading = isLoading;
   const error = queryError?.message ?? mutationError;
@@ -111,6 +151,11 @@ export default function CamerasSettings() {
 
   // Check if delete confirmation matches camera name
   const isDeleteConfirmed = deletingCamera?.name === deleteConfirmInput;
+
+  // Check if current camera is RTSP-based (either by ingestion mode or folder_path URL detection)
+  const folderPathLower = formData.folder_path.toLowerCase();
+  const hasRtspUrl = folderPathLower.startsWith('rtsp://') || folderPathLower.startsWith('rtsps://');
+  const isRtspMode = formData.ingestion_mode === 'rtsp' || formData.ingestion_mode === 'onvif' || hasRtspUrl;
 
   // Filter cameras based on search query
   const filteredCameras = cameras.filter((camera) =>
@@ -136,7 +181,16 @@ export default function CamerasSettings() {
 
   const handleOpenAddModal = () => {
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'online', motion_sensitivity: undefined });
+    setFormData({
+      name: '',
+      folder_path: '',
+      status: 'online',
+      motion_sensitivity: undefined,
+      ingestion_mode: 'ftp',
+      rtsp_url: '',
+      rtsp_username: '',
+      rtsp_password: '',
+    });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -148,6 +202,10 @@ export default function CamerasSettings() {
       folder_path: camera.folder_path,
       status: camera.status,
       motion_sensitivity: camera.motion_sensitivity,
+      ingestion_mode: (camera.ingestion_mode as IngestionModeValue) ?? 'ftp',
+      rtsp_url: camera.rtsp_url ?? '',
+      rtsp_username: camera.rtsp_username ?? '',
+      rtsp_password: camera.rtsp_password ?? '',
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -156,7 +214,16 @@ export default function CamerasSettings() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'online', motion_sensitivity: undefined });
+    setFormData({
+      name: '',
+      folder_path: '',
+      status: 'online',
+      motion_sensitivity: undefined,
+      ingestion_mode: 'ftp',
+      rtsp_url: '',
+      rtsp_username: '',
+      rtsp_password: '',
+    });
     setFormErrors({});
   };
 
@@ -183,9 +250,6 @@ export default function CamerasSettings() {
 
     setFormErrors({});
 
-    // Helper to check if folder_path is RTSP
-    const isRtspPath = (path: string) => path.toLowerCase().startsWith('rtsp://');
-
     try {
       if (editingCamera) {
         // Update existing camera
@@ -195,21 +259,33 @@ export default function CamerasSettings() {
           status: formData.status,
         };
         // Include motion_sensitivity for RTSP cameras
-        if (isRtspPath(formData.folder_path)) {
+        if (isRtspMode) {
           updateData.motion_sensitivity = formData.motion_sensitivity ?? 0.5;
         }
         await updateMutation.mutateAsync({ id: editingCamera.id, data: updateData });
       } else {
         // Create new camera
-        const isRtsp = isRtspPath(formData.folder_path);
-        const createData: CameraCreate = {
+        // Use Partial<CameraCreate> since backend provides defaults for ingestion_mode/motion_sensitivity
+        const createData: Partial<CameraCreate> & Pick<CameraCreate, 'name' | 'folder_path'> = {
           name: formData.name.trim(),
           folder_path: formData.folder_path.trim(),
           status: formData.status ?? 'online',
-          ingestion_mode: isRtsp ? 'rtsp' : 'ftp',
-          motion_sensitivity: isRtsp ? (formData.motion_sensitivity ?? 0.5) : 0.5,
         };
-        await createMutation.mutateAsync(createData);
+
+        // Include RTSP fields when mode is rtsp or onvif (or detected via folder_path URL)
+        if (isRtspMode) {
+          createData.ingestion_mode = formData.ingestion_mode;
+          createData.rtsp_url = formData.rtsp_url?.trim();
+          createData.motion_sensitivity = formData.motion_sensitivity ?? 0.5;
+          if (formData.rtsp_username?.trim()) {
+            createData.rtsp_username = formData.rtsp_username.trim();
+          }
+          if (formData.rtsp_password?.trim()) {
+            createData.rtsp_password = formData.rtsp_password.trim();
+          }
+        }
+
+        await createMutation.mutateAsync(createData as CameraCreate);
       }
 
       // Cache is automatically invalidated by the mutation
@@ -242,6 +318,29 @@ export default function CamerasSettings() {
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : 'Failed to restore camera');
     }
+  };
+
+  /**
+   * Handle ONVIF device selection from discovery panel (NEM-4754)
+   * Auto-fills the camera form with discovered device information
+   */
+  const handleOnvifDeviceSelect = (device: OnvifDevice) => {
+    // Set ingestion mode to ONVIF
+    setFormData((prev) => ({
+      ...prev,
+      ingestion_mode: 'onvif',
+      // Use manufacturer + model as suggested name if name is empty
+      name: prev.name || `${device.manufacturer} ${device.model}`.trim(),
+      // Use device IP as folder path placeholder
+      folder_path: prev.folder_path || device.device_url,
+      // Use first RTSP URL if available
+      rtsp_url: device.rtsp_urls.length > 0 ? device.rtsp_urls[0].url : prev.rtsp_url,
+      // Default motion sensitivity for ONVIF cameras
+      motion_sensitivity: prev.motion_sensitivity ?? 0.5,
+    }));
+
+    // Close the discovery panel
+    setIsOnvifDiscoveryOpen(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -734,8 +833,172 @@ export default function CamerasSettings() {
                       )}
                     </div>
 
+                    {/* Ingestion Mode Select */}
+                    <div>
+                      <label
+                        htmlFor="ingestion_mode"
+                        className="block text-sm font-medium text-text-primary"
+                      >
+                        Ingestion Mode
+                      </label>
+                      <select
+                        id="ingestion_mode"
+                        data-testid="camera-ingestion-mode-select"
+                        value={formData.ingestion_mode}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            ingestion_mode: e.target.value as IngestionModeValue,
+                          })
+                        }
+                        className={clsx(
+                          'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
+                          formErrors.ingestion_mode
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                            : 'border-gray-800 focus:border-primary focus:ring-primary'
+                        )}
+                      >
+                        {INGESTION_MODE_VALUES.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {mode.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                      {formErrors.ingestion_mode && (
+                        <p className="mt-1 text-sm text-red-500">{formErrors.ingestion_mode}</p>
+                      )}
+                    </div>
+
+                    {/* RTSP Configuration Section - Only when ingestion_mode is rtsp or onvif */}
+                    {isRtspMode && (
+                      <>
+                        {/* ONVIF Discovery Button (NEM-4754) */}
+                        <div className="rounded-lg border border-gray-800 bg-card/50 p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Network className="h-4 w-4 text-primary" />
+                              <span className="text-sm text-text-secondary">
+                                Scan for ONVIF cameras on your network
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setIsOnvifDiscoveryOpen(true)}
+                              data-testid="discover-cameras-button"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-all hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                              <Search className="h-3.5 w-3.5" />
+                              Discover
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* RTSP URL Input */}
+                        <div>
+                          <label
+                            htmlFor="rtsp_url"
+                            className="block text-sm font-medium text-text-primary"
+                          >
+                            RTSP URL
+                          </label>
+                          <input
+                            type="text"
+                            id="rtsp_url"
+                            data-testid="camera-rtsp-url-input"
+                            value={formData.rtsp_url ?? ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, rtsp_url: e.target.value })
+                            }
+                            className={clsx(
+                              'mt-1 block w-full rounded-lg border bg-card px-3 py-2 font-mono text-sm text-text-primary focus:outline-none focus:ring-2',
+                              formErrors.rtsp_url
+                                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                : 'border-gray-800 focus:border-primary focus:ring-primary'
+                            )}
+                            placeholder="rtsp://192.168.1.100:554/stream1"
+                          />
+                          {formErrors.rtsp_url && (
+                            <p className="mt-1 text-sm text-red-500">{formErrors.rtsp_url}</p>
+                          )}
+                        </div>
+
+                        {/* RTSP Username Input */}
+                        <div>
+                          <label
+                            htmlFor="rtsp_username"
+                            className="block text-sm font-medium text-text-primary"
+                          >
+                            RTSP Username
+                          </label>
+                          <input
+                            type="text"
+                            id="rtsp_username"
+                            data-testid="camera-rtsp-username-input"
+                            value={formData.rtsp_username ?? ''}
+                            onChange={(e) =>
+                              setFormData({ ...formData, rtsp_username: e.target.value })
+                            }
+                            className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="admin"
+                          />
+                        </div>
+
+                        {/* RTSP Password Input */}
+                        <PasswordInput
+                          label="RTSP Password"
+                          value={formData.rtsp_password ?? ''}
+                          onChange={(e) =>
+                            setFormData({ ...formData, rtsp_password: e.target.value })
+                          }
+                          placeholder="Enter password"
+                          data-testid="camera-rtsp-password-input"
+                        />
+
+                        {/* Test Connection and Live Preview Buttons (NEM-4748, NEM-4762) */}
+                        <div className="space-y-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                testConnection.mutate({
+                                  rtsp_url: formData.rtsp_url ?? '',
+                                  username: formData.rtsp_username || undefined,
+                                  password: formData.rtsp_password || undefined,
+                                });
+                              }}
+                              disabled={
+                                !formData.rtsp_url ||
+                                testConnection.isPending
+                              }
+                              data-testid="test-connection-button"
+                              className="flex-1 rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {testConnection.isPending ? 'Testing...' : 'Test Connection'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsLivePreviewOpen(true)}
+                              disabled={!formData.rtsp_url}
+                              data-testid="live-preview-button"
+                              className="inline-flex items-center gap-2 rounded-lg border border-primary/50 bg-primary/10 px-4 py-2 font-medium text-primary transition-all hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Play className="h-4 w-4" />
+                              Live Preview
+                            </button>
+                          </div>
+
+                          {/* Show ConnectionStatusCard when testing or have results */}
+                          {(testConnection.isPending || testConnection.data) && (
+                            <ConnectionStatusCard
+                              result={testConnection.isPending ? null : testConnection.data ?? null}
+                            />
+                          )}
+                        </div>
+                      </>
+                    )}
+
                     {/* Motion Sensitivity Slider - Only for RTSP cameras */}
-                    {formData.folder_path.toLowerCase().startsWith('rtsp://') && (
+                    {isRtspMode && (
                       <div>
                         <label
                           htmlFor="motion_sensitivity"
@@ -1025,6 +1288,98 @@ export default function CamerasSettings() {
                       cameraName={baselineCamera.name}
                     />
                   )}
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* ONVIF Discovery Panel (NEM-4754) */}
+      <ONVIFDiscoveryPanel
+        isOpen={isOnvifDiscoveryOpen}
+        onClose={() => setIsOnvifDiscoveryOpen(false)}
+        onDeviceSelect={handleOnvifDeviceSelect}
+      />
+
+      {/* Live Preview Modal (NEM-4762) */}
+      <Transition appear show={isLivePreviewOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setIsLivePreviewOpen(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg border border-gray-800 bg-panel p-6 shadow-dark-xl transition-all">
+                  <div className="mb-4 flex items-center justify-between">
+                    <Dialog.Title className="text-xl font-bold text-text-primary">
+                      Live Preview
+                    </Dialog.Title>
+                    <button
+                      onClick={() => setIsLivePreviewOpen(false)}
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-text-primary focus:outline-none"
+                      aria-label="Close modal"
+                      data-testid="close-preview-modal"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-sm text-text-secondary">
+                      Preview your camera stream. Sessions are limited to 5 minutes.
+                    </p>
+
+                    {formData.rtsp_url && (
+                      <RTSPPreviewPlayer
+                        config={
+                          {
+                            rtspUrl: formData.rtsp_url,
+                            username: formData.rtsp_username || undefined,
+                            password: formData.rtsp_password || undefined,
+                          } as PreviewConfig
+                        }
+                        autoStart
+                        onConnected={() => {
+                          // Preview connected successfully
+                        }}
+                        onError={(error) => {
+                          console.error('Preview error:', error);
+                        }}
+                        onStopped={() => {
+                          // Preview stopped (session expired or user stopped)
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsLivePreviewOpen(false)}
+                      className="rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </Dialog.Panel>
               </Transition.Child>
             </div>

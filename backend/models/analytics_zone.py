@@ -145,6 +145,8 @@ class PolygonZone(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     color: Mapped[str] = mapped_column(String(7), default="#FF0000", nullable=False)
     current_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    loitering_threshold_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)
+    loitering_alert_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
@@ -162,6 +164,11 @@ class PolygonZone(Base):
         # Ensure threshold and count are non-negative
         CheckConstraint("alert_threshold >= 0", name="ck_polygon_zones_threshold_non_negative"),
         CheckConstraint("current_count >= 0", name="ck_polygon_zones_count_non_negative"),
+        # Loitering threshold must be between 0 and 3600 seconds (1 hour)
+        CheckConstraint(
+            "loitering_threshold_seconds >= 0 AND loitering_threshold_seconds <= 3600",
+            name="ck_polygon_zones_loitering_threshold_range",
+        ),
         # Validate hex color format
         CheckConstraint("color ~ '^#[0-9A-Fa-f]{6}$'", name="ck_polygon_zones_color_hex"),
         # Validate zone_type enum-like values

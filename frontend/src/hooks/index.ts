@@ -967,3 +967,7 @@ export type {
   UsePlateSearchQueryOptions,
   UsePlateSearchQueryReturn,
 } from './usePlateSearchQuery';
+
+// RTSP connection testing hook (NEM-4748)
+export { useRtspTest } from './useRtspTest';
+export type { UseRtspTestReturn } from './useRtspTest';

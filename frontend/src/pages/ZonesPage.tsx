@@ -20,13 +20,18 @@
  * @see NEM-3201 Phase 5.2 - Zone Intelligence Dashboard Page
  */
 
+import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
 import {
   AlertTriangle,
+  BarChart3,
   Clock,
   Download,
   Filter,
+  GitCompare,
   Grid,
+  LayoutGrid,
+  MapPin,
   Maximize2,
   Minimize2,
   RefreshCw,
@@ -37,12 +42,30 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import Button from '../components/common/Button';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import ActiveDwellersPanel from '../components/zones/ActiveDwellersPanel';
+import ComparisonTab from '../components/zones/ComparisonTab';
+import CrossingTrendsChart from '../components/zones/CrossingTrendsChart';
+import DwellStatisticsCard from '../components/zones/DwellStatisticsCard';
+import LineZoneCrossingCard from '../components/zones/LineZoneCrossingCard';
+import LoiteringConfigModal from '../components/zones/LoiteringConfigModal';
 import ZoneAnomalyFeed from '../components/zones/ZoneAnomalyFeed';
 import ZoneTrustMatrix from '../components/zones/ZoneTrustMatrix';
 import { useCamerasQuery } from '../hooks/useCamerasQuery';
+import {
+  usePolygonZones,
+  useDwellStatistics,
+  useActiveDwellers,
+} from '../hooks/useDwellTimeAnalytics';
+import {
+  useLineZoneAnalytics,
+  useCrossingTrends,
+  useResetCrossingCounts,
+} from '../hooks/useLineZoneAnalytics';
 import { useZonesQuery } from '../hooks/useZones';
+import { ZONE_TABS } from '../types/zoneAnalytics';
 
 import type { Zone, ZoneType } from '../types/generated';
+import type { ZoneAnalyticsTab } from '../types/zoneAnalytics';
 
 // ============================================================================
 // Types
@@ -435,9 +458,47 @@ function ZonesPageComponent() {
   const [timeRange, setTimeRange] = useState<ZoneTimeRange>('24h');
   const [fullScreenPanel, setFullScreenPanel] = useState<PanelType>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<ZoneAnalyticsTab>('overview');
+  const [selectedLineZoneId, setSelectedLineZoneId] = useState<number | undefined>(undefined);
+  const [trendsInterval, setTrendsInterval] = useState<'hour' | 'day'>('hour');
+  const [selectedPolygonZoneId, setSelectedPolygonZoneId] = useState<number | undefined>(undefined);
+  const [loiteringModalZone, setLoiteringModalZone] = useState<{ id: number; name: string } | null>(null);
 
   // Data fetching
-  const { zones, isLoading, isRefetching, error, refetch } = useAllZones();
+  const { zones, cameras, isLoading, isRefetching, error, refetch } = useAllZones();
+
+  // Line zone analytics
+  const firstCameraId = cameras[0]?.id;
+  const { lineZones, isLoading: isLineZonesLoading } = useLineZoneAnalytics({
+    cameraId: firstCameraId,
+    enabled: !!firstCameraId && activeTab === 'analytics',
+  });
+
+  const { data: crossingTrendsData, isLoading: isTrendsLoading } = useCrossingTrends({
+    zoneId: selectedLineZoneId,
+    interval: trendsInterval,
+    enabled: selectedLineZoneId !== undefined && activeTab === 'analytics',
+  });
+
+  const resetCrossingCountsMutation = useResetCrossingCounts();
+
+  // Polygon zone / dwell time analytics
+  const { polygonZones, isLoading: isPolygonZonesLoading } = usePolygonZones({
+    cameraId: firstCameraId,
+    enabled: !!firstCameraId && activeTab === 'analytics',
+  });
+
+  const { statistics: dwellStatistics, isLoading: isDwellStatsLoading } = useDwellStatistics({
+    zoneId: selectedPolygonZoneId,
+    enabled: selectedPolygonZoneId !== undefined && activeTab === 'analytics',
+  });
+
+  // Active dwellers for selected polygon zone
+  const { data: activeDwellersData, isLoading: isActiveDwellersLoading } = useActiveDwellers({
+    zoneId: selectedPolygonZoneId,
+    enabled: selectedPolygonZoneId !== undefined && activeTab === 'analytics',
+    enablePolling: true,
+  });
 
   // Filter zones by type
   const filteredZones = useMemo(() => {
@@ -500,6 +561,38 @@ function ZonesPageComponent() {
   const handleRefresh = useCallback(() => {
     void refetch();
   }, [refetch]);
+
+  // Handle line zone selection
+  const handleLineZoneSelect = useCallback((zoneId: number) => {
+    setSelectedLineZoneId((prev) => (prev === zoneId ? undefined : zoneId));
+  }, []);
+
+  // Handle reset crossing counts
+  const handleResetCounts = useCallback(
+    (zoneId: number) => {
+      void resetCrossingCountsMutation.mutateAsync(zoneId);
+    },
+    [resetCrossingCountsMutation]
+  );
+
+  // Handle polygon zone selection
+  const handlePolygonZoneSelect = useCallback((zoneId: number) => {
+    setSelectedPolygonZoneId((prev) => (prev === zoneId ? undefined : zoneId));
+  }, []);
+
+  // Handle configure threshold - opens loitering config modal
+  const handleConfigureThreshold = useCallback((zoneId: number) => {
+    // Find the zone name for the modal
+    const zone = polygonZones.find((z) => z.id === zoneId);
+    if (zone) {
+      setLoiteringModalZone({ id: zoneId, name: zone.name });
+    }
+  }, [polygonZones]);
+
+  // Handle close loitering modal
+  const handleCloseLoiteringModal = useCallback(() => {
+    setLoiteringModalZone(null);
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -591,66 +684,331 @@ function ZonesPageComponent() {
           isExporting={isExporting}
         />
 
-        {/* Dashboard Grid - Responsive Layout */}
-        <div className={clsx('grid gap-6', !isFullScreen && 'lg:grid-cols-2')}>
-          {/* Zone Overview Grid */}
-          {(fullScreenPanel === null || fullScreenPanel === 'overview') && (
-            <PanelWrapper
-              title="Zone Overview"
-              icon={<Grid className="h-5 w-5 text-primary" />}
-              panelType="overview"
-              isFullScreen={fullScreenPanel === 'overview'}
-              onToggleFullScreen={setFullScreenPanel}
-              className="lg:col-span-2"
-            >
-              {filteredZones.length === 0 ? (
-                <p className="py-8 text-center text-gray-400">
-                  No zones match the selected filter.
-                </p>
-              ) : (
-                <div
-                  className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                  data-testid="zone-grid"
+        {/* Tab Navigation */}
+        <Tab.Group
+          selectedIndex={ZONE_TABS.findIndex((tab) => tab.id === activeTab)}
+          onChange={(index) => setActiveTab(ZONE_TABS[index].id)}
+        >
+          <Tab.List
+            className="mb-6 flex rounded-lg border border-gray-700 p-1"
+            data-testid="zone-tab-list"
+          >
+            {ZONE_TABS.map((tab) => {
+              // Map icon string to component
+              const IconComponent =
+                tab.icon === 'LayoutGrid'
+                  ? LayoutGrid
+                  : tab.icon === 'BarChart3'
+                    ? BarChart3
+                    : GitCompare;
+              return (
+                <Tab
+                  key={tab.id}
+                  data-testid={`zone-tab-${tab.id}`}
+                  className={({ selected }) =>
+                    clsx(
+                      'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                      'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-[#121212]',
+                      selected
+                        ? 'bg-primary text-white'
+                        : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                    )
+                  }
                 >
-                  {filteredZones.map((zone) => (
-                    <ZoneStatusCard key={zone.id} zone={zone} healthStatus={getZoneHealth(zone)} />
-                  ))}
+                  <IconComponent className="h-4 w-4" aria-hidden="true" />
+                  {tab.label}
+                </Tab>
+              );
+            })}
+          </Tab.List>
+
+          <Tab.Panels>
+            {/* Overview Tab Panel */}
+            <Tab.Panel data-testid="zone-panel-overview">
+              {/* Dashboard Grid - Responsive Layout */}
+              <div className={clsx('grid gap-6', !isFullScreen && 'lg:grid-cols-2')}>
+                {/* Zone Overview Grid */}
+                {(fullScreenPanel === null || fullScreenPanel === 'overview') && (
+                  <PanelWrapper
+                    title="Zone Overview"
+                    icon={<Grid className="h-5 w-5 text-primary" />}
+                    panelType="overview"
+                    isFullScreen={fullScreenPanel === 'overview'}
+                    onToggleFullScreen={setFullScreenPanel}
+                    className="lg:col-span-2"
+                  >
+                    {filteredZones.length === 0 ? (
+                      <p className="py-8 text-center text-gray-400">
+                        No zones match the selected filter.
+                      </p>
+                    ) : (
+                      <div
+                        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                        data-testid="zone-grid"
+                      >
+                        {filteredZones.map((zone) => (
+                          <ZoneStatusCard
+                            key={zone.id}
+                            zone={zone}
+                            healthStatus={getZoneHealth(zone)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </PanelWrapper>
+                )}
+
+                {/* Trust Matrix */}
+                {(fullScreenPanel === null || fullScreenPanel === 'trust') && (
+                  <PanelWrapper
+                    title="Trust Matrix"
+                    icon={<Shield className="h-5 w-5 text-blue-400" />}
+                    panelType="trust"
+                    isFullScreen={fullScreenPanel === 'trust'}
+                    onToggleFullScreen={setFullScreenPanel}
+                  >
+                    <ZoneTrustMatrix zones={filteredZones} className="min-h-[300px]" />
+                  </PanelWrapper>
+                )}
+
+                {/* Alert Feed */}
+                {(fullScreenPanel === null || fullScreenPanel === 'alerts') && (
+                  <PanelWrapper
+                    title="Zone Anomalies"
+                    icon={<AlertTriangle className="h-5 w-5 text-yellow-400" />}
+                    panelType="alerts"
+                    isFullScreen={fullScreenPanel === 'alerts'}
+                    onToggleFullScreen={setFullScreenPanel}
+                  >
+                    <ZoneAnomalyFeed
+                      hoursLookback={hoursLookback}
+                      maxHeight={fullScreenPanel === 'alerts' ? 'calc(100vh - 200px)' : '400px'}
+                      enableRealtime
+                    />
+                  </PanelWrapper>
+                )}
+              </div>
+            </Tab.Panel>
+
+            {/* Analytics Tab Panel */}
+            <Tab.Panel data-testid="zone-panel-analytics">
+              <div className="space-y-6">
+                {/* Interval Selector */}
+                <div className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-[#76B900]" />
+                    <h3 className="font-medium text-white">Line Zone Analytics</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Interval:</span>
+                    <div
+                      className="flex rounded-lg border border-gray-700 p-0.5"
+                      role="group"
+                      aria-label="Trends interval selection"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setTrendsInterval('hour')}
+                        aria-pressed={trendsInterval === 'hour'}
+                        className={clsx(
+                          'rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                          trendsInterval === 'hour'
+                            ? 'bg-primary text-white'
+                            : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                        )}
+                        data-testid="interval-hour-button"
+                      >
+                        Hourly
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTrendsInterval('day')}
+                        aria-pressed={trendsInterval === 'day'}
+                        className={clsx(
+                          'rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                          trendsInterval === 'day'
+                            ? 'bg-primary text-white'
+                            : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                        )}
+                        data-testid="interval-day-button"
+                      >
+                        Daily
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </PanelWrapper>
-          )}
 
-          {/* Trust Matrix */}
-          {(fullScreenPanel === null || fullScreenPanel === 'trust') && (
-            <PanelWrapper
-              title="Trust Matrix"
-              icon={<Shield className="h-5 w-5 text-blue-400" />}
-              panelType="trust"
-              isFullScreen={fullScreenPanel === 'trust'}
-              onToggleFullScreen={setFullScreenPanel}
-            >
-              <ZoneTrustMatrix zones={filteredZones} className="min-h-[300px]" />
-            </PanelWrapper>
-          )}
+                {/* Line Zone Cards Grid */}
+                {isLineZonesLoading ? (
+                  <div className="flex min-h-[200px] items-center justify-center">
+                    <LoadingSpinner />
+                  </div>
+                ) : lineZones.length === 0 ? (
+                  <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6">
+                    <EmptyState
+                      icon={BarChart3}
+                      title="No line zones configured"
+                      description="Create line zones in the camera settings to track crossings and flow patterns."
+                      variant="muted"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {lineZones.map((zone) => (
+                      <div
+                        key={zone.id}
+                        onClick={() => handleLineZoneSelect(zone.id)}
+                        className={clsx(
+                          'cursor-pointer transition-all',
+                          selectedLineZoneId === zone.id && 'ring-2 ring-[#76B900] ring-offset-2 ring-offset-[#121212] rounded-lg'
+                        )}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleLineZoneSelect(zone.id);
+                          }
+                        }}
+                        aria-pressed={selectedLineZoneId === zone.id}
+                        data-testid={`line-zone-selector-${zone.id}`}
+                      >
+                        <LineZoneCrossingCard
+                          zone={zone}
+                          onReset={handleResetCounts}
+                          isResetting={resetCrossingCountsMutation.isPending}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-          {/* Alert Feed */}
-          {(fullScreenPanel === null || fullScreenPanel === 'alerts') && (
-            <PanelWrapper
-              title="Zone Anomalies"
-              icon={<AlertTriangle className="h-5 w-5 text-yellow-400" />}
-              panelType="alerts"
-              isFullScreen={fullScreenPanel === 'alerts'}
-              onToggleFullScreen={setFullScreenPanel}
-            >
-              <ZoneAnomalyFeed
-                hoursLookback={hoursLookback}
-                maxHeight={fullScreenPanel === 'alerts' ? 'calc(100vh - 200px)' : '400px'}
-                enableRealtime
+                {/* Crossing Trends Chart */}
+                {selectedLineZoneId !== undefined && (
+                  <CrossingTrendsChart
+                    data={crossingTrendsData}
+                    isLoading={isTrendsLoading}
+                  />
+                )}
+
+                {/* Help text when no zone selected */}
+                {lineZones.length > 0 && selectedLineZoneId === undefined && (
+                  <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6 text-center">
+                    <p className="text-sm text-gray-400">
+                      Select a line zone above to view crossing trends over time.
+                    </p>
+                  </div>
+                )}
+
+                {/* Polygon Zone Section Divider */}
+                <div className="flex items-center gap-4 pt-4">
+                  <div className="h-px flex-1 bg-gray-700" />
+                  <span className="text-sm text-gray-500">Polygon Zones</span>
+                  <div className="h-px flex-1 bg-gray-700" />
+                </div>
+
+                {/* Polygon Zone Header */}
+                <div className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-blue-400" />
+                    <h3 className="font-medium text-white">Dwell Time Analytics</h3>
+                  </div>
+                  <span className="text-sm text-gray-400">
+                    {polygonZones.length} polygon zone{polygonZones.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* Polygon Zone Cards Grid */}
+                {isPolygonZonesLoading ? (
+                  <div className="flex min-h-[200px] items-center justify-center" data-testid="polygon-zones-loading">
+                    <LoadingSpinner />
+                  </div>
+                ) : polygonZones.length === 0 ? (
+                  <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6" data-testid="polygon-zones-empty">
+                    <EmptyState
+                      icon={MapPin}
+                      title="No polygon zones configured"
+                      description="Create polygon zones in the camera settings to track dwell times and loitering."
+                      variant="muted"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    data-testid="polygon-zones-grid"
+                  >
+                    {polygonZones.map((zone) => (
+                      <div
+                        key={zone.id}
+                        onClick={() => handlePolygonZoneSelect(zone.id)}
+                        className={clsx(
+                          'cursor-pointer transition-all',
+                          selectedPolygonZoneId === zone.id && 'ring-2 ring-blue-400 ring-offset-2 ring-offset-[#121212] rounded-lg'
+                        )}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handlePolygonZoneSelect(zone.id);
+                          }
+                        }}
+                        aria-pressed={selectedPolygonZoneId === zone.id}
+                        data-testid={`polygon-zone-selector-${zone.id}`}
+                      >
+                        <DwellStatisticsCard
+                          zone={zone}
+                          statistics={selectedPolygonZoneId === zone.id ? dwellStatistics : undefined}
+                          isLoading={selectedPolygonZoneId === zone.id && isDwellStatsLoading}
+                          onConfigure={handleConfigureThreshold}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Active Dwellers Panel - shown when a polygon zone is selected */}
+                {selectedPolygonZoneId !== undefined && (
+                  <ActiveDwellersPanel
+                    dwellers={activeDwellersData?.dwellers ?? []}
+                    isLoading={isActiveDwellersLoading}
+                    isConnected={false}
+                    className="mt-4"
+                    data-testid="active-dwellers-panel-container"
+                  />
+                )}
+
+                {/* Help text when no polygon zone selected */}
+                {polygonZones.length > 0 && selectedPolygonZoneId === undefined && (
+                  <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-6 text-center" data-testid="polygon-zone-help-text">
+                    <p className="text-sm text-gray-400">
+                      Select a polygon zone above to view dwell time statistics.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Tab.Panel>
+
+            {/* Comparison Tab Panel */}
+            <Tab.Panel data-testid="zone-panel-comparison">
+              <ComparisonTab
+                zones={filteredZones}
+                isLoadingZones={isLoading}
               />
-            </PanelWrapper>
-          )}
-        </div>
+            </Tab.Panel>
+          </Tab.Panels>
+        </Tab.Group>
       </div>
+
+      {/* Loitering Configuration Modal */}
+      {loiteringModalZone && (
+        <LoiteringConfigModal
+          isOpen={true}
+          onClose={handleCloseLoiteringModal}
+          zoneId={loiteringModalZone.id}
+          zoneName={loiteringModalZone.name}
+        />
+      )}
     </div>
   );
 }

@@ -580,13 +580,13 @@ class TestGetSessionNestedContexts:
 
             mock_factory = MagicMock()
 
-            def create_session_cm() -> MagicMock:
+            def create_session_cm() -> AsyncMock:
                 mock_session = AsyncMock()
                 mock_session.commit = AsyncMock()
                 mock_session.rollback = AsyncMock()
                 sessions_created.append(mock_session)
 
-                cm = MagicMock()
+                cm = AsyncMock()
                 cm.__aenter__ = AsyncMock(return_value=mock_session)
                 cm.__aexit__ = AsyncMock(return_value=None)
                 return cm
@@ -624,13 +624,13 @@ class TestGetSessionNestedContexts:
 
             mock_factory = MagicMock()
 
-            def create_session_cm() -> MagicMock:
+            def create_session_cm() -> AsyncMock:
                 mock_session = AsyncMock()
                 mock_session.commit = AsyncMock()
                 mock_session.rollback = AsyncMock()
                 sessions_created.append(mock_session)
 
-                cm = MagicMock()
+                cm = AsyncMock()
                 cm.__aenter__ = AsyncMock(return_value=mock_session)
                 cm.__aexit__ = AsyncMock(return_value=None)
                 return cm
@@ -914,13 +914,13 @@ class TestConcurrentSessionAccess:
 
             mock_factory = MagicMock()
 
-            def create_session_cm() -> MagicMock:
+            def create_session_cm() -> AsyncMock:
                 mock_session = AsyncMock()
                 mock_session.commit = AsyncMock()
                 mock_session.rollback = AsyncMock()
                 sessions_created.append(mock_session)
 
-                cm = MagicMock()
+                cm = AsyncMock()
                 cm.__aenter__ = AsyncMock(return_value=mock_session)
                 cm.__aexit__ = AsyncMock(return_value=None)
                 return cm
@@ -972,13 +972,13 @@ class TestConcurrentSessionAccess:
 
             mock_factory = MagicMock()
 
-            def create_session_cm() -> MagicMock:
+            def create_session_cm() -> AsyncMock:
                 mock_session = AsyncMock()
                 mock_session.commit = AsyncMock()
                 mock_session.rollback = AsyncMock()
                 sessions_created.append(mock_session)
 
-                cm = MagicMock()
+                cm = AsyncMock()
                 cm.__aenter__ = AsyncMock(return_value=mock_session)
                 cm.__aexit__ = AsyncMock(return_value=None)
                 return cm

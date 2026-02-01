@@ -16,6 +16,7 @@ from backend.api.dependencies import (
     BaselineServiceDep,
     CacheDep,
     DbSession,
+    OnvifServiceDep,
     get_camera_or_404,
 )
 from backend.api.middleware import RateLimiter, RateLimitTier
@@ -28,6 +29,7 @@ from backend.api.schemas.baseline import (
     ClassBaselineResponse,
 )
 from backend.api.schemas.camera import (
+    BaselineConfigUpdate,
     CameraCreate,
     CameraListResponse,
     CameraPathValidationResponse,
@@ -35,7 +37,13 @@ from backend.api.schemas.camera import (
     CameraUpdate,
     CameraValidationInfo,
     DeletedCamerasListResponse,
+    PreviewStartRequest,
+    PreviewStartResponse,
+    RTSPCapabilitiesResponse,
+    RTSPTestRequest,
+    RTSPTestResponse,
 )
+from backend.api.schemas.onvif import OnvifDiscoveryRequest
 from backend.api.schemas.pagination import create_pagination_meta
 from backend.api.schemas.scene_change import (
     SceneChangeAcknowledgeResponse,
@@ -56,11 +64,18 @@ from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.models.scene_change import SceneChange
 from backend.services.audit import AuditService
+from backend.services.baseline_config import baseline_config_service
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
     CacheService,
 )
+from backend.services.go2rtc_client import (
+    Go2RTCClient,
+    Go2RTCUnavailableError,
+    StreamRegistrationError,
+)
+from backend.services.rtsp_test_service import RTSPCapabilities, RTSPTestService
 from backend.services.websocket_emitter import get_websocket_emitter
 
 logger = get_logger(__name__)
@@ -256,6 +271,257 @@ async def list_cameras(
             items_count=len(items),
         ),
     )
+
+
+# =============================================================================
+# RTSP Connection Testing Endpoints (NEM-4748)
+# NOTE: These endpoints MUST be defined before /{camera_id} to avoid
+# "rtsp" being matched as a camera_id
+# =============================================================================
+
+
+def _to_rtsp_capabilities_response(
+    capabilities: RTSPCapabilities | None,
+) -> RTSPCapabilitiesResponse | None:
+    """Convert service capabilities to response schema."""
+    if not capabilities:
+        return None
+    return RTSPCapabilitiesResponse(
+        video=capabilities.video,
+        audio=capabilities.audio,
+        ptz=capabilities.ptz,
+        resolution=capabilities.resolution,
+        codec=capabilities.codec,
+        fps=capabilities.fps,
+    )
+
+
+@router.post(
+    "/rtsp/test",
+    response_model=RTSPTestResponse,
+    summary="Test RTSP connection",
+    responses={
+        200: {"description": "Connection test result"},
+        422: {"description": "Invalid request parameters"},
+    },
+)
+async def test_rtsp_connection(
+    request: RTSPTestRequest,
+) -> RTSPTestResponse:
+    """Test an RTSP camera connection without creating a camera.
+
+    This endpoint validates RTSP URL connectivity and detects stream capabilities.
+    Useful for validating camera settings before adding a new camera.
+
+    SECURITY: Password is never included in the response.
+
+    Args:
+        request: RTSP test request with URL and optional credentials
+
+    Returns:
+        RTSPTestResponse with success status, latency, and capabilities or error
+    """
+    service = RTSPTestService()
+    result = await service.test_connection(
+        rtsp_url=request.rtsp_url,
+        username=request.username,
+        password=request.password,
+    )
+
+    return RTSPTestResponse(
+        success=result.success,
+        latency_ms=result.latency_ms,
+        capabilities=_to_rtsp_capabilities_response(result.capabilities),
+        error_message=result.error_message,
+    )
+
+
+# =============================================================================
+# RTSP Live Preview Endpoints (NEM-4762)
+# NOTE: These endpoints MUST be defined before /{camera_id} to avoid
+# "preview" being matched as a camera_id
+# =============================================================================
+
+
+def _get_go2rtc_client() -> Go2RTCClient:
+    """Get a configured Go2RTC client instance.
+
+    Returns:
+        Go2RTCClient configured with settings from environment.
+    """
+    settings = get_settings()
+    return Go2RTCClient(
+        api_url=settings.go2rtc_api_url,
+        webrtc_url=settings.go2rtc_webrtc_url,
+    )
+
+
+@router.post(
+    "/preview/start",
+    response_model=PreviewStartResponse,
+    summary="Start RTSP preview stream (no camera lookup)",
+    responses={
+        200: {"description": "Preview stream started successfully"},
+        422: {"description": "Invalid request parameters"},
+        503: {"description": "go2rtc service unavailable"},
+    },
+)
+async def start_preview_direct(
+    request: PreviewStartRequest,
+) -> PreviewStartResponse:
+    """Start an RTSP preview stream via go2rtc WebRTC conversion.
+
+    This endpoint accepts RTSP URL directly without requiring a camera ID.
+    Useful for testing connections before saving camera configuration.
+    Sessions automatically expire after 5 minutes (300 seconds).
+
+    Args:
+        request: Preview start request with RTSP URL and optional credentials
+
+    Returns:
+        PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+
+    Raises:
+        HTTPException: 503 if go2rtc service is unavailable
+        HTTPException: 422 if RTSP URL is invalid
+    """
+    client = _get_go2rtc_client()
+
+    # Check if go2rtc is available
+    if not await client.health_check():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        )
+
+    try:
+        # Generate a camera ID from the RTSP URL (use hash of URL for uniqueness)
+        import hashlib
+
+        url_hash = hashlib.sha256(request.rtsp_url.encode()).hexdigest()[:8]
+        camera_id = f"preview_{url_hash}"
+
+        result = await client.register_stream(
+            camera_id=camera_id,
+            rtsp_url=request.rtsp_url,
+            username=request.username,
+            password=request.password,
+        )
+
+        return PreviewStartResponse(
+            webrtc_url=result["webrtc_url"],
+            stream_id=result["stream_id"],
+            expires_in=result["expires_in"],
+            sdp=None,  # SDP negotiation happens via WebSocket
+        )
+
+    except StreamRegistrationError as e:
+        logger.warning(
+            "Failed to register preview stream",
+            extra={"rtsp_url": request.rtsp_url, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+
+    except Go2RTCUnavailableError as e:
+        logger.error(
+            "go2rtc service unavailable during preview start",
+            extra={"rtsp_url": request.rtsp_url, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        ) from e
+
+
+@router.delete(
+    "/preview/{stream_id}/stop",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Stop RTSP preview stream by stream ID",
+    responses={
+        204: {"description": "Preview stream stopped successfully"},
+        404: {"description": "Stream not found (acceptable, idempotent)"},
+    },
+)
+async def stop_preview_by_stream_id(
+    stream_id: str,
+) -> None:
+    """Stop an RTSP preview stream and cleanup go2rtc resources.
+
+    This endpoint is idempotent - calling it for a non-existent stream is OK.
+    404 responses from go2rtc are treated as success.
+
+    Args:
+        stream_id: The stream ID returned from start_preview
+
+    Returns:
+        No content on success
+    """
+    client = _get_go2rtc_client()
+
+    # Best-effort cleanup - unregister_stream handles 404 gracefully
+    await client.unregister_stream(stream_id)
+
+    logger.debug(
+        "Preview stream stopped",
+        extra={"stream_id": stream_id},
+    )
+
+
+# =============================================================================
+# ONVIF Discovery Endpoint (NEM-4754)
+# NOTE: This endpoint MUST be defined before /{camera_id} to avoid
+# "onvif" being matched as a camera_id
+# =============================================================================
+
+
+@router.post(
+    "/onvif/discover",
+    summary="Discover ONVIF devices on the network",
+    responses={
+        200: {"description": "List of discovered ONVIF devices"},
+        422: {"description": "Invalid request parameters"},
+        500: {"description": "Discovery failed"},
+    },
+)
+async def discover_onvif_devices(
+    request: OnvifDiscoveryRequest,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Discover ONVIF devices on the network using WS-Discovery.
+
+    Scans the specified subnet for ONVIF-compatible cameras and returns
+    device information including IP, manufacturer, model, and RTSP URLs.
+
+    Args:
+        request: Discovery request with subnet and timeout
+
+    Returns:
+        Dictionary with discovered devices and count:
+        - devices: List of discovered device information
+        - count: Total number of devices found
+
+    Raises:
+        HTTPException: 500 if discovery fails
+    """
+    try:
+        devices = await onvif_service.discover_devices(
+            subnet=request.subnet,
+            timeout=request.timeout,
+        )
+        return {"devices": devices, "count": len(devices)}
+    except Exception as e:
+        logger.error(
+            "ONVIF device discovery failed",
+            extra={"subnet": request.subnet, "error": str(e)},
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Discovery failed: {e}",
+        ) from e
 
 
 # =============================================================================
@@ -1578,3 +1844,248 @@ async def acknowledge_scene_change(
         acknowledged=scene_change.acknowledged,
         acknowledged_at=scene_change.acknowledged_at,
     )
+
+
+# =============================================================================
+# Camera-based Preview Endpoints (NEM-4762)
+# These endpoints use the camera ID to look up the RTSP configuration
+# =============================================================================
+
+
+@router.post(
+    "/{camera_id}/preview/start",
+    response_model=PreviewStartResponse,
+    summary="Start preview for a specific camera",
+    responses={
+        200: {"description": "Preview stream started successfully"},
+        400: {"description": "Camera does not have RTSP configured"},
+        404: {"description": "Camera not found"},
+        503: {"description": "go2rtc service unavailable"},
+    },
+)
+async def start_camera_preview(
+    camera_id: str,
+    db: DbSession,
+) -> PreviewStartResponse:
+    """Start an RTSP preview stream for a specific camera.
+
+    Looks up the camera's RTSP configuration and registers the stream with go2rtc.
+    Sessions automatically expire after 5 minutes (300 seconds).
+
+    Args:
+        camera_id: The camera ID to start preview for
+        db: Database session
+
+    Returns:
+        PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+
+    Raises:
+        HTTPException: 404 if camera not found
+        HTTPException: 400 if camera does not have RTSP configured
+        HTTPException: 503 if go2rtc service is unavailable
+    """
+    # Look up the camera
+    camera = await get_camera_or_404(camera_id, db)
+
+    # Verify camera has RTSP configured
+    if not camera.rtsp_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Camera {camera_id} does not have RTSP configured",
+        )
+
+    client = _get_go2rtc_client()
+
+    # Check if go2rtc is available
+    if not await client.health_check():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        )
+
+    try:
+        result = await client.register_stream(
+            camera_id=camera_id,
+            rtsp_url=camera.rtsp_url,
+            username=camera.rtsp_username,
+            password=camera.rtsp_password,
+        )
+
+        return PreviewStartResponse(
+            webrtc_url=result["webrtc_url"],
+            stream_id=result["stream_id"],
+            expires_in=result["expires_in"],
+            sdp=None,  # SDP negotiation happens via WebSocket
+        )
+
+    except StreamRegistrationError as e:
+        logger.warning(
+            "Failed to register preview stream for camera",
+            extra={"camera_id": camera_id, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+
+    except Go2RTCUnavailableError as e:
+        logger.error(
+            "go2rtc service unavailable during camera preview start",
+            extra={"camera_id": camera_id, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        ) from e
+
+
+@router.delete(
+    "/{camera_id}/preview/stop",
+    status_code=status.HTTP_200_OK,
+    summary="Stop preview for a specific camera",
+    responses={
+        200: {"description": "Preview stream stopped successfully"},
+        404: {"description": "Camera not found"},
+    },
+)
+async def stop_camera_preview(
+    camera_id: str,
+    db: DbSession,
+) -> dict:
+    """Stop an RTSP preview stream for a specific camera.
+
+    This endpoint is idempotent - calling it for a camera without active preview is OK.
+    404 responses from go2rtc are treated as success.
+
+    Args:
+        camera_id: The camera ID to stop preview for
+        db: Database session
+
+    Returns:
+        Success message
+    """
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    client = _get_go2rtc_client()
+
+    # Best-effort cleanup - try to unregister any streams with this camera ID prefix
+    # The stream ID format is: camera_{camera_id}_{unique_suffix}
+    await client.unregister_stream(f"camera_{camera_id}")
+
+    logger.debug(
+        "Camera preview stopped",
+        extra={"camera_id": camera_id},
+    )
+
+    return {"status": "ok", "message": f"Preview stopped for camera {camera_id}"}
+
+
+# =============================================================================
+# Baseline Configuration Endpoints (NEM-4921)
+# =============================================================================
+
+
+@router.put("/{camera_id}/baseline/config")
+async def update_baseline_config(
+    camera_id: str,
+    config: BaselineConfigUpdate,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Update per-camera baseline configuration.
+
+    Allows tuning anomaly detection parameters for individual cameras.
+    Only provided fields are updated; omitted fields retain their current values.
+
+    Args:
+        camera_id: ID of the camera
+        config: Configuration update parameters
+        db: Database session
+
+    Returns:
+        Dictionary with updated configuration values
+
+    Raises:
+        HTTPException: 404 if camera not found
+        ValueError: If threshold_stdev < 0.5 or min_samples < 1
+    """
+    # Validate parameters before checking camera existence
+    if config.threshold_stdev is not None and config.threshold_stdev < 0.5:
+        raise ValueError("threshold_stdev must be at least 0.5")
+    if config.min_samples is not None and config.min_samples < 1:
+        raise ValueError("min_samples must be at least 1")
+
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Update configuration via service
+    await baseline_config_service.set_camera_config(
+        camera_id,
+        threshold_stdev=config.threshold_stdev,
+        min_samples=config.min_samples,
+        override_global_config=config.override_global_config,
+        session=db,
+    )
+
+    # Return updated configuration
+    return await baseline_config_service.get_camera_config(camera_id, session=db)
+
+
+@router.post("/{camera_id}/baseline/reset")
+async def reset_baseline(
+    camera_id: str,
+    db: DbSession,
+) -> dict[str, int]:
+    """Reset all baseline data for a camera.
+
+    Deletes all ActivityBaseline and ClassBaseline records for the camera,
+    forcing the baseline to be re-learned from new detections.
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        Dictionary with counts of deleted records:
+        - activity_baselines_deleted: Number of ActivityBaseline records deleted
+        - class_baselines_deleted: Number of ClassBaseline records deleted
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Reset baseline data via service
+    return await baseline_config_service.reset_camera_baseline(camera_id=camera_id, session=db)
+
+
+@router.get("/{camera_id}/baseline/config")
+async def get_baseline_config(
+    camera_id: str,
+    db: DbSession,
+) -> dict[str, Any]:
+    """Get baseline configuration for a camera.
+
+    Returns the active configuration for the camera, which may be either
+    per-camera overrides or global defaults based on override_global_config.
+
+    Args:
+        camera_id: ID of the camera
+        db: Database session
+
+    Returns:
+        Dictionary containing:
+        - threshold_stdev: Active threshold value
+        - min_samples: Active minimum samples value
+        - override_global_config: Whether per-camera overrides are active
+        - global_config: Dictionary of global defaults
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    # Get configuration via service
+    return await baseline_config_service.get_camera_config(camera_id, session=db)

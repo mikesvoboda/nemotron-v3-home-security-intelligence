@@ -253,6 +253,12 @@ export interface WebSocketEventMap {
   // Plate read events (NEM-4865)
   /** Plate read created event - new license plate detected */
   'plate_read.created': PlateReadDetectedPayload;
+
+  // Dwell time events (NEM-4714)
+  /** Dwell entry event - entity entered a zone */
+  'dwell.entry': DwellEntryPayload;
+  /** Dwell exit event - entity exited a zone */
+  'dwell.exit': DwellExitPayload;
 }
 
 // ============================================================================
@@ -378,6 +384,9 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'pipeline.throughput',
   // Plate read events (NEM-4865)
   'plate_read.created',
+  // Dwell time events (NEM-4714)
+  'dwell.entry',
+  'dwell.exit',
 ] as const;
 
 /**
@@ -599,6 +608,10 @@ export enum WSEventType {
   // Queue metrics events - Pipeline queue status (NEM-3637)
   QUEUE_STATUS = 'queue.status',
   PIPELINE_THROUGHPUT = 'pipeline.throughput',
+
+  // Dwell time events - Zone dwell tracking (NEM-4714)
+  DWELL_ENTRY = 'dwell.entry',
+  DWELL_EXIT = 'dwell.exit',
 
   // Legacy event types for backward compatibility
   // These map to the existing message types in the codebase
@@ -1102,6 +1115,62 @@ export interface EnrichmentFailedPayload {
 }
 
 // =============================================================================
+// Dwell Time Event Payloads (NEM-4714)
+// =============================================================================
+
+/**
+ * Payload for dwell.entry events.
+ * Sent when an entity enters a polygon zone and dwell tracking begins.
+ */
+export interface DwellEntryPayload {
+  /** Zone ID the entity entered */
+  zone_id: number;
+  /** Zone name for display */
+  zone_name: string;
+  /** Dwell record ID */
+  record_id: number;
+  /** Track ID of the entity */
+  track_id: string;
+  /** Camera ID */
+  camera_id: string;
+  /** Object class (e.g., 'person', 'vehicle', 'car') */
+  object_class: string;
+  /** Entry time (ISO 8601 format) */
+  entry_time: string;
+  /** ISO 8601 timestamp of the event */
+  timestamp: string;
+}
+
+/**
+ * Payload for dwell.exit events.
+ * Sent when an entity exits a polygon zone.
+ */
+export interface DwellExitPayload {
+  /** Zone ID the entity exited */
+  zone_id: number;
+  /** Zone name for display */
+  zone_name: string;
+  /** Dwell record ID */
+  record_id: number;
+  /** Track ID of the entity */
+  track_id: string;
+  /** Camera ID */
+  camera_id: string;
+  /** Object class (e.g., 'person', 'vehicle', 'car') */
+  object_class: string;
+  /** Entry time (ISO 8601 format) */
+  entry_time: string;
+  /** Exit time (ISO 8601 format) */
+  exit_time: string;
+  /** Total dwell duration in seconds */
+  dwell_seconds: number;
+  /** Whether the dwell time exceeded the loitering threshold */
+  triggered_alert: boolean;
+  /** ISO 8601 timestamp of the event */
+  timestamp: string;
+}
+
+// =============================================================================
 // Queue Metrics Event Payloads (NEM-3637)
 // =============================================================================
 
@@ -1467,6 +1536,9 @@ export interface WSEventPayloadMap {
   // Queue metrics events (NEM-3637)
   [WSEventType.QUEUE_STATUS]: QueueStatusPayload;
   [WSEventType.PIPELINE_THROUGHPUT]: PipelineThroughputPayload;
+  // Dwell time events (NEM-4714)
+  [WSEventType.DWELL_ENTRY]: DwellEntryPayload;
+  [WSEventType.DWELL_EXIT]: DwellExitPayload;
   // Legacy types
   [WSEventType.EVENT]: SecurityEventData;
   [WSEventType.SERVICE_STATUS]: ServiceStatusData;

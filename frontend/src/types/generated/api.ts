@@ -926,6 +926,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics-zones/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare metrics across multiple zones
+         * @description Compare specified metric across multiple zones.
+         *
+         *     Returns comparison data for the specified zones, including metric values
+         *     and trend percentages where available.
+         *
+         *     Args:
+         *         db: Database session.
+         *         zone_ids: List of zone IDs to compare.
+         *         metric: The metric to compare (crossings, dwell_time, anomalies, occupancy).
+         *         period: Time period for comparison (day, week, month).
+         *
+         *     Returns:
+         *         ZoneComparisonResponse with comparison data for each zone.
+         *
+         *     Raises:
+         *         HTTPException: 400 if metric or period is invalid.
+         */
+        get: operations["analytics-zones_compare_zones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics-zones/line-zones": {
         parameters: {
             query?: never;
@@ -1046,6 +1081,46 @@ export interface paths {
          *         HTTPException: 404 if line zone not found.
          */
         patch: operations["analytics-zones_update_line_zone"];
+        trace?: never;
+    };
+    "/api/analytics-zones/line-zones/{zone_id}/crossing-trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get crossing trends for a line zone
+         * @description Get crossing trends for a line zone.
+         *
+         *     Returns time-bucketed crossing data for the specified time range.
+         *     By default, retrieves the last 24 hours of data aggregated by hour.
+         *
+         *     Note: Currently returns cumulative counts as a single data point since
+         *     individual crossing events are not stored. Future versions will support
+         *     true historical trend data.
+         *
+         *     Args:
+         *         zone_id: ID of the line zone.
+         *         db: Database session.
+         *         start_time: Start of the time window (defaults to 24 hours ago).
+         *         end_time: End of the time window (defaults to now).
+         *         interval: Aggregation interval ('hour' or 'day').
+         *
+         *     Returns:
+         *         Crossing trends with time-bucketed data points.
+         *
+         *     Raises:
+         *         HTTPException: 404 if line zone not found.
+         */
+        get: operations["analytics-zones_get_crossing_trends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/analytics-zones/line-zones/{zone_id}/reset-counts": {
@@ -1340,6 +1415,59 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/analytics-zones/polygon-zones/{zone_id}/loitering-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get loitering configuration for a polygon zone
+         * @description Get the current loitering configuration for a polygon zone.
+         *
+         *     Returns the loitering threshold and alert settings for the specified zone.
+         *     Loitering detection identifies objects that remain in a zone longer than
+         *     the configured threshold.
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Current loitering configuration for the zone.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         */
+        get: operations["analytics-zones_get_loitering_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update loitering configuration for a polygon zone
+         * @description Update loitering threshold and alert settings for a polygon zone.
+         *
+         *     Configures when loitering alerts are triggered based on how long an
+         *     object remains in the zone.
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         config: Loitering configuration update request.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Updated loitering configuration for the zone.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         *         HTTPException: 422 if validation fails (threshold out of range).
+         */
+        patch: operations["analytics-zones_update_loitering_config"];
         trace?: never;
     };
     "/api/analytics-zones/polygon-zones/{zone_id}/toggle-active": {
@@ -1907,6 +2035,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/onvif/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discover ONVIF devices on the network
+         * @description Discover ONVIF devices on the network using WS-Discovery.
+         *
+         *     Scans the specified subnet for ONVIF-compatible cameras and returns
+         *     device information including IP, manufacturer, model, and RTSP URLs.
+         *
+         *     Args:
+         *         request: Discovery request with subnet and timeout
+         *
+         *     Returns:
+         *         Dictionary with discovered devices and count:
+         *         - devices: List of discovered device information
+         *         - count: Total number of devices found
+         *
+         *     Raises:
+         *         HTTPException: 500 if discovery fails
+         */
+        post: operations["cameras_discover_onvif_devices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/preview/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start RTSP preview stream (no camera lookup)
+         * @description Start an RTSP preview stream via go2rtc WebRTC conversion.
+         *
+         *     This endpoint accepts RTSP URL directly without requiring a camera ID.
+         *     Useful for testing connections before saving camera configuration.
+         *     Sessions automatically expire after 5 minutes (300 seconds).
+         *
+         *     Args:
+         *         request: Preview start request with RTSP URL and optional credentials
+         *
+         *     Returns:
+         *         PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+         *
+         *     Raises:
+         *         HTTPException: 503 if go2rtc service is unavailable
+         *         HTTPException: 422 if RTSP URL is invalid
+         */
+        post: operations["cameras_start_preview_direct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/preview/{stream_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop RTSP preview stream by stream ID
+         * @description Stop an RTSP preview stream and cleanup go2rtc resources.
+         *
+         *     This endpoint is idempotent - calling it for a non-existent stream is OK.
+         *     404 responses from go2rtc are treated as success.
+         *
+         *     Args:
+         *         stream_id: The stream ID returned from start_preview
+         *
+         *     Returns:
+         *         No content on success
+         */
+        delete: operations["cameras_stop_preview_by_stream_id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/rtsp/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test RTSP connection
+         * @description Test an RTSP camera connection without creating a camera.
+         *
+         *     This endpoint validates RTSP URL connectivity and detects stream capabilities.
+         *     Useful for validating camera settings before adding a new camera.
+         *
+         *     SECURITY: Password is never included in the response.
+         *
+         *     Args:
+         *         request: RTSP test request with URL and optional credentials
+         *
+         *     Returns:
+         *         RTSPTestResponse with success status, latency, and capabilities or error
+         */
+        post: operations["cameras_test_rtsp_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/validation/paths": {
         parameters: {
             query?: never;
@@ -2137,6 +2393,162 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/baseline/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Baseline Config
+         * @description Get baseline configuration for a camera.
+         *
+         *     Returns the active configuration for the camera, which may be either
+         *     per-camera overrides or global defaults based on override_global_config.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary containing:
+         *         - threshold_stdev: Active threshold value
+         *         - min_samples: Active minimum samples value
+         *         - override_global_config: Whether per-camera overrides are active
+         *         - global_config: Dictionary of global defaults
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["cameras_get_baseline_config"];
+        /**
+         * Update Baseline Config
+         * @description Update per-camera baseline configuration.
+         *
+         *     Allows tuning anomaly detection parameters for individual cameras.
+         *     Only provided fields are updated; omitted fields retain their current values.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         config: Configuration update parameters
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary with updated configuration values
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         *         ValueError: If threshold_stdev < 0.5 or min_samples < 1
+         */
+        put: operations["cameras_update_baseline_config"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/baseline/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Baseline
+         * @description Reset all baseline data for a camera.
+         *
+         *     Deletes all ActivityBaseline and ClassBaseline records for the camera,
+         *     forcing the baseline to be re-learned from new detections.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary with counts of deleted records:
+         *         - activity_baselines_deleted: Number of ActivityBaseline records deleted
+         *         - class_baselines_deleted: Number of ClassBaseline records deleted
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        post: operations["cameras_reset_baseline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/preview/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start preview for a specific camera
+         * @description Start an RTSP preview stream for a specific camera.
+         *
+         *     Looks up the camera's RTSP configuration and registers the stream with go2rtc.
+         *     Sessions automatically expire after 5 minutes (300 seconds).
+         *
+         *     Args:
+         *         camera_id: The camera ID to start preview for
+         *         db: Database session
+         *
+         *     Returns:
+         *         PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         *         HTTPException: 400 if camera does not have RTSP configured
+         *         HTTPException: 503 if go2rtc service is unavailable
+         */
+        post: operations["cameras_start_camera_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/preview/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop preview for a specific camera
+         * @description Stop an RTSP preview stream for a specific camera.
+         *
+         *     This endpoint is idempotent - calling it for a camera without active preview is OK.
+         *     404 responses from go2rtc are treated as success.
+         *
+         *     Args:
+         *         camera_id: The camera ID to stop preview for
+         *         db: Database session
+         *
+         *     Returns:
+         *         Success message
+         */
+        delete: operations["cameras_stop_camera_preview"];
         options?: never;
         head?: never;
         patch?: never;
@@ -9695,6 +10107,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/zones/anomalies/{anomaly_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get anomaly with investigation context
+         * @description Get a zone anomaly with associated detections for investigation.
+         *
+         *     Returns the anomaly details along with zone information and any
+         *     associated detections to provide full context for investigation.
+         *
+         *     Args:
+         *         anomaly_id: The anomaly ID to fetch context for
+         *         db: Database session
+         *
+         *     Returns:
+         *         AnomalyContextResponse with anomaly details, zone info, and detections
+         *
+         *     Raises:
+         *         HTTPException: 404 if anomaly not found
+         */
+        get: operations["zone-anomalies_get_anomaly_context"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/zones/member/{member_id}/zones": {
         parameters: {
             query?: never;
@@ -11941,6 +12386,99 @@ export interface components {
             threshold_stdev?: number | null;
         };
         /**
+         * AnomalyContextResponse
+         * @description Anomaly with full context for investigation.
+         *
+         *     This schema provides comprehensive anomaly details along with associated
+         *     detections for investigation purposes.
+         * @example {
+         *       "acknowledged": false,
+         *       "actual_value": 1,
+         *       "anomaly_type": "unusual_time",
+         *       "detections": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "confidence": 0.95,
+         *           "id": "12345",
+         *           "object_class": "person",
+         *           "risk_score": 75,
+         *           "thumbnail_url": "/api/detections/12345/image",
+         *           "timestamp": "2025-01-24T03:15:00Z"
+         *         }
+         *       ],
+         *       "expected_value": 0.1,
+         *       "explanation": "Activity detected in Front Door at 03:15 when typical activity is 0.1.",
+         *       "id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "severity": "warning",
+         *       "timestamp": "2025-01-24T03:15:00Z",
+         *       "zone_id": 456,
+         *       "zone_name": "Front Door"
+         *     }
+         */
+        AnomalyContextResponse: {
+            /**
+             * Acknowledged
+             * @description Whether the anomaly has been acknowledged
+             */
+            acknowledged: boolean;
+            /**
+             * Acknowledged At
+             * @description When the anomaly was acknowledged
+             */
+            acknowledged_at?: string | null;
+            /**
+             * Actual Value
+             * @description Actual observed value
+             */
+            actual_value?: number | null;
+            /**
+             * Anomaly Type
+             * @description Type of anomaly detected
+             */
+            anomaly_type: string;
+            /**
+             * Detections
+             * @description Detections associated with this anomaly
+             */
+            detections?: components["schemas"]["AssociatedDetection"][];
+            /**
+             * Expected Value
+             * @description Expected value from baseline
+             */
+            expected_value?: number | null;
+            /**
+             * Explanation
+             * @description Human-readable explanation of the anomaly
+             */
+            explanation?: string | null;
+            /**
+             * Id
+             * @description Unique identifier for the anomaly
+             */
+            id: string;
+            /**
+             * Severity
+             * @description Severity level (info, warning, critical)
+             */
+            severity: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the anomaly occurred
+             */
+            timestamp: string;
+            /**
+             * Zone Id
+             * @description Zone ID where anomaly was detected
+             */
+            zone_id: string;
+            /**
+             * Zone Name
+             * @description Human-readable zone name
+             */
+            zone_name: string;
+        };
+        /**
          * AnomalyEvent
          * @description A single anomaly event detected for a camera.
          * @example {
@@ -12245,6 +12783,57 @@ export interface components {
             name?: string | null;
         };
         /**
+         * AssociatedDetection
+         * @description Detection associated with an anomaly for investigation context.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "confidence": 0.95,
+         *       "id": "12345",
+         *       "object_class": "person",
+         *       "risk_score": 75,
+         *       "thumbnail_url": "/api/detections/12345/image",
+         *       "timestamp": "2025-01-24T03:15:00Z"
+         *     }
+         */
+        AssociatedDetection: {
+            /**
+             * Camera Id
+             * @description Camera ID where detection occurred
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Detection confidence score (0-1)
+             */
+            confidence: number;
+            /**
+             * Id
+             * @description Detection ID
+             */
+            id: string;
+            /**
+             * Object Class
+             * @description Type of object detected (e.g., person, vehicle)
+             */
+            object_class: string;
+            /**
+             * Risk Score
+             * @description Risk score assigned to detection (0-100)
+             */
+            risk_score?: number | null;
+            /**
+             * Thumbnail Url
+             * @description URL to detection thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the detection occurred
+             */
+            timestamp: string;
+        };
+        /**
          * AuditLogListResponse
          * @description Schema for paginated audit log response.
          *
@@ -12499,6 +13088,35 @@ export interface components {
             };
             /** Total Events */
             total_events: number;
+        };
+        /**
+         * BaselineConfigUpdate
+         * @description Request schema for updating per-camera baseline configuration.
+         *
+         *     NEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.
+         *     All fields are optional; only provided fields are updated.
+         * @example {
+         *       "min_samples": 15,
+         *       "override_global_config": true,
+         *       "threshold_stdev": 3
+         *     }
+         */
+        BaselineConfigUpdate: {
+            /**
+             * Min Samples
+             * @description Minimum samples required for reliable anomaly detection (minimum 1)
+             */
+            min_samples?: number | null;
+            /**
+             * Override Global Config
+             * @description Whether to use per-camera overrides instead of global defaults
+             */
+            override_global_config?: boolean | null;
+            /**
+             * Threshold Stdev
+             * @description Anomaly detection threshold in standard deviations (minimum 0.5)
+             */
+            threshold_stdev?: number | null;
         };
         /**
          * BaselineSummaryResponse
@@ -14432,6 +15050,18 @@ export interface components {
             medium: number;
         };
         /**
+         * ComparisonMetric
+         * @description Available metrics for zone comparison.
+         * @enum {string}
+         */
+        ComparisonMetric: "crossings" | "dwell_time" | "anomalies" | "occupancy";
+        /**
+         * ComparisonPeriod
+         * @description Time periods for comparison.
+         * @enum {string}
+         */
+        ComparisonPeriod: "day" | "week" | "month";
+        /**
          * ConfidenceFactors
          * @description Factors affecting confidence in the risk analysis.
          *
@@ -14621,6 +15251,132 @@ export interface components {
          * @enum {string}
          */
         ContainerServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
+        /**
+         * CrossingTrendDataPoint
+         * @description Single data point in crossing trends time series.
+         *
+         *     Represents aggregated crossing counts for a specific time bucket
+         *     (e.g., one hour or one day).
+         *
+         *     Attributes:
+         *         timestamp: Start of the time bucket.
+         *         in_count: Number of crossings in the positive direction during this period.
+         *         out_count: Number of crossings in the negative direction during this period.
+         *         net_flow: Net flow calculated as in_count - out_count.
+         * @example {
+         *       "in_count": 15,
+         *       "net_flow": 3,
+         *       "out_count": 12,
+         *       "timestamp": "2026-01-26T12:00:00Z"
+         *     }
+         */
+        CrossingTrendDataPoint: {
+            /**
+             * In Count
+             * @description Crossings in positive direction
+             */
+            in_count: number;
+            /**
+             * Net Flow
+             * @description Net flow (in - out)
+             */
+            net_flow: number;
+            /**
+             * Out Count
+             * @description Crossings in negative direction
+             */
+            out_count: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Start of the time bucket
+             */
+            timestamp: string;
+        };
+        /**
+         * CrossingTrendsResponse
+         * @description Response for crossing trends endpoint.
+         *
+         *     Contains time-series crossing data for a line zone, aggregated
+         *     by the specified interval (hour or day).
+         *
+         *     Attributes:
+         *         zone_id: The unique identifier of the line zone.
+         *         zone_name: Human-readable name of the line zone.
+         *         trends: List of time-bucketed crossing data points.
+         *         total_in: Total crossings in positive direction across all buckets.
+         *         total_out: Total crossings in negative direction across all buckets.
+         *         start_time: Start of the query time window.
+         *         end_time: End of the query time window.
+         *         interval: The aggregation interval used ('hour' or 'day').
+         * @example {
+         *       "end_time": "2026-01-26T14:00:00Z",
+         *       "interval": "hour",
+         *       "start_time": "2026-01-26T12:00:00Z",
+         *       "total_in": 23,
+         *       "total_out": 22,
+         *       "trends": [
+         *         {
+         *           "in_count": 15,
+         *           "net_flow": 3,
+         *           "out_count": 12,
+         *           "timestamp": "2026-01-26T12:00:00Z"
+         *         },
+         *         {
+         *           "in_count": 8,
+         *           "net_flow": -2,
+         *           "out_count": 10,
+         *           "timestamp": "2026-01-26T13:00:00Z"
+         *         }
+         *       ],
+         *       "zone_id": 1,
+         *       "zone_name": "Driveway Entrance"
+         *     }
+         */
+        CrossingTrendsResponse: {
+            /**
+             * End Time
+             * Format: date-time
+             * @description End of the query time window
+             */
+            end_time: string;
+            /**
+             * Interval
+             * @description Aggregation interval: 'hour' or 'day'
+             */
+            interval: string;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start of the query time window
+             */
+            start_time: string;
+            /**
+             * Total In
+             * @description Total crossings in positive direction
+             */
+            total_in: number;
+            /**
+             * Total Out
+             * @description Total crossings in negative direction
+             */
+            total_out: number;
+            /**
+             * Trends
+             * @description Time-bucketed crossing data points
+             */
+            trends: components["schemas"]["CrossingTrendDataPoint"][];
+            /**
+             * Zone Id
+             * @description ID of the line zone
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Name of the line zone
+             */
+            zone_name: string;
+        };
         /**
          * CurrentDeviation
          * @description Current activity deviation from established baseline.
@@ -23998,6 +24754,66 @@ export interface components {
             zone_id: number;
         };
         /**
+         * LoiteringConfigResponse
+         * @description Response with current loitering configuration for a polygon zone.
+         *
+         *     Returns the zone's loitering settings including the threshold and
+         *     whether alerts are enabled.
+         * @example {
+         *       "alert_enabled": true,
+         *       "threshold_seconds": 300,
+         *       "zone_id": 1,
+         *       "zone_name": "Backyard"
+         *     }
+         */
+        LoiteringConfigResponse: {
+            /**
+             * Alert Enabled
+             * @description Whether alerts are generated when threshold exceeded
+             */
+            alert_enabled: boolean;
+            /**
+             * Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600)
+             */
+            threshold_seconds: number;
+            /**
+             * Zone Id
+             * @description ID of the polygon zone
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Human-readable name of the zone
+             */
+            zone_name: string;
+        };
+        /**
+         * LoiteringConfigUpdate
+         * @description Request to update loitering configuration for a polygon zone.
+         *
+         *     Loitering detection identifies objects that remain in a zone longer than
+         *     the configured threshold. This can be used to detect suspicious behavior
+         *     such as someone lingering near a restricted area.
+         * @example {
+         *       "alert_enabled": true,
+         *       "threshold_seconds": 300
+         *     }
+         */
+        LoiteringConfigUpdate: {
+            /**
+             * Alert Enabled
+             * @description Whether to generate alerts when threshold exceeded
+             * @default true
+             */
+            alert_enabled: boolean;
+            /**
+             * Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects dwelling longer than this trigger alerts.
+             */
+            threshold_seconds: number;
+        };
+        /**
          * MediaErrorResponse
          * @description Error response for media access failures.
          * @example {
@@ -25494,6 +26310,29 @@ export interface components {
              * @description How long the oldest job has been waiting in seconds
              */
             wait_seconds: number;
+        };
+        /**
+         * OnvifDiscoveryRequest
+         * @description Request schema for ONVIF device discovery.
+         *
+         *     NEM-4207: Defines the network subnet to scan and timeout for WS-Discovery.
+         * @example {
+         *       "subnet": "192.168.1.0/24",
+         *       "timeout": 10
+         *     }
+         */
+        OnvifDiscoveryRequest: {
+            /**
+             * Subnet
+             * @description Network subnet in CIDR notation (e.g., '192.168.1.0/24')
+             */
+            subnet: string;
+            /**
+             * Timeout
+             * @description Discovery timeout in seconds (1-300)
+             * @default 10
+             */
+            timeout: number;
         };
         /**
          * OrphanCleanupRequest
@@ -27005,6 +27844,76 @@ export interface components {
             security_alerts?: string[];
         };
         /**
+         * PreviewStartRequest
+         * @description Request schema for starting an RTSP preview.
+         *
+         *     NEM-4762: Schema for POST /api/cameras/preview/start endpoint.
+         *     Initiates WebRTC signaling with go2rtc for live preview.
+         * @example {
+         *       "offer": "v=0\r\no=- ...",
+         *       "password": "password123",
+         *       "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+         *       "username": "admin"
+         *     }
+         */
+        PreviewStartRequest: {
+            /**
+             * Offer
+             * @description WebRTC SDP offer (optional, for direct signaling)
+             */
+            offer?: string | null;
+            /**
+             * Password
+             * @description Optional password for RTSP authentication
+             */
+            password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP URL for preview stream
+             */
+            rtsp_url: string;
+            /**
+             * Username
+             * @description Optional username for RTSP authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * PreviewStartResponse
+         * @description Response schema for starting an RTSP preview.
+         *
+         *     NEM-4762: Response from POST /api/cameras/preview/start endpoint.
+         *     Contains WebRTC connection details and session info.
+         * @example {
+         *       "expires_in": 300,
+         *       "sdp": "v=0\r\no=- ...",
+         *       "stream_id": "camera_front_door_abc123",
+         *       "webrtc_url": "ws://localhost:1984/api/ws?src=camera_front_door_abc123"
+         *     }
+         */
+        PreviewStartResponse: {
+            /**
+             * Expires In
+             * @description Session expiry time in seconds (default 300)
+             */
+            expires_in: number;
+            /**
+             * Sdp
+             * @description WebRTC SDP answer (if offer was provided)
+             */
+            sdp?: string | null;
+            /**
+             * Stream Id
+             * @description Unique stream identifier for cleanup
+             */
+            stream_id: string;
+            /**
+             * Webrtc Url
+             * @description WebRTC WebSocket URL for connecting to go2rtc
+             */
+            webrtc_url: string;
+        };
+        /**
          * ProcessMemoryResponse
          * @description Process memory metrics for the backend service (NEM-3890).
          *
@@ -28149,6 +29058,121 @@ export interface components {
             items: components["schemas"]["QuietHoursPeriodResponse"][];
             /** @description Pagination metadata */
             pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * RTSPCapabilitiesResponse
+         * @description Response schema for RTSP stream capabilities.
+         *
+         *     NEM-4748: Detected capabilities of an RTSP stream including
+         *     video/audio support, resolution, codec, and framerate.
+         * @example {
+         *       "audio": true,
+         *       "codec": "H.264",
+         *       "fps": 30,
+         *       "ptz": false,
+         *       "resolution": "1920x1080",
+         *       "video": true
+         *     }
+         */
+        RTSPCapabilitiesResponse: {
+            /**
+             * Audio
+             * @description Whether the stream supports audio
+             */
+            audio: boolean;
+            /**
+             * Codec
+             * @description Video codec (e.g., 'H.264', 'H.265')
+             */
+            codec: string;
+            /**
+             * Fps
+             * @description Stream framerate
+             */
+            fps?: number | null;
+            /**
+             * Ptz
+             * @description Whether PTZ control is available
+             */
+            ptz: boolean;
+            /**
+             * Resolution
+             * @description Stream resolution (e.g., '1920x1080')
+             */
+            resolution?: string | null;
+            /**
+             * Video
+             * @description Whether the stream supports video
+             */
+            video: boolean;
+        };
+        /**
+         * RTSPTestRequest
+         * @description Request schema for testing an RTSP connection.
+         *
+         *     NEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.
+         *     Validates RTSP URL format and accepts optional credentials.
+         * @example {
+         *       "password": "password123",
+         *       "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+         *       "username": "admin"
+         *     }
+         */
+        RTSPTestRequest: {
+            /**
+             * Password
+             * @description Optional password for RTSP authentication
+             */
+            password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP URL to test (rtsp:// or rtsps://)
+             */
+            rtsp_url: string;
+            /**
+             * Username
+             * @description Optional username for RTSP authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * RTSPTestResponse
+         * @description Response schema for RTSP connection test result.
+         *
+         *     NEM-4748: Result of testing an RTSP connection including
+         *     success status, latency, capabilities, or error details.
+         *     Note: Never includes password in response for security.
+         * @example {
+         *       "capabilities": {
+         *         "audio": true,
+         *         "codec": "H.264",
+         *         "fps": 30,
+         *         "ptz": false,
+         *         "resolution": "1920x1080",
+         *         "video": true
+         *       },
+         *       "latency_ms": 245,
+         *       "success": true
+         *     }
+         */
+        RTSPTestResponse: {
+            /** @description Stream capabilities (only present on success) */
+            capabilities?: components["schemas"]["RTSPCapabilitiesResponse"] | null;
+            /**
+             * Error Message
+             * @description Error message (only present on failure)
+             */
+            error_message?: string | null;
+            /**
+             * Latency Ms
+             * @description Connection latency in milliseconds
+             */
+            latency_ms?: number | null;
+            /**
+             * Success
+             * @description Whether the connection test succeeded
+             */
+            success: boolean;
         };
         /**
          * RUMBatchRequest
@@ -33471,6 +34495,107 @@ export interface components {
             zone_id: string;
         };
         /**
+         * ZoneComparisonData
+         * @description Comparison data for a single zone.
+         *
+         *     Contains the metric value and optional trend information
+         *     for a zone being compared.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "trend_percent": 12.3,
+         *       "value": 42.5,
+         *       "zone_id": 1,
+         *       "zone_name": "Front Door Entry",
+         *       "zone_type": "line"
+         *     }
+         */
+        ZoneComparisonData: {
+            /**
+             * Camera Id
+             * @description Camera ID the zone belongs to
+             */
+            camera_id: string;
+            /**
+             * Trend Percent
+             * @description Percentage change vs previous period (positive = increase)
+             */
+            trend_percent?: number | null;
+            /**
+             * Value
+             * @description Metric value for this zone
+             */
+            value: number;
+            /**
+             * Zone Id
+             * @description Unique zone identifier
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Human-readable zone name
+             */
+            zone_name: string;
+            /**
+             * Zone Type
+             * @description Type of zone: 'line' or polygon type
+             */
+            zone_type: string;
+        };
+        /**
+         * ZoneComparisonResponse
+         * @description Response for zone comparison endpoint.
+         *
+         *     Contains comparison data across multiple zones for a specific metric
+         *     and time period.
+         * @example {
+         *       "comparison_period": "day",
+         *       "end_time": "2026-01-31T12:00:00Z",
+         *       "metric": "crossings",
+         *       "start_time": "2026-01-30T12:00:00Z",
+         *       "zones": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "trend_percent": 12.3,
+         *           "value": 42,
+         *           "zone_id": 1,
+         *           "zone_name": "Front Door Entry",
+         *           "zone_type": "line"
+         *         },
+         *         {
+         *           "camera_id": "backyard",
+         *           "trend_percent": -5.2,
+         *           "value": 15,
+         *           "zone_id": 2,
+         *           "zone_name": "Pool Area",
+         *           "zone_type": "restricted"
+         *         }
+         *       ]
+         *     }
+         */
+        ZoneComparisonResponse: {
+            /** @description Time period for comparison: day, week, or month */
+            comparison_period: components["schemas"]["ComparisonPeriod"];
+            /**
+             * End Time
+             * Format: date-time
+             * @description End of the comparison time window
+             */
+            end_time: string;
+            /** @description The metric being compared */
+            metric: components["schemas"]["ComparisonMetric"];
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start of the comparison time window
+             */
+            start_time: string;
+            /**
+             * Zones
+             * @description Comparison data for each requested zone
+             */
+            zones: components["schemas"]["ZoneComparisonData"][];
+        };
+        /**
          * ZoneCreate
          * @description Schema for creating a new zone.
          * @example {
@@ -35232,6 +36357,49 @@ export interface operations {
             };
         };
     };
+    "analytics-zones_compare_zones": {
+        parameters: {
+            query: {
+                /** @description Zone IDs to compare */
+                zone_ids: number[];
+                /** @description Metric to compare: crossings, dwell_time, anomalies, occupancy */
+                metric?: string;
+                /** @description Time period: day, week, month */
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Zone comparison data retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneComparisonResponse"];
+                };
+            };
+            /** @description Invalid metric or period */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "analytics-zones_create_line_zone": {
         parameters: {
             query?: never;
@@ -35406,6 +36574,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LineZoneResponse"];
+                };
+            };
+            /** @description Line zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "analytics-zones_get_crossing_trends": {
+        parameters: {
+            query?: {
+                /** @description Start of time window (defaults to 24 hours ago) */
+                start_time?: string | null;
+                /** @description End of time window (defaults to now) */
+                end_time?: string | null;
+                /** @description Aggregation interval: 'hour' or 'day' */
+                interval?: string;
+            };
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Crossing trends retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrossingTrendsResponse"];
                 };
             };
             /** @description Line zone not found */
@@ -35826,6 +37039,84 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "analytics-zones_get_loitering_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Loitering configuration retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoiteringConfigResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "analytics-zones_update_loitering_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoiteringConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Loitering configuration updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoiteringConfigResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error (e.g., threshold out of range) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -36532,6 +37823,151 @@ export interface operations {
             };
         };
     };
+    cameras_discover_onvif_devices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnvifDiscoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description List of discovered ONVIF devices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Discovery failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cameras_start_preview_direct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview stream started successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewStartResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description go2rtc service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cameras_stop_preview_by_stream_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stream_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview stream stopped successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Stream not found (acceptable, idempotent) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_test_rtsp_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RTSPTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Connection test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RTSPTestResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     cameras_validate_camera_paths: {
         parameters: {
             query?: never;
@@ -36769,6 +38205,201 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassBaselineResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_get_baseline_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_update_baseline_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaselineConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_reset_baseline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cameras_start_camera_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview stream started successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewStartResponse"];
+                };
+            };
+            /** @description Camera does not have RTSP configured */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description go2rtc service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cameras_stop_camera_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview stream stopped successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -46937,6 +48568,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ZoneAnomalyAcknowledgeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "zone-anomalies_get_anomaly_context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                anomaly_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyContextResponse"];
                 };
             };
             /** @description Validation Error */

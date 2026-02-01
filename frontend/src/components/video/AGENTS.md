@@ -6,11 +6,13 @@ Contains components for video playback with custom controls. Provides a dark-the
 
 ## Files
 
-| File                   | Purpose                   |
-| ---------------------- | ------------------------- |
-| `VideoPlayer.tsx`      | Custom HTML5 video player |
-| `VideoPlayer.test.tsx` | Comprehensive test suite  |
-| `index.ts`             | Barrel export             |
+| File                       | Purpose                                   |
+| -------------------------- | ----------------------------------------- |
+| `VideoPlayer.tsx`          | Custom HTML5 video player                 |
+| `VideoPlayer.test.tsx`     | Comprehensive test suite                  |
+| `RTSPPreviewPlayer.tsx`    | WebRTC video player with go2rtc integration |
+| `RTSPPreviewPlayer.test.tsx` | Test suite for RTSPPreviewPlayer        |
+| `index.ts`                 | Barrel export                             |
 
 ## Key Components
 
@@ -96,6 +98,51 @@ import { VideoPlayer } from '../video';
 />;
 ```
 
+### RTSPPreviewPlayer.tsx
+
+**Purpose:** WebRTC video player for live RTSP stream preview via go2rtc integration
+
+**Props Interface:**
+
+```typescript
+interface RTSPPreviewPlayerProps {
+  /** RTSP URL to preview */
+  rtspUrl: string;
+  /** Camera ID for existing cameras, omit for URL-only preview */
+  cameraId?: string;
+  /** Whether to auto-start preview on mount */
+  autoStart?: boolean;
+  /** Callback when preview starts successfully */
+  onStreamStart?: () => void;
+  /** Callback when preview stops */
+  onStreamStop?: () => void;
+  /** Callback on error */
+  onError?: (error: string) => void;
+  /** Additional CSS classes */
+  className?: string;
+}
+```
+
+**Key Features:**
+
+- WebRTC peer connection lifecycle management
+- Integration with go2rtc media server
+- Automatic ICE candidate handling
+- Connection state monitoring and display
+- Graceful stream start/stop
+- Error handling with user-friendly messages
+- Loading state with skeleton placeholder
+- Auto-cleanup on unmount
+
+**WebRTC Flow:**
+
+1. Request SDP offer from backend via `POST /api/cameras/preview/start`
+2. Create RTCPeerConnection and set remote description
+3. Generate answer and send to backend
+4. Wait for ICE connection to establish
+5. Display video stream in player
+6. Stop preview via `DELETE /api/cameras/preview/{stream_id}/stop`
+
 ### index.ts
 
 **Barrel exports:**
@@ -103,6 +150,8 @@ import { VideoPlayer } from '../video';
 ```typescript
 export { default as VideoPlayer } from './VideoPlayer';
 export type { VideoPlayerProps } from './VideoPlayer';
+export { default as RTSPPreviewPlayer } from './RTSPPreviewPlayer';
+export type { RTSPPreviewPlayerProps } from './RTSPPreviewPlayer';
 ```
 
 ## Important Patterns

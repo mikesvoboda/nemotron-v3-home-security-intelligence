@@ -141,3 +141,83 @@ class ZoneAnomalyAcknowledgeResponse(BaseModel):
     acknowledged: bool = Field(..., description="Whether the anomaly is now acknowledged")
     acknowledged_at: datetime = Field(..., description="When the anomaly was acknowledged")
     acknowledged_by: str | None = Field(None, description="Who acknowledged the anomaly")
+
+
+class AssociatedDetection(BaseModel):
+    """Detection associated with an anomaly for investigation context."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "12345",
+                "camera_id": "front_door",
+                "timestamp": "2025-01-24T03:15:00Z",
+                "object_class": "person",
+                "confidence": 0.95,
+                "risk_score": 75,
+                "thumbnail_url": "/api/detections/12345/image",
+            }
+        },
+    )
+
+    id: str = Field(..., description="Detection ID")
+    camera_id: str = Field(..., description="Camera ID where detection occurred")
+    timestamp: datetime = Field(..., description="When the detection occurred")
+    object_class: str = Field(..., description="Type of object detected (e.g., person, vehicle)")
+    confidence: float = Field(..., description="Detection confidence score (0-1)")
+    risk_score: int | None = Field(None, description="Risk score assigned to detection (0-100)")
+    thumbnail_url: str | None = Field(None, description="URL to detection thumbnail image")
+
+
+class AnomalyContextResponse(BaseModel):
+    """Anomaly with full context for investigation.
+
+    This schema provides comprehensive anomaly details along with associated
+    detections for investigation purposes.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "zone_id": 456,
+                "zone_name": "Front Door",
+                "anomaly_type": "unusual_time",
+                "severity": "warning",
+                "timestamp": "2025-01-24T03:15:00Z",
+                "expected_value": 0.1,
+                "actual_value": 1.0,
+                "explanation": "Activity detected in Front Door at 03:15 when typical activity is 0.1.",
+                "detections": [
+                    {
+                        "id": "12345",
+                        "camera_id": "front_door",
+                        "timestamp": "2025-01-24T03:15:00Z",
+                        "object_class": "person",
+                        "confidence": 0.95,
+                        "risk_score": 75,
+                        "thumbnail_url": "/api/detections/12345/image",
+                    }
+                ],
+                "acknowledged": False,
+                "acknowledged_at": None,
+            }
+        },
+    )
+
+    id: str = Field(..., description="Unique identifier for the anomaly")
+    zone_id: str = Field(..., description="Zone ID where anomaly was detected")
+    zone_name: str = Field(..., description="Human-readable zone name")
+    anomaly_type: str = Field(..., description="Type of anomaly detected")
+    severity: str = Field(..., description="Severity level (info, warning, critical)")
+    timestamp: datetime = Field(..., description="When the anomaly occurred")
+    expected_value: float | None = Field(None, description="Expected value from baseline")
+    actual_value: float | None = Field(None, description="Actual observed value")
+    explanation: str | None = Field(None, description="Human-readable explanation of the anomaly")
+    detections: list[AssociatedDetection] = Field(
+        default_factory=list, description="Detections associated with this anomaly"
+    )
+    acknowledged: bool = Field(..., description="Whether the anomaly has been acknowledged")
+    acknowledged_at: datetime | None = Field(None, description="When the anomaly was acknowledged")

@@ -1079,6 +1079,20 @@ class Settings(BaseSettings):
         description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
     )
 
+    # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
+    # go2rtc enables low-latency live video streaming from RTSP cameras to browser
+    # Development: http://localhost:1984 (local service)
+    # Docker: http://go2rtc:1984 (container network)
+    go2rtc_api_url: str = Field(
+        default="http://go2rtc:1984",
+        description="go2rtc API URL for stream management. Development: http://localhost:1984, Docker: http://go2rtc:1984",
+    )
+    go2rtc_webrtc_url: str = Field(
+        default="http://localhost:8555",
+        description="go2rtc WebRTC URL for browser connections. This is the external URL that browsers use to connect, "
+        "typically localhost or the server's public IP/hostname. Development: http://localhost:8555",
+    )
+
     # Enrichment Model Assignment Configuration
     # Each model can be assigned to "heavy" (GPU 0, ai-enrichment:8094) or "light" (GPU 1, ai-enrichment-light:8096)
     # This allows flexible distribution of models across GPUs based on VRAM and compute requirements
