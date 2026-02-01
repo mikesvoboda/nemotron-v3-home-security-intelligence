@@ -33,13 +33,13 @@ describe('PasswordInput', () => {
 
     it('renders visibility toggle button', () => {
       render(<PasswordInput label="Password" value="" onChange={() => {}} />);
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
       expect(toggleButton).toBeInTheDocument();
     });
 
     it('renders Eye icon when password is hidden', () => {
       render(<PasswordInput label="Password" value="" onChange={() => {}} />);
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
       // Eye icon should be visible (svg with specific class or test id)
       expect(toggleButton.querySelector('svg')).toBeInTheDocument();
     });
@@ -58,7 +58,7 @@ describe('PasswordInput', () => {
       render(<PasswordInput label="Password" value="secret123" onChange={() => {}} />);
 
       const input = screen.getByLabelText('Password');
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
 
       expect(input).toHaveAttribute('type', 'password');
 
@@ -72,12 +72,14 @@ describe('PasswordInput', () => {
       render(<PasswordInput label="Password" value="secret123" onChange={() => {}} />);
 
       const input = screen.getByLabelText('Password');
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const showButton = screen.getByRole('button', { name: /show password/i });
 
-      await user.click(toggleButton);
+      await user.click(showButton);
       expect(input).toHaveAttribute('type', 'text');
 
-      await user.click(toggleButton);
+      // After clicking, the button label changes to "Hide password"
+      const hideButton = screen.getByRole('button', { name: /hide password/i });
+      await user.click(hideButton);
       expect(input).toHaveAttribute('type', 'password');
     });
 
@@ -85,14 +87,15 @@ describe('PasswordInput', () => {
       const user = userEvent.setup();
       render(<PasswordInput label="Password" value="secret123" onChange={() => {}} />);
 
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const showButton = screen.getByRole('button', { name: /show password/i });
 
       // Click to show password
-      await user.click(toggleButton);
+      await user.click(showButton);
 
+      // After clicking, the button label changes to "Hide password"
       // EyeOff icon should be rendered (different from Eye icon)
-      // Component should render lucide-react's EyeOff when visible
-      expect(toggleButton.querySelector('svg')).toBeInTheDocument();
+      const hideButton = screen.getByRole('button', { name: /hide password/i });
+      expect(hideButton.querySelector('svg')).toBeInTheDocument();
     });
   });
 
@@ -136,7 +139,7 @@ describe('PasswordInput', () => {
   describe('accessibility', () => {
     it('has accessible label for toggle button', () => {
       render(<PasswordInput label="Password" value="" onChange={() => {}} />);
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
       expect(toggleButton).toHaveAttribute('aria-label');
     });
 
@@ -144,7 +147,7 @@ describe('PasswordInput', () => {
       const user = userEvent.setup();
       render(<PasswordInput label="Password" value="" onChange={() => {}} />);
 
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
 
       // Initially shows "Show password" or similar
       expect(toggleButton).toHaveAttribute('aria-label');
@@ -166,7 +169,7 @@ describe('PasswordInput', () => {
 
     it('toggle button does not submit form', () => {
       render(<PasswordInput label="Password" value="" onChange={() => {}} />);
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
       expect(toggleButton).toHaveAttribute('type', 'button');
     });
   });
@@ -180,7 +183,7 @@ describe('PasswordInput', () => {
 
     it('disables toggle button when disabled prop is true', () => {
       render(<PasswordInput label="Password" value="" onChange={() => {}} disabled />);
-      const toggleButton = screen.getByRole('button', { name: /toggle password visibility/i });
+      const toggleButton = screen.getByRole('button', { name: /show password/i });
       expect(toggleButton).toBeDisabled();
     });
 

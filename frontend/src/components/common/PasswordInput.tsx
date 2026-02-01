@@ -97,7 +97,7 @@ export default function PasswordInput({
           type="button"
           onClick={toggleVisibility}
           disabled={disabled}
-          aria-label={showPassword ? 'Hide password' : 'Toggle password visibility'}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
           className={clsx(
             'absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition-colors',
             'hover:bg-gray-800 hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary',

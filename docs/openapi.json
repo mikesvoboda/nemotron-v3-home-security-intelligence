@@ -26109,6 +26109,181 @@
         "title": "QuietHoursPeriodsListResponse",
         "type": "object"
       },
+      "RTSPCapabilitiesResponse": {
+        "description": "Response schema for RTSP stream capabilities.\n\nNEM-4748: Detected capabilities of an RTSP stream including\nvideo/audio support, resolution, codec, and framerate.",
+        "example": {
+          "audio": true,
+          "codec": "H.264",
+          "fps": 30,
+          "ptz": false,
+          "resolution": "1920x1080",
+          "video": true
+        },
+        "properties": {
+          "audio": {
+            "description": "Whether the stream supports audio",
+            "title": "Audio",
+            "type": "boolean"
+          },
+          "codec": {
+            "description": "Video codec (e.g., 'H.264', 'H.265')",
+            "title": "Codec",
+            "type": "string"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream framerate",
+            "title": "Fps"
+          },
+          "ptz": {
+            "description": "Whether PTZ control is available",
+            "title": "Ptz",
+            "type": "boolean"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream resolution (e.g., '1920x1080')",
+            "title": "Resolution"
+          },
+          "video": {
+            "description": "Whether the stream supports video",
+            "title": "Video",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "video",
+          "audio",
+          "ptz",
+          "codec"
+        ],
+        "title": "RTSPCapabilitiesResponse",
+        "type": "object"
+      },
+      "RTSPTestRequest": {
+        "description": "Request schema for testing an RTSP connection.\n\nNEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.\nValidates RTSP URL format and accepts optional credentials.",
+        "example": {
+          "password": "password123",
+          "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+          "username": "admin"
+        },
+        "properties": {
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional password for RTSP authentication",
+            "title": "Password"
+          },
+          "rtsp_url": {
+            "description": "RTSP URL to test (rtsp:// or rtsps://)",
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Rtsp Url",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional username for RTSP authentication",
+            "title": "Username"
+          }
+        },
+        "required": [
+          "rtsp_url"
+        ],
+        "title": "RTSPTestRequest",
+        "type": "object"
+      },
+      "RTSPTestResponse": {
+        "description": "Response schema for RTSP connection test result.\n\nNEM-4748: Result of testing an RTSP connection including\nsuccess status, latency, capabilities, or error details.\nNote: Never includes password in response for security.",
+        "example": {
+          "capabilities": {
+            "audio": true,
+            "codec": "H.264",
+            "fps": 30,
+            "ptz": false,
+            "resolution": "1920x1080",
+            "video": true
+          },
+          "latency_ms": 245,
+          "success": true
+        },
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RTSPCapabilitiesResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream capabilities (only present on success)"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message (only present on failure)",
+            "title": "Error Message"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Connection latency in milliseconds",
+            "title": "Latency Ms"
+          },
+          "success": {
+            "description": "Whether the connection test succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "RTSPTestResponse",
+        "type": "object"
+      },
       "RUMBatchRequest": {
         "description": "Batch request for multiple Core Web Vitals metrics.\n\nThe frontend batches metrics to reduce API calls. Each batch may contain\nmetrics from different pages or navigation events.\n\nAttributes:\n    metrics: List of Core Web Vital metrics to ingest\n    session_id: Optional session identifier for correlating metrics\n    user_agent: Optional user agent string for device/browser analysis",
         "example": {
@@ -37995,6 +38170,41 @@
           }
         },
         "summary": "List all soft-deleted cameras",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/rtsp/test": {
+      "post": {
+        "description": "Test an RTSP camera connection without creating a camera.\n\nThis endpoint validates RTSP URL connectivity and detects stream capabilities.\nUseful for validating camera settings before adding a new camera.\n\nSECURITY: Password is never included in the response.\n\nArgs:\n    request: RTSP test request with URL and optional credentials\n\nReturns:\n    RTSPTestResponse with success status, latency, and capabilities or error",
+        "operationId": "cameras_test_rtsp_connection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RTSPTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RTSPTestResponse"
+                }
+              }
+            },
+            "description": "Connection test result"
+          },
+          "422": {
+            "description": "Invalid request parameters"
+          }
+        },
+        "summary": "Test RTSP connection",
         "tags": [
           "cameras"
         ]

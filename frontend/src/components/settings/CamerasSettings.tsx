@@ -13,7 +13,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 
 import {
   useCamerasQuery,
@@ -21,6 +21,7 @@ import {
   useDeletedCamerasQuery,
   useRestoreCameraMutation,
 } from '../../hooks';
+import { useRtspTest } from '../../hooks/useRtspTest';
 import {
   cameraFormSchema,
   CAMERA_NAME_CONSTRAINTS,
@@ -36,6 +37,7 @@ import SceneChangePanel from '../analytics/SceneChangePanel';
 import IconButton from '../common/IconButton';
 import PasswordInput from '../common/PasswordInput';
 import { ZoneEditor } from '../zones';
+import ConnectionStatusCard from './ConnectionStatusCard';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 
@@ -115,6 +117,17 @@ export default function CamerasSettings() {
   // Local error state for mutations (to display after modal closes)
   const [mutationError, setMutationError] = useState<string | null>(null);
 
+  // RTSP connection test hook (NEM-4748)
+  const { testConnection } = useRtspTest();
+
+  // Clear test results when RTSP URL changes
+  useEffect(() => {
+    if (testConnection.data || testConnection.isError) {
+      testConnection.reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.rtsp_url]);
+
   // Derive loading/error states from query and mutations
   const loading = isLoading;
   const error = queryError?.message ?? mutationError;
@@ -126,6 +139,11 @@ export default function CamerasSettings() {
 
   // Check if delete confirmation matches camera name
   const isDeleteConfirmed = deletingCamera?.name === deleteConfirmInput;
+
+  // Check if current camera is RTSP-based (either by ingestion mode or folder_path URL detection)
+  const folderPathLower = formData.folder_path.toLowerCase();
+  const hasRtspUrl = folderPathLower.startsWith('rtsp://') || folderPathLower.startsWith('rtsps://');
+  const isRtspMode = formData.ingestion_mode === 'rtsp' || formData.ingestion_mode === 'onvif' || hasRtspUrl;
 
   // Filter cameras based on search query
   const filteredCameras = cameras.filter((camera) =>
@@ -220,9 +238,6 @@ export default function CamerasSettings() {
 
     setFormErrors({});
 
-    // Helper to check if ingestion mode requires RTSP fields
-    const isRtspMode = formData.ingestion_mode === 'rtsp' || formData.ingestion_mode === 'onvif';
-
     try {
       if (editingCamera) {
         // Update existing camera
@@ -245,10 +260,11 @@ export default function CamerasSettings() {
           status: formData.status ?? 'online',
         };
 
-        // Include RTSP fields when mode is rtsp or onvif
+        // Include RTSP fields when mode is rtsp or onvif (or detected via folder_path URL)
         if (isRtspMode) {
           createData.ingestion_mode = formData.ingestion_mode;
           createData.rtsp_url = formData.rtsp_url?.trim();
+          createData.motion_sensitivity = formData.motion_sensitivity ?? 0.5;
           if (formData.rtsp_username?.trim()) {
             createData.rtsp_username = formData.rtsp_username.trim();
           }
@@ -819,8 +835,7 @@ export default function CamerasSettings() {
                     </div>
 
                     {/* RTSP Configuration Section - Only when ingestion_mode is rtsp or onvif */}
-                    {(formData.ingestion_mode === 'rtsp' ||
-                      formData.ingestion_mode === 'onvif') && (
+                    {isRtspMode && (
                       <>
                         {/* RTSP URL Input */}
                         <div>
@@ -882,12 +897,39 @@ export default function CamerasSettings() {
                           placeholder="Enter password"
                           data-testid="camera-rtsp-password-input"
                         />
+
+                        {/* Test Connection Button and Status (NEM-4748) */}
+                        <div className="space-y-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              testConnection.mutate({
+                                rtsp_url: formData.rtsp_url ?? '',
+                                username: formData.rtsp_username || undefined,
+                                password: formData.rtsp_password || undefined,
+                              });
+                            }}
+                            disabled={
+                              !formData.rtsp_url ||
+                              testConnection.isPending
+                            }
+                            className="w-full rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {testConnection.isPending ? 'Testing...' : 'Test Connection'}
+                          </button>
+
+                          {/* Show ConnectionStatusCard when testing or have results */}
+                          {(testConnection.isPending || testConnection.data) && (
+                            <ConnectionStatusCard
+                              result={testConnection.isPending ? null : testConnection.data ?? null}
+                            />
+                          )}
+                        </div>
                       </>
                     )}
 
                     {/* Motion Sensitivity Slider - Only for RTSP cameras */}
-                    {(formData.ingestion_mode === 'rtsp' ||
-                      formData.ingestion_mode === 'onvif') && (
+                    {isRtspMode && (
                       <div>
                         <label
                           htmlFor="motion_sensitivity"

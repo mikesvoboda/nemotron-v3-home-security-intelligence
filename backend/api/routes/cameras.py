@@ -35,6 +35,9 @@ from backend.api.schemas.camera import (
     CameraUpdate,
     CameraValidationInfo,
     DeletedCamerasListResponse,
+    RTSPCapabilitiesResponse,
+    RTSPTestRequest,
+    RTSPTestResponse,
 )
 from backend.api.schemas.pagination import create_pagination_meta
 from backend.api.schemas.scene_change import (
@@ -61,6 +64,7 @@ from backend.services.cache_service import (
     CacheKeys,
     CacheService,
 )
+from backend.services.rtsp_test_service import RTSPTestService
 from backend.services.websocket_emitter import get_websocket_emitter
 
 logger = get_logger(__name__)
@@ -255,6 +259,65 @@ async def list_cameras(
             limit=1000,  # No pagination limit for cameras list
             items_count=len(items),
         ),
+    )
+
+
+# =============================================================================
+# RTSP Connection Testing Endpoints (NEM-4748)
+# NOTE: These endpoints MUST be defined before /{camera_id} to avoid
+# "rtsp" being matched as a camera_id
+# =============================================================================
+
+
+@router.post(
+    "/rtsp/test",
+    response_model=RTSPTestResponse,
+    summary="Test RTSP connection",
+    responses={
+        200: {"description": "Connection test result"},
+        422: {"description": "Invalid request parameters"},
+    },
+)
+async def test_rtsp_connection(
+    request: RTSPTestRequest,
+) -> RTSPTestResponse:
+    """Test an RTSP camera connection without creating a camera.
+
+    This endpoint validates RTSP URL connectivity and detects stream capabilities.
+    Useful for validating camera settings before adding a new camera.
+
+    SECURITY: Password is never included in the response.
+
+    Args:
+        request: RTSP test request with URL and optional credentials
+
+    Returns:
+        RTSPTestResponse with success status, latency, and capabilities or error
+    """
+    service = RTSPTestService()
+    result = await service.test_connection(
+        rtsp_url=request.rtsp_url,
+        username=request.username,
+        password=request.password,
+    )
+
+    # Convert service result to response schema
+    capabilities = None
+    if result.capabilities:
+        capabilities = RTSPCapabilitiesResponse(
+            video=result.capabilities.video,
+            audio=result.capabilities.audio,
+            ptz=result.capabilities.ptz,
+            resolution=result.capabilities.resolution,
+            codec=result.capabilities.codec,
+            fps=result.capabilities.fps,
+        )
+
+    return RTSPTestResponse(
+        success=result.success,
+        latency_ms=result.latency_ms,
+        capabilities=capabilities,
+        error_message=result.error_message,
     )
 
 

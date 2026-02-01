@@ -24,6 +24,9 @@ __all__ = [
     "CameraUpdate",
     "CameraValidationInfo",
     "DeletedCamerasListResponse",
+    "RTSPCapabilitiesResponse",
+    "RTSPTestRequest",
+    "RTSPTestResponse",
 ]
 
 # Regex pattern for forbidden path characters (beyond path traversal)
@@ -531,3 +534,114 @@ class CameraPathValidationResponse(BaseModel):
     invalid_cameras: list[CameraValidationInfo] = Field(
         ..., description="Cameras with validation issues"
     )
+
+
+# =============================================================================
+# RTSP Connection Testing Schemas (NEM-4748)
+# =============================================================================
+
+
+class RTSPTestRequest(BaseModel):
+    """Request schema for testing an RTSP connection.
+
+    NEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.
+    Validates RTSP URL format and accepts optional credentials.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+                "username": "admin",
+                "password": "password123",  # pragma: allowlist secret
+            }
+        }
+    )
+
+    rtsp_url: str = Field(
+        ...,
+        min_length=10,
+        max_length=500,
+        description="RTSP URL to test (rtsp:// or rtsps://)",
+    )
+    username: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional username for RTSP authentication",
+    )
+    password: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional password for RTSP authentication",
+    )
+
+    @field_validator("rtsp_url")
+    @classmethod
+    def validate_rtsp_url(cls, v: str) -> str:
+        """Validate RTSP URL format."""
+        result = _validate_rtsp_url(v)
+        if result is None:
+            raise ValueError("rtsp_url is required")
+        return result
+
+
+class RTSPCapabilitiesResponse(BaseModel):
+    """Response schema for RTSP stream capabilities.
+
+    NEM-4748: Detected capabilities of an RTSP stream including
+    video/audio support, resolution, codec, and framerate.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "video": True,
+                "audio": True,
+                "ptz": False,
+                "resolution": "1920x1080",
+                "codec": "H.264",
+                "fps": 30,
+            }
+        }
+    )
+
+    video: bool = Field(..., description="Whether the stream supports video")
+    audio: bool = Field(..., description="Whether the stream supports audio")
+    ptz: bool = Field(..., description="Whether PTZ control is available")
+    resolution: str | None = Field(None, description="Stream resolution (e.g., '1920x1080')")
+    codec: str = Field(..., description="Video codec (e.g., 'H.264', 'H.265')")
+    fps: int | None = Field(None, description="Stream framerate")
+
+
+class RTSPTestResponse(BaseModel):
+    """Response schema for RTSP connection test result.
+
+    NEM-4748: Result of testing an RTSP connection including
+    success status, latency, capabilities, or error details.
+    Note: Never includes password in response for security.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "latency_ms": 245,
+                "capabilities": {
+                    "video": True,
+                    "audio": True,
+                    "ptz": False,
+                    "resolution": "1920x1080",
+                    "codec": "H.264",
+                    "fps": 30,
+                },
+                "error_message": None,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether the connection test succeeded")
+    latency_ms: int | None = Field(None, description="Connection latency in milliseconds")
+    capabilities: RTSPCapabilitiesResponse | None = Field(
+        None, description="Stream capabilities (only present on success)"
+    )
+    error_message: str | None = Field(None, description="Error message (only present on failure)")

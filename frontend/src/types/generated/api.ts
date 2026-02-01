@@ -2035,6 +2035,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/rtsp/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test RTSP connection
+         * @description Test an RTSP camera connection without creating a camera.
+         *
+         *     This endpoint validates RTSP URL connectivity and detects stream capabilities.
+         *     Useful for validating camera settings before adding a new camera.
+         *
+         *     SECURITY: Password is never included in the response.
+         *
+         *     Args:
+         *         request: RTSP test request with URL and optional credentials
+         *
+         *     Returns:
+         *         RTSPTestResponse with success status, latency, and capabilities or error
+         */
+        post: operations["cameras_test_rtsp_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/validation/paths": {
         parameters: {
             query?: never;
@@ -28654,6 +28685,121 @@ export interface components {
             pagination: components["schemas"]["PaginationMeta"];
         };
         /**
+         * RTSPCapabilitiesResponse
+         * @description Response schema for RTSP stream capabilities.
+         *
+         *     NEM-4748: Detected capabilities of an RTSP stream including
+         *     video/audio support, resolution, codec, and framerate.
+         * @example {
+         *       "audio": true,
+         *       "codec": "H.264",
+         *       "fps": 30,
+         *       "ptz": false,
+         *       "resolution": "1920x1080",
+         *       "video": true
+         *     }
+         */
+        RTSPCapabilitiesResponse: {
+            /**
+             * Audio
+             * @description Whether the stream supports audio
+             */
+            audio: boolean;
+            /**
+             * Codec
+             * @description Video codec (e.g., 'H.264', 'H.265')
+             */
+            codec: string;
+            /**
+             * Fps
+             * @description Stream framerate
+             */
+            fps?: number | null;
+            /**
+             * Ptz
+             * @description Whether PTZ control is available
+             */
+            ptz: boolean;
+            /**
+             * Resolution
+             * @description Stream resolution (e.g., '1920x1080')
+             */
+            resolution?: string | null;
+            /**
+             * Video
+             * @description Whether the stream supports video
+             */
+            video: boolean;
+        };
+        /**
+         * RTSPTestRequest
+         * @description Request schema for testing an RTSP connection.
+         *
+         *     NEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.
+         *     Validates RTSP URL format and accepts optional credentials.
+         * @example {
+         *       "password": "password123",
+         *       "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+         *       "username": "admin"
+         *     }
+         */
+        RTSPTestRequest: {
+            /**
+             * Password
+             * @description Optional password for RTSP authentication
+             */
+            password?: string | null;
+            /**
+             * Rtsp Url
+             * @description RTSP URL to test (rtsp:// or rtsps://)
+             */
+            rtsp_url: string;
+            /**
+             * Username
+             * @description Optional username for RTSP authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * RTSPTestResponse
+         * @description Response schema for RTSP connection test result.
+         *
+         *     NEM-4748: Result of testing an RTSP connection including
+         *     success status, latency, capabilities, or error details.
+         *     Note: Never includes password in response for security.
+         * @example {
+         *       "capabilities": {
+         *         "audio": true,
+         *         "codec": "H.264",
+         *         "fps": 30,
+         *         "ptz": false,
+         *         "resolution": "1920x1080",
+         *         "video": true
+         *       },
+         *       "latency_ms": 245,
+         *       "success": true
+         *     }
+         */
+        RTSPTestResponse: {
+            /** @description Stream capabilities (only present on success) */
+            capabilities?: components["schemas"]["RTSPCapabilitiesResponse"] | null;
+            /**
+             * Error Message
+             * @description Error message (only present on failure)
+             */
+            error_message?: string | null;
+            /**
+             * Latency Ms
+             * @description Connection latency in milliseconds
+             */
+            latency_ms?: number | null;
+            /**
+             * Success
+             * @description Whether the connection test succeeded
+             */
+            success: boolean;
+        };
+        /**
          * RUMBatchRequest
          * @description Batch request for multiple Core Web Vitals metrics.
          *
@@ -37299,6 +37445,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DeletedCamerasListResponse"];
                 };
+            };
+        };
+    };
+    cameras_test_rtsp_connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RTSPTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Connection test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RTSPTestResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
