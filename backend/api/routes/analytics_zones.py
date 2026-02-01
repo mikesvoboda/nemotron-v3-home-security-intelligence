@@ -34,6 +34,17 @@ from backend.api.schemas.dwell_time import (
     LoiteringCheckRequest,
     LoiteringCheckResponse,
 )
+from backend.api.schemas.line_zone_analytics import CrossingTrendsResponse
+from backend.api.schemas.loitering_config import (
+    LoiteringConfigResponse,
+    LoiteringConfigUpdate,
+)
+from backend.api.schemas.zone_comparison import (
+    ComparisonMetric,
+    ComparisonPeriod,
+    ZoneComparisonData,
+    ZoneComparisonResponse,
+)
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now
 from backend.services.dwell_time_service import get_dwell_time_service
@@ -309,6 +320,85 @@ async def reset_line_zone_counts(
     )
 
     return LineZoneResponse.model_validate(zone)
+
+
+@router.get(
+    "/line-zones/{zone_id}/crossing-trends",
+    response_model=CrossingTrendsResponse,
+    summary="Get crossing trends for a line zone",
+    responses={
+        200: {"description": "Crossing trends retrieved successfully"},
+        404: {"description": "Line zone not found"},
+    },
+)
+async def get_crossing_trends(
+    zone_id: int,
+    db: DbSession,
+    start_time: datetime | None = Query(
+        default=None,
+        description="Start of time window (defaults to 24 hours ago)",
+    ),
+    end_time: datetime | None = Query(
+        default=None,
+        description="End of time window (defaults to now)",
+    ),
+    interval: str = Query(
+        default="hour",
+        description="Aggregation interval: 'hour' or 'day'",
+    ),
+) -> CrossingTrendsResponse:
+    """Get crossing trends for a line zone.
+
+    Returns time-bucketed crossing data for the specified time range.
+    By default, retrieves the last 24 hours of data aggregated by hour.
+
+    Note: Currently returns cumulative counts as a single data point since
+    individual crossing events are not stored. Future versions will support
+    true historical trend data.
+
+    Args:
+        zone_id: ID of the line zone.
+        db: Database session.
+        start_time: Start of the time window (defaults to 24 hours ago).
+        end_time: End of the time window (defaults to now).
+        interval: Aggregation interval ('hour' or 'day').
+
+    Returns:
+        Crossing trends with time-bucketed data points.
+
+    Raises:
+        HTTPException: 404 if line zone not found.
+    """
+    # Default time window: last 24 hours
+    now = utc_now()
+    actual_end = end_time or now
+    actual_start = start_time or (now - timedelta(hours=24))
+
+    service = get_line_zone_service(db)
+    trends = await service.get_crossing_trends(
+        zone_id=zone_id,
+        start_time=actual_start,
+        end_time=actual_end,
+        interval=interval,
+    )
+
+    if trends is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Line zone with id {zone_id} not found",
+        )
+
+    logger.debug(
+        f"Retrieved crossing trends for zone {zone_id}",
+        extra={
+            "zone_id": zone_id,
+            "start_time": actual_start.isoformat(),
+            "end_time": actual_end.isoformat(),
+            "interval": interval,
+        },
+    )
+
+    return trends
 
 
 # ============================================================================
@@ -875,4 +965,227 @@ async def get_dwell_statistics(
         alerts_triggered=stats["alerts_triggered"],
         start_time=actual_start,
         end_time=actual_end,
+    )
+
+
+# ============================================================================
+# Loitering Configuration Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/polygon-zones/{zone_id}/loitering-config",
+    response_model=LoiteringConfigResponse,
+    summary="Get loitering configuration for a polygon zone",
+    responses={
+        200: {"description": "Loitering configuration retrieved successfully"},
+        404: {"description": "Polygon zone not found"},
+    },
+)
+async def get_loitering_config(
+    zone_id: int,
+    db: DbSession,
+) -> LoiteringConfigResponse:
+    """Get the current loitering configuration for a polygon zone.
+
+    Returns the loitering threshold and alert settings for the specified zone.
+    Loitering detection identifies objects that remain in a zone longer than
+    the configured threshold.
+
+    Args:
+        zone_id: ID of the polygon zone.
+        db: Database session.
+
+    Returns:
+        Current loitering configuration for the zone.
+
+    Raises:
+        HTTPException: 404 if polygon zone not found.
+    """
+    service = get_polygon_zone_service(db)
+    zone = await service.get_zone(zone_id)
+
+    if zone is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Polygon zone with id {zone_id} not found",
+        )
+
+    logger.debug(
+        f"Retrieved loitering config for zone {zone_id}",
+        extra={
+            "zone_id": zone_id,
+            "threshold_seconds": zone.loitering_threshold_seconds,
+            "alert_enabled": zone.loitering_alert_enabled,
+        },
+    )
+
+    return LoiteringConfigResponse(
+        zone_id=zone.id,
+        zone_name=zone.name,
+        threshold_seconds=zone.loitering_threshold_seconds,
+        alert_enabled=zone.loitering_alert_enabled,
+    )
+
+
+@router.patch(
+    "/polygon-zones/{zone_id}/loitering-config",
+    response_model=LoiteringConfigResponse,
+    summary="Update loitering configuration for a polygon zone",
+    responses={
+        200: {"description": "Loitering configuration updated successfully"},
+        404: {"description": "Polygon zone not found"},
+        422: {"description": "Validation error (e.g., threshold out of range)"},
+    },
+)
+async def update_loitering_config(
+    zone_id: int,
+    config: LoiteringConfigUpdate,
+    db: DbSession,
+) -> LoiteringConfigResponse:
+    """Update loitering threshold and alert settings for a polygon zone.
+
+    Configures when loitering alerts are triggered based on how long an
+    object remains in the zone.
+
+    Args:
+        zone_id: ID of the polygon zone.
+        config: Loitering configuration update request.
+        db: Database session.
+
+    Returns:
+        Updated loitering configuration for the zone.
+
+    Raises:
+        HTTPException: 404 if polygon zone not found.
+        HTTPException: 422 if validation fails (threshold out of range).
+    """
+    service = get_polygon_zone_service(db)
+    zone = await service.get_zone(zone_id)
+
+    if zone is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Polygon zone with id {zone_id} not found",
+        )
+
+    # Update the zone
+    zone.loitering_threshold_seconds = config.threshold_seconds
+    zone.loitering_alert_enabled = config.alert_enabled
+    await db.commit()
+    await db.refresh(zone)
+
+    logger.info(
+        f"Updated loitering config for zone {zone_id}",
+        extra={
+            "zone_id": zone_id,
+            "threshold_seconds": zone.loitering_threshold_seconds,
+            "alert_enabled": zone.loitering_alert_enabled,
+        },
+    )
+
+    return LoiteringConfigResponse(
+        zone_id=zone.id,
+        zone_name=zone.name,
+        threshold_seconds=zone.loitering_threshold_seconds,
+        alert_enabled=zone.loitering_alert_enabled,
+    )
+
+
+# ============================================================================
+# Zone Comparison Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/comparison",
+    response_model=ZoneComparisonResponse,
+    summary="Compare metrics across multiple zones",
+    responses={
+        200: {"description": "Zone comparison data retrieved successfully"},
+        400: {"description": "Invalid metric or period"},
+    },
+)
+async def compare_zones(
+    db: DbSession,
+    zone_ids: list[int] = Query(..., description="Zone IDs to compare"),
+    metric: str = Query(
+        default="crossings",
+        description="Metric to compare: crossings, dwell_time, anomalies, occupancy",
+    ),
+    period: str = Query(
+        default="day",
+        description="Time period: day, week, month",
+    ),
+) -> ZoneComparisonResponse:
+    """Compare specified metric across multiple zones.
+
+    Returns comparison data for the specified zones, including metric values
+    and trend percentages where available.
+
+    Args:
+        db: Database session.
+        zone_ids: List of zone IDs to compare.
+        metric: The metric to compare (crossings, dwell_time, anomalies, occupancy).
+        period: Time period for comparison (day, week, month).
+
+    Returns:
+        ZoneComparisonResponse with comparison data for each zone.
+
+    Raises:
+        HTTPException: 400 if metric or period is invalid.
+    """
+    from backend.services.zone_comparison_service import get_zone_comparison_service
+
+    # Validate metric
+    try:
+        validated_metric = ComparisonMetric(metric)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid metric '{metric}'. Valid options: crossings, dwell_time, anomalies, occupancy",
+        ) from err
+
+    # Validate period
+    try:
+        validated_period = ComparisonPeriod(period)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid period '{period}'. Valid options: day, week, month",
+        ) from err
+
+    # Calculate time window based on period
+    now = utc_now()
+    if validated_period == ComparisonPeriod.WEEK:
+        start_time = now - timedelta(days=7)
+    elif validated_period == ComparisonPeriod.MONTH:
+        start_time = now - timedelta(days=30)
+    else:  # day
+        start_time = now - timedelta(days=1)
+
+    service = get_zone_comparison_service(db)
+    zones_data = await service.compare_zones(
+        zone_ids=zone_ids,
+        metric=metric,
+        start_time=start_time,
+        end_time=now,
+    )
+
+    logger.debug(
+        f"Retrieved comparison data for {len(zones_data)} zones",
+        extra={
+            "zone_ids": zone_ids,
+            "metric": metric,
+            "period": period,
+            "results_count": len(zones_data),
+        },
+    )
+
+    return ZoneComparisonResponse(
+        metric=validated_metric,
+        zones=[ZoneComparisonData(**z) for z in zones_data],
+        start_time=start_time,
+        end_time=now,
+        comparison_period=validated_period,
     )

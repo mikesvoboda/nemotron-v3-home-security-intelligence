@@ -7,10 +7,12 @@ Endpoints:
     GET /api/zones/anomalies - List all anomalies across all zones
     GET /api/zones/{zone_id}/anomalies - List anomalies for a specific zone
     POST /api/zones/anomalies/{anomaly_id}/acknowledge - Acknowledge an anomaly
+    GET /api/zones/anomalies/{anomaly_id}/context - Get anomaly with investigation context
 
 Related: NEM-3199 (Frontend Anomaly Alert Integration)
 Related: NEM-3198 (Backend Anomaly Detection Service)
 Related: NEM-3495 (Zone Anomalies widget error)
+Related: NEM-4714 (Backend Anomaly Context Endpoint)
 """
 
 from datetime import datetime, timedelta
@@ -22,12 +24,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.zone_anomaly import (
+    AnomalyContextResponse,
     ZoneAnomalyAcknowledgeResponse,
     ZoneAnomalyListResponse,
 )
 from backend.core.database import get_db
 from backend.core.time_utils import utc_now
 from backend.models.zone_anomaly import ZoneAnomaly
+from backend.services.zone_anomaly_service import get_zone_anomaly_service
 
 router = APIRouter(prefix="/api/zones", tags=["zone-anomalies"])
 
@@ -258,3 +262,39 @@ async def acknowledge_anomaly(
         acknowledged_at=anomaly.acknowledged_at,
         acknowledged_by=anomaly.acknowledged_by,
     )
+
+
+@router.get(
+    "/anomalies/{anomaly_id}/context",
+    response_model=AnomalyContextResponse,
+    summary="Get anomaly with investigation context",
+)
+async def get_anomaly_context(
+    anomaly_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> AnomalyContextResponse:
+    """Get a zone anomaly with associated detections for investigation.
+
+    Returns the anomaly details along with zone information and any
+    associated detections to provide full context for investigation.
+
+    Args:
+        anomaly_id: The anomaly ID to fetch context for
+        db: Database session
+
+    Returns:
+        AnomalyContextResponse with anomaly details, zone info, and detections
+
+    Raises:
+        HTTPException: 404 if anomaly not found
+    """
+    service = get_zone_anomaly_service()
+    result = await service.get_anomaly_with_context(anomaly_id, session=db)
+
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Anomaly not found",
+        )
+
+    return AnomalyContextResponse(**result)

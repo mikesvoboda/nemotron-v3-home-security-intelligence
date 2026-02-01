@@ -926,6 +926,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics-zones/comparison": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare metrics across multiple zones
+         * @description Compare specified metric across multiple zones.
+         *
+         *     Returns comparison data for the specified zones, including metric values
+         *     and trend percentages where available.
+         *
+         *     Args:
+         *         db: Database session.
+         *         zone_ids: List of zone IDs to compare.
+         *         metric: The metric to compare (crossings, dwell_time, anomalies, occupancy).
+         *         period: Time period for comparison (day, week, month).
+         *
+         *     Returns:
+         *         ZoneComparisonResponse with comparison data for each zone.
+         *
+         *     Raises:
+         *         HTTPException: 400 if metric or period is invalid.
+         */
+        get: operations["analytics-zones_compare_zones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics-zones/line-zones": {
         parameters: {
             query?: never;
@@ -1046,6 +1081,46 @@ export interface paths {
          *         HTTPException: 404 if line zone not found.
          */
         patch: operations["analytics-zones_update_line_zone"];
+        trace?: never;
+    };
+    "/api/analytics-zones/line-zones/{zone_id}/crossing-trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get crossing trends for a line zone
+         * @description Get crossing trends for a line zone.
+         *
+         *     Returns time-bucketed crossing data for the specified time range.
+         *     By default, retrieves the last 24 hours of data aggregated by hour.
+         *
+         *     Note: Currently returns cumulative counts as a single data point since
+         *     individual crossing events are not stored. Future versions will support
+         *     true historical trend data.
+         *
+         *     Args:
+         *         zone_id: ID of the line zone.
+         *         db: Database session.
+         *         start_time: Start of the time window (defaults to 24 hours ago).
+         *         end_time: End of the time window (defaults to now).
+         *         interval: Aggregation interval ('hour' or 'day').
+         *
+         *     Returns:
+         *         Crossing trends with time-bucketed data points.
+         *
+         *     Raises:
+         *         HTTPException: 404 if line zone not found.
+         */
+        get: operations["analytics-zones_get_crossing_trends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/analytics-zones/line-zones/{zone_id}/reset-counts": {
@@ -1340,6 +1415,59 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/analytics-zones/polygon-zones/{zone_id}/loitering-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get loitering configuration for a polygon zone
+         * @description Get the current loitering configuration for a polygon zone.
+         *
+         *     Returns the loitering threshold and alert settings for the specified zone.
+         *     Loitering detection identifies objects that remain in a zone longer than
+         *     the configured threshold.
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Current loitering configuration for the zone.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         */
+        get: operations["analytics-zones_get_loitering_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update loitering configuration for a polygon zone
+         * @description Update loitering threshold and alert settings for a polygon zone.
+         *
+         *     Configures when loitering alerts are triggered based on how long an
+         *     object remains in the zone.
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         config: Loitering configuration update request.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         Updated loitering configuration for the zone.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         *         HTTPException: 422 if validation fails (threshold out of range).
+         */
+        patch: operations["analytics-zones_update_loitering_config"];
         trace?: never;
     };
     "/api/analytics-zones/polygon-zones/{zone_id}/toggle-active": {
@@ -9695,6 +9823,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/zones/anomalies/{anomaly_id}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get anomaly with investigation context
+         * @description Get a zone anomaly with associated detections for investigation.
+         *
+         *     Returns the anomaly details along with zone information and any
+         *     associated detections to provide full context for investigation.
+         *
+         *     Args:
+         *         anomaly_id: The anomaly ID to fetch context for
+         *         db: Database session
+         *
+         *     Returns:
+         *         AnomalyContextResponse with anomaly details, zone info, and detections
+         *
+         *     Raises:
+         *         HTTPException: 404 if anomaly not found
+         */
+        get: operations["zone-anomalies_get_anomaly_context"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/zones/member/{member_id}/zones": {
         parameters: {
             query?: never;
@@ -11941,6 +12102,99 @@ export interface components {
             threshold_stdev?: number | null;
         };
         /**
+         * AnomalyContextResponse
+         * @description Anomaly with full context for investigation.
+         *
+         *     This schema provides comprehensive anomaly details along with associated
+         *     detections for investigation purposes.
+         * @example {
+         *       "acknowledged": false,
+         *       "actual_value": 1,
+         *       "anomaly_type": "unusual_time",
+         *       "detections": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "confidence": 0.95,
+         *           "id": "12345",
+         *           "object_class": "person",
+         *           "risk_score": 75,
+         *           "thumbnail_url": "/api/detections/12345/image",
+         *           "timestamp": "2025-01-24T03:15:00Z"
+         *         }
+         *       ],
+         *       "expected_value": 0.1,
+         *       "explanation": "Activity detected in Front Door at 03:15 when typical activity is 0.1.",
+         *       "id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "severity": "warning",
+         *       "timestamp": "2025-01-24T03:15:00Z",
+         *       "zone_id": 456,
+         *       "zone_name": "Front Door"
+         *     }
+         */
+        AnomalyContextResponse: {
+            /**
+             * Acknowledged
+             * @description Whether the anomaly has been acknowledged
+             */
+            acknowledged: boolean;
+            /**
+             * Acknowledged At
+             * @description When the anomaly was acknowledged
+             */
+            acknowledged_at?: string | null;
+            /**
+             * Actual Value
+             * @description Actual observed value
+             */
+            actual_value?: number | null;
+            /**
+             * Anomaly Type
+             * @description Type of anomaly detected
+             */
+            anomaly_type: string;
+            /**
+             * Detections
+             * @description Detections associated with this anomaly
+             */
+            detections?: components["schemas"]["AssociatedDetection"][];
+            /**
+             * Expected Value
+             * @description Expected value from baseline
+             */
+            expected_value?: number | null;
+            /**
+             * Explanation
+             * @description Human-readable explanation of the anomaly
+             */
+            explanation?: string | null;
+            /**
+             * Id
+             * @description Unique identifier for the anomaly
+             */
+            id: string;
+            /**
+             * Severity
+             * @description Severity level (info, warning, critical)
+             */
+            severity: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the anomaly occurred
+             */
+            timestamp: string;
+            /**
+             * Zone Id
+             * @description Zone ID where anomaly was detected
+             */
+            zone_id: string;
+            /**
+             * Zone Name
+             * @description Human-readable zone name
+             */
+            zone_name: string;
+        };
+        /**
          * AnomalyEvent
          * @description A single anomaly event detected for a camera.
          * @example {
@@ -12243,6 +12497,57 @@ export interface components {
              * @description Area name
              */
             name?: string | null;
+        };
+        /**
+         * AssociatedDetection
+         * @description Detection associated with an anomaly for investigation context.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "confidence": 0.95,
+         *       "id": "12345",
+         *       "object_class": "person",
+         *       "risk_score": 75,
+         *       "thumbnail_url": "/api/detections/12345/image",
+         *       "timestamp": "2025-01-24T03:15:00Z"
+         *     }
+         */
+        AssociatedDetection: {
+            /**
+             * Camera Id
+             * @description Camera ID where detection occurred
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Detection confidence score (0-1)
+             */
+            confidence: number;
+            /**
+             * Id
+             * @description Detection ID
+             */
+            id: string;
+            /**
+             * Object Class
+             * @description Type of object detected (e.g., person, vehicle)
+             */
+            object_class: string;
+            /**
+             * Risk Score
+             * @description Risk score assigned to detection (0-100)
+             */
+            risk_score?: number | null;
+            /**
+             * Thumbnail Url
+             * @description URL to detection thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the detection occurred
+             */
+            timestamp: string;
         };
         /**
          * AuditLogListResponse
@@ -14432,6 +14737,18 @@ export interface components {
             medium: number;
         };
         /**
+         * ComparisonMetric
+         * @description Available metrics for zone comparison.
+         * @enum {string}
+         */
+        ComparisonMetric: "crossings" | "dwell_time" | "anomalies" | "occupancy";
+        /**
+         * ComparisonPeriod
+         * @description Time periods for comparison.
+         * @enum {string}
+         */
+        ComparisonPeriod: "day" | "week" | "month";
+        /**
          * ConfidenceFactors
          * @description Factors affecting confidence in the risk analysis.
          *
@@ -14621,6 +14938,132 @@ export interface components {
          * @enum {string}
          */
         ContainerServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
+        /**
+         * CrossingTrendDataPoint
+         * @description Single data point in crossing trends time series.
+         *
+         *     Represents aggregated crossing counts for a specific time bucket
+         *     (e.g., one hour or one day).
+         *
+         *     Attributes:
+         *         timestamp: Start of the time bucket.
+         *         in_count: Number of crossings in the positive direction during this period.
+         *         out_count: Number of crossings in the negative direction during this period.
+         *         net_flow: Net flow calculated as in_count - out_count.
+         * @example {
+         *       "in_count": 15,
+         *       "net_flow": 3,
+         *       "out_count": 12,
+         *       "timestamp": "2026-01-26T12:00:00Z"
+         *     }
+         */
+        CrossingTrendDataPoint: {
+            /**
+             * In Count
+             * @description Crossings in positive direction
+             */
+            in_count: number;
+            /**
+             * Net Flow
+             * @description Net flow (in - out)
+             */
+            net_flow: number;
+            /**
+             * Out Count
+             * @description Crossings in negative direction
+             */
+            out_count: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Start of the time bucket
+             */
+            timestamp: string;
+        };
+        /**
+         * CrossingTrendsResponse
+         * @description Response for crossing trends endpoint.
+         *
+         *     Contains time-series crossing data for a line zone, aggregated
+         *     by the specified interval (hour or day).
+         *
+         *     Attributes:
+         *         zone_id: The unique identifier of the line zone.
+         *         zone_name: Human-readable name of the line zone.
+         *         trends: List of time-bucketed crossing data points.
+         *         total_in: Total crossings in positive direction across all buckets.
+         *         total_out: Total crossings in negative direction across all buckets.
+         *         start_time: Start of the query time window.
+         *         end_time: End of the query time window.
+         *         interval: The aggregation interval used ('hour' or 'day').
+         * @example {
+         *       "end_time": "2026-01-26T14:00:00Z",
+         *       "interval": "hour",
+         *       "start_time": "2026-01-26T12:00:00Z",
+         *       "total_in": 23,
+         *       "total_out": 22,
+         *       "trends": [
+         *         {
+         *           "in_count": 15,
+         *           "net_flow": 3,
+         *           "out_count": 12,
+         *           "timestamp": "2026-01-26T12:00:00Z"
+         *         },
+         *         {
+         *           "in_count": 8,
+         *           "net_flow": -2,
+         *           "out_count": 10,
+         *           "timestamp": "2026-01-26T13:00:00Z"
+         *         }
+         *       ],
+         *       "zone_id": 1,
+         *       "zone_name": "Driveway Entrance"
+         *     }
+         */
+        CrossingTrendsResponse: {
+            /**
+             * End Time
+             * Format: date-time
+             * @description End of the query time window
+             */
+            end_time: string;
+            /**
+             * Interval
+             * @description Aggregation interval: 'hour' or 'day'
+             */
+            interval: string;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start of the query time window
+             */
+            start_time: string;
+            /**
+             * Total In
+             * @description Total crossings in positive direction
+             */
+            total_in: number;
+            /**
+             * Total Out
+             * @description Total crossings in negative direction
+             */
+            total_out: number;
+            /**
+             * Trends
+             * @description Time-bucketed crossing data points
+             */
+            trends: components["schemas"]["CrossingTrendDataPoint"][];
+            /**
+             * Zone Id
+             * @description ID of the line zone
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Name of the line zone
+             */
+            zone_name: string;
+        };
         /**
          * CurrentDeviation
          * @description Current activity deviation from established baseline.
@@ -23996,6 +24439,66 @@ export interface components {
              * @description ID of the polygon zone checked
              */
             zone_id: number;
+        };
+        /**
+         * LoiteringConfigResponse
+         * @description Response with current loitering configuration for a polygon zone.
+         *
+         *     Returns the zone's loitering settings including the threshold and
+         *     whether alerts are enabled.
+         * @example {
+         *       "alert_enabled": true,
+         *       "threshold_seconds": 300,
+         *       "zone_id": 1,
+         *       "zone_name": "Backyard"
+         *     }
+         */
+        LoiteringConfigResponse: {
+            /**
+             * Alert Enabled
+             * @description Whether alerts are generated when threshold exceeded
+             */
+            alert_enabled: boolean;
+            /**
+             * Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600)
+             */
+            threshold_seconds: number;
+            /**
+             * Zone Id
+             * @description ID of the polygon zone
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Human-readable name of the zone
+             */
+            zone_name: string;
+        };
+        /**
+         * LoiteringConfigUpdate
+         * @description Request to update loitering configuration for a polygon zone.
+         *
+         *     Loitering detection identifies objects that remain in a zone longer than
+         *     the configured threshold. This can be used to detect suspicious behavior
+         *     such as someone lingering near a restricted area.
+         * @example {
+         *       "alert_enabled": true,
+         *       "threshold_seconds": 300
+         *     }
+         */
+        LoiteringConfigUpdate: {
+            /**
+             * Alert Enabled
+             * @description Whether to generate alerts when threshold exceeded
+             * @default true
+             */
+            alert_enabled: boolean;
+            /**
+             * Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects dwelling longer than this trigger alerts.
+             */
+            threshold_seconds: number;
         };
         /**
          * MediaErrorResponse
@@ -33471,6 +33974,107 @@ export interface components {
             zone_id: string;
         };
         /**
+         * ZoneComparisonData
+         * @description Comparison data for a single zone.
+         *
+         *     Contains the metric value and optional trend information
+         *     for a zone being compared.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "trend_percent": 12.3,
+         *       "value": 42.5,
+         *       "zone_id": 1,
+         *       "zone_name": "Front Door Entry",
+         *       "zone_type": "line"
+         *     }
+         */
+        ZoneComparisonData: {
+            /**
+             * Camera Id
+             * @description Camera ID the zone belongs to
+             */
+            camera_id: string;
+            /**
+             * Trend Percent
+             * @description Percentage change vs previous period (positive = increase)
+             */
+            trend_percent?: number | null;
+            /**
+             * Value
+             * @description Metric value for this zone
+             */
+            value: number;
+            /**
+             * Zone Id
+             * @description Unique zone identifier
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Human-readable zone name
+             */
+            zone_name: string;
+            /**
+             * Zone Type
+             * @description Type of zone: 'line' or polygon type
+             */
+            zone_type: string;
+        };
+        /**
+         * ZoneComparisonResponse
+         * @description Response for zone comparison endpoint.
+         *
+         *     Contains comparison data across multiple zones for a specific metric
+         *     and time period.
+         * @example {
+         *       "comparison_period": "day",
+         *       "end_time": "2026-01-31T12:00:00Z",
+         *       "metric": "crossings",
+         *       "start_time": "2026-01-30T12:00:00Z",
+         *       "zones": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "trend_percent": 12.3,
+         *           "value": 42,
+         *           "zone_id": 1,
+         *           "zone_name": "Front Door Entry",
+         *           "zone_type": "line"
+         *         },
+         *         {
+         *           "camera_id": "backyard",
+         *           "trend_percent": -5.2,
+         *           "value": 15,
+         *           "zone_id": 2,
+         *           "zone_name": "Pool Area",
+         *           "zone_type": "restricted"
+         *         }
+         *       ]
+         *     }
+         */
+        ZoneComparisonResponse: {
+            /** @description Time period for comparison: day, week, or month */
+            comparison_period: components["schemas"]["ComparisonPeriod"];
+            /**
+             * End Time
+             * Format: date-time
+             * @description End of the comparison time window
+             */
+            end_time: string;
+            /** @description The metric being compared */
+            metric: components["schemas"]["ComparisonMetric"];
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start of the comparison time window
+             */
+            start_time: string;
+            /**
+             * Zones
+             * @description Comparison data for each requested zone
+             */
+            zones: components["schemas"]["ZoneComparisonData"][];
+        };
+        /**
          * ZoneCreate
          * @description Schema for creating a new zone.
          * @example {
@@ -35232,6 +35836,49 @@ export interface operations {
             };
         };
     };
+    "analytics-zones_compare_zones": {
+        parameters: {
+            query: {
+                /** @description Zone IDs to compare */
+                zone_ids: number[];
+                /** @description Metric to compare: crossings, dwell_time, anomalies, occupancy */
+                metric?: string;
+                /** @description Time period: day, week, month */
+                period?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Zone comparison data retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneComparisonResponse"];
+                };
+            };
+            /** @description Invalid metric or period */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "analytics-zones_create_line_zone": {
         parameters: {
             query?: never;
@@ -35406,6 +36053,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LineZoneResponse"];
+                };
+            };
+            /** @description Line zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "analytics-zones_get_crossing_trends": {
+        parameters: {
+            query?: {
+                /** @description Start of time window (defaults to 24 hours ago) */
+                start_time?: string | null;
+                /** @description End of time window (defaults to now) */
+                end_time?: string | null;
+                /** @description Aggregation interval: 'hour' or 'day' */
+                interval?: string;
+            };
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Crossing trends retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrossingTrendsResponse"];
                 };
             };
             /** @description Line zone not found */
@@ -35826,6 +36518,84 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "analytics-zones_get_loitering_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Loitering configuration retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoiteringConfigResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "analytics-zones_update_loitering_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoiteringConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Loitering configuration updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoiteringConfigResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error (e.g., threshold out of range) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -46937,6 +47707,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ZoneAnomalyAcknowledgeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "zone-anomalies_get_anomaly_context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                anomaly_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnomalyContextResponse"];
                 };
             };
             /** @description Validation Error */

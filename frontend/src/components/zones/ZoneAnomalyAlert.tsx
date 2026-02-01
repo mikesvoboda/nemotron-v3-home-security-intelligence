@@ -28,6 +28,7 @@ import {
   HelpCircle,
   Check,
   ExternalLink,
+  Search,
 } from 'lucide-react';
 import { memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -106,6 +107,7 @@ function ZoneAnomalyAlertComponent({
   zoneName,
   onAcknowledge,
   onClick,
+  onInvestigate,
   isAcknowledging = false,
   expanded = false,
   className,
@@ -126,6 +128,16 @@ function ZoneAnomalyAlertComponent({
       onAcknowledge?.(anomaly.id);
     },
     [anomaly.id, onAcknowledge]
+  );
+
+  // Handle investigate click
+  const handleInvestigate = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onInvestigate?.(anomaly.id);
+    },
+    [anomaly.id, onInvestigate]
   );
 
   // Handle card click
@@ -207,9 +219,27 @@ function ZoneAnomalyAlertComponent({
               </div>
             </div>
 
-            {/* Timestamp and acknowledge button */}
+            {/* Timestamp and action buttons */}
             <div className="flex shrink-0 items-center gap-2">
               <span className="text-xs text-text-secondary">{formattedTime}</span>
+
+              {/* Investigate button */}
+              {onInvestigate && (
+                <button
+                  type="button"
+                  onClick={handleInvestigate}
+                  className={clsx(
+                    'rounded p-1.5 transition-colors',
+                    'text-gray-400 hover:bg-gray-700 hover:text-text-primary',
+                    'focus:outline-none focus:ring-2 focus:ring-primary'
+                  )}
+                  title="Investigate anomaly"
+                  aria-label="Investigate anomaly"
+                  data-testid="investigate-button"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              )}
 
               {/* Acknowledge button */}
               {!anomaly.acknowledged && onAcknowledge && (
