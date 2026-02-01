@@ -214,6 +214,8 @@ export interface ZoneAnomalyAlertProps {
   onAcknowledge?: (anomalyId: string) => void;
   /** Callback when the card is clicked */
   onClick?: (anomaly: ZoneAnomaly) => void;
+  /** Callback when investigate button is clicked */
+  onInvestigate?: (anomalyId: string) => void;
   /** Whether the acknowledge button is disabled */
   isAcknowledging?: boolean;
   /** Whether to show the full description or truncate */

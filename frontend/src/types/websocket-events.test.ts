@@ -39,10 +39,11 @@ describe('WebSocket Event Types', () => {
       // NEM-3634: Added camera config events
       // NEM-3637: Added queue metrics events
       // NEM-3738: Added batch message type for server-side batching
+      // NEM-4714: Added dwell time events (dwell.entry, dwell.exit)
       // 9 legacy + 1 batch + 3 legacy job + 3 batch analysis + 3 event lifecycle
       // + 6 alert + 7 camera + 4 job + 2 system + 6 worker + 1 prometheus
-      // + 4 enrichment + 2 queue metrics = 50 total
-      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(50);
+      // + 4 enrichment + 2 queue metrics + 2 dwell = 52 total
+      expect(WEBSOCKET_EVENT_KEYS).toHaveLength(52);
     });
 
     it('should include new hierarchical event keys', () => {

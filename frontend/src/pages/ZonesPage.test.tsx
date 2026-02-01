@@ -921,4 +921,140 @@ describe('ZonesPage', () => {
       expect(within(card).getByText('Inactive')).toBeInTheDocument();
     });
   });
+
+  // ==========================================================================
+  // Tab Navigation Tests (NEM-4714 Phase 1B)
+  // ==========================================================================
+
+  describe('Tab Navigation', () => {
+    beforeEach(() => {
+      setupMocks();
+    });
+
+    it('renders all 3 tabs', async () => {
+      renderZonesPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-tab-list')).toBeInTheDocument();
+      });
+
+      // Verify all 3 tabs are rendered
+      expect(screen.getByTestId('zone-tab-overview')).toBeInTheDocument();
+      expect(screen.getByTestId('zone-tab-analytics')).toBeInTheDocument();
+      expect(screen.getByTestId('zone-tab-comparison')).toBeInTheDocument();
+
+      // Verify tab labels
+      expect(screen.getByText('Overview')).toBeInTheDocument();
+      expect(screen.getByText('Analytics')).toBeInTheDocument();
+      expect(screen.getByText('Comparison')).toBeInTheDocument();
+    });
+
+    it('defaults to overview tab', async () => {
+      renderZonesPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-tab-list')).toBeInTheDocument();
+      });
+
+      // Overview tab should be selected (has bg-primary class)
+      const overviewTab = screen.getByTestId('zone-tab-overview');
+      expect(overviewTab).toHaveClass('bg-primary');
+
+      // Overview panel content should be visible
+      expect(screen.getByTestId('zone-panel-overview')).toBeInTheDocument();
+      expect(screen.getByTestId('zone-grid')).toBeInTheDocument();
+    });
+
+    it('switches to analytics tab when clicked', async () => {
+      const { user } = renderZonesPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-tab-list')).toBeInTheDocument();
+      });
+
+      // Click analytics tab
+      await user.click(screen.getByTestId('zone-tab-analytics'));
+
+      // Analytics panel should be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-panel-analytics')).toBeInTheDocument();
+      });
+
+      // Analytics tab should now be selected
+      const analyticsTab = screen.getByTestId('zone-tab-analytics');
+      expect(analyticsTab).toHaveClass('bg-primary');
+
+      // Analytics content should be visible (Line Zone Analytics header)
+      expect(screen.getByText('Line Zone Analytics')).toBeInTheDocument();
+
+      // Overview content should not be visible (panel hidden)
+      expect(screen.queryByTestId('zone-grid')).not.toBeInTheDocument();
+    });
+
+    it('switches to comparison tab when clicked', async () => {
+      const { user } = renderZonesPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-tab-list')).toBeInTheDocument();
+      });
+
+      // Click comparison tab
+      await user.click(screen.getByTestId('zone-tab-comparison'));
+
+      // Comparison panel should be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-panel-comparison')).toBeInTheDocument();
+      });
+
+      // Comparison tab should now be selected
+      const comparisonTab = screen.getByTestId('zone-tab-comparison');
+      expect(comparisonTab).toHaveClass('bg-primary');
+
+      // Comparison tab content should be visible (shows zone selection or comparison-tab testid)
+      expect(screen.getByTestId('comparison-tab')).toBeInTheDocument();
+    });
+
+    it('can switch back to overview from analytics', async () => {
+      const { user } = renderZonesPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-tab-list')).toBeInTheDocument();
+      });
+
+      // Switch to analytics
+      await user.click(screen.getByTestId('zone-tab-analytics'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-panel-analytics')).toBeInTheDocument();
+      });
+
+      // Switch back to overview
+      await user.click(screen.getByTestId('zone-tab-overview'));
+
+      // Overview content should be visible again
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-panel-overview')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('zone-grid')).toBeInTheDocument();
+      expect(screen.getByTestId('zone-trust-matrix')).toBeInTheDocument();
+    });
+
+    it('tabs have correct icons', async () => {
+      renderZonesPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-tab-list')).toBeInTheDocument();
+      });
+
+      // Each tab should contain an SVG icon
+      const overviewTab = screen.getByTestId('zone-tab-overview');
+      const analyticsTab = screen.getByTestId('zone-tab-analytics');
+      const comparisonTab = screen.getByTestId('zone-tab-comparison');
+
+      expect(overviewTab.querySelector('svg')).toBeInTheDocument();
+      expect(analyticsTab.querySelector('svg')).toBeInTheDocument();
+      expect(comparisonTab.querySelector('svg')).toBeInTheDocument();
+    });
+  });
 });

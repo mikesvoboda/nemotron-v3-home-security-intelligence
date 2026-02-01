@@ -20,11 +20,18 @@ Example:
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.analytics_zone import LineZoneCreate, LineZoneUpdate
+from backend.api.schemas.line_zone_analytics import (
+    CrossingTrendDataPoint,
+    CrossingTrendsResponse,
+)
 from backend.core.logging import get_logger
+from backend.core.time_utils import utc_now
 from backend.models.analytics_zone import LineZone
 
 logger = get_logger(__name__)
@@ -274,6 +281,78 @@ class LineZoneService:
             select(LineZone).order_by(LineZone.camera_id, LineZone.created_at)
         )
         return list(result.scalars().all())
+
+    async def get_crossing_trends(
+        self,
+        zone_id: int,
+        start_time: datetime,
+        end_time: datetime,
+        interval: str = "hour",
+    ) -> CrossingTrendsResponse | None:
+        """Get crossing trends for a line zone.
+
+        Returns time-bucketed crossing data for the specified time range.
+
+        NOTE: Currently, individual crossing events are not stored in the database.
+        Only cumulative counts (in_count, out_count) are tracked on the LineZone model.
+        For MVP, this method returns the current cumulative counts as a single data point.
+
+        TODO: To support true historical trends, implement a CrossingEvent model
+        that stores individual crossing events with timestamps. This would allow
+        for proper time-bucketed aggregation of historical data.
+
+        Args:
+            zone_id: The ID of the line zone.
+            start_time: Start of the time window.
+            end_time: End of the time window.
+            interval: Aggregation interval, either "hour" or "day".
+
+        Returns:
+            CrossingTrendsResponse with current counts, or None if zone not found.
+
+        Example:
+            trends = await service.get_crossing_trends(
+                zone_id=1,
+                start_time=datetime(2026, 1, 26, 0, 0),
+                end_time=datetime(2026, 1, 27, 0, 0),
+                interval="hour"
+            )
+        """
+        zone = await self.get_zone(zone_id)
+        if zone is None:
+            return None
+
+        # For MVP, return current cumulative counts as a single data point
+        # since individual crossing events are not stored.
+        # The timestamp is set to the current time as we only have cumulative counts.
+        now = utc_now()
+        current_data_point = CrossingTrendDataPoint(
+            timestamp=now,
+            in_count=zone.in_count,
+            out_count=zone.out_count,
+            net_flow=zone.in_count - zone.out_count,
+        )
+
+        logger.debug(
+            f"Retrieved crossing trends for zone {zone_id}",
+            extra={
+                "zone_id": zone_id,
+                "in_count": zone.in_count,
+                "out_count": zone.out_count,
+                "interval": interval,
+            },
+        )
+
+        return CrossingTrendsResponse(
+            zone_id=zone.id,
+            zone_name=zone.name,
+            trends=[current_data_point],
+            total_in=zone.in_count,
+            total_out=zone.out_count,
+            start_time=start_time,
+            end_time=end_time,
+            interval=interval,
+        )
 
 
 def get_line_zone_service(db: AsyncSession) -> LineZoneService:

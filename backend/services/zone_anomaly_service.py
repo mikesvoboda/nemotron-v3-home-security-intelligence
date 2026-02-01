@@ -493,6 +493,88 @@ class ZoneAnomalyService:
         result = await session.execute(query)
         return {str(row[0]): int(row[1]) for row in result.all()}
 
+    async def get_anomaly_with_context(
+        self,
+        anomaly_id: str,
+        session: AsyncSession,
+    ) -> dict[str, Any] | None:
+        """Get an anomaly with full investigation context.
+
+        Fetches the anomaly along with its associated zone and detection data
+        to provide complete context for investigation purposes.
+
+        Args:
+            anomaly_id: The anomaly ID to fetch.
+            session: Database session.
+
+        Returns:
+            Dictionary containing anomaly with zone name and associated detections,
+            or None if anomaly not found.
+        """
+        from sqlalchemy.orm import selectinload
+
+        from backend.models.detection import Detection
+
+        # Fetch anomaly with zone relationship eagerly loaded
+        query = (
+            select(ZoneAnomaly)
+            .options(selectinload(ZoneAnomaly.zone))
+            .where(ZoneAnomaly.id == anomaly_id)
+        )
+        result = await session.execute(query)
+        anomaly = result.scalar_one_or_none()
+
+        if anomaly is None:
+            return None
+
+        # Get zone name (use default if zone relationship not available)
+        zone_name = anomaly.zone.name if anomaly.zone else "Unknown Zone"
+
+        # Fetch associated detection if detection_id is set
+        detections: list[dict[str, Any]] = []
+        if anomaly.detection_id is not None:
+            detection_query = select(Detection).where(Detection.id == anomaly.detection_id)
+            detection_result = await session.execute(detection_query)
+            detection = detection_result.scalar_one_or_none()
+
+            if detection is not None:
+                # Build thumbnail URL from detection data
+                thumbnail_url = None
+                if detection.thumbnail_path:
+                    thumbnail_url = f"/api/detections/{detection.id}/image"
+
+                # Extract risk score from enrichment_data if available
+                risk_score = None
+                if detection.enrichment_data and isinstance(detection.enrichment_data, dict):
+                    risk_score = detection.enrichment_data.get("risk_score")
+
+                detections.append(
+                    {
+                        "id": str(detection.id),
+                        "camera_id": detection.camera_id,
+                        "timestamp": detection.detected_at,
+                        "object_class": detection.object_type or "unknown",
+                        "confidence": detection.confidence or 0.0,
+                        "risk_score": risk_score,
+                        "thumbnail_url": thumbnail_url,
+                    }
+                )
+
+        return {
+            "id": anomaly.id,
+            "zone_id": anomaly.zone_id,
+            "zone_name": zone_name,
+            "anomaly_type": anomaly.anomaly_type,
+            "severity": anomaly.severity,
+            "timestamp": anomaly.timestamp,
+            "expected_value": anomaly.expected_value,
+            "actual_value": anomaly.actual_value,
+            "explanation": anomaly.description,
+            "detections": detections,
+            "acknowledged": anomaly.acknowledged,
+            "acknowledged_at": anomaly.acknowledged_at,
+        }
+
 
 class ZoneBaselineService:
     """Stub service for zone baselines.
