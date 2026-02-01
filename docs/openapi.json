@@ -22198,6 +22198,34 @@
         "title": "OldestJobInfo",
         "type": "object"
       },
+      "OnvifDiscoveryRequest": {
+        "description": "Request schema for ONVIF device discovery.\n\nNEM-4207: Defines the network subnet to scan and timeout for WS-Discovery.",
+        "example": {
+          "subnet": "192.168.1.0/24",
+          "timeout": 10
+        },
+        "properties": {
+          "subnet": {
+            "description": "Network subnet in CIDR notation (e.g., '192.168.1.0/24')",
+            "minLength": 1,
+            "title": "Subnet",
+            "type": "string"
+          },
+          "timeout": {
+            "default": 10,
+            "description": "Discovery timeout in seconds (1-300)",
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "subnet"
+        ],
+        "title": "OnvifDiscoveryRequest",
+        "type": "object"
+      },
       "OrphanCleanupRequest": {
         "description": "Request schema for orphan cleanup endpoint.",
         "properties": {
@@ -24430,6 +24458,112 @@
         "title": "PoseEnrichment",
         "type": "object"
       },
+      "PreviewStartRequest": {
+        "description": "Request schema for starting an RTSP preview.\n\nNEM-4762: Schema for POST /api/cameras/preview/start endpoint.\nInitiates WebRTC signaling with go2rtc for live preview.",
+        "example": {
+          "offer": "v=0\r\no=- ...",
+          "password": "password123",
+          "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+          "username": "admin"
+        },
+        "properties": {
+          "offer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "WebRTC SDP offer (optional, for direct signaling)",
+            "title": "Offer"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional password for RTSP authentication",
+            "title": "Password"
+          },
+          "rtsp_url": {
+            "description": "RTSP URL for preview stream",
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Rtsp Url",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional username for RTSP authentication",
+            "title": "Username"
+          }
+        },
+        "required": [
+          "rtsp_url"
+        ],
+        "title": "PreviewStartRequest",
+        "type": "object"
+      },
+      "PreviewStartResponse": {
+        "description": "Response schema for starting an RTSP preview.\n\nNEM-4762: Response from POST /api/cameras/preview/start endpoint.\nContains WebRTC connection details and session info.",
+        "example": {
+          "expires_in": 300,
+          "sdp": "v=0\r\no=- ...",
+          "stream_id": "camera_front_door_abc123",
+          "webrtc_url": "ws://localhost:1984/api/ws?src=camera_front_door_abc123"
+        },
+        "properties": {
+          "expires_in": {
+            "description": "Session expiry time in seconds (default 300)",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "sdp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "WebRTC SDP answer (if offer was provided)",
+            "title": "Sdp"
+          },
+          "stream_id": {
+            "description": "Unique stream identifier for cleanup",
+            "title": "Stream Id",
+            "type": "string"
+          },
+          "webrtc_url": {
+            "description": "WebRTC WebSocket URL for connecting to go2rtc",
+            "title": "Webrtc Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "webrtc_url",
+          "stream_id",
+          "expires_in"
+        ],
+        "title": "PreviewStartResponse",
+        "type": "object"
+      },
       "ProcessMemoryResponse": {
         "description": "Process memory metrics for the backend service (NEM-3890).\n\nTracks memory usage of the backend Python process and container limits\nto help diagnose memory pressure issues before OOM kills.",
         "example": {
@@ -26107,6 +26241,181 @@
           "pagination"
         ],
         "title": "QuietHoursPeriodsListResponse",
+        "type": "object"
+      },
+      "RTSPCapabilitiesResponse": {
+        "description": "Response schema for RTSP stream capabilities.\n\nNEM-4748: Detected capabilities of an RTSP stream including\nvideo/audio support, resolution, codec, and framerate.",
+        "example": {
+          "audio": true,
+          "codec": "H.264",
+          "fps": 30,
+          "ptz": false,
+          "resolution": "1920x1080",
+          "video": true
+        },
+        "properties": {
+          "audio": {
+            "description": "Whether the stream supports audio",
+            "title": "Audio",
+            "type": "boolean"
+          },
+          "codec": {
+            "description": "Video codec (e.g., 'H.264', 'H.265')",
+            "title": "Codec",
+            "type": "string"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream framerate",
+            "title": "Fps"
+          },
+          "ptz": {
+            "description": "Whether PTZ control is available",
+            "title": "Ptz",
+            "type": "boolean"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream resolution (e.g., '1920x1080')",
+            "title": "Resolution"
+          },
+          "video": {
+            "description": "Whether the stream supports video",
+            "title": "Video",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "video",
+          "audio",
+          "ptz",
+          "codec"
+        ],
+        "title": "RTSPCapabilitiesResponse",
+        "type": "object"
+      },
+      "RTSPTestRequest": {
+        "description": "Request schema for testing an RTSP connection.\n\nNEM-4748: Schema for POST /api/cameras/rtsp/test endpoint.\nValidates RTSP URL format and accepts optional credentials.",
+        "example": {
+          "password": "password123",
+          "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+          "username": "admin"
+        },
+        "properties": {
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional password for RTSP authentication",
+            "title": "Password"
+          },
+          "rtsp_url": {
+            "description": "RTSP URL to test (rtsp:// or rtsps://)",
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Rtsp Url",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional username for RTSP authentication",
+            "title": "Username"
+          }
+        },
+        "required": [
+          "rtsp_url"
+        ],
+        "title": "RTSPTestRequest",
+        "type": "object"
+      },
+      "RTSPTestResponse": {
+        "description": "Response schema for RTSP connection test result.\n\nNEM-4748: Result of testing an RTSP connection including\nsuccess status, latency, capabilities, or error details.\nNote: Never includes password in response for security.",
+        "example": {
+          "capabilities": {
+            "audio": true,
+            "codec": "H.264",
+            "fps": 30,
+            "ptz": false,
+            "resolution": "1920x1080",
+            "video": true
+          },
+          "latency_ms": 245,
+          "success": true
+        },
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RTSPCapabilitiesResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream capabilities (only present on success)"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message (only present on failure)",
+            "title": "Error Message"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Connection latency in milliseconds",
+            "title": "Latency Ms"
+          },
+          "success": {
+            "description": "Whether the connection test succeeded",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "RTSPTestResponse",
         "type": "object"
       },
       "RUMBatchRequest": {
@@ -38000,6 +38309,158 @@
         ]
       }
     },
+    "/api/cameras/onvif/discover": {
+      "post": {
+        "description": "Discover ONVIF devices on the network using WS-Discovery.\n\nScans the specified subnet for ONVIF-compatible cameras and returns\ndevice information including IP, manufacturer, model, and RTSP URLs.\n\nArgs:\n    request: Discovery request with subnet and timeout\n\nReturns:\n    Dictionary with discovered devices and count:\n    - devices: List of discovered device information\n    - count: Total number of devices found\n\nRaises:\n    HTTPException: 500 if discovery fails",
+        "operationId": "cameras_discover_onvif_devices",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnvifDiscoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cameras Discover Onvif Devices",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of discovered ONVIF devices"
+          },
+          "422": {
+            "description": "Invalid request parameters"
+          },
+          "500": {
+            "description": "Discovery failed"
+          }
+        },
+        "summary": "Discover ONVIF devices on the network",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/preview/start": {
+      "post": {
+        "description": "Start an RTSP preview stream via go2rtc WebRTC conversion.\n\nThis endpoint accepts RTSP URL directly without requiring a camera ID.\nUseful for testing connections before saving camera configuration.\nSessions automatically expire after 5 minutes (300 seconds).\n\nArgs:\n    request: Preview start request with RTSP URL and optional credentials\n\nReturns:\n    PreviewStartResponse with WebRTC URL, stream ID, and expiry time\n\nRaises:\n    HTTPException: 503 if go2rtc service is unavailable\n    HTTPException: 422 if RTSP URL is invalid",
+        "operationId": "cameras_start_preview_direct",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewStartResponse"
+                }
+              }
+            },
+            "description": "Preview stream started successfully"
+          },
+          "422": {
+            "description": "Invalid request parameters"
+          },
+          "503": {
+            "description": "go2rtc service unavailable"
+          }
+        },
+        "summary": "Start RTSP preview stream (no camera lookup)",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/preview/{stream_id}/stop": {
+      "delete": {
+        "description": "Stop an RTSP preview stream and cleanup go2rtc resources.\n\nThis endpoint is idempotent - calling it for a non-existent stream is OK.\n404 responses from go2rtc are treated as success.\n\nArgs:\n    stream_id: The stream ID returned from start_preview\n\nReturns:\n    No content on success",
+        "operationId": "cameras_stop_preview_by_stream_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "stream_id",
+            "required": true,
+            "schema": {
+              "title": "Stream Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Preview stream stopped successfully"
+          },
+          "404": {
+            "description": "Stream not found (acceptable, idempotent)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop RTSP preview stream by stream ID",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/rtsp/test": {
+      "post": {
+        "description": "Test an RTSP camera connection without creating a camera.\n\nThis endpoint validates RTSP URL connectivity and detects stream capabilities.\nUseful for validating camera settings before adding a new camera.\n\nSECURITY: Password is never included in the response.\n\nArgs:\n    request: RTSP test request with URL and optional credentials\n\nReturns:\n    RTSPTestResponse with success status, latency, and capabilities or error",
+        "operationId": "cameras_test_rtsp_connection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RTSPTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RTSPTestResponse"
+                }
+              }
+            },
+            "description": "Connection test result"
+          },
+          "422": {
+            "description": "Invalid request parameters"
+          }
+        },
+        "summary": "Test RTSP connection",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
     "/api/cameras/validation/paths": {
       "get": {
         "description": "Validate all camera folder paths against the configured base path.\n\nThis endpoint checks each camera's folder_path to determine:\n1. Whether the path is under the configured FOSCAM_BASE_PATH\n2. Whether the directory exists on disk\n3. Whether the directory contains any images or video files\n\nNEM-2446: Video files (.mkv, .mp4, etc.) are now valid for snapshot\nextraction, so cameras with only video files pass validation.\n\nUse this to diagnose cameras that show \"No snapshot available\" errors.\n\nReturns:\n    CameraPathValidationResponse with validation results for all cameras",
@@ -38334,6 +38795,106 @@
           }
         },
         "summary": "Get Camera Class Baseline",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/preview/start": {
+      "post": {
+        "description": "Start an RTSP preview stream for a specific camera.\n\nLooks up the camera's RTSP configuration and registers the stream with go2rtc.\nSessions automatically expire after 5 minutes (300 seconds).\n\nArgs:\n    camera_id: The camera ID to start preview for\n    db: Database session\n\nReturns:\n    PreviewStartResponse with WebRTC URL, stream ID, and expiry time\n\nRaises:\n    HTTPException: 404 if camera not found\n    HTTPException: 400 if camera does not have RTSP configured\n    HTTPException: 503 if go2rtc service is unavailable",
+        "operationId": "cameras_start_camera_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewStartResponse"
+                }
+              }
+            },
+            "description": "Preview stream started successfully"
+          },
+          "400": {
+            "description": "Camera does not have RTSP configured"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "go2rtc service unavailable"
+          }
+        },
+        "summary": "Start preview for a specific camera",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/preview/stop": {
+      "delete": {
+        "description": "Stop an RTSP preview stream for a specific camera.\n\nThis endpoint is idempotent - calling it for a camera without active preview is OK.\n404 responses from go2rtc are treated as success.\n\nArgs:\n    camera_id: The camera ID to stop preview for\n    db: Database session\n\nReturns:\n    Success message",
+        "operationId": "cameras_stop_camera_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cameras Stop Camera Preview",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Preview stream stopped successfully"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop preview for a specific camera",
         "tags": [
           "cameras"
         ]

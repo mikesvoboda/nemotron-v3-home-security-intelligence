@@ -344,6 +344,7 @@ if TYPE_CHECKING:
     from backend.services.clip_generator import ClipGenerator
     from backend.services.container_orchestrator import ContainerOrchestrator
     from backend.services.nemotron_analyzer import NemotronAnalyzer
+    from backend.services.onvif_service import OnvifService
     from backend.services.thumbnail_generator import ThumbnailGenerator
     from backend.services.video_processor import VideoProcessor
 
@@ -1183,6 +1184,27 @@ def get_transcoding_service_dep() -> TranscodingService:
     return get_transcoding_service()
 
 
+async def get_onvif_service_dep(
+    db: AsyncSession = Depends(get_db),
+    redis: RedisClient = Depends(get_redis),
+) -> AsyncGenerator[OnvifService]:
+    """FastAPI dependency for OnvifService (NEM-4754).
+
+    Creates an OnvifService instance for ONVIF device discovery and management.
+    The service requires both a database session and optional Redis client.
+
+    Args:
+        db: Database session injected via Depends(get_db)
+        redis: Redis client for caching (optional)
+
+    Yields:
+        OnvifService instance
+    """
+    from backend.services.onvif_service import OnvifService
+
+    yield OnvifService(session=db, redis=redis)
+
+
 # Type-hint-only imports for dependency injection return types
 if TYPE_CHECKING:
     from backend.services.ai_services import (
@@ -1198,6 +1220,7 @@ if TYPE_CHECKING:
     from backend.services.job_search_service import JobSearchService
     from backend.services.job_service import JobService
     from backend.services.job_tracker import JobTracker
+    from backend.services.onvif_service import OnvifService
     from backend.services.transcoding_service import TranscodingService
 
 
@@ -1435,6 +1458,9 @@ HealthEventEmitterDep = Annotated["HealthEventEmitter", Depends(get_health_event
 
 #: Transcoding service dependency for video transcoding.
 TranscodingServiceDep = Annotated["TranscodingService", Depends(get_transcoding_service_dep)]
+
+#: ONVIF service dependency for camera discovery and PTZ control (NEM-4754).
+OnvifServiceDep = Annotated["OnvifService", Depends(get_onvif_service_dep)]
 
 # -----------------------------------------------------------------------------
 # Request Dependencies

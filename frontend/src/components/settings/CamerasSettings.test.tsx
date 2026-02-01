@@ -16,6 +16,44 @@ vi.mock('../../hooks', () => ({
   useRestoreCameraMutation: vi.fn(),
 }));
 
+// Mock the useRtspTest hook (NEM-4748)
+const mockTestConnectionMutate = vi.fn();
+const mockTestConnectionReset = vi.fn();
+let mockTestConnectionState = {
+  mutate: mockTestConnectionMutate,
+  reset: mockTestConnectionReset,
+  isPending: false,
+  isSuccess: false,
+  isError: false,
+  data: null as import('../../types/rtsp').RTSPTestResult | null,
+};
+
+vi.mock('../../hooks/useRtspTest', () => ({
+  useRtspTest: () => ({
+    testConnection: mockTestConnectionState,
+  }),
+}));
+
+// Mock the useOnvifDiscovery hook (NEM-4754)
+const mockDiscoverDevicesMutate = vi.fn();
+const mockDiscoverDevicesReset = vi.fn();
+let mockDiscoverDevicesState = {
+  mutate: mockDiscoverDevicesMutate,
+  reset: mockDiscoverDevicesReset,
+  isPending: false,
+  isSuccess: false,
+  isError: false,
+  isIdle: true,
+  data: null as import('../../types/onvif').OnvifDiscoveryResponse | null,
+  error: null as Error | null,
+};
+
+vi.mock('../../hooks/useOnvifDiscovery', () => ({
+  useOnvifDiscovery: () => ({
+    discoverDevices: mockDiscoverDevicesState,
+  }),
+}));
+
 // Helper to create mock mutation object - uses type assertions for TanStack Query compatibility
 function createMockMutation<TData, _TError, TVariables>(overrides?: {
   isPending?: boolean;
@@ -91,6 +129,28 @@ describe('CamerasSettings', () => {
     vi.clearAllMocks();
     mockMutationReturn = createDefaultMutationReturn();
     vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
+
+    // Reset useRtspTest mock state
+    mockTestConnectionState = {
+      mutate: mockTestConnectionMutate,
+      reset: mockTestConnectionReset,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      data: null,
+    };
+
+    // Reset useOnvifDiscovery mock state (NEM-4754)
+    mockDiscoverDevicesState = {
+      mutate: mockDiscoverDevicesMutate,
+      reset: mockDiscoverDevicesReset,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      isIdle: true,
+      data: null,
+      error: null,
+    };
 
     // Mock deleted cameras hooks (NEM-3643)
     vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
@@ -1359,6 +1419,1125 @@ describe('CamerasSettings', () => {
       expect(screen.getByText('This will affect related data')).toBeInTheDocument();
       expect(screen.getByText(/All detections from this camera will be hidden/)).toBeInTheDocument();
       expect(screen.getByText(/Show deleted cameras/)).toBeInTheDocument();
+    });
+  });
+
+  describe('RTSP Camera Configuration UI (NEM-4742 Phase 1)', () => {
+    beforeEach(() => {
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+        isPlaceholderData: false,
+      });
+    });
+
+    describe('Ingestion Mode Selector', () => {
+      it('should render ingestion mode selector in add camera modal', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        expect(screen.getByLabelText('Ingestion Mode')).toBeInTheDocument();
+      });
+
+      it('should show FTP, RTSP, and ONVIF options in ingestion mode selector', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        expect(ingestionModeSelect).toBeInTheDocument();
+
+        // Check for options
+        const ftpOption = within(ingestionModeSelect).getByRole('option', { name: /FTP/i });
+        const rtspOption = within(ingestionModeSelect).getByRole('option', { name: /RTSP/i });
+        const onvifOption = within(ingestionModeSelect).getByRole('option', { name: /ONVIF/i });
+
+        expect(ftpOption).toBeInTheDocument();
+        expect(rtspOption).toBeInTheDocument();
+        expect(onvifOption).toBeInTheDocument();
+      });
+
+      it('should default to FTP ingestion mode', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        expect(ingestionModeSelect).toHaveValue('ftp');
+      });
+
+      it('should allow changing ingestion mode to RTSP', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        expect(ingestionModeSelect).toHaveValue('rtsp');
+      });
+
+      it('should allow changing ingestion mode to ONVIF', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'onvif');
+
+        expect(ingestionModeSelect).toHaveValue('onvif');
+      });
+    });
+
+    describe('RTSP Configuration Section Visibility', () => {
+      it('should hide RTSP section when ingestion_mode is FTP', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        // RTSP fields should not be visible when FTP is selected
+        expect(screen.queryByLabelText('RTSP URL')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('RTSP Username')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('RTSP Password')).not.toBeInTheDocument();
+      });
+
+      it('should show RTSP section when ingestion_mode is RTSP', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        expect(screen.getByLabelText('RTSP Username')).toBeInTheDocument();
+        expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+      });
+
+      it('should show RTSP section when ingestion_mode is ONVIF', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'onvif');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        expect(screen.getByLabelText('RTSP Username')).toBeInTheDocument();
+        expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+      });
+    });
+
+    describe('RTSP URL Field', () => {
+      it('should render RTSP URL input with placeholder', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        expect(rtspUrlInput).toHaveAttribute('placeholder', 'rtsp://192.168.1.100:554/stream1');
+      });
+
+      it('should accept valid RTSP URL input', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        await user.type(rtspUrlInput, 'rtsp://192.168.1.100:554/stream1');
+
+        expect(rtspUrlInput).toHaveValue('rtsp://192.168.1.100:554/stream1');
+      });
+
+      it('should validate RTSP URL format', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        const nameInput = screen.getByLabelText('Camera Name');
+        const folderInput = screen.getByLabelText('Folder Path');
+
+        await user.type(nameInput, 'Test Camera');
+        await user.type(folderInput, '/export/cameras/test');
+        await user.type(rtspUrlInput, 'http://192.168.1.100/stream'); // Invalid (not rtsp://)
+
+        const submitButton = within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Add Camera',
+        });
+        await user.click(submitButton);
+
+        await waitFor(() => {
+          expect(screen.getByText(/must use rtsp:\/\/ or rtsps:\/\//i)).toBeInTheDocument();
+        });
+      });
+
+      it('should require RTSP URL when ingestion_mode is rtsp', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        const nameInput = screen.getByLabelText('Camera Name');
+        const folderInput = screen.getByLabelText('Folder Path');
+
+        await user.type(nameInput, 'Test Camera');
+        await user.type(folderInput, '/export/cameras/test');
+        // Do not fill in RTSP URL
+
+        const submitButton = within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Add Camera',
+        });
+        await user.click(submitButton);
+
+        await waitFor(() => {
+          expect(screen.getByText(/RTSP URL is required/i)).toBeInTheDocument();
+        });
+      });
+    });
+
+    describe('RTSP Username Field', () => {
+      it('should render RTSP Username input', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Username')).toBeInTheDocument();
+        });
+
+        const usernameInput = screen.getByLabelText('RTSP Username');
+        expect(usernameInput).toHaveAttribute('placeholder', 'admin');
+      });
+
+      it('should accept username input', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Username')).toBeInTheDocument();
+        });
+
+        const usernameInput = screen.getByLabelText('RTSP Username');
+        await user.type(usernameInput, 'admin');
+
+        expect(usernameInput).toHaveValue('admin');
+      });
+
+      it('should mark RTSP Username as optional', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Username')).toBeInTheDocument();
+        });
+
+        const usernameInput = screen.getByLabelText('RTSP Username');
+        expect(usernameInput).not.toBeRequired();
+      });
+    });
+
+    describe('RTSP Password Field', () => {
+      it('should render RTSP Password as PasswordInput component', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+        });
+
+        const passwordInput = screen.getByLabelText('RTSP Password');
+        expect(passwordInput).toHaveAttribute('type', 'password');
+      });
+
+      it('should have password visibility toggle button', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+        });
+
+        const toggleButton = screen.getByRole('button', {
+          name: /show password/i,
+        });
+        expect(toggleButton).toBeInTheDocument();
+      });
+
+      it('should accept password input', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+        });
+
+        const passwordInput = screen.getByLabelText('RTSP Password');
+        await user.type(passwordInput, 'secretpassword123');
+
+        expect(passwordInput).toHaveValue('secretpassword123');
+      });
+
+      it('should toggle password visibility when toggle button is clicked', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+        });
+
+        const passwordInput = screen.getByLabelText('RTSP Password');
+        const showButton = screen.getByRole('button', {
+          name: /show password/i,
+        });
+
+        expect(passwordInput).toHaveAttribute('type', 'password');
+
+        await user.click(showButton);
+
+        expect(passwordInput).toHaveAttribute('type', 'text');
+      });
+
+      it('should mark RTSP Password as optional', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP Password')).toBeInTheDocument();
+        });
+
+        const passwordInput = screen.getByLabelText('RTSP Password');
+        expect(passwordInput).not.toBeRequired();
+      });
+    });
+
+    describe('Form Submission with RTSP Fields', () => {
+      it('should submit form with RTSP fields when creating camera', async () => {
+        const newCamera: Camera = {
+          id: 'rtsp-camera',
+          name: 'RTSP Test Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          created_at: '2025-01-31T00:00:00Z',
+          last_seen_at: null,
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+          rtsp_username: 'admin',
+          rtsp_password: 'password123', // pragma: allowlist secret
+          motion_sensitivity: 0.5,
+        };
+
+        const mockCreateMutateAsync = vi.fn().mockResolvedValue(newCamera);
+        mockMutationReturn.createMutation = createMockMutation({
+          mutateAsync: mockCreateMutateAsync,
+        });
+        vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const nameInput = screen.getByLabelText('Camera Name');
+        const folderInput = screen.getByLabelText('Folder Path');
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        const usernameInput = screen.getByLabelText('RTSP Username');
+        const passwordInput = screen.getByLabelText('RTSP Password');
+
+        await user.type(nameInput, 'RTSP Test Camera');
+        await user.type(folderInput, '/export/cameras/rtsp1');
+        await user.type(rtspUrlInput, 'rtsp://192.168.1.100:554/stream1');
+        await user.type(usernameInput, 'admin');
+        await user.type(passwordInput, 'password123');
+
+        const submitButton = within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Add Camera',
+        });
+        await user.click(submitButton);
+
+        await waitFor(() => {
+          expect(mockCreateMutateAsync).toHaveBeenCalledWith({
+            name: 'RTSP Test Camera',
+            folder_path: '/export/cameras/rtsp1',
+            status: 'online',
+            ingestion_mode: 'rtsp',
+            rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+            rtsp_username: 'admin',
+            rtsp_password: 'password123', // pragma: allowlist secret
+            motion_sensitivity: 0.5,
+          });
+        });
+      });
+
+      it('should submit form without credentials when omitted', async () => {
+        const newCamera: Camera = {
+          id: 'rtsp-camera',
+          name: 'RTSP Test Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          created_at: '2025-01-31T00:00:00Z',
+          last_seen_at: null,
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+          motion_sensitivity: 0.5,
+        };
+
+        const mockCreateMutateAsync = vi.fn().mockResolvedValue(newCamera);
+        mockMutationReturn.createMutation = createMockMutation({
+          mutateAsync: mockCreateMutateAsync,
+        });
+        vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const nameInput = screen.getByLabelText('Camera Name');
+        const folderInput = screen.getByLabelText('Folder Path');
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+
+        await user.type(nameInput, 'RTSP Test Camera');
+        await user.type(folderInput, '/export/cameras/rtsp1');
+        await user.type(rtspUrlInput, 'rtsp://192.168.1.100:554/stream1');
+
+        const submitButton = within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Add Camera',
+        });
+        await user.click(submitButton);
+
+        await waitFor(() => {
+          expect(mockCreateMutateAsync).toHaveBeenCalledWith({
+            name: 'RTSP Test Camera',
+            folder_path: '/export/cameras/rtsp1',
+            status: 'online',
+            ingestion_mode: 'rtsp',
+            rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+            motion_sensitivity: 0.5,
+          });
+        });
+      });
+    });
+  });
+
+  describe('RTSP Connection Testing UI (NEM-4748 Phase 2)', () => {
+    beforeEach(() => {
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+        isPlaceholderData: false,
+      });
+    });
+
+    describe('Test Connection Button', () => {
+      it('should render "Test Connection" button when ingestion_mode is RTSP', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /test connection/i })).toBeInTheDocument();
+        });
+      });
+
+      it('should not render "Test Connection" button when ingestion_mode is FTP', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        // Should not show test button for FTP mode (default)
+        expect(screen.queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
+      });
+
+      it('should render "Test Connection" button when ingestion_mode is ONVIF', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'onvif');
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /test connection/i })).toBeInTheDocument();
+        });
+      });
+
+      it('should have accessible button label', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          const testButton = screen.getByRole('button', { name: /test connection/i });
+          expect(testButton).toHaveAccessibleName();
+        });
+      });
+    });
+
+    describe('Test Connection Action', () => {
+      it('should trigger test when button is clicked', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        await user.type(rtspUrlInput, 'rtsp://192.168.1.100:554/stream1');
+
+        const testButton = screen.getByRole('button', { name: /test connection/i });
+        await user.click(testButton);
+
+        await waitFor(() => {
+          expect(mockTestConnectionMutate).toHaveBeenCalledWith({
+            rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+            username: undefined,
+            password: undefined,
+          });
+        });
+      });
+
+      it('should include credentials in test request when provided', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        const usernameInput = screen.getByLabelText('RTSP Username');
+        const passwordInput = screen.getByLabelText('RTSP Password');
+
+        await user.type(rtspUrlInput, 'rtsp://192.168.1.100:554/stream1');
+        await user.type(usernameInput, 'admin');
+        await user.type(passwordInput, 'password123');
+
+        const testButton = screen.getByRole('button', { name: /test connection/i });
+        await user.click(testButton);
+
+        await waitFor(() => {
+          expect(mockTestConnectionMutate).toHaveBeenCalledWith({
+            rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+            username: 'admin',
+            password: 'password123', // pragma: allowlist secret
+          });
+        });
+      });
+
+      it('should disable test button when RTSP URL is empty', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          const testButton = screen.getByRole('button', { name: /test connection/i });
+          expect(testButton).toBeDisabled();
+        });
+      });
+
+      it('should enable test button when RTSP URL is provided', async () => {
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByLabelText('RTSP URL')).toBeInTheDocument();
+        });
+
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        await user.type(rtspUrlInput, 'rtsp://192.168.1.100:554/stream1');
+
+        await waitFor(() => {
+          const testButton = screen.getByRole('button', { name: /test connection/i });
+          expect(testButton).not.toBeDisabled();
+        });
+      });
+    });
+
+    describe('Connection Test Result Display', () => {
+      it('should display ConnectionStatusCard when test is in progress', async () => {
+        // Set mock state for isPending
+        mockTestConnectionState.isPending = true;
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          // Should show loading state
+          expect(screen.getByText(/testing connection/i)).toBeInTheDocument();
+        });
+      });
+
+      it('should display success result with capabilities', async () => {
+        const mockResult = {
+          success: true,
+          latency_ms: 245,
+          capabilities: {
+            video: true,
+            audio: true,
+            ptz: false,
+            resolution: '1920x1080',
+            codec: 'H.264',
+            fps: 30,
+          },
+          error_message: null,
+        };
+
+        // Set mock state for success
+        mockTestConnectionState.isPending = false;
+        mockTestConnectionState.isSuccess = true;
+        mockTestConnectionState.data = mockResult;
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          // Should show success message
+          expect(screen.getByText(/connection successful/i)).toBeInTheDocument();
+          expect(screen.getByText(/245.*ms/i)).toBeInTheDocument();
+          expect(screen.getByText(/1920x1080/i)).toBeInTheDocument();
+        });
+      });
+
+      it('should display error result with error message', async () => {
+        const mockResult = {
+          success: false,
+          latency_ms: null,
+          capabilities: null,
+          error_message: 'Connection timeout - stream did not respond within 5 seconds',
+        };
+
+        // Set mock state for error result
+        mockTestConnectionState.isPending = false;
+        mockTestConnectionState.isSuccess = true;
+        mockTestConnectionState.data = mockResult;
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          // Should show error message
+          expect(screen.getByText(/connection failed/i)).toBeInTheDocument();
+          expect(screen.getByText(/timeout/i)).toBeInTheDocument();
+        });
+      });
+
+      it('should clear result when RTSP URL is changed', async () => {
+        const mockResult = {
+          success: true,
+          latency_ms: 245,
+          capabilities: {
+            video: true,
+            audio: false,
+            ptz: false,
+            resolution: '1920x1080',
+            codec: 'H.264',
+            fps: 30,
+          },
+          error_message: null,
+        };
+
+        // Set mock state for success
+        mockTestConnectionState.isPending = false;
+        mockTestConnectionState.isSuccess = true;
+        mockTestConnectionState.data = mockResult;
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByText(/connection successful/i)).toBeInTheDocument();
+        });
+
+        // Clear the reset mock before changing URL to track new calls
+        mockTestConnectionReset.mockClear();
+
+        // Change RTSP URL
+        const rtspUrlInput = screen.getByLabelText('RTSP URL');
+        await user.clear(rtspUrlInput);
+        await user.type(rtspUrlInput, 'rtsp://different.url:554/stream');
+
+        // Reset should be called when URL changes (the useEffect triggers reset)
+        await waitFor(() => {
+          expect(mockTestConnectionReset).toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('Button State During Test', () => {
+      it('should disable test button while test is in progress', async () => {
+        // Set mock state for isPending
+        mockTestConnectionState.isPending = true;
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          const testButton = screen.getByRole('button', { name: /testing/i });
+          expect(testButton).toBeDisabled();
+        });
+      });
+
+      it('should show loading text on button during test', async () => {
+        // Set mock state for isPending
+        mockTestConnectionState.isPending = true;
+
+        render(<CamerasSettings />);
+
+        await waitFor(() => {
+          expect(screen.getByText('No cameras configured')).toBeInTheDocument();
+        });
+
+        const user = userEvent.setup();
+        await user.click(screen.getAllByText('Add Camera')[0]);
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+
+        const ingestionModeSelect = screen.getByLabelText('Ingestion Mode');
+        await user.selectOptions(ingestionModeSelect, 'rtsp');
+
+        await waitFor(() => {
+          expect(screen.getByRole('button', { name: /testing/i })).toBeInTheDocument();
+        });
+      });
     });
   });
 });

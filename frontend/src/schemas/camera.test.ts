@@ -247,6 +247,430 @@ describe('Camera Zod Schemas', () => {
     });
   });
 
+  describe('RTSP URL Validation (TDD Phase 1)', () => {
+    describe('Valid RTSP URLs', () => {
+      it('should accept rtsp:// URLs', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp://192.168.1.100:554/stream1',
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.rtsp_url).toBe('rtsp://192.168.1.100:554/stream1');
+        }
+      });
+
+      it('should accept rtsps:// URLs (secure RTSP)', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsps://192.168.1.100:554/stream1',
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.rtsp_url).toBe('rtsps://192.168.1.100:554/stream1');
+        }
+      });
+
+      it('should accept RTSP URLs with authentication in URL', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp://admin:password@192.168.1.100:554/stream1', // pragma: allowlist secret
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('should accept RTSP URLs with hostname', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp://camera.local:554/stream1',
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('should accept RTSP URLs with complex paths', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp://192.168.1.100:554/axis-media/media.amp?videocodec=h264',
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('should allow null rtsp_url for non-RTSP cameras', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'FTP Camera',
+          folder_path: '/export/cameras/ftp1',
+          status: 'online',
+          ingestion_mode: 'ftp',
+          rtsp_url: null,
+        });
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe('Invalid RTSP URLs', () => {
+      it('should reject http:// URLs', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'http://192.168.1.100:554/stream1',
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('rtsp://');
+        }
+      });
+
+      it('should reject https:// URLs', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'https://192.168.1.100:554/stream1',
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('rtsp://');
+        }
+      });
+
+      it('should reject URLs without scheme', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: '192.168.1.100:554/stream1',
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('rtsp://');
+        }
+      });
+
+      it('should reject URLs without host', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: 'rtsp:///stream1',
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('valid host');
+        }
+      });
+
+      it('should reject empty string rtsp_url', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: '',
+        });
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe('Conditional RTSP URL requirement', () => {
+      it('should require rtsp_url when ingestion_mode is rtsp', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'RTSP Camera',
+          folder_path: '/export/cameras/rtsp1',
+          status: 'online',
+          ingestion_mode: 'rtsp',
+          rtsp_url: null,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('required');
+        }
+      });
+
+      it('should require rtsp_url when ingestion_mode is onvif', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'ONVIF Camera',
+          folder_path: '/export/cameras/onvif1',
+          status: 'online',
+          ingestion_mode: 'onvif',
+          rtsp_url: null,
+        });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].message).toContain('required');
+        }
+      });
+
+      it('should allow null rtsp_url when ingestion_mode is ftp', () => {
+        const result = cameraCreateSchema.safeParse({
+          name: 'FTP Camera',
+          folder_path: '/export/cameras/ftp1',
+          status: 'online',
+          ingestion_mode: 'ftp',
+          rtsp_url: null,
+        });
+        expect(result.success).toBe(true);
+      });
+    });
+  });
+
+  describe('Ingestion Mode Validation (TDD Phase 1)', () => {
+    it('should accept ingestion_mode "ftp"', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'FTP Camera',
+        folder_path: '/export/cameras/ftp1',
+        status: 'online',
+        ingestion_mode: 'ftp',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.ingestion_mode).toBe('ftp');
+      }
+    });
+
+    it('should accept ingestion_mode "rtsp"', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.ingestion_mode).toBe('rtsp');
+      }
+    });
+
+    it('should accept ingestion_mode "onvif"', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'ONVIF Camera',
+        folder_path: '/export/cameras/onvif1',
+        status: 'online',
+        ingestion_mode: 'onvif',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.ingestion_mode).toBe('onvif');
+      }
+    });
+
+    it('should reject invalid ingestion_mode values', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'Camera',
+        folder_path: '/export/cameras/camera1',
+        status: 'online',
+        ingestion_mode: 'invalid',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should default to "ftp" when ingestion_mode is omitted', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'Camera',
+        folder_path: '/export/cameras/camera1',
+        status: 'online',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // Default should be applied at backend, frontend allows omission
+        expect(result.data.ingestion_mode).toBeUndefined();
+      }
+    });
+  });
+
+  describe('Stream Profile Validation (TDD Phase 1)', () => {
+    it('should accept stream_profile "main"', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        stream_profile: 'main',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.stream_profile).toBe('main');
+      }
+    });
+
+    it('should accept stream_profile "sub"', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        stream_profile: 'sub',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.stream_profile).toBe('sub');
+      }
+    });
+
+    it('should accept stream_profile "both"', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        stream_profile: 'both',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.stream_profile).toBe('both');
+      }
+    });
+
+    it('should allow null stream_profile', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        stream_profile: null,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject invalid stream_profile values', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        stream_profile: 'invalid',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('RTSP Credentials Validation (TDD Phase 1)', () => {
+    it('should accept rtsp_username as string', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_username: 'admin',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.rtsp_username).toBe('admin');
+      }
+    });
+
+    it('should accept rtsp_password as string', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_password: 'secretpassword', // pragma: allowlist secret
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.rtsp_password).toBe('secretpassword'); // pragma: allowlist secret
+      }
+    });
+
+    it('should accept both username and password', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_username: 'admin',
+        rtsp_password: 'secretpassword', // pragma: allowlist secret
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.rtsp_username).toBe('admin');
+        expect(result.data.rtsp_password).toBe('secretpassword'); // pragma: allowlist secret
+      }
+    });
+
+    it('should accept password with special characters', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_password: 'P@ssw0rd!#$%^&*()', // pragma: allowlist secret
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.rtsp_password).toBe('P@ssw0rd!#$%^&*()'); // pragma: allowlist secret
+      }
+    });
+
+    it('should allow null rtsp_username', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_username: null,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should allow null rtsp_password', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_password: null,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should allow empty string credentials', () => {
+      const result = cameraCreateSchema.safeParse({
+        name: 'RTSP Camera',
+        folder_path: '/export/cameras/rtsp1',
+        status: 'online',
+        ingestion_mode: 'rtsp',
+        rtsp_url: 'rtsp://192.168.1.100/stream',
+        rtsp_username: '',
+        rtsp_password: '',
+      });
+      expect(result.success).toBe(true);
+    });
+  });
+
   describe('Motion Sensitivity Schema (TDD Phase 5)', () => {
     describe('Valid motion_sensitivity values', () => {
       it('should accept motion_sensitivity 0.0 (minimum)', () => {
