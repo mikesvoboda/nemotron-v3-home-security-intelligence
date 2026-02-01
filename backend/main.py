@@ -67,7 +67,6 @@ from backend.api.routes import (
     household,
     household_matcher,
     jobs,
-    logging_config,
     logs,
     materialized_views,
     media,
@@ -1248,7 +1247,6 @@ app.include_router(hierarchy.area_router)
 app.include_router(household.router)
 app.include_router(household_matcher.router)
 app.include_router(jobs.router)
-app.include_router(logging_config.router)
 app.include_router(logs.router)
 app.include_router(materialized_views.router)
 app.include_router(media.router)

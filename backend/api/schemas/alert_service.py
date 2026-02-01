@@ -37,9 +37,7 @@ class AlertServiceCreateRequest(BaseModel):
     )
 
     event_id: int = Field(..., description="Event ID that this alert relates to")
-    severity: AlertSeverity = Field(
-        AlertSeverity.MEDIUM, description="Alert severity level"
-    )
+    severity: AlertSeverity = Field(AlertSeverity.MEDIUM, description="Alert severity level")
     dedup_key: DedupKeyStr = Field(
         ...,
         max_length=255,
@@ -49,9 +47,7 @@ class AlertServiceCreateRequest(BaseModel):
     rule_id: str | None = Field(
         None, description="Optional alert rule UUID that triggered this alert"
     )
-    status: AlertStatus = Field(
-        AlertStatus.PENDING, description="Initial alert status"
-    )
+    status: AlertStatus = Field(AlertStatus.PENDING, description="Initial alert status")
     channels: list[str] = Field(
         default_factory=list, description="Notification channels for delivery"
     )
