@@ -39,12 +39,13 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/household-matcher", tags=["household-matcher"])
 
 
-def _match_to_response(match: HouseholdMatch | None, matched: bool = False) -> HouseholdMatchResponse:
+def _match_to_response(
+    match: HouseholdMatch | None,
+) -> HouseholdMatchResponse:
     """Convert a HouseholdMatch to response schema.
 
     Args:
         match: HouseholdMatch instance or None
-        matched: Whether a match was found
 
     Returns:
         HouseholdMatchResponse schema
@@ -128,7 +129,7 @@ async def match_person(
         match.similarity,
     )
 
-    return _match_to_response(match, matched=True)
+    return _match_to_response(match)
 
 
 @router.post(
@@ -208,7 +209,7 @@ async def match_vehicle(
         match.similarity,
     )
 
-    return _match_to_response(match, matched=True)
+    return _match_to_response(match)
 
 
 @router.post(
@@ -236,6 +237,7 @@ async def match_batch(
     Returns:
         BatchMatchResponse with person_matches and vehicle_matches dicts
     """
+
     # Convert detections to simple objects with id and object_type
     class SimpleDetection:
         """Simple detection class for batch matching."""
@@ -247,9 +249,7 @@ async def match_batch(
     detections = [SimpleDetection(d) for d in request.detections]
 
     # Convert enrichment_data keys to int
-    enrichment_data = {
-        int(k): v for k, v in request.enrichment_data.items()
-    }
+    enrichment_data = {int(k): v for k, v in request.enrichment_data.items()}
 
     matcher = get_household_matcher()
 
@@ -262,12 +262,10 @@ async def match_batch(
 
     # Convert matches to response format
     person_responses = {
-        str(det_id): _match_to_response(match, matched=True)
-        for det_id, match in person_matches.items()
+        str(det_id): _match_to_response(match) for det_id, match in person_matches.items()
     }
     vehicle_responses = {
-        str(det_id): _match_to_response(match, matched=True)
-        for det_id, match in vehicle_matches.items()
+        str(det_id): _match_to_response(match) for det_id, match in vehicle_matches.items()
     }
 
     total_matches = len(person_matches) + len(vehicle_matches)
@@ -310,15 +308,11 @@ async def get_matcher_config(
     matcher = get_household_matcher()
 
     # Count person embeddings
-    embedding_count_result = await db.execute(
-        select(func.count()).select_from(PersonEmbedding)
-    )
+    embedding_count_result = await db.execute(select(func.count()).select_from(PersonEmbedding))
     total_embeddings = embedding_count_result.scalar() or 0
 
     # Count registered vehicles
-    vehicle_count_result = await db.execute(
-        select(func.count()).select_from(RegisteredVehicle)
-    )
+    vehicle_count_result = await db.execute(select(func.count()).select_from(RegisteredVehicle))
     total_vehicles = vehicle_count_result.scalar() or 0
 
     return MatcherConfigResponse(
