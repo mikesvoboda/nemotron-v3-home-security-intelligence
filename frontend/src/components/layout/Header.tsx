@@ -5,6 +5,7 @@ import { PageDocsLink } from './PageDocsLink';
 import { useCommandPaletteContext } from '../../hooks/useCommandPaletteContext';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
+import { usePrometheusAlertWebSocket } from '../../hooks/usePrometheusAlertWebSocket';
 import { useSceneChangeAlerts } from '../../hooks/useSceneChangeAlerts';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import {
@@ -13,6 +14,8 @@ import {
   CRITICAL_USAGE_THRESHOLD,
 } from '../../stores/storage-status-store';
 import { ThemeToggle, WebSocketStatus } from '../common';
+import AlertBadge from '../common/AlertBadge';
+import AlertDrawer from '../common/AlertDrawer';
 import IconButton from '../common/IconButton';
 import SceneChangeAlert from '../common/SceneChangeAlert';
 import { AIServiceStatus } from '../status/AIServiceStatus';
@@ -181,6 +184,15 @@ export default function Header() {
     dismissAll: dismissAllSceneChangeAlerts,
   } = useSceneChangeAlerts();
 
+  // Prometheus infrastructure alerts (NEM-3124)
+  const {
+    alertsSorted: prometheusAlerts,
+    alertsBySeverity: prometheusAlertsBySeverity,
+    counts: prometheusAlertCounts,
+    hasCriticalAlerts: hasPrometheusCriticalAlerts,
+  } = usePrometheusAlertWebSocket();
+  const [isAlertDrawerOpen, setIsAlertDrawerOpen] = useState(false);
+
   // Derive status and isConnected from the connection status summary
   const isConnected = summary.allConnected;
   const status = systemStatus
@@ -305,6 +317,15 @@ export default function Header() {
           onDismissAll={dismissAllSceneChangeAlerts}
         />
 
+        {/* Prometheus Infrastructure Alerts (NEM-3124) */}
+        <AlertBadge
+          counts={prometheusAlertCounts}
+          onClick={() => setIsAlertDrawerOpen(true)}
+          isAnimating={hasPrometheusCriticalAlerts}
+          isOpen={isAlertDrawerOpen}
+          size="sm"
+        />
+
         {/* AI Service Status Badge - hidden on mobile */}
         <div className="hidden sm:block" data-testid="ai-service-status">
           <AIServiceStatus compact={true} />
@@ -381,6 +402,14 @@ export default function Header() {
           <div className="text-xs font-semibold text-[#76B900]">{formatGpuStats()}</div>
         </div>
       </div>
+
+      {/* Prometheus Alert Drawer (NEM-3124) */}
+      <AlertDrawer
+        isOpen={isAlertDrawerOpen}
+        onClose={() => setIsAlertDrawerOpen(false)}
+        alerts={prometheusAlerts}
+        alertsBySeverity={prometheusAlertsBySeverity}
+      />
     </header>
   );
 }

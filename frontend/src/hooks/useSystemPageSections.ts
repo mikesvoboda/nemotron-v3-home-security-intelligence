@@ -13,6 +13,7 @@ export type SystemSectionId =
   | 'databases'
   | 'workers'
   | 'worker-management'
+  | 'worker-status'
   | 'background-jobs'
   | 'containers'
   | 'host-system'
@@ -50,6 +51,7 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   databases: false,
   workers: false,
   'worker-management': true,
+  'worker-status': true,
   'background-jobs': true,
   containers: true,
   'host-system': true,

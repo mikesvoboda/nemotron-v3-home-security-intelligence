@@ -971,3 +971,40 @@ export type {
 // RTSP connection testing hook (NEM-4748)
 export { useRtspTest } from './useRtspTest';
 export type { UseRtspTestReturn } from './useRtspTest';
+
+// Worker status WebSocket hook (NEM-3127)
+export {
+  useWorkerStatusWebSocket,
+  default as useWorkerStatusWebSocketDefault,
+} from './useWorkerStatusWebSocket';
+export type {
+  WorkerEventType,
+  WorkerEventPayload,
+  WorkerStatusEntry,
+  WorkerStatusMap,
+  PipelineHealthStatus,
+  WorkerStatusChangeHandler,
+  UseWorkerStatusWebSocketOptions,
+  UseWorkerStatusWebSocketReturn,
+} from './useWorkerStatusWebSocket';
+
+// Worker events hook (NEM-3127) - higher-level hook with toast notifications
+export { useWorkerEvents, default as useWorkerEventsDefault } from './useWorkerEvents';
+export type { UseWorkerEventsOptions, UseWorkerEventsReturn } from './useWorkerEvents';
+
+// Worker actions hook (NEM-3127) - API calls to control workers
+export { useWorkerActions } from './useWorkerActions';
+export type { WorkerControlResponse, UseWorkerActionsResult } from './useWorkerActions';
+
+// Prometheus alert WebSocket hook (NEM-3124)
+export {
+  usePrometheusAlertWebSocket,
+  default as usePrometheusAlertWebSocketDefault,
+} from './usePrometheusAlertWebSocket';
+export type {
+  AlertCounts as PrometheusAlertCounts,
+  AlertHistoryEntry as PrometheusAlertHistoryEntry,
+  AlertEventHandler as PrometheusAlertEventHandler,
+  UsePrometheusAlertWebSocketOptions,
+  UsePrometheusAlertWebSocketReturn,
+} from './usePrometheusAlertWebSocket';
