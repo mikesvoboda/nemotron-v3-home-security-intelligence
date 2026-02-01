@@ -24,6 +24,8 @@ __all__ = [
     "CameraUpdate",
     "CameraValidationInfo",
     "DeletedCamerasListResponse",
+    "PreviewStartRequest",
+    "PreviewStartResponse",
     "RTSPCapabilitiesResponse",
     "RTSPTestRequest",
     "RTSPTestResponse",
@@ -645,3 +647,93 @@ class RTSPTestResponse(BaseModel):
         None, description="Stream capabilities (only present on success)"
     )
     error_message: str | None = Field(None, description="Error message (only present on failure)")
+
+
+# =============================================================================
+# RTSP Live Preview Schemas (NEM-4762)
+# =============================================================================
+
+
+class PreviewStartRequest(BaseModel):
+    """Request schema for starting an RTSP preview.
+
+    NEM-4762: Schema for POST /api/cameras/preview/start endpoint.
+    Initiates WebRTC signaling with go2rtc for live preview.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "rtsp_url": "rtsp://192.168.1.100:554/stream1",
+                "username": "admin",
+                "password": "password123",  # pragma: allowlist secret
+                "offer": "v=0\r\no=- ...",  # SDP offer
+            }
+        }
+    )
+
+    rtsp_url: str = Field(
+        ...,
+        min_length=10,
+        max_length=500,
+        description="RTSP URL for preview stream",
+    )
+    username: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional username for RTSP authentication",
+    )
+    password: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Optional password for RTSP authentication",
+    )
+    offer: str | None = Field(
+        default=None,
+        description="WebRTC SDP offer (optional, for direct signaling)",
+    )
+
+    @field_validator("rtsp_url")
+    @classmethod
+    def validate_rtsp_url(cls, v: str) -> str:
+        """Validate RTSP URL format."""
+        result = _validate_rtsp_url(v)
+        if result is None:
+            raise ValueError("rtsp_url is required")
+        return result
+
+
+class PreviewStartResponse(BaseModel):
+    """Response schema for starting an RTSP preview.
+
+    NEM-4762: Response from POST /api/cameras/preview/start endpoint.
+    Contains WebRTC connection details and session info.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "webrtc_url": "ws://localhost:1984/api/ws?src=camera_front_door_abc123",
+                "stream_id": "camera_front_door_abc123",
+                "expires_in": 300,
+                "sdp": "v=0\r\no=- ...",  # SDP answer
+            }
+        }
+    )
+
+    webrtc_url: str = Field(
+        ...,
+        description="WebRTC WebSocket URL for connecting to go2rtc",
+    )
+    stream_id: str = Field(
+        ...,
+        description="Unique stream identifier for cleanup",
+    )
+    expires_in: int = Field(
+        ...,
+        description="Session expiry time in seconds (default 300)",
+    )
+    sdp: str | None = Field(
+        default=None,
+        description="WebRTC SDP answer (if offer was provided)",
+    )

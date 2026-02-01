@@ -8,6 +8,7 @@ import {
   Edit2,
   MapPin,
   Network,
+  Play,
   Plus,
   RotateCcw,
   Search,
@@ -23,6 +24,14 @@ import {
   useRestoreCameraMutation,
 } from '../../hooks';
 import { useRtspTest } from '../../hooks/useRtspTest';
+import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
+import SceneChangePanel from '../analytics/SceneChangePanel';
+import IconButton from '../common/IconButton';
+import PasswordInput from '../common/PasswordInput';
+import RTSPPreviewPlayer from '../video/RTSPPreviewPlayer';
+import { ZoneEditor } from '../zones';
+import ConnectionStatusCard from './ConnectionStatusCard';
+import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
 import {
   cameraFormSchema,
   CAMERA_NAME_CONSTRAINTS,
@@ -33,16 +42,10 @@ import {
   type IngestionModeValue,
 } from '../../schemas/camera';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
-import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
-import SceneChangePanel from '../analytics/SceneChangePanel';
-import IconButton from '../common/IconButton';
-import PasswordInput from '../common/PasswordInput';
-import { ZoneEditor } from '../zones';
-import ConnectionStatusCard from './ConnectionStatusCard';
-import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 import type { OnvifDevice } from '../../types/onvif';
+import type { PreviewConfig } from '../../types/preview';
 
 interface CameraFormData {
   name: string;
@@ -122,6 +125,9 @@ export default function CamerasSettings() {
 
   // ONVIF discovery panel state (NEM-4754)
   const [isOnvifDiscoveryOpen, setIsOnvifDiscoveryOpen] = useState(false);
+
+  // Live preview state (NEM-4762)
+  const [isLivePreviewOpen, setIsLivePreviewOpen] = useState(false);
 
   // RTSP connection test hook (NEM-4748)
   const { testConnection } = useRtspTest();
@@ -948,25 +954,38 @@ export default function CamerasSettings() {
                           data-testid="camera-rtsp-password-input"
                         />
 
-                        {/* Test Connection Button and Status (NEM-4748) */}
+                        {/* Test Connection and Live Preview Buttons (NEM-4748, NEM-4762) */}
                         <div className="space-y-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              testConnection.mutate({
-                                rtsp_url: formData.rtsp_url ?? '',
-                                username: formData.rtsp_username || undefined,
-                                password: formData.rtsp_password || undefined,
-                              });
-                            }}
-                            disabled={
-                              !formData.rtsp_url ||
-                              testConnection.isPending
-                            }
-                            className="w-full rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {testConnection.isPending ? 'Testing...' : 'Test Connection'}
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                testConnection.mutate({
+                                  rtsp_url: formData.rtsp_url ?? '',
+                                  username: formData.rtsp_username || undefined,
+                                  password: formData.rtsp_password || undefined,
+                                });
+                              }}
+                              disabled={
+                                !formData.rtsp_url ||
+                                testConnection.isPending
+                              }
+                              data-testid="test-connection-button"
+                              className="flex-1 rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {testConnection.isPending ? 'Testing...' : 'Test Connection'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsLivePreviewOpen(true)}
+                              disabled={!formData.rtsp_url}
+                              data-testid="live-preview-button"
+                              className="inline-flex items-center gap-2 rounded-lg border border-primary/50 bg-primary/10 px-4 py-2 font-medium text-primary transition-all hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Play className="h-4 w-4" />
+                              Live Preview
+                            </button>
+                          </div>
 
                           {/* Show ConnectionStatusCard when testing or have results */}
                           {(testConnection.isPending || testConnection.data) && (
@@ -1282,6 +1301,91 @@ export default function CamerasSettings() {
         onClose={() => setIsOnvifDiscoveryOpen(false)}
         onDeviceSelect={handleOnvifDeviceSelect}
       />
+
+      {/* Live Preview Modal (NEM-4762) */}
+      <Transition appear show={isLivePreviewOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setIsLivePreviewOpen(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg border border-gray-800 bg-panel p-6 shadow-dark-xl transition-all">
+                  <div className="mb-4 flex items-center justify-between">
+                    <Dialog.Title className="text-xl font-bold text-text-primary">
+                      Live Preview
+                    </Dialog.Title>
+                    <button
+                      onClick={() => setIsLivePreviewOpen(false)}
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-text-primary focus:outline-none"
+                      aria-label="Close modal"
+                      data-testid="close-preview-modal"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-sm text-text-secondary">
+                      Preview your camera stream. Sessions are limited to 5 minutes.
+                    </p>
+
+                    {formData.rtsp_url && (
+                      <RTSPPreviewPlayer
+                        config={
+                          {
+                            rtspUrl: formData.rtsp_url,
+                            username: formData.rtsp_username || undefined,
+                            password: formData.rtsp_password || undefined,
+                          } as PreviewConfig
+                        }
+                        autoStart
+                        onConnected={() => {
+                          // Preview connected successfully
+                        }}
+                        onError={(error) => {
+                          console.error('Preview error:', error);
+                        }}
+                        onStopped={() => {
+                          // Preview stopped (session expired or user stopped)
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setIsLivePreviewOpen(false)}
+                      className="rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }

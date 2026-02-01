@@ -36,6 +36,8 @@ from backend.api.schemas.camera import (
     CameraUpdate,
     CameraValidationInfo,
     DeletedCamerasListResponse,
+    PreviewStartRequest,
+    PreviewStartResponse,
     RTSPCapabilitiesResponse,
     RTSPTestRequest,
     RTSPTestResponse,
@@ -65,6 +67,11 @@ from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
     CacheService,
+)
+from backend.services.go2rtc_client import (
+    Go2RTCClient,
+    Go2RTCUnavailableError,
+    StreamRegistrationError,
 )
 from backend.services.rtsp_test_service import RTSPCapabilities, RTSPTestService
 from backend.services.websocket_emitter import get_websocket_emitter
@@ -324,6 +331,140 @@ async def test_rtsp_connection(
         latency_ms=result.latency_ms,
         capabilities=_to_rtsp_capabilities_response(result.capabilities),
         error_message=result.error_message,
+    )
+
+
+# =============================================================================
+# RTSP Live Preview Endpoints (NEM-4762)
+# NOTE: These endpoints MUST be defined before /{camera_id} to avoid
+# "preview" being matched as a camera_id
+# =============================================================================
+
+
+def _get_go2rtc_client() -> Go2RTCClient:
+    """Get a configured Go2RTC client instance.
+
+    Returns:
+        Go2RTCClient configured with settings from environment.
+    """
+    settings = get_settings()
+    return Go2RTCClient(
+        api_url=settings.go2rtc_api_url,
+        webrtc_url=settings.go2rtc_webrtc_url,
+    )
+
+
+@router.post(
+    "/preview/start",
+    response_model=PreviewStartResponse,
+    summary="Start RTSP preview stream (no camera lookup)",
+    responses={
+        200: {"description": "Preview stream started successfully"},
+        422: {"description": "Invalid request parameters"},
+        503: {"description": "go2rtc service unavailable"},
+    },
+)
+async def start_preview_direct(
+    request: PreviewStartRequest,
+) -> PreviewStartResponse:
+    """Start an RTSP preview stream via go2rtc WebRTC conversion.
+
+    This endpoint accepts RTSP URL directly without requiring a camera ID.
+    Useful for testing connections before saving camera configuration.
+    Sessions automatically expire after 5 minutes (300 seconds).
+
+    Args:
+        request: Preview start request with RTSP URL and optional credentials
+
+    Returns:
+        PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+
+    Raises:
+        HTTPException: 503 if go2rtc service is unavailable
+        HTTPException: 422 if RTSP URL is invalid
+    """
+    client = _get_go2rtc_client()
+
+    # Check if go2rtc is available
+    if not await client.health_check():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        )
+
+    try:
+        # Generate a camera ID from the RTSP URL (use hash of URL for uniqueness)
+        import hashlib
+
+        url_hash = hashlib.sha256(request.rtsp_url.encode()).hexdigest()[:8]
+        camera_id = f"preview_{url_hash}"
+
+        result = await client.register_stream(
+            camera_id=camera_id,
+            rtsp_url=request.rtsp_url,
+            username=request.username,
+            password=request.password,
+        )
+
+        return PreviewStartResponse(
+            webrtc_url=result["webrtc_url"],
+            stream_id=result["stream_id"],
+            expires_in=result["expires_in"],
+            sdp=None,  # SDP negotiation happens via WebSocket
+        )
+
+    except StreamRegistrationError as e:
+        logger.warning(
+            "Failed to register preview stream",
+            extra={"rtsp_url": request.rtsp_url, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+
+    except Go2RTCUnavailableError as e:
+        logger.error(
+            "go2rtc service unavailable during preview start",
+            extra={"rtsp_url": request.rtsp_url, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        ) from e
+
+
+@router.delete(
+    "/preview/{stream_id}/stop",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Stop RTSP preview stream by stream ID",
+    responses={
+        204: {"description": "Preview stream stopped successfully"},
+        404: {"description": "Stream not found (acceptable, idempotent)"},
+    },
+)
+async def stop_preview_by_stream_id(
+    stream_id: str,
+) -> None:
+    """Stop an RTSP preview stream and cleanup go2rtc resources.
+
+    This endpoint is idempotent - calling it for a non-existent stream is OK.
+    404 responses from go2rtc are treated as success.
+
+    Args:
+        stream_id: The stream ID returned from start_preview
+
+    Returns:
+        No content on success
+    """
+    client = _get_go2rtc_client()
+
+    # Best-effort cleanup - unregister_stream handles 404 gracefully
+    await client.unregister_stream(stream_id)
+
+    logger.debug(
+        "Preview stream stopped",
+        extra={"stream_id": stream_id},
     )
 
 
@@ -1701,3 +1842,138 @@ async def acknowledge_scene_change(
         acknowledged=scene_change.acknowledged,
         acknowledged_at=scene_change.acknowledged_at,
     )
+
+
+# =============================================================================
+# Camera-based Preview Endpoints (NEM-4762)
+# These endpoints use the camera ID to look up the RTSP configuration
+# =============================================================================
+
+
+@router.post(
+    "/{camera_id}/preview/start",
+    response_model=PreviewStartResponse,
+    summary="Start preview for a specific camera",
+    responses={
+        200: {"description": "Preview stream started successfully"},
+        400: {"description": "Camera does not have RTSP configured"},
+        404: {"description": "Camera not found"},
+        503: {"description": "go2rtc service unavailable"},
+    },
+)
+async def start_camera_preview(
+    camera_id: str,
+    db: DbSession,
+) -> PreviewStartResponse:
+    """Start an RTSP preview stream for a specific camera.
+
+    Looks up the camera's RTSP configuration and registers the stream with go2rtc.
+    Sessions automatically expire after 5 minutes (300 seconds).
+
+    Args:
+        camera_id: The camera ID to start preview for
+        db: Database session
+
+    Returns:
+        PreviewStartResponse with WebRTC URL, stream ID, and expiry time
+
+    Raises:
+        HTTPException: 404 if camera not found
+        HTTPException: 400 if camera does not have RTSP configured
+        HTTPException: 503 if go2rtc service is unavailable
+    """
+    # Look up the camera
+    camera = await get_camera_or_404(camera_id, db)
+
+    # Verify camera has RTSP configured
+    if not camera.rtsp_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Camera {camera_id} does not have RTSP configured",
+        )
+
+    client = _get_go2rtc_client()
+
+    # Check if go2rtc is available
+    if not await client.health_check():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        )
+
+    try:
+        result = await client.register_stream(
+            camera_id=camera_id,
+            rtsp_url=camera.rtsp_url,
+            username=camera.rtsp_username,
+            password=camera.rtsp_password,
+        )
+
+        return PreviewStartResponse(
+            webrtc_url=result["webrtc_url"],
+            stream_id=result["stream_id"],
+            expires_in=result["expires_in"],
+            sdp=None,  # SDP negotiation happens via WebSocket
+        )
+
+    except StreamRegistrationError as e:
+        logger.warning(
+            "Failed to register preview stream for camera",
+            extra={"camera_id": camera_id, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        ) from e
+
+    except Go2RTCUnavailableError as e:
+        logger.error(
+            "go2rtc service unavailable during camera preview start",
+            extra={"camera_id": camera_id, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="go2rtc service is unavailable",
+        ) from e
+
+
+@router.delete(
+    "/{camera_id}/preview/stop",
+    status_code=status.HTTP_200_OK,
+    summary="Stop preview for a specific camera",
+    responses={
+        200: {"description": "Preview stream stopped successfully"},
+        404: {"description": "Camera not found"},
+    },
+)
+async def stop_camera_preview(
+    camera_id: str,
+    db: DbSession,
+) -> dict:
+    """Stop an RTSP preview stream for a specific camera.
+
+    This endpoint is idempotent - calling it for a camera without active preview is OK.
+    404 responses from go2rtc are treated as success.
+
+    Args:
+        camera_id: The camera ID to stop preview for
+        db: Database session
+
+    Returns:
+        Success message
+    """
+    # Verify camera exists
+    await get_camera_or_404(camera_id, db)
+
+    client = _get_go2rtc_client()
+
+    # Best-effort cleanup - try to unregister any streams with this camera ID prefix
+    # The stream ID format is: camera_{camera_id}_{unique_suffix}
+    await client.unregister_stream(f"camera_{camera_id}")
+
+    logger.debug(
+        "Camera preview stopped",
+        extra={"camera_id": camera_id},
+    )
+
+    return {"status": "ok", "message": f"Preview stopped for camera {camera_id}"}
