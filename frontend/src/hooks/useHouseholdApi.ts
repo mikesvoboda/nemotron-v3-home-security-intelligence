@@ -54,6 +54,26 @@ export type TrustLevel = 'full' | 'partial' | 'monitor';
 export type VehicleType = 'car' | 'truck' | 'motorcycle' | 'suv' | 'van' | 'other';
 
 /**
+ * Day of week for schedule.
+ */
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+/**
+ * Weekly schedule structure - maps day names to arrays of allowed hours (0-23).
+ * Empty array means no hours allowed (no access).
+ * Array with hours means those hours are allowed.
+ */
+export interface WeeklySchedule {
+  monday: number[];
+  tuesday: number[];
+  wednesday: number[];
+  thursday: number[];
+  friday: number[];
+  saturday: number[];
+  sunday: number[];
+}
+
+/**
  * Household member response from the API.
  */
 export interface HouseholdMember {
