@@ -384,3 +384,229 @@ class UnknownStrangerListResponse(BaseModel):
 
     items: list[UnknownStrangerAlert] = Field(..., description="List of unknown strangers")
     total: int = Field(..., description="Total number of unknown strangers")
+
+
+# =============================================================================
+# Person Appearances Schemas (NEM-4688)
+# =============================================================================
+
+
+class PersonAppearance(BaseModel):
+    """Schema for a single person appearance in the timeline."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "timestamp": "2025-01-31T10:32:00Z",
+                "camera_id": "front_door",
+                "camera_name": "Front Door",
+                "detection_id": 1,
+                "confidence": 0.95,
+                "thumbnail_url": "/api/thumbnails/face_1.jpg",
+            }
+        }
+    )
+
+    timestamp: datetime = Field(..., description="When the person was detected")
+    camera_id: str = Field(..., description="ID of the camera that detected the person")
+    camera_name: str = Field(..., description="Human-readable name of the camera")
+    detection_id: int = Field(..., description="ID of the face detection event")
+    confidence: float = Field(..., description="Match confidence score (0-1)")
+    thumbnail_url: str | None = Field(None, description="URL to face thumbnail image")
+
+
+class PersonAppearancesResponse(BaseModel):
+    """Schema for person appearances timeline response."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "appearances": [
+                    {
+                        "timestamp": "2025-01-31T10:32:00Z",
+                        "camera_id": "front_door",
+                        "camera_name": "Front Door",
+                        "detection_id": 1,
+                        "confidence": 0.95,
+                        "thumbnail_url": "/api/thumbnails/face_1.jpg",
+                    },
+                    {
+                        "timestamp": "2025-01-31T08:15:00Z",
+                        "camera_id": "driveway",
+                        "camera_name": "Driveway",
+                        "detection_id": 2,
+                        "confidence": 0.92,
+                        "thumbnail_url": None,
+                    },
+                ],
+                "total_count": 2,
+            }
+        }
+    )
+
+    appearances: list[PersonAppearance] = Field(
+        ..., description="List of person appearances ordered by timestamp descending"
+    )
+    total_count: int = Field(..., description="Total number of appearances matching filters")
+
+
+# =============================================================================
+# Face Events Statistics Schemas (NEM-4688 Phase 2)
+# =============================================================================
+
+
+class CameraFaceStats(BaseModel):
+    """Schema for face detection statistics per camera."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total": 50,
+                "known": 40,
+                "unknown": 10,
+            }
+        }
+    )
+
+    total: int = Field(..., ge=0, description="Total face detections from this camera today")
+    known: int = Field(..., ge=0, description="Number of known (matched) faces")
+    unknown: int = Field(..., ge=0, description="Number of unknown (unmatched) faces")
+
+
+class FaceEventsStatsResponse(BaseModel):
+    """Schema for face events statistics response.
+
+    Returns aggregated face detection statistics for today,
+    broken down by camera and known/unknown status.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_today": 100,
+                "known_count": 70,
+                "unknown_count": 30,
+                "by_camera": {
+                    "front_door": {"total": 60, "known": 45, "unknown": 15},
+                    "back_door": {"total": 40, "known": 25, "unknown": 15},
+                },
+            }
+        }
+    )
+
+    total_today: int = Field(..., ge=0, description="Total face detection events today")
+    known_count: int = Field(..., ge=0, description="Number of known (matched person) faces today")
+    unknown_count: int = Field(..., ge=0, description="Number of unknown (no match) faces today")
+    by_camera: dict[str, CameraFaceStats] = Field(
+        default_factory=dict,
+        description="Face detection counts broken down by camera ID",
+    )
+
+
+# =============================================================================
+# Enroll From Detection Schemas (NEM-4688 Phase 1)
+# =============================================================================
+
+
+class EnrollFromDetectionRequest(BaseModel):
+    """Schema for enrolling a face from an existing detection.
+
+    Used to create a face embedding for a known person from a detection
+    that contains a person with a visible face.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "detection_id": "123",
+            }
+        }
+    )
+
+    detection_id: str = Field(
+        ...,
+        description="ID of the detection to extract face embedding from",
+    )
+
+
+class EnrollFromDetectionResponse(BaseModel):
+    """Schema for enroll-from-detection response.
+
+    Returns the result of face enrollment including:
+    - success: Whether the embedding was created
+    - embedding_id: ID of the created face embedding
+    - quality_score: Quality score of the extracted face (0-1)
+    - warning: Optional warning message for moderate quality faces (0.7-0.8)
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "embedding_id": 1,
+                "quality_score": 0.92,
+                "warning": None,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether the face was successfully enrolled")
+    embedding_id: int = Field(..., description="ID of the created face embedding")
+    quality_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Quality score of the extracted face"
+    )
+    warning: str | None = Field(
+        None,
+        description="Warning message for moderate quality faces (0.7-0.8)",
+    )
+
+
+# =============================================================================
+# Identify Face Event Schemas (NEM-4688 Phase 2)
+# =============================================================================
+
+
+class IdentifyFaceEventRequest(BaseModel):
+    """Schema for manually identifying an unknown face as a known person.
+
+    Used when a user manually identifies an unknown face detection event
+    as belonging to a known person in the system.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "known_person_id": 1,
+            }
+        }
+    )
+
+    known_person_id: int = Field(
+        ...,
+        description="ID of the known person to associate with this face event",
+    )
+
+
+class IdentifyFaceEventResponse(BaseModel):
+    """Schema for identify face event response.
+
+    Returns the result of manually identifying an unknown face:
+    - success: Whether the identification was successful
+    - created_embedding: Whether a new face embedding was created
+      (only happens when quality_score >= 0.7)
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "created_embedding": True,
+            }
+        }
+    )
+
+    success: bool = Field(..., description="Whether the face was successfully identified")
+    created_embedding: bool = Field(
+        ...,
+        description="Whether a new face embedding was created (quality >= 0.7)",
+    )

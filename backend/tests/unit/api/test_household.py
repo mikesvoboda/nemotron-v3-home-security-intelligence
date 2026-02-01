@@ -685,13 +685,40 @@ class TestDeleteVehicle:
 
 
 class TestAddEmbeddingFromEvent:
-    """Tests for the add_embedding_from_event endpoint."""
+    """Tests for the add_embedding_from_event endpoint.
+
+    The endpoint extracts person embeddings from event images using the
+    ReIdentificationService and stores them in the PersonEmbedding table.
+
+    Note: Comprehensive tests for this endpoint are in
+    backend/tests/unit/api/routes/test_household.py::TestAddEmbedding
+    """
 
     @pytest.mark.asyncio
     async def test_add_embedding_success(
-        self, mock_session: AsyncMock, sample_member: MagicMock, sample_event: MagicMock
+        self, mock_session: AsyncMock, sample_member: MagicMock
     ) -> None:
-        """Test successfully adding an embedding from an event."""
+        """Test successfully adding an embedding from an event with person detection."""
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from backend.models.detection import Detection
+
+        # Create mock event with person detection
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "person"
+        mock_detection.file_path = "/data/snapshots/test.jpg"
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 100
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = [mock_detection]
+
         call_count = [0]
 
         def mock_execute_side_effect(query):
@@ -702,14 +729,33 @@ class TestAddEmbeddingFromEvent:
                 mock_result.scalar_one_or_none.return_value = sample_member
             else:
                 # Second call: event lookup
-                mock_result.scalar_one_or_none.return_value = sample_event
+                mock_result.scalar_one_or_none.return_value = mock_event
             return mock_result
 
         mock_session.execute.side_effect = mock_execute_side_effect
 
+        # Mock ReID service
+        mock_embedding = [0.1] * 768
+        mock_reid_service = AsyncMock()
+        mock_reid_service.generate_embedding.return_value = mock_embedding
+
+        # Mock image loading
+        mock_image = MagicMock(spec=Image.Image)
+        mock_image.size = (1920, 1080)
+
         request = AddEmbeddingRequest(event_id=100, confidence=0.95)
 
-        await add_embedding_from_event(member_id=1, request=request, session=mock_session)
+        with (
+            patch(
+                "backend.api.routes.household.get_reid_service",
+                return_value=mock_reid_service,
+            ),
+            patch("backend.api.routes.household.Image") as mock_pil,
+        ):
+            mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
+            mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
+
+            await add_embedding_from_event(member_id=1, request=request, session=mock_session)
 
         mock_session.add.assert_called_once()
         mock_session.commit.assert_called_once()
@@ -766,9 +812,29 @@ class TestAddEmbeddingFromEvent:
 
     @pytest.mark.asyncio
     async def test_add_embedding_default_confidence(
-        self, mock_session: AsyncMock, sample_member: MagicMock, sample_event: MagicMock
+        self, mock_session: AsyncMock, sample_member: MagicMock
     ) -> None:
         """Test adding embedding uses default confidence of 1.0."""
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        from backend.models.detection import Detection
+
+        # Create mock event with person detection
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "person"
+        mock_detection.file_path = "/data/snapshots/test.jpg"
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 100
+        mock_detection.bbox_width = 200
+        mock_detection.bbox_height = 400
+
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = [mock_detection]
+
         call_count = [0]
 
         def mock_execute_side_effect(query):
@@ -777,18 +843,74 @@ class TestAddEmbeddingFromEvent:
             if call_count[0] == 1:
                 mock_result.scalar_one_or_none.return_value = sample_member
             else:
-                mock_result.scalar_one_or_none.return_value = sample_event
+                mock_result.scalar_one_or_none.return_value = mock_event
             return mock_result
 
         mock_session.execute.side_effect = mock_execute_side_effect
 
+        # Mock ReID service
+        mock_embedding = [0.1] * 768
+        mock_reid_service = AsyncMock()
+        mock_reid_service.generate_embedding.return_value = mock_embedding
+
+        # Mock image loading
+        mock_image = MagicMock(spec=Image.Image)
+        mock_image.size = (1920, 1080)
+
         # Use default confidence
         request = AddEmbeddingRequest(event_id=100)
 
-        await add_embedding_from_event(member_id=1, request=request, session=mock_session)
+        with (
+            patch(
+                "backend.api.routes.household.get_reid_service",
+                return_value=mock_reid_service,
+            ),
+            patch("backend.api.routes.household.Image") as mock_pil,
+        ):
+            mock_pil.open.return_value.__enter__ = MagicMock(return_value=mock_image)
+            mock_pil.open.return_value.__exit__ = MagicMock(return_value=False)
+
+            await add_embedding_from_event(member_id=1, request=request, session=mock_session)
 
         added_embedding = mock_session.add.call_args[0][0]
         assert added_embedding.confidence == 1.0
+
+    @pytest.mark.asyncio
+    async def test_add_embedding_no_person_detection_raises_400(
+        self, mock_session: AsyncMock, sample_member: MagicMock
+    ) -> None:
+        """Test that adding embedding from event without person detection raises 400."""
+        from backend.models.detection import Detection
+
+        # Create mock event with only a car detection, no person
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 50
+        mock_detection.object_type = "car"  # Not a person
+
+        mock_event = MagicMock()
+        mock_event.id = 100
+        mock_event.detections = [mock_detection]
+
+        call_count = [0]
+
+        def mock_execute_side_effect(query):
+            mock_result = MagicMock()
+            call_count[0] += 1
+            if call_count[0] == 1:
+                mock_result.scalar_one_or_none.return_value = sample_member
+            else:
+                mock_result.scalar_one_or_none.return_value = mock_event
+            return mock_result
+
+        mock_session.execute.side_effect = mock_execute_side_effect
+
+        request = AddEmbeddingRequest(event_id=100, confidence=0.95)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await add_embedding_from_event(member_id=1, request=request, session=mock_session)
+
+        assert exc_info.value.status_code == 400
+        assert "person" in exc_info.value.detail.lower()
 
 
 # =============================================================================

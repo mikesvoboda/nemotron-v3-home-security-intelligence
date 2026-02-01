@@ -24,6 +24,7 @@ from sqlalchemy.sql import func
 from .camera import Base
 
 if TYPE_CHECKING:
+    from .face_identity import KnownPerson
     from .household_org import Household
 
 
@@ -105,6 +106,11 @@ class HouseholdMember(Base):
     )
     typical_schedule: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    known_person_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("known_persons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
@@ -118,6 +124,10 @@ class HouseholdMember(Base):
         back_populates="member",
         cascade="all, delete-orphan",
     )
+    known_person: Mapped[KnownPerson | None] = relationship(
+        "KnownPerson",
+        backref="household_member",
+    )
 
     __table_args__ = (
         # Index for querying by role
@@ -128,6 +138,8 @@ class HouseholdMember(Base):
         Index("idx_household_members_role_trust", "role", "trusted_level"),
         # Index for querying by household
         Index("idx_household_members_household_id", "household_id"),
+        # Index for querying by known person link
+        Index("idx_household_members_known_person_id", "known_person_id"),
     )
 
     def __repr__(self) -> str:

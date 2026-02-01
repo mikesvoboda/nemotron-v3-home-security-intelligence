@@ -1,9 +1,10 @@
 # Face Recognition & Person Re-ID UI Design
 
 **Date:** 2025-01-31
-**Status:** Draft
+**Status:** Approved
 **Priority:** HIGH
 **Complexity:** Comprehensive
+**Epic:** NEM-4688
 
 ## Problem Statement
 
@@ -560,19 +561,23 @@ Show linked known person on entity cards:
 
 ---
 
-## Open Questions
+## Decisions (Finalized 2025-01-31)
 
-1. **Should face enrollment require minimum quality score?**
+1. **Face enrollment minimum quality score**
 
-   - Recommendation: Yes, 0.7 minimum with warning for 0.7-0.8
+   - **Decision:** Yes, 0.7 minimum with warning for 0.7-0.8
+   - Block enrollments < 0.7, yellow warning 0.7-0.8, green ≥ 0.8
 
-2. **How many embeddings per person maximum?**
+2. **Maximum embeddings per person**
 
-   - Recommendation: 10, with option to replace low-quality ones
+   - **Decision:** 10 max, with option to replace low-quality ones
+   - Good balance of recognition accuracy vs matching performance
 
-3. **Should unknown strangers auto-expire?**
+3. **Unknown strangers expiry**
 
-   - Recommendation: No auto-delete, but filter to last 7 days by default
+   - **Decision:** Auto-delete after 30 days (matches event retention policy)
+   - Keeps data manageable while preserving recent security-relevant data
 
-4. **Real-time alerts for unknown strangers?**
-   - Recommendation: Yes, WebSocket notification + optional push
+4. **Real-time alerts for unknown strangers**
+   - **Decision:** Yes, WebSocket notification + optional push
+   - In-app real-time badge/toast, optional browser push notifications

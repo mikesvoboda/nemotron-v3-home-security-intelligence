@@ -137,6 +137,18 @@ vi.mock('../hooks/useHouseholdApi', () => ({
     mutateAsync: mockDeleteVehicle,
     isPending: false,
   }),
+  useLinkMemberToPerson: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+// Mock useFaceRecognitionApi hooks
+vi.mock('../hooks/useFaceRecognitionApi', () => ({
+  useKnownPersonsQuery: () => ({
+    data: [],
+    isLoading: false,
+  }),
 }));
 
 // Mock useToast hook
