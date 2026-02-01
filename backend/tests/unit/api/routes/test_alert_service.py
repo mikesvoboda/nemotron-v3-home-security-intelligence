@@ -267,9 +267,7 @@ class TestUpdateAlert:
         request = AlertServiceUpdateRequest(status=SchemaStatus.ACKNOWLEDGED)
 
         with patch.object(AlertService, "update_alert", return_value=mock_alert):
-            result = await update_alert(
-                alert_id="update-alert-id", alert_data=request, db=mock_db
-            )
+            result = await update_alert(alert_id="update-alert-id", alert_data=request, db=mock_db)
 
         assert result.id == "update-alert-id"
         mock_db.commit.assert_called_once()
@@ -337,9 +335,7 @@ class TestDeleteAlert:
         mock_db = AsyncMock()
 
         with patch.object(AlertService, "delete_alert", return_value=True) as mock_delete:
-            result = await delete_alert(
-                alert_id="test-id", reason="Test deletion", db=mock_db
-            )
+            result = await delete_alert(alert_id="test-id", reason="Test deletion", db=mock_db)
 
         assert result.success is True
         mock_delete.assert_called_once()
@@ -423,9 +419,7 @@ class TestDismissAlert:
         request = DismissRequest(reason="False positive")
 
         with patch.object(AlertService, "dismiss_alert", return_value=mock_alert):
-            result = await dismiss_alert(
-                alert_id="dismiss-alert-id", request=request, db=mock_db
-            )
+            result = await dismiss_alert(alert_id="dismiss-alert-id", request=request, db=mock_db)
 
         assert result.id == "dismiss-alert-id"
         mock_db.commit.assert_called_once()

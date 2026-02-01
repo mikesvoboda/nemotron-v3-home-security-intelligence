@@ -53,9 +53,7 @@ def _alert_to_response(alert: Alert) -> dict[str, Any]:
         "severity": alert.severity.value
         if isinstance(alert.severity, AlertSeverity)
         else alert.severity,
-        "status": alert.status.value
-        if isinstance(alert.status, AlertStatus)
-        else alert.status,
+        "status": alert.status.value if isinstance(alert.status, AlertStatus) else alert.status,
         "dedup_key": alert.dedup_key,
         "channels": alert.channels or [],
         "alert_metadata": alert.alert_metadata,
@@ -408,9 +406,7 @@ async def dismiss_alert(
     correlation_id = request.correlation_id if request else None
 
     service = AlertService(db)
-    alert = await service.dismiss_alert(
-        alert_id, reason=reason, correlation_id=correlation_id
-    )
+    alert = await service.dismiss_alert(alert_id, reason=reason, correlation_id=correlation_id)
 
     if alert is None:
         raise HTTPException(

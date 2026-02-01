@@ -338,6 +338,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/materialized-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Materialized Views
+         * @description List all managed materialized views with their statistics.
+         *
+         *     Returns information about all materialized views managed by the service,
+         *     including whether they exist, row counts, and sizes.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         MaterializedViewListResponse with view information
+         */
+        get: operations["admin_list_materialized_views"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/materialized-views/list/names": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List View Names
+         * @description List the names of all managed materialized views.
+         *
+         *     Returns a simple list of view names that are managed by the service.
+         *     This is useful for populating dropdowns or validation.
+         *
+         *     Returns:
+         *         List of materialized view names
+         */
+        get: operations["admin_list_view_names"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/materialized-views/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Materialized Views
+         * @description Refresh one or all materialized views.
+         *
+         *     Triggers a refresh of either a specific materialized view or all
+         *     managed views. The `concurrently` option allows reads during the
+         *     refresh (requires unique index on the view).
+         *
+         *     Args:
+         *         request: Refresh request with optional view name and concurrently flag
+         *         db: Database session
+         *
+         *     Returns:
+         *         MaterializedViewRefreshResponse with refresh results
+         *
+         *     Raises:
+         *         HTTPException: 404 if specified view not found
+         */
+        post: operations["admin_refresh_materialized_views"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/materialized-views/{view_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Materialized View Status
+         * @description Get the status of a specific materialized view.
+         *
+         *     Returns detailed status information for a single materialized view,
+         *     including whether it exists, row count, size, and population status.
+         *
+         *     Args:
+         *         view_name: Name of the materialized view
+         *         db: Database session
+         *
+         *     Returns:
+         *         MaterializedViewStatusResponse with view status
+         *
+         *     Raises:
+         *         HTTPException: 404 if view is not in the managed list
+         */
+        get: operations["admin_get_materialized_view_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/seed/cameras": {
         parameters: {
             query?: never;
@@ -701,6 +823,178 @@ export interface paths {
         get: operations["ai-audit_get_audit_stats"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alert-service/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Alerts
+         * @description List all alerts with optional filtering and pagination.
+         *
+         *     Args:
+         *         status_filter: Filter by alert status (pending, delivered, acknowledged, dismissed)
+         *         severity_filter: Filter by severity level (low, medium, high, critical)
+         *         event_id: Filter by associated event ID
+         *         rule_id: Filter by alert rule ID
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         AlertServiceListResponse with alerts and pagination info
+         */
+        get: operations["alert-service_list_alerts"];
+        put?: never;
+        /**
+         * Create Alert
+         * @description Create a new alert via the Alert Service.
+         *
+         *     This endpoint bypasses alert rules and creates an alert directly.
+         *     Useful for programmatic alert creation from external systems.
+         *
+         *     Args:
+         *         alert_data: Alert creation data
+         *         db: Database session
+         *
+         *     Returns:
+         *         Created AlertServiceResponse
+         */
+        post: operations["alert-service_create_alert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alert-service/alerts/{alert_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Alert
+         * @description Get a specific alert by ID.
+         *
+         *     Args:
+         *         alert_id: Alert UUID
+         *         db: Database session
+         *
+         *     Returns:
+         *         AlertServiceResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found
+         */
+        get: operations["alert-service_get_alert"];
+        /**
+         * Update Alert
+         * @description Update an existing alert.
+         *
+         *     Args:
+         *         alert_id: Alert UUID to update
+         *         alert_data: Update data (only provided fields will be updated)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated AlertServiceResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found
+         */
+        put: operations["alert-service_update_alert"];
+        post?: never;
+        /**
+         * Delete Alert
+         * @description Delete an alert.
+         *
+         *     Args:
+         *         alert_id: Alert UUID to delete
+         *         reason: Optional reason for deletion
+         *         db: Database session
+         *
+         *     Returns:
+         *         AlertServiceDeleteResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found
+         */
+        delete: operations["alert-service_delete_alert"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alert-service/alerts/{alert_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge Alert
+         * @description Acknowledge an alert via the Alert Service.
+         *
+         *     Sets the alert status to ACKNOWLEDGED and records the acknowledgment time.
+         *
+         *     Args:
+         *         alert_id: Alert UUID to acknowledge
+         *         request: Optional request with correlation_id
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated AlertServiceResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found
+         */
+        post: operations["alert-service_acknowledge_alert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alert-service/alerts/{alert_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Alert
+         * @description Dismiss an alert via the Alert Service.
+         *
+         *     Sets the alert status to DISMISSED and optionally records the reason.
+         *
+         *     Args:
+         *         alert_id: Alert UUID to dismiss
+         *         request: Optional request with reason and correlation_id
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated AlertServiceResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if alert not found
+         */
+        post: operations["alert-service_dismiss_alert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5604,6 +5898,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/household-matcher/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Matcher Config
+         * @description Get the current household matcher configuration.
+         *
+         *     Returns the similarity threshold and counts of stored embeddings/vehicles.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         MatcherConfigResponse with configuration details
+         */
+        get: operations["household-matcher_get_matcher_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household-matcher/match-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Batch
+         * @description Batch match multiple detections against household members and vehicles.
+         *
+         *     This endpoint allows matching multiple person and vehicle detections in a
+         *     single request, using the enrichment_data structure that contains cached
+         *     embeddings.
+         *
+         *     Args:
+         *         request: BatchMatchRequest with detections and enrichment_data
+         *         db: Database session
+         *
+         *     Returns:
+         *         BatchMatchResponse with person_matches and vehicle_matches dicts
+         */
+        post: operations["household-matcher_match_batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household-matcher/match-person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Person
+         * @description Match a person embedding against known household members.
+         *
+         *     Compares the provided embedding against all stored person embeddings
+         *     and returns the best match if it exceeds the similarity threshold.
+         *
+         *     Args:
+         *         request: PersonMatchRequest with embedding and optional threshold
+         *         db: Database session
+         *
+         *     Returns:
+         *         HouseholdMatchResponse with match details if found
+         *
+         *     Raises:
+         *         HTTPException: 400 if embedding is invalid
+         */
+        post: operations["household-matcher_match_person"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household-matcher/match-vehicle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Vehicle
+         * @description Match a vehicle against registered vehicles.
+         *
+         *     Matching priority:
+         *     1. License plate match (exact, case-insensitive) - returns similarity 1.0
+         *     2. Visual embedding match (if plate doesn't match or isn't provided)
+         *
+         *     Args:
+         *         request: VehicleMatchRequest with plate and/or embedding
+         *         db: Database session
+         *
+         *     Returns:
+         *         HouseholdMatchResponse with match details if found
+         *
+         *     Raises:
+         *         HTTPException: 400 if neither plate nor embedding is provided
+         */
+        post: operations["household-matcher_match_vehicle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/household/members": {
         parameters: {
             query?: never;
@@ -7598,6 +8018,80 @@ export interface paths {
          *     - `max_wait_seconds`: Maximum acceptable wait time for oldest job
          */
         get: operations["queues_get_queues_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reid/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search Similar Entities
+         * @description Search for entities similar to the given embedding vector.
+         *
+         *     This endpoint allows searching for entities that are similar to a provided
+         *     embedding vector. It can search across both Redis (hot cache, 24h window)
+         *     and PostgreSQL (historical, 30-day retention) depending on the
+         *     `include_historical` parameter.
+         *
+         *     Args:
+         *         request: Search request containing embedding vector and parameters
+         *         hybrid_storage: Hybrid storage service for combined Redis/PostgreSQL search
+         *
+         *     Returns:
+         *         SimilaritySearchResponse with matching entities sorted by similarity
+         *
+         *     Raises:
+         *         HTTPException: 400 for invalid parameters, 503 for service unavailable
+         */
+        post: operations["reid_search_similar_entities"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reid/similar/{detection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find Similar By Detection
+         * @description Find entities similar to a specific detection.
+         *
+         *     This endpoint retrieves the embedding for the specified detection ID
+         *     and searches for similar entities. Useful for finding re-identification
+         *     matches for a known detection.
+         *
+         *     Args:
+         *         detection_id: Detection ID to find similar entities for
+         *         entity_type: Type of entity ('person' or 'vehicle')
+         *         threshold: Minimum cosine similarity threshold
+         *         limit: Maximum number of results
+         *         include_historical: Whether to include historical PostgreSQL data
+         *         reid_service: Re-identification service
+         *         hybrid_storage: Hybrid storage service
+         *
+         *     Returns:
+         *         SimilaritySearchResponse with matching entities
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection/embedding not found, 503 if Redis unavailable
+         */
+        get: operations["reid_find_similar_by_detection"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10997,6 +11491,20 @@ export interface components {
             member_ids: number[];
         };
         /**
+         * AcknowledgeRequest
+         * @description Schema for acknowledging an alert.
+         * @example {
+         *       "correlation_id": "req-12345"
+         *     }
+         */
+        AcknowledgeRequest: {
+            /**
+             * Correlation Id
+             * @description Optional correlation ID for request tracing
+             */
+            correlation_id?: string | null;
+        };
+        /**
          * ActionAnalyzeRequest
          * @description Schema for action analysis request.
          *
@@ -12171,6 +12679,234 @@ export interface components {
              * @description Zone IDs to match
              */
             zone_ids?: string[] | null;
+        };
+        /**
+         * AlertServiceCreateRequest
+         * @description Schema for creating an alert via the Alert Service.
+         *
+         *     This bypasses alert rules and creates an alert directly. Useful for
+         *     programmatic alert creation from external systems or internal services.
+         * @example {
+         *       "channels": [
+         *         "pushover",
+         *         "webhook"
+         *       ],
+         *       "dedup_key": "front_door:manual_alert",
+         *       "event_id": 123,
+         *       "metadata": {
+         *         "note": "Manual alert",
+         *         "source": "external_system"
+         *       },
+         *       "severity": "high",
+         *       "status": "pending"
+         *     }
+         */
+        AlertServiceCreateRequest: {
+            /**
+             * Channels
+             * @description Notification channels for delivery
+             */
+            channels?: string[];
+            /**
+             * Dedup Key
+             * @description Deduplication key for alert grouping. Only alphanumeric, underscore, hyphen, and colon characters allowed.
+             */
+            dedup_key: string;
+            /**
+             * Event Id
+             * @description Event ID that this alert relates to
+             */
+            event_id: number;
+            /**
+             * Metadata
+             * @description Additional context metadata for the alert
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Rule Id
+             * @description Optional alert rule UUID that triggered this alert
+             */
+            rule_id?: string | null;
+            /**
+             * @description Alert severity level
+             * @default medium
+             */
+            severity: components["schemas"]["AlertSeverity"];
+            /**
+             * @description Initial alert status
+             * @default pending
+             */
+            status: components["schemas"]["AlertStatus"];
+        };
+        /**
+         * AlertServiceDeleteResponse
+         * @description Schema for alert deletion response.
+         * @example {
+         *       "deleted_id": "019477e6-8c5e-7abc-def0-123456789abc",
+         *       "message": "Alert deleted successfully",
+         *       "success": true
+         *     }
+         */
+        AlertServiceDeleteResponse: {
+            /**
+             * Deleted Id
+             * @description ID of the deleted alert
+             */
+            deleted_id: string;
+            /**
+             * Message
+             * @description Status message
+             * @default Alert deleted successfully
+             */
+            message: string;
+            /**
+             * Success
+             * @description Whether the deletion was successful
+             */
+            success: boolean;
+        };
+        /**
+         * AlertServiceListResponse
+         * @description Schema for alert list response with pagination.
+         * @example {
+         *       "items": [
+         *         {
+         *           "channels": [
+         *             "pushover"
+         *           ],
+         *           "created_at": "2025-01-31T12:00:00Z",
+         *           "dedup_key": "front_door:manual_alert",
+         *           "event_id": 123,
+         *           "id": "019477e6-8c5e-7abc-def0-123456789abc",
+         *           "metadata": {},
+         *           "severity": "high",
+         *           "status": "pending",
+         *           "updated_at": "2025-01-31T12:00:00Z"
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
+         *     }
+         */
+        AlertServiceListResponse: {
+            /**
+             * Items
+             * @description List of alerts
+             */
+            items: components["schemas"]["AlertServiceResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * AlertServiceResponse
+         * @description Schema for alert response from Alert Service operations.
+         * @example {
+         *       "channels": [
+         *         "pushover"
+         *       ],
+         *       "created_at": "2025-01-31T12:00:00Z",
+         *       "dedup_key": "front_door:manual_alert",
+         *       "event_id": 123,
+         *       "id": "019477e6-8c5e-7abc-def0-123456789abc",
+         *       "metadata": {
+         *         "source": "external_system"
+         *       },
+         *       "severity": "high",
+         *       "status": "pending",
+         *       "updated_at": "2025-01-31T12:00:00Z"
+         *     }
+         */
+        AlertServiceResponse: {
+            /**
+             * Channels
+             * @description Notification channels
+             */
+            channels?: string[];
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Dedup Key
+             * @description Deduplication key
+             */
+            dedup_key: string;
+            /**
+             * Delivered At
+             * @description Delivery timestamp
+             */
+            delivered_at?: string | null;
+            /**
+             * Event Id
+             * @description Associated event ID
+             */
+            event_id: number;
+            /**
+             * Id
+             * @description Alert UUID
+             */
+            id: string;
+            /**
+             * Metadata
+             * @description Additional context metadata
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Rule Id
+             * @description Alert rule UUID that triggered this
+             */
+            rule_id?: string | null;
+            /** @description Alert severity level */
+            severity: components["schemas"]["AlertSeverity"];
+            /** @description Alert status */
+            status: components["schemas"]["AlertStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+        };
+        /**
+         * AlertServiceUpdateRequest
+         * @description Schema for updating an alert via the Alert Service.
+         *
+         *     All fields are optional. Only provided fields will be updated.
+         * @example {
+         *       "metadata": {
+         *         "acknowledged_by": "admin"
+         *       },
+         *       "severity": "high",
+         *       "status": "acknowledged"
+         *     }
+         */
+        AlertServiceUpdateRequest: {
+            /**
+             * Channels
+             * @description Updated notification channels
+             */
+            channels?: string[] | null;
+            /**
+             * Metadata
+             * @description Updated metadata (replaces existing)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description New severity level */
+            severity?: components["schemas"]["AlertSeverity"] | null;
+            /** @description New alert status */
+            status?: components["schemas"]["AlertStatus"] | null;
         };
         /**
          * AlertSeverity
@@ -13618,6 +14354,123 @@ export interface components {
              * @description Batch start time (Unix timestamp)
              */
             started_at: number;
+        };
+        /**
+         * BatchMatchRequest
+         * @description Schema for batch matching multiple detections.
+         *
+         *     Allows matching multiple person and vehicle detections in a single request,
+         *     using the enrichment_data structure that contains cached embeddings.
+         * @example {
+         *       "detections": [
+         *         {
+         *           "id": 1,
+         *           "object_type": "person"
+         *         },
+         *         {
+         *           "id": 2,
+         *           "object_type": "car"
+         *         }
+         *       ],
+         *       "enrichment_data": {
+         *         "1": {
+         *           "embeddings": {
+         *             "person_reid": [
+         *               0.1,
+         *               0.2,
+         *               0.3
+         *             ]
+         *           }
+         *         },
+         *         "2": {
+         *           "embeddings": {
+         *             "vehicle_visual": [
+         *               0.4,
+         *               0.5,
+         *               0.6
+         *             ]
+         *           },
+         *           "license_plates": [
+         *             {
+         *               "text": "ABC123"
+         *             }
+         *           ]
+         *         }
+         *       }
+         *     }
+         */
+        BatchMatchRequest: {
+            /**
+             * Detections
+             * @description List of detection objects with id and object_type
+             */
+            detections: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Enrichment Data
+             * @description Dict mapping detection_id to enrichment data containing embeddings
+             */
+            enrichment_data: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        /**
+         * BatchMatchResponse
+         * @description Schema for batch match results.
+         *
+         *     Returns separate dictionaries for person and vehicle matches,
+         *     keyed by detection ID.
+         * @example {
+         *       "person_matches": {
+         *         "1": {
+         *           "match_type": "person",
+         *           "matched": true,
+         *           "member_id": 1,
+         *           "member_name": "John Doe",
+         *           "similarity": 0.92
+         *         }
+         *       },
+         *       "total_detections": 2,
+         *       "total_matches": 2,
+         *       "vehicle_matches": {
+         *         "2": {
+         *           "match_type": "license_plate",
+         *           "matched": true,
+         *           "similarity": 1,
+         *           "vehicle_description": "Silver Tesla Model 3",
+         *           "vehicle_id": 5
+         *         }
+         *       }
+         *     }
+         */
+        BatchMatchResponse: {
+            /**
+             * Person Matches
+             * @description Dict mapping detection_id to person match result
+             */
+            person_matches?: {
+                [key: string]: components["schemas"]["HouseholdMatchResponse"];
+            };
+            /**
+             * Total Detections
+             * @description Total number of detections processed
+             */
+            total_detections: number;
+            /**
+             * Total Matches
+             * @description Total number of matches found
+             */
+            total_matches: number;
+            /**
+             * Vehicle Matches
+             * @description Dict mapping detection_id to vehicle match result
+             */
+            vehicle_matches?: {
+                [key: string]: components["schemas"]["HouseholdMatchResponse"];
+            };
         };
         /**
          * BatchSettings
@@ -17224,6 +18077,26 @@ export interface components {
          * @enum {string}
          */
         DeviationInterpretation: "far_below_normal" | "below_normal" | "normal" | "slightly_above_normal" | "above_normal" | "far_above_normal";
+        /**
+         * DismissRequest
+         * @description Schema for dismissing an alert.
+         * @example {
+         *       "correlation_id": "req-12345",
+         *       "reason": "False positive - neighbor's cat"
+         *     }
+         */
+        DismissRequest: {
+            /**
+             * Correlation Id
+             * @description Optional correlation ID for request tracing
+             */
+            correlation_id?: string | null;
+            /**
+             * Reason
+             * @description Reason for dismissing the alert
+             */
+            reason?: string | null;
+        };
         /**
          * DwellHistoryResponse
          * @description Historical dwell time records for a zone.
@@ -22946,6 +23819,70 @@ export interface components {
             total: number;
         };
         /**
+         * HouseholdMatchResponse
+         * @description Schema for household match result.
+         *
+         *     Returned when a person or vehicle matches a known household member or vehicle.
+         * @example {
+         *       "match_type": "person",
+         *       "matched": true,
+         *       "member_id": 1,
+         *       "member_name": "John Doe",
+         *       "member_role": "resident",
+         *       "schedule_status": true,
+         *       "similarity": 0.92
+         *     }
+         */
+        HouseholdMatchResponse: {
+            /**
+             * Match Type
+             * @description Type of match: 'person', 'license_plate', or 'vehicle_visual'
+             * @default
+             */
+            match_type: string;
+            /**
+             * Matched
+             * @description Whether a match was found
+             */
+            matched: boolean;
+            /**
+             * Member Id
+             * @description ID of the matched household member (for person matches)
+             */
+            member_id?: number | null;
+            /**
+             * Member Name
+             * @description Name of the matched household member
+             */
+            member_name?: string | null;
+            /**
+             * Member Role
+             * @description Role of the matched member (resident, family, service_worker, etc.)
+             */
+            member_role?: string | null;
+            /**
+             * Schedule Status
+             * @description Whether member is within expected schedule (True/False/None if no schedule)
+             */
+            schedule_status?: boolean | null;
+            /**
+             * Similarity
+             * @description Similarity score (1.0 for exact plate match)
+             * @default 0
+             */
+            similarity: number;
+            /**
+             * Vehicle Description
+             * @description Description of the matched vehicle
+             */
+            vehicle_description?: string | null;
+            /**
+             * Vehicle Id
+             * @description ID of the matched registered vehicle
+             */
+            vehicle_id?: number | null;
+        };
+        /**
          * HouseholdMemberCreate
          * @description Schema for creating a new household member.
          * @example {
@@ -25207,6 +26144,298 @@ export interface components {
             threshold_seconds: number;
         };
         /**
+         * MatcherConfigResponse
+         * @description Schema for household matcher configuration response.
+         * @example {
+         *       "similarity_threshold": 0.85,
+         *       "total_member_embeddings": 5,
+         *       "total_registered_vehicles": 3
+         *     }
+         */
+        MatcherConfigResponse: {
+            /**
+             * Similarity Threshold
+             * @description Current similarity threshold for matching
+             */
+            similarity_threshold: number;
+            /**
+             * Total Member Embeddings
+             * @description Total number of person embeddings in database
+             */
+            total_member_embeddings: number;
+            /**
+             * Total Registered Vehicles
+             * @description Total number of registered vehicles
+             */
+            total_registered_vehicles: number;
+        };
+        /**
+         * MaterializedViewInfo
+         * @description Schema for materialized view information.
+         * @example {
+         *       "exists": true,
+         *       "row_count": 1500,
+         *       "size_bytes": 102400,
+         *       "size_human": "100 KB",
+         *       "view_name": "mv_daily_detection_counts"
+         *     }
+         */
+        MaterializedViewInfo: {
+            /**
+             * Error
+             * @description Error message if stats collection failed
+             */
+            error?: string | null;
+            /**
+             * Exists
+             * @description Whether the view exists in the database
+             */
+            exists: boolean;
+            /**
+             * Row Count
+             * @description Number of rows in the view
+             * @default 0
+             */
+            row_count: number;
+            /**
+             * Size Bytes
+             * @description Size of the view in bytes
+             * @default 0
+             */
+            size_bytes: number;
+            /**
+             * Size Human
+             * @description Human-readable size (e.g., '100 KB')
+             */
+            size_human?: string | null;
+            /**
+             * View Name
+             * @description Name of the materialized view
+             */
+            view_name: string;
+        };
+        /**
+         * MaterializedViewListResponse
+         * @description Response schema for listing all materialized views.
+         * @example {
+         *       "total_size_bytes": 512000,
+         *       "total_size_human": "500 KB",
+         *       "total_views": 6,
+         *       "views": [
+         *         {
+         *           "exists": true,
+         *           "row_count": 1500,
+         *           "size_bytes": 102400,
+         *           "size_human": "100 KB",
+         *           "view_name": "mv_daily_detection_counts"
+         *         },
+         *         {
+         *           "exists": true,
+         *           "row_count": 5000,
+         *           "size_bytes": 256000,
+         *           "size_human": "250 KB",
+         *           "view_name": "mv_hourly_event_stats"
+         *         }
+         *       ]
+         *     }
+         */
+        MaterializedViewListResponse: {
+            /**
+             * Total Size Bytes
+             * @description Total size of all views in bytes
+             * @default 0
+             */
+            total_size_bytes: number;
+            /**
+             * Total Size Human
+             * @description Human-readable total size
+             */
+            total_size_human?: string | null;
+            /**
+             * Total Views
+             * @description Total number of managed views
+             */
+            total_views: number;
+            /**
+             * Views
+             * @description List of materialized views with their stats
+             */
+            views?: components["schemas"]["MaterializedViewInfo"][];
+        };
+        /**
+         * MaterializedViewRefreshRequest
+         * @description Request schema for refreshing materialized views.
+         * @example {
+         *       "concurrently": true,
+         *       "view_name": "mv_daily_detection_counts"
+         *     }
+         */
+        MaterializedViewRefreshRequest: {
+            /**
+             * Concurrently
+             * @description If True, use CONCURRENTLY option which allows reads during refresh. Requires unique index on the view. If False, blocks reads during refresh.
+             * @default true
+             */
+            concurrently: boolean;
+            /**
+             * View Name
+             * @description Name of a specific view to refresh. If not provided, all views are refreshed.
+             */
+            view_name?: string | null;
+        };
+        /**
+         * MaterializedViewRefreshResponse
+         * @description Response schema for materialized view refresh operation.
+         * @example {
+         *       "concurrently": true,
+         *       "failure_count": 0,
+         *       "refreshed_at": "2025-12-23T14:30:00Z",
+         *       "results": [
+         *         {
+         *           "duration_ms": 150,
+         *           "success": true,
+         *           "view_name": "mv_daily_detection_counts"
+         *         },
+         *         {
+         *           "duration_ms": 200,
+         *           "success": true,
+         *           "view_name": "mv_hourly_event_stats"
+         *         }
+         *       ],
+         *       "success_count": 6,
+         *       "total_duration_ms": 850,
+         *       "total_refreshed": 6
+         *     }
+         */
+        MaterializedViewRefreshResponse: {
+            /**
+             * Concurrently
+             * @description Whether CONCURRENTLY option was used
+             */
+            concurrently: boolean;
+            /**
+             * Failure Count
+             * @description Number of views that failed to refresh
+             */
+            failure_count: number;
+            /**
+             * Refreshed At
+             * Format: date-time
+             * @description Timestamp when the refresh operation completed
+             */
+            refreshed_at: string;
+            /**
+             * Results
+             * @description Results for each view refresh
+             */
+            results?: components["schemas"]["MaterializedViewRefreshResult"][];
+            /**
+             * Success Count
+             * @description Number of views that refreshed successfully
+             */
+            success_count: number;
+            /**
+             * Total Duration Ms
+             * @description Total duration of all refresh operations
+             * @default 0
+             */
+            total_duration_ms: number;
+            /**
+             * Total Refreshed
+             * @description Total number of views that were refreshed
+             */
+            total_refreshed: number;
+        };
+        /**
+         * MaterializedViewRefreshResult
+         * @description Result of a single view refresh operation.
+         * @example {
+         *       "duration_ms": 150,
+         *       "success": true,
+         *       "view_name": "mv_daily_detection_counts"
+         *     }
+         */
+        MaterializedViewRefreshResult: {
+            /**
+             * Duration Ms
+             * @description Duration of the refresh operation in milliseconds
+             */
+            duration_ms?: number | null;
+            /**
+             * Error
+             * @description Error message if refresh failed
+             */
+            error?: string | null;
+            /**
+             * Success
+             * @description Whether the refresh succeeded
+             */
+            success: boolean;
+            /**
+             * View Name
+             * @description Name of the materialized view
+             */
+            view_name: string;
+        };
+        /**
+         * MaterializedViewStatusResponse
+         * @description Response schema for materialized view status check.
+         * @example {
+         *       "exists": true,
+         *       "is_populated": true,
+         *       "last_refresh": "2025-12-23T14:00:00Z",
+         *       "row_count": 1500,
+         *       "size_bytes": 102400,
+         *       "size_human": "100 KB",
+         *       "view_name": "mv_daily_detection_counts"
+         *     }
+         */
+        MaterializedViewStatusResponse: {
+            /**
+             * Error
+             * @description Error message if status check failed
+             */
+            error?: string | null;
+            /**
+             * Exists
+             * @description Whether the view exists
+             */
+            exists: boolean;
+            /**
+             * Is Populated
+             * @description Whether the view has been populated (row_count > 0)
+             * @default false
+             */
+            is_populated: boolean;
+            /**
+             * Last Refresh
+             * @description When the view was last refreshed (if tracked)
+             */
+            last_refresh?: string | null;
+            /**
+             * Row Count
+             * @description Number of rows in the view
+             * @default 0
+             */
+            row_count: number;
+            /**
+             * Size Bytes
+             * @description Size of the view in bytes
+             * @default 0
+             */
+            size_bytes: number;
+            /**
+             * Size Human
+             * @description Human-readable size
+             */
+            size_human?: string | null;
+            /**
+             * View Name
+             * @description Name of the materialized view
+             */
+            view_name: string;
+        };
+        /**
          * MediaErrorResponse
          * @description Error response for media access failures.
          * @example {
@@ -27178,6 +28407,35 @@ export interface components {
              * @description Event ID where embedding was captured
              */
             source_event_id?: number | null;
+        };
+        /**
+         * PersonMatchRequest
+         * @description Schema for matching a person embedding against household members.
+         *
+         *     The embedding should be a 512-dimensional OSNet person re-identification
+         *     embedding vector.
+         * @example {
+         *       "embedding": [
+         *         0.1,
+         *         0.2,
+         *         0.3,
+         *         0,
+         *         0
+         *       ],
+         *       "similarity_threshold": 0.85
+         *     }
+         */
+        PersonMatchRequest: {
+            /**
+             * Embedding
+             * @description Person re-identification embedding vector (512-dim OSNet)
+             */
+            embedding: number[];
+            /**
+             * Similarity Threshold
+             * @description Optional custom similarity threshold (default: 0.85)
+             */
+            similarity_threshold?: number | null;
         };
         /**
          * PetEnrichment
@@ -32359,6 +33617,186 @@ export interface components {
             medium_max: number;
         };
         /**
+         * SimilarityMatch
+         * @description Schema for a single similarity match result.
+         * @example {
+         *       "attributes": {
+         *         "clothing": "blue jacket"
+         *       },
+         *       "camera_id": "front_door",
+         *       "detection_id": "123",
+         *       "entity_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "entity_type": "person",
+         *       "similarity": 0.92,
+         *       "source": "redis",
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "time_gap_seconds": 3600,
+         *       "timestamp": "2025-12-23T10:00:00Z"
+         *     }
+         */
+        SimilarityMatch: {
+            /**
+             * Attributes
+             * @description Additional attributes from the detection (clothing, color, etc.)
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Camera Id
+             * @description Camera ID where entity was detected
+             */
+            camera_id: string;
+            /**
+             * Detection Id
+             * @description Detection ID if available
+             */
+            detection_id?: string | null;
+            /**
+             * Entity Id
+             * @description Entity or detection ID
+             */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @description Type of entity: 'person' or 'vehicle'
+             */
+            entity_type: string;
+            /**
+             * Similarity
+             * @description Cosine similarity score (0-1)
+             */
+            similarity: number;
+            /**
+             * Source
+             * @description Data source: 'redis' (hot cache) or 'postgresql' (historical)
+             */
+            source: string;
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Time Gap Seconds
+             * @description Time difference in seconds from query timestamp
+             */
+            time_gap_seconds: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the entity was detected
+             */
+            timestamp: string;
+        };
+        /**
+         * SimilaritySearchRequest
+         * @description Request schema for similarity search.
+         *
+         *     Allows searching for entities similar to a given embedding vector
+         *     or detection ID.
+         * @example {
+         *       "embedding": [
+         *         0.1,
+         *         0.2,
+         *         0.3
+         *       ],
+         *       "entity_type": "person",
+         *       "include_historical": true,
+         *       "limit": 10,
+         *       "threshold": 0.85
+         *     }
+         */
+        SimilaritySearchRequest: {
+            /**
+             * Embedding
+             * @description Embedding vector to search for (typically 768-dimensional CLIP embedding)
+             */
+            embedding: number[];
+            /**
+             * Entity Type
+             * @description Type of entity to search for: 'person' or 'vehicle'
+             * @default person
+             */
+            entity_type: string;
+            /**
+             * Exclude Detection Id
+             * @description Optional detection ID to exclude from results (e.g., to exclude self-matches)
+             */
+            exclude_detection_id?: string | null;
+            /**
+             * Include Historical
+             * @description If True, search both Redis (hot cache) and PostgreSQL (historical). If False, only search Redis hot cache (24h window).
+             * @default true
+             */
+            include_historical: boolean;
+            /**
+             * Limit
+             * @description Maximum number of results to return (default: 10, max: 100)
+             * @default 10
+             */
+            limit: number;
+            /**
+             * Threshold
+             * @description Minimum cosine similarity threshold for matches (default: 0.85)
+             * @default 0.85
+             */
+            threshold: number;
+        };
+        /**
+         * SimilaritySearchResponse
+         * @description Response schema for similarity search.
+         * @example {
+         *       "entity_type": "person",
+         *       "include_historical": true,
+         *       "matches": [
+         *         {
+         *           "attributes": {
+         *             "clothing": "blue jacket"
+         *           },
+         *           "camera_id": "front_door",
+         *           "detection_id": "123",
+         *           "entity_id": "det_001",
+         *           "entity_type": "person",
+         *           "similarity": 0.92,
+         *           "source": "redis",
+         *           "thumbnail_url": "/api/detections/123/image",
+         *           "time_gap_seconds": 3600,
+         *           "timestamp": "2025-12-23T10:00:00Z"
+         *         }
+         *       ],
+         *       "threshold": 0.85,
+         *       "total_matches": 1
+         *     }
+         */
+        SimilaritySearchResponse: {
+            /**
+             * Entity Type
+             * @description Entity type that was searched
+             */
+            entity_type: string;
+            /**
+             * Include Historical
+             * @description Whether historical (PostgreSQL) data was included
+             */
+            include_historical: boolean;
+            /**
+             * Matches
+             * @description List of matching entities sorted by similarity (highest first)
+             */
+            matches?: components["schemas"]["SimilarityMatch"][];
+            /**
+             * Threshold
+             * @description Similarity threshold used for the search
+             */
+            threshold: number;
+            /**
+             * Total Matches
+             * @description Total number of matches found
+             */
+            total_matches: number;
+        };
+        /**
          * SourceFilter
          * @description Data source for entity queries.
          *
@@ -33800,6 +35238,46 @@ export interface components {
              * @description Vehicle type (sedan, suv, truck, etc.)
              */
             type?: string | null;
+        };
+        /**
+         * VehicleMatchRequest
+         * @description Schema for matching a vehicle against registered vehicles.
+         *
+         *     Supports both license plate matching (exact) and visual embedding matching.
+         *     License plate matching takes priority if provided.
+         * @example {
+         *       "color": "silver",
+         *       "license_plate": "ABC123",
+         *       "similarity_threshold": 0.85,
+         *       "vehicle_type": "car"
+         *     }
+         */
+        VehicleMatchRequest: {
+            /**
+             * Color
+             * @description Vehicle color for context (not used in matching currently)
+             */
+            color?: string | null;
+            /**
+             * Embedding
+             * @description Vehicle visual embedding vector (768-dim CLIP) for visual matching
+             */
+            embedding?: number[] | null;
+            /**
+             * License Plate
+             * @description License plate text for exact matching (case-insensitive)
+             */
+            license_plate?: string | null;
+            /**
+             * Similarity Threshold
+             * @description Optional custom similarity threshold for visual matching (default: 0.85)
+             */
+            similarity_threshold?: number | null;
+            /**
+             * Vehicle Type
+             * @description Type of vehicle (car, truck, motorcycle, van, etc.)
+             */
+            vehicle_type: string;
         };
         /**
          * VehicleType
@@ -35965,6 +37443,152 @@ export interface operations {
             };
         };
     };
+    admin_list_materialized_views: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterializedViewListResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_list_view_names: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_refresh_materialized_views: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterializedViewRefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterializedViewRefreshResponse"];
+                };
+            };
+            /** @description View not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_get_materialized_view_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                view_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterializedViewStatusResponse"];
+                };
+            };
+            /** @description View not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     admin_seed_cameras: {
         parameters: {
             query?: never;
@@ -36466,6 +38090,329 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_list_alerts": {
+        parameters: {
+            query?: {
+                /** @description Filter by alert status */
+                status?: components["schemas"]["AlertStatus"] | null;
+                /** @description Filter by severity level */
+                severity?: components["schemas"]["AlertSeverity"] | null;
+                /** @description Filter by event ID */
+                event_id?: number | null;
+                /** @description Filter by rule ID */
+                rule_id?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceListResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_create_alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertServiceCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_get_alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_update_alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertServiceUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_delete_alert": {
+        parameters: {
+            query?: {
+                /** @description Optional deletion reason */
+                reason?: string | null;
+            };
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceDeleteResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_acknowledge_alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AcknowledgeRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "alert-service_dismiss_alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DismissRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertServiceResponse"];
+                };
+            };
+            /** @description Alert not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
             /** @description Internal server error */
             500: {
@@ -42955,6 +44902,174 @@ export interface operations {
             };
         };
     };
+    "household-matcher_get_matcher_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatcherConfigResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "household-matcher_match_batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchMatchResponse"];
+                };
+            };
+            /** @description Invalid request format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "household-matcher_match_person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMatchResponse"];
+                };
+            };
+            /** @description Invalid embedding format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "household-matcher_match_vehicle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VehicleMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMatchResponse"];
+                };
+            };
+            /** @description Invalid request - must provide plate or embedding */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     household_list_members: {
         parameters: {
             query?: never;
@@ -46225,6 +48340,121 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reid_search_similar_entities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimilaritySearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimilaritySearchResponse"];
+                };
+            };
+            /** @description Invalid request parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Service unavailable (Redis/PostgreSQL) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reid_find_similar_by_detection: {
+        parameters: {
+            query?: {
+                /** @description Type of entity to search for */
+                entity_type?: string;
+                /** @description Minimum similarity threshold */
+                threshold?: number;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Include historical (PostgreSQL) data */
+                include_historical?: boolean;
+            };
+            header?: never;
+            path: {
+                detection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimilaritySearchResponse"];
+                };
+            };
+            /** @description Detection not found or no embedding stored */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redis service unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
