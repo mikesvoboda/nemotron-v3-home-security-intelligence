@@ -1,0 +1,55 @@
+# go2rtc configuration for RTSP to WebRTC conversion (NEM-4958)
+#
+# This file configures go2rtc for the Home Security Intelligence system.
+# go2rtc converts RTSP streams from IP cameras to WebRTC for low-latency
+# browser-based video playback.
+#
+# Documentation: https://github.com/AlexxIT/go2rtc
+#
+# Stream management:
+# - Streams are managed dynamically via the API (http://localhost:1984/api/)
+# - The backend service adds/removes streams when cameras are configured
+# - No static stream configuration is needed here
+#
+# API Endpoints:
+#   GET  /api/streams     - List all configured streams
+#   POST /api/streams     - Add/update a stream
+#   DELETE /api/streams   - Remove a stream
+#   GET  /api/webrtc      - WebRTC signaling endpoint
+
+# API server configuration
+api:
+  # Listen on all interfaces within the container (0.0.0.0)
+  # External access is restricted via docker-compose port mapping (127.0.0.1)
+  listen: ':1984'
+  # Allow CORS from any origin for browser WebRTC connections
+  # Security: Container is only accessible via localhost port mapping
+  origin: '*'
+
+# WebRTC configuration
+webrtc:
+  # WebRTC signaling port
+  listen: ':8555'
+  # ICE candidates for NAT traversal
+  # Uses Google's public STUN server for ICE candidate discovery
+  candidates:
+    - stun:stun.l.google.com:19302
+
+# RTSP server (optional, for re-streaming)
+# Disabled by default - enable if needed for RTSP-out functionality
+# rtsp:
+#   listen: ':8554'
+
+# Streams configuration
+# Streams are managed dynamically via the API by the backend service
+# Example static configuration (not used in production):
+#   front_door:
+#     - rtsp://user:pass@192.168.1.100:554/stream1
+#   backyard:
+#     - rtsp://user:pass@192.168.1.101:554/stream1
+streams: {}
+
+# Logging configuration
+log:
+  # Log level: trace, debug, info, warn, error
+  level: info

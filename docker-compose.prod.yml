@@ -505,6 +505,10 @@ services:
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
       - ENRICHMENT_LIGHT_URL=http://ai-enrichment-light:8096
+      # go2rtc RTSP-to-WebRTC streaming service (NEM-4958)
+      - GO2RTC_API_URL=http://go2rtc:1984
+      # WebRTC URL is the external URL browsers use to connect (via localhost port mapping)
+      - GO2RTC_WEBRTC_URL=${GO2RTC_WEBRTC_URL:-http://localhost:8555}
       # Enrichment model assignment (determines request routing)
       # Set to 'light' for GPU 1 (A400) or 'heavy' for GPU 0 (A5500)
       - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
@@ -558,6 +562,9 @@ services:
       #   condition: service_healthy
       # ai-enrichment:
       #   condition: service_healthy
+      # go2rtc for live streaming - non-critical, backend can start without it
+      go2rtc:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -763,6 +770,41 @@ services:
   #       limits:
   #         cpus: '0.25'
   #         memory: 64M
+
+  # go2rtc for RTSP to WebRTC conversion (NEM-4958)
+  # Enables low-latency live video streaming from RTSP cameras to browser
+  # API: http://localhost:1984 (stream management)
+  # WebRTC: http://localhost:8555 (client connections)
+  go2rtc:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    image: docker.io/alexxit/go2rtc:latest
+    container_name: hsi-go2rtc
+    restart: unless-stopped
+    # NEM-4486: Bind to localhost only to prevent unauthorized external access
+    ports:
+      - '127.0.0.1:1984:1984' # API
+      - '127.0.0.1:8555:8555' # WebRTC
+    environment:
+      - GO2RTC_API_ORIGIN=*
+    volumes:
+      - ./config/go2rtc.yaml:/config/go2rtc.yaml:ro,z
+    networks:
+      - security-net
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:1984/api/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
 
   frontend:
     # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
