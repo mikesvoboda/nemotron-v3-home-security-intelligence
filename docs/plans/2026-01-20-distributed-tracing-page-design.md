@@ -80,7 +80,7 @@ Add Jaeger datasource with comprehensive metric correlations:
         - name: 'Circuit Breaker State'
           query: 'hsi_circuit_breaker_state'
         - name: 'System Health'
-          query: 'hsi_system_healthy_healthy'
+          query: 'hsi_system_healthy'
 
         # AI Service Latencies
         - name: 'YOLO26 Latency (p95)'
@@ -112,7 +112,7 @@ Add Jaeger datasource with comprehensive metric correlations:
         - name: 'Slow Queries/min'
           query: 'rate(hsi_slow_queries_total[1m]) * 60'
         - name: 'Database Health'
-          query: 'hsi_database_healthy_healthy'
+          query: 'hsi_database_healthy'
 
         # Redis/Cache Performance
         - name: 'Redis Commands/sec'
@@ -124,7 +124,7 @@ Add Jaeger datasource with comprehensive metric correlations:
         - name: 'Redis Clients'
           query: 'redis_connected_clients'
         - name: 'Redis Health'
-          query: 'hsi_redis_healthy_healthy'
+          query: 'hsi_redis_healthy'
 
         # GPU Metrics
         - name: 'GPU Utilization %'

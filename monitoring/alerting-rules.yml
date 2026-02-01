@@ -18,9 +18,9 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/pipeline-down'
 
       # Critical: Pipeline health check failing
-      # Uses hsi_system_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
+      # Uses hsi_system_healthy gauge from json-exporter (0 when unhealthy)
       - alert: HSIPipelineUnhealthy
-        expr: hsi_system_healthy_unhealthy > 0
+        expr: hsi_system_healthy == 0
         for: 2m
         labels:
           severity: critical
@@ -34,9 +34,9 @@ groups:
   - name: database_alerts
     rules:
       # Critical: Database connection failures
-      # Uses hsi_database_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
+      # Uses hsi_database_healthy gauge from json-exporter (0 when unhealthy, 1 when healthy)
       - alert: HSIDatabaseUnhealthy
-        expr: hsi_database_healthy_unhealthy > 0
+        expr: hsi_database_healthy == 0
         for: 2m
         labels:
           severity: critical
@@ -62,8 +62,10 @@ groups:
   - name: redis_alerts
     rules:
       # Critical: Redis unavailable
+      # Uses hsi_redis_healthy gauge from json-exporter (0 when unhealthy, 1 when healthy)
+      # This checks the backend's actual Redis connectivity, not redis-exporter availability
       - alert: HSIRedisUnhealthy
-        expr: up{job="redis"} == 0
+        expr: hsi_redis_healthy == 0
         for: 2m
         labels:
           severity: critical
@@ -488,13 +490,17 @@ groups:
           description: 'More than 10% of Prometheus scrape pool sync operations are failing for more than 5 minutes. Metrics collection may be degraded.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-scrape-failures'
 
-      # Warning: Prometheus targets down
+      # Warning: Core Prometheus targets down
+      # Only alerts on essential infrastructure services that should always be running:
+      # - backend, prometheus, alertmanager, json-exporter, blackbox-exporter, redis
+      # Excludes optional AI services (ai-llm, ai-yolo26, ai-florence, ai-clip, ai-enrichment)
+      # and optional exporters (node-exporter, cadvisor, dcgm-exporter, pyroscope)
       - alert: PrometheusTargetsUnhealthy
         expr: |
           (
-            count(up == 0)
+            count(up{job=~"hsi-backend-metrics|prometheus|alertmanager|json-exporter|blackbox-exporter|redis|blackbox-http-live|blackbox-http-ready|blackbox-http-health"} == 0)
             /
-            count(up)
+            count(up{job=~"hsi-backend-metrics|prometheus|alertmanager|json-exporter|blackbox-exporter|redis|blackbox-http-live|blackbox-http-ready|blackbox-http-health"})
           ) > 0.2
         for: 5m
         labels:
@@ -502,9 +508,39 @@ groups:
           component: monitoring
           service: prometheus
         annotations:
-          summary: 'High percentage of Prometheus targets are down'
-          description: 'More than 20% of Prometheus scrape targets are down for more than 5 minutes. Current unhealthy: {{ $value | humanizePercentage }}.'
+          summary: 'Core Prometheus targets are down'
+          description: 'More than 20% of core Prometheus scrape targets are down for more than 5 minutes. Current unhealthy: {{ $value | humanizePercentage }}. This excludes optional AI services and exporters.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-targets-unhealthy'
+
+      # Info: Optional AI service targets down
+      # Fires when AI services (ai-llm, ai-yolo26, ai-florence, ai-clip, ai-enrichment) are down.
+      # These services are optional and may not always be running, so this is informational only.
+      - alert: PrometheusAITargetsDown
+        expr: |
+          count(up{job=~"ai-llm-metrics|ai-yolo26-metrics|ai-florence-metrics|ai-clip-metrics|ai-enrichment-metrics"} == 0) > 0
+        for: 10m
+        labels:
+          severity: info
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Optional AI service targets are down'
+          description: '{{ $value }} AI service scrape targets are down. These are optional services and may not always be running. Check if the services are needed for your current workload.'
+
+      # Info: Optional infrastructure exporters down
+      # Fires when optional exporters (node-exporter, cadvisor, dcgm-exporter, pyroscope) are down.
+      # These exporters are optional and may not always be deployed.
+      - alert: PrometheusExportersDown
+        expr: |
+          count(up{job=~"node-exporter|cadvisor|dcgm-exporter|pyroscope"} == 0) > 0
+        for: 10m
+        labels:
+          severity: info
+          component: monitoring
+          service: prometheus
+        annotations:
+          summary: 'Optional infrastructure exporters are down'
+          description: '{{ $value }} optional exporter targets are down. These exporters provide additional observability but are not required for core functionality.'
 
       # Warning: Prometheus notification queue full
       - alert: PrometheusNotificationQueueFull
@@ -1043,11 +1079,12 @@ groups:
   - name: database_cache_cascade_alerts
     rules:
       # Critical: Database AND Redis both unhealthy = cascade failure
+      # Uses hsi_database_healthy and hsi_redis_healthy gauges from json-exporter
       - alert: HSIDatabaseCacheCascadeFailure
         expr: |
-          hsi_database_healthy_unhealthy > 0
+          hsi_database_healthy == 0
           and
-          up{job="redis"} == 0
+          hsi_redis_healthy == 0
         for: 1m
         labels:
           severity: critical

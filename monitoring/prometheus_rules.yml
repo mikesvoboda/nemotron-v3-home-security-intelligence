@@ -225,9 +225,9 @@ groups:
       # System Health Alerts
       # =========================================================================
 
-      # Uses hsi_system_healthy_degraded gauge (1 when degraded, 0 otherwise)
+      # Uses hsi_system_healthy gauge from json-exporter (0.5 when degraded)
       - alert: AISystemDegraded
-        expr: hsi_system_healthy_degraded > 0
+        expr: hsi_system_healthy == 0.5
         for: 5m
         labels:
           severity: warning
@@ -238,9 +238,9 @@ groups:
           description: 'The HSI system has been in degraded state for more than 5 minutes. Some services may not be functioning properly.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aisystemdegraded'
 
-      # Uses hsi_system_healthy_unhealthy gauge (1 when unhealthy, 0 otherwise)
+      # Uses hsi_system_healthy gauge from json-exporter (0 when unhealthy)
       - alert: AISystemUnhealthy
-        expr: hsi_system_healthy_unhealthy > 0
+        expr: hsi_system_healthy == 0
         for: 2m
         labels:
           severity: critical
@@ -258,9 +258,9 @@ groups:
   - name: infrastructure_alerts
     interval: 30s
     rules:
-      # Uses hsi_database_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
+      # Uses hsi_database_healthy gauge from json-exporter (0 when unhealthy, 1 when healthy)
       - alert: DatabaseUnhealthy
-        expr: hsi_database_healthy_unhealthy > 0
+        expr: hsi_database_healthy == 0
         for: 2m
         labels:
           severity: critical
@@ -271,9 +271,9 @@ groups:
           description: 'PostgreSQL database has been unreachable for more than 2 minutes. Event persistence is failing.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#databaseunhealthy'
 
-      # Uses hsi_redis_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
+      # Uses hsi_redis_healthy gauge from json-exporter (0 when unhealthy, 1 when healthy)
       - alert: RedisUnhealthy
-        expr: hsi_redis_healthy_unhealthy > 0
+        expr: hsi_redis_healthy == 0
         for: 2m
         labels:
           severity: critical

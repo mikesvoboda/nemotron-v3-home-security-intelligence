@@ -1505,16 +1505,15 @@ def init_profiling() -> None:
     """Initialize Pyroscope continuous profiling for backend service.
 
     This function configures Pyroscope for continuous profiling of the backend
-    service. It enables CPU, GIL, and memory allocation profiling to identify
-    performance bottlenecks in both synchronous and asynchronous code paths.
+    service. It enables CPU profiling to identify performance bottlenecks in
+    both synchronous and asynchronous code paths.
 
     Configuration is via environment variables:
     - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
     - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
       (PYROSCOPE_SERVER is also accepted for backward compatibility)
     - PYROSCOPE_SAMPLE_RATE: Profiling sample rate in Hz (default: 100)
-    - PYROSCOPE_MEMORY_ENABLED: Enable memory allocation profiling (default: true)
-    - ENVIRONMENT: Environment tag for profiles (default: production)
+    - ENVIRONMENT: Environment tag for profiles (default: development)
 
     The function gracefully handles:
     - Missing pyroscope-io package (ImportError)
@@ -1551,10 +1550,6 @@ def init_profiling() -> None:
         # Higher values = more detail but higher overhead
         sample_rate = int(os.getenv("PYROSCOPE_SAMPLE_RATE", "100"))
 
-        # Memory profiling: captures alloc_objects and alloc_space data
-        # Enabled by default for comprehensive memory leak detection
-        memory_profiling = os.getenv("PYROSCOPE_MEMORY_ENABLED", "true").lower() == "true"
-
         pyroscope.configure(
             application_name="nemotron-backend",
             server_address=pyroscope_server,
@@ -1566,14 +1561,10 @@ def init_profiling() -> None:
             oncpu=True,
             gil_only=False,  # Profile all threads, not just GIL-holding threads
             enable_logging=True,
-            # Memory allocation profiling (NEM-4126)
-            # Captures alloc_objects (allocation count) and alloc_space (bytes allocated)
-            alloc_objects=memory_profiling,
-            alloc_space=memory_profiling,
         )
         logger.info(
             f"Pyroscope profiling initialized: server={pyroscope_server}, "
-            f"sample_rate={sample_rate}Hz, memory_profiling={memory_profiling}"
+            f"sample_rate={sample_rate}Hz"
         )
     except ImportError:
         # pyroscope-io not installed, skip profiling

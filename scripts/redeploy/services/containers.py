@@ -321,7 +321,16 @@ class ContainerManager:
 
         # Start observability services (pyroscope, loki must start before alloy)
         output.step("Starting observability services...")
-        observability_services = ["pyroscope", "loki", "prometheus", "grafana"]
+        observability_services = [
+            "pyroscope",
+            "loki",
+            "prometheus",
+            "grafana",
+            "blackbox-exporter",
+            "json-exporter",
+            "redis-exporter",
+            "node-exporter",
+        ]
 
         success = self.runtime.compose_up(
             self.config.compose_file_prod,

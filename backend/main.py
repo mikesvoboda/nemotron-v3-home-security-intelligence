@@ -125,7 +125,12 @@ from backend.services.pipeline_workers import (
     get_pipeline_manager,
     stop_pipeline_manager,
 )
-from backend.services.service_managers import ServiceConfig, ShellServiceManager
+from backend.services.service_managers import (
+    DockerServiceManager,
+    ServiceConfig,
+    ServiceManager,
+    ShellServiceManager,
+)
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
 from backend.services.worker_supervisor import (
     SupervisorConfig,
@@ -759,10 +764,24 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # where the restart scripts are not available inside the backend container
     service_health_monitor: ServiceHealthMonitor | None = None
     if redis_client is not None:
-        # Set restart_cmd based on ai_restart_enabled setting
-        # When disabled (e.g., in containers), health monitoring still works but no restart attempts
-        yolo26_restart_cmd = "ai/start_detector.sh" if settings.ai_restart_enabled else None
-        nemotron_restart_cmd = "ai/start_llm.sh" if settings.ai_restart_enabled else None
+        # Determine restart strategy based on deployment mode:
+        # - If orchestrator is enabled (containerized deployment), use Docker restart with container names
+        # - Otherwise, use shell scripts for local development
+        use_docker_restart = settings.orchestrator.enabled and settings.ai_restart_enabled
+
+        if use_docker_restart:
+            # Containerized deployment: use docker restart with container names
+            # Container names match docker-compose service names: ai-yolo26, ai-llm
+            yolo26_restart_cmd = "docker restart ai-yolo26"
+            nemotron_restart_cmd = "docker restart ai-llm"
+        elif settings.ai_restart_enabled:
+            # Local development: use shell scripts (relative paths from project root)
+            yolo26_restart_cmd = "ai/start_detector.sh"
+            nemotron_restart_cmd = "ai/start_llm.sh"
+        else:
+            # Restart disabled: health monitoring only, no restart capability
+            yolo26_restart_cmd = None
+            nemotron_restart_cmd = None
 
         service_configs = [
             ServiceConfig(
@@ -782,7 +801,14 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
                 backoff_base=5.0,
             ),
         ]
-        service_manager = ShellServiceManager(subprocess_timeout=60.0)
+
+        # Use DockerServiceManager for containerized deployments, ShellServiceManager otherwise
+        service_manager: ServiceManager
+        if use_docker_restart:
+            service_manager = DockerServiceManager(subprocess_timeout=60.0)
+        else:
+            service_manager = ShellServiceManager(subprocess_timeout=60.0)
+
         # Get event broadcaster for WebSocket status updates
         event_broadcaster = await get_broadcaster(redis_client)
         service_health_monitor = ServiceHealthMonitor(
@@ -792,9 +818,14 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             check_interval=15.0,
         )
         await service_health_monitor.start()
-        restart_status = (
-            "enabled" if settings.ai_restart_enabled else "disabled (AI_RESTART_ENABLED=false)"
-        )
+
+        # Log restart configuration details
+        if use_docker_restart:
+            restart_status = "enabled (Docker containers: ai-yolo26, ai-llm)"
+        elif settings.ai_restart_enabled:
+            restart_status = "enabled (shell scripts)"
+        else:
+            restart_status = "disabled (AI_RESTART_ENABLED=false)"
         lifespan_logger.info(
             f"Service health monitor initialized (YOLO26, Nemotron) - restart: {restart_status}"
         )
