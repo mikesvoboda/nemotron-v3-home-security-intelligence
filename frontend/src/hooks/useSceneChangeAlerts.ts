@@ -2,10 +2,12 @@
  * Hook for tracking unacknowledged scene change alerts from WebSocket.
  *
  * This hook subscribes to the /ws/events channel and listens for scene_change
- * messages. It tracks unacknowledged scene changes and provides:
+ * and scene_change.acknowledged messages. It tracks unacknowledged scene changes
+ * and provides:
  * - Count of unacknowledged scene changes
  * - List of recent scene change alerts
  * - Ability to dismiss/acknowledge alerts locally
+ * - Real-time sync with server-side acknowledgments via scene_change.acknowledged events
  *
  * Scene changes indicate potential camera tampering and should be reviewed.
  */
@@ -16,6 +18,7 @@ import { buildWebSocketOptions } from '../services/api';
 import { isSceneChangeMessage } from '../types/generated/websocket';
 
 import type { WebSocketSceneChangeData } from '../types/generated/websocket';
+import type { SceneChangeAcknowledgedPayload } from '../types/websocket-events';
 
 /**
  * Scene change alert with local tracking state.
@@ -31,10 +34,12 @@ export interface SceneChangeAlert {
   changeType: string;
   /** SSIM score (0-1, lower = more different from baseline) */
   similarityScore: number;
-  /** Whether the alert has been dismissed locally */
+  /** Whether the alert has been dismissed locally or acknowledged via server */
   dismissed: boolean;
   /** When the alert was received */
   receivedAt: Date;
+  /** When the alert was acknowledged on the server (if available) */
+  acknowledgedAt?: string;
 }
 
 export interface UseSceneChangeAlertsOptions {
@@ -74,6 +79,23 @@ export interface UseSceneChangeAlertsReturn {
 }
 
 const DEFAULT_MAX_ALERTS = 50;
+
+/**
+ * Type guard for scene_change.acknowledged messages.
+ * These messages are broadcast when a scene change is acknowledged via the API.
+ */
+function isSceneChangeAcknowledgedMessage(
+  value: unknown
+): value is { type: 'scene_change.acknowledged'; payload: SceneChangeAcknowledgedPayload } {
+  if (!value || typeof value !== 'object') return false;
+  const msg = value as Record<string, unknown>;
+
+  if (msg.type !== 'scene_change.acknowledged') return false;
+  if (!msg.payload || typeof msg.payload !== 'object') return false;
+
+  const payload = msg.payload as Record<string, unknown>;
+  return 'id' in payload && 'camera_id' in payload && 'acknowledged' in payload;
+}
 
 /**
  * Format change type for display.
@@ -138,6 +160,26 @@ export function useSceneChangeAlerts(
 
   const handleMessage = useCallback(
     (data: unknown) => {
+      // Handle scene_change.acknowledged messages (hierarchical format)
+      if (isSceneChangeAcknowledgedMessage(data)) {
+        const payload = data.payload;
+
+        // Update the alert's dismissed state when acknowledged on the server
+        setAlerts((prev) =>
+          prev.map((alert) =>
+            alert.id === payload.id
+              ? {
+                  ...alert,
+                  dismissed: payload.acknowledged,
+                  acknowledgedAt: payload.acknowledged_at ?? undefined,
+                }
+              : alert
+          )
+        );
+        return;
+      }
+
+      // Handle legacy scene_change messages
       if (isSceneChangeMessage(data)) {
         const sceneData: WebSocketSceneChangeData = data.data;
 

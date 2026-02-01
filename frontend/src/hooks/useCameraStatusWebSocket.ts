@@ -11,10 +11,25 @@
  * - camera.disabled - Camera was disabled
  * - camera.config_updated - Camera configuration was changed
  *
+ * Provides helper functions for granular per-camera status queries:
+ * - getCameraStatus(cameraId) - Get status for a specific camera
+ * - getOfflineCameras() - Get all offline cameras
+ * - getCamerasWithErrors() - Get all cameras with errors
+ * - getOnlineCameras() - Get all online cameras
+ * - getCameraCountsByStatus() - Get counts by status type
+ *
  * @example
  * ```tsx
  * function CameraMonitor() {
- *   const { cameraStatuses, isConnected } = useCameraStatusWebSocket({
+ *   const {
+ *     cameraStatuses,
+ *     isConnected,
+ *     getCameraStatus,
+ *     getOfflineCameras,
+ *     getCamerasWithErrors,
+ *     getOnlineCameras,
+ *     getCameraCountsByStatus,
+ *   } = useCameraStatusWebSocket({
  *     onCameraOnline: (event) => console.log('Camera online:', event.camera_name),
  *     onCameraOffline: (event) => console.log('Camera offline:', event.camera_name),
  *     onCameraEnabled: (event) => console.log('Camera enabled:', event.camera_id),
@@ -23,8 +38,21 @@
  *     showToasts: true, // Enable toast notifications
  *   });
  *
+ *   // Per-camera status lookup
+ *   const frontDoorStatus = getCameraStatus('front_door');
+ *
+ *   // Get filtered camera lists
+ *   const offlineCameras = getOfflineCameras();
+ *   const errorCameras = getCamerasWithErrors();
+ *   const onlineCameras = getOnlineCameras();
+ *
+ *   // Get summary counts
+ *   const counts = getCameraCountsByStatus();
+ *   // { online: 3, offline: 1, error: 0, unknown: 0 }
+ *
  *   return (
  *     <div>
+ *       <p>Online: {counts.online} | Offline: {counts.offline} | Errors: {counts.error}</p>
  *       {Object.entries(cameraStatuses).map(([id, status]) => (
  *         <div key={id}>{status.camera_name}: {status.status}</div>
  *       ))}
@@ -115,6 +143,31 @@ export interface UseCameraStatusWebSocketReturn {
   lastEvent: CameraStatusEventPayload | null;
   /** Manually trigger a reconnection */
   reconnect: () => void;
+  /**
+   * Get status for a specific camera by ID.
+   * Returns undefined if the camera is not tracked.
+   */
+  getCameraStatus: (cameraId: string) => CameraStatusState | undefined;
+  /**
+   * Get all cameras that are currently offline.
+   * Returns an array of CameraStatusState for cameras with status 'offline'.
+   */
+  getOfflineCameras: () => CameraStatusState[];
+  /**
+   * Get all cameras that have errors.
+   * Returns an array of CameraStatusState for cameras with status 'error'.
+   */
+  getCamerasWithErrors: () => CameraStatusState[];
+  /**
+   * Get all cameras that are currently online.
+   * Returns an array of CameraStatusState for cameras with status 'online'.
+   */
+  getOnlineCameras: () => CameraStatusState[];
+  /**
+   * Get count of cameras by status.
+   * Returns an object with counts for each status type.
+   */
+  getCameraCountsByStatus: () => Record<CameraStatusValue, number>;
 }
 
 /**
@@ -407,12 +460,54 @@ export function useCameraStatusWebSocket(
     handleCameraConfigUpdatedEvent,
   ]);
 
+  // Helper function: Get status for a specific camera
+  const getCameraStatus = useCallback(
+    (cameraId: string): CameraStatusState | undefined => {
+      return cameraStatuses[cameraId];
+    },
+    [cameraStatuses]
+  );
+
+  // Helper function: Get all offline cameras
+  const getOfflineCameras = useCallback((): CameraStatusState[] => {
+    return Object.values(cameraStatuses).filter((camera) => camera.status === 'offline');
+  }, [cameraStatuses]);
+
+  // Helper function: Get all cameras with errors
+  const getCamerasWithErrors = useCallback((): CameraStatusState[] => {
+    return Object.values(cameraStatuses).filter((camera) => camera.status === 'error');
+  }, [cameraStatuses]);
+
+  // Helper function: Get all online cameras
+  const getOnlineCameras = useCallback((): CameraStatusState[] => {
+    return Object.values(cameraStatuses).filter((camera) => camera.status === 'online');
+  }, [cameraStatuses]);
+
+  // Helper function: Get counts by status
+  const getCameraCountsByStatus = useCallback((): Record<CameraStatusValue, number> => {
+    const counts: Record<CameraStatusValue, number> = {
+      online: 0,
+      offline: 0,
+      error: 0,
+      unknown: 0,
+    };
+    Object.values(cameraStatuses).forEach((camera) => {
+      counts[camera.status] = (counts[camera.status] || 0) + 1;
+    });
+    return counts;
+  }, [cameraStatuses]);
+
   return {
     cameraStatuses,
     isConnected,
     reconnectCount,
     lastEvent,
     reconnect,
+    getCameraStatus,
+    getOfflineCameras,
+    getCamerasWithErrors,
+    getOnlineCameras,
+    getCameraCountsByStatus,
   };
 }
 

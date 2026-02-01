@@ -271,4 +271,10 @@ export {
   selectRunningWorkers,
   selectWorkerByName,
   selectWorkersByType,
+
+  // Shallow hooks
+  useWorkerStatusState,
+  usePipelineHealth,
+  useWorkerCounts,
+  useWorkerStatusActions,
 } from './worker-status-store';

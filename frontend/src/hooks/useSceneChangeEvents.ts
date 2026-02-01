@@ -19,6 +19,7 @@ import { buildWebSocketOptions } from '../services/api';
 import { isSceneChangeMessage } from '../types/generated/websocket';
 
 import type { WebSocketSceneChangeData } from '../types/generated/websocket';
+import type { SceneChangeAcknowledgedPayload } from '../types/websocket-events';
 
 // ============================================================================
 // Types
@@ -42,6 +43,10 @@ export interface SceneChangeEventData {
   similarityScore: number;
   /** When this event was received */
   receivedAt: Date;
+  /** Whether this scene change has been acknowledged */
+  acknowledged?: boolean;
+  /** When the scene change was acknowledged (ISO 8601) */
+  acknowledgedAt?: string;
 }
 
 /**
@@ -127,6 +132,22 @@ const DEFAULT_ACTIVITY_TIMEOUT_MS = 30000;
 
 /** Default maximum recent events to track */
 const DEFAULT_MAX_RECENT_EVENTS = 50;
+
+/**
+ * Type guard for scene_change.acknowledged messages.
+ */
+function isSceneChangeAcknowledgedMessage(
+  value: unknown
+): value is { type: 'scene_change.acknowledged'; payload: SceneChangeAcknowledgedPayload } {
+  if (!value || typeof value !== 'object') return false;
+  const msg = value as Record<string, unknown>;
+
+  if (msg.type !== 'scene_change.acknowledged') return false;
+  if (!msg.payload || typeof msg.payload !== 'object') return false;
+
+  const payload = msg.payload as Record<string, unknown>;
+  return 'id' in payload && 'camera_id' in payload && 'acknowledged' in payload;
+}
 
 // ============================================================================
 // Hook Implementation
@@ -243,9 +264,34 @@ export function useSceneChangeEvents(
     timeoutIdsRef.current.clear();
   }, []);
 
+  // Handle scene change acknowledged events
+  const handleSceneChangeAcknowledged = useCallback(
+    (payload: SceneChangeAcknowledgedPayload) => {
+      // Update recent events to mark the scene change as acknowledged
+      setRecentEvents((prev) =>
+        prev.map((event) =>
+          event.id === payload.id
+            ? {
+                ...event,
+                acknowledged: payload.acknowledged,
+                acknowledgedAt: payload.acknowledged_at ?? undefined,
+              }
+            : event
+        )
+      );
+    },
+    []
+  );
+
   // Handle incoming scene change messages
   const handleMessage = useCallback(
     (data: unknown) => {
+      // Handle scene_change.acknowledged events
+      if (isSceneChangeAcknowledgedMessage(data)) {
+        handleSceneChangeAcknowledged(data.payload);
+        return;
+      }
+
       // Check for both legacy 'scene_change' and hierarchical 'scene_change.detected' formats
       // The isSceneChangeMessage type guard handles the legacy format
       if (!isSceneChangeMessage(data)) {
@@ -290,7 +336,7 @@ export function useSceneChangeEvents(
       processSceneChangeEvent(eventData);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- processSceneChangeEvent uses refs, stable enough
-    [resolveCameraName]
+    [resolveCameraName, handleSceneChangeAcknowledged]
   );
 
   // Process a scene change event (shared logic)

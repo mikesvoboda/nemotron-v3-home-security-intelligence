@@ -5,7 +5,7 @@ exports[`AlertBadge > snapshots > renders critical only correctly 1`] = `
   aria-expanded="false"
   aria-haspopup="dialog"
   aria-label="2 active alerts: 2 critical"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -35,12 +35,12 @@ exports[`AlertBadge > snapshots > renders critical only correctly 1`] = `
     data-testid="alert-badge-counts"
   >
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 text-risk-critical font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 font-semibold text-risk-critical min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-critical"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert w-3 h-3"
+        class="lucide lucide-octagon-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -74,7 +74,7 @@ exports[`AlertBadge > snapshots > renders in open state 1`] = `
   aria-expanded="true"
   aria-haspopup="dialog"
   aria-label="8 active alerts: 2 critical, 5 warning, 1 info"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg bg-nvidia-surface-light border-nvidia-green/50 px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 bg-nvidia-surface-light border-nvidia-green/50 px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -104,12 +104,12 @@ exports[`AlertBadge > snapshots > renders in open state 1`] = `
     data-testid="alert-badge-counts"
   >
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 text-risk-critical font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 font-semibold text-risk-critical min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-critical"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert w-3 h-3"
+        class="lucide lucide-octagon-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -135,12 +135,12 @@ exports[`AlertBadge > snapshots > renders in open state 1`] = `
       </span>
     </span>
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-medium/20 text-risk-medium font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-medium/20 font-semibold text-risk-medium min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-warning"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-triangle-alert w-3 h-3"
+        class="lucide lucide-triangle-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -174,7 +174,7 @@ exports[`AlertBadge > snapshots > renders info only correctly 1`] = `
   aria-expanded="false"
   aria-haspopup="dialog"
   aria-label="3 active alerts: 3 info"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -209,7 +209,7 @@ exports[`AlertBadge > snapshots > renders info only correctly 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-info w-3 h-3"
+        class="lucide lucide-info h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -245,7 +245,7 @@ exports[`AlertBadge > snapshots > renders mixed alerts correctly 1`] = `
   aria-expanded="false"
   aria-haspopup="dialog"
   aria-label="8 active alerts: 2 critical, 5 warning, 1 info"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -275,12 +275,12 @@ exports[`AlertBadge > snapshots > renders mixed alerts correctly 1`] = `
     data-testid="alert-badge-counts"
   >
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 text-risk-critical font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 font-semibold text-risk-critical min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-critical"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert w-3 h-3"
+        class="lucide lucide-octagon-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -306,12 +306,12 @@ exports[`AlertBadge > snapshots > renders mixed alerts correctly 1`] = `
       </span>
     </span>
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-medium/20 text-risk-medium font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-medium/20 font-semibold text-risk-medium min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-warning"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-triangle-alert w-3 h-3"
+        class="lucide lucide-triangle-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -345,7 +345,7 @@ exports[`AlertBadge > snapshots > renders no alerts correctly 1`] = `
   aria-expanded="false"
   aria-haspopup="dialog"
   aria-label="No active alerts"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -384,7 +384,7 @@ exports[`AlertBadge > snapshots > renders warning only correctly 1`] = `
   aria-expanded="false"
   aria-haspopup="dialog"
   aria-label="5 active alerts: 5 warning"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -414,12 +414,12 @@ exports[`AlertBadge > snapshots > renders warning only correctly 1`] = `
     data-testid="alert-badge-counts"
   >
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-medium/20 text-risk-medium font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-medium/20 font-semibold text-risk-medium min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-warning"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-triangle-alert w-3 h-3"
+        class="lucide lucide-triangle-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -453,7 +453,7 @@ exports[`AlertBadge > snapshots > renders with animation 1`] = `
   aria-expanded="false"
   aria-haspopup="dialog"
   aria-label="2 active alerts: 2 critical"
-  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border border-nvidia-border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg motion-safe:animate-pulse-critical px-3 py-1.5 gap-2 text-sm"
+  class="inline-flex items-center rounded-lg font-medium bg-nvidia-surface border-nvidia-border border text-nvidia-text-secondary transition-all duration-200 ease-in-out hover:bg-nvidia-surface-light hover:border-nvidia-border-light focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2 motion-safe:animate-pulse-critical px-3 py-1.5 gap-2 text-sm"
   data-testid="alert-badge"
   type="button"
 >
@@ -483,12 +483,12 @@ exports[`AlertBadge > snapshots > renders with animation 1`] = `
     data-testid="alert-badge-counts"
   >
     <span
-      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 text-risk-critical font-semibold min-w-[1.25rem] h-5 text-xs"
+      class="inline-flex items-center justify-center gap-0.5 rounded-full px-1.5 bg-risk-critical/20 font-semibold text-risk-critical min-w-[1.25rem] h-5 text-xs"
       data-testid="alert-badge-critical"
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert w-3 h-3"
+        class="lucide lucide-octagon-alert h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"

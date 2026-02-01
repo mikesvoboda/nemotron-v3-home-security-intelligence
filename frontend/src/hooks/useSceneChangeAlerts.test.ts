@@ -521,3 +521,203 @@ describe('getChangeSeverity', () => {
     expect(getChangeSeverity('unknown')).toBe('low');
   });
 });
+
+describe('scene_change.acknowledged WebSocket events', () => {
+  let onMessageCallback: ((data: unknown) => void) | null = null;
+
+  beforeEach(() => {
+    onMessageCallback = null;
+
+    vi.spyOn(useWebSocketModule, 'useWebSocket').mockImplementation((options) => {
+      onMessageCallback = options.onMessage ?? null;
+      return {
+        isConnected: true,
+        lastMessage: null,
+        send: vi.fn(),
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        connectionState: 'connected',
+        reconnectAttempts: 0,
+        hasExhaustedRetries: false,
+      } as unknown as UseWebSocketReturn;
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('handles scene_change.acknowledged events and updates alert state', () => {
+    const { result } = renderHook(() => useSceneChangeAlerts());
+
+    // First, add a scene change alert
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change',
+        data: {
+          id: 1,
+          camera_id: 'front_door',
+          detected_at: '2026-01-10T10:00:00Z',
+          change_type: 'view_blocked',
+          similarity_score: 0.25,
+        },
+      });
+    });
+
+    expect(result.current.alerts).toHaveLength(1);
+    expect(result.current.alerts[0].dismissed).toBe(false);
+    expect(result.current.unacknowledgedCount).toBe(1);
+
+    // Now receive an acknowledgment from the server
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change.acknowledged',
+        payload: {
+          id: 1,
+          camera_id: 'front_door',
+          acknowledged: true,
+          acknowledged_at: '2026-01-10T10:05:00Z',
+        },
+      });
+    });
+
+    // The alert should now be dismissed
+    expect(result.current.alerts).toHaveLength(1);
+    expect(result.current.alerts[0].dismissed).toBe(true);
+    expect(result.current.alerts[0].acknowledgedAt).toBe('2026-01-10T10:05:00Z');
+    expect(result.current.unacknowledgedCount).toBe(0);
+    expect(result.current.hasAlerts).toBe(false);
+  });
+
+  it('handles scene_change.acknowledged for non-existent alert gracefully', () => {
+    const { result } = renderHook(() => useSceneChangeAlerts());
+
+    // Receive acknowledgment for an alert we don't have
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change.acknowledged',
+        payload: {
+          id: 999,
+          camera_id: 'unknown_camera',
+          acknowledged: true,
+          acknowledged_at: '2026-01-10T10:05:00Z',
+        },
+      });
+    });
+
+    // Should not crash, alerts should remain empty
+    expect(result.current.alerts).toHaveLength(0);
+  });
+
+  it('updates blocked camera flags when acknowledged', () => {
+    const { result } = renderHook(() => useSceneChangeAlerts());
+
+    // Add a blocked camera alert
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change',
+        data: {
+          id: 1,
+          camera_id: 'front_door',
+          detected_at: '2026-01-10T10:00:00Z',
+          change_type: 'view_blocked',
+          similarity_score: 0.25,
+        },
+      });
+    });
+
+    expect(result.current.hasBlockedCameras).toBe(true);
+    expect(result.current.blockedCameraIds).toEqual(['front_door']);
+
+    // Acknowledge via WebSocket
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change.acknowledged',
+        payload: {
+          id: 1,
+          camera_id: 'front_door',
+          acknowledged: true,
+          acknowledged_at: '2026-01-10T10:05:00Z',
+        },
+      });
+    });
+
+    // Blocked camera flags should be cleared
+    expect(result.current.hasBlockedCameras).toBe(false);
+    expect(result.current.blockedCameraIds).toEqual([]);
+  });
+
+  it('handles acknowledgment with null acknowledged_at', () => {
+    const { result } = renderHook(() => useSceneChangeAlerts());
+
+    // Add a scene change alert
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change',
+        data: {
+          id: 1,
+          camera_id: 'front_door',
+          detected_at: '2026-01-10T10:00:00Z',
+          change_type: 'view_blocked',
+          similarity_score: 0.25,
+        },
+      });
+    });
+
+    // Acknowledge with null timestamp
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change.acknowledged',
+        payload: {
+          id: 1,
+          camera_id: 'front_door',
+          acknowledged: true,
+          acknowledged_at: null,
+        },
+      });
+    });
+
+    expect(result.current.alerts[0].dismissed).toBe(true);
+    expect(result.current.alerts[0].acknowledgedAt).toBeUndefined();
+  });
+
+  it('ignores malformed scene_change.acknowledged messages', () => {
+    const { result } = renderHook(() => useSceneChangeAlerts());
+
+    // Add a scene change alert
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change',
+        data: {
+          id: 1,
+          camera_id: 'front_door',
+          detected_at: '2026-01-10T10:00:00Z',
+          change_type: 'view_blocked',
+          similarity_score: 0.25,
+        },
+      });
+    });
+
+    // Send malformed messages
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change.acknowledged',
+        // Missing payload
+      });
+    });
+
+    act(() => {
+      onMessageCallback!({
+        type: 'scene_change.acknowledged',
+        payload: {
+          // Missing required fields
+          acknowledged: true,
+        },
+      });
+    });
+
+    // Alert should remain unchanged
+    expect(result.current.alerts[0].dismissed).toBe(false);
+    expect(result.current.unacknowledgedCount).toBe(1);
+  });
+});

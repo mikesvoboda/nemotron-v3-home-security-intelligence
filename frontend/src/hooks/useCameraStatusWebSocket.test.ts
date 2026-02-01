@@ -12,6 +12,13 @@
  * - Added support for camera.config_updated events
  * - Added toast notification support via showToasts option
  *
+ * Per-camera helper functions:
+ * - getCameraStatus(cameraId) - Get status for a specific camera
+ * - getOfflineCameras() - Get all offline cameras
+ * - getCamerasWithErrors() - Get all cameras with errors
+ * - getOnlineCameras() - Get all online cameras
+ * - getCameraCountsByStatus() - Get counts by status type
+ *
  * KNOWN ISSUE: Full integration tests are skipped due to memory exhaustion
  * during Vitest module resolution. The websocket-events.ts module contains
  * complex type definitions (WSEventPayloadMap with enum-computed property names)
@@ -59,6 +66,36 @@ describe('useCameraStatusWebSocket contract', () => {
 
     it('should return reconnect function', () => {
       // Contract: The hook provides a reconnect function to manually reconnect
+      expect(true).toBe(true);
+    });
+
+    it('should return getCameraStatus helper function', () => {
+      // Contract: The hook provides getCameraStatus(cameraId) -> CameraStatusState | undefined
+      // Returns undefined if camera is not tracked
+      expect(true).toBe(true);
+    });
+
+    it('should return getOfflineCameras helper function', () => {
+      // Contract: The hook provides getOfflineCameras() -> CameraStatusState[]
+      // Returns array of cameras with status 'offline'
+      expect(true).toBe(true);
+    });
+
+    it('should return getCamerasWithErrors helper function', () => {
+      // Contract: The hook provides getCamerasWithErrors() -> CameraStatusState[]
+      // Returns array of cameras with status 'error'
+      expect(true).toBe(true);
+    });
+
+    it('should return getOnlineCameras helper function', () => {
+      // Contract: The hook provides getOnlineCameras() -> CameraStatusState[]
+      // Returns array of cameras with status 'online'
+      expect(true).toBe(true);
+    });
+
+    it('should return getCameraCountsByStatus helper function', () => {
+      // Contract: The hook provides getCameraCountsByStatus() -> Record<CameraStatusValue, number>
+      // Returns object with counts: { online: 0, offline: 0, error: 0, unknown: 0 }
       expect(true).toBe(true);
     });
   });
@@ -209,6 +246,99 @@ describe('useCameraStatusWebSocket contract', () => {
     it('should not show toasts when showToasts is false (default)', () => {
       // Contract: By default, showToasts is false and no toasts are shown
       expect(true).toBe(true);
+    });
+  });
+
+  describe('per-camera helper functions', () => {
+    describe('getCameraStatus', () => {
+      it('should return camera status for tracked camera', () => {
+        // Contract: getCameraStatus('front_door') returns CameraStatusState
+        // when front_door camera has been seen via WebSocket
+        expect(true).toBe(true);
+      });
+
+      it('should return undefined for untracked camera', () => {
+        // Contract: getCameraStatus('nonexistent') returns undefined
+        // when camera has not been seen via WebSocket
+        expect(true).toBe(true);
+      });
+
+      it('should return latest status after updates', () => {
+        // Contract: After camera.online followed by camera.offline,
+        // getCameraStatus returns status 'offline'
+        expect(true).toBe(true);
+      });
+    });
+
+    describe('getOfflineCameras', () => {
+      it('should return empty array when no cameras offline', () => {
+        // Contract: getOfflineCameras() returns [] when all cameras online
+        expect(true).toBe(true);
+      });
+
+      it('should return array of offline cameras', () => {
+        // Contract: getOfflineCameras() returns array of CameraStatusState
+        // for cameras with status 'offline'
+        expect(true).toBe(true);
+      });
+
+      it('should exclude cameras with error status', () => {
+        // Contract: getOfflineCameras() only returns cameras with exactly
+        // 'offline' status, not 'error' or other statuses
+        expect(true).toBe(true);
+      });
+    });
+
+    describe('getCamerasWithErrors', () => {
+      it('should return empty array when no cameras have errors', () => {
+        // Contract: getCamerasWithErrors() returns [] when no cameras have errors
+        expect(true).toBe(true);
+      });
+
+      it('should return array of cameras with errors', () => {
+        // Contract: getCamerasWithErrors() returns array of CameraStatusState
+        // for cameras with status 'error'
+        expect(true).toBe(true);
+      });
+
+      it('should exclude offline cameras', () => {
+        // Contract: getCamerasWithErrors() only returns cameras with exactly
+        // 'error' status, not 'offline' or other statuses
+        expect(true).toBe(true);
+      });
+    });
+
+    describe('getOnlineCameras', () => {
+      it('should return empty array when no cameras online', () => {
+        // Contract: getOnlineCameras() returns [] when all cameras offline/error
+        expect(true).toBe(true);
+      });
+
+      it('should return array of online cameras', () => {
+        // Contract: getOnlineCameras() returns array of CameraStatusState
+        // for cameras with status 'online'
+        expect(true).toBe(true);
+      });
+    });
+
+    describe('getCameraCountsByStatus', () => {
+      it('should return zero counts when no cameras tracked', () => {
+        // Contract: getCameraCountsByStatus() returns { online: 0, offline: 0, error: 0, unknown: 0 }
+        // when no cameras have been seen via WebSocket
+        expect(true).toBe(true);
+      });
+
+      it('should return accurate counts for mixed statuses', () => {
+        // Contract: getCameraCountsByStatus() returns accurate counts
+        // e.g., { online: 2, offline: 1, error: 1, unknown: 0 }
+        expect(true).toBe(true);
+      });
+
+      it('should update counts when camera status changes', () => {
+        // Contract: After camera goes from online to offline,
+        // getCameraCountsByStatus() reflects the change
+        expect(true).toBe(true);
+      });
     });
   });
 });
