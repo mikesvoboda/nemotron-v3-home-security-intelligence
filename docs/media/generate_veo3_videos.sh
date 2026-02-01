@@ -20,7 +20,7 @@ if [[ -z "${NVIDIA_API_KEY:-}" && -z "${NVAPIKEY:-}" ]]; then
   echo "Error: NVIDIA_API_KEY or NVAPIKEY environment variable required"
   echo ""
   echo "Set with:"
-  echo "  export NVIDIA_API_KEY='your-key-here'"  # pragma: allowlist secret
+  echo "  export NVIDIA_API_KEY='your-key-here'"
   exit 1
 fi
 
