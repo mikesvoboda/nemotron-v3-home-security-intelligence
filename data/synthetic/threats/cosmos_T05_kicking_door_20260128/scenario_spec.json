@@ -2,7 +2,7 @@
   "id": "cosmos_T05_kicking_door",
   "category": "threats",
   "name": "Kicking Door",
-  "description": "Suburban home front porch at night, viewed from an elevated vantage point. Person repeatedly kicking at the front door, attempting to break it down. Violent forceful kicks, aggressive body language. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "description": "Suburban home front porch at night, viewed from street level. Person attempting to force entry through the front door, applying physical pressure and force against the door. Attempted break-in. Static viewpoint, night footage quality.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",

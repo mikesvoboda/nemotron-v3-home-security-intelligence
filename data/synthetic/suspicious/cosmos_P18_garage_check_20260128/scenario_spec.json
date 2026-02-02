@@ -2,7 +2,7 @@
   "id": "cosmos_P18_garage_check",
   "category": "suspicious",
   "name": "Garage Check",
-  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They pause at the garage door, try the handle, then continue around the house. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distor",
+  "description": "suburban home driveway at dusk, viewed from elevated position on garage. A person in blue hoodie with hood up walks on the driveway near the garage door. Porch and garage lights activated, fading natural light with dusk sky visible.",
   "source": "cosmos",
   "scene": {
     "location": "driveway",

@@ -2,7 +2,7 @@
   "id": "cosmos_P02_lingering",
   "category": "suspicious",
   "name": "Lingering",
-  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They stand near the entrance looking around nervously, checking their phone. Visible fidgeting, head turns to scan surroundings, natural real-time movements. Static downward-angled viewpoint, ",
+  "description": "Suburban home front porch at night, frontal view from elevated position. Person in dark blue hoodie with hood up stands near the entrance, checking their phone. Face partially visible but shadowed. Porch light provides overhead illumination. Two-story house visible in background.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",

@@ -2,7 +2,7 @@
   "id": "cosmos_P22_loiter_zones",
   "category": "suspicious",
   "name": "Loiter Zones",
-  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at dusk. Fading natural light mixed with activated porch lights, long shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They pause in the driveway, look around, walk to the lawn and stop again, then continue. Static elevated viewpoint, wide field of view covering driveway and street approach, slight bar",
+  "description": "suburban home front yard at dusk, viewed from elevated position. A person in blue hoodie stands on the lawn near the driveway, appearing to linger in the area. Garage with activated lights visible in background, fading natural light.",
   "source": "cosmos",
   "scene": {
     "location": "driveway",

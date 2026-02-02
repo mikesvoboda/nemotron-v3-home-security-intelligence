@@ -2,7 +2,7 @@
   "id": "cosmos_P03_window_peering",
   "category": "suspicious",
   "name": "Window Peering",
-  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They approach the door and lean close to peer through the side window, cupping hands around eyes. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge disto",
+  "description": "Suburban home front porch at night, frontal elevated view. A person in dark blue hoodie with hood up approaches the door area. They raise hands to face in a cupping gesture (as if peering). Porch light provides illumination. House and door visible in background.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",
