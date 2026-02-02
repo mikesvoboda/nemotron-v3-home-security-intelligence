@@ -450,8 +450,8 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=SYNTHETIC_DIR / "external",
-        help="Output directory (default: data/synthetic/external)",
+        default=SYNTHETIC_DIR,
+        help="Output directory (default: data/synthetic)",
     )
     parser.add_argument(
         "--max-samples",
