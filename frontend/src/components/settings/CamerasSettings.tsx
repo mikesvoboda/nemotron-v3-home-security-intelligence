@@ -5,7 +5,9 @@ import {
   AlertCircle,
   AlertTriangle,
   Camera as CameraIcon,
+  Clock,
   Edit2,
+  Image,
   MapPin,
   Move,
   Network,
@@ -18,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
+import ConnectionStatusCard from './ConnectionStatusCard';
+import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
 import {
   useCamerasQuery,
   useCameraMutation,
@@ -25,15 +29,7 @@ import {
   useRestoreCameraMutation,
 } from '../../hooks';
 import { useRtspTest } from '../../hooks/useRtspTest';
-import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
-import SceneChangePanel from '../analytics/SceneChangePanel';
-import IconButton from '../common/IconButton';
-import PasswordInput from '../common/PasswordInput';
-import PTZControls from '../ptz/PTZControls';
-import RTSPPreviewPlayer from '../video/RTSPPreviewPlayer';
-import { ZoneEditor } from '../zones';
-import ConnectionStatusCard from './ConnectionStatusCard';
-import ONVIFDiscoveryPanel from './ONVIFDiscoveryPanel';
+import { useSettingsQuery, useUpdateSettings } from '../../hooks/useSettingsApi';
 import {
   cameraFormSchema,
   CAMERA_NAME_CONSTRAINTS,
@@ -43,7 +39,14 @@ import {
   type CameraStatusValue,
   type IngestionModeValue,
 } from '../../schemas/camera';
-import { formatRelativeTime, isTimestampStale } from '../../utils/time';
+import { formatRelativeTime, formatSecondsAsHumanReadable, isTimestampStale } from '../../utils/time';
+import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
+import SceneChangePanel from '../analytics/SceneChangePanel';
+import IconButton from '../common/IconButton';
+import PasswordInput from '../common/PasswordInput';
+import PTZControls from '../ptz/PTZControls';
+import RTSPPreviewPlayer from '../video/RTSPPreviewPlayer';
+import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
 import type { OnvifDevice } from '../../types/onvif';
@@ -133,6 +136,10 @@ export default function CamerasSettings() {
 
   // RTSP connection test hook (NEM-4748)
   const { testConnection } = useRtspTest();
+
+  // Settings API hooks for snapshot cache TTL (NEM-4946)
+  const { settings: globalSettings, isLoading: settingsLoading } = useSettingsQuery();
+  const updateSettingsMutation = useUpdateSettings();
 
   // Clear test results when RTSP URL changes
   useEffect(() => {
@@ -405,6 +412,68 @@ export default function CamerasSettings() {
           <Plus className="h-4 w-4" />
           Add Camera
         </button>
+      </div>
+
+      {/* Snapshot Cache TTL Settings (NEM-4946) */}
+      <div className="rounded-lg border border-gray-800 bg-card p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Image className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold text-text-primary">Snapshot Cache Settings</h3>
+        </div>
+        <p className="text-sm text-text-secondary mb-4">
+          Configure how long extracted camera snapshots are cached. Longer cache times reduce
+          CPU usage but may show older preview images.
+        </p>
+
+        {settingsLoading ? (
+          <div className="h-12 bg-gray-800 animate-pulse rounded-lg"></div>
+        ) : globalSettings?.camera ? (
+          <div data-testid="snapshot-cache-ttl-section">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-text-secondary" />
+                <span className="text-sm text-text-secondary">Cache Duration</span>
+              </div>
+              <span
+                className="text-sm font-medium text-text-primary"
+                data-testid="snapshot-cache-ttl-value"
+              >
+                {formatSecondsAsHumanReadable(globalSettings.camera.snapshot_cache_ttl)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={60}
+              max={86400}
+              step={60}
+              value={globalSettings.camera.snapshot_cache_ttl}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                updateSettingsMutation.mutate({
+                  camera: { snapshot_cache_ttl: value },
+                });
+              }}
+              disabled={updateSettingsMutation.isPending}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Snapshot cache TTL"
+              data-testid="snapshot-cache-ttl-slider"
+            />
+            <div className="flex justify-between mt-1 text-xs text-text-secondary">
+              <span>1 minute</span>
+              <span>24 hours</span>
+            </div>
+            {updateSettingsMutation.isPending && (
+              <p className="text-xs text-primary mt-2">Saving...</p>
+            )}
+            {updateSettingsMutation.isError && (
+              <p className="text-xs text-red-500 mt-2">
+                Failed to save: {updateSettingsMutation.error?.message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-text-secondary">Unable to load cache settings</p>
+        )}
       </div>
 
       {/* Search Bar */}

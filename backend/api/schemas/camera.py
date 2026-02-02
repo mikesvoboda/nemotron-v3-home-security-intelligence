@@ -30,6 +30,7 @@ __all__ = [
     "RTSPCapabilitiesResponse",
     "RTSPTestRequest",
     "RTSPTestResponse",
+    "SnapshotRefreshResponse",
 ]
 
 # Regex pattern for forbidden path characters (beyond path traversal)
@@ -773,4 +774,50 @@ class BaselineConfigUpdate(BaseModel):
     override_global_config: bool | None = Field(
         default=None,
         description="Whether to use per-camera overrides instead of global defaults",
+    )
+
+
+# =============================================================================
+# Snapshot Refresh Schemas (NEM-4947)
+# =============================================================================
+
+
+class SnapshotRefreshResponse(BaseModel):
+    """Response schema for refreshing a camera snapshot.
+
+    NEM-4947: Response from POST /api/cameras/{camera_id}/snapshot/refresh endpoint.
+    Contains metadata about the refreshed snapshot.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "camera_id": "front_door",
+                "snapshot_url": "/api/cameras/front_door/snapshot",
+                "cache_invalidated": True,
+                "snapshot_source": "image_file",
+                "timestamp": "2025-01-15T10:30:00Z",
+            }
+        }
+    )
+
+    camera_id: str = Field(
+        ...,
+        description="ID of the camera whose snapshot was refreshed",
+    )
+    snapshot_url: str = Field(
+        ...,
+        description="URL to access the refreshed snapshot",
+    )
+    cache_invalidated: bool = Field(
+        ...,
+        description="Whether the cached snapshot was invalidated",
+    )
+    snapshot_source: str = Field(
+        ...,
+        description="Source of the snapshot: 'image_file' or 'video_extraction'",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp when the snapshot was refreshed",
     )

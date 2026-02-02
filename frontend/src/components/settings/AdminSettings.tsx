@@ -1,15 +1,19 @@
 /**
  * AdminSettings - Admin tab for Settings page
  *
- * Provides administrative controls organized into 4 collapsible sections:
+ * Provides administrative controls organized into 6 collapsible sections:
  * 1. Feature Toggles - Enable/disable system features
  * 2. System Config - Rate limiting and queue settings
  * 3. Maintenance Actions - Orphan cleanup, cache clear, flush queues
- * 4. Developer Tools - Test data seeding (debug mode only)
+ * 4. Logging Settings - Log level, file settings, DB logging, retention
+ * 5. Raw Settings - Key-value store for advanced configuration (debug mode only)
+ * 6. Developer Tools - Test data seeding (debug mode only)
  *
  * @see NEM-3114 - Phase 1.1: Create AdminSettings.tsx component structure
  * @see NEM-3115 - Phase 1.2: Implement Feature Toggles UI
  * @see NEM-3116 - Phase 1.3: Implement System Config UI
+ * @see NEM-4951 - Raw Settings Key-Value Admin Interface
+ * @see NEM-4952 - Logging Configuration UI
  */
 
 import { Switch } from '@headlessui/react';
@@ -19,6 +23,7 @@ import {
   AlertTriangle,
   Database,
   Eye,
+  FileText,
   Fingerprint,
   Image,
   Loader2,
@@ -34,7 +39,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import LoggingSettings from './LoggingSettings';
 import OrphanCleanupPanel from './OrphanCleanupPanel';
+import RawSettingsPanel from './RawSettingsPanel';
 import { useDebugMode } from '../../contexts/DebugModeContext';
 import {
   useAdminMutations,
@@ -181,10 +188,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   // Settings API integration
   const { settings, isLoading: isLoadingSettings, updateMutation } = useSettingsApi();
 
-  // Section open state (all start expanded except Developer Tools)
+  // Section open state (all start expanded except Developer Tools, Raw Settings, and Logging)
   const [featureTogglesOpen, setFeatureTogglesOpen] = useState(true);
   const [systemConfigOpen, setSystemConfigOpen] = useState(true);
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
+  const [loggingOpen, setLoggingOpen] = useState(false);
+  const [rawSettingsOpen, setRawSettingsOpen] = useState(false);
   const [developerToolsOpen, setDeveloperToolsOpen] = useState(false);
 
   // Confirmation dialog states for maintenance
@@ -763,6 +772,35 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
           </div>
         </div>
       </CollapsibleSection>
+
+      {/* Logging Settings Section */}
+      <CollapsibleSection
+        title="Logging Settings"
+        icon={<FileText className="h-5 w-5 text-cyan-400" />}
+        isOpen={loggingOpen}
+        onToggle={setLoggingOpen}
+        data-testid="admin-logging-settings"
+      >
+        <LoggingSettings />
+      </CollapsibleSection>
+
+      {/* Raw Settings Section - Only visible in debug mode */}
+      {debugMode && (
+        <CollapsibleSection
+          title="Raw Settings"
+          icon={<Database className="h-5 w-5 text-indigo-400" />}
+          isOpen={rawSettingsOpen}
+          onToggle={setRawSettingsOpen}
+          alertBadge={
+            <Badge color="indigo" size="sm" data-testid="raw-settings-badge">
+              Debug Mode Only
+            </Badge>
+          }
+          data-testid="admin-raw-settings"
+        >
+          <RawSettingsPanel />
+        </CollapsibleSection>
+      )}
 
       {/* Developer Tools Section - Only visible in debug mode */}
       {debugMode && (

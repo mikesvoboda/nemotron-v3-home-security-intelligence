@@ -6737,6 +6737,50 @@
         "title": "CameraResponse",
         "type": "object"
       },
+      "CameraSettings": {
+        "description": "Camera-related settings for snapshot caching and camera behavior.\n\nControls camera snapshot caching and other camera-specific configuration.",
+        "example": {
+          "snapshot_cache_ttl": 3600
+        },
+        "properties": {
+          "snapshot_cache_ttl": {
+            "description": "TTL in seconds for cached camera snapshots extracted from videos (60-86400). Cached snapshots are generated from video files when no image files are available. Higher values reduce CPU usage but may show outdated previews.",
+            "maximum": 86400.0,
+            "minimum": 60.0,
+            "title": "Snapshot Cache Ttl",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "snapshot_cache_ttl"
+        ],
+        "title": "CameraSettings",
+        "type": "object"
+      },
+      "CameraSettingsUpdate": {
+        "description": "Camera settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update camera settings.",
+        "example": {
+          "snapshot_cache_ttl": 1800
+        },
+        "properties": {
+          "snapshot_cache_ttl": {
+            "anyOf": [
+              {
+                "maximum": 86400.0,
+                "minimum": 60.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "TTL in seconds for cached camera snapshots extracted from videos (60-86400)",
+            "title": "Snapshot Cache Ttl"
+          }
+        },
+        "title": "CameraSettingsUpdate",
+        "type": "object"
+      },
       "CameraStatus": {
         "description": "Camera status values.\n\nIndicates the operational state of a camera:\n- ONLINE: Camera is active and receiving images\n- OFFLINE: Camera is not currently active (e.g., disconnected)\n- ERROR: Camera is experiencing an error condition\n- UNKNOWN: Camera status cannot be determined",
         "enum": [
@@ -34711,6 +34755,9 @@
             "idle_timeout_seconds": 30,
             "window_seconds": 90
           },
+          "camera": {
+            "snapshot_cache_ttl": 3600
+          },
           "detection": {
             "confidence_threshold": 0.5,
             "fast_path_threshold": 0.9
@@ -34747,6 +34794,10 @@
             "$ref": "#/components/schemas/BatchSettings",
             "description": "Batch processing settings"
           },
+          "camera": {
+            "$ref": "#/components/schemas/CameraSettings",
+            "description": "Camera settings (snapshot caching)"
+          },
           "detection": {
             "$ref": "#/components/schemas/DetectionSettings",
             "description": "Detection confidence threshold settings"
@@ -34779,7 +34830,8 @@
           "features",
           "rate_limiting",
           "queue",
-          "retention"
+          "retention",
+          "camera"
         ],
         "title": "SettingsResponse",
         "type": "object"
@@ -34805,6 +34857,17 @@
               }
             ],
             "description": "Batch processing settings"
+          },
+          "camera": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CameraSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Camera settings (snapshot caching)"
           },
           "detection": {
             "anyOf": [
@@ -35419,6 +35482,53 @@
           "include_historical"
         ],
         "title": "SimilaritySearchResponse",
+        "type": "object"
+      },
+      "SnapshotRefreshResponse": {
+        "description": "Response schema for refreshing a camera snapshot.\n\nNEM-4947: Response from POST /api/cameras/{camera_id}/snapshot/refresh endpoint.\nContains metadata about the refreshed snapshot.",
+        "example": {
+          "cache_invalidated": true,
+          "camera_id": "front_door",
+          "snapshot_source": "image_file",
+          "snapshot_url": "/api/cameras/front_door/snapshot",
+          "timestamp": "2025-01-15T10:30:00Z"
+        },
+        "properties": {
+          "cache_invalidated": {
+            "description": "Whether the cached snapshot was invalidated",
+            "title": "Cache Invalidated",
+            "type": "boolean"
+          },
+          "camera_id": {
+            "description": "ID of the camera whose snapshot was refreshed",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "snapshot_source": {
+            "description": "Source of the snapshot: 'image_file' or 'video_extraction'",
+            "title": "Snapshot Source",
+            "type": "string"
+          },
+          "snapshot_url": {
+            "description": "URL to access the refreshed snapshot",
+            "title": "Snapshot Url",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Timestamp when the snapshot was refreshed",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id",
+          "snapshot_url",
+          "cache_invalidated",
+          "snapshot_source",
+          "timestamp"
+        ],
+        "title": "SnapshotRefreshResponse",
         "type": "object"
       },
       "SourceFilter": {
@@ -46631,6 +46741,55 @@
           }
         },
         "summary": "Get Camera Snapshot",
+        "tags": [
+          "cameras"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/snapshot/refresh": {
+      "post": {
+        "description": "Refresh the snapshot for a camera by invalidating cache and fetching new image.\n\nNEM-4947: This endpoint invalidates any cached snapshot and forces a new\nsnapshot to be generated. For video-only cameras, this extracts a fresh frame\nfrom the most recent video file.\n\nThe response includes metadata about the refreshed snapshot, including:\n- Whether cache was invalidated\n- The source of the snapshot (image file or video extraction)\n- Timestamp of the refresh\n\nArgs:\n    camera_id: ID of the camera to refresh snapshot for\n    db: Database session\n    _rate_limit: Rate limiting dependency\n\nReturns:\n    SnapshotRefreshResponse with metadata about the refreshed snapshot\n\nRaises:\n    HTTPException: 404 if camera not found or no snapshot source available\n    HTTPException: 429 if rate limit exceeded",
+        "operationId": "cameras_refresh_camera_snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotRefreshResponse"
+                }
+              }
+            },
+            "description": "Snapshot refreshed successfully"
+          },
+          "404": {
+            "description": "Camera not found or no snapshot available"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests"
+          }
+        },
+        "summary": "Refresh Camera Snapshot",
         "tags": [
           "cameras"
         ]

@@ -1,54 +1,30 @@
-import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import {
-  AlertTriangle,
-  Bell,
-  Brain,
-  Camera,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  FileText,
-  HardDrive,
-  Settings as SettingsIcon,
-  Shield,
-  Sliders,
-  Users,
-  Wrench,
-} from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
-import { FeatureErrorBoundary, SecureContextWarning } from '../common';
-import AccessControlSettings from './AccessControlSettings';
-import AdminSettings from './AdminSettings';
-import AIModelsTab from './AIModelsTab';
-import AlertRulesSettings from './AlertRulesSettings';
-import AmbientStatusSettings from './AmbientStatusSettings';
-import CalibrationPanel from './CalibrationPanel';
-import CamerasSettings from './CamerasSettings';
-import NotificationSettings from './NotificationSettings';
-import ProcessingSettings from './ProcessingSettings';
-import { PromptManagementPage } from './prompts';
 import { DebugModeProvider } from '../../contexts/DebugModeContext';
-import FileOperationsPanel from '../system/FileOperationsPanel';
+import { FeatureErrorBoundary, SecureContextWarning } from '../common';
+import { settingsTabs } from './settingsTabsConfig';
 
 /**
- * ScrollableTabList component that handles horizontal tab overflow
+ * ScrollableNavList component that handles horizontal nav overflow
  *
  * Features:
- * - Horizontal scrolling when tabs overflow the container
+ * - Horizontal scrolling when nav items overflow the container
  * - Left/right scroll indicators (chevron buttons) when content is clipped
  * - Fade shadows to indicate scrollable content
  * - Keyboard-accessible scroll buttons
  * - Smooth scroll animation
  *
  * @see NEM-3520 - Fix Settings page tab overflow
+ * @see NEM-4938 - Convert to nested sub-routes
  */
-interface ScrollableTabListProps {
+interface ScrollableNavListProps {
   children: React.ReactNode;
 }
 
-function ScrollableTabList({ children }: ScrollableTabListProps) {
+function ScrollableNavList({ children }: ScrollableNavListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -122,14 +98,18 @@ function ScrollableTabList({ children }: ScrollableTabListProps) {
         </>
       )}
 
-      {/* Scrollable tab container */}
+      {/* Scrollable nav container */}
       <div
         ref={scrollContainerRef}
         className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-700 hover:scrollbar-thumb-gray-600 overflow-x-auto"
       >
-        <Tab.List className="flex min-w-max space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
+        <div
+          role="tablist"
+          aria-label="Settings sections"
+          className="flex min-w-max space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1"
+        >
           {children}
-        </Tab.List>
+        </div>
       </div>
 
       {/* Right scroll indicator */}
@@ -157,119 +137,44 @@ function ScrollableTabList({ children }: ScrollableTabListProps) {
 }
 
 /**
- * SettingsPage component with tabbed interface
+ * SettingsPage component with route-based navigation
  *
- * Contains eleven settings tabs:
- * - CAMERAS: Camera configuration and management
- * - RULES: Alert rules configuration
- * - PROCESSING: Event processing settings
- * - NOTIFICATIONS: Email and webhook notification settings
- * - AMBIENT: Ambient status awareness settings
- * - CALIBRATION: AI risk sensitivity and feedback calibration
- * - ACCESS: Household members, vehicles, and zone-based access control
- * - PROMPTS: AI prompt template management and version history
- * - STORAGE: Disk storage usage and file cleanup operations
- * - AI MODELS: Core AI models (RT-DETRv2, Nemotron) and Model Zoo status
- * - ADMIN: Feature toggles, system config, maintenance actions, dev tools
+ * Contains eleven settings sections accessible via nested routes:
+ * - /settings/cameras: Camera configuration and management
+ * - /settings/rules: Alert rules configuration
+ * - /settings/processing: Event processing settings
+ * - /settings/notifications: Email and webhook notification settings
+ * - /settings/ambient: Ambient status awareness settings
+ * - /settings/calibration: AI risk sensitivity and feedback calibration
+ * - /settings/access: Household members, vehicles, and zone-based access control
+ * - /settings/prompts: AI prompt template management and version history
+ * - /settings/storage: Disk storage usage and file cleanup operations
+ * - /settings/ai-models: Core AI models (RT-DETRv2, Nemotron) and Model Zoo status
+ * - /settings/admin: Feature toggles, system config, maintenance actions, dev tools
  *
  * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
  *
  * Features:
- * - Tab navigation with keyboard support (Headless UI)
+ * - Route-based navigation with URL persistence
+ * - NavLink active state styling
  * - NVIDIA dark theme styling
  * - Icons for each settings category
  * - Responsive layout
+ * - Keyboard navigation support
  *
  * @see NEM-2356 - Add CalibrationPanel to Settings page
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
  * @see NEM-3084 - Add AI MODELS tab integrating AIModelsSettings and ModelZooSection
  * @see NEM-3138 - Add ADMIN tab for AdminSettings component
  * @see NEM-3608 - Add ACCESS tab for zone-household access control
+ * @see NEM-4938 - Convert to nested sub-routes
  */
 export default function SettingsPage() {
-  /** Tab descriptions shown on hover via tooltips */
-  const tabDescriptions: Record<string, string> = {
-    cameras: 'Add, remove, and configure security cameras',
-    rules: 'Set up automated alert rules and triggers',
-    processing: 'Configure detection sensitivity and AI models',
-    notifications: 'Email, push, and webhook notification settings',
-    ambient: 'Background noise and environmental settings',
-    calibration: 'Camera calibration and zone configuration',
-    'access-control': 'Manage household members, vehicles, and zone access',
-    prompts: 'Customize AI analysis prompts',
-    storage: 'Media retention and storage management',
-    'ai-models': 'View status and performance of all AI models',
-    admin: 'Feature toggles, system config, and maintenance actions',
-  };
+  const location = useLocation();
 
-  const tabs = [
-    {
-      id: 'cameras',
-      name: 'CAMERAS',
-      icon: Camera,
-      component: CamerasSettings,
-    },
-    {
-      id: 'rules',
-      name: 'RULES',
-      icon: Shield,
-      component: AlertRulesSettings,
-    },
-    {
-      id: 'processing',
-      name: 'PROCESSING',
-      icon: SettingsIcon,
-      component: ProcessingSettings,
-    },
-    {
-      id: 'notifications',
-      name: 'NOTIFICATIONS',
-      icon: Bell,
-      component: NotificationSettings,
-    },
-    {
-      id: 'ambient',
-      name: 'AMBIENT',
-      icon: Eye,
-      component: AmbientStatusSettings,
-    },
-    {
-      id: 'calibration',
-      name: 'CALIBRATION',
-      icon: Sliders,
-      component: CalibrationPanel,
-    },
-    {
-      id: 'access-control',
-      name: 'ACCESS',
-      icon: Users,
-      component: AccessControlSettings,
-    },
-    {
-      id: 'prompts',
-      name: 'PROMPTS',
-      icon: FileText,
-      component: PromptManagementPage,
-    },
-    {
-      id: 'storage',
-      name: 'STORAGE',
-      icon: HardDrive,
-      component: FileOperationsPanel,
-    },
-    {
-      id: 'ai-models',
-      name: 'AI MODELS',
-      icon: Brain,
-      component: AIModelsTab,
-    },
-    {
-      id: 'admin',
-      name: 'ADMIN',
-      icon: Wrench,
-      component: AdminSettings,
-    },
-  ];
+  // Determine the active tab based on current path
+  const activeTabId =
+    settingsTabs.find((tab) => location.pathname === tab.path)?.id ?? 'cameras';
 
   return (
     <DebugModeProvider>
@@ -286,49 +191,48 @@ export default function SettingsPage() {
           {/* Secure Context Warning - shown when not using HTTPS */}
           <SecureContextWarning className="mb-6" />
 
-          {/* Tabs */}
-          <Tab.Group>
-            <ScrollableTabList>
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <Tab
-                    key={tab.id}
-                    title={tabDescriptions[tab.id]}
-                    className={({ selected }) =>
-                      clsx(
-                        'flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                        'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
-                        selected
-                          ? 'bg-[#76B900] text-gray-950 shadow-md'
-                          : 'text-gray-200 hover:bg-gray-800 hover:text-white'
-                      )
-                    }
-                  >
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                    <span>{tab.name}</span>
-                  </Tab>
-                );
-              })}
-            </ScrollableTabList>
+          {/* Navigation Tabs */}
+          <ScrollableNavList>
+            {settingsTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = tab.id === activeTabId;
+              return (
+                <NavLink
+                  key={tab.id}
+                  to={tab.path}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`settings-panel-${tab.id}`}
+                  title={tab.description}
+                  className={clsx(
+                    'flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                    'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                    isActive
+                      ? 'bg-[#76B900] text-gray-950 shadow-md'
+                      : 'text-gray-200 hover:bg-gray-800 hover:text-white'
+                  )}
+                  data-testid={`settings-tab-${tab.id}`}
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span>{tab.name}</span>
+                </NavLink>
+              );
+            })}
+          </ScrollableNavList>
 
-            <Tab.Panels>
-              {tabs.map((tab) => {
-                const Component = tab.component;
-                return (
-                  <Tab.Panel
-                    key={tab.id}
-                    className={clsx(
-                      'rounded-lg border border-gray-800 bg-[#1A1A1A] p-6',
-                      'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]'
-                    )}
-                  >
-                    <Component />
-                  </Tab.Panel>
-                );
-              })}
-            </Tab.Panels>
-          </Tab.Group>
+          {/* Content Panel */}
+          <div
+            id={`settings-panel-${activeTabId}`}
+            role="tabpanel"
+            aria-labelledby={`settings-tab-${activeTabId}`}
+            className={clsx(
+              'rounded-lg border border-gray-800 bg-[#1A1A1A] p-6',
+              'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]'
+            )}
+            data-testid="settings-content-panel"
+          >
+            <Outlet />
+          </div>
         </div>
       </div>
     </DebugModeProvider>

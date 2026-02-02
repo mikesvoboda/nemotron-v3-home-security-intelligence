@@ -14,6 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 __all__ = [
     "BatchSettings",
     "BatchSettingsUpdate",
+    "CameraSettings",
+    "CameraSettingsUpdate",
     "DetectionSettings",
     "DetectionSettingsUpdate",
     "FeatureSettings",
@@ -263,6 +265,30 @@ class RetentionSettings(BaseModel):
     )
 
 
+class CameraSettings(BaseModel):
+    """Camera-related settings for snapshot caching and camera behavior.
+
+    Controls camera snapshot caching and other camera-specific configuration.
+    """
+
+    snapshot_cache_ttl: int = Field(
+        ...,
+        ge=60,
+        le=86400,
+        description="TTL in seconds for cached camera snapshots extracted from videos (60-86400). "
+        "Cached snapshots are generated from video files when no image files are available. "
+        "Higher values reduce CPU usage but may show outdated previews.",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "snapshot_cache_ttl": 3600,
+            }
+        }
+    )
+
+
 class SettingsResponse(BaseModel):
     """Complete settings response with all configurable settings grouped by category.
 
@@ -297,6 +323,10 @@ class SettingsResponse(BaseModel):
     retention: RetentionSettings = Field(
         ...,
         description="Data retention settings",
+    )
+    camera: CameraSettings = Field(
+        ...,
+        description="Camera settings (snapshot caching)",
     )
 
     model_config = ConfigDict(
@@ -335,6 +365,9 @@ class SettingsResponse(BaseModel):
                 "retention": {
                     "days": 30,
                     "log_days": 7,
+                },
+                "camera": {
+                    "snapshot_cache_ttl": 3600,
                 },
             }
         }
@@ -612,6 +645,28 @@ class RetentionSettingsUpdate(BaseModel):
     )
 
 
+class CameraSettingsUpdate(BaseModel):
+    """Camera settings update schema (all fields optional).
+
+    Used for PATCH /api/v1/settings to partially update camera settings.
+    """
+
+    snapshot_cache_ttl: int | None = Field(
+        None,
+        ge=60,
+        le=86400,
+        description="TTL in seconds for cached camera snapshots extracted from videos (60-86400)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "snapshot_cache_ttl": 1800,
+            }
+        }
+    )
+
+
 class SettingsUpdate(BaseModel):
     """Schema for updating runtime settings via PATCH.
 
@@ -647,6 +702,10 @@ class SettingsUpdate(BaseModel):
     retention: RetentionSettingsUpdate | None = Field(
         None,
         description="Data retention settings",
+    )
+    camera: CameraSettingsUpdate | None = Field(
+        None,
+        description="Camera settings (snapshot caching)",
     )
 
     model_config = ConfigDict(
