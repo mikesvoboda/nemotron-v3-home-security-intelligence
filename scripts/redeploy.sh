@@ -1133,20 +1133,20 @@ check_prerequisites() {
     fi
     print_success "Found compose files"
 
-    # Check .env file exists, run setup.sh if missing
+    # Check .env file exists, run setup.py --defaults if missing
     print_step "Checking environment file..."
     if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        print_warn ".env file not found - running setup.sh to generate it"
-        if [ -f "$PROJECT_ROOT/setup.sh" ]; then
-            print_step "Running setup.sh..."
-            if (cd "$PROJECT_ROOT" && ./setup.sh); then
-                print_success "Generated .env via setup.sh"
+        print_warn ".env file not found - running setup.py --defaults to generate it"
+        if [ -f "$PROJECT_ROOT/setup.py" ]; then
+            print_step "Running setup.py --defaults (non-interactive)..."
+            if (cd "$PROJECT_ROOT" && python3 setup.py --defaults); then
+                print_success "Generated .env via setup.py"
             else
-                print_fail "setup.sh failed - please run manually"
+                print_fail "setup.py --defaults failed - please run setup.py manually"
                 return 2
             fi
         else
-            print_fail "setup.sh not found - cannot generate .env"
+            print_fail "setup.py not found - cannot generate .env"
             return 2
         fi
     else
@@ -1265,22 +1265,33 @@ check_ci_build_status() {
 }
 
 update_to_latest_main() {
-    print_header "Updating to Latest origin/main"
+    print_header "Checking Git State"
 
     cd "$PROJECT_ROOT"
 
     # Check if we're in a git repository
     if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-        print_warn "Not a git repository - skipping git pull"
+        print_warn "Not a git repository - skipping git operations"
         return 0
     fi
 
-    # Save current branch/commit for reference
+    # Get current branch/commit for reference
     local current_branch
     current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
     local current_commit
     current_commit=$(git rev-parse --short HEAD 2>/dev/null)
     print_info "Current: $current_branch ($current_commit)"
+
+    # Only sync to origin/main if we're on the main branch
+    # Feature branches are preserved as-is to respect local development state
+    if [ "$current_branch" != "main" ]; then
+        print_info "On branch '$current_branch' - preserving local state"
+        print_success "Deploying from current branch state"
+        return 0
+    fi
+
+    # On main branch - sync to origin/main
+    print_step "On main branch - syncing to origin/main..."
 
     # Fetch latest from origin
     print_step "Fetching from origin..."
@@ -1316,17 +1327,12 @@ update_to_latest_main() {
 
     # Reset to origin/main
     print_step "Resetting to origin/main..."
-    if run_cmd git checkout main 2>/dev/null || run_cmd git checkout -b main origin/main 2>/dev/null; then
-        if run_cmd git reset --hard origin/main; then
-            local new_commit
-            new_commit=$(git rev-parse --short HEAD)
-            print_success "Updated to origin/main ($new_commit)"
-        else
-            print_fail "Failed to reset to origin/main"
-            return 1
-        fi
+    if run_cmd git reset --hard origin/main; then
+        local new_commit
+        new_commit=$(git rev-parse --short HEAD)
+        print_success "Updated to origin/main ($new_commit)"
     else
-        print_fail "Failed to checkout main branch"
+        print_fail "Failed to reset to origin/main"
         return 1
     fi
 
