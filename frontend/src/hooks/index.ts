@@ -1026,3 +1026,10 @@ export type {
   UseEnrichmentProgressOptions,
   UseEnrichmentProgressReturn,
 } from './useEnrichmentProgress';
+
+// Threat detection hook (NEM-5024)
+export { useThreatDetection } from './useThreatDetection';
+export type {
+  UseThreatDetectionOptions,
+  UseThreatDetectionReturn,
+} from './useThreatDetection';

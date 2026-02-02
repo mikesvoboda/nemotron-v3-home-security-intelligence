@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
+import ActionEventsPanel from './ActionEventsPanel';
 import ConfidenceIndicators from './ConfidenceIndicators';
 import EnrichmentPanel from './EnrichmentPanel';
 import EntityTrackingPanel from './EntityTrackingPanel';
@@ -984,6 +985,18 @@ export default function EventDetailModal({
                                 className="mb-3"
                               />
                             ))}
+                        </div>
+                      )}
+
+                      {/* Action Recognition Events (X-CLIP) - NEM-5024 Phase 7 */}
+                      {!isNaN(eventIdNumber) && event.camera_id && (
+                        <div className="mb-6" data-testid="action-events-section">
+                          <ActionEventsPanel
+                            eventId={eventIdNumber}
+                            cameraId={event.camera_id}
+                            startTime={event.started_at || event.timestamp}
+                            endTime={event.ended_at}
+                          />
                         </div>
                       )}
 

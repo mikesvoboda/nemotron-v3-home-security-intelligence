@@ -454,3 +454,31 @@ export {
   getQualityLabel,
   getConfidenceLevel,
 } from './plateRead';
+
+// ============================================================================
+// Threat Detection Types (NEM-5024)
+// ============================================================================
+
+export type {
+  ThreatType,
+  ThreatSeverity,
+  ThreatDetection,
+  ThreatSummary,
+  ThreatSeverityConfig,
+} from './threat';
+
+export {
+  THREAT_TYPES,
+  THREAT_SEVERITIES,
+  THREAT_SEVERITY_CONFIG,
+  THREAT_TYPE_LABELS,
+  SEVERITY_ORDER,
+  getThreatTypeLabel,
+  isThreatType,
+  isThreatSeverity,
+  isThreatDetection,
+  compareSeverity,
+  getMaxSeverity,
+  createEmptyThreatSummary,
+  createThreatSummary,
+} from './threat';

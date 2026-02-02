@@ -363,6 +363,12 @@ from .websocket import (
     get_event_registry_response,
 )
 from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
+from .zone_activity_heatmap import (
+    HeatmapDataPoint,
+    HeatmapTimeRange,
+    HourlyActivity,
+    ZoneActivityHeatmapResponse,
+)
 from .zone_household import (
     AccessSchedule,
     TrustCheckResponse,
@@ -656,6 +662,11 @@ __all__ = [  # noqa: RUF022
     "WebSocketSubscribeMessage",
     "WebSocketUnsubscribeMessage",
     "ZoneCreate",
+    # Zone activity heatmap schemas (NEM-5024)
+    "HeatmapDataPoint",
+    "HeatmapTimeRange",
+    "HourlyActivity",
+    "ZoneActivityHeatmapResponse",
     "ZoneHouseholdConfigCreate",
     "ZoneHouseholdConfigResponse",
     "ZoneHouseholdConfigUpdate",

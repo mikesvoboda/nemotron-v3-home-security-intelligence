@@ -7,6 +7,21 @@ import * as api from '../../services/api';
 // Mock the API module
 vi.mock('../../services/api');
 
+// Mock the useToast hook
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+  loading: vi.fn(),
+  dismiss: vi.fn(),
+  promise: vi.fn(),
+};
+
+vi.mock('../../hooks/useToast', () => ({
+  useToast: () => mockToast,
+}));
+
 describe('DlqMonitor', () => {
   const mockStats: api.DLQStatsResponse = {
     detection_queue_count: 2,
@@ -81,6 +96,10 @@ describe('DlqMonitor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear toast mocks
+    mockToast.success.mockClear();
+    mockToast.error.mockClear();
+    mockToast.warning.mockClear();
     // Default mocks
     vi.mocked(api.fetchDlqStats).mockResolvedValue(mockStats);
     vi.mocked(api.fetchDlqJobs).mockImplementation((queueName) => {
@@ -341,7 +360,7 @@ describe('DlqMonitor', () => {
       });
     });
 
-    it('shows success message after requeue', async () => {
+    it('shows success toast after requeue', async () => {
       render(<DlqMonitor refreshInterval={0} />);
 
       await waitFor(() => {
@@ -359,11 +378,11 @@ describe('DlqMonitor', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Requeued 2 jobs')).toBeInTheDocument();
+        expect(mockToast.success).toHaveBeenCalledWith('Requeued 2 jobs', expect.any(Object));
       });
     });
 
-    it('shows error message when requeue fails', async () => {
+    it('shows error toast when requeue fails', async () => {
       vi.mocked(api.requeueAllDlqJobs).mockRejectedValue(new Error('Requeue failed'));
 
       render(<DlqMonitor refreshInterval={0} />);
@@ -383,7 +402,9 @@ describe('DlqMonitor', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Requeue failed')).toBeInTheDocument();
+        expect(mockToast.error).toHaveBeenCalledWith('Failed to requeue jobs', {
+          description: 'Requeue failed',
+        });
       });
     });
   });
@@ -430,7 +451,7 @@ describe('DlqMonitor', () => {
       });
     });
 
-    it('shows success message after clear', async () => {
+    it('shows success toast after clear', async () => {
       render(<DlqMonitor refreshInterval={0} />);
 
       await waitFor(() => {
@@ -448,11 +469,14 @@ describe('DlqMonitor', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Cleared 2 jobs from dlq:detection_queue')).toBeInTheDocument();
+        expect(mockToast.success).toHaveBeenCalledWith(
+          'Cleared 2 jobs from dlq:detection_queue',
+          expect.any(Object)
+        );
       });
     });
 
-    it('shows error message when clear fails', async () => {
+    it('shows error toast when clear fails', async () => {
       vi.mocked(api.clearDlq).mockRejectedValue(new Error('Clear failed'));
 
       render(<DlqMonitor refreshInterval={0} />);
@@ -472,7 +496,9 @@ describe('DlqMonitor', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Clear failed')).toBeInTheDocument();
+        expect(mockToast.error).toHaveBeenCalledWith('Failed to clear queue', {
+          description: 'Clear failed',
+        });
       });
     });
   });

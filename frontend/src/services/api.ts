@@ -139,6 +139,11 @@ import type {
   DetectionBulkUpdateItem,
 } from '../types/bulk';
 import type {
+  CostAnalyticsResponse,
+  CostTrendParams,
+  CostTrendResponse,
+} from '../types/costAnalytics';
+import type {
   ExportJob,
   ExportJobCreateParams,
   ExportJobStartResponse,
@@ -8800,4 +8805,192 @@ export async function fetchLogs(
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/logs?${queryString}` : '/api/logs';
   return fetchApi<LogsListResponse>(endpoint, options);
+}
+
+// ============================================================================
+// Re-ID Similarity Search API (NEM-5024)
+// ============================================================================
+
+/**
+ * Match result from Re-ID similarity search.
+ * Represents an entity that matches a query embedding.
+ */
+export interface ReidSimilarityMatch {
+  /** Entity or detection ID */
+  entity_id: string;
+  /** Type of entity: 'person' or 'vehicle' */
+  entity_type: string;
+  /** Camera ID where entity was detected */
+  camera_id: string;
+  /** When the entity was detected */
+  timestamp: string;
+  /** Detection ID if available */
+  detection_id: string | null;
+  /** Cosine similarity score (0-1) */
+  similarity: number;
+  /** Time difference in seconds from query timestamp */
+  time_gap_seconds: number;
+  /** Data source: 'redis' (hot cache) or 'postgresql' (historical) */
+  source: string;
+  /** URL to thumbnail image */
+  thumbnail_url: string | null;
+  /** Additional attributes from the detection */
+  attributes: Record<string, unknown>;
+}
+
+/**
+ * Response from Re-ID similarity search.
+ */
+export interface ReidSimilarityResponse {
+  /** List of matching entities sorted by similarity (highest first) */
+  matches: ReidSimilarityMatch[];
+  /** Total number of matches found */
+  total_matches: number;
+  /** Similarity threshold used for the search */
+  threshold: number;
+  /** Entity type that was searched */
+  entity_type: string;
+  /** Whether historical (PostgreSQL) data was included */
+  include_historical: boolean;
+}
+
+/**
+ * Query parameters for Re-ID similarity search by detection ID.
+ */
+export interface ReidSimilarQueryParams {
+  /** Type of entity to search for */
+  entity_type?: 'person' | 'vehicle';
+  /** Minimum cosine similarity threshold (0-1) */
+  threshold?: number;
+  /** Maximum number of results */
+  limit?: number;
+  /** Include historical PostgreSQL data */
+  include_historical?: boolean;
+}
+
+/**
+ * Find similar entities by detection ID.
+ *
+ * Retrieves the embedding for the specified detection and searches for
+ * similar entities across Redis (hot cache) and PostgreSQL (historical data).
+ *
+ * @param detectionId - Detection ID to find similar entities for
+ * @param params - Optional query parameters for filtering
+ * @param options - Optional fetch options including AbortSignal
+ * @returns ReidSimilarityResponse with matching entities, or null if not found
+ *
+ * @example
+ * ```typescript
+ * // Find similar persons to a detection
+ * const similar = await fetchReidSimilar('det-123', {
+ *   entity_type: 'person',
+ *   threshold: 0.85,
+ *   limit: 10
+ * });
+ * if (similar) {
+ *   console.log(`Found ${similar.total_matches} similar entities`);
+ *   similar.matches.forEach(m => {
+ *     console.log(`${m.entity_id}: ${(m.similarity * 100).toFixed(1)}% match`);
+ *   });
+ * }
+ * ```
+ */
+export async function fetchReidSimilar(
+  detectionId: string,
+  params?: ReidSimilarQueryParams,
+  options?: FetchOptions
+): Promise<ReidSimilarityResponse | null> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.entity_type) queryParams.append('entity_type', params.entity_type);
+    if (params.threshold !== undefined) queryParams.append('threshold', String(params.threshold));
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.include_historical !== undefined) {
+      queryParams.append('include_historical', String(params.include_historical));
+    }
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/reid/similar/${encodeURIComponent(detectionId)}?${queryString}`
+    : `/api/reid/similar/${encodeURIComponent(detectionId)}`;
+
+  try {
+    return await fetchApi<ReidSimilarityResponse>(endpoint, options);
+  } catch (error) {
+    // Return null for 404 (no embedding exists) - this is expected behavior
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+// ============================================================================
+// Cost Analytics API (NEM-5024)
+// ============================================================================
+
+
+// Re-export cost analytics types for consumers of this module
+export type {
+  CostAnalyticsResponse,
+  CostTrendResponse,
+  CostTrendParams,
+  DailyCostEntry,
+  BudgetUtilization,
+  TokenUsageMetrics,
+  ModelCostBreakdown,
+  CostEfficiencyMetrics,
+  PricingConfig,
+  CostTrendDataPoint,
+} from '../types/costAnalytics';
+
+/**
+ * Fetch comprehensive cost analytics data.
+ *
+ * Returns cost metrics including today's summary, budget utilization,
+ * token usage, cost breakdowns by model, efficiency metrics, and
+ * historical cost data.
+ *
+ * Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
+ *
+ * @returns CostAnalyticsResponse with all cost metrics
+ *
+ * @example
+ * ```typescript
+ * const analytics = await fetchCostAnalytics();
+ * console.log(`Today's cost: $${analytics.today.total_cost_usd.toFixed(4)}`);
+ * console.log(`Monthly budget: ${(analytics.monthly_budget.utilization_ratio * 100).toFixed(1)}% used`);
+ * ```
+ */
+export async function fetchCostAnalytics(): Promise<CostAnalyticsResponse> {
+  return fetchApi<CostAnalyticsResponse>('/api/analytics/costs');
+}
+
+/**
+ * Fetch cost trend data for a date range.
+ *
+ * Returns daily cost totals for the specified date range,
+ * suitable for trend visualization in charts.
+ *
+ * Part of NEM-5024 Phase 2: Cost Analytics Dashboard.
+ *
+ * @param params - Date range parameters
+ * @returns CostTrendResponse with daily cost data points
+ *
+ * @example
+ * ```typescript
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const trends = await fetchCostTrends({ start_date: startDate, end_date: endDate });
+ * console.log(`Total cost over period: $${trends.total_cost_usd.toFixed(4)}`);
+ * ```
+ */
+export async function fetchCostTrends(params: CostTrendParams): Promise<CostTrendResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<CostTrendResponse>(`/api/analytics/costs/trends?${searchParams.toString()}`);
 }

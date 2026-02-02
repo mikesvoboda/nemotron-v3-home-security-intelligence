@@ -1637,6 +1637,46 @@ export interface paths {
         patch: operations["analytics-zones_update_polygon_zone"];
         trace?: never;
     };
+    "/api/analytics-zones/polygon-zones/{zone_id}/activity-heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get activity heatmap data for a polygon zone
+         * @description Get activity heatmap data for a polygon zone.
+         *
+         *     Returns activity patterns aggregated by hour and day of week,
+         *     suitable for rendering a visual heatmap showing when the zone
+         *     is most active.
+         *
+         *     The heatmap data includes:
+         *     - Weekly data: Activity counts for each hour/day combination (24 hours x 7 days)
+         *     - Hourly data: Today's activity by hour
+         *     - Total activity count in the time range
+         *
+         *     Args:
+         *         zone_id: ID of the polygon zone.
+         *         db: Database session.
+         *         time_range: Time range for aggregation (default: 7 days).
+         *
+         *     Returns:
+         *         ZoneActivityHeatmapResponse with heatmap data points.
+         *
+         *     Raises:
+         *         HTTPException: 404 if polygon zone not found.
+         */
+        get: operations["analytics-zones_get_zone_activity_heatmap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics-zones/polygon-zones/{zone_id}/approach-vectors": {
         parameters: {
             query?: never;
@@ -1962,6 +2002,68 @@ export interface paths {
          *         HTTPException: 400 if start_date is after end_date or range exceeds limit
          */
         get: operations["analytics_get_camera_uptime"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cost Analytics
+         * @description Get comprehensive cost analytics data.
+         *
+         *     Returns cost metrics including:
+         *     - Today's cost summary
+         *     - Daily and monthly budget utilization
+         *     - Token usage metrics
+         *     - Cost breakdown by model
+         *     - Cost efficiency metrics
+         *     - Historical cost data (last 30 days)
+         *     - Pricing configuration
+         *
+         *     Returns:
+         *         CostAnalyticsResponse with all cost metrics
+         */
+        get: operations["cost-analytics_get_cost_analytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/costs/trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cost Trends
+         * @description Get cost trends over a date range.
+         *
+         *     Returns daily cost totals for the specified date range,
+         *     suitable for trend visualization.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *
+         *     Returns:
+         *         CostTrendResponse with daily cost data points
+         */
+        get: operations["cost-analytics_get_cost_trends"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7407,6 +7509,78 @@ export interface paths {
          *         HTTPException: 500 if embedding extraction fails
          */
         post: operations["face-recognition_enroll_from_detection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/llm-reasoning/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Llm Reasoning
+         * @description Get LLM reasoning data for a specific event.
+         *
+         *     Returns the full LLM interaction record including:
+         *     - Parsed <think> blocks with reasoning steps
+         *     - Enrichment sources that contributed to analysis
+         *     - Truncation information (what context was dropped)
+         *     - Household matches with similarity scores
+         *     - Debug information for prompt inspection (when enabled)
+         *
+         *     Args:
+         *         event_id: The event ID to fetch reasoning for
+         *         include_debug: Whether to include debug information
+         *         db: Database session
+         *
+         *     Returns:
+         *         LLMReasoningResponse with full reasoning data
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or LLM reasoning not found
+         */
+        get: operations["llm-reasoning_get_llm_reasoning"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/llm-reasoning/events/{event_id}/prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Llm Prompt Debug
+         * @description Get the full prompt data for debugging (debug mode endpoint).
+         *
+         *     Returns the complete enrichment snapshot and context that was sent
+         *     to the LLM for analysis. Use this for debugging prompt construction
+         *     and understanding what data was available.
+         *
+         *     Args:
+         *         event_id: The event ID to fetch prompt data for
+         *         db: Database session
+         *
+         *     Returns:
+         *         Dictionary containing full enrichment snapshot and context sources
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or LLM reasoning not found
+         */
+        get: operations["llm-reasoning_get_llm_prompt_debug"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -15854,6 +16028,56 @@ export interface components {
             threshold: number;
         };
         /**
+         * BudgetUtilization
+         * @description Budget utilization metrics.
+         * @example {
+         *       "exceeded": false,
+         *       "limit_usd": 1,
+         *       "period": "daily",
+         *       "remaining_usd": 0.25,
+         *       "used_usd": 0.75,
+         *       "utilization_ratio": 0.75,
+         *       "warning_reached": false
+         *     }
+         */
+        BudgetUtilization: {
+            /**
+             * Exceeded
+             * @description Whether budget has been exceeded
+             */
+            exceeded: boolean;
+            /**
+             * Limit Usd
+             * @description Budget limit in USD
+             */
+            limit_usd: number;
+            /**
+             * Period
+             * @description Budget period: 'daily' or 'monthly'
+             */
+            period: string;
+            /**
+             * Remaining Usd
+             * @description Amount remaining in USD
+             */
+            remaining_usd: number;
+            /**
+             * Used Usd
+             * @description Amount used in USD
+             */
+            used_usd: number;
+            /**
+             * Utilization Ratio
+             * @description Utilization ratio (0.0 to 1.0+)
+             */
+            utilization_ratio: number;
+            /**
+             * Warning Reached
+             * @description Whether warning threshold reached
+             */
+            warning_reached: boolean;
+        };
+        /**
          * BulkCancelError
          * @description Error details for a single job in bulk cancellation.
          * @example {
@@ -17882,6 +18106,189 @@ export interface components {
          */
         ContainerServiceStatus: "running" | "starting" | "unhealthy" | "stopped" | "disabled" | "not_found";
         /**
+         * CostAnalyticsResponse
+         * @description Full cost analytics response.
+         * @example {
+         *       "cost_by_model": [
+         *         {
+         *           "cost_usd": 0.0234,
+         *           "gpu_seconds": 125.5,
+         *           "model": "nemotron",
+         *           "request_count": 42
+         *         }
+         *       ],
+         *       "cost_history": [],
+         *       "daily_budget": {
+         *         "exceeded": false,
+         *         "limit_usd": 1,
+         *         "period": "daily",
+         *         "remaining_usd": 0.9477,
+         *         "used_usd": 0.0523,
+         *         "utilization_ratio": 0.0523,
+         *         "warning_reached": false
+         *       },
+         *       "efficiency": {
+         *         "cost_per_detection_usd": 0.00002,
+         *         "cost_per_event_usd": 0.0021,
+         *         "total_detections": 15000,
+         *         "total_events": 250
+         *       },
+         *       "last_updated": "2026-01-31T12:00:00Z",
+         *       "monthly_budget": {
+         *         "exceeded": false,
+         *         "limit_usd": 25,
+         *         "period": "monthly",
+         *         "remaining_usd": 23.431,
+         *         "used_usd": 1.569,
+         *         "utilization_ratio": 0.06276,
+         *         "warning_reached": false
+         *       },
+         *       "pricing": {
+         *         "detection_cost_per_image": 0.00002,
+         *         "enrichment_cost_per_operation": 0.00001,
+         *         "gpu_cost_per_second": 0.000139,
+         *         "input_cost_per_1k_tokens": 0.003,
+         *         "output_cost_per_1k_tokens": 0.006
+         *       },
+         *       "today": {
+         *         "date": "2026-01-31",
+         *         "detection_count": 150,
+         *         "event_count": 25,
+         *         "gpu_cost_usd": 0.0208,
+         *         "token_cost_usd": 0.0315,
+         *         "total_cost_usd": 0.0523
+         *       },
+         *       "token_usage": {
+         *         "input_tokens": 15000,
+         *         "output_tokens": 5000,
+         *         "token_cost_usd": 0.075,
+         *         "total_tokens": 20000
+         *       }
+         *     }
+         */
+        CostAnalyticsResponse: {
+            /**
+             * Cost By Model
+             * @description Cost breakdown by model
+             */
+            cost_by_model: components["schemas"]["ModelCostBreakdown"][];
+            /**
+             * Cost History
+             * @description Daily cost history (last 30 days)
+             */
+            cost_history: components["schemas"]["DailyCostEntry"][];
+            /** @description Daily budget utilization */
+            daily_budget: components["schemas"]["BudgetUtilization"];
+            /** @description Cost efficiency metrics */
+            efficiency: components["schemas"]["CostEfficiencyMetrics"];
+            /**
+             * Last Updated
+             * @description ISO timestamp of last update
+             */
+            last_updated: string;
+            /** @description Monthly budget utilization */
+            monthly_budget: components["schemas"]["BudgetUtilization"];
+            /** @description Current pricing configuration */
+            pricing: components["schemas"]["PricingConfig"];
+            /** @description Today's cost summary */
+            today: components["schemas"]["DailyCostEntry"];
+            /** @description Token usage metrics */
+            token_usage: components["schemas"]["TokenUsageMetrics"];
+        };
+        /**
+         * CostEfficiencyMetrics
+         * @description Cost efficiency metrics.
+         * @example {
+         *       "cost_per_detection_usd": 0.00002,
+         *       "cost_per_event_usd": 0.0021,
+         *       "total_detections": 15000,
+         *       "total_events": 250
+         *     }
+         */
+        CostEfficiencyMetrics: {
+            /**
+             * Cost Per Detection Usd
+             * @description Average cost per detection in USD
+             */
+            cost_per_detection_usd: number;
+            /**
+             * Cost Per Event Usd
+             * @description Average cost per event in USD
+             */
+            cost_per_event_usd: number;
+            /**
+             * Total Detections
+             * @description Total detections processed
+             */
+            total_detections: number;
+            /**
+             * Total Events
+             * @description Total security events analyzed
+             */
+            total_events: number;
+        };
+        /**
+         * CostTrendDataPoint
+         * @description Data point for cost trend charts.
+         * @example {
+         *       "cost_usd": 0.0523,
+         *       "date": "2026-01-31"
+         *     }
+         */
+        CostTrendDataPoint: {
+            /**
+             * Cost Usd
+             * @description Total cost for the period
+             */
+            cost_usd: number;
+            /**
+             * Date
+             * @description Date in YYYY-MM-DD format
+             */
+            date: string;
+        };
+        /**
+         * CostTrendResponse
+         * @description Response for cost trend endpoint.
+         * @example {
+         *       "data_points": [
+         *         {
+         *           "cost_usd": 0.045,
+         *           "date": "2026-01-25"
+         *         },
+         *         {
+         *           "cost_usd": 0.052,
+         *           "date": "2026-01-26"
+         *         }
+         *       ],
+         *       "end_date": "2026-01-26",
+         *       "start_date": "2026-01-25",
+         *       "total_cost_usd": 0.097
+         *     }
+         */
+        CostTrendResponse: {
+            /**
+             * Data Points
+             * @description Cost trend data points
+             */
+            data_points: components["schemas"]["CostTrendDataPoint"][];
+            /**
+             * End Date
+             * @description End date of the trend
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * @description Start date of the trend
+             */
+            start_date: string;
+            /**
+             * Total Cost Usd
+             * @description Total cost over the period
+             */
+            total_cost_usd: number;
+        };
+        /**
          * CrossingTrendDataPoint
          * @description Single data point in crossing trends time series.
          *
@@ -18446,6 +18853,50 @@ export interface components {
             model_contributions?: {
                 [key: string]: number;
             };
+        };
+        /**
+         * DailyCostEntry
+         * @description Cost data for a single day.
+         * @example {
+         *       "date": "2026-01-31",
+         *       "detection_count": 150,
+         *       "event_count": 25,
+         *       "gpu_cost_usd": 0.0208,
+         *       "token_cost_usd": 0.0315,
+         *       "total_cost_usd": 0.0523
+         *     }
+         */
+        DailyCostEntry: {
+            /**
+             * Date
+             * @description Date in YYYY-MM-DD format
+             */
+            date: string;
+            /**
+             * Detection Count
+             * @description Number of detections processed
+             */
+            detection_count: number;
+            /**
+             * Event Count
+             * @description Number of security events analyzed
+             */
+            event_count: number;
+            /**
+             * Gpu Cost Usd
+             * @description GPU time cost
+             */
+            gpu_cost_usd: number;
+            /**
+             * Token Cost Usd
+             * @description Token-related cost
+             */
+            token_cost_usd: number;
+            /**
+             * Total Cost Usd
+             * @description Total estimated cost for the day
+             */
+            total_cost_usd: number;
         };
         /**
          * DailyPattern
@@ -20011,6 +20462,43 @@ export interface components {
             weather?: components["schemas"]["WeatherEnrichment"] | {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * EnrichmentSource
+         * @description Source of enrichment data that was used in analysis.
+         * @example {
+         *       "field_count": 5,
+         *       "name": "florence",
+         *       "populated": true,
+         *       "sample_fields": [
+         *         "scene_description",
+         *         "detected_objects",
+         *         "activities"
+         *       ]
+         *     }
+         */
+        EnrichmentSource: {
+            /**
+             * Field Count
+             * @description Number of fields populated by this source
+             * @default 0
+             */
+            field_count: number;
+            /**
+             * Name
+             * @description Name of the enrichment source/model
+             */
+            name: string;
+            /**
+             * Populated
+             * @description Whether this source provided data
+             */
+            populated: boolean;
+            /**
+             * Sample Fields
+             * @description Sample field names from this source
+             */
+            sample_fields?: string[];
         };
         /**
          * EnrichmentStatusEnum
@@ -25711,6 +26199,39 @@ export interface components {
             timestamp: string;
         };
         /**
+         * HeatmapDataPoint
+         * @description A single data point in the activity heatmap.
+         *
+         *     Represents activity count for a specific hour and day of week combination.
+         *
+         *     Attributes:
+         *         hour: Hour of day (0-23)
+         *         day_of_week: Day of week (0=Sunday, 6=Saturday)
+         *         value: Activity count/intensity for this time slot
+         * @example {
+         *       "day_of_week": 1,
+         *       "hour": 14,
+         *       "value": 12
+         *     }
+         */
+        HeatmapDataPoint: {
+            /**
+             * Day Of Week
+             * @description Day of week (0=Sunday, 6=Saturday)
+             */
+            day_of_week: number;
+            /**
+             * Hour
+             * @description Hour of day (0-23)
+             */
+            hour: number;
+            /**
+             * Value
+             * @description Activity count for this time slot
+             */
+            value: number;
+        };
+        /**
          * HeatmapListResponse
          * @description Response containing a list of heatmap metadata records.
          *
@@ -25952,6 +26473,12 @@ export interface components {
             total_detections: number;
         };
         /**
+         * HeatmapTimeRange
+         * @description Time range options for heatmap data aggregation.
+         * @enum {string}
+         */
+        HeatmapTimeRange: "1h" | "6h" | "24h" | "7d" | "30d";
+        /**
          * HostMetrics
          * @description Host system metrics from psutil.
          * @example {
@@ -26000,6 +26527,30 @@ export interface components {
              * @description RAM used in GB
              */
             ram_used_gb: number;
+        };
+        /**
+         * HourlyActivity
+         * @description Hourly activity data for today's summary.
+         *
+         *     Attributes:
+         *         hour: Hour of day (0-23)
+         *         count: Number of activity events during this hour
+         * @example {
+         *       "count": 15,
+         *       "hour": 9
+         *     }
+         */
+        HourlyActivity: {
+            /**
+             * Count
+             * @description Activity count for this hour
+             */
+            count: number;
+            /**
+             * Hour
+             * @description Hour of day (0-23)
+             */
+            hour: number;
         };
         /**
          * HourlyPattern
@@ -26071,6 +26622,38 @@ export interface components {
              * @description Total number of households
              */
             total: number;
+        };
+        /**
+         * HouseholdMatch
+         * @description A matched household member from the analysis.
+         * @example {
+         *       "entity_name": "John Doe",
+         *       "entity_type": "person",
+         *       "match_method": "face_recognition",
+         *       "similarity_score": 0.92
+         *     }
+         */
+        HouseholdMatch: {
+            /**
+             * Entity Name
+             * @description Name of matched entity if available
+             */
+            entity_name?: string | null;
+            /**
+             * Entity Type
+             * @description Type of entity (person, vehicle, pet)
+             */
+            entity_type: string;
+            /**
+             * Match Method
+             * @description Method used for matching
+             */
+            match_method?: string | null;
+            /**
+             * Similarity Score
+             * @description Similarity score (0-1)
+             */
+            similarity_score: number;
         };
         /**
          * HouseholdMatchResponse
@@ -27574,6 +28157,111 @@ export interface components {
             notes?: string | null;
         };
         /**
+         * LLMReasoningNotFoundResponse
+         * @description Response when no LLM reasoning data is available for an event.
+         * @example {
+         *       "event_id": 456,
+         *       "message": "No LLM reasoning data available for this event",
+         *       "reason": "Event was processed before LLM interaction tracking was enabled"
+         *     }
+         */
+        LLMReasoningNotFoundResponse: {
+            /**
+             * Event Id
+             * @description The event ID that was queried
+             */
+            event_id: number;
+            /**
+             * Message
+             * @description Human-readable message
+             */
+            message: string;
+            /**
+             * Reason
+             * @description Reason why reasoning data is not available
+             */
+            reason?: string | null;
+        };
+        /**
+         * LLMReasoningResponse
+         * @description Full LLM reasoning explorer response for an event.
+         * @example {
+         *       "created_at": "2026-01-15T10:30:00Z",
+         *       "debug_info": {
+         *         "enrichment_snapshot_keys": [
+         *           "florence",
+         *           "clip",
+         *           "weather"
+         *         ],
+         *         "prompt_length": 2048
+         *       },
+         *       "enrichment_sources": [
+         *         {
+         *           "field_count": 5,
+         *           "name": "florence",
+         *           "populated": true
+         *         }
+         *       ],
+         *       "event_id": 456,
+         *       "household_matches": [],
+         *       "id": 123,
+         *       "raw_response": "Based on the analysis...",
+         *       "think_block": {
+         *         "key_observations": [],
+         *         "raw_think_block": "<think>First, I observe...",
+         *         "reasoning_steps": [],
+         *         "risk_factors_mentioned": []
+         *       },
+         *       "truncation_info": {
+         *         "was_truncated": false
+         *       }
+         *     }
+         */
+        LLMReasoningResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the analysis occurred
+             */
+            created_at: string;
+            /**
+             * Debug Info
+             * @description Additional debug information for prompt inspection
+             */
+            debug_info?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Enrichment Sources
+             * @description Sources that contributed enrichment data
+             */
+            enrichment_sources?: components["schemas"]["EnrichmentSource"][];
+            /**
+             * Event Id
+             * @description Associated event ID
+             */
+            event_id: number;
+            /**
+             * Household Matches
+             * @description Matched household members/vehicles
+             */
+            household_matches?: components["schemas"]["HouseholdMatch"][];
+            /**
+             * Id
+             * @description LLM interaction record ID
+             */
+            id: number;
+            /**
+             * Raw Response
+             * @description Full raw LLM response
+             */
+            raw_response: string;
+            /** @description Parsed content from <think> blocks */
+            think_block?: components["schemas"]["ThinkBlockContent"];
+            /** @description Information about context truncation */
+            truncation_info?: components["schemas"]["TruncationInfo"];
+        };
+        /**
          * LatencyHistorySnapshot
          * @description Single time-bucket snapshot of pipeline latency metrics.
          */
@@ -28977,6 +29665,38 @@ export interface components {
              * @default false
              */
             zones: boolean;
+        };
+        /**
+         * ModelCostBreakdown
+         * @description Cost breakdown by model.
+         * @example {
+         *       "cost_usd": 0.0234,
+         *       "gpu_seconds": 125.5,
+         *       "model": "nemotron",
+         *       "request_count": 42
+         *     }
+         */
+        ModelCostBreakdown: {
+            /**
+             * Cost Usd
+             * @description Total cost in USD for this model
+             */
+            cost_usd: number;
+            /**
+             * Gpu Seconds
+             * @description Total GPU time consumed in seconds
+             */
+            gpu_seconds: number;
+            /**
+             * Model
+             * @description Model identifier (e.g., 'nemotron', 'yolo26')
+             */
+            model: string;
+            /**
+             * Request Count
+             * @description Number of inference requests
+             */
+            request_count: number;
         };
         /**
          * ModelDetailResponse
@@ -32188,6 +32908,44 @@ export interface components {
             webrtc_url: string;
         };
         /**
+         * PricingConfig
+         * @description Cloud equivalent pricing configuration.
+         * @example {
+         *       "detection_cost_per_image": 0.00002,
+         *       "enrichment_cost_per_operation": 0.00001,
+         *       "gpu_cost_per_second": 0.000139,
+         *       "input_cost_per_1k_tokens": 0.003,
+         *       "output_cost_per_1k_tokens": 0.006
+         *     }
+         */
+        PricingConfig: {
+            /**
+             * Detection Cost Per Image
+             * @description Detection cost per image in USD
+             */
+            detection_cost_per_image: number;
+            /**
+             * Enrichment Cost Per Operation
+             * @description Enrichment cost per operation in USD
+             */
+            enrichment_cost_per_operation: number;
+            /**
+             * Gpu Cost Per Second
+             * @description GPU cost per second in USD
+             */
+            gpu_cost_per_second: number;
+            /**
+             * Input Cost Per 1K Tokens
+             * @description Cost per 1000 input tokens in USD
+             */
+            input_cost_per_1k_tokens: number;
+            /**
+             * Output Cost Per 1K Tokens
+             * @description Cost per 1000 output tokens in USD
+             */
+            output_cost_per_1k_tokens: number;
+        };
+        /**
          * ProcessMemoryResponse
          * @description Process memory metrics for the backend service (NEM-3890).
          *
@@ -33674,6 +34432,42 @@ export interface components {
              * @description Status of background workers
              */
             workers?: components["schemas"]["WorkerStatus"][];
+        };
+        /**
+         * ReasoningStep
+         * @description A single reasoning step extracted from think blocks.
+         * @example {
+         *       "confidence_indicator": "high",
+         *       "content": "Analyzing the detected person's behavior...",
+         *       "key_factors": [
+         *         "proximity to entrance",
+         *         "time of day",
+         *         "previous activity"
+         *       ],
+         *       "step_number": 1
+         *     }
+         */
+        ReasoningStep: {
+            /**
+             * Confidence Indicator
+             * @description Confidence level mentioned in this step (high/medium/low)
+             */
+            confidence_indicator?: string | null;
+            /**
+             * Content
+             * @description The reasoning content for this step
+             */
+            content: string;
+            /**
+             * Key Factors
+             * @description Key factors identified in this reasoning step
+             */
+            key_factors?: string[];
+            /**
+             * Step Number
+             * @description Sequential step number
+             */
+            step_number: number;
         };
         /**
          * RecentError
@@ -37064,6 +37858,53 @@ export interface components {
             success: boolean;
         };
         /**
+         * ThinkBlockContent
+         * @description Parsed content from <think> blocks in LLM response.
+         * @example {
+         *       "key_observations": [
+         *         "Person approaching door",
+         *         "No vehicle visible"
+         *       ],
+         *       "raw_think_block": "<think>First, I observe that...",
+         *       "reasoning_steps": [
+         *         {
+         *           "confidence_indicator": "high",
+         *           "content": "Analyzing the detected person's behavior...",
+         *           "key_factors": [
+         *             "proximity to entrance"
+         *           ],
+         *           "step_number": 1
+         *         }
+         *       ],
+         *       "risk_factors_mentioned": [
+         *         "Late night hour",
+         *         "Unknown individual"
+         *       ]
+         *     }
+         */
+        ThinkBlockContent: {
+            /**
+             * Key Observations
+             * @description Key observations extracted from reasoning
+             */
+            key_observations?: string[];
+            /**
+             * Raw Think Block
+             * @description Raw content of <think> block
+             */
+            raw_think_block?: string | null;
+            /**
+             * Reasoning Steps
+             * @description Parsed reasoning steps from the think block
+             */
+            reasoning_steps?: components["schemas"]["ReasoningStep"][];
+            /**
+             * Risk Factors Mentioned
+             * @description Risk factors explicitly mentioned in reasoning
+             */
+            risk_factors_mentioned?: string[];
+        };
+        /**
          * ThroughputMetrics
          * @description Throughput metrics for a queue.
          * @example {
@@ -37171,6 +38012,38 @@ export interface components {
              * @description Total events in the time range
              */
             total_events: number;
+        };
+        /**
+         * TokenUsageMetrics
+         * @description Token usage metrics for LLM models.
+         * @example {
+         *       "input_tokens": 15000,
+         *       "output_tokens": 5000,
+         *       "token_cost_usd": 0.075,
+         *       "total_tokens": 20000
+         *     }
+         */
+        TokenUsageMetrics: {
+            /**
+             * Input Tokens
+             * @description Total input/prompt tokens
+             */
+            input_tokens: number;
+            /**
+             * Output Tokens
+             * @description Total output/completion tokens
+             */
+            output_tokens: number;
+            /**
+             * Token Cost Usd
+             * @description Estimated cost for tokens in USD
+             */
+            token_cost_usd: number;
+            /**
+             * Total Tokens
+             * @description Total tokens (input + output)
+             */
+            total_tokens: number;
         };
         /**
          * TraceMallocStats
@@ -37445,6 +38318,48 @@ export interface components {
              * @description Y coordinate (pixels)
              */
             y: number;
+        };
+        /**
+         * TruncationInfo
+         * @description Information about what context was truncated due to token limits.
+         * @example {
+         *       "dropped_sections": [
+         *         "historical_events",
+         *         "distant_camera_correlations"
+         *       ],
+         *       "original_length": 8500,
+         *       "truncated_length": 4096,
+         *       "truncation_reason": "Token limit exceeded (max: 4096)",
+         *       "was_truncated": true
+         *     }
+         */
+        TruncationInfo: {
+            /**
+             * Dropped Sections
+             * @description Names of sections that were dropped/truncated
+             */
+            dropped_sections?: string[];
+            /**
+             * Original Length
+             * @description Original context length in tokens
+             */
+            original_length?: number | null;
+            /**
+             * Truncated Length
+             * @description Final context length in tokens
+             */
+            truncated_length?: number | null;
+            /**
+             * Truncation Reason
+             * @description Reason for truncation
+             */
+            truncation_reason?: string | null;
+            /**
+             * Was Truncated
+             * @description Whether any context was truncated
+             * @default false
+             */
+            was_truncated: boolean;
         };
         /**
          * TrustCheckResponse
@@ -39029,6 +39944,103 @@ export interface components {
              * @description Detailed status of all supervised workers
              */
             workers?: components["schemas"]["SupervisedWorkerInfo"][];
+        };
+        /**
+         * ZoneActivityHeatmapResponse
+         * @description Response containing zone activity heatmap data.
+         *
+         *     Provides activity patterns aggregated by hour and day of week for
+         *     visualizing when a zone is most active.
+         *
+         *     Attributes:
+         *         zone_id: ID of the polygon zone
+         *         zone_name: Name of the zone for display
+         *         time_range: Time range used for aggregation
+         *         weekly_data: Activity data points for the hour/day matrix (7 days x 24 hours)
+         *         hourly_data: Today's activity by hour
+         *         total_activity: Total activity count in the time range
+         *         start_time: Start of the query time window
+         *         end_time: End of the query time window
+         * @example {
+         *       "end_time": "2026-02-01T00:00:00Z",
+         *       "hourly_data": [
+         *         {
+         *           "count": 2,
+         *           "hour": 0
+         *         },
+         *         {
+         *           "count": 0,
+         *           "hour": 1
+         *         },
+         *         {
+         *           "count": 12,
+         *           "hour": 8
+         *         }
+         *       ],
+         *       "start_time": "2026-01-25T00:00:00Z",
+         *       "time_range": "7d",
+         *       "total_activity": 342,
+         *       "weekly_data": [
+         *         {
+         *           "day_of_week": 1,
+         *           "hour": 8,
+         *           "value": 15
+         *         },
+         *         {
+         *           "day_of_week": 1,
+         *           "hour": 9,
+         *           "value": 22
+         *         },
+         *         {
+         *           "day_of_week": 1,
+         *           "hour": 17,
+         *           "value": 18
+         *         }
+         *       ],
+         *       "zone_id": 1,
+         *       "zone_name": "Front Door"
+         *     }
+         */
+        ZoneActivityHeatmapResponse: {
+            /**
+             * End Time
+             * Format: date-time
+             * @description End of the query time window
+             */
+            end_time: string;
+            /**
+             * Hourly Data
+             * @description Today's activity by hour
+             */
+            hourly_data: components["schemas"]["HourlyActivity"][];
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start of the query time window
+             */
+            start_time: string;
+            /** @description Time range used for aggregation */
+            time_range: components["schemas"]["HeatmapTimeRange"];
+            /**
+             * Total Activity
+             * @description Total activity count in time range
+             */
+            total_activity: number;
+            /**
+             * Weekly Data
+             * @description Activity data points for hour/day matrix
+             */
+            weekly_data: components["schemas"]["HeatmapDataPoint"][];
+            /**
+             * Zone Id
+             * @description ID of the polygon zone
+             */
+            zone_id: number;
+            /**
+             * Zone Name
+             * @description Name of the zone for display
+             */
+            zone_name: string;
         };
         /**
          * ZoneAnomalyAcknowledgeResponse
@@ -42315,6 +43327,47 @@ export interface operations {
             };
         };
     };
+    "analytics-zones_get_zone_activity_heatmap": {
+        parameters: {
+            query?: {
+                /** @description Time range for aggregation: 1h, 6h, 24h, 7d, 30d */
+                time_range?: components["schemas"]["HeatmapTimeRange"];
+            };
+            header?: never;
+            path: {
+                zone_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity heatmap retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneActivityHeatmapResponse"];
+                };
+            };
+            /** @description Polygon zone not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "analytics-zones_get_zone_approach_vectors": {
         parameters: {
             query?: never;
@@ -42701,6 +43754,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CameraUptimeResponse"];
+                };
+            };
+            /** @description Bad request - Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "cost-analytics_get_cost_analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cost analytics data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostAnalyticsResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "cost-analytics_get_cost_trends": {
+        parameters: {
+            query: {
+                /** @description Start date for trends (ISO format) */
+                start_date: string;
+                /** @description End date for trends (ISO format) */
+                end_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cost trend data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostTrendResponse"];
                 };
             };
             /** @description Bad request - Invalid date range */
@@ -49938,6 +51064,103 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "llm-reasoning_get_llm_reasoning": {
+        parameters: {
+            query?: {
+                /** @description Include debug information for prompt inspection */
+                include_debug?: boolean;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMReasoningResponse"];
+                };
+            };
+            /** @description Event not found or no LLM reasoning data available */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LLMReasoningNotFoundResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "llm-reasoning_get_llm_prompt_debug": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Event or LLM reasoning not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

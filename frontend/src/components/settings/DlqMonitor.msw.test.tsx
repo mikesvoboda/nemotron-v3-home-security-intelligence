@@ -10,11 +10,26 @@
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { http, HttpResponse, delay } from 'msw';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DlqMonitor from './DlqMonitor';
 import { server } from '../../mocks/server';
 import { clearInFlightRequests } from '../../services/api';
+
+// Mock the useToast hook
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+  loading: vi.fn(),
+  dismiss: vi.fn(),
+  promise: vi.fn(),
+};
+
+vi.mock('../../hooks/useToast', () => ({
+  useToast: () => mockToast,
+}));
 
 import type {
   DLQStatsResponse,
@@ -105,6 +120,10 @@ const mockAnalysisJobs: DLQJobsResponse = {
 describe('DlqMonitor (MSW)', () => {
   beforeEach(() => {
     clearInFlightRequests();
+    // Clear toast mocks
+    mockToast.success.mockClear();
+    mockToast.error.mockClear();
+    mockToast.warning.mockClear();
   });
 
   it('renders component with title', async () => {
@@ -297,7 +316,7 @@ describe('DlqMonitor (MSW)', () => {
       });
     });
 
-    it('shows success message after requeue', async () => {
+    it('shows success toast after requeue', async () => {
       server.use(
         http.get('/api/dlq/stats', () => {
           return HttpResponse.json(mockStats);
@@ -332,11 +351,11 @@ describe('DlqMonitor (MSW)', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Requeued 2 jobs')).toBeInTheDocument();
+        expect(mockToast.success).toHaveBeenCalledWith('Requeued 2 jobs', expect.any(Object));
       });
     });
 
-    it('shows error message when requeue fails', async () => {
+    it('shows error toast when requeue fails', async () => {
       server.use(
         http.get('/api/dlq/stats', () => {
           return HttpResponse.json(mockStats);
@@ -366,7 +385,9 @@ describe('DlqMonitor (MSW)', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Requeue failed')).toBeInTheDocument();
+        expect(mockToast.error).toHaveBeenCalledWith('Failed to requeue jobs', {
+          description: 'Requeue failed',
+        });
       });
     });
   });
@@ -414,7 +435,7 @@ describe('DlqMonitor (MSW)', () => {
       });
     });
 
-    it('shows success message after clear', async () => {
+    it('shows success toast after clear', async () => {
       server.use(
         http.get('/api/dlq/stats', () => {
           return HttpResponse.json(mockStats);
@@ -449,7 +470,10 @@ describe('DlqMonitor (MSW)', () => {
       fireEvent.click(screen.getByText('Confirm'));
 
       await waitFor(() => {
-        expect(screen.getByText('Cleared 2 jobs from dlq:detection_queue')).toBeInTheDocument();
+        expect(mockToast.success).toHaveBeenCalledWith(
+          'Cleared 2 jobs from dlq:detection_queue',
+          expect.any(Object)
+        );
       });
     });
   });

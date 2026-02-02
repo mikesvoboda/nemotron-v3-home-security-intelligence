@@ -21,6 +21,7 @@ import {
   Grid3X3,
   Home,
   LayoutDashboard,
+  Route,
   ScanFace,
   ScrollText,
   Server,
@@ -85,6 +86,7 @@ export const navGroups: NavGroup[] = [
       { id: 'face-recognition', label: 'Face Recognition', icon: ScanFace, path: '/face-recognition' },
       { id: 'heatmaps', label: 'Heatmaps', icon: Grid3X3, path: '/heatmaps' },
       { id: 'scene-changes', label: 'Scene Changes', icon: Eye, path: '/scene-changes' },
+      { id: 'tracks', label: 'Object Tracks', icon: Route, path: '/tracks' },
     ],
   },
   {

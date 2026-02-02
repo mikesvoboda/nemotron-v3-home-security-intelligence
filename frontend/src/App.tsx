@@ -151,6 +151,14 @@ const HeatmapsPage = lazy(() => import('./pages/HeatmapsPage'));
 // Scene Changes History Page
 const SceneChangesPage = lazy(() => import('./pages/SceneChangesPage'));
 
+// Tracks Visualization Page
+const TracksPage = lazy(() => import('./pages/TracksPage'));
+
+// Re-ID Dashboard (NEM-5024 Phase 8)
+const ReIDDashboard = lazy(() =>
+  import('./components/reid').then((m) => ({ default: m.ReIDDashboard }))
+);
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -227,6 +235,8 @@ export default function App() {
                           <Route path="/face-recognition" element={<FaceRecognitionPage />} />
                           <Route path="/heatmaps" element={<HeatmapsPage />} />
                           <Route path="/scene-changes" element={<SceneChangesPage />} />
+                          <Route path="/tracks" element={<TracksPage />} />
+                          <Route path="/reid" element={<ReIDDashboard />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>
