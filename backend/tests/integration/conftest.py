@@ -975,6 +975,61 @@ def cleanup_stale_advisory_locks():
     # The main fix is reducing lock wait time from 30s to 5s to prevent CI timeouts
 
 
+@pytest.fixture(autouse=True)
+async def force_cleanup_pending_tasks():
+    """Force cancel pending asyncio tasks after each test to prevent teardown hangs.
+
+    NEM-5851: pytest-asyncio can hang during teardown if async resources aren't
+    properly closed. This fixture runs after every test and forcefully cancels
+    any pending tasks that weren't cleaned up, preventing CI timeouts.
+
+    The fixture:
+    1. Yields to let the test run
+    2. After the test, gets all pending tasks (excluding the current one)
+    3. Cancels them with a short grace period
+    4. Suppresses CancelledError to avoid noise in test output
+    """
+    yield
+
+    # Get current task to exclude it from cancellation
+    try:
+        current_task = asyncio.current_task()
+    except RuntimeError:
+        # No running event loop
+        return
+
+    # Get all pending tasks
+    try:
+        all_tasks = asyncio.all_tasks()
+    except RuntimeError:
+        # No running event loop
+        return
+
+    # Filter out the current task and any done tasks
+    pending = [t for t in all_tasks if t is not current_task and not t.done()]
+
+    if not pending:
+        return
+
+    logger.debug(f"Force cancelling {len(pending)} pending tasks during test teardown")
+
+    # Cancel all pending tasks
+    for task in pending:
+        task.cancel()
+
+    # Wait briefly for tasks to handle cancellation
+    if pending:
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*pending, return_exceptions=True),
+                timeout=2.0,
+            )
+        except TimeoutError:
+            logger.warning(f"Timeout waiting for {len(pending)} tasks to cancel during teardown")
+        except Exception as e:
+            logger.debug(f"Exception during task cancellation: {e}")
+
+
 # =============================================================================
 # Per-Test Fixtures
 # =============================================================================
