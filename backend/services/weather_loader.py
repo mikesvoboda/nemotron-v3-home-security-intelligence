@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
@@ -332,3 +333,147 @@ def get_visibility_factor(weather_result: WeatherResult | None) -> float:
     adjusted_factor = base_factor * confidence + 0.8 * (1 - confidence)
 
     return adjusted_factor
+
+
+# =============================================================================
+# Nighttime Detection (NEM-5288)
+# =============================================================================
+
+# Nighttime detection constants
+NIGHTTIME_START_HOUR = 19  # 7 PM - start of nighttime for security purposes
+NIGHTTIME_END_HOUR = 6  # 6 AM - end of nighttime
+
+# Brightness threshold for image-based nighttime detection (0-255 scale normalized to 0-1)
+# Images with average brightness below this are considered nighttime
+NIGHTTIME_BRIGHTNESS_THRESHOLD = 0.3  # ~76.5 on 0-255 scale
+
+# Weather risk modifier confidence threshold
+WEATHER_CONFIDENCE_THRESHOLD = 0.5
+
+
+def is_nighttime(timestamp: datetime, timezone: str = "UTC") -> bool:  # noqa: ARG001
+    """Check if timestamp is during nighttime hours.
+
+    Uses simple hour-based detection for security purposes.
+    Hours between NIGHTTIME_START_HOUR (7 PM) and NIGHTTIME_END_HOUR (6 AM)
+    are considered nighttime.
+
+    Args:
+        timestamp: The timestamp to check
+        timezone: Timezone string (reserved for future use)
+
+    Returns:
+        True if the timestamp falls within nighttime hours
+    """
+    hour = timestamp.hour
+
+    # Nighttime is from NIGHTTIME_START_HOUR (7 PM) to midnight
+    # and from midnight to NIGHTTIME_END_HOUR (6 AM)
+    return hour >= NIGHTTIME_START_HOUR or hour < NIGHTTIME_END_HOUR
+
+
+def is_nighttime_from_image(image: Image.Image) -> bool:
+    """Analyze image brightness to detect nighttime.
+
+    Uses average brightness of the image to determine if it's nighttime.
+    This is useful when no timestamp is available or for indoor cameras.
+
+    Args:
+        image: PIL Image to analyze
+
+    Returns:
+        True if the image appears to be nighttime (low average brightness)
+    """
+    import numpy as np
+
+    # Convert to numpy array
+    img_array = np.array(image)
+
+    # Handle grayscale images
+    if len(img_array.shape) == 2:
+        # Already grayscale
+        brightness = float(img_array.mean()) / 255.0
+    # RGB image - convert to grayscale using luminance formula
+    elif img_array.shape[2] >= 3:
+        r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
+        grayscale = 0.299 * r + 0.587 * g + 0.114 * b
+        brightness = float(grayscale.mean()) / 255.0
+    else:
+        brightness = float(img_array.mean()) / 255.0
+
+    # Return Python bool, not numpy bool
+    return bool(brightness < NIGHTTIME_BRIGHTNESS_THRESHOLD)
+
+
+def determine_nighttime(
+    timestamp: datetime | None = None,
+    image: Image.Image | None = None,
+) -> bool:
+    """Combined detection: use timestamp if available, fall back to image analysis.
+
+    Prioritizes timestamp-based detection when available since it's more reliable.
+    Falls back to image brightness analysis when no timestamp is provided.
+
+    Args:
+        timestamp: Optional timestamp of the event
+        image: Optional image for brightness-based detection
+
+    Returns:
+        True if nighttime is detected, False otherwise.
+        Returns False if neither timestamp nor image is provided (safe default).
+    """
+    # Prefer timestamp-based detection when available
+    if timestamp is not None:
+        return is_nighttime(timestamp)
+
+    # Fall back to image-based detection
+    if image is not None:
+        return is_nighttime_from_image(image)
+
+    # Default to daytime (safer assumption) if no input
+    return False
+
+
+def get_weather_risk_modifier(
+    weather: WeatherResult | None,
+    is_nighttime: bool,
+) -> float:
+    """Get weather-based risk modifier value.
+
+    Helper function to calculate the aggregate weather risk modifier
+    based on weather conditions and nighttime status.
+
+    Args:
+        weather: WeatherResult from weather classification
+        is_nighttime: Whether it's currently nighttime
+
+    Returns:
+        Risk modifier value:
+            - -0.15 for rainy weather (reduces suspicion)
+            - +0.10 for foggy/snowy weather (low visibility increases uncertainty)
+            - +0.25 for clear night (good visibility but dark)
+            - 0.0 for neutral conditions or low confidence
+    """
+    if weather is None:
+        return 0.0
+
+    # Check confidence threshold
+    if weather.confidence < WEATHER_CONFIDENCE_THRESHOLD:
+        return 0.0
+
+    condition = weather.simple_condition
+
+    # Rainy conditions reduce suspicion (people avoid being outside in rain)
+    if condition == "rainy":
+        return -0.15
+
+    # Foggy/snowy conditions increase uncertainty due to low visibility
+    if condition in ("foggy", "snowy"):
+        return 0.1
+
+    # Clear night increases suspicion (good visibility for prowlers but dark)
+    if condition == "clear" and is_nighttime:
+        return 0.25
+
+    # Neutral conditions (cloudy, clear daytime)
+    return 0.0

@@ -52,6 +52,7 @@ class DetectionDepth:
         depth_value: Normalized depth value (0=closest, 1=farthest)
         proximity_label: Human-readable proximity label
         is_approaching: Whether object appears to be moving toward camera
+        distance_feet: Calibrated distance in feet (None if uncalibrated)
     """
 
     detection_id: str
@@ -59,6 +60,7 @@ class DetectionDepth:
     depth_value: float
     proximity_label: str
     is_approaching: bool = False
+    distance_feet: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -68,6 +70,7 @@ class DetectionDepth:
             "depth_value": self.depth_value,
             "proximity_label": self.proximity_label,
             "is_approaching": self.is_approaching,
+            "distance_feet": self.distance_feet,
         }
 
 
@@ -155,10 +158,18 @@ class DepthAnalysisResult:
             elif depth.is_approaching:
                 risk_note = " [APPROACHING]"
 
-            lines.append(
-                f"  {depth.class_name} (ID: {det_id}): "
-                f"{depth.proximity_label} (depth: {depth.depth_value:.2f}){risk_note}"
-            )
+            # Include calibrated distance if available
+            if depth.distance_feet is not None:
+                distance_info = f"approximately {round(depth.distance_feet)} feet"
+                lines.append(
+                    f"  {depth.class_name} (ID: {det_id}): "
+                    f"{distance_info}, {depth.proximity_label} (depth: {depth.depth_value:.2f}){risk_note}"
+                )
+            else:
+                lines.append(
+                    f"  {depth.class_name} (ID: {det_id}): "
+                    f"{depth.proximity_label} (depth: {depth.depth_value:.2f}){risk_note}"
+                )
 
         # Add summary
         if self.has_close_objects:
@@ -405,6 +416,71 @@ def depth_to_proximity_label(depth_value: float) -> str:
         return "very far"
 
 
+def depth_to_feet(
+    depth_value: float,
+    calibration_data: dict[str, Any] | None,
+) -> float | None:
+    """Convert normalized depth value to distance in feet using calibration data.
+
+    Uses linear interpolation/extrapolation between calibration points.
+
+    Args:
+        depth_value: Normalized depth value (0-1)
+        calibration_data: Dictionary with 'calibration_points' list, or None
+
+    Returns:
+        Distance in feet, or None if no calibration data provided
+    """
+    if calibration_data is None:
+        return None
+
+    calibration_points = calibration_data.get("calibration_points", [])
+    if not calibration_points:
+        return None
+
+    # Sort points by depth value
+    points = sorted(calibration_points, key=lambda p: p["depth_value"])
+
+    # Single point calibration - linear scaling through origin
+    if len(points) == 1:
+        point = points[0]
+        if point["depth_value"] == 0:
+            return float(point["distance_feet"])
+        scale = float(point["distance_feet"]) / float(point["depth_value"])
+        return float(depth_value * scale)
+
+    # Multiple points - interpolate or extrapolate
+    lower_point = None
+    upper_point = None
+
+    for point in points:
+        if point["depth_value"] <= depth_value:
+            lower_point = point
+        if point["depth_value"] >= depth_value and upper_point is None:
+            upper_point = point
+
+    # Handle extrapolation cases
+    if lower_point is None:
+        lower_point = points[0]
+        upper_point = points[1]
+    elif upper_point is None:
+        lower_point = points[-2]
+        upper_point = points[-1]
+
+    # Linear interpolation/extrapolation
+    depth_range = upper_point["depth_value"] - lower_point["depth_value"]
+    distance_range = upper_point["distance_feet"] - lower_point["distance_feet"]
+
+    if depth_range == 0:
+        return float(lower_point["distance_feet"])
+
+    factor = (depth_value - float(lower_point["depth_value"])) / float(depth_range)
+    result = float(lower_point["distance_feet"]) + factor * float(distance_range)
+
+    # Ensure positive result
+    return float(max(0.1, result))
+
+
 def format_depth_for_nemotron(
     detections: list[dict[str, Any]],
     depth_values: list[float],
@@ -443,6 +519,54 @@ def format_depth_for_nemotron(
         class_name = det.get("class_name", det.get("label", "object"))
         proximity = depth_to_proximity_label(depth)
         descriptions.append(f"{class_name} is {proximity} (depth: {depth:.2f})")
+
+    return "Spatial context: " + ", ".join(descriptions)
+
+
+def format_depth_for_nemotron_with_distances(
+    detections: list[dict[str, Any]],
+    depth_values: list[float],
+    distance_values: list[float | None],
+) -> str:
+    """Format depth information for Nemotron context with calibrated distances.
+
+    Creates a human-readable description of object depths and distances that can be
+    appended to Nemotron's input context for risk analysis.
+
+    Args:
+        detections: List of detection dictionaries with 'class_name' key
+        depth_values: Corresponding depth values for each detection
+        distance_values: Corresponding distance values in feet (None if uncalibrated)
+
+    Returns:
+        Formatted string describing object proximities with distances when available
+
+    Example output:
+        "Spatial context: person is approximately 6 feet away, close to camera,
+         car is at moderate distance (depth: 0.48)"
+    """
+    if not detections or not depth_values:
+        return "No spatial depth information available."
+
+    # Use minimum length
+    count = min(len(detections), len(depth_values), len(distance_values))
+    detections = detections[:count]
+    depth_values = depth_values[:count]
+    distance_values = distance_values[:count]
+
+    descriptions = []
+    for det, depth, distance in zip(detections, depth_values, distance_values, strict=False):
+        class_name = det.get("class_name", det.get("label", "object"))
+        proximity = depth_to_proximity_label(depth)
+
+        if distance is not None:
+            # Use calibrated distance
+            descriptions.append(
+                f"{class_name} is approximately {round(distance)} feet away, {proximity}"
+            )
+        else:
+            # Fall back to proximity label only
+            descriptions.append(f"{class_name} is {proximity} (depth: {depth:.2f})")
 
     return "Spatial context: " + ", ".join(descriptions)
 
@@ -486,6 +610,7 @@ async def analyze_depth(
     image: Image.Image,
     detections: list[dict[str, Any]],
     depth_sampling_method: str = "center",
+    calibration_data: dict[str, Any] | None = None,
 ) -> DepthAnalysisResult:
     """Analyze depth for all detections in an image.
 
@@ -498,6 +623,7 @@ async def analyze_depth(
         image: PIL Image to analyze
         detections: List of detection dicts with 'detection_id', 'class_name', 'bbox'
         depth_sampling_method: How to sample depth at bbox ("center", "mean", "median", "min")
+        calibration_data: Optional calibration data for depth-to-feet conversion
 
     Returns:
         DepthAnalysisResult with depth info for all detections
@@ -553,6 +679,9 @@ async def analyze_depth(
         depth_value = get_depth_at_bbox(depth_map, bbox_tuple, method=depth_sampling_method)
         depth_values.append(depth_value)
 
+        # Convert depth to feet if calibration data is available
+        distance_feet = depth_to_feet(depth_value, calibration_data)
+
         # Create DetectionDepth
         proximity_label = depth_to_proximity_label(depth_value)
         detection_depth = DetectionDepth(
@@ -561,6 +690,7 @@ async def analyze_depth(
             depth_value=depth_value,
             proximity_label=proximity_label,
             is_approaching=False,  # Could be enhanced with temporal tracking
+            distance_feet=distance_feet,
         )
         detection_depths[det_id] = detection_depth
 

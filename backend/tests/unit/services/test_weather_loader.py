@@ -3,6 +3,7 @@
 Tests for the Weather-Image-Classification model loader and classifier.
 """
 
+from datetime import UTC
 from unittest.mock import MagicMock
 
 import pytest
@@ -529,3 +530,414 @@ def test_weather_model_in_zoo():
     assert config.name == "weather-classification"
     assert config.vram_mb == 200
     assert config.category == "classification"
+
+
+# =============================================================================
+# Nighttime Detection Tests (NEM-5288)
+# =============================================================================
+
+
+class TestIsNighttimeFunction:
+    """Tests for is_nighttime() detection function.
+
+    The is_nighttime() function determines whether current conditions represent
+    nighttime for the purpose of the weather_clear_night risk modifier.
+    """
+
+    def test_is_nighttime_midnight(self):
+        """Test is_nighttime returns True for midnight (00:00)."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 0, 0, 0)  # Midnight
+        result = is_nighttime(timestamp)
+
+        assert result is True
+
+    def test_is_nighttime_2am(self):
+        """Test is_nighttime returns True for 2 AM."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 2, 0, 0)  # 2 AM
+        result = is_nighttime(timestamp)
+
+        assert result is True
+
+    def test_is_nighttime_4am(self):
+        """Test is_nighttime returns True for 4 AM (before dawn)."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 4, 0, 0)  # 4 AM
+        result = is_nighttime(timestamp)
+
+        assert result is True
+
+    def test_is_nighttime_midday(self):
+        """Test is_nighttime returns False for midday (12:00)."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 12, 0, 0)  # Noon
+        result = is_nighttime(timestamp)
+
+        assert result is False
+
+    def test_is_nighttime_3pm(self):
+        """Test is_nighttime returns False for 3 PM."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 15, 0, 0)  # 3 PM
+        result = is_nighttime(timestamp)
+
+        assert result is False
+
+    def test_is_nighttime_10pm(self):
+        """Test is_nighttime returns True for 10 PM."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 22, 0, 0)  # 10 PM
+        result = is_nighttime(timestamp)
+
+        assert result is True
+
+    def test_is_nighttime_11pm(self):
+        """Test is_nighttime returns True for 11 PM."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 23, 0, 0)  # 11 PM
+        result = is_nighttime(timestamp)
+
+        assert result is True
+
+    def test_is_nighttime_8am(self):
+        """Test is_nighttime returns False for 8 AM."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 8, 0, 0)  # 8 AM
+        result = is_nighttime(timestamp)
+
+        assert result is False
+
+
+class TestIsNighttimeDuskDawnEdgeCases:
+    """Edge case tests for dusk/dawn transitions in nighttime detection."""
+
+    def test_is_nighttime_civil_dusk_summer(self):
+        """Test is_nighttime for civil dusk in summer (~8:30 PM).
+
+        Civil twilight (sun 0-6 degrees below horizon) should be considered
+        nighttime for security purposes.
+        """
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 20, 30, 0)  # 8:30 PM summer
+        result = is_nighttime(timestamp)
+
+        # Dusk should count as nighttime
+        assert result is True
+
+    def test_is_nighttime_civil_dawn_summer(self):
+        """Test is_nighttime for civil dawn in summer (~5:30 AM).
+
+        Civil twilight before sunrise should still be considered nighttime.
+        """
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 5, 30, 0)  # 5:30 AM summer
+        result = is_nighttime(timestamp)
+
+        # Dawn should count as nighttime (early enough)
+        assert result is True
+
+    def test_is_nighttime_7am_daytime(self):
+        """Test is_nighttime returns False for 7 AM (clearly daytime)."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 7, 0, 0)  # 7 AM
+        result = is_nighttime(timestamp)
+
+        assert result is False
+
+    def test_is_nighttime_7pm_dusk_transition(self):
+        """Test is_nighttime for 7 PM (transition time)."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 6, 15, 19, 0, 0)  # 7 PM
+        result = is_nighttime(timestamp)
+
+        # 7 PM is borderline - depends on implementation
+        # The test documents the expected behavior
+        assert result is True  # Should be nighttime for security purposes
+
+    def test_is_nighttime_winter_4pm(self):
+        """Test is_nighttime for 4 PM in winter (darker earlier)."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import is_nighttime
+
+        timestamp = datetime(2024, 12, 15, 16, 0, 0)  # 4 PM winter
+        result = is_nighttime(timestamp)
+
+        # 4 PM in winter could be dusk/dark depending on latitude
+        # Using simple hour-based detection: 4 PM is daytime
+        assert result is False
+
+
+class TestIsNighttimeWithImage:
+    """Tests for nighttime detection using image brightness analysis."""
+
+    def test_is_nighttime_from_dark_image(self):
+        """Test is_nighttime_from_image returns True for dark images."""
+        from PIL import Image
+
+        from backend.services.weather_loader import is_nighttime_from_image
+
+        # Create a very dark image (nighttime)
+        dark_image = Image.new("RGB", (100, 100), color=(10, 10, 15))
+        result = is_nighttime_from_image(dark_image)
+
+        assert result is True
+
+    def test_is_nighttime_from_bright_image(self):
+        """Test is_nighttime_from_image returns False for bright images."""
+        from PIL import Image
+
+        from backend.services.weather_loader import is_nighttime_from_image
+
+        # Create a bright image (daytime)
+        bright_image = Image.new("RGB", (100, 100), color=(200, 200, 180))
+        result = is_nighttime_from_image(bright_image)
+
+        assert result is False
+
+    def test_is_nighttime_from_moderate_image(self):
+        """Test is_nighttime_from_image for moderate brightness."""
+        from PIL import Image
+
+        from backend.services.weather_loader import is_nighttime_from_image
+
+        # Create a moderately lit image (dusk/dawn)
+        moderate_image = Image.new("RGB", (100, 100), color=(80, 75, 70))
+        result = is_nighttime_from_image(moderate_image)
+
+        # Moderate brightness should be classified as nighttime for security
+        assert result is True
+
+    def test_is_nighttime_from_image_with_bright_spots(self):
+        """Test is_nighttime_from_image with a dark image but some lights."""
+        import numpy as np
+        from PIL import Image
+
+        from backend.services.weather_loader import is_nighttime_from_image
+
+        # Create dark image with some bright spots (like streetlights at night)
+        arr = np.full((100, 100, 3), 15, dtype=np.uint8)  # Dark background
+        arr[40:50, 40:50] = [255, 255, 200]  # Bright light spot
+        arr[70:75, 20:25] = [255, 255, 200]  # Another light
+        night_with_lights = Image.fromarray(arr)
+
+        result = is_nighttime_from_image(night_with_lights)
+
+        # Overall dark image with some lights should still be nighttime
+        assert result is True
+
+    def test_is_nighttime_from_grayscale_image(self):
+        """Test is_nighttime_from_image handles grayscale images."""
+        from PIL import Image
+
+        from backend.services.weather_loader import is_nighttime_from_image
+
+        # Create a dark grayscale image
+        dark_gray = Image.new("L", (100, 100), color=20)
+        result = is_nighttime_from_image(dark_gray)
+
+        assert result is True
+
+
+class TestNighttimeCombined:
+    """Tests for combined nighttime detection (timestamp + image)."""
+
+    def test_determine_nighttime_prefers_timestamp(self):
+        """Test determine_nighttime prioritizes timestamp over image analysis."""
+        from datetime import datetime
+
+        from PIL import Image
+
+        from backend.services.weather_loader import determine_nighttime
+
+        # Daytime timestamp but dark image
+        timestamp = datetime(2024, 6, 15, 14, 0, 0)  # 2 PM
+        dark_image = Image.new("RGB", (100, 100), color=(20, 20, 20))
+
+        result = determine_nighttime(timestamp=timestamp, image=dark_image)
+
+        # Timestamp should be authoritative when available
+        assert result is False
+
+    def test_determine_nighttime_uses_image_when_no_timestamp(self):
+        """Test determine_nighttime uses image when no timestamp provided."""
+        from PIL import Image
+
+        from backend.services.weather_loader import determine_nighttime
+
+        # No timestamp, dark image
+        dark_image = Image.new("RGB", (100, 100), color=(15, 15, 20))
+
+        result = determine_nighttime(timestamp=None, image=dark_image)
+
+        # Should use image analysis
+        assert result is True
+
+    def test_determine_nighttime_none_inputs(self):
+        """Test determine_nighttime with no inputs returns False (default safe)."""
+        from backend.services.weather_loader import determine_nighttime
+
+        result = determine_nighttime(timestamp=None, image=None)
+
+        # Default to daytime (safer assumption)
+        assert result is False
+
+    def test_determine_nighttime_with_timezone(self):
+        """Test determine_nighttime handles timezone-aware timestamps."""
+        from datetime import datetime
+
+        from backend.services.weather_loader import determine_nighttime
+
+        # Midnight UTC
+        timestamp = datetime(2024, 6, 15, 0, 0, 0, tzinfo=UTC)
+        result = determine_nighttime(timestamp=timestamp)
+
+        assert result is True
+
+
+class TestNighttimeThresholds:
+    """Tests for nighttime detection threshold configuration."""
+
+    def test_nighttime_brightness_threshold_configurable(self):
+        """Test that nighttime brightness threshold can be configured."""
+        from backend.services.weather_loader import (
+            NIGHTTIME_BRIGHTNESS_THRESHOLD,
+        )
+
+        # Verify threshold constant exists
+        assert isinstance(NIGHTTIME_BRIGHTNESS_THRESHOLD, int | float)
+        assert 0 < NIGHTTIME_BRIGHTNESS_THRESHOLD < 255
+
+    def test_nighttime_hour_boundaries(self):
+        """Test nighttime hour boundaries are reasonable."""
+        from backend.services.weather_loader import (
+            NIGHTTIME_END_HOUR,
+            NIGHTTIME_START_HOUR,
+        )
+
+        # Verify hour constants exist and are reasonable
+        assert isinstance(NIGHTTIME_START_HOUR, int)
+        assert isinstance(NIGHTTIME_END_HOUR, int)
+        assert 17 <= NIGHTTIME_START_HOUR <= 21  # Between 5 PM and 9 PM
+        assert 5 <= NIGHTTIME_END_HOUR <= 8  # Between 5 AM and 8 AM
+
+
+class TestWeatherRiskModifierHelpers:
+    """Tests for weather risk modifier helper functions in weather_loader."""
+
+    def test_get_weather_risk_modifier_rainy(self):
+        """Test get_weather_risk_modifier returns -0.15 for rainy weather."""
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.85,
+            all_scores={},
+        )
+        modifier = get_weather_risk_modifier(weather, is_nighttime=False)
+
+        assert modifier == pytest.approx(-0.15, abs=0.01)
+
+    def test_get_weather_risk_modifier_clear_night(self):
+        """Test get_weather_risk_modifier returns +0.25 for clear night."""
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.90,
+            all_scores={},
+        )
+        modifier = get_weather_risk_modifier(weather, is_nighttime=True)
+
+        assert modifier == pytest.approx(0.25, abs=0.01)
+
+    def test_get_weather_risk_modifier_foggy(self):
+        """Test get_weather_risk_modifier returns +0.1 for foggy weather."""
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.88,
+            all_scores={},
+        )
+        modifier = get_weather_risk_modifier(weather, is_nighttime=False)
+
+        assert modifier == pytest.approx(0.1, abs=0.01)
+
+    def test_get_weather_risk_modifier_none_weather(self):
+        """Test get_weather_risk_modifier returns 0.0 for None weather."""
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        modifier = get_weather_risk_modifier(None, is_nighttime=False)
+
+        assert modifier == 0.0
+
+    def test_get_weather_risk_modifier_low_confidence(self):
+        """Test get_weather_risk_modifier returns 0.0 for low confidence."""
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.35,  # Low confidence
+            all_scores={},
+        )
+        modifier = get_weather_risk_modifier(weather, is_nighttime=False)
+
+        # Low confidence should not apply modifier
+        assert modifier == 0.0
+
+    def test_get_weather_risk_modifier_cloudy_no_modifier(self):
+        """Test get_weather_risk_modifier returns 0.0 for cloudy (neutral)."""
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        weather = WeatherResult(
+            condition="cloudy/overcast",
+            simple_condition="cloudy",
+            confidence=0.90,
+            all_scores={},
+        )
+        modifier = get_weather_risk_modifier(weather, is_nighttime=False)
+
+        # Cloudy is neutral, no modifier
+        assert modifier == 0.0

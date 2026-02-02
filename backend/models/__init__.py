@@ -79,12 +79,14 @@ from .outbound_webhook import (
     WebhookDeliveryStatus,
     WebhookEventType,
 )
+from .package_event import PackageEvent, PackageEventType
 from .plate_read import PlateRead
 from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
 from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .scheduled_report import ReportFormat, ReportFrequency, ScheduledReport
+from .smoke_fire_result import SmokeFireResult, SmokeFireType
 from .summary import Summary, SummaryType
 from .track import Track
 from .user_calibration import UserCalibration
@@ -162,6 +164,8 @@ __all__ = [
     "NotificationPreferences",
     "NotificationSound",
     "OutboundWebhook",
+    "PackageEvent",
+    "PackageEventType",
     "PersonEmbedding",
     "PlateRead",
     "PolygonZone",
@@ -182,6 +186,8 @@ __all__ = [
     "SceneChangeType",
     "ScheduledReport",
     "Severity",
+    "SmokeFireResult",
+    "SmokeFireType",
     "StreamProfile",
     "Summary",
     "SummaryType",

@@ -846,3 +846,254 @@ def test_yolo_world_prompts_v2_has_descriptive_prompts():
     assert "knife blade" in all_prompts
     assert "cardboard delivery package" in all_prompts
     assert "person standing" in all_prompts
+
+
+# =============================================================================
+# Package Detection Prompts Tests (NEM-5293)
+# =============================================================================
+
+
+class TestPackageDetectionPrompts:
+    """Tests for package detection prompts in YOLO-World configuration.
+
+    NEM-5293: Verify package detection prompts are properly configured
+    for the package tracking feature.
+    """
+
+    def test_packages_category_exists(self) -> None:
+        """Test packages category exists in YOLO_WORLD_PROMPTS_V2."""
+        assert "packages" in YOLO_WORLD_PROMPTS_V2
+
+    def test_packages_threshold_is_035(self) -> None:
+        """Test packages category has 0.35 confidence threshold."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert config["threshold"] == 0.35
+
+    def test_packages_priority_is_medium(self) -> None:
+        """Test packages category has medium priority."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert config["priority"] == "medium"
+
+    def test_packages_prompts_include_cardboard_delivery_package(self) -> None:
+        """Test packages prompts include 'cardboard delivery package'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "cardboard delivery package" in config["prompts"]
+
+    def test_packages_prompts_include_amazon_shipping_box(self) -> None:
+        """Test packages prompts include 'Amazon shipping box'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "Amazon shipping box" in config["prompts"]
+
+    def test_packages_prompts_include_fedex_package(self) -> None:
+        """Test packages prompts include 'FedEx package'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "FedEx package" in config["prompts"]
+
+    def test_packages_prompts_include_ups_package(self) -> None:
+        """Test packages prompts include 'UPS package'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "UPS package" in config["prompts"]
+
+    def test_packages_prompts_include_mail_envelope(self) -> None:
+        """Test packages prompts include 'mail envelope'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "mail envelope" in config["prompts"]
+
+    def test_packages_prompts_include_food_delivery_bag(self) -> None:
+        """Test packages prompts include 'food delivery bag'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "food delivery bag" in config["prompts"]
+
+    def test_packages_prompts_include_pizza_box(self) -> None:
+        """Test packages prompts include 'pizza box'."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "pizza box" in config["prompts"]
+
+    def test_packages_prompts_include_legacy_package(self) -> None:
+        """Test packages prompts include legacy 'package' for backward compatibility."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "package" in config["prompts"]
+
+    def test_packages_prompts_include_legacy_cardboard_box(self) -> None:
+        """Test packages prompts include legacy 'cardboard box' for backward compatibility."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "cardboard box" in config["prompts"]
+
+    def test_packages_prompts_include_legacy_amazon_box(self) -> None:
+        """Test packages prompts include legacy 'Amazon box' for backward compatibility."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "Amazon box" in config["prompts"]
+
+    def test_packages_prompts_include_legacy_delivery_box(self) -> None:
+        """Test packages prompts include legacy 'delivery box' for backward compatibility."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert "delivery box" in config["prompts"]
+
+    def test_packages_category_has_sufficient_prompts(self) -> None:
+        """Test packages category has at least 10 prompts for comprehensive detection."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        assert len(config["prompts"]) >= 10
+
+    def test_get_object_category_returns_packages_for_package_prompts(self) -> None:
+        """Test get_object_category returns 'packages' for package prompts."""
+        package_prompts = [
+            "cardboard delivery package",
+            "Amazon shipping box",
+            "FedEx package",
+            "UPS package",
+            "package",
+        ]
+
+        for prompt in package_prompts:
+            category = get_object_category(prompt)
+            assert category == "packages", f"Expected 'packages' for '{prompt}', got '{category}'"
+
+    def test_get_object_priority_returns_medium_for_packages(self) -> None:
+        """Test get_object_priority returns 'medium' for package prompts."""
+        package_prompts = [
+            "cardboard delivery package",
+            "Amazon box",
+            "package",
+        ]
+
+        for prompt in package_prompts:
+            priority = get_object_priority(prompt)
+            assert priority == "medium", f"Expected 'medium' for '{prompt}', got '{priority}'"
+
+    def test_get_object_threshold_returns_035_for_packages(self) -> None:
+        """Test get_object_threshold returns 0.35 for packages category."""
+        threshold = get_object_threshold("packages")
+        assert threshold == 0.35
+
+    def test_packages_in_security_prompts(self) -> None:
+        """Test package prompts are included in SECURITY_PROMPTS."""
+        # At least some package prompts should be in SECURITY_PROMPTS
+        package_related = [
+            p for p in SECURITY_PROMPTS if "package" in p.lower() or "box" in p.lower()
+        ]
+        assert len(package_related) > 0, "Package prompts should be in SECURITY_PROMPTS"
+
+    def test_get_delivery_prompts_includes_all_package_types(self) -> None:
+        """Test get_delivery_prompts includes various package types."""
+        prompts = get_delivery_prompts()
+
+        # Should include common package types
+        assert "package" in prompts
+        assert "cardboard box" in prompts
+        assert "Amazon box" in prompts
+
+
+class TestPackageDetectionWithYoloWorld:
+    """Tests for using YOLO-World to detect packages (NEM-5293).
+
+    These tests verify the detection workflow for package detection
+    using the YOLO-World model configuration.
+    """
+
+    @pytest.mark.asyncio
+    async def test_detect_with_prompts_filters_by_package_threshold(self) -> None:
+        """Test detect_with_prompts respects package threshold (0.35)."""
+        import numpy as np
+
+        mock_model = MagicMock()
+        mock_model.set_classes = MagicMock()
+
+        # Create mock boxes with confidence at threshold boundary
+        mock_boxes = MagicMock()
+        mock_boxes.__len__ = lambda _self: 2
+
+        # Box 1: Above threshold (0.40)
+        mock_xyxy_1 = MagicMock()
+        mock_xyxy_1.cpu.return_value.numpy.return_value = np.array([10, 20, 100, 200])
+        mock_conf_1 = MagicMock()
+        mock_conf_1.cpu.return_value.numpy.return_value = np.array(0.40)
+        mock_cls_1 = MagicMock()
+        mock_cls_1.cpu.return_value.numpy.return_value = np.array(0)
+
+        # Box 2: Below threshold (0.30)
+        mock_xyxy_2 = MagicMock()
+        mock_xyxy_2.cpu.return_value.numpy.return_value = np.array([50, 60, 150, 250])
+        mock_conf_2 = MagicMock()
+        mock_conf_2.cpu.return_value.numpy.return_value = np.array(0.30)
+        mock_cls_2 = MagicMock()
+        mock_cls_2.cpu.return_value.numpy.return_value = np.array(1)
+
+        mock_boxes.xyxy = [mock_xyxy_1, mock_xyxy_2]
+        mock_boxes.conf = [mock_conf_1, mock_conf_2]
+        mock_boxes.cls = [mock_cls_1, mock_cls_2]
+
+        mock_result = MagicMock()
+        mock_result.boxes = mock_boxes
+        mock_result.names = {0: "cardboard delivery package", 1: "Amazon box"}
+
+        mock_model.predict.return_value = [mock_result]
+
+        # Use package threshold
+        package_threshold = get_object_threshold("packages")  # 0.35
+
+        result = await detect_with_prompts(
+            mock_model,
+            MagicMock(),
+            prompts=YOLO_WORLD_PROMPTS_V2["packages"]["prompts"],
+            confidence_threshold=package_threshold,
+        )
+
+        # Both detections are returned (filtering happens in predict)
+        # The model filters at predict time, not in detect_with_prompts
+        # This test verifies the threshold is passed correctly
+        call_kwargs = mock_model.predict.call_args.kwargs
+        assert call_kwargs["conf"] == 0.35
+
+    @pytest.mark.asyncio
+    async def test_detect_with_prompts_uses_package_prompts(self) -> None:
+        """Test detect_with_prompts correctly sets package prompts."""
+        mock_model = MagicMock()
+        mock_model.set_classes = MagicMock()
+        mock_model.predict = MagicMock()
+
+        mock_result = MagicMock()
+        mock_result.boxes = None
+        mock_model.predict.return_value = [mock_result]
+
+        package_prompts = YOLO_WORLD_PROMPTS_V2["packages"]["prompts"]
+
+        await detect_with_prompts(mock_model, MagicMock(), prompts=package_prompts)
+
+        # Verify package prompts were set
+        mock_model.set_classes.assert_called_once_with(package_prompts)
+
+    def test_package_prompts_have_no_duplicates(self) -> None:
+        """Test package prompts have no duplicate entries."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        prompts = config["prompts"]
+
+        assert len(prompts) == len(set(prompts)), "Package prompts should have no duplicates"
+
+    def test_package_prompts_are_non_empty_strings(self) -> None:
+        """Test all package prompts are non-empty strings."""
+        config = YOLO_WORLD_PROMPTS_V2["packages"]
+        prompts = config["prompts"]
+
+        for prompt in prompts:
+            assert isinstance(prompt, str), f"Prompt should be string: {prompt}"
+            assert len(prompt.strip()) > 0, f"Prompt should not be empty: {prompt!r}"
+
+    def test_package_threshold_lower_than_animals(self) -> None:
+        """Test package threshold is lower than animals (packages are more important)."""
+        package_threshold = YOLO_WORLD_PROMPTS_V2["packages"]["threshold"]
+        animal_threshold = YOLO_WORLD_PROMPTS_V2["animals"]["threshold"]
+
+        assert package_threshold < animal_threshold, (
+            f"Package threshold ({package_threshold}) should be lower than "
+            f"animal threshold ({animal_threshold})"
+        )
+
+    def test_package_threshold_higher_than_weapons(self) -> None:
+        """Test package threshold is higher than weapons (weapons are more critical)."""
+        package_threshold = YOLO_WORLD_PROMPTS_V2["packages"]["threshold"]
+        weapon_threshold = YOLO_WORLD_PROMPTS_V2["weapons"]["threshold"]
+
+        assert package_threshold > weapon_threshold, (
+            f"Package threshold ({package_threshold}) should be higher than "
+            f"weapon threshold ({weapon_threshold})"
+        )
