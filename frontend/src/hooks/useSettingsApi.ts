@@ -105,6 +105,14 @@ export interface RetentionSettings {
 }
 
 /**
+ * Camera settings for snapshot caching and camera behavior.
+ */
+export interface CameraSettings {
+  /** TTL in seconds for cached camera snapshots extracted from videos (60-86400) */
+  snapshot_cache_ttl: number;
+}
+
+/**
  * Complete settings response from GET /api/v1/settings.
  */
 export interface SettingsResponse {
@@ -122,6 +130,8 @@ export interface SettingsResponse {
   queue: QueueSettings;
   /** Data retention settings */
   retention: RetentionSettings;
+  /** Camera settings (snapshot caching) */
+  camera: CameraSettings;
 }
 
 // ============================================================================
@@ -191,6 +201,13 @@ export interface RetentionSettingsUpdate {
 }
 
 /**
+ * Camera settings update (all fields optional).
+ */
+export interface CameraSettingsUpdate {
+  snapshot_cache_ttl?: number;
+}
+
+/**
  * Settings update request for PATCH /api/v1/settings.
  * All fields are optional to support partial updates.
  */
@@ -202,6 +219,7 @@ export interface SettingsUpdate {
   rate_limiting?: RateLimitingSettingsUpdate;
   queue?: QueueSettingsUpdate;
   retention?: RetentionSettingsUpdate;
+  camera?: CameraSettingsUpdate;
 }
 
 // ============================================================================
@@ -413,6 +431,7 @@ function mergeSettings(current: SettingsResponse, updates: SettingsUpdate): Sett
     rate_limiting: { ...current.rate_limiting, ...updates.rate_limiting },
     queue: { ...current.queue, ...updates.queue },
     retention: { ...current.retention, ...updates.retention },
+    camera: { ...current.camera, ...updates.camera },
   };
 }
 

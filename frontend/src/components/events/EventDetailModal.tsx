@@ -1,7 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertCircle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
@@ -13,8 +11,6 @@ import {
   Printer,
   RefreshCw,
   Save,
-  ThumbsDown,
-  ThumbsUp,
   Timer,
   TrendingUp,
   UserPlus,
@@ -27,7 +23,6 @@ import ConfidenceIndicators from './ConfidenceIndicators';
 import EnrichmentPanel from './EnrichmentPanel';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
-import FeedbackForm from './FeedbackForm';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import RiskFactorsBreakdown from './RiskFactorsBreakdown';
@@ -35,15 +30,12 @@ import RiskFactorsList from './RiskFactorsList';
 import ThreatBoundingBox from './ThreatBoundingBox';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
-import { useToast } from '../../hooks/useToast';
 import {
   fetchEntity,
   getDetectionFullImageUrl,
   getDetectionImageUrl,
   getDetectionVideoThumbnailUrl,
   getDetectionVideoUrl,
-  getEventFeedback,
-  submitEventFeedback,
 } from '../../services/api';
 import { triggerEvaluation, AuditApiError } from '../../services/auditApi';
 import { THREAT_CLASSES, HIGH_PRIORITY_THREATS } from '../../types/threat';
@@ -69,13 +61,13 @@ import SnoozeButton from '../common/SnoozeButton';
 import DetectionImage from '../detection/DetectionImage';
 import EntityDetailModal from '../entities/EntityDetailModal';
 import EnrollFaceModal from '../face-recognition/EnrollFaceModal';
+import FeedbackPanel from '../feedback/FeedbackPanel';
 import VideoPlayer from '../video/VideoPlayer';
 
 import type { ThreatData } from './ThreatBoundingBox';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
-import type { FeedbackType, EventFeedbackResponse } from '../../types/generated';
 import type { RiskEntity, RiskFactor, RiskFlag, ConfidenceFactors } from '../../types/risk-analysis';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
@@ -180,9 +172,6 @@ export default function EventDetailModal({
   const [entityDetailOpen, setEntityDetailOpen] = useState<boolean>(false);
   const [selectedEntity, setSelectedEntity] = useState<EntityDetail | null>(null);
 
-  // State for feedback
-  const [feedbackFormType, setFeedbackFormType] = useState<FeedbackType | null>(null);
-
   // State for face enrollment modal
   const [enrollFaceModalOpen, setEnrollFaceModalOpen] = useState<boolean>(false);
 
@@ -190,10 +179,6 @@ export default function EventDetailModal({
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(
     null
   );
-
-  // Hooks for feedback
-  const { success: toastSuccess, error: toastError } = useToast();
-  const queryClient = useQueryClient();
 
   // Parse event ID for API calls
   const eventIdNumber = event ? parseInt(event.id, 10) : NaN;
@@ -223,29 +208,6 @@ export default function EventDetailModal({
     }));
   }, [detectionsData]);
 
-  // Query for existing feedback
-  const { data: existingFeedback, isLoading: isLoadingFeedback } =
-    useQuery<EventFeedbackResponse | null>({
-      queryKey: ['eventFeedback', eventIdNumber],
-      queryFn: () => getEventFeedback(eventIdNumber),
-      enabled: !isNaN(eventIdNumber) && isOpen,
-      staleTime: 30000, // 30 seconds
-    });
-
-  // Mutation for submitting feedback
-  const feedbackMutation = useMutation({
-    mutationFn: submitEventFeedback,
-    onSuccess: () => {
-      toastSuccess('Feedback submitted successfully');
-      setFeedbackFormType(null);
-      // Invalidate the feedback query to refetch
-      void queryClient.invalidateQueries({ queryKey: ['eventFeedback', eventIdNumber] });
-    },
-    onError: (error: Error) => {
-      toastError(`Failed to submit feedback: ${error.message}`);
-    },
-  });
-
   // Initialize notes text, reset re-evaluate state, and reset selection when event changes
   useEffect(() => {
     if (event) {
@@ -253,7 +215,6 @@ export default function EventDetailModal({
       setNotesSaved(false);
       setReEvaluateError(null);
       setReEvaluateSuccess(false);
-      setFeedbackFormType(null);
       // Reset selected detection when switching events
       setSelectedDetectionId(undefined);
       // Reset image dimensions for ThreatBoundingBox overlay
@@ -374,45 +335,6 @@ export default function EventDetailModal({
     } catch (error) {
       console.error('Failed to fetch entity details:', error);
     }
-  };
-
-  // Handle quick feedback submission (for "Correct Detection")
-  const handleQuickFeedback = (type: FeedbackType) => {
-    if (isNaN(eventIdNumber)) return;
-    feedbackMutation.mutate({
-      event_id: eventIdNumber,
-      feedback_type: type,
-    });
-  };
-
-  // Handle feedback form submission
-  const handleFeedbackSubmit = (notes: string, expectedSeverity?: number) => {
-    if (isNaN(eventIdNumber) || !feedbackFormType) return;
-    feedbackMutation.mutate({
-      event_id: eventIdNumber,
-      feedback_type: feedbackFormType,
-      notes: notes || undefined,
-      // Note: The backend doesn't have expected_severity in the schema currently,
-      // so we include it in the notes for now
-      ...(expectedSeverity !== undefined && feedbackFormType === 'severity_wrong'
-        ? {
-            notes: notes
-              ? `Expected severity: ${expectedSeverity}. ${notes}`
-              : `Expected severity: ${expectedSeverity}`,
-          }
-        : {}),
-    });
-  };
-
-  // Get display label for existing feedback
-  const getFeedbackTypeLabel = (type: string): string => {
-    const labels: Record<string, string> = {
-      accurate: 'Correct Detection',
-      false_positive: 'False Positive',
-      severity_wrong: 'Wrong Severity',
-      missed_threat: 'Missed Detection',
-    };
-    return labels[type] || type;
   };
 
   // Build lightbox images array from detection sequence (images only, not videos)
@@ -1145,94 +1067,14 @@ export default function EventDetailModal({
                         </div>
                       </div>
 
-                      {/* Event Feedback */}
-                      <div className="mb-6" data-testid="feedback-section">
-                        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                          Detection Feedback
-                        </h3>
-
-                        {/* Loading state */}
-                        {isLoadingFeedback && (
-                          <div className="flex items-center gap-2 text-sm text-gray-400">
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-[#76B900]" />
-                            Loading feedback...
-                          </div>
-                        )}
-
-                        {/* Existing feedback display */}
-                        {!isLoadingFeedback && existingFeedback && (
-                          <div
-                            className="flex items-center gap-3 rounded-lg border border-gray-700 bg-[#1F1F1F] p-4"
-                            data-testid="existing-feedback"
-                          >
-                            <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[#76B900]" />
-                            <div>
-                              <div className="font-medium text-white">
-                                {getFeedbackTypeLabel(existingFeedback.feedback_type)}
-                              </div>
-                              {existingFeedback.notes && (
-                                <p className="mt-1 text-sm text-gray-400">
-                                  {existingFeedback.notes}
-                                </p>
-                              )}
-                              <p className="mt-1 text-xs text-gray-500">
-                                Submitted{' '}
-                                {new Date(existingFeedback.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Feedback form (when a type is selected) */}
-                        {!isLoadingFeedback && !existingFeedback && feedbackFormType && (
-                          <FeedbackForm
-                            eventId={eventIdNumber}
-                            feedbackType={feedbackFormType}
-                            currentSeverity={event.risk_score}
-                            onSubmit={handleFeedbackSubmit}
-                            onCancel={() => setFeedbackFormType(null)}
-                            isSubmitting={feedbackMutation.isPending}
-                          />
-                        )}
-
-                        {/* Feedback buttons (when no feedback exists and no form is open) */}
-                        {!isLoadingFeedback && !existingFeedback && !feedbackFormType && (
-                          <div className="space-y-3">
-                            <p className="text-sm text-gray-400">
-                              Help improve AI accuracy by providing feedback on this detection.
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                onClick={() => handleQuickFeedback('accurate')}
-                                disabled={feedbackMutation.isPending}
-                                className="flex items-center gap-2 rounded-lg border border-green-600/40 bg-green-600/10 px-3 py-2 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                data-testid="feedback-accurate-button"
-                              >
-                                <ThumbsUp className="h-4 w-4" />
-                                Correct Detection
-                              </button>
-                              <button
-                                onClick={() => setFeedbackFormType('false_positive')}
-                                disabled={feedbackMutation.isPending}
-                                className="flex items-center gap-2 rounded-lg border border-red-600/40 bg-red-600/10 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                data-testid="feedback-false-positive-button"
-                              >
-                                <ThumbsDown className="h-4 w-4" />
-                                False Positive
-                              </button>
-                              <button
-                                onClick={() => setFeedbackFormType('severity_wrong')}
-                                disabled={feedbackMutation.isPending}
-                                className="flex items-center gap-2 rounded-lg border border-yellow-600/40 bg-yellow-600/10 px-3 py-2 text-sm font-medium text-yellow-400 transition-colors hover:bg-yellow-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                data-testid="feedback-wrong-severity-button"
-                              >
-                                <AlertCircle className="h-4 w-4" />
-                                Wrong Severity
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      {/* Event Feedback - FeedbackPanel handles all feedback state internally (NEM-4928) */}
+                      {!isNaN(eventIdNumber) && (
+                        <FeedbackPanel
+                          eventId={eventIdNumber}
+                          currentRiskScore={event.risk_score}
+                          className="mb-6"
+                        />
+                      )}
 
                       {/* Event Metadata */}
                       <div className="rounded-lg border border-gray-800 bg-black/20 p-4">

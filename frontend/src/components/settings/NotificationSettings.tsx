@@ -6,6 +6,7 @@ import {
   Camera,
   CheckCircle,
   Clock,
+  History,
   Loader2,
   Mail,
   Monitor,
@@ -36,6 +37,7 @@ import {
   testNotification,
   type NotificationConfig,
 } from '../../services/api';
+import NotificationHistoryPanel from '../notifications/NotificationHistoryPanel';
 
 export interface NotificationSettingsProps {
   className?: string;
@@ -1190,6 +1192,15 @@ export default function NotificationSettings({ className }: NotificationSettings
               (enabled/disabled, sound, risk filters, camera settings, quiet hours) are stored in
               the database and take effect immediately.
             </Text>
+          </div>
+
+          {/* Notification History Section */}
+          <div className="mt-6 rounded-lg border border-gray-800 bg-[#121212] p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <History className="h-5 w-5 text-[#76B900]" />
+              <Text className="font-medium text-gray-300">Notification History</Text>
+            </div>
+            <NotificationHistoryPanel className="border-0 bg-transparent p-0 shadow-none" />
           </div>
         </div>
       )}

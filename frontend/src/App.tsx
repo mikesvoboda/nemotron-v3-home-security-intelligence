@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { lazy, Suspense, useMemo } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import {
   AmbientStatusProvider,
@@ -110,8 +110,23 @@ const TracingPage = lazy(() =>
   import('./components/tracing').then((module) => ({ default: module.TracingPage }))
 );
 
-// Settings
+// Settings (uses nested routes for sub-sections - NEM-4938)
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
+
+// Settings sub-pages (lazy loaded for code splitting)
+const CamerasSettings = lazy(() => import('./components/settings/CamerasSettings'));
+const AlertRulesSettings = lazy(() => import('./components/settings/AlertRulesSettings'));
+const ProcessingSettings = lazy(() => import('./components/settings/ProcessingSettings'));
+const NotificationSettings = lazy(() => import('./components/settings/NotificationSettings'));
+const AmbientStatusSettings = lazy(() => import('./components/settings/AmbientStatusSettings'));
+const CalibrationPanel = lazy(() => import('./components/settings/CalibrationPanel'));
+const AccessControlSettings = lazy(() => import('./components/settings/AccessControlSettings'));
+const PromptManagementPage = lazy(() =>
+  import('./components/settings/prompts').then((m) => ({ default: m.PromptManagementPage }))
+);
+const FileOperationsPanel = lazy(() => import('./components/system/FileOperationsPanel'));
+const AIModelsTab = lazy(() => import('./components/settings/AIModelsTab'));
+const AdminSettings = lazy(() => import('./components/settings/AdminSettings'));
 
 // Trash (soft-deleted events)
 const TrashPage = lazy(() => import('./pages/TrashPage'));
@@ -158,6 +173,9 @@ const TracksPage = lazy(() => import('./pages/TracksPage'));
 const ReIDDashboard = lazy(() =>
   import('./components/reid').then((m) => ({ default: m.ReIDDashboard }))
 );
+
+// 404 Not Found Page (NEM-4925)
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 /**
  * Get persist options for query client.
@@ -222,12 +240,27 @@ export default function App() {
                           <Route path="/gpu-metrics" element={<GpuMetricsPage />} />
                           <Route path="/request-profiling" element={<RequestProfilingPage />} />
                           <Route path="/tracing" element={<TracingPage />} />
-                          <Route path="/settings" element={<SettingsPage />} />
+                          {/* Settings page with nested sub-routes (NEM-4938) */}
+                          <Route path="/settings" element={<SettingsPage />}>
+                            {/* Default redirect to cameras */}
+                            <Route index element={<Navigate to="cameras" replace />} />
+                            <Route path="cameras" element={<CamerasSettings />} />
+                            <Route path="rules" element={<AlertRulesSettings />} />
+                            <Route path="processing" element={<ProcessingSettings />} />
+                            <Route path="notifications" element={<NotificationSettings />} />
+                            <Route path="ambient" element={<AmbientStatusSettings />} />
+                            <Route path="calibration" element={<CalibrationPanel />} />
+                            <Route path="access" element={<AccessControlSettings />} />
+                            <Route path="prompts" element={<PromptManagementPage />} />
+                            <Route path="storage" element={<FileOperationsPanel />} />
+                            <Route path="ai-models" element={<AIModelsTab />} />
+                            <Route path="admin" element={<AdminSettings />} />
+                            <Route path="gpu" element={<GpuSettingsPage />} />
+                          </Route>
                           <Route path="/notifications" element={<NotificationPreferencesPage />} />
                           <Route path="/trash" element={<TrashPage />} />
                           <Route path="/data" element={<DataManagementPage />} />
                           <Route path="/zones" element={<ZonesPage />} />
-                          <Route path="/settings/gpu" element={<GpuSettingsPage />} />
                           <Route path="/webhooks" element={<WebhooksPage />} />
                           <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
                           <Route path="/plate-reads" element={<PlateReadsPage />} />
@@ -237,6 +270,8 @@ export default function App() {
                           <Route path="/scene-changes" element={<SceneChangesPage />} />
                           <Route path="/tracks" element={<TracksPage />} />
                           <Route path="/reid" element={<ReIDDashboard />} />
+                          {/* Catch-all route for 404 Not Found (NEM-4925) */}
+                          <Route path="*" element={<NotFoundPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>

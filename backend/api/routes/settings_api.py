@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from backend.api.schemas.settings_api import (
     BatchSettings,
+    CameraSettings,
     DetectionSettings,
     FeatureSettings,
     QueueSettings,
@@ -70,6 +71,9 @@ SETTINGS_ENV_MAP: dict[str, dict[str, str]] = {
     "retention": {
         "days": "RETENTION_DAYS",
         "log_days": "LOG_RETENTION_DAYS",
+    },
+    "camera": {
+        "snapshot_cache_ttl": "SNAPSHOT_CACHE_TTL",
     },
 }
 
@@ -139,6 +143,9 @@ async def get_user_settings() -> SettingsResponse:
         retention=RetentionSettings(
             days=settings.retention_days,
             log_days=settings.log_retention_days,
+        ),
+        camera=CameraSettings(
+            snapshot_cache_ttl=settings.snapshot_cache_ttl,
         ),
     )
 

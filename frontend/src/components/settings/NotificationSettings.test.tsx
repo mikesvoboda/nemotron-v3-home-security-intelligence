@@ -31,6 +31,13 @@ vi.mock('../../hooks/useCamerasQuery', () => ({
   })),
 }));
 
+// Mock the NotificationHistoryPanel component to avoid its hook dependencies
+vi.mock('../notifications/NotificationHistoryPanel', () => ({
+  default: function MockNotificationHistoryPanel() {
+    return <div data-testid="notification-history-panel">Notification History Panel</div>;
+  },
+}));
+
 const mockFetchNotificationConfig = vi.mocked(api.fetchNotificationConfig);
 const mockTestNotification = vi.mocked(api.testNotification);
 const mockUpdateNotificationConfig = vi.mocked(api.updateNotificationConfig);
@@ -806,5 +813,57 @@ describe('NotificationSettings - Threshold Conflict Detection', () => {
 
     // Should not show any conflict warning
     expect(screen.queryByText(/alerts below.*are blocked by global risk filters/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('NotificationSettings - NotificationHistoryPanel Integration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical', 'high', 'medium'],
+    });
+
+    mockFetchCameraNotificationSettings.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+
+    mockFetchQuietHoursPeriods.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+  });
+
+  const mockFullConfig: api.NotificationConfig = {
+    notification_enabled: true,
+    email_configured: true,
+    webhook_configured: true,
+    push_configured: false,
+    available_channels: ['email', 'webhook'],
+    smtp_host: 'smtp.example.com',
+    smtp_port: 587,
+    smtp_from_address: 'alerts@example.com',
+    smtp_use_tls: true,
+    default_webhook_url: 'https://hooks.example.com/webhook',
+    webhook_timeout_seconds: 30,
+    default_email_recipients: ['user@example.com'],
+  };
+
+  it('should render the NotificationHistoryPanel component', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Check for the "Notification History" section header
+      expect(screen.getByText('Notification History')).toBeInTheDocument();
+    });
+
+    // Check that the mocked NotificationHistoryPanel is rendered
+    expect(screen.getByTestId('notification-history-panel')).toBeInTheDocument();
   });
 });

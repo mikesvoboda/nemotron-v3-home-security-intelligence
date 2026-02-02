@@ -3437,6 +3437,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/snapshot/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Camera Snapshot
+         * @description Refresh the snapshot for a camera by invalidating cache and fetching new image.
+         *
+         *     NEM-4947: This endpoint invalidates any cached snapshot and forces a new
+         *     snapshot to be generated. For video-only cameras, this extracts a fresh frame
+         *     from the most recent video file.
+         *
+         *     The response includes metadata about the refreshed snapshot, including:
+         *     - Whether cache was invalidated
+         *     - The source of the snapshot (image file or video extraction)
+         *     - Timestamp of the refresh
+         *
+         *     Args:
+         *         camera_id: ID of the camera to refresh snapshot for
+         *         db: Database session
+         *         _rate_limit: Rate limiting dependency
+         *
+         *     Returns:
+         *         SnapshotRefreshResponse with metadata about the refreshed snapshot
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found or no snapshot source available
+         *         HTTPException: 429 if rate limit exceeded
+         */
+        post: operations["cameras_refresh_camera_snapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/tracks": {
         parameters: {
             query?: never;
@@ -17062,6 +17103,38 @@ export interface components {
              * @description Stream profile to use (main, sub, both)
              */
             stream_profile?: string | null;
+        };
+        /**
+         * CameraSettings
+         * @description Camera-related settings for snapshot caching and camera behavior.
+         *
+         *     Controls camera snapshot caching and other camera-specific configuration.
+         * @example {
+         *       "snapshot_cache_ttl": 3600
+         *     }
+         */
+        CameraSettings: {
+            /**
+             * Snapshot Cache Ttl
+             * @description TTL in seconds for cached camera snapshots extracted from videos (60-86400). Cached snapshots are generated from video files when no image files are available. Higher values reduce CPU usage but may show outdated previews.
+             */
+            snapshot_cache_ttl: number;
+        };
+        /**
+         * CameraSettingsUpdate
+         * @description Camera settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update camera settings.
+         * @example {
+         *       "snapshot_cache_ttl": 1800
+         *     }
+         */
+        CameraSettingsUpdate: {
+            /**
+             * Snapshot Cache Ttl
+             * @description TTL in seconds for cached camera snapshots extracted from videos (60-86400)
+             */
+            snapshot_cache_ttl?: number | null;
         };
         /**
          * CameraStatus
@@ -36926,6 +36999,9 @@ export interface components {
          *         "idle_timeout_seconds": 30,
          *         "window_seconds": 90
          *       },
+         *       "camera": {
+         *         "snapshot_cache_ttl": 3600
+         *       },
          *       "detection": {
          *         "confidence_threshold": 0.5,
          *         "fast_path_threshold": 0.9
@@ -36961,6 +37037,8 @@ export interface components {
         SettingsResponse: {
             /** @description Batch processing settings */
             batch: components["schemas"]["BatchSettings"];
+            /** @description Camera settings (snapshot caching) */
+            camera: components["schemas"]["CameraSettings"];
             /** @description Detection confidence threshold settings */
             detection: components["schemas"]["DetectionSettings"];
             /** @description Feature toggle settings */
@@ -36993,6 +37071,8 @@ export interface components {
         SettingsUpdate: {
             /** @description Batch processing settings */
             batch?: components["schemas"]["BatchSettingsUpdate"] | null;
+            /** @description Camera settings (snapshot caching) */
+            camera?: components["schemas"]["CameraSettingsUpdate"] | null;
             /** @description Detection confidence threshold settings */
             detection?: components["schemas"]["DetectionSettingsUpdate"] | null;
             /** @description Feature toggle settings */
@@ -37423,6 +37503,48 @@ export interface components {
              * @description Total number of matches found
              */
             total_matches: number;
+        };
+        /**
+         * SnapshotRefreshResponse
+         * @description Response schema for refreshing a camera snapshot.
+         *
+         *     NEM-4947: Response from POST /api/cameras/{camera_id}/snapshot/refresh endpoint.
+         *     Contains metadata about the refreshed snapshot.
+         * @example {
+         *       "cache_invalidated": true,
+         *       "camera_id": "front_door",
+         *       "snapshot_source": "image_file",
+         *       "snapshot_url": "/api/cameras/front_door/snapshot",
+         *       "timestamp": "2025-01-15T10:30:00Z"
+         *     }
+         */
+        SnapshotRefreshResponse: {
+            /**
+             * Cache Invalidated
+             * @description Whether the cached snapshot was invalidated
+             */
+            cache_invalidated: boolean;
+            /**
+             * Camera Id
+             * @description ID of the camera whose snapshot was refreshed
+             */
+            camera_id: string;
+            /**
+             * Snapshot Source
+             * @description Source of the snapshot: 'image_file' or 'video_extraction'
+             */
+            snapshot_source: string;
+            /**
+             * Snapshot Url
+             * @description URL to access the refreshed snapshot
+             */
+            snapshot_url: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp when the snapshot was refreshed
+             */
+            timestamp: string;
         };
         /**
          * SourceFilter
@@ -45767,6 +45889,51 @@ export interface operations {
                 content?: never;
             };
             /** @description Camera or snapshot not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cameras_refresh_camera_snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot refreshed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotRefreshResponse"];
+                };
+            };
+            /** @description Camera not found or no snapshot available */
             404: {
                 headers: {
                     [name: string]: unknown;

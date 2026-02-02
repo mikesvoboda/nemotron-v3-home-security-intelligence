@@ -55,6 +55,9 @@ describe('DetectionThresholdsPanel', () => {
       days: 30,
       log_days: 7,
     },
+    camera: {
+      snapshot_cache_ttl: 3600,
+    },
   };
 
   const createQueryClient = () =>

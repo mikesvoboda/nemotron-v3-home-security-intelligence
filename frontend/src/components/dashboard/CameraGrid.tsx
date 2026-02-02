@@ -6,6 +6,7 @@ import {
   Circle,
   Clock,
   HelpCircle,
+  RefreshCw,
   Video,
   VideoOff,
   WifiOff,
@@ -13,6 +14,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCameraStatusWebSocket } from '../../hooks/useCameraStatusWebSocket';
+import { refreshCameraSnapshot } from '../../services/api';
 
 import type { CameraStatusEventPayload, CameraStatusValue } from '../../types/websocket-events';
 
@@ -51,6 +53,16 @@ export interface CameraGridProps {
    * Cameras in this set will show a pulsing activity indicator.
    */
   sceneChangeActivityIds?: Set<string> | string[];
+  /**
+   * Enable snapshot refresh button on camera cards (NEM-4947).
+   * When enabled, a refresh button appears to manually refresh snapshots.
+   * @default true
+   */
+  enableSnapshotRefresh?: boolean;
+  /**
+   * Callback when a camera snapshot is refreshed (NEM-4947).
+   */
+  onSnapshotRefresh?: (cameraId: string) => void;
 }
 
 /**
@@ -202,6 +214,14 @@ interface CameraCardProps {
    * Shows a pulsing indicator when true.
    */
   hasSceneChangeActivity?: boolean;
+  /**
+   * Whether to show snapshot refresh button (NEM-4947).
+   */
+  enableSnapshotRefresh?: boolean;
+  /**
+   * Callback when snapshot is refreshed (NEM-4947).
+   */
+  onRefresh?: () => void;
 }
 
 /**
@@ -213,6 +233,8 @@ const CameraCard = memo(function CameraCard({
   onClick,
   recentlyChanged = false,
   hasSceneChangeActivity = false,
+  enableSnapshotRefresh = true,
+  onRefresh,
 }: CameraCardProps) {
   const StatusIcon = getStatusIcon(camera.status);
   // Only attempt to load thumbnail for online or recording cameras
@@ -221,13 +243,55 @@ const CameraCard = memo(function CameraCard({
   const hasThumbnail = Boolean(camera.thumbnail_url) && canLoadThumbnail;
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Show placeholder if no thumbnail URL, camera is not active, or if image failed to load
   const showPlaceholder = !hasThumbnail || imageError;
 
+  // Handle snapshot refresh (NEM-4947)
+  const handleRefreshClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevent triggering onClick on the card
+      if (isRefreshing) return;
+
+      setIsRefreshing(true);
+      try {
+        await refreshCameraSnapshot(camera.id);
+        // Reset image state to trigger reload
+        setImageLoading(true);
+        setImageError(false);
+        onRefresh?.();
+      } catch (error) {
+        console.error('Failed to refresh snapshot:', error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    },
+    [camera.id, isRefreshing, onRefresh]
+  );
+
+  // Handle card click (not triggered when clicking the refresh button)
+  const handleCardClick = useCallback(() => {
+    onClick?.();
+  }, [onClick]);
+
+  // Handle keyboard navigation for accessibility
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClick?.();
+      }
+    },
+    [onClick]
+  );
+
   return (
-    <button
-      onClick={() => onClick?.()}
+    <div
+      role="button"
+      tabIndex={onClick ? 0 : -1}
+      onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
       className={clsx(
         'relative flex w-full flex-col overflow-hidden rounded-lg border transition-all duration-250',
         'bg-card hover:bg-gray-850 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
@@ -314,6 +378,27 @@ const CameraCard = memo(function CameraCard({
             <span className="text-xs font-medium text-white">Scene Change</span>
           </div>
         )}
+
+        {/* Snapshot refresh button - bottom-right corner (NEM-4947) */}
+        {enableSnapshotRefresh && (
+          <button
+            onClick={(e) => void handleRefreshClick(e)}
+            disabled={isRefreshing}
+            className={clsx(
+              'absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full',
+              'bg-black/70 backdrop-blur-sm transition-all hover:bg-black/90',
+              'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-transparent',
+              isRefreshing && 'cursor-not-allowed opacity-70'
+            )}
+            aria-label={isRefreshing ? 'Refreshing snapshot...' : 'Refresh snapshot'}
+            data-testid={`camera-refresh-${camera.id}`}
+          >
+            <RefreshCw
+              className={clsx('h-4 w-4 text-white', isRefreshing && 'animate-spin')}
+              aria-hidden="true"
+            />
+          </button>
+        )}
       </div>
 
       {/* Camera name */}
@@ -328,7 +413,7 @@ const CameraCard = memo(function CameraCard({
           </span>
         )}
       </div>
-    </button>
+    </div>
   );
 });
 
@@ -360,6 +445,8 @@ export default function CameraGrid({
   enableWebSocketUpdates = false,
   onCameraStatusChange,
   sceneChangeActivityIds,
+  enableSnapshotRefresh = true,
+  onSnapshotRefresh,
 }: CameraGridProps) {
   // Track which cameras have recently changed status (NEM-2295)
   const [recentlyChangedCameras, setRecentlyChangedCameras] = useState<Set<string>>(new Set());
@@ -487,6 +574,8 @@ export default function CameraGrid({
           onClick={onCameraClick ? () => onCameraClick(camera.id) : undefined}
           recentlyChanged={recentlyChangedCameras.has(camera.id)}
           hasSceneChangeActivity={sceneChangeActivitySet.has(camera.id)}
+          enableSnapshotRefresh={enableSnapshotRefresh}
+          onRefresh={onSnapshotRefresh ? () => onSnapshotRefresh(camera.id) : undefined}
         />
       ))}
     </div>
