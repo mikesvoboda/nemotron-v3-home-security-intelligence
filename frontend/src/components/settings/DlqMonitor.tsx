@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
+import { useToast } from '../../hooks/useToast';
 import {
   fetchDlqStats,
   fetchDlqJobs,
@@ -49,13 +50,11 @@ interface ConfirmationState {
  * - Auto-refresh capability
  */
 export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMonitorProps) {
+  const toast = useToast();
   const [stats, setStats] = useState<DLQStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionResult, setActionResult] = useState<{ success: boolean; message: string } | null>(
-    null
-  );
   const [confirmation, setConfirmation] = useState<ConfirmationState>({
     action: null,
     queueName: null,
@@ -134,12 +133,17 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
 
   const handleRequeueAll = async (queueName: DLQQueueName) => {
     setActionLoading(true);
-    setActionResult(null);
     setConfirmation({ action: null, queueName: null });
 
     try {
       const result = await requeueAllDlqJobs(queueName);
-      setActionResult({ success: result.success, message: result.message });
+      if (result.success) {
+        toast.success(result.message, {
+          description: `Jobs from ${getQueueDisplayName(queueName)} have been requeued for processing`,
+        });
+      } else {
+        toast.warning(result.message);
+      }
 
       // Refresh stats and jobs after requeue
       await loadStats();
@@ -147,25 +151,27 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
         await loadQueueJobs(queueName);
       }
     } catch (err) {
-      setActionResult({
-        success: false,
-        message: err instanceof Error ? err.message : 'Failed to requeue jobs',
+      toast.error('Failed to requeue jobs', {
+        description: err instanceof Error ? err.message : 'Unknown error occurred',
       });
     } finally {
       setActionLoading(false);
-      // Clear result after 5 seconds
-      setTimeout(() => setActionResult(null), 5000);
     }
   };
 
   const handleClear = async (queueName: DLQQueueName) => {
     setActionLoading(true);
-    setActionResult(null);
     setConfirmation({ action: null, queueName: null });
 
     try {
       const result = await clearDlq(queueName);
-      setActionResult({ success: result.success, message: result.message });
+      if (result.success) {
+        toast.success(result.message, {
+          description: `${getQueueDisplayName(queueName)} has been cleared`,
+        });
+      } else {
+        toast.warning(result.message);
+      }
 
       // Refresh stats and jobs after clear
       await loadStats();
@@ -173,14 +179,11 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
         await loadQueueJobs(queueName);
       }
     } catch (err) {
-      setActionResult({
-        success: false,
-        message: err instanceof Error ? err.message : 'Failed to clear queue',
+      toast.error('Failed to clear queue', {
+        description: err instanceof Error ? err.message : 'Unknown error occurred',
       });
     } finally {
       setActionLoading(false);
-      // Clear result after 5 seconds
-      setTimeout(() => setActionResult(null), 5000);
     }
   };
 
@@ -240,23 +243,6 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
           <Text className="text-red-400">{error}</Text>
-        </div>
-      )}
-
-      {actionResult && (
-        <div
-          className={`mb-4 flex items-center gap-2 rounded-lg border p-4 ${
-            actionResult.success
-              ? 'border-green-500/30 bg-green-500/10'
-              : 'border-red-500/30 bg-red-500/10'
-          }`}
-        >
-          <AlertCircle
-            className={`h-5 w-5 flex-shrink-0 ${actionResult.success ? 'text-green-500' : 'text-red-400'}`}
-          />
-          <Text className={actionResult.success ? 'text-green-500' : 'text-red-400'}>
-            {actionResult.message}
-          </Text>
         </div>
       )}
 

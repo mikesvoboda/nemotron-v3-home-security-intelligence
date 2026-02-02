@@ -610,6 +610,107 @@ class DwellTimeService:
             "entity_types": entity_types,
         }
 
+    async def get_zone_activity_heatmap(
+        self,
+        zone_id: int,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> dict:
+        """Get zone activity aggregated by hour and day of week for heatmap visualization.
+
+        Aggregates dwell time records by hour (0-23) and day of week (0=Sunday, 6=Saturday)
+        to create a heatmap showing when the zone is most active.
+
+        Args:
+            zone_id: The zone to query.
+            start_time: Start of the time window.
+            end_time: End of the time window.
+
+        Returns:
+            Dictionary with zone_id, zone_name, weekly_data (list of hour/day/value dicts),
+            hourly_data (today's activity), and total_activity.
+        """
+        from collections import defaultdict
+
+        from sqlalchemy.orm import selectinload
+
+        # Get all dwell records in the time window
+        stmt = (
+            select(DwellTimeRecord)
+            .options(selectinload(DwellTimeRecord.zone))
+            .where(
+                and_(
+                    DwellTimeRecord.zone_id == zone_id,
+                    DwellTimeRecord.entry_time >= start_time,
+                    DwellTimeRecord.entry_time <= end_time,
+                )
+            )
+            .order_by(DwellTimeRecord.entry_time)
+        )
+        result = await self.db.execute(stmt)
+        records = result.scalars().all()
+
+        # Get zone name (use first record's zone or fallback)
+        zone_name = "Unknown"
+        if records and records[0].zone is not None:
+            zone_name = records[0].zone.name
+
+        # Aggregate by hour and day of week
+        # weekly_counts uses (hour, day_of_week) as key with count as value
+        weekly_counts: dict[tuple[int, int], int] = defaultdict(int)
+        hourly_counts: dict[int, int] = defaultdict(int)
+
+        # Get today's date for filtering hourly data
+        now = utc_now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        for record in records:
+            entry_time = record.entry_time
+            # Python weekday(): Monday=0, Sunday=6
+            # We want: Sunday=0, Saturday=6
+            python_weekday = entry_time.weekday()
+            day_of_week = (python_weekday + 1) % 7
+            hour = entry_time.hour
+
+            weekly_counts[(hour, day_of_week)] += 1
+
+            # Count today's hourly activity
+            if entry_time >= today_start:
+                hourly_counts[hour] += 1
+
+        # Build weekly_data list with all hour/day combinations
+        weekly_data = []
+        for hour in range(24):
+            for day in range(7):
+                value = weekly_counts.get((hour, day), 0)
+                weekly_data.append(
+                    {
+                        "hour": hour,
+                        "day_of_week": day,
+                        "value": value,
+                    }
+                )
+
+        # Build hourly_data list for today (all 24 hours)
+        hourly_data = []
+        for hour in range(24):
+            hourly_data.append(
+                {
+                    "hour": hour,
+                    "count": hourly_counts.get(hour, 0),
+                }
+            )
+
+        total_activity = len(records)
+
+        return {
+            "zone_id": zone_id,
+            "zone_name": zone_name,
+            "weekly_data": weekly_data,
+            "hourly_data": hourly_data,
+            "total_activity": total_activity,
+        }
+
 
 def get_dwell_time_service(db: AsyncSession) -> DwellTimeService:
     """Get a DwellTimeService instance for the given session.

@@ -1,5 +1,5 @@
 /**
- * ZoneActivityHeatmap - Zone activity heatmap visualization (NEM-3186, NEM-3200)
+ * ZoneActivityHeatmap - Zone activity heatmap visualization (NEM-3186, NEM-3200, NEM-5024)
  *
  * Displays a visual heatmap of activity within a zone, showing:
  * - Time-based activity patterns (hourly, daily)
@@ -7,51 +7,33 @@
  * - Activity intensity color gradients
  *
  * Part of Phase 5.1: Enhanced Zone Editor Integration.
+ * Now connected to real API data via useZoneActivityHeatmap hook.
  *
  * @module components/zones/ZoneActivityHeatmap
  */
 
 import { Card, Title, Text, Select, SelectItem } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Calendar, Clock, RefreshCw } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Calendar, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+
+import { useZoneActivityHeatmap } from '../../hooks/useZoneActivityHeatmap';
+
+import type { HeatmapTimeRange, HeatmapDataPoint, HourlyActivity } from '../../hooks/useZoneActivityHeatmap';
 
 // ============================================================================
-// Types
+// Types (re-exported from hook for backward compatibility)
 // ============================================================================
 
-/**
- * Time range options for the heatmap.
- */
-export type HeatmapTimeRange = '1h' | '6h' | '24h' | '7d' | '30d';
-
-/**
- * Heatmap data point representing activity at a specific time slot.
- */
-export interface HeatmapDataPoint {
-  /** Hour of day (0-23) */
-  hour: number;
-  /** Day of week (0-6, 0 = Sunday) */
-  dayOfWeek: number;
-  /** Activity count/intensity */
-  value: number;
-}
-
-/**
- * Hourly activity data for time-of-day analysis.
- */
-export interface HourlyActivity {
-  hour: number;
-  count: number;
-}
+export type { HeatmapTimeRange, HeatmapDataPoint, HourlyActivity };
 
 /**
  * Props for the ZoneActivityHeatmap component.
  */
 export interface ZoneActivityHeatmapProps {
-  /** Zone ID to display heatmap for */
-  zoneId: string;
-  /** Zone name for display */
+  /** Zone ID to display heatmap for (polygon zone ID as string or number) */
+  zoneId: string | number;
+  /** Zone name for display (overrides API-provided name) */
   zoneName?: string;
   /** Initial time range selection */
   initialTimeRange?: HeatmapTimeRange;
@@ -119,65 +101,6 @@ function getHeatmapTextColor(value: number, maxValue: number): string {
 }
 
 // ============================================================================
-// Mock Data Generator (until API is available)
-// ============================================================================
-
-/**
- * Generate mock heatmap data for demonstration.
- * In production, this would be replaced with actual API data.
- */
-function generateMockHeatmapData(): HeatmapDataPoint[] {
-  const data: HeatmapDataPoint[] = [];
-
-  for (let day = 0; day < 7; day++) {
-    for (let hour = 0; hour < 24; hour++) {
-      // Generate realistic patterns:
-      // - More activity during daytime (7-22)
-      // - More activity on weekdays
-      // - Peak hours around 8-9 and 17-19
-      let baseValue = 0;
-
-      // Daytime activity
-      if (hour >= 7 && hour <= 22) {
-        baseValue = Math.floor(Math.random() * 10) + 5;
-      } else {
-        baseValue = Math.floor(Math.random() * 3);
-      }
-
-      // Weekend reduction
-      if (day === 0 || day === 6) {
-        baseValue = Math.floor(baseValue * 0.6);
-      }
-
-      // Peak hours
-      if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19)) {
-        baseValue = Math.floor(baseValue * 1.5);
-      }
-
-      data.push({
-        hour,
-        dayOfWeek: day,
-        value: baseValue,
-      });
-    }
-  }
-
-  return data;
-}
-
-/**
- * Generate mock hourly activity for today.
- */
-function generateMockHourlyActivity(): HourlyActivity[] {
-  const currentHour = new Date().getHours();
-  return HOURS_OF_DAY.map((hour) => ({
-    hour,
-    count:
-      hour <= currentHour ? Math.floor(Math.random() * 15) + (hour >= 7 && hour <= 22 ? 5 : 0) : 0,
-  }));
-}
-
-// ============================================================================
 // Subcomponents
 // ============================================================================
 
@@ -211,6 +134,37 @@ function HeatmapSkeleton({ compact }: { compact?: boolean }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Error state display.
+ */
+function HeatmapError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <AlertTriangle className="mb-2 h-8 w-8 text-yellow-500" />
+      <Text className="mb-3 text-gray-400">{message}</Text>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded bg-gray-700 px-3 py-1.5 text-sm text-white hover:bg-gray-600"
+      >
+        Try Again
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Empty state display when no data is available.
+ */
+function HeatmapEmpty() {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <Calendar className="mb-2 h-8 w-8 text-gray-500" />
+      <Text className="text-gray-400">No activity data available for this time range</Text>
     </div>
   );
 }
@@ -399,14 +353,14 @@ function HeatmapLegend({ compact }: { compact?: boolean }) {
  * ZoneActivityHeatmap component.
  *
  * Displays activity patterns within a zone using a weekly heatmap
- * and hourly bar chart visualization.
+ * and hourly bar chart visualization. Now connected to real API data.
  *
  * @param props - Component props
  * @returns Rendered component
  */
 export default function ZoneActivityHeatmap({
   zoneId,
-  zoneName,
+  zoneName: propsZoneName,
   initialTimeRange = '7d',
   compact = false,
   overlay = false,
@@ -414,21 +368,30 @@ export default function ZoneActivityHeatmap({
   onCellClick,
 }: ZoneActivityHeatmapProps) {
   const [timeRange, setTimeRange] = useState<HeatmapTimeRange>(initialTimeRange);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Generate mock data (in production, this would use an API hook)
-  const weeklyData = useMemo(() => generateMockHeatmapData(), []);
-  const hourlyData = useMemo(() => generateMockHourlyActivity(), []);
+  // Fetch real data from API
+  const {
+    weeklyData,
+    hourlyData,
+    zoneName: apiZoneName,
+    totalActivity,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refresh,
+  } = useZoneActivityHeatmap({
+    zoneId,
+    timeRange,
+  });
 
-  // Suppress unused variable warning - zoneId will be used with real API
-  void zoneId;
-  void timeRange;
+  // Use props zoneName if provided, otherwise use API-provided name
+  const displayZoneName = propsZoneName ?? apiZoneName;
 
+  // Handle refresh
   const handleRefresh = useCallback(() => {
-    setIsLoading(true);
-    // Simulate API refresh
-    setTimeout(() => setIsLoading(false), 500);
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   // Overlay mode for canvas integration
   if (overlay) {
@@ -437,10 +400,13 @@ export default function ZoneActivityHeatmap({
         className={clsx('pointer-events-none absolute inset-0 opacity-50', className)}
         data-testid="zone-activity-heatmap-overlay"
       >
-        {/* Overlay grid would go here - simplified for now */}
+        {/* Overlay grid based on real data if available */}
         <div className="grid h-full w-full grid-cols-8 grid-rows-6 gap-0.5">
           {Array.from({ length: 48 }).map((_, idx) => {
-            const value = Math.random();
+            // Use real data intensity if available
+            const dataPoint = weeklyData[idx % weeklyData.length];
+            const maxValue = Math.max(...weeklyData.map((d) => d.value), 1);
+            const value = dataPoint ? dataPoint.value / maxValue : Math.random();
             return (
               <div
                 key={idx}
@@ -472,8 +438,11 @@ export default function ZoneActivityHeatmap({
         <div className="flex items-center gap-2">
           <Calendar className={clsx('text-[#76B900]', compact ? 'h-4 w-4' : 'h-5 w-5')} />
           <Title className={clsx('text-white', compact && 'text-sm')}>
-            {zoneName ? `${zoneName} Activity` : 'Activity Heatmap'}
+            {displayZoneName ? `${displayZoneName} Activity` : 'Activity Heatmap'}
           </Title>
+          {!compact && totalActivity > 0 && (
+            <Text className="text-gray-500">({totalActivity} total)</Text>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -493,18 +462,26 @@ export default function ZoneActivityHeatmap({
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={isLoading}
+            disabled={isLoading || isFetching}
             className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white disabled:opacity-50"
             title="Refresh data"
             data-testid="refresh-btn"
           >
-            <RefreshCw className={clsx('h-4 w-4', isLoading && 'animate-spin')} />
+            <RefreshCw className={clsx('h-4 w-4', (isLoading || isFetching) && 'animate-spin')} />
           </button>
         </div>
       </div>
 
+      {/* Content */}
       {isLoading ? (
         <HeatmapSkeleton compact={compact} />
+      ) : isError ? (
+        <HeatmapError
+          message={error?.message ?? 'Failed to load heatmap data'}
+          onRetry={handleRefresh}
+        />
+      ) : weeklyData.length === 0 || totalActivity === 0 ? (
+        <HeatmapEmpty />
       ) : (
         <div className={clsx('space-y-4', compact && 'space-y-3')}>
           {/* Weekly heatmap */}
@@ -514,7 +491,9 @@ export default function ZoneActivityHeatmap({
           </div>
 
           {/* Hourly bar chart */}
-          {!compact && <HourlyBarChart data={hourlyData} compact={compact} />}
+          {!compact && hourlyData.length > 0 && (
+            <HourlyBarChart data={hourlyData} compact={compact} />
+          )}
 
           {/* Legend */}
           <div className="flex justify-end">
@@ -531,7 +510,4 @@ export default function ZoneActivityHeatmap({
 // ============================================================================
 
 // Export subcomponents for testing purposes
-// Note: formatHour, getHeatmapColor, getHeatmapTextColor, generateMockHeatmapData,
-// and generateMockHourlyActivity are not exported to avoid react-refresh warnings.
-// They are tested through component tests.
-export { HeatmapSkeleton, WeeklyHeatmapGrid, HourlyBarChart, HeatmapLegend };
+export { HeatmapSkeleton, HeatmapError, HeatmapEmpty, WeeklyHeatmapGrid, HourlyBarChart, HeatmapLegend };

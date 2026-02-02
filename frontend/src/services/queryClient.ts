@@ -736,6 +736,36 @@ export const queryKeys = {
       cameras: (areaId: number) => [...queryKeys.hierarchy.areas.all, 'cameras', areaId] as const,
     },
   },
+
+  /**
+   * Action events query keys (X-CLIP action recognition - NEM-5024)
+   */
+  actionEvents: {
+    /** Base key for all action event queries */
+    all: ['actionEvents'] as const,
+    /** Action events list with optional filters */
+    list: (filters?: {
+      camera_id?: string;
+      action?: string;
+      is_suspicious?: boolean;
+      start_time?: string;
+      end_time?: string;
+    }) =>
+      filters
+        ? ([...queryKeys.actionEvents.all, 'list', filters] as const)
+        : ([...queryKeys.actionEvents.all, 'list'] as const),
+    /** Single action event by ID */
+    detail: (id: number) => [...queryKeys.actionEvents.all, 'detail', id] as const,
+    /** Action events for a specific camera */
+    forCamera: (cameraId: string) => [...queryKeys.actionEvents.all, 'camera', cameraId] as const,
+    /** Action events for a specific security event (time-correlated) */
+    forEvent: (eventId: number) => [...queryKeys.actionEvents.all, 'event', eventId] as const,
+    /** Suspicious actions only */
+    suspicious: (filters?: { camera_id?: string; min_confidence?: number }) =>
+      filters
+        ? ([...queryKeys.actionEvents.all, 'suspicious', filters] as const)
+        : ([...queryKeys.actionEvents.all, 'suspicious'] as const),
+  },
 } as const;
 // QueryClient Factory
 // ============================================================================

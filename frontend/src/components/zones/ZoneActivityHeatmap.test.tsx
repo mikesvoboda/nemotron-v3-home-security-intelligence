@@ -1,5 +1,5 @@
 /**
- * Tests for ZoneActivityHeatmap component (NEM-3200)
+ * Tests for ZoneActivityHeatmap component (NEM-3200, NEM-5024)
  *
  * Tests zone activity heatmap visualization including:
  * - Weekly heatmap grid rendering
@@ -7,7 +7,8 @@
  * - Time range selection
  * - Overlay mode
  * - Cell interactions
- * - Loading states
+ * - Loading and error states
+ * - API integration via mocked hook
  */
 
 import { render, screen, waitFor } from '@testing-library/react';
@@ -16,14 +17,47 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import ZoneActivityHeatmap from './ZoneActivityHeatmap';
 
+import type { UseZoneActivityHeatmapReturn } from '../../hooks/useZoneActivityHeatmap';
+
+// Mock the hook
+const mockRefresh = vi.fn().mockResolvedValue(undefined);
+const mockRefetch = vi.fn().mockResolvedValue(undefined);
+
+const defaultMockHookReturn: UseZoneActivityHeatmapReturn = {
+  weeklyData: [
+    { hour: 0, dayOfWeek: 0, value: 5 },
+    { hour: 6, dayOfWeek: 1, value: 10 },
+    { hour: 12, dayOfWeek: 2, value: 15 },
+    { hour: 18, dayOfWeek: 3, value: 8 },
+  ],
+  hourlyData: Array.from({ length: 24 }, (_, i) => ({ hour: i, count: Math.floor(Math.random() * 10) })),
+  zoneName: 'Test Zone',
+  totalActivity: 42,
+  startTime: '2026-01-25T00:00:00Z',
+  endTime: '2026-02-01T00:00:00Z',
+  isLoading: false,
+  isFetching: false,
+  error: null,
+  isError: false,
+  refetch: mockRefetch,
+  refresh: mockRefresh,
+};
+
+let mockHookReturn = { ...defaultMockHookReturn };
+
+vi.mock('../../hooks/useZoneActivityHeatmap', () => ({
+  useZoneActivityHeatmap: () => mockHookReturn,
+}));
+
 describe('ZoneActivityHeatmap', () => {
   const defaultProps = {
-    zoneId: 'zone-123',
+    zoneId: 1,
     zoneName: 'Front Door Zone',
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHookReturn = { ...defaultMockHookReturn };
   });
 
   afterEach(() => {
@@ -39,7 +73,7 @@ describe('ZoneActivityHeatmap', () => {
       });
     });
 
-    it('should display zone name in title', async () => {
+    it('should display zone name in title from props', async () => {
       render(<ZoneActivityHeatmap {...defaultProps} />);
 
       await waitFor(() => {
@@ -47,8 +81,17 @@ describe('ZoneActivityHeatmap', () => {
       });
     });
 
-    it('should display default title when no zoneName provided', async () => {
-      render(<ZoneActivityHeatmap zoneId="zone-123" />);
+    it('should display zone name from API when props zoneName not provided', async () => {
+      render(<ZoneActivityHeatmap zoneId={1} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Zone Activity')).toBeInTheDocument();
+      });
+    });
+
+    it('should display default title when no zoneName from props or API', async () => {
+      mockHookReturn = { ...defaultMockHookReturn, zoneName: null };
+      render(<ZoneActivityHeatmap zoneId={1} />);
 
       await waitFor(() => {
         expect(screen.getByText('Activity Heatmap')).toBeInTheDocument();
@@ -85,6 +128,82 @@ describe('ZoneActivityHeatmap', () => {
         expect(screen.getByText('High')).toBeInTheDocument();
       });
     });
+
+    it('should display total activity count', async () => {
+      render(<ZoneActivityHeatmap {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('(42 total)')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Loading State', () => {
+    it('should show skeleton while loading', async () => {
+      mockHookReturn = { ...defaultMockHookReturn, isLoading: true };
+      render(<ZoneActivityHeatmap {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-activity-heatmap')).toBeInTheDocument();
+      });
+
+      // Should show skeleton (animated pulse elements)
+      expect(screen.queryByText('Weekly Pattern')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Error State', () => {
+    it('should show error message on fetch failure', async () => {
+      mockHookReturn = {
+        ...defaultMockHookReturn,
+        isError: true,
+        error: new Error('Failed to fetch data'),
+        weeklyData: [],
+        hourlyData: [],
+      };
+      render(<ZoneActivityHeatmap {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to fetch data')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Try Again')).toBeInTheDocument();
+    });
+
+    it('should call refresh when Try Again is clicked', async () => {
+      mockHookReturn = {
+        ...defaultMockHookReturn,
+        isError: true,
+        error: new Error('Failed to fetch'),
+        weeklyData: [],
+        hourlyData: [],
+      };
+      const user = userEvent.setup();
+      render(<ZoneActivityHeatmap {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Try Again')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Try Again'));
+      expect(mockRefresh).toHaveBeenCalled();
+    });
+  });
+
+  describe('Empty State', () => {
+    it('should show empty message when no data', async () => {
+      mockHookReturn = {
+        ...defaultMockHookReturn,
+        weeklyData: [],
+        hourlyData: [],
+        totalActivity: 0,
+      };
+      render(<ZoneActivityHeatmap {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No activity data available for this time range')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Time Range Selection', () => {
@@ -115,7 +234,7 @@ describe('ZoneActivityHeatmap', () => {
       });
     });
 
-    it('should trigger refresh on click', async () => {
+    it('should call refresh on click', async () => {
       const user = userEvent.setup();
       render(<ZoneActivityHeatmap {...defaultProps} />);
 
@@ -124,7 +243,17 @@ describe('ZoneActivityHeatmap', () => {
       });
 
       await user.click(screen.getByTestId('refresh-btn'));
-      // Refresh should trigger loading state
+      expect(mockRefresh).toHaveBeenCalled();
+    });
+
+    it('should disable refresh button while fetching', async () => {
+      mockHookReturn = { ...defaultMockHookReturn, isFetching: true };
+      render(<ZoneActivityHeatmap {...defaultProps} />);
+
+      await waitFor(() => {
+        const btn = screen.getByTestId('refresh-btn');
+        expect(btn).toBeDisabled();
+      });
     });
   });
 
@@ -197,6 +326,16 @@ describe('ZoneActivityHeatmap', () => {
         expect(dayHeaders.length).toBeGreaterThanOrEqual(1);
       });
     });
+
+    it('should not show total activity count in compact mode', async () => {
+      render(<ZoneActivityHeatmap {...defaultProps} compact />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-activity-heatmap')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('(42 total)')).not.toBeInTheDocument();
+    });
   });
 
   describe('Overlay Mode', () => {
@@ -229,8 +368,22 @@ describe('ZoneActivityHeatmap', () => {
       });
     });
   });
-});
 
-// Note: Helper function tests (formatHour, getHeatmapColor, getHeatmapTextColor,
-// generateMockHeatmapData, generateMockHourlyActivity) are tested implicitly through
-// component tests to avoid react-refresh/only-export-components warnings.
+  describe('Zone ID Types', () => {
+    it('should accept numeric zone ID', async () => {
+      render(<ZoneActivityHeatmap zoneId={123} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-activity-heatmap')).toBeInTheDocument();
+      });
+    });
+
+    it('should accept string zone ID', async () => {
+      render(<ZoneActivityHeatmap zoneId="zone-123" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('zone-activity-heatmap')).toBeInTheDocument();
+      });
+    });
+  });
+});

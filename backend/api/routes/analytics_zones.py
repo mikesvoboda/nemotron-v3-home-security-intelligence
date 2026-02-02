@@ -46,6 +46,12 @@ from backend.api.schemas.loitering_config import (
     LoiteringConfigResponse,
     LoiteringConfigUpdate,
 )
+from backend.api.schemas.zone_activity_heatmap import (
+    HeatmapDataPoint,
+    HeatmapTimeRange,
+    HourlyActivity,
+    ZoneActivityHeatmapResponse,
+)
 from backend.api.schemas.zone_comparison import (
     ComparisonMetric,
     ComparisonPeriod,
@@ -1264,6 +1270,94 @@ async def get_all_zones_entity_distribution(
         grand_total=grand_total,
         start_time=actual_start,
         end_time=actual_end,
+    )
+
+
+# ============================================================================
+# Zone Activity Heatmap Endpoints (NEM-5024)
+# ============================================================================
+
+
+@router.get(
+    "/polygon-zones/{zone_id}/activity-heatmap",
+    response_model=ZoneActivityHeatmapResponse,
+    summary="Get activity heatmap data for a polygon zone",
+    responses={
+        200: {"description": "Activity heatmap retrieved successfully"},
+        404: {"description": "Polygon zone not found"},
+    },
+)
+async def get_zone_activity_heatmap(
+    zone_id: int,
+    db: DbSession,
+    time_range: HeatmapTimeRange = Query(
+        default=HeatmapTimeRange.DAY_7,
+        description="Time range for aggregation: 1h, 6h, 24h, 7d, 30d",
+    ),
+) -> ZoneActivityHeatmapResponse:
+    """Get activity heatmap data for a polygon zone.
+
+    Returns activity patterns aggregated by hour and day of week,
+    suitable for rendering a visual heatmap showing when the zone
+    is most active.
+
+    The heatmap data includes:
+    - Weekly data: Activity counts for each hour/day combination (24 hours x 7 days)
+    - Hourly data: Today's activity by hour
+    - Total activity count in the time range
+
+    Args:
+        zone_id: ID of the polygon zone.
+        db: Database session.
+        time_range: Time range for aggregation (default: 7 days).
+
+    Returns:
+        ZoneActivityHeatmapResponse with heatmap data points.
+
+    Raises:
+        HTTPException: 404 if polygon zone not found.
+    """
+    # Verify zone exists
+    await _get_polygon_zone_or_404(zone_id, db)
+
+    # Calculate time window based on time_range
+    now = utc_now()
+    if time_range == HeatmapTimeRange.HOUR_1:
+        start_time = now - timedelta(hours=1)
+    elif time_range == HeatmapTimeRange.HOUR_6:
+        start_time = now - timedelta(hours=6)
+    elif time_range == HeatmapTimeRange.HOUR_24:
+        start_time = now - timedelta(hours=24)
+    elif time_range == HeatmapTimeRange.DAY_7:
+        start_time = now - timedelta(days=7)
+    else:  # DAY_30
+        start_time = now - timedelta(days=30)
+
+    dwell_service = get_dwell_time_service(db)
+    heatmap_data = await dwell_service.get_zone_activity_heatmap(
+        zone_id=zone_id,
+        start_time=start_time,
+        end_time=now,
+    )
+
+    logger.debug(
+        f"Retrieved activity heatmap for zone {zone_id}",
+        extra={
+            "zone_id": zone_id,
+            "time_range": time_range.value,
+            "total_activity": heatmap_data["total_activity"],
+        },
+    )
+
+    return ZoneActivityHeatmapResponse(
+        zone_id=heatmap_data["zone_id"],
+        zone_name=heatmap_data["zone_name"],
+        time_range=time_range,
+        weekly_data=[HeatmapDataPoint(**dp) for dp in heatmap_data["weekly_data"]],
+        hourly_data=[HourlyActivity(**ha) for ha in heatmap_data["hourly_data"]],
+        total_activity=heatmap_data["total_activity"],
+        start_time=start_time,
+        end_time=now,
     )
 
 

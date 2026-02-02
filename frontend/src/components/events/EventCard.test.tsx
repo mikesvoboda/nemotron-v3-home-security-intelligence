@@ -2,7 +2,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
-import EventCard, { CollapsibleDetections, type Detection, type EventCardProps } from './EventCard';
+import EventCard, {
+  CollapsibleDetections,
+  type Detection,
+  type EventCardProps,
+} from './EventCard';
 
 describe('EventCard', () => {
   // Base time for consistent testing
@@ -2517,6 +2521,121 @@ describe('snooze functionality', () => {
       // Download button should also be disabled during generation
       const downloadButton = screen.getByRole('button', { name: /download video clip/i });
       expect(downloadButton).toBeDisabled();
+    });
+  });
+
+  describe('approach vector indicator (NEM-5024 Phase 6)', () => {
+    const mockApproachVector = {
+      isApproaching: true,
+      directionDegrees: 45,
+      speedNormalized: 0.05,
+      estimatedArrivalSeconds: 5,
+      zoneName: 'Front Door',
+      urgency: 'approaching' as const,
+    };
+
+    it('renders approach vector indicator when approachVector is provided', () => {
+      render(<EventCard {...mockProps} approachVector={mockApproachVector} />);
+
+      expect(screen.getByTestId('approach-vector-indicator')).toBeInTheDocument();
+    });
+
+    it('does not render approach vector indicator when approachVector is null', () => {
+      render(<EventCard {...mockProps} approachVector={null} />);
+
+      expect(screen.queryByTestId('approach-vector-indicator')).not.toBeInTheDocument();
+    });
+
+    it('does not render approach vector indicator when approachVector is undefined', () => {
+      render(<EventCard {...mockProps} />);
+
+      expect(screen.queryByTestId('approach-vector-indicator')).not.toBeInTheDocument();
+    });
+
+    it('does not render approach vector indicator when isApproaching is false', () => {
+      render(
+        <EventCard
+          {...mockProps}
+          approachVector={{ ...mockApproachVector, isApproaching: false }}
+        />
+      );
+
+      expect(screen.queryByTestId('approach-vector-indicator')).not.toBeInTheDocument();
+    });
+
+    it('displays zone name in approach vector indicator', () => {
+      // Use different zone name to avoid collision with camera_name "Front Door"
+      const approachWithDifferentZone = { ...mockApproachVector, zoneName: 'Back Yard' };
+      render(<EventCard {...mockProps} approachVector={approachWithDifferentZone} />);
+
+      const indicator = screen.getByTestId('approach-vector-indicator');
+      expect(indicator).toHaveTextContent('Back Yard');
+      expect(screen.getByText(/Approaching/)).toBeInTheDocument();
+    });
+
+    it('displays ETA in approach vector indicator', () => {
+      render(<EventCard {...mockProps} approachVector={mockApproachVector} />);
+
+      expect(screen.getByText(/ETA: 5s/)).toBeInTheDocument();
+    });
+
+    it('displays imminent urgency with correct styling', () => {
+      render(
+        <EventCard
+          {...mockProps}
+          approachVector={{ ...mockApproachVector, urgency: 'imminent', estimatedArrivalSeconds: 2 }}
+        />
+      );
+
+      const indicator = screen.getByTestId('approach-vector-indicator');
+      expect(indicator).toHaveClass('border-red-500');
+      expect(indicator).toHaveClass('animate-pulse');
+    });
+
+    it('displays approaching urgency with correct styling', () => {
+      render(
+        <EventCard
+          {...mockProps}
+          approachVector={{ ...mockApproachVector, urgency: 'approaching' }}
+        />
+      );
+
+      const indicator = screen.getByTestId('approach-vector-indicator');
+      expect(indicator).toHaveClass('border-amber-500');
+    });
+
+    it('displays distant urgency with correct styling', () => {
+      render(
+        <EventCard
+          {...mockProps}
+          approachVector={{ ...mockApproachVector, urgency: 'distant', estimatedArrivalSeconds: 15 }}
+        />
+      );
+
+      const indicator = screen.getByTestId('approach-vector-indicator');
+      expect(indicator).toHaveClass('border-green-500');
+    });
+
+    it('renders directional arrow rotated correctly', () => {
+      render(
+        <EventCard
+          {...mockProps}
+          approachVector={{ ...mockApproachVector, directionDegrees: 90 }}
+        />
+      );
+
+      const arrow = screen.getByTestId('direction-arrow');
+      expect(arrow).toHaveStyle({ transform: 'rotate(90deg)' });
+    });
+
+    it('has accessible aria-label', () => {
+      render(<EventCard {...mockProps} approachVector={mockApproachVector} />);
+
+      const indicator = screen.getByTestId('approach-vector-indicator');
+      expect(indicator).toHaveAttribute(
+        'aria-label',
+        expect.stringContaining('Approaching Front Door')
+      );
     });
   });
 });

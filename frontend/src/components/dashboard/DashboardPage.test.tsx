@@ -5,6 +5,7 @@ import * as useAIMetricsHook from '../../hooks/useAIMetrics';
 import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as useSummariesHook from '../../hooks/useSummaries';
 import * as useSystemStatusHook from '../../hooks/useSystemStatus';
+import * as useThreatDetectionHook from '../../hooks/useThreatDetection';
 import * as api from '../../services/api';
 import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
 
@@ -50,6 +51,11 @@ vi.mock('../../hooks/useSceneChangeEvents', () => ({
     clearActivity: vi.fn(),
     clearAllActivity: vi.fn(),
   })),
+}));
+
+// Mock useThreatDetection hook (NEM-5024)
+vi.mock('../../hooks/useThreatDetection', () => ({
+  useThreatDetection: vi.fn(),
 }));
 
 // Mock child components
@@ -452,6 +458,29 @@ describe('DashboardPage', () => {
       isLoading: false,
       error: null,
       refresh: vi.fn(),
+    });
+
+    // Default: no active threats (NEM-5024)
+    (useThreatDetectionHook.useThreatDetection as Mock).mockReturnValue({
+      threatSummary: {
+        hasActiveThreats: false,
+        totalThreats: 0,
+        maxSeverity: null,
+        threats: [],
+        criticalCount: 0,
+        highCount: 0,
+        mediumCount: 0,
+        latestThreat: null,
+        threatTypes: [],
+        affectedCameras: [],
+      },
+      isLoading: false,
+      dismissedIds: new Set(),
+      addThreat: vi.fn(),
+      removeThreat: vi.fn(),
+      clearThreats: vi.fn(),
+      dismissThreat: vi.fn(),
+      clearDismissed: vi.fn(),
     });
   });
 
@@ -1103,6 +1132,254 @@ describe('DashboardPage', () => {
       // Check for responsive design classes (md: breakpoint is used for spacing and typography)
       const responsiveElements = container.querySelectorAll('[class*="md:"]');
       expect(responsiveElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Threat Detection Banner (NEM-5024)', () => {
+    it('does not render threat banner when no active threats', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stats-row')).toBeInTheDocument();
+      });
+
+      // Banner should not be present
+      expect(screen.queryByTestId('threat-detection-banner')).not.toBeInTheDocument();
+    });
+
+    it('renders threat banner when threats are active', async () => {
+      const mockThreat = {
+        id: 1,
+        threat_type: 'gun',
+        confidence: 0.95,
+        severity: 'critical' as const,
+        camera_id: 'front_door',
+        event_id: 123,
+        created_at: new Date().toISOString(),
+      };
+
+      (useThreatDetectionHook.useThreatDetection as Mock).mockReturnValue({
+        threatSummary: {
+          hasActiveThreats: true,
+          totalThreats: 1,
+          maxSeverity: 'critical',
+          threats: [mockThreat],
+          criticalCount: 1,
+          highCount: 0,
+          mediumCount: 0,
+          latestThreat: mockThreat,
+          threatTypes: ['gun'],
+          affectedCameras: ['front_door'],
+        },
+        isLoading: false,
+        dismissedIds: new Set(),
+        addThreat: vi.fn(),
+        removeThreat: vi.fn(),
+        clearThreats: vi.fn(),
+        dismissThreat: vi.fn(),
+        clearDismissed: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threat-detection-banner')).toBeInTheDocument();
+      });
+
+      // Should show threat detected text
+      expect(screen.getByText(/THREAT DETECTED/i)).toBeInTheDocument();
+      // Should show threat type
+      expect(screen.getByText(/Firearm/i)).toBeInTheDocument();
+      // Should show confidence
+      expect(screen.getByText(/95%/)).toBeInTheDocument();
+    });
+
+    it('shows critical styling for critical threats', async () => {
+      const mockThreat = {
+        id: 1,
+        threat_type: 'gun',
+        confidence: 0.95,
+        severity: 'critical' as const,
+        camera_id: 'front_door',
+        event_id: 123,
+        created_at: new Date().toISOString(),
+      };
+
+      (useThreatDetectionHook.useThreatDetection as Mock).mockReturnValue({
+        threatSummary: {
+          hasActiveThreats: true,
+          totalThreats: 1,
+          maxSeverity: 'critical',
+          threats: [mockThreat],
+          criticalCount: 1,
+          highCount: 0,
+          mediumCount: 0,
+          latestThreat: mockThreat,
+          threatTypes: ['gun'],
+          affectedCameras: ['front_door'],
+        },
+        isLoading: false,
+        dismissedIds: new Set(),
+        addThreat: vi.fn(),
+        removeThreat: vi.fn(),
+        clearThreats: vi.fn(),
+        dismissThreat: vi.fn(),
+        clearDismissed: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const banner = screen.getByTestId('threat-detection-banner');
+        expect(banner).toHaveClass('border-red-500');
+      });
+    });
+
+    it('navigates to timeline when View button is clicked', async () => {
+      const mockThreat = {
+        id: 1,
+        threat_type: 'gun',
+        confidence: 0.95,
+        severity: 'critical' as const,
+        camera_id: 'front_door',
+        event_id: 456,
+        created_at: new Date().toISOString(),
+      };
+
+      (useThreatDetectionHook.useThreatDetection as Mock).mockReturnValue({
+        threatSummary: {
+          hasActiveThreats: true,
+          totalThreats: 1,
+          maxSeverity: 'critical',
+          threats: [mockThreat],
+          criticalCount: 1,
+          highCount: 0,
+          mediumCount: 0,
+          latestThreat: mockThreat,
+          threatTypes: ['gun'],
+          affectedCameras: ['front_door'],
+        },
+        isLoading: false,
+        dismissedIds: new Set(),
+        addThreat: vi.fn(),
+        removeThreat: vi.fn(),
+        clearThreats: vi.fn(),
+        dismissThreat: vi.fn(),
+        clearDismissed: vi.fn(),
+      });
+
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threat-detection-banner')).toBeInTheDocument();
+      });
+
+      const viewButton = screen.getByRole('button', { name: /view/i });
+      await user.click(viewButton);
+
+      expect(mockNavigate).toHaveBeenCalledWith('/timeline?event=456');
+    });
+
+    it('calls dismissThreat when dismiss button is clicked', async () => {
+      const mockDismissThreat = vi.fn();
+      const mockThreat = {
+        id: 789,
+        threat_type: 'knife',
+        confidence: 0.8,
+        severity: 'high' as const,
+        camera_id: 'back_yard',
+        event_id: 999,
+        created_at: new Date().toISOString(),
+      };
+
+      (useThreatDetectionHook.useThreatDetection as Mock).mockReturnValue({
+        threatSummary: {
+          hasActiveThreats: true,
+          totalThreats: 1,
+          maxSeverity: 'high',
+          threats: [mockThreat],
+          criticalCount: 0,
+          highCount: 1,
+          mediumCount: 0,
+          latestThreat: mockThreat,
+          threatTypes: ['knife'],
+          affectedCameras: ['back_yard'],
+        },
+        isLoading: false,
+        dismissedIds: new Set(),
+        addThreat: vi.fn(),
+        removeThreat: vi.fn(),
+        clearThreats: vi.fn(),
+        dismissThreat: mockDismissThreat,
+        clearDismissed: vi.fn(),
+      });
+
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threat-detection-banner')).toBeInTheDocument();
+      });
+
+      const dismissButton = screen.getByRole('button', { name: /dismiss/i });
+      await user.click(dismissButton);
+
+      expect(mockDismissThreat).toHaveBeenCalledWith(789);
+    });
+
+    it('shows multiple threat count when multiple threats are active', async () => {
+      const mockThreats = [
+        {
+          id: 1,
+          threat_type: 'gun',
+          confidence: 0.95,
+          severity: 'critical' as const,
+          camera_id: 'front_door',
+          event_id: 123,
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          threat_type: 'knife',
+          confidence: 0.8,
+          severity: 'high' as const,
+          camera_id: 'back_yard',
+          event_id: 124,
+          created_at: new Date().toISOString(),
+        },
+      ];
+
+      (useThreatDetectionHook.useThreatDetection as Mock).mockReturnValue({
+        threatSummary: {
+          hasActiveThreats: true,
+          totalThreats: 2,
+          maxSeverity: 'critical',
+          threats: mockThreats,
+          criticalCount: 1,
+          highCount: 1,
+          mediumCount: 0,
+          latestThreat: mockThreats[0],
+          threatTypes: ['gun', 'knife'],
+          affectedCameras: ['front_door', 'back_yard'],
+        },
+        isLoading: false,
+        dismissedIds: new Set(),
+        addThreat: vi.fn(),
+        removeThreat: vi.fn(),
+        clearThreats: vi.fn(),
+        dismissThreat: vi.fn(),
+        clearDismissed: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('threat-detection-banner')).toBeInTheDocument();
+      });
+
+      // Should show threat count
+      expect(screen.getByText(/2 threats/i)).toBeInTheDocument();
+      // Should show multiple cameras
+      expect(screen.getByText(/2 cameras/i)).toBeInTheDocument();
     });
   });
 });

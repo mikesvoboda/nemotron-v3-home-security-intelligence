@@ -5536,6 +5536,70 @@
         "title": "Body_face-recognition_compare_faces",
         "type": "object"
       },
+      "BudgetUtilization": {
+        "description": "Budget utilization metrics.",
+        "example": {
+          "exceeded": false,
+          "limit_usd": 1.0,
+          "period": "daily",
+          "remaining_usd": 0.25,
+          "used_usd": 0.75,
+          "utilization_ratio": 0.75,
+          "warning_reached": false
+        },
+        "properties": {
+          "exceeded": {
+            "description": "Whether budget has been exceeded",
+            "title": "Exceeded",
+            "type": "boolean"
+          },
+          "limit_usd": {
+            "description": "Budget limit in USD",
+            "minimum": 0.0,
+            "title": "Limit Usd",
+            "type": "number"
+          },
+          "period": {
+            "description": "Budget period: 'daily' or 'monthly'",
+            "title": "Period",
+            "type": "string"
+          },
+          "remaining_usd": {
+            "description": "Amount remaining in USD",
+            "minimum": 0.0,
+            "title": "Remaining Usd",
+            "type": "number"
+          },
+          "used_usd": {
+            "description": "Amount used in USD",
+            "minimum": 0.0,
+            "title": "Used Usd",
+            "type": "number"
+          },
+          "utilization_ratio": {
+            "description": "Utilization ratio (0.0 to 1.0+)",
+            "minimum": 0.0,
+            "title": "Utilization Ratio",
+            "type": "number"
+          },
+          "warning_reached": {
+            "description": "Whether warning threshold reached",
+            "title": "Warning Reached",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "period",
+          "limit_usd",
+          "used_usd",
+          "remaining_usd",
+          "utilization_ratio",
+          "exceeded",
+          "warning_reached"
+        ],
+        "title": "BudgetUtilization",
+        "type": "object"
+      },
       "BulkCancelError": {
         "description": "Error details for a single job in bulk cancellation.",
         "example": {
@@ -8400,6 +8464,247 @@
         "title": "ContainerServiceStatus",
         "type": "string"
       },
+      "CostAnalyticsResponse": {
+        "description": "Full cost analytics response.",
+        "example": {
+          "cost_by_model": [
+            {
+              "cost_usd": 0.0234,
+              "gpu_seconds": 125.5,
+              "model": "nemotron",
+              "request_count": 42
+            }
+          ],
+          "cost_history": [],
+          "daily_budget": {
+            "exceeded": false,
+            "limit_usd": 1.0,
+            "period": "daily",
+            "remaining_usd": 0.9477,
+            "used_usd": 0.0523,
+            "utilization_ratio": 0.0523,
+            "warning_reached": false
+          },
+          "efficiency": {
+            "cost_per_detection_usd": 2e-05,
+            "cost_per_event_usd": 0.0021,
+            "total_detections": 15000,
+            "total_events": 250
+          },
+          "last_updated": "2026-01-31T12:00:00Z",
+          "monthly_budget": {
+            "exceeded": false,
+            "limit_usd": 25.0,
+            "period": "monthly",
+            "remaining_usd": 23.431,
+            "used_usd": 1.569,
+            "utilization_ratio": 0.06276,
+            "warning_reached": false
+          },
+          "pricing": {
+            "detection_cost_per_image": 2e-05,
+            "enrichment_cost_per_operation": 1e-05,
+            "gpu_cost_per_second": 0.000139,
+            "input_cost_per_1k_tokens": 0.003,
+            "output_cost_per_1k_tokens": 0.006
+          },
+          "today": {
+            "date": "2026-01-31",
+            "detection_count": 150,
+            "event_count": 25,
+            "gpu_cost_usd": 0.0208,
+            "token_cost_usd": 0.0315,
+            "total_cost_usd": 0.0523
+          },
+          "token_usage": {
+            "input_tokens": 15000,
+            "output_tokens": 5000,
+            "token_cost_usd": 0.075,
+            "total_tokens": 20000
+          }
+        },
+        "properties": {
+          "cost_by_model": {
+            "description": "Cost breakdown by model",
+            "items": {
+              "$ref": "#/components/schemas/ModelCostBreakdown"
+            },
+            "title": "Cost By Model",
+            "type": "array"
+          },
+          "cost_history": {
+            "description": "Daily cost history (last 30 days)",
+            "items": {
+              "$ref": "#/components/schemas/DailyCostEntry"
+            },
+            "title": "Cost History",
+            "type": "array"
+          },
+          "daily_budget": {
+            "$ref": "#/components/schemas/BudgetUtilization",
+            "description": "Daily budget utilization"
+          },
+          "efficiency": {
+            "$ref": "#/components/schemas/CostEfficiencyMetrics",
+            "description": "Cost efficiency metrics"
+          },
+          "last_updated": {
+            "description": "ISO timestamp of last update",
+            "title": "Last Updated",
+            "type": "string"
+          },
+          "monthly_budget": {
+            "$ref": "#/components/schemas/BudgetUtilization",
+            "description": "Monthly budget utilization"
+          },
+          "pricing": {
+            "$ref": "#/components/schemas/PricingConfig",
+            "description": "Current pricing configuration"
+          },
+          "today": {
+            "$ref": "#/components/schemas/DailyCostEntry",
+            "description": "Today's cost summary"
+          },
+          "token_usage": {
+            "$ref": "#/components/schemas/TokenUsageMetrics",
+            "description": "Token usage metrics"
+          }
+        },
+        "required": [
+          "today",
+          "daily_budget",
+          "monthly_budget",
+          "token_usage",
+          "cost_by_model",
+          "efficiency",
+          "cost_history",
+          "pricing",
+          "last_updated"
+        ],
+        "title": "CostAnalyticsResponse",
+        "type": "object"
+      },
+      "CostEfficiencyMetrics": {
+        "description": "Cost efficiency metrics.",
+        "example": {
+          "cost_per_detection_usd": 2e-05,
+          "cost_per_event_usd": 0.0021,
+          "total_detections": 15000,
+          "total_events": 250
+        },
+        "properties": {
+          "cost_per_detection_usd": {
+            "description": "Average cost per detection in USD",
+            "minimum": 0.0,
+            "title": "Cost Per Detection Usd",
+            "type": "number"
+          },
+          "cost_per_event_usd": {
+            "description": "Average cost per event in USD",
+            "minimum": 0.0,
+            "title": "Cost Per Event Usd",
+            "type": "number"
+          },
+          "total_detections": {
+            "description": "Total detections processed",
+            "minimum": 0.0,
+            "title": "Total Detections",
+            "type": "integer"
+          },
+          "total_events": {
+            "description": "Total security events analyzed",
+            "minimum": 0.0,
+            "title": "Total Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cost_per_detection_usd",
+          "cost_per_event_usd",
+          "total_detections",
+          "total_events"
+        ],
+        "title": "CostEfficiencyMetrics",
+        "type": "object"
+      },
+      "CostTrendDataPoint": {
+        "description": "Data point for cost trend charts.",
+        "example": {
+          "cost_usd": 0.0523,
+          "date": "2026-01-31"
+        },
+        "properties": {
+          "cost_usd": {
+            "description": "Total cost for the period",
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "date": {
+            "description": "Date in YYYY-MM-DD format",
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "cost_usd"
+        ],
+        "title": "CostTrendDataPoint",
+        "type": "object"
+      },
+      "CostTrendResponse": {
+        "description": "Response for cost trend endpoint.",
+        "example": {
+          "data_points": [
+            {
+              "cost_usd": 0.045,
+              "date": "2026-01-25"
+            },
+            {
+              "cost_usd": 0.052,
+              "date": "2026-01-26"
+            }
+          ],
+          "end_date": "2026-01-26",
+          "start_date": "2026-01-25",
+          "total_cost_usd": 0.097
+        },
+        "properties": {
+          "data_points": {
+            "description": "Cost trend data points",
+            "items": {
+              "$ref": "#/components/schemas/CostTrendDataPoint"
+            },
+            "title": "Data Points",
+            "type": "array"
+          },
+          "end_date": {
+            "description": "End date of the trend",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "description": "Start date of the trend",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "total_cost_usd": {
+            "description": "Total cost over the period",
+            "minimum": 0.0,
+            "title": "Total Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "data_points",
+          "total_cost_usd",
+          "start_date",
+          "end_date"
+        ],
+        "title": "CostTrendResponse",
+        "type": "object"
+      },
       "CrossingTrendDataPoint": {
         "description": "Single data point in crossing trends time series.\n\nRepresents aggregated crossing counts for a specific time bucket\n(e.g., one hour or one day).\n\nAttributes:\n    timestamp: Start of the time bucket.\n    in_count: Number of crossings in the positive direction during this period.\n    out_count: Number of crossings in the negative direction during this period.\n    net_flow: Net flow calculated as in_count - out_count.",
         "example": {
@@ -9105,6 +9410,64 @@
           "count"
         ],
         "title": "DailyAuditStats",
+        "type": "object"
+      },
+      "DailyCostEntry": {
+        "description": "Cost data for a single day.",
+        "example": {
+          "date": "2026-01-31",
+          "detection_count": 150,
+          "event_count": 25,
+          "gpu_cost_usd": 0.0208,
+          "token_cost_usd": 0.0315,
+          "total_cost_usd": 0.0523
+        },
+        "properties": {
+          "date": {
+            "description": "Date in YYYY-MM-DD format",
+            "title": "Date",
+            "type": "string"
+          },
+          "detection_count": {
+            "description": "Number of detections processed",
+            "minimum": 0.0,
+            "title": "Detection Count",
+            "type": "integer"
+          },
+          "event_count": {
+            "description": "Number of security events analyzed",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "gpu_cost_usd": {
+            "description": "GPU time cost",
+            "minimum": 0.0,
+            "title": "Gpu Cost Usd",
+            "type": "number"
+          },
+          "token_cost_usd": {
+            "description": "Token-related cost",
+            "minimum": 0.0,
+            "title": "Token Cost Usd",
+            "type": "number"
+          },
+          "total_cost_usd": {
+            "description": "Total estimated cost for the day",
+            "minimum": 0.0,
+            "title": "Total Cost Usd",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "total_cost_usd",
+          "token_cost_usd",
+          "gpu_cost_usd",
+          "event_count",
+          "detection_count"
+        ],
+        "title": "DailyCostEntry",
         "type": "object"
       },
       "DailyPattern": {
@@ -11447,6 +11810,52 @@
           "detection_id"
         ],
         "title": "EnrichmentResponse",
+        "type": "object"
+      },
+      "EnrichmentSource": {
+        "description": "Source of enrichment data that was used in analysis.",
+        "example": {
+          "field_count": 5,
+          "name": "florence",
+          "populated": true,
+          "sample_fields": [
+            "scene_description",
+            "detected_objects",
+            "activities"
+          ]
+        },
+        "properties": {
+          "field_count": {
+            "default": 0,
+            "description": "Number of fields populated by this source",
+            "minimum": 0.0,
+            "title": "Field Count",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name of the enrichment source/model",
+            "title": "Name",
+            "type": "string"
+          },
+          "populated": {
+            "description": "Whether this source provided data",
+            "title": "Populated",
+            "type": "boolean"
+          },
+          "sample_fields": {
+            "description": "Sample field names from this source",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sample Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "populated"
+        ],
+        "title": "EnrichmentSource",
         "type": "object"
       },
       "EnrichmentStatusEnum": {
@@ -19374,6 +19783,43 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HeatmapDataPoint": {
+        "description": "A single data point in the activity heatmap.\n\nRepresents activity count for a specific hour and day of week combination.\n\nAttributes:\n    hour: Hour of day (0-23)\n    day_of_week: Day of week (0=Sunday, 6=Saturday)\n    value: Activity count/intensity for this time slot",
+        "example": {
+          "day_of_week": 1,
+          "hour": 14,
+          "value": 12
+        },
+        "properties": {
+          "day_of_week": {
+            "description": "Day of week (0=Sunday, 6=Saturday)",
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Day Of Week",
+            "type": "integer"
+          },
+          "hour": {
+            "description": "Hour of day (0-23)",
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Hour",
+            "type": "integer"
+          },
+          "value": {
+            "description": "Activity count for this time slot",
+            "minimum": 0.0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hour",
+          "day_of_week",
+          "value"
+        ],
+        "title": "HeatmapDataPoint",
+        "type": "object"
+      },
       "HeatmapListResponse": {
         "description": "Response containing a list of heatmap metadata records.\n\nUsed for querying historical heatmaps without the full image data.\n\nAttributes:\n    heatmaps: List of heatmap metadata records.\n    total: Total number of heatmaps matching the query.",
         "example": {
@@ -19635,6 +20081,18 @@
         "title": "HeatmapSnapshotResponse",
         "type": "object"
       },
+      "HeatmapTimeRange": {
+        "description": "Time range options for heatmap data aggregation.",
+        "enum": [
+          "1h",
+          "6h",
+          "24h",
+          "7d",
+          "30d"
+        ],
+        "title": "HeatmapTimeRange",
+        "type": "string"
+      },
       "HostMetrics": {
         "description": "Host system metrics from psutil.",
         "example": {
@@ -19701,6 +20159,34 @@
           "disk_percent"
         ],
         "title": "HostMetrics",
+        "type": "object"
+      },
+      "HourlyActivity": {
+        "description": "Hourly activity data for today's summary.\n\nAttributes:\n    hour: Hour of day (0-23)\n    count: Number of activity events during this hour",
+        "example": {
+          "count": 15,
+          "hour": 9
+        },
+        "properties": {
+          "count": {
+            "description": "Activity count for this hour",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "hour": {
+            "description": "Hour of day (0-23)",
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Hour",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hour",
+          "count"
+        ],
+        "title": "HourlyActivity",
         "type": "object"
       },
       "HourlyPattern": {
@@ -19791,6 +20277,59 @@
           "total"
         ],
         "title": "HouseholdListResponse",
+        "type": "object"
+      },
+      "HouseholdMatch": {
+        "description": "A matched household member from the analysis.",
+        "example": {
+          "entity_name": "John Doe",
+          "entity_type": "person",
+          "match_method": "face_recognition",
+          "similarity_score": 0.92
+        },
+        "properties": {
+          "entity_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of matched entity if available",
+            "title": "Entity Name"
+          },
+          "entity_type": {
+            "description": "Type of entity (person, vehicle, pet)",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "match_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Method used for matching",
+            "title": "Match Method"
+          },
+          "similarity_score": {
+            "description": "Similarity score (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Similarity Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "entity_type",
+          "similarity_score"
+        ],
+        "title": "HouseholdMatch",
         "type": "object"
       },
       "HouseholdMatchResponse": {
@@ -21970,6 +22509,139 @@
         "title": "KnownPersonUpdate",
         "type": "object"
       },
+      "LLMReasoningNotFoundResponse": {
+        "description": "Response when no LLM reasoning data is available for an event.",
+        "example": {
+          "event_id": 456,
+          "message": "No LLM reasoning data available for this event",
+          "reason": "Event was processed before LLM interaction tracking was enabled"
+        },
+        "properties": {
+          "event_id": {
+            "description": "The event ID that was queried",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Human-readable message",
+            "title": "Message",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reason why reasoning data is not available",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "event_id",
+          "message"
+        ],
+        "title": "LLMReasoningNotFoundResponse",
+        "type": "object"
+      },
+      "LLMReasoningResponse": {
+        "description": "Full LLM reasoning explorer response for an event.",
+        "example": {
+          "created_at": "2026-01-15T10:30:00Z",
+          "debug_info": {
+            "enrichment_snapshot_keys": [
+              "florence",
+              "clip",
+              "weather"
+            ],
+            "prompt_length": 2048
+          },
+          "enrichment_sources": [
+            {
+              "field_count": 5,
+              "name": "florence",
+              "populated": true
+            }
+          ],
+          "event_id": 456,
+          "household_matches": [],
+          "id": 123,
+          "raw_response": "Based on the analysis...",
+          "think_block": {
+            "key_observations": [],
+            "raw_think_block": "<think>First, I observe...",
+            "reasoning_steps": [],
+            "risk_factors_mentioned": []
+          },
+          "truncation_info": {
+            "was_truncated": false
+          }
+        },
+        "properties": {
+          "created_at": {
+            "description": "When the analysis occurred",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "debug_info": {
+            "additionalProperties": true,
+            "description": "Additional debug information for prompt inspection",
+            "title": "Debug Info",
+            "type": "object"
+          },
+          "enrichment_sources": {
+            "description": "Sources that contributed enrichment data",
+            "items": {
+              "$ref": "#/components/schemas/EnrichmentSource"
+            },
+            "title": "Enrichment Sources",
+            "type": "array"
+          },
+          "event_id": {
+            "description": "Associated event ID",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "household_matches": {
+            "description": "Matched household members/vehicles",
+            "items": {
+              "$ref": "#/components/schemas/HouseholdMatch"
+            },
+            "title": "Household Matches",
+            "type": "array"
+          },
+          "id": {
+            "description": "LLM interaction record ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "raw_response": {
+            "description": "Full raw LLM response",
+            "title": "Raw Response",
+            "type": "string"
+          },
+          "think_block": {
+            "$ref": "#/components/schemas/ThinkBlockContent",
+            "description": "Parsed content from <think> blocks"
+          },
+          "truncation_info": {
+            "$ref": "#/components/schemas/TruncationInfo",
+            "description": "Information about context truncation"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "created_at",
+          "raw_response"
+        ],
+        "title": "LLMReasoningResponse",
+        "type": "object"
+      },
       "LatencyHistorySnapshot": {
         "description": "Single time-bucket snapshot of pipeline latency metrics.",
         "properties": {
@@ -23891,6 +24563,48 @@
           }
         },
         "title": "ModelContributions",
+        "type": "object"
+      },
+      "ModelCostBreakdown": {
+        "description": "Cost breakdown by model.",
+        "example": {
+          "cost_usd": 0.0234,
+          "gpu_seconds": 125.5,
+          "model": "nemotron",
+          "request_count": 42
+        },
+        "properties": {
+          "cost_usd": {
+            "description": "Total cost in USD for this model",
+            "minimum": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "gpu_seconds": {
+            "description": "Total GPU time consumed in seconds",
+            "minimum": 0.0,
+            "title": "Gpu Seconds",
+            "type": "number"
+          },
+          "model": {
+            "description": "Model identifier (e.g., 'nemotron', 'yolo26')",
+            "title": "Model",
+            "type": "string"
+          },
+          "request_count": {
+            "description": "Number of inference requests",
+            "minimum": 0.0,
+            "title": "Request Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model",
+          "cost_usd",
+          "gpu_seconds",
+          "request_count"
+        ],
+        "title": "ModelCostBreakdown",
         "type": "object"
       },
       "ModelDetailResponse": {
@@ -28455,6 +29169,57 @@
         "title": "PreviewStartResponse",
         "type": "object"
       },
+      "PricingConfig": {
+        "description": "Cloud equivalent pricing configuration.",
+        "example": {
+          "detection_cost_per_image": 2e-05,
+          "enrichment_cost_per_operation": 1e-05,
+          "gpu_cost_per_second": 0.000139,
+          "input_cost_per_1k_tokens": 0.003,
+          "output_cost_per_1k_tokens": 0.006
+        },
+        "properties": {
+          "detection_cost_per_image": {
+            "description": "Detection cost per image in USD",
+            "minimum": 0.0,
+            "title": "Detection Cost Per Image",
+            "type": "number"
+          },
+          "enrichment_cost_per_operation": {
+            "description": "Enrichment cost per operation in USD",
+            "minimum": 0.0,
+            "title": "Enrichment Cost Per Operation",
+            "type": "number"
+          },
+          "gpu_cost_per_second": {
+            "description": "GPU cost per second in USD",
+            "minimum": 0.0,
+            "title": "Gpu Cost Per Second",
+            "type": "number"
+          },
+          "input_cost_per_1k_tokens": {
+            "description": "Cost per 1000 input tokens in USD",
+            "minimum": 0.0,
+            "title": "Input Cost Per 1K Tokens",
+            "type": "number"
+          },
+          "output_cost_per_1k_tokens": {
+            "description": "Cost per 1000 output tokens in USD",
+            "minimum": 0.0,
+            "title": "Output Cost Per 1K Tokens",
+            "type": "number"
+          }
+        },
+        "required": [
+          "input_cost_per_1k_tokens",
+          "output_cost_per_1k_tokens",
+          "gpu_cost_per_second",
+          "detection_cost_per_image",
+          "enrichment_cost_per_operation"
+        ],
+        "title": "PricingConfig",
+        "type": "object"
+      },
       "ProcessMemoryResponse": {
         "description": "Process memory metrics for the backend service (NEM-3890).\n\nTracks memory usage of the backend Python process and container limits\nto help diagnose memory pressure issues before OOM kills.",
         "example": {
@@ -30594,6 +31359,58 @@
           "timestamp"
         ],
         "title": "ReadinessResponse",
+        "type": "object"
+      },
+      "ReasoningStep": {
+        "description": "A single reasoning step extracted from think blocks.",
+        "example": {
+          "confidence_indicator": "high",
+          "content": "Analyzing the detected person's behavior...",
+          "key_factors": [
+            "proximity to entrance",
+            "time of day",
+            "previous activity"
+          ],
+          "step_number": 1
+        },
+        "properties": {
+          "confidence_indicator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence level mentioned in this step (high/medium/low)",
+            "title": "Confidence Indicator"
+          },
+          "content": {
+            "description": "The reasoning content for this step",
+            "title": "Content",
+            "type": "string"
+          },
+          "key_factors": {
+            "description": "Key factors identified in this reasoning step",
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Factors",
+            "type": "array"
+          },
+          "step_number": {
+            "description": "Sequential step number",
+            "minimum": 1.0,
+            "title": "Step Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_number",
+          "content"
+        ],
+        "title": "ReasoningStep",
         "type": "object"
       },
       "RecentError": {
@@ -35335,6 +36152,70 @@
         "title": "TestNotificationResponse",
         "type": "object"
       },
+      "ThinkBlockContent": {
+        "description": "Parsed content from <think> blocks in LLM response.",
+        "example": {
+          "key_observations": [
+            "Person approaching door",
+            "No vehicle visible"
+          ],
+          "raw_think_block": "<think>First, I observe that...",
+          "reasoning_steps": [
+            {
+              "confidence_indicator": "high",
+              "content": "Analyzing the detected person's behavior...",
+              "key_factors": [
+                "proximity to entrance"
+              ],
+              "step_number": 1
+            }
+          ],
+          "risk_factors_mentioned": [
+            "Late night hour",
+            "Unknown individual"
+          ]
+        },
+        "properties": {
+          "key_observations": {
+            "description": "Key observations extracted from reasoning",
+            "items": {
+              "type": "string"
+            },
+            "title": "Key Observations",
+            "type": "array"
+          },
+          "raw_think_block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Raw content of <think> block",
+            "title": "Raw Think Block"
+          },
+          "reasoning_steps": {
+            "description": "Parsed reasoning steps from the think block",
+            "items": {
+              "$ref": "#/components/schemas/ReasoningStep"
+            },
+            "title": "Reasoning Steps",
+            "type": "array"
+          },
+          "risk_factors_mentioned": {
+            "description": "Risk factors explicitly mentioned in reasoning",
+            "items": {
+              "type": "string"
+            },
+            "title": "Risk Factors Mentioned",
+            "type": "array"
+          }
+        },
+        "title": "ThinkBlockContent",
+        "type": "object"
+      },
       "ThroughputMetrics": {
         "description": "Throughput metrics for a queue.",
         "example": {
@@ -35467,6 +36348,49 @@
           "end_date"
         ],
         "title": "TimelineSummaryResponse",
+        "type": "object"
+      },
+      "TokenUsageMetrics": {
+        "description": "Token usage metrics for LLM models.",
+        "example": {
+          "input_tokens": 15000,
+          "output_tokens": 5000,
+          "token_cost_usd": 0.075,
+          "total_tokens": 20000
+        },
+        "properties": {
+          "input_tokens": {
+            "description": "Total input/prompt tokens",
+            "minimum": 0.0,
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "description": "Total output/completion tokens",
+            "minimum": 0.0,
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "token_cost_usd": {
+            "description": "Estimated cost for tokens in USD",
+            "minimum": 0.0,
+            "title": "Token Cost Usd",
+            "type": "number"
+          },
+          "total_tokens": {
+            "description": "Total tokens (input + output)",
+            "minimum": 0.0,
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "input_tokens",
+          "output_tokens",
+          "total_tokens",
+          "token_cost_usd"
+        ],
+        "title": "TokenUsageMetrics",
         "type": "object"
       },
       "TraceMallocStats": {
@@ -35790,6 +36714,75 @@
           "timestamp"
         ],
         "title": "TrajectoryPoint",
+        "type": "object"
+      },
+      "TruncationInfo": {
+        "description": "Information about what context was truncated due to token limits.",
+        "example": {
+          "dropped_sections": [
+            "historical_events",
+            "distant_camera_correlations"
+          ],
+          "original_length": 8500,
+          "truncated_length": 4096,
+          "truncation_reason": "Token limit exceeded (max: 4096)",
+          "was_truncated": true
+        },
+        "properties": {
+          "dropped_sections": {
+            "description": "Names of sections that were dropped/truncated",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dropped Sections",
+            "type": "array"
+          },
+          "original_length": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original context length in tokens",
+            "title": "Original Length"
+          },
+          "truncated_length": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Final context length in tokens",
+            "title": "Truncated Length"
+          },
+          "truncation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reason for truncation",
+            "title": "Truncation Reason"
+          },
+          "was_truncated": {
+            "default": false,
+            "description": "Whether any context was truncated",
+            "title": "Was Truncated",
+            "type": "boolean"
+          }
+        },
+        "title": "TruncationInfo",
         "type": "object"
       },
       "TrustCheckResponse": {
@@ -38070,6 +39063,110 @@
           "timestamp"
         ],
         "title": "WorkerSupervisorStatusResponse",
+        "type": "object"
+      },
+      "ZoneActivityHeatmapResponse": {
+        "description": "Response containing zone activity heatmap data.\n\nProvides activity patterns aggregated by hour and day of week for\nvisualizing when a zone is most active.\n\nAttributes:\n    zone_id: ID of the polygon zone\n    zone_name: Name of the zone for display\n    time_range: Time range used for aggregation\n    weekly_data: Activity data points for the hour/day matrix (7 days x 24 hours)\n    hourly_data: Today's activity by hour\n    total_activity: Total activity count in the time range\n    start_time: Start of the query time window\n    end_time: End of the query time window",
+        "example": {
+          "end_time": "2026-02-01T00:00:00Z",
+          "hourly_data": [
+            {
+              "count": 2,
+              "hour": 0
+            },
+            {
+              "count": 0,
+              "hour": 1
+            },
+            {
+              "count": 12,
+              "hour": 8
+            }
+          ],
+          "start_time": "2026-01-25T00:00:00Z",
+          "time_range": "7d",
+          "total_activity": 342,
+          "weekly_data": [
+            {
+              "day_of_week": 1,
+              "hour": 8,
+              "value": 15
+            },
+            {
+              "day_of_week": 1,
+              "hour": 9,
+              "value": 22
+            },
+            {
+              "day_of_week": 1,
+              "hour": 17,
+              "value": 18
+            }
+          ],
+          "zone_id": 1,
+          "zone_name": "Front Door"
+        },
+        "properties": {
+          "end_time": {
+            "description": "End of the query time window",
+            "format": "date-time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "hourly_data": {
+            "description": "Today's activity by hour",
+            "items": {
+              "$ref": "#/components/schemas/HourlyActivity"
+            },
+            "title": "Hourly Data",
+            "type": "array"
+          },
+          "start_time": {
+            "description": "Start of the query time window",
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "time_range": {
+            "$ref": "#/components/schemas/HeatmapTimeRange",
+            "description": "Time range used for aggregation"
+          },
+          "total_activity": {
+            "description": "Total activity count in time range",
+            "minimum": 0.0,
+            "title": "Total Activity",
+            "type": "integer"
+          },
+          "weekly_data": {
+            "description": "Activity data points for hour/day matrix",
+            "items": {
+              "$ref": "#/components/schemas/HeatmapDataPoint"
+            },
+            "title": "Weekly Data",
+            "type": "array"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone",
+            "title": "Zone Id",
+            "type": "integer"
+          },
+          "zone_name": {
+            "description": "Name of the zone for display",
+            "title": "Zone Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone_id",
+          "zone_name",
+          "time_range",
+          "weekly_data",
+          "hourly_data",
+          "total_activity",
+          "start_time",
+          "end_time"
+        ],
+        "title": "ZoneActivityHeatmapResponse",
         "type": "object"
       },
       "ZoneAnomalyAcknowledgeResponse": {
@@ -42408,6 +43505,63 @@
         ]
       }
     },
+    "/api/analytics-zones/polygon-zones/{zone_id}/activity-heatmap": {
+      "get": {
+        "description": "Get activity heatmap data for a polygon zone.\n\nReturns activity patterns aggregated by hour and day of week,\nsuitable for rendering a visual heatmap showing when the zone\nis most active.\n\nThe heatmap data includes:\n- Weekly data: Activity counts for each hour/day combination (24 hours x 7 days)\n- Hourly data: Today's activity by hour\n- Total activity count in the time range\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n    time_range: Time range for aggregation (default: 7 days).\n\nReturns:\n    ZoneActivityHeatmapResponse with heatmap data points.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_zone_activity_heatmap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Time range for aggregation: 1h, 6h, 24h, 7d, 30d",
+            "in": "query",
+            "name": "time_range",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/HeatmapTimeRange",
+              "default": "7d",
+              "description": "Time range for aggregation: 1h, 6h, 24h, 7d, 30d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneActivityHeatmapResponse"
+                }
+              }
+            },
+            "description": "Activity heatmap retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get activity heatmap data for a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
     "/api/analytics-zones/polygon-zones/{zone_id}/approach-vectors": {
       "get": {
         "description": "Get approach vector analysis for entities approaching a polygon zone.\n\nReturns real-time movement analysis including direction, speed, and ETA\nfor all tracked entities outside the zone that are moving toward it.\n\nUrgency levels:\n- imminent: ETA < 3 seconds (high priority)\n- approaching: ETA 3-10 seconds (medium priority)\n- distant: ETA > 10 seconds (low priority)\n- not_approaching: Moving away or stationary\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n\nReturns:\n    Approach vectors with urgency classification for all approaching entities.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
@@ -43013,6 +44167,88 @@
         "summary": "Get Camera Uptime",
         "tags": [
           "analytics"
+        ]
+      }
+    },
+    "/api/analytics/costs": {
+      "get": {
+        "description": "Get comprehensive cost analytics data.\n\nReturns cost metrics including:\n- Today's cost summary\n- Daily and monthly budget utilization\n- Token usage metrics\n- Cost breakdown by model\n- Cost efficiency metrics\n- Historical cost data (last 30 days)\n- Pricing configuration\n\nReturns:\n    CostAnalyticsResponse with all cost metrics",
+        "operationId": "cost-analytics_get_cost_analytics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostAnalyticsResponse"
+                }
+              }
+            },
+            "description": "Cost analytics data"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Cost Analytics",
+        "tags": [
+          "cost-analytics"
+        ]
+      }
+    },
+    "/api/analytics/costs/trends": {
+      "get": {
+        "description": "Get cost trends over a date range.\n\nReturns daily cost totals for the specified date range,\nsuitable for trend visualization.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n\nReturns:\n    CostTrendResponse with daily cost data points",
+        "operationId": "cost-analytics_get_cost_trends",
+        "parameters": [
+          {
+            "description": "Start date for trends (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "description": "Start date for trends (ISO format)",
+              "format": "date",
+              "title": "Start Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End date for trends (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": true,
+            "schema": {
+              "description": "End date for trends (ISO format)",
+              "format": "date",
+              "title": "End Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostTrendResponse"
+                }
+              }
+            },
+            "description": "Cost trend data"
+          },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Cost Trends",
+        "tags": [
+          "cost-analytics"
         ]
       }
     },
@@ -53723,6 +54959,125 @@
         "summary": "Enroll From Detection",
         "tags": [
           "face-recognition"
+        ]
+      }
+    },
+    "/api/llm-reasoning/events/{event_id}": {
+      "get": {
+        "description": "Get LLM reasoning data for a specific event.\n\nReturns the full LLM interaction record including:\n- Parsed <think> blocks with reasoning steps\n- Enrichment sources that contributed to analysis\n- Truncation information (what context was dropped)\n- Household matches with similarity scores\n- Debug information for prompt inspection (when enabled)\n\nArgs:\n    event_id: The event ID to fetch reasoning for\n    include_debug: Whether to include debug information\n    db: Database session\n\nReturns:\n    LLMReasoningResponse with full reasoning data\n\nRaises:\n    HTTPException: 404 if event or LLM reasoning not found",
+        "operationId": "llm-reasoning_get_llm_reasoning",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include debug information for prompt inspection",
+            "in": "query",
+            "name": "include_debug",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include debug information for prompt inspection",
+              "title": "Include Debug",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMReasoningResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LLMReasoningNotFoundResponse"
+                }
+              }
+            },
+            "description": "Event not found or no LLM reasoning data available"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Llm Reasoning",
+        "tags": [
+          "llm-reasoning"
+        ]
+      }
+    },
+    "/api/llm-reasoning/events/{event_id}/prompt": {
+      "get": {
+        "description": "Get the full prompt data for debugging (debug mode endpoint).\n\nReturns the complete enrichment snapshot and context that was sent\nto the LLM for analysis. Use this for debugging prompt construction\nand understanding what data was available.\n\nArgs:\n    event_id: The event ID to fetch prompt data for\n    db: Database session\n\nReturns:\n    Dictionary containing full enrichment snapshot and context sources\n\nRaises:\n    HTTPException: 404 if event or LLM reasoning not found",
+        "operationId": "llm-reasoning_get_llm_prompt_debug",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Llm-Reasoning Get Llm Prompt Debug",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Event or LLM reasoning not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Llm Prompt Debug",
+        "tags": [
+          "llm-reasoning"
         ]
       }
     },

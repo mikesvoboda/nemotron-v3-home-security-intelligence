@@ -17,6 +17,7 @@ import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
 import { useSceneChangeEvents } from '../../hooks/useSceneChangeEvents';
 import { useSummaries } from '../../hooks/useSummaries';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
+import { useThreatDetection } from '../../hooks/useThreatDetection';
 import {
   fetchCameras,
   fetchEventStats,
@@ -31,6 +32,7 @@ import {
   SafeErrorMessage,
   StatsCardSkeleton,
   Skeleton,
+  ThreatDetectionBanner,
 } from '../common';
 
 /**
@@ -89,6 +91,17 @@ export default function DashboardPage() {
   const { activeCameraIds: sceneChangeActivityIds } = useSceneChangeEvents({
     showToasts: true, // Toast notifications handled by the hook
     activityTimeoutMs: 30000, // Activity indicator visible for 30 seconds
+  });
+
+  // Threat detection hook for weapon/dangerous object alerts (NEM-5024)
+  // Provides real-time threat summary and management
+  const {
+    threatSummary,
+    addThreat: _addThreat, // Available for WebSocket integration
+    dismissThreat,
+  } = useThreatDetection({
+    expirationMs: 5 * 60 * 1000, // 5 minutes
+    maxThreats: 50,
   });
 
   // Fetch summaries for dashboard cards (hourly and daily summaries)
@@ -281,6 +294,21 @@ export default function DashboardPage() {
     [navigate]
   );
 
+  // Handle threat event view - navigate to timeline with event ID (NEM-5024)
+  const handleThreatViewEvent = useCallback(
+    (eventId: number) => {
+      void navigate(`/timeline?event=${eventId}`);
+    },
+    [navigate]
+  );
+
+  // Handle threat dismiss - dismisses the latest threat (NEM-5024)
+  const handleThreatDismiss = useCallback(() => {
+    if (threatSummary?.latestThreat?.id) {
+      dismissThreat(threatSummary.latestThreat.id);
+    }
+  }, [threatSummary?.latestThreat?.id, dismissThreat]);
+
   // Render loading skeleton
   const renderLoadingSkeleton = useCallback(
     () => (
@@ -428,6 +456,14 @@ export default function DashboardPage() {
         }}
         renderStatsRow={(props) => (
           <>
+            {/* Threat Detection Banner - Prominent display for weapon/threat alerts (NEM-5024) */}
+            <ThreatDetectionBanner
+              threatSummary={threatSummary}
+              onViewEvent={handleThreatViewEvent}
+              onDismiss={handleThreatDismiss}
+              showConfidence
+              className="mb-4"
+            />
             {disconnectedIndicator && (
               <div className="mb-2 text-sm text-yellow-500">{disconnectedIndicator}</div>
             )}

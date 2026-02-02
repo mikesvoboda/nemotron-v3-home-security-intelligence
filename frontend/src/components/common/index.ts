@@ -231,3 +231,15 @@ export type { OfflineFallbackProps } from './OfflineFallback';
 // Password input with show/hide toggle (NEM-4744)
 export { default as PasswordInput } from './PasswordInput';
 export type { PasswordInputProps } from './PasswordInput';
+
+// Threat Detection Banner (NEM-5024)
+export { default as ThreatDetectionBanner } from './ThreatDetectionBanner';
+export type { ThreatDetectionBannerProps } from './ThreatDetectionBanner';
+
+// Approach Vector Indicator (NEM-5024 Phase 6)
+export { default as ApproachVectorIndicator } from './ApproachVectorIndicator';
+export type {
+  ApproachVectorIndicatorProps,
+  ApproachUrgency as ApproachVectorUrgency,
+  ApproachVectorSize,
+} from './ApproachVectorIndicator';

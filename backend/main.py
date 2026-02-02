@@ -51,6 +51,7 @@ from backend.api.routes import (
     audit,
     calibration,
     cameras,
+    cost_analytics,
     debug,
     detections,
     detector,
@@ -67,6 +68,7 @@ from backend.api.routes import (
     household,
     household_matcher,
     jobs,
+    llm_reasoning,
     logs,
     materialized_views,
     media,
@@ -1227,6 +1229,7 @@ app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
 app.include_router(analytics_zones.router)
 app.include_router(audit.router)
+app.include_router(cost_analytics.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
 app.include_router(debug.router)
@@ -1247,6 +1250,7 @@ app.include_router(hierarchy.area_router)
 app.include_router(household.router)
 app.include_router(household_matcher.router)
 app.include_router(jobs.router)
+app.include_router(llm_reasoning.router)
 app.include_router(logs.router)
 app.include_router(materialized_views.router)
 app.include_router(media.router)

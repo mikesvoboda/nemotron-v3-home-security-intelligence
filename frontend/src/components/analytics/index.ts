@@ -1,4 +1,5 @@
 export { default as AnalyticsPage } from './AnalyticsPage';
+export { default as CostAnalyticsDashboard } from './CostAnalyticsDashboard';
 export { default as VideoAnalyticsPage } from './VideoAnalyticsPage';
 export { default as ActivityHeatmap } from './ActivityHeatmap';
 export { default as CameraBaselinePanel } from './CameraBaselinePanel';

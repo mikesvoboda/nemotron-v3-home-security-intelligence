@@ -27,15 +27,37 @@ import {
 import { getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
+import ApproachVectorIndicator from '../common/ApproachVectorIndicator';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
 
+import type { ApproachUrgency } from '../common/ApproachVectorIndicator';
+
 export interface Detection {
   label: string;
   confidence: number;
   bbox?: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Approach vector data for display on event cards (NEM-5024 Phase 6).
+ * Shows when an entity is approaching a zone with ETA.
+ */
+export interface ApproachVectorData {
+  /** Whether the entity is moving toward the zone */
+  isApproaching: boolean;
+  /** Direction of movement in degrees (0=up, 90=right, 180=down, 270=left) */
+  directionDegrees: number;
+  /** Speed of movement in normalized units per second */
+  speedNormalized: number;
+  /** Estimated time to reach zone in seconds (null if not approaching) */
+  estimatedArrivalSeconds: number | null;
+  /** Name of the zone being approached */
+  zoneName: string;
+  /** Urgency level based on ETA */
+  urgency: ApproachUrgency;
 }
 
 export interface CollapsibleDetectionsProps {
@@ -154,6 +176,8 @@ export interface EventCardProps {
   isGeneratingClip?: boolean;
   /** URL of the generated clip if available (NEM-3870) */
   clipUrl?: string | null;
+  /** Approach vector data for displaying zone approach info (NEM-5024 Phase 6) */
+  approachVector?: ApproachVectorData | null;
 }
 
 /**
@@ -180,6 +204,7 @@ const EventCard = memo(function EventCard({
   onDownloadClip,
   isGeneratingClip = false,
   clipUrl,
+  approachVector,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -396,6 +421,21 @@ const EventCard = memo(function EventCard({
               {uniqueObjectTypes.map((type) => (
                 <ObjectTypeBadge key={type} type={type} size="sm" />
               ))}
+            </div>
+          )}
+
+          {/* Approach Vector Indicator (NEM-5024 Phase 6) */}
+          {approachVector && approachVector.isApproaching && (
+            <div className="mb-3">
+              <ApproachVectorIndicator
+                isApproaching={approachVector.isApproaching}
+                directionDegrees={approachVector.directionDegrees}
+                speedNormalized={approachVector.speedNormalized}
+                estimatedArrivalSeconds={approachVector.estimatedArrivalSeconds}
+                zoneName={approachVector.zoneName}
+                urgency={approachVector.urgency}
+                size="sm"
+              />
             </div>
           )}
 
