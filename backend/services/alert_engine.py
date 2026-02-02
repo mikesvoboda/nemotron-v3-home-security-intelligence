@@ -53,7 +53,6 @@ from backend.models import (
 )
 from backend.models.analytics_zone import PolygonZone
 from backend.models.enums import TrustStatus
-from backend.services import household_matcher_service
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.webhook_service import get_webhook_service
 
