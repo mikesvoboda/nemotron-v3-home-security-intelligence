@@ -165,7 +165,11 @@ services:
       - security-net
     deploy:
       resources:
+        limits:
+          cpus: '2'
+          memory: 4G
         reservations:
+          memory: 2G
           devices:
             # GPU assignment from .env (GPU_YOLO26, defaults to 1)
             - driver: nvidia
@@ -207,7 +211,11 @@ services:
       - security-net
     deploy:
       resources:
+        limits:
+          cpus: '4'
+          memory: 12G
         reservations:
+          memory: 8G
           devices:
             - driver: nvidia
               count: 1
@@ -259,7 +267,11 @@ services:
       - security-net
     deploy:
       resources:
+        limits:
+          cpus: '2'
+          memory: 6G
         reservations:
+          memory: 3G
           devices:
             # GPU assignment from .env (GPU_FLORENCE, defaults to 0 for shared VRAM with LLM)
             - driver: nvidia
@@ -312,7 +324,11 @@ services:
       - security-net
     deploy:
       resources:
+        limits:
+          cpus: '2'
+          memory: 3G
         reservations:
+          memory: 2G
           devices:
             # GPU 1 (A400 4GB) - CLIP TensorRT uses ~722MB, shares with Florence (~530MB) and YOLO26 (~1GB)
             # Total GPU 1 VRAM: ~2.3GB / 4GB (~57% utilization)
@@ -386,7 +402,11 @@ services:
       - security-net
     deploy:
       resources:
+        limits:
+          cpus: '2'
+          memory: 3G
         reservations:
+          memory: 2G
           devices:
             # GPU assignment from .env (GPU_CLIP, defaults to 1)
             - driver: nvidia
@@ -456,7 +476,11 @@ services:
       - security-net
     deploy:
       resources:
+        limits:
+          cpus: '4'
+          memory: 8G
         reservations:
+          memory: 6G
           devices:
             # GPU assignment from .env (GPU_ENRICHMENT, defaults to 1)
             - driver: nvidia
