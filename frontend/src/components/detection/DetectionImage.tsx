@@ -24,6 +24,10 @@ export interface DetectionImageProps {
   showPoseSkeleton?: boolean;
   /** Minimum confidence for pose keypoints (default: 0.3) */
   poseMinConfidence?: number;
+  /** Callback when image loads, provides natural dimensions */
+  onImageLoad?: (dimensions: { width: number; height: number }) => void;
+  /** Additional overlay content rendered inside the relative container */
+  overlayContent?: React.ReactNode;
 }
 
 const DetectionImage: React.FC<DetectionImageProps> = ({
@@ -40,6 +44,8 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
   poseKeypoints,
   showPoseSkeleton = true,
   poseMinConfidence = 0.3,
+  onImageLoad,
+  overlayContent,
 }) => {
   const [imageDimensions, setImageDimensions] = useState<{
     width: number;
@@ -49,10 +55,13 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
 
   const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
-    setImageDimensions({
+    const dimensions = {
       width: img.naturalWidth,
       height: img.naturalHeight,
-    });
+    };
+    setImageDimensions(dimensions);
+    // Call external callback if provided
+    onImageLoad?.(dimensions);
   };
 
   const handleImageClick = () => {
@@ -108,6 +117,8 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
                 minConfidence={poseMinConfidence}
               />
             )}
+            {/* Additional overlay content (e.g., ThreatBoundingBox) */}
+            {overlayContent}
           </>
         )}
         {enableLightbox && (

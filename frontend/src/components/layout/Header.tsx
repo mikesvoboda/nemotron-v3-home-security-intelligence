@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle, HardDrive, Menu, Search, XCircle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { PageDocsLink } from './PageDocsLink';
 import { useCommandPaletteContext } from '../../hooks/useCommandPaletteContext';
@@ -18,6 +19,7 @@ import AlertBadge from '../common/AlertBadge';
 import AlertDrawer from '../common/AlertDrawer';
 import IconButton from '../common/IconButton';
 import SceneChangeAlert from '../common/SceneChangeAlert';
+import RecentThreatsIndicator from '../dashboard/RecentThreatsIndicator';
 import { AIServiceStatus } from '../status/AIServiceStatus';
 
 /**
@@ -163,6 +165,7 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 }
 
 export default function Header() {
+  const navigate = useNavigate();
   const { toggleMobileMenu } = useSidebarContext();
   const { openCommandPalette } = useCommandPaletteContext();
   const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
@@ -232,6 +235,14 @@ export default function Header() {
       setIsTooltipVisible(false);
     }, 150);
   };
+
+  // Handle threat click - navigate to timeline with event ID
+  const handleThreatClick = useCallback(
+    (eventId: string) => {
+      void navigate(`/timeline?event=${eventId}`);
+    },
+    [navigate]
+  );
 
   // Format GPU stats for display
   const formatGpuStats = () => {
@@ -325,6 +336,11 @@ export default function Header() {
           isOpen={isAlertDrawerOpen}
           size="sm"
         />
+
+        {/* Recent Threats Indicator - hidden on mobile */}
+        <div className="hidden sm:block" data-testid="recent-threats-indicator">
+          <RecentThreatsIndicator onThreatClick={handleThreatClick} />
+        </div>
 
         {/* AI Service Status Badge - hidden on mobile */}
         <div className="hidden sm:block" data-testid="ai-service-status">
