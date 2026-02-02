@@ -56,7 +56,35 @@ const RISK_LEVELS = [
   { value: 'high', label: 'High', color: 'orange' },
   { value: 'medium', label: 'Medium', color: 'yellow' },
   { value: 'low', label: 'Low', color: 'green' },
-];
+] as const;
+
+/**
+ * Risk level color class mappings for Tailwind JIT compatibility.
+ * Dynamic class interpolation (e.g., `bg-${color}-500/20`) does not work with
+ * Tailwind's JIT compiler because it scans for complete class names at build time.
+ * Using explicit mappings ensures all classes are included in the production bundle.
+ */
+const RISK_LEVEL_CLASSES: Record<
+  string,
+  { selected: string; default: string }
+> = {
+  red: {
+    selected: 'bg-red-500/20 text-red-400 border border-red-500/50',
+    default: 'border border-gray-700 bg-gray-800 text-gray-500',
+  },
+  orange: {
+    selected: 'bg-orange-500/20 text-orange-400 border border-orange-500/50',
+    default: 'border border-gray-700 bg-gray-800 text-gray-500',
+  },
+  yellow: {
+    selected: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50',
+    default: 'border border-gray-700 bg-gray-800 text-gray-500',
+  },
+  green: {
+    selected: 'bg-green-500/20 text-green-400 border border-green-500/50',
+    default: 'border border-gray-700 bg-gray-800 text-gray-500',
+  },
+};
 
 /** Days of the week */
 const DAYS_OF_WEEK = [
@@ -559,8 +587,8 @@ export default function NotificationSettings({ className }: NotificationSettings
                       disabled={preferencesUpdateMutation.isPending}
                       className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
                         isSelected
-                          ? `bg-${level.color}-500/20 text-${level.color}-400 border border-${level.color}-500/50`
-                          : 'border border-gray-700 bg-gray-800 text-gray-500'
+                          ? RISK_LEVEL_CLASSES[level.color]?.selected
+                          : RISK_LEVEL_CLASSES[level.color]?.default
                       }`}
                     >
                       {level.label}
