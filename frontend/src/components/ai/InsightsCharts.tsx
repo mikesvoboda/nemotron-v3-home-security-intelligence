@@ -22,6 +22,12 @@ import { clsx } from 'clsx';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import {
+  DETECTION_TREMOR_COLORS,
+  DETECTION_HEX_COLORS,
+  RISK_TREMOR_COLORS,
+  RISK_HEX_COLORS,
+} from '../../constants/chartColors';
 import { fetchEventStats } from '../../services/api';
 import ResponsiveChart from '../common/ResponsiveChart';
 
@@ -60,26 +66,6 @@ export interface InsightsChartsProps {
 }
 
 /**
- * Color mapping for risk levels
- */
-const RISK_COLORS: Record<string, string> = {
-  low: 'green',
-  medium: 'yellow',
-  high: 'orange',
-  critical: 'red',
-};
-
-/**
- * Hex color mapping for risk levels
- */
-const RISK_HEX_COLORS: Record<string, string> = {
-  low: '#22c55e',
-  medium: '#eab308',
-  high: '#f97316',
-  critical: '#ef4444',
-};
-
-/**
  * Display labels for risk levels
  */
 const RISK_LABELS: Record<string, string> = {
@@ -87,23 +73,6 @@ const RISK_LABELS: Record<string, string> = {
   medium: 'Medium',
   high: 'High',
   critical: 'Critical',
-};
-
-/**
- * Colors for detection class donut chart
- */
-const DETECTION_COLORS = ['emerald', 'blue', 'amber', 'violet', 'rose', 'cyan'];
-
-/**
- * Hex colors for detection classes (for legend)
- */
-const DETECTION_HEX_COLORS: Record<string, string> = {
-  emerald: '#10b981',
-  blue: '#3b82f6',
-  amber: '#f59e0b',
-  violet: '#8b5cf6',
-  rose: '#f43f5e',
-  cyan: '#06b6d4',
 };
 
 /**
@@ -131,7 +100,7 @@ function transformToLegendItems(detectionData: DetectionClassData[]): ChartLegen
   return detectionData.map((item, index) => ({
     name: item.name,
     value: item.count,
-    color: DETECTION_HEX_COLORS[DETECTION_COLORS[index % DETECTION_COLORS.length]] || '#6b7280',
+    color: DETECTION_HEX_COLORS[DETECTION_TREMOR_COLORS[index % DETECTION_TREMOR_COLORS.length]] || '#6b7280',
   }));
 }
 
@@ -149,7 +118,7 @@ function transformRiskData(eventStats: EventStatsResponse | null): RiskDistribut
   return riskOrder.map((level) => ({
     name: RISK_LABELS[level] || level,
     count: events_by_risk_level[level as keyof typeof events_by_risk_level] || 0,
-    color: RISK_COLORS[level] || 'gray',
+    color: RISK_TREMOR_COLORS[level as keyof typeof RISK_TREMOR_COLORS] || 'gray',
     riskLevelKey: level,
   }));
 }
@@ -161,7 +130,7 @@ function transformRiskToLegendItems(riskData: RiskDistributionData[]): ChartLege
   return riskData.map((item) => ({
     name: item.name,
     value: item.count,
-    color: RISK_HEX_COLORS[item.riskLevelKey] || '#6b7280',
+    color: RISK_HEX_COLORS[item.riskLevelKey as keyof typeof RISK_HEX_COLORS] || '#6b7280',
   }));
 }
 
@@ -290,7 +259,7 @@ export default function InsightsCharts({
                 data={detectionData}
                 category="count"
                 index="name"
-                colors={DETECTION_COLORS}
+                colors={[...DETECTION_TREMOR_COLORS]}
                 showAnimation
                 showTooltip
                 valueFormatter={(value) => formatCount(value)}
