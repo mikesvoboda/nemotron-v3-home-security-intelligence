@@ -36,7 +36,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.time_utils import utc_now
@@ -115,10 +115,10 @@ class Alert(Base):
         DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    channels: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    channels: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     dedup_key: Mapped[str] = mapped_column(String(255), nullable=False)
     # Note: Named alert_metadata to avoid collision with SQLAlchemy's reserved 'metadata'
-    alert_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
+    alert_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
 
     # Optimistic locking version column (NEM-2581)
     # Prevents race conditions during concurrent acknowledge/dismiss operations
@@ -212,11 +212,11 @@ class AlertRule(Base):
 
     Alert rules specify conditions that must ALL match (AND logic) for alerts to trigger:
     - risk_threshold: Minimum risk score (0-100)
-    - object_types: List of object types to match (JSON array)
-    - camera_ids: List of camera IDs to match (JSON array, empty = all)
-    - zone_ids: List of zone IDs to match (JSON array, empty = any)
+    - object_types: List of object types to match (JSONB array)
+    - camera_ids: List of camera IDs to match (JSONB array, empty = all)
+    - zone_ids: List of zone IDs to match (JSONB array, empty = any)
     - min_confidence: Minimum detection confidence (0.0-1.0)
-    - schedule: Time-based conditions (JSON object with days, start_time, end_time)
+    - schedule: Time-based conditions (JSONB object with days, start_time, end_time)
     - dwell_time_enabled: Enable loitering detection (uses zone's loitering_threshold_seconds)
 
     Rules also specify:
@@ -251,31 +251,31 @@ class AlertRule(Base):
     # None means no risk threshold condition
     risk_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Condition: Object types to match (JSON array, e.g., ["person", "vehicle"])
+    # Condition: Object types to match (JSONB array, e.g., ["person", "vehicle"])
     # Empty or null means all object types
-    object_types: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    object_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
-    # Condition: Camera IDs to apply to (JSON array)
+    # Condition: Camera IDs to apply to (JSONB array)
     # Empty or null means all cameras
-    camera_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    camera_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
-    # Condition: Zone IDs to match (JSON array)
+    # Condition: Zone IDs to match (JSONB array)
     # Empty or null means any zone
-    zone_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    zone_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     # Condition: Minimum detection confidence threshold (0.0-1.0)
     min_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # Schedule: Time-based conditions (JSON object with days, start_time, end_time, timezone)
+    # Schedule: Time-based conditions (JSONB object with days, start_time, end_time, timezone)
     # If start_time > end_time, schedule spans midnight. No schedule = always active.
-    schedule: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    schedule: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Condition: Enable dwell time / loitering detection (uses zone's threshold)
     dwell_time_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Legacy conditions field (for backward compatibility)
     # New rules should use explicit fields above
-    conditions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    conditions: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # =========================================================================
     # New Alert Condition Types (NEM-5085)
@@ -321,8 +321,8 @@ class AlertRule(Base):
     # Cooldown period in seconds (default: 5 minutes)
     cooldown_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)
 
-    # Notification channels (JSON array)
-    channels: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Notification channels (JSONB array)
+    channels: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
