@@ -16,6 +16,7 @@ import { Card, Title, Text, AreaChart } from '@tremor/react';
 import { AlertCircle, Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useMemo } from 'react';
 
+import { SEVERITY_COLORS_ALT, SEVERITY_TREMOR_COLORS } from '../../constants/chartColors';
 import { useRiskHistoryQuery } from '../../hooks/useRiskHistoryQuery';
 
 // ============================================================================
@@ -32,26 +33,6 @@ interface RiskHistoryCardProps {
 
 /** Trend direction for high-risk events */
 type TrendDirection = 'increasing' | 'decreasing' | 'stable';
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Color mapping for risk severity levels.
- * Green for low, yellow for medium, orange for high, red for critical.
- */
-const SEVERITY_COLORS: Record<string, string> = {
-  low: '#10B981', // emerald-500
-  medium: '#F59E0B', // amber-500
-  high: '#F97316', // orange-500
-  critical: '#EF4444', // red-500
-};
-
-/**
- * Tremor color names for the AreaChart.
- */
-const TREMOR_COLORS = ['emerald', 'amber', 'orange', 'red'] as const;
 
 // ============================================================================
 // Utility Functions
@@ -258,12 +239,13 @@ export default function RiskHistoryCard({ dateRange }: RiskHistoryCardProps) {
           data={chartData}
           index="date"
           categories={['Low', 'Medium', 'High', 'Critical']}
-          colors={[...TREMOR_COLORS]}
+          colors={[...SEVERITY_TREMOR_COLORS]}
           stack={true}
           showLegend={false}
           showGridLines={false}
           showAnimation={true}
           curveType="monotone"
+          aria-label="Risk history chart showing event distribution by severity level over time"
         />
       </div>
 
@@ -275,28 +257,28 @@ export default function RiskHistoryCard({ dateRange }: RiskHistoryCardProps) {
         <div className="flex items-center gap-1.5" data-testid="legend-low">
           <div
             className="h-2.5 w-2.5 rounded-sm"
-            style={{ backgroundColor: SEVERITY_COLORS.low }}
+            style={{ backgroundColor: SEVERITY_COLORS_ALT.low }}
           />
           <span>Low</span>
         </div>
         <div className="flex items-center gap-1.5" data-testid="legend-medium">
           <div
             className="h-2.5 w-2.5 rounded-sm"
-            style={{ backgroundColor: SEVERITY_COLORS.medium }}
+            style={{ backgroundColor: SEVERITY_COLORS_ALT.medium }}
           />
           <span>Medium</span>
         </div>
         <div className="flex items-center gap-1.5" data-testid="legend-high">
           <div
             className="h-2.5 w-2.5 rounded-sm"
-            style={{ backgroundColor: SEVERITY_COLORS.high }}
+            style={{ backgroundColor: SEVERITY_COLORS_ALT.high }}
           />
           <span>High</span>
         </div>
         <div className="flex items-center gap-1.5" data-testid="legend-critical">
           <div
             className="h-2.5 w-2.5 rounded-sm"
-            style={{ backgroundColor: SEVERITY_COLORS.critical }}
+            style={{ backgroundColor: SEVERITY_COLORS_ALT.critical }}
           />
           <span>Critical</span>
         </div>

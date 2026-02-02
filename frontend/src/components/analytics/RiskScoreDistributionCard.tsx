@@ -158,6 +158,7 @@ export default function RiskScoreDistributionCard({ dateRange }: RiskScoreDistri
         showLegend={false}
         showGridLines={false}
         data-testid="risk-score-distribution-chart"
+        aria-label="Risk score distribution chart showing event counts by risk score range"
       />
 
       {/* Risk level legend */}

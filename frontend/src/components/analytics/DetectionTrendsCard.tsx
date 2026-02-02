@@ -148,6 +148,7 @@ export default function DetectionTrendsCard({ dateRange }: DetectionTrendsCardPr
         showGridLines={false}
         curveType="monotone"
         data-testid="detection-trends-chart"
+        aria-label="Detection trends chart showing daily detection counts over time"
       />
     </Card>
   );
