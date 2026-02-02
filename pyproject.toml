@@ -420,6 +420,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
 timeout = 5
 timeout_method = "thread"
+timeout_func_only = true  # Only timeout test functions, not fixture setup/teardown (prevents pytest-rerunfailures server thread from being killed)
 # pytest-testmon is opt-in via --testmon flag for affected-only test execution
 # Usage: pytest --testmon (only runs tests affected by code changes)
 # Usage: pytest (runs all tests, default behavior)
