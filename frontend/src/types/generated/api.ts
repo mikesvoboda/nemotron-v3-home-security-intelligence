@@ -13392,6 +13392,7 @@ export interface components {
          *       "cooldown_seconds": 300,
          *       "dedup_key_template": "{camera_id}:{rule_id}",
          *       "description": "High-priority alert for person detection at night",
+         *       "dwell_time_enabled": false,
          *       "enabled": true,
          *       "min_confidence": 0.8,
          *       "name": "Night Intruder Alert",
@@ -13415,16 +13416,6 @@ export interface components {
          *     }
          */
         AlertRuleCreate: {
-            /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence (0.0-1.0)
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on (e.g., ['loitering', 'peering_through_window']). Actions are recognized by X-CLIP model.
-             */
-            action_types?: string[] | null;
             /**
              * Camera Ids
              * @description Camera IDs to apply rule to (empty = all cameras)
@@ -13455,22 +13446,17 @@ export interface components {
              */
             description?: string | null;
             /**
-             * Dwell Threshold Seconds
-             * @description Dwell time threshold in seconds (alert when exceeded)
+             * Dwell Time Enabled
+             * @description Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.
+             * @default false
              */
-            dwell_threshold_seconds?: number | null;
+            dwell_time_enabled: boolean;
             /**
              * Enabled
              * @description Whether the rule is active
              * @default true
              */
             enabled: boolean;
-            /**
-             * Exclude Household Members
-             * @description Whether to exclude household members from dwell time alerts
-             * @default false
-             */
-            exclude_household_members: boolean;
             /**
              * Min Confidence
              * @description Minimum detection confidence (0.0-1.0)
@@ -13487,16 +13473,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence (0.0-1.0)
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on (e.g., ['crouching', 'lying_down']). Valid: standing, crouching, bending_over, arms_raised, sitting, lying_down, unknown
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
              */
@@ -13508,44 +13484,6 @@ export interface components {
              * @default medium
              */
             severity: components["schemas"]["AlertSeverity"];
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence (0.0-1.0)
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Number of consecutive smoke/fire detections required (reduces false positives)
-             * @default 2
-             */
-            smoke_fire_consecutive_required: number;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable alert on smoke/fire detection
-             * @default false
-             */
-            smoke_fire_detection_enabled: boolean;
-            /**
-             * Threat Confidence Threshold
-             * @description Minimum threat detection confidence (0.0-1.0)
-             */
-            threat_confidence_threshold?: number | null;
-            /**
-             * Threat Detection Enabled
-             * @description Enable alert on threat/weapon detection
-             * @default false
-             */
-            threat_detection_enabled: boolean;
-            /**
-             * Threat Min Severity
-             * @description Minimum threat severity (critical, high, medium, low)
-             */
-            threat_min_severity?: string | null;
-            /**
-             * Threat Types
-             * @description Threat types to alert on (e.g., ['gun', 'knife']). Valid: gun, knife, grenade, explosive, weapon, other
-             */
-            threat_types?: string[] | null;
             /**
              * Zone Ids
              * @description Zone IDs to match (empty = any zone)
@@ -13605,6 +13543,7 @@ export interface components {
          *       "created_at": "2025-12-28T12:00:00Z",
          *       "dedup_key_template": "{camera_id}:{rule_id}",
          *       "description": "High-priority alert for person detection at night",
+         *       "dwell_time_enabled": false,
          *       "enabled": true,
          *       "id": "550e8400-e29b-41d4-a716-446655440000",
          *       "min_confidence": 0.8,
@@ -13630,16 +13569,6 @@ export interface components {
          *     }
          */
         AlertRuleResponse: {
-            /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on
-             */
-            action_types?: string[] | null;
             /**
              * Camera Ids
              * @description Camera IDs to apply to
@@ -13674,21 +13603,16 @@ export interface components {
              */
             description?: string | null;
             /**
-             * Dwell Threshold Seconds
-             * @description Dwell time threshold in seconds
+             * Dwell Time Enabled
+             * @description Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.
+             * @default false
              */
-            dwell_threshold_seconds?: number | null;
+            dwell_time_enabled: boolean;
             /**
              * Enabled
              * @description Whether the rule is active
              */
             enabled: boolean;
-            /**
-             * Exclude Household Members
-             * @description Exclude household members from dwell time alerts
-             * @default false
-             */
-            exclude_household_members: boolean;
             /**
              * Id
              * @description Alert rule UUID
@@ -13710,16 +13634,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Risk score threshold
              */
@@ -13728,44 +13642,6 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity: components["schemas"]["AlertSeverity"];
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Consecutive detections required
-             * @default 2
-             */
-            smoke_fire_consecutive_required: number;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable smoke/fire alerts
-             * @default false
-             */
-            smoke_fire_detection_enabled: boolean;
-            /**
-             * Threat Confidence Threshold
-             * @description Minimum threat confidence
-             */
-            threat_confidence_threshold?: number | null;
-            /**
-             * Threat Detection Enabled
-             * @description Enable threat detection alerts
-             * @default false
-             */
-            threat_detection_enabled: boolean;
-            /**
-             * Threat Min Severity
-             * @description Minimum threat severity
-             */
-            threat_min_severity?: string | null;
-            /**
-             * Threat Types
-             * @description Threat types to alert on
-             */
-            threat_types?: string[] | null;
             /**
              * Updated At
              * Format: date-time
@@ -13832,21 +13708,12 @@ export interface components {
          *     Only provided fields will be updated. Null values clear the field.
          * @example {
          *       "cooldown_seconds": 600,
+         *       "dwell_time_enabled": true,
          *       "enabled": false,
          *       "risk_threshold": 80
          *     }
          */
         AlertRuleUpdate: {
-            /**
-             * Action Confidence Threshold
-             * @description Minimum action confidence
-             */
-            action_confidence_threshold?: number | null;
-            /**
-             * Action Types
-             * @description Action types to alert on
-             */
-            action_types?: string[] | null;
             /**
              * Camera Ids
              * @description Camera IDs to apply rule to
@@ -13875,20 +13742,15 @@ export interface components {
              */
             description?: string | null;
             /**
-             * Dwell Threshold Seconds
-             * @description Dwell time threshold in seconds
+             * Dwell Time Enabled
+             * @description Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.
              */
-            dwell_threshold_seconds?: number | null;
+            dwell_time_enabled?: boolean | null;
             /**
              * Enabled
              * @description Whether the rule is active
              */
             enabled?: boolean | null;
-            /**
-             * Exclude Household Members
-             * @description Whether to exclude household members from dwell time alerts
-             */
-            exclude_household_members?: boolean | null;
             /**
              * Min Confidence
              * @description Minimum detection confidence
@@ -13905,16 +13767,6 @@ export interface components {
              */
             object_types?: string[] | null;
             /**
-             * Pose Confidence Threshold
-             * @description Minimum pose confidence
-             */
-            pose_confidence_threshold?: number | null;
-            /**
-             * Pose Types
-             * @description Pose types to alert on
-             */
-            pose_types?: string[] | null;
-            /**
              * Risk Threshold
              * @description Alert when risk_score >= threshold
              */
@@ -13923,41 +13775,6 @@ export interface components {
             schedule?: components["schemas"]["AlertRuleSchedule"] | null;
             /** @description Severity level */
             severity?: components["schemas"]["AlertSeverity"] | null;
-            /**
-             * Smoke Fire Confidence Threshold
-             * @description Minimum smoke/fire confidence
-             */
-            smoke_fire_confidence_threshold?: number | null;
-            /**
-             * Smoke Fire Consecutive Required
-             * @description Consecutive detections required
-             */
-            smoke_fire_consecutive_required?: number | null;
-            /**
-             * Smoke Fire Detection Enabled
-             * @description Enable alert on smoke/fire detection
-             */
-            smoke_fire_detection_enabled?: boolean | null;
-            /**
-             * Threat Confidence Threshold
-             * @description Minimum threat confidence
-             */
-            threat_confidence_threshold?: number | null;
-            /**
-             * Threat Detection Enabled
-             * @description Enable alert on threat detection
-             */
-            threat_detection_enabled?: boolean | null;
-            /**
-             * Threat Min Severity
-             * @description Minimum threat severity
-             */
-            threat_min_severity?: string | null;
-            /**
-             * Threat Types
-             * @description Threat types to alert on
-             */
-            threat_types?: string[] | null;
             /**
              * Zone Ids
              * @description Zone IDs to match
@@ -32502,6 +32319,7 @@ export interface components {
          *       "camera_id": "front_door",
          *       "color": "#FF0000",
          *       "is_active": true,
+         *       "loitering_threshold_seconds": 60,
          *       "name": "Restricted Area",
          *       "polygon": [
          *         [
@@ -32552,6 +32370,12 @@ export interface components {
              */
             is_active: boolean;
             /**
+             * Loitering Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.
+             * @default 60
+             */
+            loitering_threshold_seconds: number;
+            /**
              * Name
              * @description Descriptive name for the polygon zone
              */
@@ -32586,6 +32410,7 @@ export interface components {
          *           "current_count": 0,
          *           "id": 1,
          *           "is_active": true,
+         *           "loitering_threshold_seconds": 60,
          *           "name": "Restricted Area",
          *           "polygon": [
          *             [
@@ -32638,6 +32463,7 @@ export interface components {
          *       "current_count": 0,
          *       "id": 1,
          *       "is_active": true,
+         *       "loitering_threshold_seconds": 60,
          *       "name": "Restricted Area",
          *       "polygon": [
          *         [
@@ -32705,6 +32531,12 @@ export interface components {
              */
             is_active: boolean;
             /**
+             * Loitering Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.
+             * @default 60
+             */
+            loitering_threshold_seconds: number;
+            /**
              * Name
              * @description Descriptive name for the polygon zone
              */
@@ -32739,6 +32571,7 @@ export interface components {
          * @example {
          *       "alert_threshold": 2,
          *       "is_active": false,
+         *       "loitering_threshold_seconds": 120,
          *       "name": "Updated Restricted Area"
          *     }
          */
@@ -32758,6 +32591,11 @@ export interface components {
              * @description Whether the zone is actively monitoring
              */
             is_active?: boolean | null;
+            /**
+             * Loitering Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.
+             */
+            loitering_threshold_seconds?: number | null;
             /**
              * Name
              * @description Descriptive name for the polygon zone

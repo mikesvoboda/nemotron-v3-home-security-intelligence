@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -117,6 +117,9 @@ class PolygonZone(Base):
         is_active: Whether the zone is currently being monitored
         color: Hex color code for visualization (e.g., "#FF0000")
         current_count: Current count of objects within the zone
+        loitering_threshold_seconds: Threshold in seconds before triggering loitering
+            alert (default 60s)
+        loitering_alert_enabled: Whether loitering alerts are enabled for this zone
         created_at: Timestamp when the polygon zone was created
 
     Example:
@@ -145,7 +148,7 @@ class PolygonZone(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     color: Mapped[str] = mapped_column(String(7), default="#FF0000", nullable=False)
     current_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    loitering_threshold_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)
+    loitering_threshold_seconds: Mapped[float] = mapped_column(Float, default=60.0, nullable=False)
     loitering_alert_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False

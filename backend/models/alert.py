@@ -217,6 +217,7 @@ class AlertRule(Base):
     - zone_ids: List of zone IDs to match (JSON array, empty = any)
     - min_confidence: Minimum detection confidence (0.0-1.0)
     - schedule: Time-based conditions (JSON object with days, start_time, end_time)
+    - dwell_time_enabled: Enable loitering detection (uses zone's loitering_threshold_seconds)
 
     Rules also specify:
     - Severity level for triggered alerts
@@ -268,6 +269,9 @@ class AlertRule(Base):
     # Schedule: Time-based conditions (JSON object with days, start_time, end_time, timezone)
     # If start_time > end_time, schedule spans midnight. No schedule = always active.
     schedule: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # Condition: Enable dwell time / loitering detection (uses zone's threshold)
+    dwell_time_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Legacy conditions field (for backward compatibility)
     # New rules should use explicit fields above

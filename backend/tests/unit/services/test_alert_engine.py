@@ -701,6 +701,71 @@ class TestBuildDedupKey:
         result = engine._build_dedup_key(sample_rule, sample_event, [])
         assert result == f"front_door:{sample_rule.id}"
 
+    def test_zone_id_template_with_dwell_match(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_event: Event
+    ) -> None:
+        """Test {zone_id} template variable with DwellTimeMatch."""
+        from backend.services.alert_engine import DwellTimeMatch
+
+        sample_rule.dedup_key_template = "{camera_id}:{zone_id}:{rule_id}"
+        dwell_match = DwellTimeMatch(zone_id=42, track_id=100)
+
+        engine = AlertRuleEngine(mock_session)
+        result = engine._build_dedup_key(
+            sample_rule, sample_event, [], dwell_time_match=dwell_match
+        )
+        assert result == f"front_door:42:{sample_rule.id}"
+
+    def test_track_id_template_with_dwell_match(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_event: Event
+    ) -> None:
+        """Test {track_id} template variable with DwellTimeMatch."""
+        from backend.services.alert_engine import DwellTimeMatch
+
+        sample_rule.dedup_key_template = "{camera_id}:{track_id}"
+        dwell_match = DwellTimeMatch(zone_id=42, track_id=100)
+
+        engine = AlertRuleEngine(mock_session)
+        result = engine._build_dedup_key(
+            sample_rule, sample_event, [], dwell_time_match=dwell_match
+        )
+        assert result == "front_door:100"
+
+    def test_zone_and_track_id_template_combined(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_event: Event
+    ) -> None:
+        """Test both {zone_id} and {track_id} template variables together."""
+        from backend.services.alert_engine import DwellTimeMatch
+
+        sample_rule.dedup_key_template = "{camera_id}_{zone_id}_{track_id}"
+        dwell_match = DwellTimeMatch(zone_id=5, track_id=999)
+
+        engine = AlertRuleEngine(mock_session)
+        result = engine._build_dedup_key(
+            sample_rule, sample_event, [], dwell_time_match=dwell_match
+        )
+        assert result == "front_door_5_999"
+
+    def test_zone_id_empty_when_no_dwell_match(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_event: Event
+    ) -> None:
+        """Test {zone_id} is empty string when no DwellTimeMatch provided."""
+        sample_rule.dedup_key_template = "{camera_id}:{zone_id}:{rule_id}"
+
+        engine = AlertRuleEngine(mock_session)
+        result = engine._build_dedup_key(sample_rule, sample_event, [])
+        assert result == f"front_door::{sample_rule.id}"
+
+    def test_track_id_empty_when_no_dwell_match(
+        self, mock_session: AsyncMock, sample_rule: AlertRule, sample_event: Event
+    ) -> None:
+        """Test {track_id} is empty string when no DwellTimeMatch provided."""
+        sample_rule.dedup_key_template = "{camera_id}:{track_id}"
+
+        engine = AlertRuleEngine(mock_session)
+        result = engine._build_dedup_key(sample_rule, sample_event, [])
+        assert result == "front_door:"
+
 
 # =============================================================================
 # AlertRuleEngine._check_cooldown Tests
@@ -775,7 +840,7 @@ class TestEvaluateRule:
     ) -> None:
         """Test rule with no conditions always matches."""
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule_no_conditions, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -794,7 +859,7 @@ class TestEvaluateRule:
         sample_event.risk_score = 85
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -813,7 +878,7 @@ class TestEvaluateRule:
         sample_event.risk_score = 70
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is False
@@ -832,7 +897,7 @@ class TestEvaluateRule:
         sample_event.risk_score = None
 
         engine = AlertRuleEngine(mock_session)
-        matches, _conditions = await engine._evaluate_rule(
+        matches, _conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is False
@@ -850,7 +915,7 @@ class TestEvaluateRule:
         sample_rule.camera_ids = ["front_door", "back_door"]
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -869,7 +934,7 @@ class TestEvaluateRule:
         sample_rule.camera_ids = ["garage", "side_door"]
 
         engine = AlertRuleEngine(mock_session)
-        matches, _conditions = await engine._evaluate_rule(
+        matches, _conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is False
@@ -887,7 +952,7 @@ class TestEvaluateRule:
         sample_rule.object_types = ["person", "animal"]
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -906,7 +971,7 @@ class TestEvaluateRule:
         sample_rule.object_types = ["dog", "cat"]
 
         engine = AlertRuleEngine(mock_session)
-        matches, _conditions = await engine._evaluate_rule(
+        matches, _conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is False
@@ -924,7 +989,7 @@ class TestEvaluateRule:
         sample_rule.min_confidence = 0.90
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -943,7 +1008,7 @@ class TestEvaluateRule:
         sample_rule.min_confidence = 0.99
 
         engine = AlertRuleEngine(mock_session)
-        matches, _conditions = await engine._evaluate_rule(
+        matches, _conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is False
@@ -961,7 +1026,7 @@ class TestEvaluateRule:
         sample_rule.schedule = {"start_time": "00:00", "end_time": "23:59"}
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -982,7 +1047,7 @@ class TestEvaluateRule:
         current_time = datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
 
         engine = AlertRuleEngine(mock_session)
-        matches, _conditions = await engine._evaluate_rule(
+        matches, _conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, current_time
         )
         assert matches is False
@@ -1003,7 +1068,7 @@ class TestEvaluateRule:
         sample_event.risk_score = 85
 
         engine = AlertRuleEngine(mock_session)
-        matches, conditions = await engine._evaluate_rule(
+        matches, conditions, _ = await engine._evaluate_rule(
             sample_rule, sample_event, sample_detections, datetime.now(UTC)
         )
         assert matches is True
@@ -1798,13 +1863,324 @@ class TestZoneIdCondition:
         engine = AlertRuleEngine(mock_session)
 
         with patch("backend.services.alert_engine.logger") as mock_logger:
-            matches, _conditions = await engine._evaluate_rule(
+            matches, _conditions, _ = await engine._evaluate_rule(
                 rule, sample_event, sample_detections, datetime.now(UTC)
             )
 
             # Rule should match (zone condition is not enforced)
             assert matches is True
             mock_logger.debug.assert_called()
+
+
+# =============================================================================
+# Dwell Time Condition Tests
+# =============================================================================
+
+
+class TestDwellTimeCondition:
+    """Tests for dwell_time_enabled condition (loitering detection)."""
+
+    @pytest.fixture
+    def mock_polygon_zone(self) -> MagicMock:
+        """Create a mock PolygonZone."""
+        zone = MagicMock()
+        zone.id = 1
+        zone.name = "Front Yard"
+        zone.loitering_threshold_seconds = 60.0
+        zone.loitering_alert_enabled = True
+        return zone
+
+    @pytest.fixture
+    def mock_dwell_record(self) -> MagicMock:
+        """Create a mock DwellTimeRecord with 90 seconds of dwell time."""
+        record = MagicMock()
+        record.zone_id = 1
+        record.track_id = 42
+        record.camera_id = "camera1"
+        record.exit_time = None  # Active record
+        record.calculate_dwell_time.return_value = 90.0  # Above 60s threshold
+        return record
+
+    @pytest.fixture
+    def dwell_enabled_rule(self) -> AlertRule:
+        """Create an alert rule with dwell_time_enabled."""
+        return AlertRule(
+            id=str(uuid.uuid4()),
+            name="Loitering Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            dwell_time_enabled=True,
+            zone_ids=[1],  # PolygonZone ID
+            cooldown_seconds=300,
+        )
+
+    @pytest.mark.asyncio
+    async def test_dwell_time_returns_false_when_no_zones(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+    ) -> None:
+        """Test dwell_time check returns False when no zones to check."""
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Loitering Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            dwell_time_enabled=True,
+            zone_ids=[],  # Empty zone list
+            cooldown_seconds=300,
+        )
+
+        # Mock empty zone query result
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        engine = AlertRuleEngine(mock_session)
+        matches, details, dwell_match = await engine._check_dwell_time(rule, sample_event)
+
+        assert matches is False
+        assert details == []
+        assert dwell_match is None
+
+    @pytest.mark.asyncio
+    async def test_dwell_time_returns_false_when_zones_disabled(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+        dwell_enabled_rule: AlertRule,
+    ) -> None:
+        """Test dwell_time check returns False when zones have loitering disabled."""
+        # Mock zone query returning zone with loitering disabled
+        disabled_zone = MagicMock()
+        disabled_zone.id = 1
+        disabled_zone.loitering_alert_enabled = False
+
+        # First call for zones query - returns empty (filtered by loitering_alert_enabled)
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_zones_result
+
+        engine = AlertRuleEngine(mock_session)
+        matches, details, dwell_match = await engine._check_dwell_time(
+            dwell_enabled_rule, sample_event
+        )
+
+        assert matches is False
+        assert details == []
+        assert dwell_match is None
+
+    @pytest.mark.asyncio
+    async def test_dwell_time_returns_false_when_below_threshold(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+        dwell_enabled_rule: AlertRule,
+        mock_polygon_zone: MagicMock,
+    ) -> None:
+        """Test dwell_time check returns False when dwell time is below threshold."""
+        # Mock record with dwell time below threshold
+        record = MagicMock()
+        record.zone_id = 1
+        record.track_id = 42
+        record.exit_time = None
+        record.calculate_dwell_time.return_value = 30.0  # Below 60s threshold
+
+        # Setup mock responses
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = [mock_polygon_zone]
+
+        mock_dwell_result = MagicMock()
+        mock_dwell_result.scalars.return_value.all.return_value = [record]
+
+        mock_session.execute.side_effect = [mock_zones_result, mock_dwell_result]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, details, dwell_match = await engine._check_dwell_time(
+            dwell_enabled_rule, sample_event
+        )
+
+        assert matches is False
+        assert details == []
+        assert dwell_match is None
+
+    @pytest.mark.asyncio
+    async def test_dwell_time_returns_true_when_exceeds_threshold(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+        dwell_enabled_rule: AlertRule,
+        mock_polygon_zone: MagicMock,
+        mock_dwell_record: MagicMock,
+    ) -> None:
+        """Test dwell_time check returns True when dwell time exceeds threshold."""
+        # Setup mock responses
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = [mock_polygon_zone]
+
+        mock_dwell_result = MagicMock()
+        mock_dwell_result.scalars.return_value.all.return_value = [mock_dwell_record]
+
+        mock_session.execute.side_effect = [mock_zones_result, mock_dwell_result]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, details, dwell_match = await engine._check_dwell_time(
+            dwell_enabled_rule, sample_event
+        )
+
+        assert matches is True
+        assert len(details) == 1
+        assert "loitering_in_zone:Front Yard:90s" in details[0]
+        assert "threshold:60s" in details[0]
+
+    @pytest.mark.asyncio
+    async def test_dwell_time_returns_dwell_match_for_dedup(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+        dwell_enabled_rule: AlertRule,
+        mock_polygon_zone: MagicMock,
+        mock_dwell_record: MagicMock,
+    ) -> None:
+        """Test dwell_time check returns DwellTimeMatch for dedup key generation."""
+        from backend.services.alert_engine import DwellTimeMatch
+
+        # Setup mock responses
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = [mock_polygon_zone]
+
+        mock_dwell_result = MagicMock()
+        mock_dwell_result.scalars.return_value.all.return_value = [mock_dwell_record]
+
+        mock_session.execute.side_effect = [mock_zones_result, mock_dwell_result]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, details, dwell_match = await engine._check_dwell_time(
+            dwell_enabled_rule, sample_event
+        )
+
+        assert matches is True
+        assert dwell_match is not None
+        assert isinstance(dwell_match, DwellTimeMatch)
+        assert dwell_match.zone_id == 1
+        assert dwell_match.track_id == 42
+
+    @pytest.mark.asyncio
+    async def test_dwell_time_queries_all_zones_when_rule_zone_ids_empty(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+    ) -> None:
+        """Test dwell_time queries all active zones when rule.zone_ids is empty."""
+        rule = AlertRule(
+            id=str(uuid.uuid4()),
+            name="Loitering Rule",
+            enabled=True,
+            severity=AlertSeverity.HIGH,
+            dwell_time_enabled=True,
+            zone_ids=None,  # No zones specified - query all
+            cooldown_seconds=300,
+        )
+
+        # First query: get distinct zone IDs from active dwell records
+        mock_zone_ids_result = MagicMock()
+        mock_zone_ids_result.scalars.return_value.all.return_value = [1, 2]
+
+        # Second query: get zones
+        zone1 = MagicMock()
+        zone1.id = 1
+        zone1.name = "Zone 1"
+        zone1.loitering_threshold_seconds = 60.0
+        zone1.loitering_alert_enabled = True
+
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = [zone1]
+
+        # Third query: dwell records for zone 1
+        record = MagicMock()
+        record.zone_id = 1
+        record.track_id = 10
+        record.exit_time = None
+        record.calculate_dwell_time.return_value = 120.0
+
+        mock_dwell_result = MagicMock()
+        mock_dwell_result.scalars.return_value.all.return_value = [record]
+
+        mock_session.execute.side_effect = [
+            mock_zone_ids_result,
+            mock_zones_result,
+            mock_dwell_result,
+        ]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, details, dwell_match = await engine._check_dwell_time(rule, sample_event)
+
+        assert matches is True
+        # Verify first query was for distinct zone IDs
+        assert mock_session.execute.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_evaluate_rule_with_dwell_time_enabled(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+        sample_detections: list[Detection],
+        dwell_enabled_rule: AlertRule,
+        mock_polygon_zone: MagicMock,
+        mock_dwell_record: MagicMock,
+    ) -> None:
+        """Test _evaluate_rule integrates dwell_time check correctly."""
+        # Setup mock responses for dwell time check
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = [mock_polygon_zone]
+
+        mock_dwell_result = MagicMock()
+        mock_dwell_result.scalars.return_value.all.return_value = [mock_dwell_record]
+
+        mock_session.execute.side_effect = [mock_zones_result, mock_dwell_result]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, conditions, dwell_match = await engine._evaluate_rule(
+            dwell_enabled_rule, sample_event, sample_detections, datetime.now(UTC)
+        )
+
+        assert matches is True
+        assert any("loitering_in_zone" in c for c in conditions)
+        assert dwell_match is not None
+
+    @pytest.mark.asyncio
+    async def test_evaluate_rule_fails_when_dwell_time_not_met(
+        self,
+        mock_session: AsyncMock,
+        sample_event: Event,
+        sample_detections: list[Detection],
+        dwell_enabled_rule: AlertRule,
+        mock_polygon_zone: MagicMock,
+    ) -> None:
+        """Test _evaluate_rule returns False when dwell_time condition not met."""
+        # Record with dwell time below threshold
+        record = MagicMock()
+        record.zone_id = 1
+        record.track_id = 42
+        record.exit_time = None
+        record.calculate_dwell_time.return_value = 30.0  # Below threshold
+
+        mock_zones_result = MagicMock()
+        mock_zones_result.scalars.return_value.all.return_value = [mock_polygon_zone]
+
+        mock_dwell_result = MagicMock()
+        mock_dwell_result.scalars.return_value.all.return_value = [record]
+
+        mock_session.execute.side_effect = [mock_zones_result, mock_dwell_result]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, conditions, dwell_match = await engine._evaluate_rule(
+            dwell_enabled_rule, sample_event, sample_detections, datetime.now(UTC)
+        )
+
+        assert matches is False
+        assert conditions == []
+        assert dwell_match is None
 
 
 class TestDatabaseInteraction:
@@ -1969,7 +2345,7 @@ class TestAlertEngineProperties:
         current_time = datetime(2025, 1, 6, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
 
         engine = AlertRuleEngine(mock_session)
-        matches, _conditions = await engine._evaluate_rule(rule, event, [], current_time)
+        matches, _conditions, _ = await engine._evaluate_rule(rule, event, [], current_time)
 
         expected = risk_score >= threshold
         assert matches == expected, (

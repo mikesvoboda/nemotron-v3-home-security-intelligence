@@ -1527,6 +1527,7 @@
           "cooldown_seconds": 300,
           "dedup_key_template": "{camera_id}:{rule_id}",
           "description": "High-priority alert for person detection at night",
+          "dwell_time_enabled": false,
           "enabled": true,
           "min_confidence": 0.8,
           "name": "Night Intruder Alert",
@@ -1549,35 +1550,6 @@
           "severity": "critical"
         },
         "properties": {
-          "action_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum action confidence (0.0-1.0)",
-            "title": "Action Confidence Threshold"
-          },
-          "action_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Action types to alert on (e.g., ['loitering', 'peering_through_window']). Actions are recognized by X-CLIP model.",
-            "title": "Action Types"
-          },
           "camera_ids": {
             "anyOf": [
               {
@@ -1638,29 +1610,16 @@
             "description": "Rule description",
             "title": "Description"
           },
-          "dwell_threshold_seconds": {
-            "anyOf": [
-              {
-                "minimum": 0.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Dwell time threshold in seconds (alert when exceeded)",
-            "title": "Dwell Threshold Seconds"
+          "dwell_time_enabled": {
+            "default": false,
+            "description": "Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.",
+            "title": "Dwell Time Enabled",
+            "type": "boolean"
           },
           "enabled": {
             "default": true,
             "description": "Whether the rule is active",
             "title": "Enabled",
-            "type": "boolean"
-          },
-          "exclude_household_members": {
-            "default": false,
-            "description": "Whether to exclude household members from dwell time alerts",
-            "title": "Exclude Household Members",
             "type": "boolean"
           },
           "min_confidence": {
@@ -1699,35 +1658,6 @@
             "description": "Object types to match (e.g., ['person', 'vehicle'])",
             "title": "Object Types"
           },
-          "pose_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum pose confidence (0.0-1.0)",
-            "title": "Pose Confidence Threshold"
-          },
-          "pose_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Pose types to alert on (e.g., ['crouching', 'lying_down']). Valid: standing, crouching, bending_over, arms_raised, sitting, lying_down, unknown",
-            "title": "Pose Types"
-          },
           "risk_threshold": {
             "anyOf": [
               {
@@ -1757,80 +1687,6 @@
             "$ref": "#/components/schemas/AlertSeverity",
             "default": "medium",
             "description": "Severity level for triggered alerts"
-          },
-          "smoke_fire_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum smoke/fire confidence (0.0-1.0)",
-            "title": "Smoke Fire Confidence Threshold"
-          },
-          "smoke_fire_consecutive_required": {
-            "default": 2,
-            "description": "Number of consecutive smoke/fire detections required (reduces false positives)",
-            "minimum": 1.0,
-            "title": "Smoke Fire Consecutive Required",
-            "type": "integer"
-          },
-          "smoke_fire_detection_enabled": {
-            "default": false,
-            "description": "Enable alert on smoke/fire detection",
-            "title": "Smoke Fire Detection Enabled",
-            "type": "boolean"
-          },
-          "threat_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum threat detection confidence (0.0-1.0)",
-            "title": "Threat Confidence Threshold"
-          },
-          "threat_detection_enabled": {
-            "default": false,
-            "description": "Enable alert on threat/weapon detection",
-            "title": "Threat Detection Enabled",
-            "type": "boolean"
-          },
-          "threat_min_severity": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum threat severity (critical, high, medium, low)",
-            "title": "Threat Min Severity"
-          },
-          "threat_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Threat types to alert on (e.g., ['gun', 'knife']). Valid: gun, knife, grenade, explosive, weapon, other",
-            "title": "Threat Types"
           },
           "zone_ids": {
             "anyOf": [
@@ -1916,6 +1772,7 @@
           "created_at": "2025-12-28T12:00:00Z",
           "dedup_key_template": "{camera_id}:{rule_id}",
           "description": "High-priority alert for person detection at night",
+          "dwell_time_enabled": false,
           "enabled": true,
           "id": "550e8400-e29b-41d4-a716-446655440000",
           "min_confidence": 0.8,
@@ -1940,33 +1797,6 @@
           "updated_at": "2025-12-28T12:00:00Z"
         },
         "properties": {
-          "action_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum action confidence",
-            "title": "Action Confidence Threshold"
-          },
-          "action_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Action types to alert on",
-            "title": "Action Types"
-          },
           "camera_ids": {
             "anyOf": [
               {
@@ -2029,27 +1859,15 @@
             "description": "Rule description",
             "title": "Description"
           },
-          "dwell_threshold_seconds": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Dwell time threshold in seconds",
-            "title": "Dwell Threshold Seconds"
+          "dwell_time_enabled": {
+            "default": false,
+            "description": "Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.",
+            "title": "Dwell Time Enabled",
+            "type": "boolean"
           },
           "enabled": {
             "description": "Whether the rule is active",
             "title": "Enabled",
-            "type": "boolean"
-          },
-          "exclude_household_members": {
-            "default": false,
-            "description": "Exclude household members from dwell time alerts",
-            "title": "Exclude Household Members",
             "type": "boolean"
           },
           "id": {
@@ -2089,33 +1907,6 @@
             "description": "Object types to match",
             "title": "Object Types"
           },
-          "pose_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum pose confidence",
-            "title": "Pose Confidence Threshold"
-          },
-          "pose_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Pose types to alert on",
-            "title": "Pose Types"
-          },
           "risk_threshold": {
             "anyOf": [
               {
@@ -2142,75 +1933,6 @@
           "severity": {
             "$ref": "#/components/schemas/AlertSeverity",
             "description": "Severity level"
-          },
-          "smoke_fire_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum smoke/fire confidence",
-            "title": "Smoke Fire Confidence Threshold"
-          },
-          "smoke_fire_consecutive_required": {
-            "default": 2,
-            "description": "Consecutive detections required",
-            "title": "Smoke Fire Consecutive Required",
-            "type": "integer"
-          },
-          "smoke_fire_detection_enabled": {
-            "default": false,
-            "description": "Enable smoke/fire alerts",
-            "title": "Smoke Fire Detection Enabled",
-            "type": "boolean"
-          },
-          "threat_confidence_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum threat confidence",
-            "title": "Threat Confidence Threshold"
-          },
-          "threat_detection_enabled": {
-            "default": false,
-            "description": "Enable threat detection alerts",
-            "title": "Threat Detection Enabled",
-            "type": "boolean"
-          },
-          "threat_min_severity": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum threat severity",
-            "title": "Threat Min Severity"
-          },
-          "threat_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Threat types to alert on",
-            "title": "Threat Types"
           },
           "updated_at": {
             "description": "Last update timestamp",
@@ -2317,39 +2039,11 @@
         "description": "Schema for updating an alert rule (PATCH).\n\nOnly provided fields will be updated. Null values clear the field.",
         "example": {
           "cooldown_seconds": 600,
+          "dwell_time_enabled": true,
           "enabled": false,
           "risk_threshold": 80
         },
         "properties": {
-          "action_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum action confidence",
-            "title": "Action Confidence Threshold"
-          },
-          "action_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Action types to alert on",
-            "title": "Action Types"
-          },
           "camera_ids": {
             "anyOf": [
               {
@@ -2429,18 +2123,17 @@
             "description": "Rule description",
             "title": "Description"
           },
-          "dwell_threshold_seconds": {
+          "dwell_time_enabled": {
             "anyOf": [
               {
-                "minimum": 0.0,
-                "type": "integer"
+                "type": "boolean"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Dwell time threshold in seconds",
-            "title": "Dwell Threshold Seconds"
+            "description": "Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.",
+            "title": "Dwell Time Enabled"
           },
           "enabled": {
             "anyOf": [
@@ -2453,18 +2146,6 @@
             ],
             "description": "Whether the rule is active",
             "title": "Enabled"
-          },
-          "exclude_household_members": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Whether to exclude household members from dwell time alerts",
-            "title": "Exclude Household Members"
           },
           "min_confidence": {
             "anyOf": [
@@ -2509,35 +2190,6 @@
             "description": "Object types to match",
             "title": "Object Types"
           },
-          "pose_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum pose confidence",
-            "title": "Pose Confidence Threshold"
-          },
-          "pose_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Pose types to alert on",
-            "title": "Pose Types"
-          },
           "risk_threshold": {
             "anyOf": [
               {
@@ -2573,98 +2225,6 @@
               }
             ],
             "description": "Severity level"
-          },
-          "smoke_fire_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum smoke/fire confidence",
-            "title": "Smoke Fire Confidence Threshold"
-          },
-          "smoke_fire_consecutive_required": {
-            "anyOf": [
-              {
-                "minimum": 1.0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Consecutive detections required",
-            "title": "Smoke Fire Consecutive Required"
-          },
-          "smoke_fire_detection_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Enable alert on smoke/fire detection",
-            "title": "Smoke Fire Detection Enabled"
-          },
-          "threat_confidence_threshold": {
-            "anyOf": [
-              {
-                "maximum": 1.0,
-                "minimum": 0.0,
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum threat confidence",
-            "title": "Threat Confidence Threshold"
-          },
-          "threat_detection_enabled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Enable alert on threat detection",
-            "title": "Threat Detection Enabled"
-          },
-          "threat_min_severity": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Minimum threat severity",
-            "title": "Threat Min Severity"
-          },
-          "threat_types": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Threat types to alert on",
-            "title": "Threat Types"
           },
           "zone_ids": {
             "anyOf": [
@@ -28554,6 +28114,7 @@
           "camera_id": "front_door",
           "color": "#FF0000",
           "is_active": true,
+          "loitering_threshold_seconds": 60.0,
           "name": "Restricted Area",
           "polygon": [
             [
@@ -28605,6 +28166,14 @@
             "description": "Whether the zone is actively monitoring",
             "title": "Is Active",
             "type": "boolean"
+          },
+          "loitering_threshold_seconds": {
+            "default": 60.0,
+            "description": "Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.",
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Loitering Threshold Seconds",
+            "type": "number"
           },
           "name": {
             "description": "Descriptive name for the polygon zone",
@@ -28660,6 +28229,7 @@
               "current_count": 0,
               "id": 1,
               "is_active": true,
+              "loitering_threshold_seconds": 60.0,
               "name": "Restricted Area",
               "polygon": [
                 [
@@ -28719,6 +28289,7 @@
           "current_count": 0,
           "id": 1,
           "is_active": true,
+          "loitering_threshold_seconds": 60.0,
           "name": "Restricted Area",
           "polygon": [
             [
@@ -28787,6 +28358,14 @@
             "title": "Is Active",
             "type": "boolean"
           },
+          "loitering_threshold_seconds": {
+            "default": 60.0,
+            "description": "Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.",
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Loitering Threshold Seconds",
+            "type": "number"
+          },
           "name": {
             "description": "Descriptive name for the polygon zone",
             "maxLength": 100,
@@ -28845,6 +28424,7 @@
         "example": {
           "alert_threshold": 2,
           "is_active": false,
+          "loitering_threshold_seconds": 120.0,
           "name": "Updated Restricted Area"
         },
         "properties": {
@@ -28885,6 +28465,20 @@
             ],
             "description": "Whether the zone is actively monitoring",
             "title": "Is Active"
+          },
+          "loitering_threshold_seconds": {
+            "anyOf": [
+              {
+                "maximum": 3600.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.",
+            "title": "Loitering Threshold Seconds"
           },
           "name": {
             "anyOf": [

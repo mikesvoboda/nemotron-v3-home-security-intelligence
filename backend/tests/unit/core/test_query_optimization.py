@@ -189,6 +189,7 @@ class TestAlertEngineBatchLoading:
         mock_rule.min_confidence = None
         mock_rule.zone_ids = None
         mock_rule.schedule = None
+        mock_rule.dwell_time_enabled = False
         mock_rule.severity = AlertSeverity.MEDIUM
         # New alert condition attributes (NEM-5019) - set to None/False to skip checks
         mock_rule.dwell_threshold_seconds = None
