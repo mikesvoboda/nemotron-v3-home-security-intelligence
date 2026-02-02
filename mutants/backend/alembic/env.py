@@ -29,27 +29,32 @@ if config.config_file_name is not None:
 # Set target metadata from our models
 target_metadata = Base.metadata
 
-# Default database URL for development (PostgreSQL only - no SQLite support)
-DEFAULT_DATABASE_URL = "postgresql://security:password@localhost:5432/security"
 
+def get_url() -> str:
+    """Get database URL from DATABASE_URL environment variable.
 
-def get_database_url() -> str:
-    """Get database URL from environment or config.
-
-    Priority:
-    1. DATABASE_URL environment variable
-    2. alembic.ini sqlalchemy.url setting
+    The DATABASE_URL environment variable is required. No fallback is provided
+    to prevent accidental use of hardcoded credentials.
 
     Note: Only PostgreSQL is supported. SQLite URLs will cause runtime errors.
+
+    Returns:
+        Database URL with async driver removed (asyncpg -> postgresql).
+
+    Raises:
+        ValueError: If DATABASE_URL environment variable is not set.
+
+    Example:
+        DATABASE_URL=postgresql://user:pass@localhost:5432/dbname
     """
     url = os.getenv("DATABASE_URL")
-    if url:
-        # Convert async URL (asyncpg) to sync (psycopg2/plain postgresql)
-        if "+asyncpg" in url:
-            url = url.replace("+asyncpg", "")
-        return url
-    ini_url = config.get_main_option("sqlalchemy.url")
-    return ini_url if ini_url else DEFAULT_DATABASE_URL
+    if not url:
+        raise ValueError(
+            "DATABASE_URL environment variable is required. "
+            "Example: postgresql://user:pass@localhost:5432/dbname"
+        )
+    # Convert async URL (asyncpg) to sync (psycopg2/plain postgresql)
+    return url.replace("+asyncpg", "")
 
 
 def run_migrations_offline() -> None:
@@ -58,7 +63,7 @@ def run_migrations_offline() -> None:
     This configures the context with just a URL and not an Engine.
     Useful for generating SQL scripts without a database connection.
     """
-    url = get_database_url()
+    url = get_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -76,7 +81,7 @@ def run_migrations_online() -> None:
     Creates an Engine and associates a connection with the context.
     """
     # Get the database URL and configure engine
-    url = get_database_url()
+    url = get_url()
 
     # Build configuration dict
     configuration = config.get_section(config.config_ini_section, {})

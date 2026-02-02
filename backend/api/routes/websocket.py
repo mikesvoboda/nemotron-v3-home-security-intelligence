@@ -63,6 +63,7 @@ from backend.core.async_context import set_connection_id
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
+from backend.core.websocket.message_buffer import get_message_buffer
 from backend.core.websocket.sequence_tracker import get_sequence_tracker
 from backend.core.websocket.subscription_manager import (
     SubscriptionResponse,
@@ -214,23 +215,8 @@ async def handle_validated_message(
 
         case WebSocketMessageType.RESYNC.value:
             # Resync is sent by the frontend when it detects a gap in sequence numbers.
-            # Currently, we acknowledge the request but don't replay buffered messages
-            # (message buffering/replay is not yet implemented).
-            # The frontend will continue processing new messages after resync.
-            channel = message.data.get("channel", "unknown") if message.data else "unknown"
-            last_sequence = message.data.get("last_sequence", 0) if message.data else 0
-            logger.debug(
-                f"Received resync request from WebSocket client "
-                f"(channel={channel}, last_sequence={last_sequence})",
-                extra={
-                    "connection_id": connection_id,
-                    "channel": channel,
-                    "last_sequence": last_sequence,
-                },
-            )
-            # Send acknowledgment that resync was received
-            resync_ack = {"type": "resync_ack", "channel": channel, "last_sequence": last_sequence}
-            await websocket.send_text(json.dumps(resync_ack))
+            # NEM-4983: Replay buffered messages since the last received sequence.
+            await handle_resync_with_replay(websocket, message, connection_id)
 
         case _:
             # Unknown message type
@@ -241,6 +227,98 @@ async def handle_validated_message(
                 details={"supported_types": [t.value for t in WebSocketMessageType]},
             )
             await websocket.send_text(error_response.model_dump_json())
+
+
+async def handle_resync_with_replay(
+    websocket: WebSocket,
+    message: WebSocketMessage,
+    connection_id: str,
+) -> None:
+    """Handle a resync request by replaying buffered messages.
+
+    NEM-4983: Implements message replay for gap recovery.
+
+    When a client detects a gap in sequence numbers (e.g., received seq 5
+    after seq 2, missing 3 and 4), it sends a resync request with the last
+    successfully received sequence. The server then replays any buffered
+    messages since that sequence.
+
+    Args:
+        websocket: The WebSocket connection to send messages to.
+        message: The resync message containing channel and last_sequence.
+        connection_id: Unique identifier for this connection.
+
+    Response format:
+        After replaying messages (if any), sends a resync_ack:
+        {
+            "type": "resync_ack",
+            "channel": "events",
+            "last_sequence": 5,
+            "replayed_count": 3,
+            "gap_too_old": false,  // true if requested seq is older than buffer
+            "oldest_available": 50  // only present if gap_too_old is true
+        }
+    """
+    # Extract channel and last_sequence from the message
+    channel = message.data.get("channel", "unknown") if message.data else "unknown"
+    last_sequence = message.data.get("last_sequence", 0) if message.data else 0
+
+    logger.info(
+        f"Processing resync request (channel={channel}, last_sequence={last_sequence})",
+        extra={
+            "connection_id": connection_id,
+            "channel": channel,
+            "last_sequence": last_sequence,
+        },
+    )
+
+    # Get the message buffer
+    buffer = get_message_buffer()
+
+    # Check if the requested sequence is too old (older than buffer start)
+    oldest_seq = buffer.get_oldest_sequence()
+    gap_too_old = oldest_seq is not None and last_sequence < oldest_seq
+
+    # Get messages to replay
+    messages_to_replay = buffer.get_since(last_sequence, mark_as_replay=True)
+    replayed_count = len(messages_to_replay)
+
+    # Send replayed messages
+    for seq, msg in messages_to_replay:
+        try:
+            await websocket.send_text(json.dumps(msg))
+        except Exception as e:
+            logger.warning(
+                f"Failed to send replay message seq={seq}: {e}",
+                extra={"connection_id": connection_id, "seq": seq},
+            )
+            break
+
+    # Build acknowledgment
+    resync_ack: dict[str, Any] = {
+        "type": "resync_ack",
+        "channel": channel,
+        "last_sequence": last_sequence,
+        "replayed_count": replayed_count,
+    }
+
+    if gap_too_old:
+        resync_ack["gap_too_old"] = True
+        resync_ack["oldest_available"] = oldest_seq
+
+    # Send acknowledgment
+    await websocket.send_text(json.dumps(resync_ack))
+
+    logger.info(
+        f"Completed resync (replayed {replayed_count} messages, gap_too_old={gap_too_old})",
+        extra={
+            "connection_id": connection_id,
+            "channel": channel,
+            "last_sequence": last_sequence,
+            "replayed_count": replayed_count,
+            "gap_too_old": gap_too_old,
+        },
+    )
 
 
 async def send_sequenced_message(

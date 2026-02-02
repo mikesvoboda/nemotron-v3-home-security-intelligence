@@ -13434,7 +13434,8 @@ export interface components {
          *       "rule_id": "550e8400-e29b-41d4-a716-446655440000",
          *       "severity": "high",
          *       "status": "delivered",
-         *       "updated_at": "2025-12-28T12:01:00Z"
+         *       "updated_at": "2025-12-28T12:01:00Z",
+         *       "version_id": 1
          *     }
          */
         AlertResponse: {
@@ -13491,6 +13492,12 @@ export interface components {
              * @description Last update timestamp
              */
             updated_at: string;
+            /**
+             * Version Id
+             * @description Optimistic locking version. Include in updates to prevent concurrent modification conflicts.
+             * @default 1
+             */
+            version_id: number;
         };
         /**
          * AlertRuleConditions
@@ -22374,7 +22381,7 @@ export interface components {
             id: number;
             /**
              * Llm Prompt
-             * @description Full prompt sent to Nemotron LLM (for debugging/improvement)
+             * @description Full prompt sent to Nemotron LLM (for debugging/improvement). DEFERRED: This field is not loaded by default in list queries. Use undefer() when querying.
              */
             llm_prompt?: string | null;
             /**
@@ -22384,7 +22391,7 @@ export interface components {
             notes?: string | null;
             /**
              * Reasoning
-             * @description LLM reasoning for risk score
+             * @description LLM reasoning for risk score. DEFERRED: This field is not loaded by default in list queries to reduce memory usage. Use undefer() when querying to include it.
              */
             reasoning?: string | null;
             /**

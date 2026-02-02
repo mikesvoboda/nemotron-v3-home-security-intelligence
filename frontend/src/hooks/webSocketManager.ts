@@ -68,6 +68,12 @@ export interface Subscriber {
   onHeartbeat?: HeartbeatHandler;
   /** Called when max reconnection attempts are exhausted */
   onMaxRetriesExhausted?: MaxRetriesHandler;
+  /** Called when a gap in message sequence is detected (NEM-4983) */
+  onGapDetected?: (expectedSeq: number, receivedSeq: number) => void;
+  /** Called when a replay is complete after resync (NEM-4983) */
+  onReplayComplete?: (replayedCount: number) => void;
+  /** Called when gap is too old and some messages are lost (NEM-4983) */
+  onGapTooOld?: (oldestAvailable: number) => void;
 }
 
 /**
@@ -92,6 +98,10 @@ export interface ManagedConnection {
   gapCount: number;
   /** Serialization format for this connection (NEM-3737) */
   serializationFormat: SerializationFormat;
+  /** Timestamp of last resync request for throttling (NEM-4983) */
+  lastResyncTime: number | null;
+  /** Whether a resync is currently pending (NEM-4983) */
+  resyncPending: boolean;
 }
 
 /**
@@ -115,6 +125,11 @@ export interface ConnectionConfig {
    * - 'msgpack': MessagePack binary (30-50% smaller than JSON)
    */
   serializationFormat?: SerializationFormat;
+  /**
+   * Whether to automatically send resync request when gap is detected (NEM-4983).
+   * Default: false (for backwards compatibility)
+   */
+  autoResync?: boolean;
 }
 
 /**
@@ -134,6 +149,18 @@ interface PongMessage {
 }
 
 /**
+ * Resync acknowledgment message from server (NEM-4983).
+ */
+interface ResyncAckMessage {
+  type: 'resync_ack';
+  channel: string;
+  last_sequence: number;
+  replayed_count: number;
+  gap_too_old?: boolean;
+  oldest_available?: number;
+}
+
+/**
  * Check if a message is a server heartbeat (ping) message.
  */
 function isHeartbeatMessage(data: unknown): data is HeartbeatMessage {
@@ -142,6 +169,17 @@ function isHeartbeatMessage(data: unknown): data is HeartbeatMessage {
   }
   const msg = data as Record<string, unknown>;
   return msg.type === 'ping';
+}
+
+/**
+ * Check if a message is a resync acknowledgment message (NEM-4983).
+ */
+function isResyncAckMessage(data: unknown): data is ResyncAckMessage {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  const msg = data as Record<string, unknown>;
+  return msg.type === 'resync_ack';
 }
 
 /**
@@ -209,6 +247,8 @@ class WebSocketManager {
         lastReceivedSeq: 0,
         gapCount: 0,
         serializationFormat: config.serializationFormat ?? SerializationFormat.JSON,
+        lastResyncTime: null,
+        resyncPending: false,
       };
       this.connections.set(url, connection);
       this.configs.set(url, config);
@@ -332,6 +372,59 @@ class WebSocketManager {
 
     connection.reconnectAttempts = 0;
     this.connect(url);
+  }
+
+  /**
+   * Request a resync from the server to replay missed messages (NEM-4983).
+   *
+   * @param url - The WebSocket URL
+   * @param lastSequence - The last sequence number received by the client
+   * @param channel - The channel name (defaults to 'events')
+   */
+  requestResync(url: string, lastSequence: number, channel: string = 'events'): boolean {
+    const connection = this.connections.get(url);
+
+    if (!connection?.ws || connection.ws.readyState !== WebSocket.OPEN) {
+      logger.warn('WebSocket is not connected. Resync not sent', {
+        component: 'WebSocketManager',
+        url,
+        connection_id: connection?.connectionId || 'none',
+      });
+      return false;
+    }
+
+    // Throttle resync requests (5 second cooldown)
+    const RESYNC_THROTTLE_MS = 5000;
+    const now = Date.now();
+    if (connection.lastResyncTime && now - connection.lastResyncTime < RESYNC_THROTTLE_MS) {
+      logger.debug('Resync request throttled', {
+        component: 'WebSocketManager',
+        connection_id: connection.connectionId,
+        time_since_last: now - connection.lastResyncTime,
+      });
+      return false;
+    }
+
+    const resyncMessage = {
+      type: 'resync',
+      data: {
+        channel,
+        last_sequence: lastSequence,
+      },
+    };
+
+    logger.info('Sending resync request', {
+      component: 'WebSocketManager',
+      connection_id: connection.connectionId,
+      last_sequence: lastSequence,
+      channel,
+    });
+
+    connection.ws.send(JSON.stringify(resyncMessage));
+    connection.lastResyncTime = now;
+    connection.resyncPending = true;
+
+    return true;
   }
 
   private connect(url: string): void {
@@ -648,6 +741,42 @@ class WebSocketManager {
               return;
             }
 
+            // NEM-4983: Handle resync acknowledgment messages
+            if (isResyncAckMessage(data)) {
+              connection.resyncPending = false;
+
+              logger.info('WebSocket resync acknowledgment received', {
+                component: 'WebSocketManager',
+                connection_id: connection.connectionId,
+                channel: data.channel,
+                last_sequence: data.last_sequence,
+                replayed_count: data.replayed_count,
+                gap_too_old: data.gap_too_old,
+              });
+
+              // Notify subscribers about replay completion
+              connection.subscribers.forEach((subscriber) => {
+                try {
+                  if (data.gap_too_old && data.oldest_available !== undefined) {
+                    subscriber.onGapTooOld?.(data.oldest_available);
+                  }
+                  subscriber.onReplayComplete?.(data.replayed_count);
+                } catch (subscriberError) {
+                  logger.error('WebSocket subscriber resync callback error', {
+                    component: 'WebSocketManager',
+                    connection_id: connection.connectionId,
+                    subscriber_id: subscriber.id,
+                    error:
+                      subscriberError instanceof Error
+                        ? subscriberError.message
+                        : String(subscriberError),
+                  });
+                }
+              });
+
+              return;
+            }
+
             // Extract and track sequence number for gap detection (NEM-3142)
             const seq =
               typeof data === 'object' && data !== null && 'seq' in data
@@ -670,6 +799,28 @@ class WebSocketManager {
                     missed_messages: gap,
                     total_gaps: connection.gapCount,
                   });
+
+                  // NEM-4983: Notify subscribers about the gap
+                  connection.subscribers.forEach((subscriber) => {
+                    try {
+                      subscriber.onGapDetected?.(expectedSeq, seq);
+                    } catch (subscriberError) {
+                      logger.error('WebSocket subscriber onGapDetected callback error', {
+                        component: 'WebSocketManager',
+                        connection_id: connection.connectionId,
+                        subscriber_id: subscriber.id,
+                        error:
+                          subscriberError instanceof Error
+                            ? subscriberError.message
+                            : String(subscriberError),
+                      });
+                    }
+                  });
+
+                  // NEM-4983: Auto-resync if configured
+                  if (config.autoResync && !connection.resyncPending) {
+                    this.requestResync(url, connection.lastReceivedSeq);
+                  }
                 } else if (seq < expectedSeq) {
                   // Out of order or duplicate message
                   logger.warn('WebSocket message out of order or duplicate', {

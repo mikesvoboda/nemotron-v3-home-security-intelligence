@@ -174,7 +174,7 @@ async def warmup_pipeline(
         iteration_start = time.perf_counter()
         try:
             # Run inference in thread pool to avoid blocking event loop
-            with torch.no_grad():
+            with torch.inference_mode():
                 # Handle both pipeline and regular callable
                 await asyncio.to_thread(
                     pipeline,
@@ -395,7 +395,7 @@ def warmup_model_sync(
 
     Example:
         >>> def warmup_fn(model):
-        ...     with torch.no_grad():
+        ...     with torch.inference_mode():
         ...         return model(dummy_input)
         >>> result = warmup_model_sync(model, warmup_fn, num_samples=3)
     """
@@ -408,7 +408,7 @@ def warmup_model_sync(
     for i in range(num_samples):
         iteration_start = time.perf_counter()
         try:
-            with torch.no_grad():
+            with torch.inference_mode():
                 _ = warmup_fn(model)
 
             _sync_cuda()

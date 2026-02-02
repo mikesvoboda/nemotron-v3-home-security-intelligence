@@ -1536,7 +1536,7 @@
               }),
             ]),
             'default': None,
-            'description': 'Full prompt sent to Nemotron LLM (for debugging/improvement)',
+            'description': 'Full prompt sent to Nemotron LLM (for debugging/improvement). DEFERRED: This field is not loaded by default in list queries. Use undefer() when querying.',
             'title': 'Llm Prompt',
           }),
           'notes': dict({
@@ -1562,7 +1562,7 @@
               }),
             ]),
             'default': None,
-            'description': 'LLM reasoning for risk score',
+            'description': 'LLM reasoning for risk score. DEFERRED: This field is not loaded by default in list queries to reduce memory usage. Use undefer() when querying to include it.',
             'title': 'Reasoning',
           }),
           'recommended_action': dict({
@@ -2448,7 +2448,7 @@
           }),
         ]),
         'default': None,
-        'description': 'Full prompt sent to Nemotron LLM (for debugging/improvement)',
+        'description': 'Full prompt sent to Nemotron LLM (for debugging/improvement). DEFERRED: This field is not loaded by default in list queries. Use undefer() when querying.',
         'title': 'Llm Prompt',
       }),
       'notes': dict({
@@ -2474,7 +2474,7 @@
           }),
         ]),
         'default': None,
-        'description': 'LLM reasoning for risk score',
+        'description': 'LLM reasoning for risk score. DEFERRED: This field is not loaded by default in list queries to reduce memory usage. Use undefer() when querying to include it.',
         'title': 'Reasoning',
       }),
       'recommended_action': dict({

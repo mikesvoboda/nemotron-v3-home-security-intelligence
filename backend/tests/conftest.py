@@ -142,6 +142,63 @@ if str(backend_path) not in sys.path:
 
 
 # =============================================================================
+# Schema Extraction Utilities for Snapshot Testing (NEM-5021)
+# =============================================================================
+
+
+def extract_schema(data: object, *, preserve_lengths: bool = False) -> object:
+    """Extract structure-only schema from API response data for snapshot testing.
+
+    This utility recursively traverses the response data and replaces actual
+    values with type names, creating a structure-only snapshot. This allows
+    us to validate API schema changes without false positives from dynamic
+    data like timestamps, IDs, or counts.
+
+    Args:
+        data: The response data to extract schema from (dict, list, or primitive)
+        preserve_lengths: If True, preserve list lengths instead of using [<type>]
+
+    Returns:
+        Schema representation with type names instead of actual values
+
+    Examples:
+        >>> extract_schema({"id": 123, "name": "test", "active": True})
+        {'id': 'int', 'name': 'str', 'active': 'bool'}
+
+        >>> extract_schema({"items": [{"id": 1}, {"id": 2}]})
+        {'items': [{'id': 'int'}]}
+
+        >>> extract_schema({"items": [{"id": 1}, {"id": 2}]}, preserve_lengths=True)
+        {'items': [{'id': 'int'}, {'id': 'int'}]}
+
+        >>> extract_schema(None)
+        'NoneType'
+
+        >>> extract_schema([1, 2, 3])
+        ['int']
+    """
+    # Handle dict: recursively extract schema for all values
+    if isinstance(data, dict):
+        return {
+            key: extract_schema(value, preserve_lengths=preserve_lengths)
+            for key, value in data.items()
+        }
+
+    # Handle list: use first item as representative (or preserve all if requested)
+    if isinstance(data, list):
+        if not data:
+            return []
+        if preserve_lengths:
+            return [extract_schema(item, preserve_lengths=preserve_lengths) for item in data]
+        return [extract_schema(data[0], preserve_lengths=preserve_lengths)]
+
+    # Handle primitives and None: return type name
+    if data is None:
+        return "NoneType"
+    return type(data).__name__
+
+
+# =============================================================================
 # Hypothesis Settings Profiles
 # =============================================================================
 # Configure different profiles for various testing scenarios.

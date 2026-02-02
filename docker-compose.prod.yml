@@ -124,6 +124,11 @@ services:
   # YOLO26 TensorRT-optimized object detection
   # Uses pre-exported TensorRT engine for fast inference
   ai-yolo26:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-yolo26'
@@ -177,6 +182,11 @@ services:
               capabilities: [gpu]
 
   ai-llm:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     tmpfs:
       - /tmp
       - /home/llama/.cache # llama.cpp temp cache
@@ -224,6 +234,11 @@ services:
   # Florence-2 vision-language model for dense captioning and visual understanding
   # Assigned to GPU 1 (A400 4GB) - shares with CLIP (~722MB) and YOLO26 (~1GB)
   ai-florence:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     tmpfs:
       - /tmp
       - /home/florence/.cache # PyTorch compile cache
@@ -281,6 +296,11 @@ services:
   # CLIP ViT-L model for entity re-identification embeddings
   # Assigned to GPU 1 (A400 4GB) - shares with Florence (~530MB) and YOLO26 (~1GB)
   ai-clip:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     tmpfs:
       - /tmp
       - /home/clip/.cache # PyTorch compile cache
@@ -339,6 +359,11 @@ services:
   # Lightweight enrichment service for small, efficient models (GPU 1)
   # Hosts: pose, threat, reid, pet, depth models (~1.2GB total)
   ai-enrichment-light:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     tmpfs:
       - /tmp
       - /home/enrichment/.cache
@@ -416,6 +441,11 @@ services:
   # Heavy enrichment service for large transformer models (GPU 0)
   # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
   ai-enrichment:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     tmpfs:
       - /tmp
       - /home/enrichment/.cache # PyTorch compile cache

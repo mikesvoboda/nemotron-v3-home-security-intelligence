@@ -543,7 +543,7 @@ class StreamedInferencePipeline(Generic[T_Input, T_Preprocessed, T_Output]):
 
                 # Run postprocessing on the previous batch's outputs
                 postprocess_start = time.perf_counter()
-                with torch.no_grad():
+                with torch.inference_mode():
                     prev_results = self.postprocess_fn(self._prev_outputs, prev_inputs or [])
                 all_results.extend(prev_results)
                 stats.postprocess_time_ms += (time.perf_counter() - postprocess_start) * 1000
@@ -555,7 +555,7 @@ class StreamedInferencePipeline(Generic[T_Input, T_Preprocessed, T_Output]):
                 # Wait for preprocessing to complete
                 inference_stream.wait_event(preprocess_event)
 
-                with torch.no_grad():
+                with torch.inference_mode():
                     if isinstance(preprocessed, dict):
                         outputs = self.model(**preprocessed)
                     else:
@@ -577,7 +577,7 @@ class StreamedInferencePipeline(Generic[T_Input, T_Preprocessed, T_Output]):
             prev_inference_event.synchronize()
 
             postprocess_start = time.perf_counter()
-            with torch.no_grad():
+            with torch.inference_mode():
                 final_results = self.postprocess_fn(self._prev_outputs, prev_inputs or [])
             all_results.extend(final_results)
             stats.postprocess_time_ms += (time.perf_counter() - postprocess_start) * 1000
@@ -605,7 +605,7 @@ class StreamedInferencePipeline(Generic[T_Input, T_Preprocessed, T_Output]):
 
             # Inference
             inference_start = time.perf_counter()
-            with torch.no_grad():
+            with torch.inference_mode():
                 if isinstance(preprocessed, dict):
                     outputs = self.model(**preprocessed)
                 else:
@@ -672,11 +672,11 @@ def create_inference_on_stream(
             with torch.cuda.stream(stream):
                 if preprocess_event is not None:
                     stream.wait_event(preprocess_event)
-                with torch.no_grad():
+                with torch.inference_mode():
                     if isinstance(inputs, dict):
                         return model(**inputs)
                     return model(inputs)
-        with torch.no_grad():
+        with torch.inference_mode():
             if isinstance(inputs, dict):
                 return model(**inputs)
             return model(inputs)
