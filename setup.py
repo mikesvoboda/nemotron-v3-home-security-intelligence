@@ -819,11 +819,11 @@ def main() -> None:
             config["foscam_base_path"] = storage_result["foscam_base_path"]
             config["ai_models_path"] = storage_result["ai_models_path"]
 
-        # Ask about Docker secrets if not specified via command line (skip in defaults mode)
+        # Docker secrets are created by default for production security
         create_secrets = args.create_secrets
-        if not create_secrets and not args.defaults:
+        if not args.defaults:
             print("\n" + "=" * 60)
-            print("Docker Secrets (Optional - Recommended for Production)")
+            print("Docker Secrets (Production Security)")
             print("=" * 60)
             print()
             print("Docker Secrets provide enhanced security for credentials:")
@@ -831,8 +831,9 @@ def main() -> None:
             print("  - Not visible in 'docker inspect' output")
             print("  - Easier credential rotation without image rebuild")
             print()
-            answer = prompt_with_default("Create Docker secrets files?", "n")
-            create_secrets = answer.lower() in ("y", "yes")
+            # Default to Yes for production-first approach
+            answer = prompt_with_default("Create Docker secrets files?", "Y")
+            create_secrets = answer.lower() in ("y", "yes", "")
 
         # Write configuration files
         env_path, override_path, secrets_path = write_config_files(
