@@ -78,7 +78,7 @@
     "@playwright/test": "^1.58.0",
     "@stryker-mutator/api": "^8.7.1",
     "@stryker-mutator/core": "^8.7.1",
-    "@stryker-mutator/typescript-checker": "^8.7.1",
+    "@stryker-mutator/typescript-checker": "^9.5.0",
     "@stryker-mutator/vitest-runner": "^9.4.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.2.0",
