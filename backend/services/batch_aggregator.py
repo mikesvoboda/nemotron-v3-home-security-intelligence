@@ -1258,28 +1258,25 @@ class BatchAggregator:
             True if detection should bypass batching,
             False if detection should go through normal batch processing.
         """
-        # Use detection_type as fallback for smoke_fire_type
-        if smoke_fire_type is None and detection_type is not None:
-            smoke_fire_type = detection_type
+        effective_smoke_fire_type = smoke_fire_type or detection_type
+
         # Check for threat bypass
         if threat_type is not None:
             normalized_threat = threat_type.lower()
-            if normalized_threat in THREAT_BYPASS_TYPES:
-                if confidence is not None and confidence >= THREAT_BYPASS_CONFIDENCE_THRESHOLD:
-                    return True
+            if (
+                normalized_threat in THREAT_BYPASS_TYPES
+                and confidence is not None
+                and confidence >= THREAT_BYPASS_CONFIDENCE_THRESHOLD
+            ):
+                return True
 
-        # Check for smoke/fire bypass (NEM-5298)
-        if smoke_fire_type is not None:
-            normalized_type = smoke_fire_type.lower()
-            if normalized_type in SMOKE_FIRE_BYPASS_TYPES:
-                if confidence is None:
-                    return False
-                # Fire has lower threshold (more critical)
-                if normalized_type == "fire":
-                    return confidence >= FIRE_BYPASS_CONFIDENCE_THRESHOLD
-                # Smoke has higher threshold (more false positives)
-                elif normalized_type == "smoke":
-                    return confidence >= SMOKE_BYPASS_CONFIDENCE_THRESHOLD
+        # Check for smoke/fire bypass
+        if effective_smoke_fire_type is not None and confidence is not None:
+            normalized_type = effective_smoke_fire_type.lower()
+            if normalized_type == "fire":
+                return confidence >= FIRE_BYPASS_CONFIDENCE_THRESHOLD
+            if normalized_type == "smoke":
+                return confidence >= SMOKE_BYPASS_CONFIDENCE_THRESHOLD
 
         return False
 
@@ -1292,10 +1289,8 @@ class BatchAggregator:
     ) -> None:
         """Process high-priority threat via fast path (immediate alert creation).
 
-        This method bypasses the normal 90-second batch window for high-priority
-        threats (weapons) and immediately creates an alert via ThreatMonitorService.
-
-        NEM-5279: Threat Detection Immediate Alerts
+        Bypasses the normal 90-second batch window for high-priority threats
+        (weapons) and immediately creates an alert via ThreatMonitorService.
 
         Args:
             camera_id: Camera identifier
@@ -1304,7 +1299,6 @@ class BatchAggregator:
             confidence: Detection confidence score (0.0-1.0)
         """
         try:
-            # Lazy import to avoid circular dependency
             from backend.services.threat_monitor_service import ThreatMonitorService
 
             logger.info(
@@ -1317,21 +1311,14 @@ class BatchAggregator:
                 },
             )
 
-            # Create the service instance
-            # Note: In production, the database session would be provided via dependency injection.
-            # For the fast path, we create the service and call process_threat_detection
-            # which handles the actual alert creation with proper session handling.
             service = ThreatMonitorService(
                 session=None,  # type: ignore[arg-type]
                 redis_client=self._redis,
             )
 
-            # Call process_threat_detection to trigger alert creation
-            # Note: This may fail if session is None, which is expected in tests
-            # where the session is mocked. The test mocks ThreatMonitorService entirely.
             await service.process_threat_detection(
-                threat_detection=None,  # Will be loaded from DB in production
-                event=None,  # Will be created/loaded from DB in production
+                threat_detection=None,
+                event=None,
             )
 
             logger.info(
@@ -1344,7 +1331,6 @@ class BatchAggregator:
             )
 
         except Exception as e:
-            # Log but don't propagate errors - threat processing should be best-effort
             logger.error(
                 "Threat fast path processing failed",
                 extra={

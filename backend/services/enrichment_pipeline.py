@@ -1178,6 +1178,23 @@ class EnrichmentResult:
             "processing_time_ms": self.processing_time_ms,
         }
 
+    def _determine_nighttime(self) -> bool:
+        """Determine if this event occurred during nighttime.
+
+        Uses the is_nighttime flag if set, otherwise falls back to
+        timestamp-based detection.
+
+        Returns:
+            True if nighttime, False otherwise
+        """
+        if self.is_nighttime:
+            return True
+        if self.event_timestamp is not None:
+            from backend.services.weather_loader import is_nighttime as check_nighttime
+
+            return check_nighttime(self.event_timestamp)
+        return False
+
     def _serialize_pose_result(self, pose: PoseResult) -> dict[str, Any]:
         """Serialize a PoseResult to the frontend-expected PoseEnrichment format.
 
@@ -1388,29 +1405,18 @@ class EnrichmentResult:
                 # Low risk action (delivering, knocking, etc.)
                 modifiers["benign_action"] = -0.15
 
-        # Weather-based modifiers (NEM-5288)
-        # Skip weather modifiers for indoor cameras
+        # Weather-based modifiers (skip for indoor cameras)
         if not self.is_indoor_camera:
-            # Determine if it's nighttime (from flag, timestamp, or default to False)
-            is_night = self.is_nighttime
-            if not is_night and self.event_timestamp is not None:
-                from backend.services.weather_loader import is_nighttime as check_nighttime
+            weather = self.weather_classification
+            if weather and weather.confidence >= 0.5:
+                condition = weather.simple_condition
+                is_night = self._determine_nighttime()
 
-                is_night = check_nighttime(self.event_timestamp)
-
-            if self.weather_classification and self.weather_classification.confidence >= 0.5:
-                condition = self.weather_classification.simple_condition
-
-                # Rainy conditions reduce suspicion (people avoid rain)
                 if condition == "rainy":
                     modifiers["weather_rainy"] = -0.15
-
-                # Foggy/snowy reduces visibility confidence
                 elif condition in ("foggy", "snowy"):
                     modifiers["weather_low_visibility"] = 0.1
 
-                # Clear night increases suspicion (good visibility for prowlers but dark)
-                # Only applies to clear weather at night, not rainy nights
                 if condition == "clear" and is_night:
                     modifiers["weather_clear_night"] = 0.25
 
@@ -1426,17 +1432,9 @@ class EnrichmentResult:
         Returns:
             Aggregate weather risk modifier value (can be positive or negative)
         """
-        # Determine nighttime status
-        is_night = self.is_nighttime
-        if not is_night and self.event_timestamp is not None:
-            from backend.services.weather_loader import is_nighttime as check_nighttime
-
-            is_night = check_nighttime(self.event_timestamp)
-
-        # Use the weather_loader helper
         from backend.services.weather_loader import get_weather_risk_modifier
 
-        return get_weather_risk_modifier(self.weather_classification, is_night)
+        return get_weather_risk_modifier(self.weather_classification, self._determine_nighttime())
 
     def get_summary_flags(self) -> list[dict[str, str]]:
         """Generate summary flags for the risk assessment output.

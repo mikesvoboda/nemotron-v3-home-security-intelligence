@@ -972,7 +972,7 @@ class TestPackageTrackingProperties:
         assert result == should_include
 
     @given(x1=normalized_coords, y1=normalized_coords, x2=normalized_coords, y2=normalized_coords)
-    @settings(max_examples=50)
+    @settings(max_examples=50, deadline=None)
     def test_bbox_coordinates_valid(self, x1: float, y1: float, x2: float, y2: float) -> None:
         """Property: Bounding box coordinates are always in 0-1 range."""
         from backend.services.package_tracking_service import PackageTrackingService

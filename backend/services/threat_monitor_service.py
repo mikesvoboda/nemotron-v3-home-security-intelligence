@@ -114,23 +114,15 @@ def get_threat_severity(threat_type: str, severity_hint: str | None = None) -> A
     """
     normalized_type = threat_type.lower()
 
-    # Check if threat_type is in the mapping
     if normalized_type in THREAT_SEVERITY_MAPPING:
         return THREAT_SEVERITY_MAPPING[normalized_type]
 
-    # For unknown threat types, use severity_hint if provided
     if severity_hint:
-        severity_hint_lower = severity_hint.lower()
-        severity_map = {
-            "critical": AlertSeverity.CRITICAL,
-            "high": AlertSeverity.HIGH,
-            "medium": AlertSeverity.MEDIUM,
-            "low": AlertSeverity.LOW,
-        }
-        if severity_hint_lower in severity_map:
-            return severity_map[severity_hint_lower]
+        try:
+            return AlertSeverity(severity_hint.lower())
+        except ValueError:
+            pass
 
-    # Default to HIGH for unknown threats
     return AlertSeverity.HIGH
 
 
@@ -314,7 +306,6 @@ class ThreatMonitorService:
         if not threat_detections:
             return None
 
-        # Filter by confidence threshold
         valid_threats = [t for t in threat_detections if t.confidence >= self.confidence_threshold]
 
         if not valid_threats:
@@ -324,16 +315,12 @@ class ThreatMonitorService:
             )
             return None
 
-        # Determine highest severity
-        highest_severity = AlertSeverity.LOW
-        highest_threat = valid_threats[0]
-        for threat in valid_threats:
-            threat_severity = get_threat_severity(threat.threat_type, threat.severity)
-            if SEVERITY_PRIORITY.get(threat_severity, 0) > SEVERITY_PRIORITY.get(
-                highest_severity, 0
-            ):
-                highest_severity = threat_severity
-                highest_threat = threat
+        def severity_key(threat: ThreatDetection) -> int:
+            severity = get_threat_severity(threat.threat_type, threat.severity)
+            return SEVERITY_PRIORITY.get(severity, 0)
+
+        highest_threat = max(valid_threats, key=severity_key)
+        highest_severity = get_threat_severity(highest_threat.threat_type, highest_threat.severity)
 
         # Build dedup key using highest-severity threat
         dedup_key = self._build_dedup_key(event, highest_threat, rule)
@@ -446,27 +433,23 @@ class ThreatMonitorService:
             Existing Alert if in cooldown, None otherwise
         """
         cutoff_time = datetime.now(UTC) - timedelta(seconds=cooldown_seconds)
-        # Strip timezone for naive DB column comparison
         cutoff_time_naive = cutoff_time.replace(tzinfo=None)
 
         stmt = (
             select(Alert)
             .where(Alert.dedup_key == dedup_key)
             .where(Alert.created_at >= cutoff_time_naive)
+            .limit(1)
         )
 
         if rule:
             stmt = stmt.where(Alert.rule_id == rule.id)
 
-        stmt = stmt.limit(1)
-
         result = await self.session.execute(stmt)
         existing_alert = result.scalar_one_or_none()
 
-        # Handle mock objects in tests - if the result is not a real Alert
-        # (i.e., doesn't have an 'id' attribute that's a string/int), treat as None
+        # Handle mock objects in tests that don't have required Alert attributes
         if existing_alert is not None and not isinstance(existing_alert, Alert):
-            # Check if it's a properly configured mock with Alert-like properties
             if not hasattr(existing_alert, "id") or not hasattr(existing_alert, "created_at"):
                 return None
 

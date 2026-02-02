@@ -16,6 +16,7 @@ Strategy: 2 consecutive detections in 5-second window
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
@@ -146,7 +147,7 @@ class TestSecondDetectionWithinWindow:
             "first_detection_time": time.time() - 2,  # 2 seconds ago
             "last_detection_time": time.time() - 2,
         }
-        redis.get = AsyncMock(return_value=str(previous_data))
+        redis.get = AsyncMock(return_value=json.dumps(previous_data))
         redis.set = AsyncMock(return_value=True)
         redis.delete = AsyncMock(return_value=True)
         redis._client = AsyncMock()
@@ -195,7 +196,7 @@ class TestSecondDetectionWithinWindow:
 
         # Mock to return count=2 (already alerted)
         mock_redis_with_previous.get = AsyncMock(
-            return_value=str(
+            return_value=json.dumps(
                 {
                     "detection_type": "smoke",
                     "count": 2,
@@ -236,7 +237,7 @@ class TestDetectionAfterGap:
             "first_detection_time": time.time() - 10,  # 10 seconds ago
             "last_detection_time": time.time() - 10,
         }
-        redis.get = AsyncMock(return_value=str(old_data))
+        redis.get = AsyncMock(return_value=json.dumps(old_data))
         redis.set = AsyncMock(return_value=True)
         redis.delete = AsyncMock(return_value=True)
         redis._client = AsyncMock()
@@ -289,7 +290,7 @@ class TestDetectionAfterGap:
             "first_detection_time": time.time() - 5.0,
             "last_detection_time": time.time() - 5.0,
         }
-        redis.get = AsyncMock(return_value=str(boundary_data))
+        redis.get = AsyncMock(return_value=json.dumps(boundary_data))
         redis.set = AsyncMock(return_value=True)
         redis._client = AsyncMock()
 
@@ -318,7 +319,7 @@ class TestDetectionAfterGap:
             "first_detection_time": time.time() - 5.1,
             "last_detection_time": time.time() - 5.1,
         }
-        redis.get = AsyncMock(return_value=str(expired_data))
+        redis.get = AsyncMock(return_value=json.dumps(expired_data))
         redis.set = AsyncMock(return_value=True)
         redis._client = AsyncMock()
 
@@ -385,7 +386,7 @@ class TestConsecutiveConfiguration:
 
         # Mock previous count at 2
         mock_redis.get = AsyncMock(
-            return_value=str(
+            return_value=json.dumps(
                 {
                     "detection_type": "smoke",
                     "count": 2,
@@ -504,7 +505,7 @@ class TestDetectionTypeMatching:
 
         # Previous detection was smoke
         mock_redis.get = AsyncMock(
-            return_value=str(
+            return_value=json.dumps(
                 {
                     "detection_type": "smoke",
                     "count": 1,
@@ -533,7 +534,7 @@ class TestDetectionTypeMatching:
 
         # Previous detection was smoke
         mock_redis.get = AsyncMock(
-            return_value=str(
+            return_value=json.dumps(
                 {
                     "detection_type": "smoke",
                     "count": 1,
@@ -629,7 +630,7 @@ class TestAlertCooldown:
 
         # Set up to trigger alert (count=2)
         mock_redis_with_cooldown.get = AsyncMock(
-            return_value=str(
+            return_value=json.dumps(
                 {
                     "detection_type": "smoke",
                     "count": 1,
@@ -663,7 +664,7 @@ class TestAlertCooldown:
 
         # Set up consecutive count that would normally trigger alert
         mock_redis_with_cooldown.get = AsyncMock(
-            return_value=str(
+            return_value=json.dumps(
                 {
                     "detection_type": "smoke",
                     "count": 1,

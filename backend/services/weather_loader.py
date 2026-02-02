@@ -366,9 +366,6 @@ def is_nighttime(timestamp: datetime, timezone: str = "UTC") -> bool:  # noqa: A
         True if the timestamp falls within nighttime hours
     """
     hour = timestamp.hour
-
-    # Nighttime is from NIGHTTIME_START_HOUR (7 PM) to midnight
-    # and from midnight to NIGHTTIME_END_HOUR (6 AM)
     return hour >= NIGHTTIME_START_HOUR or hour < NIGHTTIME_END_HOUR
 
 
@@ -386,22 +383,19 @@ def is_nighttime_from_image(image: Image.Image) -> bool:
     """
     import numpy as np
 
-    # Convert to numpy array
     img_array = np.array(image)
 
-    # Handle grayscale images
+    # Calculate brightness based on image type
     if len(img_array.shape) == 2:
-        # Already grayscale
+        # Grayscale image
         brightness = float(img_array.mean()) / 255.0
-    # RGB image - convert to grayscale using luminance formula
     elif img_array.shape[2] >= 3:
+        # RGB image - use luminance formula
         r, g, b = img_array[:, :, 0], img_array[:, :, 1], img_array[:, :, 2]
-        grayscale = 0.299 * r + 0.587 * g + 0.114 * b
-        brightness = float(grayscale.mean()) / 255.0
+        brightness = float((0.299 * r + 0.587 * g + 0.114 * b).mean()) / 255.0
     else:
         brightness = float(img_array.mean()) / 255.0
 
-    # Return Python bool, not numpy bool
     return bool(brightness < NIGHTTIME_BRIGHTNESS_THRESHOLD)
 
 

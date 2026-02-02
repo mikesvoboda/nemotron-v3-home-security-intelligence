@@ -43,8 +43,6 @@ __all__ = [
 class InvalidCalibrationError(Exception):
     """Raised when calibration data is invalid."""
 
-    pass
-
 
 # =============================================================================
 # Data Classes
@@ -110,19 +108,15 @@ def validate_calibration_data(data: CalibrationData) -> None:
     depth_values_seen: set[float] = set()
 
     for point in data.calibration_points:
-        # Check for negative distance
         if point.distance_feet < 0:
             raise InvalidCalibrationError(
                 f"Calibration point has negative distance: {point.distance_feet} feet"
             )
-
-        # Check for zero distance
         if point.distance_feet == 0:
             raise InvalidCalibrationError(
                 "Calibration point has zero distance - distance must be positive"
             )
 
-        # Check depth value is in valid range
         if point.depth_value < 0 or point.depth_value > 1:
             raise InvalidCalibrationError(
                 f"Calibration point has depth value {point.depth_value} out of range [0, 1]"
@@ -173,10 +167,7 @@ def depth_to_feet(depth: float, calibration: CalibrationData | None) -> float | 
     Returns:
         Distance in feet, or None if no calibration data provided
     """
-    if calibration is None:
-        return None
-
-    if not calibration.calibration_points:
+    if calibration is None or not calibration.calibration_points:
         return None
 
     points = sorted(calibration.calibration_points, key=lambda p: p.depth_value)
@@ -185,13 +176,10 @@ def depth_to_feet(depth: float, calibration: CalibrationData | None) -> float | 
     if len(points) == 1:
         point = points[0]
         if point.depth_value == 0:
-            # Avoid division by zero - use direct distance
             return point.distance_feet
-        scale = point.distance_feet / point.depth_value
-        return depth * scale
+        return depth * (point.distance_feet / point.depth_value)
 
-    # Multiple points - interpolate or extrapolate
-    # Find the two points that bracket our depth value
+    # Find bracketing points for interpolation/extrapolation
     lower_point: CalibrationPoint | None = None
     upper_point: CalibrationPoint | None = None
 
@@ -201,32 +189,20 @@ def depth_to_feet(depth: float, calibration: CalibrationData | None) -> float | 
         if point.depth_value >= depth and upper_point is None:
             upper_point = point
 
-    # Handle extrapolation cases
+    # Extrapolate from edge points if depth is outside calibration range
     if lower_point is None:
-        # Depth is below all calibration points - extrapolate from first two
-        lower_point = points[0]
-        upper_point = points[1]
+        lower_point, upper_point = points[0], points[1]
     elif upper_point is None:
-        # Depth is above all calibration points - extrapolate from last two
-        lower_point = points[-2]
-        upper_point = points[-1]
+        lower_point, upper_point = points[-2], points[-1]
 
-    # Linear interpolation/extrapolation
     depth_range = upper_point.depth_value - lower_point.depth_value
-    distance_range = upper_point.distance_feet - lower_point.distance_feet
-
     if depth_range == 0:
-        # Same depth value (shouldn't happen after validation)
         return lower_point.distance_feet
 
-    # Calculate interpolation factor
     factor = (depth - lower_point.depth_value) / depth_range
-
-    # Interpolate distance
+    distance_range = upper_point.distance_feet - lower_point.distance_feet
     result = lower_point.distance_feet + factor * distance_range
 
-    # Ensure positive result (extrapolation can go negative)
-    # Use a small minimum distance to represent "very close"
     return max(0.1, result)
 
 
@@ -255,17 +231,15 @@ def format_distance_context(
     Returns:
         Formatted context string
     """
-    # Capitalize and clean up class name
     display_name = class_name.replace("_", " ").capitalize()
 
     if distance_feet is not None:
-        # Round to nearest foot for readability
-        rounded_distance = round(distance_feet)
-        return f"{display_name} is approximately {rounded_distance} feet from {location_name}"
-    elif proximity_label is not None:
+        return f"{display_name} is approximately {round(distance_feet)} feet from {location_name}"
+
+    if proximity_label is not None:
         return f"{display_name} is {proximity_label} to {location_name}"
-    else:
-        return f"{display_name} detected near {location_name}"
+
+    return f"{display_name} detected near {location_name}"
 
 
 # =============================================================================

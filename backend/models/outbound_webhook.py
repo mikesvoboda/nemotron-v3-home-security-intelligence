@@ -16,6 +16,11 @@ Webhook Event Types:
     - entity_discovered: New entity was discovered
     - anomaly_detected: Anomaly was detected
     - system_health_changed: System health status changed
+    - package_delivered: Package was detected/delivered
+    - package_removed: Package was removed from scene
+    - package_theft_suspected: Package theft suspected
+    - smoke_detected: Smoke was detected
+    - fire_detected: Fire was detected
 
 Delivery Status Flow:
     pending -> success
@@ -67,6 +72,13 @@ class WebhookEventType(StrEnum):
     ENTITY_DISCOVERED = "entity_discovered"
     ANOMALY_DETECTED = "anomaly_detected"
     SYSTEM_HEALTH_CHANGED = "system_health_changed"
+    # Package detection events (NEM-5025 Phase 4)
+    PACKAGE_DELIVERED = "package_delivered"
+    PACKAGE_REMOVED = "package_removed"
+    PACKAGE_THEFT_SUSPECTED = "package_theft_suspected"
+    # Smoke/fire detection events (NEM-5025 Phase 5)
+    SMOKE_DETECTED = "smoke_detected"
+    FIRE_DETECTED = "fire_detected"
 
 
 class WebhookDeliveryStatus(StrEnum):

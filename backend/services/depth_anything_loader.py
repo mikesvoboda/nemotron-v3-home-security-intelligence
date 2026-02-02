@@ -396,8 +396,6 @@ def estimate_relative_distances(
 def depth_to_proximity_label(depth_value: float) -> str:
     """Convert normalized depth value to human-readable proximity label.
 
-    This is useful for Nemotron context to describe how close objects are.
-
     Args:
         depth_value: Normalized depth in [0, 1]
 
@@ -406,14 +404,13 @@ def depth_to_proximity_label(depth_value: float) -> str:
     """
     if depth_value < 0.15:
         return "very close"
-    elif depth_value < 0.35:
+    if depth_value < 0.35:
         return "close"
-    elif depth_value < 0.55:
+    if depth_value < 0.55:
         return "moderate distance"
-    elif depth_value < 0.75:
+    if depth_value < 0.75:
         return "far"
-    else:
-        return "very far"
+    return "very far"
 
 
 def depth_to_feet(
@@ -438,7 +435,6 @@ def depth_to_feet(
     if not calibration_points:
         return None
 
-    # Sort points by depth value
     points = sorted(calibration_points, key=lambda p: p["depth_value"])
 
     # Single point calibration - linear scaling through origin
@@ -446,10 +442,9 @@ def depth_to_feet(
         point = points[0]
         if point["depth_value"] == 0:
             return float(point["distance_feet"])
-        scale = float(point["distance_feet"]) / float(point["depth_value"])
-        return float(depth_value * scale)
+        return float(depth_value * point["distance_feet"] / point["depth_value"])
 
-    # Multiple points - interpolate or extrapolate
+    # Find bracketing points for interpolation/extrapolation
     lower_point = None
     upper_point = None
 
@@ -459,25 +454,20 @@ def depth_to_feet(
         if point["depth_value"] >= depth_value and upper_point is None:
             upper_point = point
 
-    # Handle extrapolation cases
+    # Extrapolate from edge points if depth is outside calibration range
     if lower_point is None:
-        lower_point = points[0]
-        upper_point = points[1]
+        lower_point, upper_point = points[0], points[1]
     elif upper_point is None:
-        lower_point = points[-2]
-        upper_point = points[-1]
+        lower_point, upper_point = points[-2], points[-1]
 
-    # Linear interpolation/extrapolation
     depth_range = upper_point["depth_value"] - lower_point["depth_value"]
-    distance_range = upper_point["distance_feet"] - lower_point["distance_feet"]
-
     if depth_range == 0:
         return float(lower_point["distance_feet"])
 
-    factor = (depth_value - float(lower_point["depth_value"])) / float(depth_range)
-    result = float(lower_point["distance_feet"]) + factor * float(distance_range)
+    factor = (depth_value - lower_point["depth_value"]) / depth_range
+    distance_range = upper_point["distance_feet"] - lower_point["distance_feet"]
+    result = lower_point["distance_feet"] + factor * distance_range
 
-    # Ensure positive result
     return float(max(0.1, result))
 
 
@@ -496,10 +486,6 @@ def format_depth_for_nemotron(
 
     Returns:
         Formatted string describing object proximities
-
-    Example output:
-        "Spatial context: person is very close to camera (depth: 0.12),
-         car is at moderate distance (depth: 0.48)"
     """
     if not detections or not depth_values:
         return "No spatial depth information available."
@@ -509,10 +495,6 @@ def format_depth_for_nemotron(
             f"Detection count ({len(detections)}) doesn't match "
             f"depth value count ({len(depth_values)})"
         )
-        # Use minimum length
-        count = min(len(detections), len(depth_values))
-        detections = detections[:count]
-        depth_values = depth_values[:count]
 
     descriptions = []
     for det, depth in zip(detections, depth_values, strict=False):
