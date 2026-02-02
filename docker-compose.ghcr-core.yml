@@ -1,0 +1,224 @@
+# Docker Compose for pulling pre-built images from GitHub Container Registry
+#
+# This file pulls images built by CI/CD instead of building locally.
+# Compatible with both Docker and Podman on Linux and macOS.
+#
+# Usage:
+#   Docker:  docker compose -f docker-compose.ghcr.yml up -d
+#   Podman:  podman-compose -f docker-compose.ghcr.yml up -d
+#
+# Environment Variables (Required):
+#   - POSTGRES_PASSWORD: Database password (REQUIRED - no default for security)
+#     Generate with: openssl rand -base64 32
+#
+# For Podman on macOS, set the AI host:
+#   export AI_HOST=host.containers.internal
+#
+# For Linux (Docker or Podman), use your host IP:
+#   export AI_HOST=192.168.1.100  # Replace with your host IP
+#
+# To use a specific image version instead of latest:
+#   export IMAGE_TAG=abc1234
+
+version: '3.8'
+
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-security}
+      # SECURITY: No default password - must be explicitly set
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set - run ./setup.sh or set manually}
+      - POSTGRES_DB=${POSTGRES_DB:-security}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+
+  backend:
+    # Configure your GHCR location:
+    # - GHCR_OWNER: e.g. "your-org" or "your-user"
+    # - GHCR_REPO:  e.g. "nemotron-v3-home-security-intelligence"
+    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/appuser/.cache
+    ports:
+      - '8000:8000'
+    volumes:
+      # :U tells Podman to recursively chown the volume to match container user (appuser)
+      # Docker ignores the :U flag, making this backward compatible
+      - ./backend/data:/app/data:U
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro
+    environment:
+      # Free-threaded Python: Disable GIL for true parallelism (Python 3.14t)
+      - PYTHON_GIL=0
+      # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
+      - REDIS_URL=redis://redis:6379
+      - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
+      - FLORENCE_URL=http://${AI_HOST:-host.docker.internal}:8092
+      - CLIP_URL=http://${AI_HOST:-host.docker.internal}:8093
+      - ENRICHMENT_URL=http://${AI_HOST:-host.docker.internal}:8094
+      - FOSCAM_BASE_PATH=/cameras
+      - DEBUG=${DEBUG:-false}
+      - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  redis:
+    image: docker.io/library/redis:7.4-alpine3.21
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Redis tuning for connection handling
+    # NOTE: vm.overcommit_memory=1 sysctl requires host-level configuration
+    # and cannot be set in rootless containers. For production deployments, run:
+    #   sudo sysctl -w vm.overcommit_memory=1
+    #   echo "vm.overcommit_memory=1" | sudo tee /etc/sysctl.d/99-redis.conf
+    # See: https://redis.io/docs/management/admin/#background-saving-fails-with-a-fork-error
+    sysctls:
+      - net.core.somaxconn=511
+    tmpfs:
+      - /tmp
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --appendfsync everysec --stop-writes-on-bgsave-error no
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  frontend:
+    # Build locally to include SSL-enabled entrypoint
+    # TODO: Remove build section after CI/CD publishes updated image with SSL support
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod
+    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /var/cache/nginx
+    ports:
+      # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
+      - '${FRONTEND_PORT:-5173}:8080'
+      # HTTPS port mapping (only used when SSL_ENABLED=true)
+      # Default 8444 to avoid privileged port issues with rootless containers
+      - '${FRONTEND_HTTPS_PORT:-8444}:8443'
+    volumes:
+      # Persistent storage for auto-generated SSL certificates
+      - frontend_certs:/etc/nginx/certs:U
+    environment:
+      # SSL/TLS Configuration
+      # Set SSL_ENABLED=true to enable HTTPS (auto-generates self-signed certs)
+      - SSL_ENABLED=${SSL_ENABLED:-false}
+      # Extra SANs for the auto-generated certificate (e.g., your server's IP)
+      # Format: IP:192.168.1.100,DNS:myhost.local
+      - SSL_SAN_EXTRA=${SSL_SAN_EXTRA:-}
+      # Custom certificate paths (relative to /etc/nginx/certs mount)
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
+    # NOTE: VITE_* environment variables are NOT used at runtime.
+    # Vite bakes these values at build time. The frontend uses relative URLs
+    # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
+    # See frontend/nginx.conf for proxy configuration.
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  frontend_certs:
+    driver: local
+
+networks:
+  security-net:
+    driver: bridge

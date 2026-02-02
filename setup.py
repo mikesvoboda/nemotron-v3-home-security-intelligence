@@ -30,6 +30,14 @@ from setup_lib.core import (
     generate_password,
     is_weak_password,
 )
+from setup_lib.firewall_config import prompt_and_configure_firewall
+from setup_lib.image_pull import prompt_and_pull_images
+from setup_lib.linux_optimizer import prompt_and_run_optimizations
+from setup_lib.model_downloader import prompt_and_download_models
+from setup_lib.nvidia_detect import prompt_and_check_nvidia
+from setup_lib.platform_detect import get_platform_info, print_platform_info
+from setup_lib.podman_install import prompt_and_install_podman
+from setup_lib.ssl_certs import prompt_and_generate_certificates
 
 # Re-export for backward compatibility
 __all__ = [
@@ -762,9 +770,36 @@ def main() -> None:
         action="store_true",
         help="Also create Docker secrets files in secrets/ directory",
     )
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="Developer mode: install pre-commit hooks for code contributions",
+    )
     args = parser.parse_args()
 
     try:
+        # Step 0: Platform detection and validation
+        if not args.defaults:
+            print("=" * 60)
+            print("  Home Security Intelligence - Setup")
+            print("=" * 60)
+            print()
+            print("Detecting platform...")
+            print_platform_info()
+            print()
+
+            platform_info = get_platform_info()
+            if platform_info is None:
+                print("! Unsupported platform. Only Linux and Windows are supported.")
+                print("  macOS is not supported due to lack of NVIDIA CUDA support.")
+                sys.exit(1)
+
+            # Step 1: Container Runtime (Podman)
+            prompt_and_install_podman({})
+
+            # Step 2: NVIDIA GPU detection
+            prompt_and_check_nvidia({})
+
         if args.defaults:
             config = run_defaults_mode()
             print("[setup.py] Running in defaults mode (non-interactive)")
@@ -793,32 +828,29 @@ def main() -> None:
             config, args.output_dir, create_secret_files=create_secrets
         )
 
-        # Install pre-commit hooks after config files written (quiet in defaults mode)
-        if not args.defaults:
+        # Install pre-commit hooks (only in developer mode)
+        if args.dev:
             print("\n" + "=" * 60)
-            print("Installing pre-commit hooks...")
+            print("Installing pre-commit hooks (developer mode)...")
             print("=" * 60)
 
-        try:
-            # Install pre-commit hook (linting/formatting)
-            subprocess.run(
-                ["pre-commit", "install"],  # noqa: S607
-                check=True,
-                capture_output=True,
-            )
-            if not args.defaults:
+            try:
+                # Install pre-commit hook (linting/formatting)
+                subprocess.run(
+                    ["pre-commit", "install"],  # noqa: S607
+                    check=True,
+                    capture_output=True,
+                )
                 print("+ Pre-commit hook installed")
 
-            # Install pre-push hook (unit tests)
-            subprocess.run(
-                ["pre-commit", "install", "--hook-type", "pre-push"],  # noqa: S607
-                check=True,
-                capture_output=True,
-            )
-            if not args.defaults:
+                # Install pre-push hook (unit tests)
+                subprocess.run(
+                    ["pre-commit", "install", "--hook-type", "pre-push"],  # noqa: S607
+                    check=True,
+                    capture_output=True,
+                )
                 print("+ Pre-push hook installed (unit tests run before push)")
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            if not args.defaults:
+            except (FileNotFoundError, subprocess.CalledProcessError):
                 print("! Could not install pre-commit hooks")
                 print("  Install manually with:")
                 print("    pre-commit install")
@@ -863,20 +895,31 @@ def main() -> None:
                 print("       docker compose -f docker-compose.prod.yml up -d")
             print()
 
-        # Offer firewall configuration on Linux (skip in defaults mode)
-        if platform.system() == "Linux" and not args.defaults:
-            frontend_port = config["ports"].get("frontend", 5173)
-            grafana_port = config["ports"].get("grafana", 3002)
+        # Configure firewall (skip in defaults mode)
+        if not args.defaults:
+            # Get all external ports that need firewall access
+            external_ports = [
+                config["ports"].get("frontend", 5173),
+                config["ports"].get("frontend_https", 8443),
+                config["ports"].get("grafana", 3002),
+            ]
+            prompt_and_configure_firewall({"firewall_ports": external_ports})
 
-            answer = prompt_with_default(
-                f"Open firewall ports for frontend ({frontend_port}) and Grafana ({grafana_port})?",
-                "n",
-            )
-            if answer.lower() in ("y", "yes"):
-                if configure_firewall([frontend_port, grafana_port]):
-                    print("Firewall configured")
-                else:
-                    print("Could not configure firewall (may need sudo)")
+        # Generate SSL certificates (skip in defaults mode)
+        if not args.defaults:
+            prompt_and_generate_certificates(config)
+
+        # Download AI models (skip in defaults mode)
+        if not args.defaults:
+            prompt_and_download_models(config)
+
+        # Pull container images (skip in defaults mode)
+        if not args.defaults:
+            prompt_and_pull_images(config)
+
+        # Offer AI workstation optimizations on Linux (skip in defaults mode)
+        if platform.system() == "Linux" and not args.defaults:
+            prompt_and_run_optimizations()
 
         if not args.defaults:
             print()
