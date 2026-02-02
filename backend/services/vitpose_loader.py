@@ -149,7 +149,7 @@ async def load_vitpose_model(model_path: str) -> Any:
 
         logger.info(f"Loading ViTPose model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load_model() -> tuple[Any, Any]:
             """Load model and processor synchronously."""

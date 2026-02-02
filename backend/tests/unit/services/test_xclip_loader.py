@@ -1789,7 +1789,7 @@ class TestNullFrameHandlingIntegration:
         frames = [None, valid_img, None, valid_img, None]  # type: ignore[list-item]
 
         # Should succeed with the valid frames (after filtering)
-        with patch("asyncio.get_event_loop") as mock_loop:
+        with patch("asyncio.get_running_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(
                 return_value={
                     "detected_action": "walking",
@@ -1814,7 +1814,7 @@ class TestNullFrameHandlingIntegration:
         # 9 None and 1 valid
         frames = [None] * 9 + [valid_img]  # type: ignore[list-item]
 
-        with patch("asyncio.get_event_loop") as mock_loop:
+        with patch("asyncio.get_running_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(
                 return_value={
                     "detected_action": "standing",
@@ -1839,7 +1839,7 @@ class TestNullFrameHandlingIntegration:
         # Mix valid images with strings (paths that weren't loaded)
         frames = [valid_img, "/path/to/image.jpg", valid_img]  # type: ignore[list-item]
 
-        with patch("asyncio.get_event_loop") as mock_loop:
+        with patch("asyncio.get_running_loop") as mock_loop:
             mock_loop.return_value.run_in_executor = AsyncMock(
                 return_value={
                     "detected_action": "running",

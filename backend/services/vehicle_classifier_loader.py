@@ -187,7 +187,7 @@ async def load_vehicle_classifier(model_path: str) -> dict[str, Any]:
 
         logger.info(f"Loading Vehicle Segment Classification model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             """Load model and transforms synchronously."""
@@ -292,7 +292,7 @@ async def classify_vehicle(
         transform = model_dict["transform"]
         classes = model_dict["classes"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify() -> VehicleClassificationResult:
             """Run classification synchronously."""
@@ -377,7 +377,7 @@ async def classify_vehicles_batch(
         transform = model_dict["transform"]
         classes = model_dict["classes"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify_batch() -> list[VehicleClassificationResult]:
             """Run batch classification synchronously."""

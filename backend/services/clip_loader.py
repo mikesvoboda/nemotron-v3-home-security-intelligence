@@ -41,12 +41,17 @@ async def load_clip_model(model_path: str) -> Any:
 
         logger.info(f"Loading CLIP model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Load model and processor in thread pool to avoid blocking
         def _load() -> dict[str, Any]:
             processor = CLIPProcessor.from_pretrained(model_path)
             model = CLIPModel.from_pretrained(model_path)
+
+            # Set model to evaluation mode for deterministic inference
+            # Without eval(), dropout layers remain active and batch normalization
+            # uses batch statistics instead of running averages
+            model.eval()
 
             # Move to GPU if available
             try:

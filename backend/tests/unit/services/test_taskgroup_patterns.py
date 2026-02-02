@@ -18,7 +18,7 @@ class TestTaskGroupBasics:
     async def test_taskgroup_runs_tasks_concurrently(self):
         """Test that TaskGroup runs multiple tasks concurrently."""
         results = []
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
 
         async def task1():
             await asyncio.sleep(0.05)
@@ -32,7 +32,7 @@ class TestTaskGroupBasics:
             tg.create_task(task1())
             tg.create_task(task2())
 
-        elapsed = asyncio.get_event_loop().time() - start_time
+        elapsed = asyncio.get_running_loop().time() - start_time
 
         # Both tasks should complete
         assert len(results) == 2

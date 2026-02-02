@@ -91,7 +91,7 @@ async def load_pet_classifier_model(model_path: str) -> Any:
 
         logger.info(f"Loading pet classifier model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             processor = AutoImageProcessor.from_pretrained(model_path)
@@ -153,7 +153,7 @@ async def classify_pet(
         model = model_dict["model"]
         processor = model_dict["processor"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify() -> PetClassificationResult:
             """Run classification synchronously."""

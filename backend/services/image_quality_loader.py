@@ -110,7 +110,7 @@ async def load_brisque_model(model_path: str) -> Any:  # noqa: ARG001
 
         logger.info("Loading BRISQUE quality metric from piq")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             # piq provides brisque as a function, not a class that needs instantiation
@@ -174,7 +174,7 @@ async def assess_image_quality(
 
         brisque_fn = model_data["brisque_fn"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _assess() -> ImageQualityResult:
             # Convert PIL Image to tensor

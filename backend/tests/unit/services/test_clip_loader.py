@@ -122,6 +122,42 @@ async def test_load_clip_model_success_cpu(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_load_clip_model_sets_eval_mode(monkeypatch):
+    """Test load_clip_model sets model to evaluation mode.
+
+    Without model.eval(), dropout layers remain active and batch normalization
+    uses batch statistics instead of running averages, leading to non-deterministic
+    and potentially lower quality inference results.
+
+    Reference: Florence model correctly calls self.model.eval() (ai/florence/model.py:492)
+    """
+    import sys
+
+    # Create mock torch (no CUDA)
+    mock_torch = MagicMock()
+    mock_torch.cuda.is_available.return_value = False
+
+    # Create mock model
+    mock_model = MagicMock()
+
+    # Create mock processor
+    mock_processor = MagicMock()
+
+    # Create mock transformers
+    mock_transformers = MagicMock()
+    mock_transformers.CLIPProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.CLIPModel.from_pretrained.return_value = mock_model
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+    await load_clip_model("openai/clip-vit-large-patch14")
+
+    # Verify model.eval() was called for proper inference mode
+    mock_model.eval.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_load_clip_model_success_cuda(monkeypatch):
     """Test load_clip_model success path with CUDA."""
     import sys
@@ -151,6 +187,8 @@ async def test_load_clip_model_success_cuda(monkeypatch):
     assert "model" in result
     assert "processor" in result
     mock_model.cuda.assert_called_once()
+    # Verify eval() is called before cuda()
+    mock_model.eval.assert_called_once()
 
 
 @pytest.mark.asyncio

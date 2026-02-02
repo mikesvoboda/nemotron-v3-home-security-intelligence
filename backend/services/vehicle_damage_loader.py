@@ -253,7 +253,7 @@ async def load_vehicle_damage_model(model_path: str) -> Any:
 
         logger.info(f"Loading vehicle damage detection model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> Any:
             # Construct path to weights file
@@ -343,7 +343,7 @@ async def detect_vehicle_damage(
         RuntimeError: If detection fails
     """
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _detect() -> VehicleDamageResult:
             # Determine target device

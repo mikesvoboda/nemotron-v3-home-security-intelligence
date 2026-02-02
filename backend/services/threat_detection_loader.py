@@ -192,7 +192,7 @@ async def load_threat_detection_model(model_path: str) -> Any:
 
         logger.info(f"Loading threat detection model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load_and_fuse() -> Any:
             """Load YOLO model and pre-fuse for thread-safe concurrent use.
@@ -273,7 +273,7 @@ async def detect_threats(
         RuntimeError: If detection fails
     """
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _detect() -> ThreatDetectionResult:
             """Run detection synchronously."""
@@ -351,7 +351,7 @@ async def detect_threats_batch(
         return []
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _detect_batch() -> list[ThreatDetectionResult]:
             """Run batch detection synchronously."""

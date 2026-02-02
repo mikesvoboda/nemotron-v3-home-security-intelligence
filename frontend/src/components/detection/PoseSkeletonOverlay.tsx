@@ -16,6 +16,9 @@
 
 import React, { memo } from 'react';
 
+import { BODY_PART_COLORS } from '../../constants/chartColors';
+// Note: BODY_PART_COLORS is also re-exported below for backward compatibility
+
 /**
  * Keypoint data structure matching backend pose enrichment format.
  * Each keypoint is [x, y, confidence] where:
@@ -126,18 +129,8 @@ const KEYPOINT_BODY_PARTS: Record<number, BodyPart> = {
   16: 'right_leg', // right_ankle
 };
 
-/**
- * Colors for different body parts.
- * Using distinct, visible colors for easy identification.
- */
-export const BODY_PART_COLORS: Record<BodyPart, string> = {
-  head: '#22c55e', // green
-  torso: '#eab308', // yellow
-  left_arm: '#3b82f6', // blue
-  right_arm: '#8b5cf6', // purple
-  left_leg: '#ef4444', // red
-  right_leg: '#f97316', // orange
-};
+// Re-export BODY_PART_COLORS from centralized location for backward compatibility
+export { BODY_PART_COLORS } from '../../constants/chartColors';
 
 /**
  * Get the body part for a given keypoint index.

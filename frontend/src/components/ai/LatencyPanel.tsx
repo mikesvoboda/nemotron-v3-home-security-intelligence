@@ -345,6 +345,7 @@ function LatencyHistoryChart({ selectedStage, onStageChange }: LatencyHistoryCha
           curveType="monotone"
           connectNulls={true}
           data-testid="latency-chart"
+          aria-label="Pipeline latency history chart showing average, P50, and P95 latencies over time"
         />
       )}
 

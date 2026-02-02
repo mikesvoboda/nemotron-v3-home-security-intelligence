@@ -227,9 +227,9 @@ class TestConcurrentReadBehavior:
 
         # Run 10 concurrent reads
         tasks = [concurrent_read(i) for i in range(10)]
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         await asyncio.gather(*tasks)
-        total_time = asyncio.get_event_loop().time() - start_time
+        total_time = asyncio.get_running_loop().time() - start_time
 
         # All reads should complete
         assert len(read_times) == 10

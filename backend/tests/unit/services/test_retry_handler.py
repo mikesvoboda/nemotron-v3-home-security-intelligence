@@ -756,16 +756,16 @@ class TestRetryHandlerBackoffTiming:
         timestamps: list[float] = []
 
         async def failing_op() -> str:
-            timestamps.append(asyncio.get_event_loop().time())
+            timestamps.append(asyncio.get_running_loop().time())
             raise RuntimeError("Always fails")
 
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         await handler.with_retry(
             operation=failing_op,
             job_data={},
             queue_name="test_queue",
         )
-        end_time = asyncio.get_event_loop().time()
+        end_time = asyncio.get_running_loop().time()
 
         # Should have 3 timestamps (3 attempts)
         assert len(timestamps) == 3

@@ -337,7 +337,12 @@ class TestEventBroadcastVerification:
             assert last_msg["data"]["risk_score"] == 75
 
         finally:
-            await broadcaster.stop()
+            # Ensure cleanup happens even if test fails
+            try:
+                await broadcaster.stop()
+            except Exception as e:
+                # Log but don't fail the test cleanup
+                print(f"Warning: broadcaster.stop() failed: {e}")
 
 
 class TestMultipleClientsReceiveBroadcast:
@@ -951,8 +956,14 @@ class TestEventsBroadcastVerificationEndToEnd:
             assert received_messages[0]["data"]["data"]["id"] == 999
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
     async def test_broadcaster_listener_receives_published_events(

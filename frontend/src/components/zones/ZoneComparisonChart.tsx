@@ -204,6 +204,7 @@ function ZoneComparisonChartComponent({
         layout="vertical"
         yAxisWidth={120}
         data-testid="comparison-bar-chart"
+        aria-label="Zone comparison chart showing metric values across different zones"
       />
     </Card>
   );

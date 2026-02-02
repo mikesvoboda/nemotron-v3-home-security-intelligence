@@ -26,6 +26,8 @@ from alembic import command
 if TYPE_CHECKING:
     from collections.abc import Generator
 
+    from testcontainers.postgres import PostgresContainer
+
 # Add backend to path for imports
 backend_path = Path(__file__).resolve().parent.parent.parent
 if str(backend_path) not in sys.path:
@@ -177,30 +179,27 @@ class TestMigrationAutogenerate:
         assert hasattr(module, "downgrade"), "Migration missing downgrade function"
 
 
-@pytest.mark.skip(
-    reason="Project uses PostgreSQL - SQLite-specific offline mode tests not applicable (TSVECTOR not supported)"
-)
 class TestOfflineMigrationMode:
     """Tests for offline migration mode (SQL generation without database connection).
 
-    NOTE: These tests are designed for SQLite and need to be rewritten for PostgreSQL.
-    The migrations contain PostgreSQL-specific types (TSVECTOR) that cannot be
-    rendered by SQLite's compiler.
+    Uses PostgreSQL dialect for SQL generation to match production environment.
     """
 
     @pytest.fixture
-    def alembic_config(self, tmp_path: Path) -> Config:
-        """Create a test Alembic config for offline mode."""
+    def alembic_config(self) -> Config:
+        """Create a test Alembic config for offline mode with PostgreSQL."""
         alembic_ini = backend_path / "alembic.ini"
         config = Config(str(alembic_ini))
 
-        # Set a SQLite URL for offline testing
-        config.set_main_option("sqlalchemy.url", "sqlite:///./test_offline.db")
+        # Set a PostgreSQL URL for offline testing (won't connect, just for dialect)
+        config.set_main_option(
+            "sqlalchemy.url", "postgresql://user:pass@localhost:5432/offline_test"
+        )
 
         return config
 
     def test_offline_upgrade_generates_sql(self, alembic_config: Config) -> None:
-        """Test that offline mode generates valid SQL statements."""
+        """Test that offline mode generates valid PostgreSQL SQL statements."""
         # Capture the SQL output
         sql_output = StringIO()
         alembic_config.output_buffer = sql_output
@@ -250,120 +249,116 @@ class TestOfflineMigrationMode:
         assert "CREATE INDEX" in sql.upper()
 
 
-@pytest.mark.skip(
-    reason="Project uses PostgreSQL - SQLite-specific migration tests need rewrite for PostgreSQL"
-)
+@pytest.mark.integration
 class TestMigrationUpgradeDowngrade:
-    """Tests for migration upgrade/downgrade operations.
+    """Tests for migration upgrade/downgrade operations using PostgreSQL testcontainers.
 
-    NOTE: These tests are designed for SQLite and need to be rewritten for PostgreSQL.
-    They create a temporary SQLite database to test migrations, but since the project
-    has migrated to PostgreSQL, these tests are no longer applicable as-is.
+    These tests verify that Alembic migrations work correctly with a real PostgreSQL database,
+    matching the production environment.
     """
 
+    @pytest.fixture(scope="class")
+    def postgres_container(self) -> "Generator[PostgresContainer]":
+        """Create a PostgreSQL testcontainer for migration testing."""
+        from testcontainers.postgres import PostgresContainer
+
+        with PostgresContainer("postgres:16", driver=None) as postgres:
+            yield postgres
+
     @pytest.fixture
-    def temp_db_config(self, tmp_path: Path) -> tuple[Config, Path]:
-        """Create a temp database and Alembic config for testing migrations."""
+    def temp_db_config(self, postgres_container: "PostgresContainer") -> Config:
+        """Create an Alembic config using the test PostgreSQL container."""
         alembic_ini = backend_path / "alembic.ini"
         config = Config(str(alembic_ini))
 
-        db_path = tmp_path / "migration_test.db"
-        test_db_url = f"sqlite:///{db_path}"
+        # Get the connection URL from testcontainer
+        # testcontainers returns psycopg2-compatible URL by default
+        test_db_url = postgres_container.get_connection_url()
         config.set_main_option("sqlalchemy.url", test_db_url)
 
-        return config, db_path
+        return config
 
-    def test_upgrade_to_head(self, temp_db_config: tuple[Config, Path]) -> None:
+    def test_upgrade_to_head(self, temp_db_config: Config) -> None:
         """Test upgrading to the latest migration."""
-        config, db_path = temp_db_config
-
         # Run upgrade to head
-        command.upgrade(config, "head")
+        command.upgrade(temp_db_config, "head")
 
-        # Verify the database was created
-        assert db_path.exists(), "Database file was not created"
+        # Verify tables were created by checking the PostgreSQL database
+        from sqlalchemy import create_engine, inspect
 
-        # Verify tables were created by checking the SQLite database
-        import sqlite3
-
-        conn = sqlite3.connect(str(db_path))
-        cursor = conn.cursor()
+        engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+        inspector = inspect(engine)
 
         # Get list of tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = {row[0] for row in cursor.fetchall()}
+        tables = set(inspector.get_table_names())
 
-        conn.close()
+        engine.dispose()
 
         # Check for expected tables
         expected_tables = {"cameras", "events", "detections", "gpu_stats", "alembic_version"}
         for table in expected_tables:
             assert table in tables, f"Table '{table}' not found after upgrade"
 
-    def test_downgrade_to_base(self, temp_db_config: tuple[Config, Path]) -> None:
+    def test_downgrade_to_base(self, temp_db_config: Config) -> None:
         """Test downgrading to base (empty database)."""
-        config, db_path = temp_db_config
-
         # First upgrade to head
-        command.upgrade(config, "head")
-        assert db_path.exists()
+        command.upgrade(temp_db_config, "head")
 
         # Then downgrade to base
-        command.downgrade(config, "base")
+        command.downgrade(temp_db_config, "base")
 
         # Verify tables were dropped
-        import sqlite3
+        from sqlalchemy import create_engine, inspect
 
-        conn = sqlite3.connect(str(db_path))
-        cursor = conn.cursor()
+        engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+        inspector = inspect(engine)
 
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = {row[0] for row in cursor.fetchall()}
+        tables = set(inspector.get_table_names())
 
-        conn.close()
+        engine.dispose()
 
         # Only alembic_version should remain
         app_tables = tables - {"alembic_version"}
         assert len(app_tables) == 0, f"Tables remain after downgrade: {app_tables}"
 
-    def test_current_revision_after_upgrade(self, temp_db_config: tuple[Config, Path]) -> None:
+    def test_current_revision_after_upgrade(self, temp_db_config: Config) -> None:
         """Test that current revision is correctly tracked after upgrade."""
-        config, db_path = temp_db_config
-
         # Upgrade to head
-        command.upgrade(config, "head")
+        command.upgrade(temp_db_config, "head")
 
         # Get the script directory
-        script = ScriptDirectory.from_config(config)
+        script = ScriptDirectory.from_config(temp_db_config)
         head = script.get_current_head()
 
         # Verify the database has the correct revision
         from sqlalchemy import create_engine
 
-        engine = create_engine(f"sqlite:///{db_path}")
+        engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
 
         with engine.connect() as conn:
             context = MigrationContext.configure(conn)
             current_rev = context.get_current_revision()
 
+        engine.dispose()
+
         assert current_rev == head, f"Expected revision {head}, got {current_rev}"
 
-    def test_migration_creates_indexes(self, temp_db_config: tuple[Config, Path]) -> None:
+    def test_migration_creates_indexes(self, temp_db_config: Config) -> None:
         """Test that migrations create the expected indexes."""
-        config, db_path = temp_db_config
+        command.upgrade(temp_db_config, "head")
 
-        command.upgrade(config, "head")
+        from sqlalchemy import create_engine, inspect
 
-        import sqlite3
+        engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+        inspector = inspect(engine)
 
-        conn = sqlite3.connect(str(db_path))
-        cursor = conn.cursor()
+        # Get all indexes from all tables
+        all_indexes = set()
+        for table_name in inspector.get_table_names():
+            for index in inspector.get_indexes(table_name):
+                all_indexes.add(index["name"])
 
-        # Get list of indexes
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='index'")
-        indexes = {row[0] for row in cursor.fetchall()}
-
-        conn.close()
+        engine.dispose()
 
         # Check for expected indexes (some examples)
         expected_index_patterns = [
@@ -373,8 +368,75 @@ class TestMigrationUpgradeDowngrade:
         ]
 
         for pattern in expected_index_patterns:
-            matching = [idx for idx in indexes if pattern in idx.lower()]
-            assert len(matching) >= 1, f"No index matching '{pattern}' found. Indexes: {indexes}"
+            matching = [idx for idx in all_indexes if pattern in idx.lower()]
+            assert len(matching) >= 1, f"No index matching '{pattern}' found. Indexes: {all_indexes}"
+
+    def test_stepwise_upgrade_downgrade(self, temp_db_config: Config) -> None:
+        """Test each migration can be upgraded and downgraded individually."""
+        script = ScriptDirectory.from_config(temp_db_config)
+
+        # Get all revisions in order
+        revisions = list(script.walk_revisions("base", "heads"))
+        # Reverse to get chronological order (base -> head)
+        revisions.reverse()
+
+        # Test upgrading to each revision
+        for revision in revisions:
+            command.upgrade(temp_db_config, revision.revision)
+
+            # Verify we're at the expected revision
+            from sqlalchemy import create_engine
+            engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+            with engine.connect() as conn:
+                context = MigrationContext.configure(conn)
+                current_rev = context.get_current_revision()
+            engine.dispose()
+
+            assert current_rev == revision.revision, (
+                f"Expected revision {revision.revision}, got {current_rev}"
+            )
+
+        # Now test downgrading step by step
+        for revision in reversed(revisions):
+            if revision.down_revision:
+                command.downgrade(temp_db_config, revision.down_revision)
+
+                # Verify we're at the expected revision
+                from sqlalchemy import create_engine
+                engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+                with engine.connect() as conn:
+                    context = MigrationContext.configure(conn)
+                    current_rev = context.get_current_revision()
+                engine.dispose()
+
+                assert current_rev == revision.down_revision, (
+                    f"Expected revision {revision.down_revision}, got {current_rev}"
+                )
+
+    def test_migration_idempotency(self, temp_db_config: Config) -> None:
+        """Test that running the same migration twice is safe (idempotent)."""
+        # Upgrade to head
+        command.upgrade(temp_db_config, "head")
+
+        # Get initial state
+        from sqlalchemy import create_engine, inspect
+        engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+        inspector = inspect(engine)
+        initial_tables = set(inspector.get_table_names())
+        engine.dispose()
+
+        # Run upgrade again (should be no-op)
+        command.upgrade(temp_db_config, "head")
+
+        # Verify state hasn't changed
+        engine = create_engine(temp_db_config.get_main_option("sqlalchemy.url"))
+        inspector = inspect(engine)
+        final_tables = set(inspector.get_table_names())
+        engine.dispose()
+
+        assert initial_tables == final_tables, (
+            "Tables changed after re-running migration"
+        )
 
 
 class TestMigrationWithEnvironmentVariable:

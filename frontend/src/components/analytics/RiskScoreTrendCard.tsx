@@ -181,6 +181,7 @@ export default function RiskScoreTrendCard({ dateRange }: RiskScoreTrendCardProp
         minValue={0}
         maxValue={100}
         data-testid="risk-score-trend-chart"
+        aria-label="Risk score trend chart showing average risk scores over time"
       />
     </Card>
   );

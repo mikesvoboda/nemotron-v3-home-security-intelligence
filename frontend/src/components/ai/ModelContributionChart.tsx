@@ -78,6 +78,7 @@ export default function ModelContributionChart({
           showLegend={false}
           layout="vertical"
           data-testid="contribution-bar-chart"
+          aria-label="Model contribution chart showing AI model contribution rates to event analysis"
         />
       ) : (
         <div className="flex h-72 items-center justify-center">

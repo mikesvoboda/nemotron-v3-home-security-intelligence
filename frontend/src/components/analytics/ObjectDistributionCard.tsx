@@ -9,6 +9,7 @@ import { Card, Title, Text, DonutChart } from '@tremor/react';
 import { AlertCircle, Loader2, PieChart } from 'lucide-react';
 import { useMemo } from 'react';
 
+import { getTremorHexColor, getTremorPaletteColor } from '../../constants/chartColors';
 import { useObjectDistributionQuery } from '../../hooks/useObjectDistributionQuery';
 
 // ============================================================================
@@ -22,27 +23,6 @@ interface ObjectDistributionCardProps {
     endDate: string;
   };
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Color palette for object types.
- * Uses a diverse set of colors for visual distinction.
- */
-const OBJECT_COLORS: string[] = [
-  'emerald',
-  'blue',
-  'amber',
-  'violet',
-  'rose',
-  'cyan',
-  'orange',
-  'indigo',
-  'lime',
-  'pink',
-];
 
 // ============================================================================
 // Utility Functions
@@ -112,7 +92,7 @@ export default function ObjectDistributionCard({ dateRange }: ObjectDistribution
 
   // Get colors for each object type
   const chartColors = useMemo(() => {
-    return chartData.map((_, index) => OBJECT_COLORS[index % OBJECT_COLORS.length]);
+    return chartData.map((_, index) => getTremorPaletteColor(index));
   }, [chartData]);
 
   // Format date range for display
@@ -179,6 +159,7 @@ export default function ObjectDistributionCard({ dateRange }: ObjectDistribution
             label={formatNumber(totalDetections)}
             showAnimation={true}
             data-testid="object-distribution-chart"
+            aria-label="Object distribution chart showing detection counts by object type"
           />
         </div>
 
@@ -194,7 +175,7 @@ export default function ObjectDistributionCard({ dateRange }: ObjectDistribution
                 <div
                   className={`h-3 w-3 rounded-full bg-${chartColors[index]}-500`}
                   style={{
-                    backgroundColor: getColorValue(chartColors[index]),
+                    backgroundColor: getTremorHexColor(chartColors[index]),
                   }}
                 />
                 <span className="text-gray-300">{item.name}</span>
@@ -211,26 +192,4 @@ export default function ObjectDistributionCard({ dateRange }: ObjectDistribution
       </div>
     </Card>
   );
-}
-
-/**
- * Get the actual color value for a Tremor color name.
- *
- * @param colorName - Tremor color name (e.g., 'emerald')
- * @returns Hex color value
- */
-function getColorValue(colorName: string): string {
-  const colorMap: Record<string, string> = {
-    emerald: '#10B981',
-    blue: '#3B82F6',
-    amber: '#F59E0B',
-    violet: '#8B5CF6',
-    rose: '#F43F5E',
-    cyan: '#06B6D4',
-    orange: '#F97316',
-    indigo: '#6366F1',
-    lime: '#84CC16',
-    pink: '#EC4899',
-  };
-  return colorMap[colorName] || '#6B7280';
 }
