@@ -1,0 +1,20 @@
+{
+  "id": "kinetics_validate_531i8nKhzJM_0007",
+  "category": "suspicious",
+  "name": "Climbing Ladder",
+  "description": "Person performing action: climbing ladder. Video clip from YouTube (531i8nKhzJM), seconds 7-17.",
+  "source": "kinetics",
+  "scene": {
+    "location": "varies",
+    "camera_type": "varies",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 10.0
+  }
+}

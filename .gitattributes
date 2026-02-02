@@ -98,3 +98,6 @@ frontend/src/api/types.ts linguist-generated=true
 package-lock.json linguist-generated=true
 uv.lock linguist-generated=true
 *.mp4 filter=lfs diff=lfs merge=lfs -text
+data/synthetic/external/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+data/synthetic/external/**/*.png filter=lfs diff=lfs merge=lfs -text
+data/synthetic/external/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
