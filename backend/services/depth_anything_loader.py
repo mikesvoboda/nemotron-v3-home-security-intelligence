@@ -471,6 +471,71 @@ def depth_to_feet(
     return float(max(0.1, result))
 
 
+def depth_to_feet(
+    depth_value: float,
+    calibration_data: dict[str, Any] | None,
+) -> float | None:
+    """Convert normalized depth value to distance in feet using calibration data.
+
+    Uses linear interpolation/extrapolation between calibration points.
+
+    Args:
+        depth_value: Normalized depth value (0-1)
+        calibration_data: Dictionary with 'calibration_points' list, or None
+
+    Returns:
+        Distance in feet, or None if no calibration data provided
+    """
+    if calibration_data is None:
+        return None
+
+    calibration_points = calibration_data.get("calibration_points", [])
+    if not calibration_points:
+        return None
+
+    # Sort points by depth value
+    points = sorted(calibration_points, key=lambda p: p["depth_value"])
+
+    # Single point calibration - linear scaling through origin
+    if len(points) == 1:
+        point = points[0]
+        if point["depth_value"] == 0:
+            return float(point["distance_feet"])
+        scale = float(point["distance_feet"]) / float(point["depth_value"])
+        return float(depth_value * scale)
+
+    # Multiple points - interpolate or extrapolate
+    lower_point = None
+    upper_point = None
+
+    for point in points:
+        if point["depth_value"] <= depth_value:
+            lower_point = point
+        if point["depth_value"] >= depth_value and upper_point is None:
+            upper_point = point
+
+    # Handle extrapolation cases
+    if lower_point is None:
+        lower_point = points[0]
+        upper_point = points[1]
+    elif upper_point is None:
+        lower_point = points[-2]
+        upper_point = points[-1]
+
+    # Linear interpolation/extrapolation
+    depth_range = upper_point["depth_value"] - lower_point["depth_value"]
+    distance_range = upper_point["distance_feet"] - lower_point["distance_feet"]
+
+    if depth_range == 0:
+        return float(lower_point["distance_feet"])
+
+    factor = (depth_value - float(lower_point["depth_value"])) / float(depth_range)
+    result = float(lower_point["distance_feet"]) + factor * float(distance_range)
+
+    # Ensure positive result
+    return float(max(0.1, result))
+
+
 def format_depth_for_nemotron(
     detections: list[dict[str, Any]],
     depth_values: list[float],
