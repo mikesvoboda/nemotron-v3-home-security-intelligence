@@ -582,8 +582,8 @@ rebuild_tensorrt_engine() {
         return 0
     fi
 
-    # Check if ai-yolo26 image exists
-    if ! $CONTAINER_CMD image exists ai-yolo26 2>/dev/null; then
+    # Check if ai-yolo26 image exists (use fully-qualified name for non-TTY mode)
+    if ! $CONTAINER_CMD image exists localhost/ai-yolo26:latest 2>/dev/null; then
         print_warn "ai-yolo26 image not built yet - skipping TensorRT rebuild"
         return 0
     fi
@@ -595,13 +595,14 @@ rebuild_tensorrt_engine() {
     print_info "This may take 2-5 minutes..."
 
     # Run the rebuild inside the container with GPU access and writable mounts
+    # NOTE: Use fully-qualified image name to avoid short-name resolution prompts in non-TTY mode
     local gpu_ai="${GPU_AI_SERVICES:-0}"
     if run_cmd $CONTAINER_CMD run --rm \
         --device "nvidia.com/gpu=${gpu_ai}" \
         --security-opt=label=disable \
         -e CUDA_VISIBLE_DEVICES=0 \
         -v "${yolo26_dir}:/models/yolo26:z" \
-        ai-yolo26 \
+        localhost/ai-yolo26:latest \
         python -c "
 from ultralytics import YOLO
 import os
@@ -655,6 +656,9 @@ build_ai_images_podman() {
     # IMPORTANT: If you add a new service, check its Dockerfile COPY commands:
     # - If COPY uses paths like "ai/<service>/..." -> use "." (project root) as context
     # - If COPY uses paths like "./requirements.txt" -> use the Dockerfile's directory as context
+    #
+    # NOTE: Images are tagged with fully-qualified names (localhost/...) to avoid short-name
+    # resolution prompts in non-TTY mode (e.g., background execution, CI/CD pipelines)
     local -a ai_services=(
         "ai-yolo26:ai/yolo26/Dockerfile:."
         "ai-llm:ai/nemotron/Dockerfile:."
@@ -670,7 +674,8 @@ build_ai_images_podman() {
             local rest="${svc#*:}"
             local dockerfile="${rest%%:*}"
             local context="${rest#*:}"
-            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $name -f $dockerfile $context"
+            local full_image="localhost/${name}:latest"
+            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $full_image -f $dockerfile $context"
         done
         return 0
     fi
@@ -690,10 +695,11 @@ build_ai_images_podman() {
         local rest="${svc#*:}"
         local dockerfile="${rest%%:*}"
         local context="${rest#*:}"
+        local full_image="localhost/${name}:latest"
         local log_file="$log_dir/${name}.log"
 
         print_info "  Starting $name build (context: $context)..."
-        $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" "$context" > "$log_file" 2>&1 &
+        $CONTAINER_CMD build --no-cache -t "$full_image" -f "$dockerfile" "$context" > "$log_file" 2>&1 &
         pids+=($!)
         names+=("$name")
     done
@@ -761,6 +767,8 @@ start_ai_containers_podman() {
     local gpu_enrichment="${GPU_ENRICHMENT:-$gpu_ai}"
 
     # ai-yolo26 (YOLO26 TensorRT)
+    # NOTE: Use fully-qualified image names (localhost/...) to avoid short-name resolution
+    # prompts in non-TTY mode (e.g., background execution, CI/CD pipelines)
     print_step "Starting ai-yolo26 on GPU ${gpu_yolo26} (port ${yolo26_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-yolo26 \
@@ -771,7 +779,7 @@ start_ai_containers_podman() {
         -e "YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}" \
         -e "YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine" \
         --restart unless-stopped \
-        ai-yolo26
+        localhost/ai-yolo26:latest
     print_success "ai-yolo26 started"
 
     # ai-llm (Nemotron)
@@ -785,7 +793,7 @@ start_ai_containers_podman() {
         -e "GPU_LAYERS=${GPU_LAYERS:-40}" \
         -e "CTX_SIZE=${CTX_SIZE:-65536}" \
         --restart unless-stopped \
-        ai-llm
+        localhost/ai-llm:latest
     print_success "ai-llm started"
 
     # ai-florence (shares GPU with LLM by default)
@@ -798,7 +806,7 @@ start_ai_containers_podman() {
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
         -e "MODEL_PATH=/models/florence-2-large" \
         --restart unless-stopped \
-        ai-florence
+        localhost/ai-florence:latest
     print_success "ai-florence started"
 
     # ai-clip
@@ -811,7 +819,7 @@ start_ai_containers_podman() {
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
         -e "CLIP_MODEL_PATH=/models/clip-vit-l" \
         --restart unless-stopped \
-        ai-clip
+        localhost/ai-clip:latest
     print_success "ai-clip started"
 
     # ai-enrichment
@@ -830,7 +838,7 @@ start_ai_containers_podman() {
         -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \
         -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \
         --restart unless-stopped \
-        ai-enrichment
+        localhost/ai-enrichment:latest
     print_success "ai-enrichment started"
 
     return 0
