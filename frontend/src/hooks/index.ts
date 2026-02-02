@@ -371,6 +371,9 @@ export type {
   UseAudioNotificationsReturn,
 } from './useAudioNotifications';
 
+export { useThreatAudio } from './useThreatAudio';
+export type { UseThreatAudioReturn } from './useThreatAudio';
+
 export { useDesktopNotifications } from './useDesktopNotifications';
 export type {
   DesktopNotificationOptions,
