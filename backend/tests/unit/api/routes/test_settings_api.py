@@ -50,6 +50,7 @@ def create_mock_settings(
     queue_backpressure_threshold: float = 0.8,
     retention_days: int = 30,
     log_retention_days: int = 7,
+    snapshot_cache_ttl: int = 3600,
 ) -> MagicMock:
     """Create a mock Settings object with configurable values.
 
@@ -80,6 +81,7 @@ def create_mock_settings(
     mock.queue_backpressure_threshold = queue_backpressure_threshold
     mock.retention_days = retention_days
     mock.log_retention_days = log_retention_days
+    mock.snapshot_cache_ttl = snapshot_cache_ttl
     return mock
 
 
@@ -110,6 +112,7 @@ class TestGetSettingsEndpoint:
         assert "rate_limiting" in data
         assert "queue" in data
         assert "retention" in data
+        assert "camera" in data
 
     @pytest.mark.asyncio
     async def test_returns_correct_detection_settings(self) -> None:
@@ -301,6 +304,7 @@ class TestGetSettingsEndpoint:
         assert settings_response.rate_limiting.enabled is True
         assert settings_response.queue.max_size == 10000
         assert settings_response.retention.days == 30
+        assert settings_response.camera.snapshot_cache_ttl == 3600
 
 
 class TestSettingsResponseSchema:
@@ -343,11 +347,15 @@ class TestSettingsResponseSchema:
                 "days": 30,
                 "log_days": 7,
             },
+            "camera": {
+                "snapshot_cache_ttl": 3600,
+            },
         }
 
         response = SettingsResponse.model_validate(data)
         assert response.detection.confidence_threshold == 0.5
         assert response.features.reid_enabled is True
+        assert response.camera.snapshot_cache_ttl == 3600
 
     def test_missing_field_raises_validation_error(self) -> None:
         """Test that missing required fields raise validation errors."""
@@ -381,6 +389,9 @@ class TestSettingsResponseSchema:
             "retention": {
                 "days": 30,
                 "log_days": 7,
+            },
+            "camera": {
+                "snapshot_cache_ttl": 3600,
             },
         }
 
@@ -928,6 +939,7 @@ class TestSettingsUpdateSchema:
         """Test that nested update schemas have all optional fields."""
         from backend.api.schemas.settings_api import (
             BatchSettingsUpdate,
+            CameraSettingsUpdate,
             DetectionSettingsUpdate,
             FeatureSettingsUpdate,
         )
@@ -944,3 +956,205 @@ class TestSettingsUpdateSchema:
         feat = FeatureSettingsUpdate.model_validate({})
         assert feat.vision_extraction_enabled is None
         assert feat.reid_enabled is None
+
+        camera = CameraSettingsUpdate.model_validate({})
+        assert camera.snapshot_cache_ttl is None
+
+
+class TestCameraSettingsEndpoint:
+    """Tests for camera settings in settings API."""
+
+    @pytest.fixture
+    def temp_runtime_env(self, tmp_path: Path) -> Path:
+        """Create a temporary runtime.env file.
+
+        Returns:
+            Path to temporary runtime.env file.
+        """
+        runtime_env = tmp_path / "runtime.env"
+        return runtime_env
+
+    @pytest.mark.asyncio
+    async def test_returns_correct_camera_settings(self) -> None:
+        """Test that camera settings are returned correctly."""
+        mock_settings = create_mock_settings(snapshot_cache_ttl=7200)
+        app = create_test_app()
+
+        with patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.get("/api/v1/settings")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["camera"]["snapshot_cache_ttl"] == 7200
+
+    @pytest.mark.asyncio
+    async def test_patch_camera_snapshot_cache_ttl(self, temp_runtime_env: Path) -> None:
+        """Test updating camera snapshot cache TTL."""
+        mock_settings = create_mock_settings()
+        app = create_test_app()
+
+        with (
+            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"camera": {"snapshot_cache_ttl": 7200}},
+                )
+
+        assert response.status_code == 200
+
+        # Verify file was written
+        assert temp_runtime_env.exists()
+        content = temp_runtime_env.read_text()
+        assert "SNAPSHOT_CACHE_TTL=7200" in content
+
+    @pytest.mark.asyncio
+    async def test_patch_camera_snapshot_cache_ttl_min_value(self, temp_runtime_env: Path) -> None:
+        """Test that snapshot cache TTL minimum value (60) is accepted."""
+        mock_settings = create_mock_settings()
+        app = create_test_app()
+
+        with (
+            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"camera": {"snapshot_cache_ttl": 60}},
+                )
+
+        assert response.status_code == 200
+        content = temp_runtime_env.read_text()
+        assert "SNAPSHOT_CACHE_TTL=60" in content
+
+    @pytest.mark.asyncio
+    async def test_patch_camera_snapshot_cache_ttl_max_value(self, temp_runtime_env: Path) -> None:
+        """Test that snapshot cache TTL maximum value (86400) is accepted."""
+        mock_settings = create_mock_settings()
+        app = create_test_app()
+
+        with (
+            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"camera": {"snapshot_cache_ttl": 86400}},
+                )
+
+        assert response.status_code == 200
+        content = temp_runtime_env.read_text()
+        assert "SNAPSHOT_CACHE_TTL=86400" in content
+
+    @pytest.mark.asyncio
+    async def test_patch_camera_snapshot_cache_ttl_below_min_rejected(
+        self, temp_runtime_env: Path
+    ) -> None:
+        """Test that snapshot cache TTL below minimum (60) is rejected."""
+        mock_settings = create_mock_settings()
+        app = create_test_app()
+
+        with (
+            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"camera": {"snapshot_cache_ttl": 30}},
+                )
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_patch_camera_snapshot_cache_ttl_above_max_rejected(
+        self, temp_runtime_env: Path
+    ) -> None:
+        """Test that snapshot cache TTL above maximum (86400) is rejected."""
+        mock_settings = create_mock_settings()
+        app = create_test_app()
+
+        with (
+            patch("backend.api.routes.settings_api.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.routes.settings_api._get_runtime_env_path",
+                return_value=temp_runtime_env,
+            ),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.patch(
+                    "/api/v1/settings",
+                    json={"camera": {"snapshot_cache_ttl": 100000}},
+                )
+
+        assert response.status_code == 422
+
+
+class TestCameraSettingsSchema:
+    """Tests for CameraSettings Pydantic schema validation."""
+
+    def test_valid_snapshot_cache_ttl_parses_correctly(self) -> None:
+        """Test that valid snapshot cache TTL values are accepted."""
+        from backend.api.schemas.settings_api import CameraSettings
+
+        # Minimum value
+        settings = CameraSettings(snapshot_cache_ttl=60)
+        assert settings.snapshot_cache_ttl == 60
+
+        # Maximum value
+        settings = CameraSettings(snapshot_cache_ttl=86400)
+        assert settings.snapshot_cache_ttl == 86400
+
+        # Mid-range value
+        settings = CameraSettings(snapshot_cache_ttl=3600)
+        assert settings.snapshot_cache_ttl == 3600
+
+    def test_invalid_snapshot_cache_ttl_raises_validation_error(self) -> None:
+        """Test that invalid snapshot cache TTL values are rejected."""
+        from pydantic import ValidationError
+
+        from backend.api.schemas.settings_api import CameraSettings
+
+        # Below minimum (60)
+        with pytest.raises(ValidationError):
+            CameraSettings(snapshot_cache_ttl=59)
+
+        # Above maximum (86400)
+        with pytest.raises(ValidationError):
+            CameraSettings(snapshot_cache_ttl=86401)

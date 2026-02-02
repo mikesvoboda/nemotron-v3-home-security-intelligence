@@ -2363,8 +2363,9 @@ describe('EventDetailModal', () => {
 
   // Note: matched entities section tests removed - now using ReidMatchesPanel with detection-based matching
 
-  describe('event feedback', () => {
+  describe('event feedback (FeedbackPanel integration)', () => {
     // Use numeric event ID for feedback tests
+    // FeedbackPanel is now integrated and handles its own state internally (NEM-4928)
     const mockEventWithNumericId: Event = {
       ...mockEvent,
       id: '123',
@@ -2380,23 +2381,25 @@ describe('EventDetailModal', () => {
       vi.mocked(api.getEventFeedback).mockResolvedValue(null);
     });
 
-    it('renders feedback section', async () => {
+    it('renders FeedbackPanel component', async () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-section')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-panel')).toBeInTheDocument();
       });
       expect(screen.getByText('Detection Feedback')).toBeInTheDocument();
     });
 
-    it('renders feedback buttons when no existing feedback', async () => {
+    it('renders all four feedback buttons when no existing feedback', async () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('feedback-accurate-button')).toBeInTheDocument();
       });
-      expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();
-      expect(screen.getByTestId('feedback-wrong-severity-button')).toBeInTheDocument();
+      // FeedbackPanel uses underscores in test IDs (e.g., feedback-false_positive-button)
+      expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-severity_wrong-button')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-missed_threat-button')).toBeInTheDocument();
     });
 
     it('displays existing feedback when already submitted', async () => {
@@ -2411,9 +2414,10 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('existing-feedback')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-panel')).toBeInTheDocument();
       });
-      expect(screen.getByText('Correct Detection')).toBeInTheDocument();
+      // FeedbackPanel displays feedback type label
+      expect(screen.getByText('Accurate')).toBeInTheDocument();
     });
 
     it('displays existing feedback with notes', async () => {
@@ -2428,7 +2432,7 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('existing-feedback')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-panel')).toBeInTheDocument();
       });
       expect(screen.getByText('False Positive')).toBeInTheDocument();
       expect(screen.getByText('This is my pet cat')).toBeInTheDocument();
@@ -2465,55 +2469,57 @@ describe('EventDetailModal', () => {
       });
     });
 
-    it('opens feedback form when false positive button is clicked', async () => {
+    it('opens notes form when false positive button is clicked', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
       });
 
-      const falsePositiveButton = screen.getByTestId('feedback-false-positive-button');
+      const falsePositiveButton = screen.getByTestId('feedback-false_positive-button');
       await user.click(falsePositiveButton);
 
+      // FeedbackPanel shows notes form inline
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-form')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-notes')).toBeInTheDocument();
       });
-      expect(screen.getByText('False Positive Feedback')).toBeInTheDocument();
+      expect(screen.getByText('False Positive')).toBeInTheDocument();
     });
 
-    it('opens feedback form when wrong severity button is clicked', async () => {
+    it('opens notes form when severity wrong button is clicked', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-wrong-severity-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-severity_wrong-button')).toBeInTheDocument();
       });
 
-      const wrongSeverityButton = screen.getByTestId('feedback-wrong-severity-button');
-      await user.click(wrongSeverityButton);
+      const severityWrongButton = screen.getByTestId('feedback-severity_wrong-button');
+      await user.click(severityWrongButton);
 
+      // FeedbackPanel shows notes form with severity slider
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-form')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-notes')).toBeInTheDocument();
       });
-      expect(screen.getByText('Wrong Severity Feedback')).toBeInTheDocument();
-      expect(screen.getByTestId('severity-slider')).toBeInTheDocument();
+      expect(screen.getByText('Severity Wrong')).toBeInTheDocument();
+      expect(screen.getByTestId('suggested-score-slider')).toBeInTheDocument();
     });
 
-    it('closes feedback form when cancel is clicked', async () => {
+    it('closes notes form when cancel is clicked', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
       });
 
       // Open the form
-      const falsePositiveButton = screen.getByTestId('feedback-false-positive-button');
+      const falsePositiveButton = screen.getByTestId('feedback-false_positive-button');
       await user.click(falsePositiveButton);
 
       await waitFor(() => {
-        expect(screen.getByTestId('feedback-form')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-notes')).toBeInTheDocument();
       });
 
       // Cancel the form
@@ -2521,10 +2527,10 @@ describe('EventDetailModal', () => {
       await user.click(cancelButton);
 
       await waitFor(() => {
-        expect(screen.queryByTestId('feedback-form')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('feedback-notes')).not.toBeInTheDocument();
       });
       // Buttons should be visible again
-      expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();
+      expect(screen.getByTestId('feedback-false_positive-button')).toBeInTheDocument();
     });
 
     it('does not show feedback buttons when existing feedback is present', async () => {
@@ -2539,44 +2545,13 @@ describe('EventDetailModal', () => {
       renderWithQueryClient(<EventDetailModal {...mockFeedbackProps} />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('existing-feedback')).toBeInTheDocument();
+        expect(screen.getByTestId('feedback-panel')).toBeInTheDocument();
       });
 
       expect(screen.queryByTestId('feedback-accurate-button')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('feedback-false-positive-button')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('feedback-wrong-severity-button')).not.toBeInTheDocument();
-    });
-
-    it('resets feedback form when event changes', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const { rerender, queryClient } = renderWithQueryClient(
-        <EventDetailModal {...mockFeedbackProps} />
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId('feedback-false-positive-button')).toBeInTheDocument();
-      });
-
-      // Open the form
-      const falsePositiveButton = screen.getByTestId('feedback-false-positive-button');
-      await user.click(falsePositiveButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('feedback-form')).toBeInTheDocument();
-      });
-
-      // Change event
-      const newEvent = { ...mockEventWithNumericId, id: '456' };
-      rerender(
-        <QueryClientProvider client={queryClient}>
-          <EventDetailModal {...mockFeedbackProps} event={newEvent} />
-        </QueryClientProvider>
-      );
-
-      // Form should be closed and buttons should be visible
-      await waitFor(() => {
-        expect(screen.queryByTestId('feedback-form')).not.toBeInTheDocument();
-      });
+      expect(screen.queryByTestId('feedback-false_positive-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('feedback-severity_wrong-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('feedback-missed_threat-button')).not.toBeInTheDocument();
     });
   });
 

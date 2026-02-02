@@ -3,7 +3,7 @@
 import asyncio
 import subprocess
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +42,7 @@ from backend.api.schemas.camera import (
     RTSPCapabilitiesResponse,
     RTSPTestRequest,
     RTSPTestResponse,
+    SnapshotRefreshResponse,
 )
 from backend.api.schemas.onvif import OnvifDiscoveryRequest
 from backend.api.schemas.pagination import create_pagination_meta
@@ -117,9 +118,9 @@ _SNAPSHOT_TYPES = {
 # Video file extensions for fallback snapshot extraction (NEM-2446)
 _VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".webm"}
 
-# Snapshot cache TTL in seconds (1 hour) - cached snapshots extracted from videos
-# Note: This is now configurable via settings.snapshot_cache_ttl (NEM-2519)
-_SNAPSHOT_CACHE_TTL = 3600  # Default, use settings.snapshot_cache_ttl
+# Default snapshot cache TTL in seconds (1 hour) - used only as fallback
+# The actual TTL is configurable via settings.snapshot_cache_ttl (NEM-4946)
+_DEFAULT_SNAPSHOT_CACHE_TTL = 3600
 
 # Thumbnail size for extracted video frames
 _SNAPSHOT_THUMBNAIL_SIZE = (640, 480)
@@ -1083,7 +1084,7 @@ def _get_snapshot_cache_path(camera_id: str) -> Path:
     return cache_dir / f"{camera_id}_snapshot.jpg"
 
 
-def _is_cache_valid(cache_path: Path, ttl_seconds: int = _SNAPSHOT_CACHE_TTL) -> bool:
+def _is_cache_valid(cache_path: Path, ttl_seconds: int = _DEFAULT_SNAPSHOT_CACHE_TTL) -> bool:
     """Check if a cached snapshot is still valid (not expired).
 
     Args:
@@ -1239,9 +1240,10 @@ async def get_camera_snapshot(
         )
 
     # NEM-2446: Implement fallback chain for snapshot retrieval
+    # NEM-4946: Use configurable snapshot cache TTL from settings
     # 1. Check for cached snapshot (fast response for video-only cameras)
     cache_path = _get_snapshot_cache_path(camera_id)
-    if _is_cache_valid(cache_path):
+    if _is_cache_valid(cache_path, ttl_seconds=settings.snapshot_cache_ttl):
         logger.debug(
             "Returning cached snapshot",
             extra={"camera_id": camera_id, "cache_path": str(cache_path)},
@@ -1310,6 +1312,124 @@ async def get_camera_snapshot(
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail="Video files found but frame extraction failed",
+    )
+
+
+@router.post(
+    "/{camera_id}/snapshot/refresh",
+    response_model=SnapshotRefreshResponse,
+    responses={
+        200: {"description": "Snapshot refreshed successfully"},
+        404: {"description": "Camera not found or no snapshot available"},
+        429: {"description": "Too many requests"},
+    },
+)
+async def refresh_camera_snapshot(
+    camera_id: str,
+    db: DbSession,
+    _rate_limit: None = Depends(snapshot_rate_limiter),
+) -> SnapshotRefreshResponse:
+    """Refresh the snapshot for a camera by invalidating cache and fetching new image.
+
+    NEM-4947: This endpoint invalidates any cached snapshot and forces a new
+    snapshot to be generated. For video-only cameras, this extracts a fresh frame
+    from the most recent video file.
+
+    The response includes metadata about the refreshed snapshot, including:
+    - Whether cache was invalidated
+    - The source of the snapshot (image file or video extraction)
+    - Timestamp of the refresh
+
+    Args:
+        camera_id: ID of the camera to refresh snapshot for
+        db: Database session
+        _rate_limit: Rate limiting dependency
+
+    Returns:
+        SnapshotRefreshResponse with metadata about the refreshed snapshot
+
+    Raises:
+        HTTPException: 404 if camera not found or no snapshot source available
+        HTTPException: 429 if rate limit exceeded
+    """
+    camera = await get_camera_or_404(camera_id, db)
+    settings = get_settings()
+    base_root = Path(settings.foscam_base_path).resolve()
+
+    # Resolve camera directory with fallback handling
+    camera_dir = _resolve_camera_dir(camera.folder_path, camera_id, base_root)
+    if camera_dir is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Camera folder does not exist",
+        )
+
+    # Check and invalidate cached snapshot
+    cache_path = _get_snapshot_cache_path(camera_id)
+    cache_invalidated = False
+    if cache_path.exists():
+        try:
+            cache_path.unlink()
+            cache_invalidated = True
+            logger.info(
+                "Invalidated cached snapshot",
+                extra={"camera_id": camera_id, "cache_path": str(cache_path)},
+            )
+        except OSError as e:
+            logger.warning(
+                "Failed to invalidate cached snapshot",
+                extra={"camera_id": camera_id, "error": str(e)},
+            )
+
+    # Determine snapshot source
+    snapshot_source = "image_file"
+
+    # Check for image files first
+    candidates: list[Path] = []
+    for ext in _SNAPSHOT_TYPES:
+        candidates.extend(camera_dir.rglob(f"*{ext}"))
+    candidates = [p for p in candidates if p.is_file()]
+
+    if not candidates:
+        # No images - check for video files and extract fresh frame
+        video_candidates: list[Path] = []
+        for ext in _VIDEO_EXTENSIONS:
+            video_candidates.extend(camera_dir.rglob(f"*{ext}"))
+        video_candidates = [p for p in video_candidates if p.is_file()]
+
+        if not video_candidates:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No snapshot images or video files found for camera",
+            )
+
+        # Extract frame from most recent video
+        latest_video = max(video_candidates, key=lambda p: p.stat().st_mtime)
+        extraction_success = await _extract_frame_from_video(latest_video, cache_path)
+
+        if not extraction_success or not cache_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video files found but frame extraction failed",
+            )
+
+        snapshot_source = "video_extraction"
+        logger.info(
+            "Refreshed snapshot from video extraction",
+            extra={"camera_id": camera_id, "video_path": str(latest_video)},
+        )
+    else:
+        logger.info(
+            "Refreshed snapshot from image file",
+            extra={"camera_id": camera_id, "image_count": len(candidates)},
+        )
+
+    return SnapshotRefreshResponse(
+        camera_id=camera_id,
+        snapshot_url=f"/api/cameras/{camera_id}/snapshot",
+        cache_invalidated=cache_invalidated,
+        snapshot_source=snapshot_source,
+        timestamp=datetime.now(UTC),
     )
 
 

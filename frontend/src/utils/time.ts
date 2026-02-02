@@ -182,3 +182,44 @@ export function isTimestampStale(timestamp: string | null, staleAfterHours: numb
     return true;
   }
 }
+
+/**
+ * Format seconds as human-readable duration (e.g., "1 hour", "30 minutes", "2 hours 30 minutes")
+ * @param seconds - Duration in seconds
+ * @returns Human-readable duration string
+ */
+export function formatSecondsAsHumanReadable(seconds: number): string {
+  if (seconds < 60) {
+    return seconds === 1 ? '1 second' : `${seconds} seconds`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  const remainingMinutes = minutes % 60;
+  const remainingHours = hours % 24;
+
+  // Days
+  if (days > 0) {
+    if (remainingHours > 0) {
+      const dayStr = days === 1 ? '1 day' : `${days} days`;
+      const hourStr = remainingHours === 1 ? '1 hour' : `${remainingHours} hours`;
+      return `${dayStr} ${hourStr}`;
+    }
+    return days === 1 ? '1 day' : `${days} days`;
+  }
+
+  // Hours
+  if (hours > 0) {
+    if (remainingMinutes > 0) {
+      const hourStr = hours === 1 ? '1 hour' : `${hours} hours`;
+      const minStr = remainingMinutes === 1 ? '1 minute' : `${remainingMinutes} minutes`;
+      return `${hourStr} ${minStr}`;
+    }
+    return hours === 1 ? '1 hour' : `${hours} hours`;
+  }
+
+  // Minutes only
+  return minutes === 1 ? '1 minute' : `${minutes} minutes`;
+}

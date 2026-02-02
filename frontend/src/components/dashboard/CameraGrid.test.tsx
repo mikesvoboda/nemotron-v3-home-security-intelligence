@@ -122,7 +122,8 @@ describe('CameraGrid', () => {
       render(<CameraGrid cameras={[mockCameras[0]]} />);
 
       // Check that some time string is displayed (exact format may vary by locale)
-      const cameraCard = screen.getByText('Front Door').closest('button');
+      // NEM-4947: Camera cards use div with role="button" instead of button element
+      const cameraCard = screen.getByText('Front Door').closest('[data-testid^="camera-card-"]');
       expect(cameraCard).toBeInTheDocument();
       // The time should be formatted as HH:MM
       expect(cameraCard?.textContent).toMatch(/\d{1,2}:\d{2}/);
@@ -147,8 +148,11 @@ describe('CameraGrid', () => {
     it('should not highlight any camera when selectedCameraId is undefined', () => {
       render(<CameraGrid cameras={mockCameras} />);
 
-      const buttons = screen.getAllByRole('button');
-      buttons.forEach((button) => {
+      // Filter for camera card buttons only (they have aria-pressed attribute)
+      const cameraCardButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.hasAttribute('aria-pressed'));
+      cameraCardButtons.forEach((button) => {
         expect(button).toHaveAttribute('aria-pressed', 'false');
       });
     });
@@ -221,11 +225,14 @@ describe('CameraGrid', () => {
     it('should have proper aria-pressed state for buttons', () => {
       render(<CameraGrid cameras={mockCameras} selectedCameraId="cam1" />);
 
-      const buttons = screen.getAllByRole('button');
-      expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
-      expect(buttons[1]).toHaveAttribute('aria-pressed', 'false');
-      expect(buttons[2]).toHaveAttribute('aria-pressed', 'false');
-      expect(buttons[3]).toHaveAttribute('aria-pressed', 'false');
+      // Filter for camera card buttons only (they have aria-pressed attribute)
+      const cameraCardButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.hasAttribute('aria-pressed'));
+      expect(cameraCardButtons[0]).toHaveAttribute('aria-pressed', 'true');
+      expect(cameraCardButtons[1]).toHaveAttribute('aria-pressed', 'false');
+      expect(cameraCardButtons[2]).toHaveAttribute('aria-pressed', 'false');
+      expect(cameraCardButtons[3]).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('should be keyboard navigable', () => {
@@ -233,20 +240,21 @@ describe('CameraGrid', () => {
 
       render(<CameraGrid cameras={mockCameras} onCameraClick={onCameraClick} />);
 
-      const firstButton = screen.getByLabelText(/Front Door/);
+      const firstCard = screen.getByLabelText(/Front Door/);
 
-      // Focus on first button
-      firstButton.focus();
-      expect(firstButton).toHaveFocus();
+      // Focus on first card
+      firstCard.focus();
+      expect(firstCard).toHaveFocus();
 
       // Buttons respond to Enter/Space via click events in browsers
       // Use fireEvent.click to simulate the keyboard activation behavior
-      fireEvent.click(firstButton);
+      fireEvent.click(firstCard);
       expect(onCameraClick).toHaveBeenCalledWith('cam1');
 
-      // Verify button element is properly keyboard-accessible
-      expect(firstButton.tagName).toBe('BUTTON');
-      expect(firstButton).not.toHaveAttribute('tabindex', '-1');
+      // NEM-4947: Camera cards now use div with role="button" for proper nesting
+      // Verify element is properly keyboard-accessible with role="button"
+      expect(firstCard).toHaveAttribute('role', 'button');
+      expect(firstCard).not.toHaveAttribute('tabindex', '-1');
     });
   });
 
@@ -334,8 +342,11 @@ describe('CameraGrid', () => {
 
       render(<CameraGrid cameras={threeCameras} />);
 
-      const buttons = screen.getAllByRole('button');
-      buttons.forEach((button) => {
+      // Filter for camera card buttons only (they have aria-pressed attribute)
+      const cameraCardButtons = screen
+        .getAllByRole('button')
+        .filter((btn) => btn.hasAttribute('aria-pressed'));
+      cameraCardButtons.forEach((button) => {
         expect(button).toHaveClass('w-full');
       });
     });
@@ -797,6 +808,90 @@ describe('CameraGrid', () => {
       // The AlertTriangle icon should have animate-pulse class
       const icon = indicator.querySelector('svg');
       expect(icon).toHaveClass('animate-pulse');
+    });
+  });
+
+  describe('Snapshot Refresh (NEM-4947)', () => {
+    it('should show refresh button by default', () => {
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
+
+      render(<CameraGrid cameras={cameras} />);
+
+      expect(screen.getByTestId('camera-refresh-cam1')).toBeInTheDocument();
+    });
+
+    it('should hide refresh button when enableSnapshotRefresh is false', () => {
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
+
+      render(<CameraGrid cameras={cameras} enableSnapshotRefresh={false} />);
+
+      expect(screen.queryByTestId('camera-refresh-cam1')).not.toBeInTheDocument();
+    });
+
+    it('should have proper accessibility label on refresh button', () => {
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
+
+      render(<CameraGrid cameras={cameras} />);
+
+      const refreshButton = screen.getByTestId('camera-refresh-cam1');
+      expect(refreshButton).toHaveAttribute('aria-label', 'Refresh snapshot');
+    });
+
+    it('should not trigger card onClick when refresh button is clicked', () => {
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
+      const onCameraClick = vi.fn();
+
+      render(<CameraGrid cameras={cameras} onCameraClick={onCameraClick} />);
+
+      const refreshButton = screen.getByTestId('camera-refresh-cam1');
+      fireEvent.click(refreshButton);
+
+      // Card click should not be triggered by refresh button click
+      expect(onCameraClick).not.toHaveBeenCalled();
+    });
+
+    it('should call onSnapshotRefresh callback when refresh completes', async () => {
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
+      const onSnapshotRefresh = vi.fn();
+
+      // Mock the refreshCameraSnapshot API function
+      vi.mock('../../services/api', async (importOriginal) => {
+        const actual = await importOriginal<typeof import('../../services/api')>();
+        return {
+          ...actual,
+          refreshCameraSnapshot: vi.fn().mockResolvedValue({
+            camera_id: 'cam1',
+            snapshot_url: '/api/cameras/cam1/snapshot',
+            cache_invalidated: true,
+            snapshot_source: 'image_file',
+            timestamp: '2025-01-15T12:00:00Z',
+          }),
+        };
+      });
+
+      render(<CameraGrid cameras={cameras} onSnapshotRefresh={onSnapshotRefresh} />);
+
+      const refreshButton = screen.getByTestId('camera-refresh-cam1');
+      fireEvent.click(refreshButton);
+
+      // Wait for async operation to complete
+      await vi.waitFor(() => {
+        expect(onSnapshotRefresh).toHaveBeenCalledWith('cam1');
+      });
+    });
+
+    it('should show refresh buttons on multiple cameras', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+        { id: 'cam2', name: 'Backyard', status: 'online' },
+        { id: 'cam3', name: 'Garage', status: 'offline' },
+      ];
+
+      render(<CameraGrid cameras={cameras} />);
+
+      expect(screen.getByTestId('camera-refresh-cam1')).toBeInTheDocument();
+      expect(screen.getByTestId('camera-refresh-cam2')).toBeInTheDocument();
+      expect(screen.getByTestId('camera-refresh-cam3')).toBeInTheDocument();
     });
   });
 });
