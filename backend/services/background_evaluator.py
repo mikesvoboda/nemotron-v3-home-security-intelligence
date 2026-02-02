@@ -503,7 +503,8 @@ class BackgroundEvaluator:
 
         logger.info("Starting background evaluator")
         self.running = True
-        self._task = asyncio.create_task(self._run_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._task = asyncio.create_task(self._run_loop(), name="background-evaluator")
         logger.info("Background evaluator started")
 
     async def stop(self) -> None:

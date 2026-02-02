@@ -724,4 +724,34 @@ describe('dashboard-config-store', () => {
       expect(typeof useDashboardConfigActions).toBe('function');
     });
   });
+
+  describe('memoized selectors (NEM-5034)', () => {
+    it('selectVisibleWidgets returns stable reference when state unchanged', () => {
+      const state = useDashboardConfigStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectVisibleWidgets(state);
+      const result2 = selectVisibleWidgets(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectVisibleWidgets returns new reference when state changes', () => {
+      const state1 = useDashboardConfigStore.getState();
+      const result1 = selectVisibleWidgets(state1);
+
+      // Change visibility
+      act(() => {
+        useDashboardConfigStore.getState().setWidgetVisibility('gpu-stats', true);
+      });
+
+      const state2 = useDashboardConfigStore.getState();
+      const result2 = selectVisibleWidgets(state2);
+
+      // Should return different references (state changed)
+      expect(result1).not.toBe(result2);
+      expect(result2.length).toBe(5);
+    });
+  });
 });

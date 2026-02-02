@@ -5,10 +5,12 @@ This module provides shared utilities for optimizing PyTorch model performance:
 2. True batch inference helpers (NEM-3377)
 3. Accelerate device_map utilities (NEM-3378)
 4. TensorRT integration via ai.common (NEM-3838)
+5. torch.compile() with timeout mechanism (NEM-4997)
 
 Usage:
     from torch_optimizations import (
         compile_model,
+        compile_model_with_timeout,
         get_optimal_device_map,
         BatchProcessor,
         get_compile_mode,
@@ -17,6 +19,9 @@ Usage:
 
     # Compile a model for faster inference
     model = compile_model(model, mode="reduce-overhead")
+
+    # Compile with a timeout to prevent hangs (NEM-4997)
+    model = compile_model_with_timeout(model, timeout_seconds=300.0)
 
     # Get optimal device map for multi-GPU or CPU offloading
     device_map = get_optimal_device_map(model_name)
@@ -40,6 +45,7 @@ TensorRT Optimization:
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import os
 from dataclasses import dataclass
@@ -189,6 +195,84 @@ def compile_model(
     except Exception as e:
         logger.warning(f"torch.compile failed, using uncompiled model: {e}")
         return model
+
+
+def compile_model_with_timeout(
+    model: ModelT,
+    mode: str | None = None,
+    timeout_seconds: float = 300.0,
+    fullgraph: bool = False,
+    dynamic: bool = True,
+    backend: str = "inductor",
+) -> ModelT:
+    """Compile a PyTorch model with a configurable timeout (NEM-4997).
+
+    This function wraps torch.compile() with a timeout mechanism to prevent
+    indefinite hangs during model compilation. If compilation exceeds the
+    timeout, the original uncompiled model is returned gracefully.
+
+    Args:
+        model: The PyTorch model to compile.
+        mode: Compilation mode. If None, uses get_compile_mode().
+              Options: "default", "reduce-overhead", "max-autotune"
+        timeout_seconds: Maximum time in seconds to wait for compilation.
+                        Default is 300 seconds (5 minutes).
+        fullgraph: If True, requires the entire model to be compilable.
+                   If False (default), allows graph breaks.
+        dynamic: If True (default), handles dynamic shapes efficiently.
+                 Set to False for fixed input shapes for better optimization.
+        backend: Compilation backend. Default "inductor" for best performance.
+
+    Returns:
+        The compiled model if compilation completes within the timeout,
+        otherwise the original uncompiled model.
+
+    Example:
+        >>> model = AutoModelForObjectDetection.from_pretrained(...)
+        >>> # Compile with 5 minute timeout (default)
+        >>> model = compile_model_with_timeout(model, mode="reduce-overhead")
+        >>>
+        >>> # Compile with custom 10 minute timeout
+        >>> model = compile_model_with_timeout(
+        ...     model, mode="max-autotune", timeout_seconds=600.0
+        ... )
+    """
+    if not is_compile_supported():
+        logger.info("Skipping torch.compile (not supported or disabled)")
+        return model
+
+    if mode is None:
+        mode = get_compile_mode()
+
+    def _compile() -> ModelT:
+        """Inner function to perform compilation in a thread."""
+        return torch.compile(  # type: ignore[call-overload, return-value, no-any-return]
+            model,
+            mode=mode,
+            fullgraph=fullgraph,
+            dynamic=dynamic,
+            backend=backend,
+        )
+
+    logger.info(
+        f"Compiling model with torch.compile(mode='{mode}', dynamic={dynamic}) "
+        f"with timeout={timeout_seconds}s"
+    )
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(_compile)
+        try:
+            compiled_model = future.result(timeout=timeout_seconds)
+            logger.info("Model compiled successfully")
+            return compiled_model
+        except concurrent.futures.TimeoutError:
+            logger.warning(
+                f"torch.compile timed out after {timeout_seconds}s, using uncompiled model"
+            )
+            return model
+        except Exception as e:
+            logger.warning(f"torch.compile failed: {e}, using uncompiled model")
+            return model
 
 
 def get_optimal_device_map(
@@ -434,7 +518,7 @@ def warmup_compiled_model(
 
     for i in range(num_warmup):
         try:
-            with torch.no_grad():
+            with torch.inference_mode():
                 # Call model with appropriate unpacking based on input type
                 _ = model(**sample_input) if isinstance(sample_input, dict) else model(sample_input)
             logger.debug(f"Warmup iteration {i + 1}/{num_warmup} complete")

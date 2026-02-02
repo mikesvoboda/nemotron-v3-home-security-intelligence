@@ -29,11 +29,21 @@ sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" "$NGINX_CONF"
 # =============================================================================
 # These location blocks serve the application when SSL is disabled.
 # When SSL is enabled, they are replaced with a redirect to HTTPS.
+#
+# Rate limiting is applied to prevent abuse and DoS attacks:
+# - API endpoints: 10r/s with burst=20 (protects backend)
+# - WebSocket: 5r/s with burst=10 (prevents connection storms)
+# - General: 30r/s with burst=50 (static assets, SPA routing)
+# - Health endpoint: NOT rate limited (container orchestration)
 HTTP_LOCATIONS='
     # Reverse proxy for AI audit evaluation endpoints (longer timeout for LLM calls)
     # AI audit evaluation makes 4 LLM calls (up to 120s each) and can take 60-480+ seconds
     # This location takes precedence over generic /api due to longer prefix match
     location ^~ /api/ai-audit {
+        # Rate limiting: 10 req/s with burst handling, returns 429 when exceeded
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+
         proxy_pass $backend_upstream;
         proxy_http_version 1.1;
         # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
@@ -53,6 +63,10 @@ HTTP_LOCATIONS='
     # The ^~ modifier ensures this prefix location takes precedence over regex locations
     # This prevents the static asset regex from accidentally matching /api/* paths
     location ^~ /api {
+        # Rate limiting: 10 req/s with burst handling, returns 429 when exceeded
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+
         proxy_pass $backend_upstream;
         proxy_http_version 1.1;
         # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
@@ -72,6 +86,11 @@ HTTP_LOCATIONS='
     # Uses $backend_upstream variable for dynamic DNS re-resolution
     # The ^~ modifier ensures this prefix location takes precedence over regex locations
     location ^~ /ws {
+        # Rate limiting: 5 req/s with burst handling, returns 429 when exceeded
+        # Lower rate than API to prevent WebSocket connection storms
+        limit_req zone=ws burst=10 nodelay;
+        limit_req_status 429;
+
         proxy_pass $backend_upstream;
         proxy_http_version 1.1;
 
@@ -98,6 +117,10 @@ HTTP_LOCATIONS='
     # This allows embedding Grafana dashboards in iframes from any host
     # Uses nginx variable for dynamic DNS re-resolution (survives container IP changes)
     location ^~ /grafana/ {
+        # Rate limiting: uses general zone for dashboard access
+        limit_req zone=general burst=50 nodelay;
+        limit_req_status 429;
+
         # Dynamic DNS resolution - re-resolves hostname on each request
         # This prevents 502 errors when Grafana container is recreated with new IP
         resolver __DNS_RESOLVER__ valid=10s ipv6=off;
@@ -124,13 +147,27 @@ HTTP_LOCATIONS='
     }
 
     # Cache static assets
+    # NOTE: nginx does NOT inherit add_header from parent blocks when location
+    # defines its own headers. Security headers must be explicitly repeated here.
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
-        add_header Cache-Control "public, immutable";
+        add_header Cache-Control "public, immutable" always;
+
+        # Security headers (must repeat from parent due to nginx inheritance rules)
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Resource-Policy "same-origin" always;
     }
 
     # Single Page Application routing
+    # Rate limiting: 30 req/s with burst handling for general traffic
     location / {
+        limit_req zone=general burst=50 nodelay;
+        limit_req_status 429;
+
         try_files $uri $uri/ /index.html;
     }
 '
@@ -142,12 +179,18 @@ HTTP_LOCATIONS='
 # IMPORTANT: API and WebSocket proxying is preserved on HTTP to avoid breaking
 # browser API calls when the page was loaded via HTTP redirect (NEM-3827).
 # The health check endpoint is exempted (it has higher priority with exact match).
+#
+# Rate limiting is applied to prevent abuse and DoS attacks (same as HTTP mode).
 HTTPS_REDIRECT_PORT="${FRONTEND_HTTPS_PORT:-8443}"
 HTTPS_REDIRECT='
     # Reverse proxy for AI audit evaluation endpoints (longer timeout for LLM calls)
     # AI audit evaluation makes 4 LLM calls (up to 120s each) and can take 60-480+ seconds
     # This location takes precedence over generic /api due to longer prefix match
     location ^~ /api/ai-audit {
+        # Rate limiting: 10 req/s with burst handling, returns 429 when exceeded
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+
         proxy_pass $backend_upstream;
         proxy_http_version 1.1;
         # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
@@ -166,6 +209,10 @@ HTTPS_REDIRECT='
     # Preserved on HTTP even with SSL enabled to avoid "Failed to fetch" errors (NEM-3827)
     # Uses $backend_upstream variable for dynamic DNS re-resolution
     location ^~ /api {
+        # Rate limiting: 10 req/s with burst handling, returns 429 when exceeded
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+
         proxy_pass $backend_upstream;
         proxy_http_version 1.1;
         # nosemgrep: generic.nginx.security.request-host-used - using $server_name is safe
@@ -184,6 +231,11 @@ HTTPS_REDIRECT='
     # Preserved on HTTP even with SSL enabled to avoid WebSocket reconnection issues (NEM-3827)
     # Uses validated upgrade header to prevent H2C smuggling attacks
     location ^~ /ws {
+        # Rate limiting: 5 req/s with burst handling, returns 429 when exceeded
+        # Lower rate than API to prevent WebSocket connection storms
+        limit_req zone=ws burst=10 nodelay;
+        limit_req_status 429;
+
         proxy_pass $backend_upstream;
         proxy_http_version 1.1;
 
@@ -207,6 +259,10 @@ HTTPS_REDIRECT='
     # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
     # Preserved on HTTP even with SSL enabled to allow Grafana embeds (NEM-3827)
     location ^~ /grafana/ {
+        # Rate limiting: uses general zone for dashboard access
+        limit_req zone=general burst=50 nodelay;
+        limit_req_status 429;
+
         resolver __DNS_RESOLVER__ valid=10s ipv6=off;
         set $grafana_upstream '"${GRAFANA_UPSTREAM}"';
         proxy_pass $grafana_upstream;
@@ -383,6 +439,14 @@ server {
     resolver ${RESOLVER:-127.0.0.11} valid=10s ipv6=off;
     set \$backend_upstream http://backend:8000;
 
+    # ==========================================================================
+    # Connection Limits (slowloris/DoS protection)
+    # ==========================================================================
+    # Per-IP: 100 connections allows multi-tab browsing while preventing abuse
+    limit_conn perip 100;
+    # Per-server: 1000 total connections protects against distributed attacks
+    limit_conn perserver 1000;
+
     # Enable gzip compression
     gzip on;
     gzip_vary on;
@@ -425,13 +489,19 @@ server {
     add_header Cross-Origin-Resource-Policy \"same-origin\" always;
 
     # ==========================================================================
-    # Location Blocks
+    # Location Blocks (with rate limiting for abuse prevention)
     # ==========================================================================
+    # Rate limiting: API=10r/s, WebSocket=5r/s, General=30r/s
+    # Health endpoint is NOT rate limited (container orchestration)
 
     # Reverse proxy for AI audit evaluation endpoints (longer timeout for LLM calls)
     # AI audit evaluation makes 4 LLM calls (up to 120s each) and can take 60-480+ seconds
     # This location takes precedence over generic /api due to longer prefix match
     location ^~ /api/ai-audit {
+        # Rate limiting: 10 req/s with burst handling, returns 429 when exceeded
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+
         proxy_pass \$backend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host \$server_name;
@@ -445,6 +515,10 @@ server {
 
     # Reverse proxy for API requests to backend
     location ^~ /api {
+        # Rate limiting: 10 req/s with burst handling, returns 429 when exceeded
+        limit_req zone=api burst=20 nodelay;
+        limit_req_status 429;
+
         proxy_pass \$backend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host \$server_name;
@@ -458,6 +532,11 @@ server {
 
     # Reverse proxy for WebSocket connections
     location ^~ /ws {
+        # Rate limiting: 5 req/s with burst handling, returns 429 when exceeded
+        # Lower rate than API to prevent WebSocket connection storms
+        limit_req zone=ws burst=10 nodelay;
+        limit_req_status 429;
+
         proxy_pass \$backend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$websocket_upgrade;
@@ -475,6 +554,10 @@ server {
     # Grafana is configured with GF_SERVER_SERVE_FROM_SUB_PATH=true, so it expects /grafana/ prefix
     # Uses nginx variable for dynamic DNS re-resolution (survives container IP changes)
     location ^~ /grafana/ {
+        # Rate limiting: uses general zone for dashboard access
+        limit_req zone=general burst=50 nodelay;
+        limit_req_status 429;
+
         set \$grafana_upstream ${GRAFANA_UPSTREAM};
         proxy_pass \$grafana_upstream;
         proxy_http_version 1.1;
@@ -491,17 +574,31 @@ server {
     }
 
     # Cache static assets
+    # NOTE: nginx does NOT inherit add_header from parent blocks when location
+    # defines its own headers. Security headers must be explicitly repeated here.
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
         expires 1y;
-        add_header Cache-Control \"public, immutable\";
+        add_header Cache-Control \"public, immutable\" always;
+
+        # Security headers (must repeat from parent due to nginx inheritance rules)
+        add_header X-Content-Type-Options \"nosniff\" always;
+        add_header X-Frame-Options \"SAMEORIGIN\" always;
+        add_header X-XSS-Protection \"1; mode=block\" always;
+        add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;
+        add_header Cross-Origin-Opener-Policy \"same-origin\" always;
+        add_header Cross-Origin-Resource-Policy \"same-origin\" always;
     }
 
     # Single Page Application routing
+    # Rate limiting: 30 req/s with burst handling for general traffic
     location / {
+        limit_req zone=general burst=50 nodelay;
+        limit_req_status 429;
+
         try_files \$uri \$uri/ /index.html;
     }
 
-    # Health check endpoint
+    # Health check endpoint - NOT rate limited (container orchestration)
     location = /health {
         access_log off;
         add_header Content-Type text/plain always;

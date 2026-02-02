@@ -441,6 +441,75 @@ class TestMessageBatcherConcurrency:
         assert total == 20
 
 
+class TestMessageBatcherTaskNaming:
+    """Tests for NEM-5057: asyncio.create_task() should have name parameter."""
+
+    @pytest.mark.asyncio
+    async def test_start_creates_named_task(self):
+        """Test that start() creates a task with a descriptive name for debugging."""
+        batcher = MessageBatcher(
+            batch_interval_ms=100,
+            max_batch_size=50,
+            batch_channels=["detections"],
+        )
+
+        await batcher.start()
+        try:
+            # Verify task exists and has a name
+            assert batcher._flush_task is not None
+            task_name = batcher._flush_task.get_name()
+            # Task should have a descriptive name for debugging
+            assert "batch" in task_name.lower() or "flush" in task_name.lower(), (
+                f"Task name should describe its purpose, got: {task_name}"
+            )
+        finally:
+            await batcher.stop()
+
+    @pytest.mark.asyncio
+    async def test_task_name_not_default(self):
+        """Test that the task has a custom name, not default Task-N."""
+        batcher = MessageBatcher(
+            batch_interval_ms=100,
+            max_batch_size=50,
+            batch_channels=["detections"],
+        )
+
+        await batcher.start()
+        try:
+            task_name = batcher._flush_task.get_name()
+            # Name should be descriptive - check it's not just "Task-N"
+            assert not task_name.startswith("Task-"), (
+                f"Task should have a custom name, not default Task-N: {task_name}"
+            )
+        finally:
+            await batcher.stop()
+
+
+class TestModuleLevelLockInitialization:
+    """Tests for NEM-5058: Race condition in singleton lock initialization."""
+
+    def test_batcher_lock_initialized_at_module_level(self):
+        """Test that _batcher_lock is initialized at module level, not lazily.
+
+        This prevents a race condition where two concurrent calls to
+        _get_batcher_lock() could both see _batcher_lock as None and
+        create separate Lock instances.
+        """
+        import backend.core.websocket.message_batcher as batcher_module
+
+        # The lock should already exist at module level
+        # We access the module attribute directly to verify initialization
+        assert hasattr(batcher_module, "_batcher_lock"), (
+            "_batcher_lock should be defined at module level"
+        )
+
+        # The lock should be an asyncio.Lock instance (not None)
+        assert isinstance(batcher_module._batcher_lock, asyncio.Lock), (
+            "_batcher_lock should be initialized as asyncio.Lock at module level, "
+            f"got: {type(batcher_module._batcher_lock)}"
+        )
+
+
 class TestModuleLevelFunctions:
     """Tests for module-level singleton functions."""
 

@@ -183,7 +183,8 @@ class MessageBatcher:
             return
 
         self._running = True
-        self._flush_task = asyncio.create_task(self._flush_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._flush_task = asyncio.create_task(self._flush_loop(), name="message-batcher-flush")
         logger.info(
             f"MessageBatcher started (interval={self.batch_interval_ms}ms, "
             f"max_size={self.max_batch_size}, channels={self.batch_channels})"
@@ -374,18 +375,18 @@ class MessageBatcher:
 
 # Module-level singleton instance
 _batcher: MessageBatcher | None = None
-_batcher_lock: asyncio.Lock | None = None
+# NEM-5058: Initialize lock at module level to prevent race condition.
+# Lazy initialization via _get_batcher_lock() was racy - two concurrent callers
+# could both see _batcher_lock as None and create separate Lock instances.
+_batcher_lock: asyncio.Lock = asyncio.Lock()
 
 
 def _get_batcher_lock() -> asyncio.Lock:
-    """Get or create the batcher initialization lock.
+    """Get the batcher initialization lock.
 
     Returns:
         asyncio.Lock for thread-safe batcher initialization
     """
-    global _batcher_lock  # noqa: PLW0603
-    if _batcher_lock is None:
-        _batcher_lock = asyncio.Lock()
     return _batcher_lock
 
 
@@ -449,7 +450,7 @@ def reset_message_batcher_state() -> None:
     """Reset global batcher state for testing.
 
     WARNING: Only use in tests. Clears the singleton without proper cleanup.
+    Note: Does not reset _batcher_lock since it's initialized at module level.
     """
-    global _batcher, _batcher_lock  # noqa: PLW0603
+    global _batcher  # noqa: PLW0603
     _batcher = None
-    _batcher_lock = None

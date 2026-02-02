@@ -370,7 +370,8 @@ class WorkerSupervisor:
         self._update_worker_pool_metrics()
 
         # Start monitor loop
-        self._monitor_task = asyncio.create_task(self._monitor_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._monitor_task = asyncio.create_task(self._monitor_loop(), name="worker-supervisor")
 
         logger.info("WorkerSupervisor started")
 

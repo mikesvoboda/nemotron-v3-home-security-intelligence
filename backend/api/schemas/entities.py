@@ -108,6 +108,101 @@ class EmbeddingVectorData(BaseModel):
     dimension: int = Field(..., description="Dimension of the embedding vector")
 
 
+class EntityMetadataSchema(BaseModel):
+    """Typed schema for the entity_metadata JSONB field (NEM-4843).
+
+    This schema provides type safety for the flexible metadata stored with entities.
+    All fields are optional to support various entity types and backward compatibility.
+    Extra fields are allowed for forward compatibility with new metadata attributes.
+
+    Common fields by entity type:
+    - Person: clothing_color, clothing_description, height_estimate, carrying_items
+    - Vehicle: vehicle_make, vehicle_model, vehicle_color, license_plate
+    - Animal: animal_type, breed, collar_color
+    """
+
+    model_config = ConfigDict(
+        extra="allow",  # Allow extra fields for forward compatibility
+        json_schema_extra={
+            "example": {
+                "clothing_color": "blue",
+                "clothing_description": "Blue jacket with jeans",
+                "height_estimate": "tall",
+                "vehicle_make": "Toyota",
+                "vehicle_model": "Camry",
+            }
+        },
+    )
+
+    # Person metadata fields
+    clothing_color: str | None = Field(
+        default=None,
+        description="Primary clothing color observed (e.g., 'blue', 'red')",
+    )
+    clothing_description: str | None = Field(
+        default=None,
+        description="Full description of clothing (e.g., 'Blue jacket with jeans')",
+    )
+    height_estimate: str | None = Field(
+        default=None,
+        description="Estimated height category (e.g., 'tall', 'medium', 'short')",
+    )
+    carrying_items: list[str] | None = Field(
+        default=None,
+        description="Items the person is carrying (e.g., ['backpack', 'briefcase'])",
+    )
+    face_visible: bool | None = Field(
+        default=None,
+        description="Whether the face was visible for potential recognition",
+    )
+
+    # Vehicle metadata fields
+    vehicle_make: str | None = Field(
+        default=None,
+        description="Vehicle manufacturer (e.g., 'Toyota', 'Ford')",
+    )
+    vehicle_model: str | None = Field(
+        default=None,
+        description="Vehicle model (e.g., 'Camry', 'F-150')",
+    )
+    vehicle_color: str | None = Field(
+        default=None,
+        description="Vehicle primary color (e.g., 'silver', 'black')",
+    )
+    license_plate: str | None = Field(
+        default=None,
+        description="License plate text if detected (e.g., 'ABC-1234')",
+    )
+    vehicle_type: str | None = Field(
+        default=None,
+        description="Vehicle category (e.g., 'sedan', 'suv', 'truck', 'van')",
+    )
+
+    # Animal/Pet metadata fields
+    animal_type: str | None = Field(
+        default=None,
+        description="Type of animal (e.g., 'dog', 'cat')",
+    )
+    breed: str | None = Field(
+        default=None,
+        description="Animal breed if identifiable (e.g., 'golden retriever')",
+    )
+    collar_color: str | None = Field(
+        default=None,
+        description="Color of collar if visible",
+    )
+
+    # Common fields
+    notes: str | None = Field(
+        default=None,
+        description="User-provided notes about this entity",
+    )
+    label: str | None = Field(
+        default=None,
+        description="User-assigned label for this entity (e.g., 'Mail Carrier')",
+    )
+
+
 class EntityBase(BaseModel):
     """Base schema for Entity with common fields.
 
@@ -831,3 +926,13 @@ class TrustedEntityListResponse(BaseModel):
         ..., description="List of entities with their trust status"
     )
     pagination: PaginationInfo = Field(..., description="Pagination metadata")
+
+
+# =============================================================================
+# EntityResponse - API Response Schema (NEM-4843)
+# =============================================================================
+# EntityResponse is the recommended schema for API responses representing Entity data.
+# It provides all fields from the database model with proper typing for OpenAPI generation.
+
+# Alias for EntityRead - they serve the same purpose
+EntityResponse = EntityRead

@@ -277,7 +277,7 @@ def warmup_compiled_model(
     logger.debug(f"Running {num_warmup} warmup iterations for compiled model")
 
     model.eval()
-    with torch.no_grad():
+    with torch.inference_mode():
         for i in range(num_warmup):
             _ = model(**sample_input) if isinstance(sample_input, dict) else model(sample_input)
             logger.debug(f"Warmup iteration {i + 1}/{num_warmup} complete")
@@ -390,7 +390,7 @@ def benchmark_compile_modes(
         # Warmup
         logger.debug(f"Warming up {mode_name} mode...")
         test_model.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             for _ in range(num_warmup):
                 if isinstance(sample_input, dict):
                     _ = test_model(**sample_input)
@@ -403,7 +403,7 @@ def benchmark_compile_modes(
 
         # Benchmark
         latencies = []
-        with torch.no_grad():
+        with torch.inference_mode():
             for _ in range(num_iterations):
                 start = time.perf_counter()
                 if isinstance(sample_input, dict):

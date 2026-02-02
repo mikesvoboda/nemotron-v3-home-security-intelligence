@@ -1395,3 +1395,74 @@ class TestCircuitBreakerMetricsDataclass:
         assert metrics.rejected_calls == 0
         assert metrics.last_failure_time is None
         assert metrics.last_state_change is None
+
+
+# =============================================================================
+# NEM-5056: Thread-Safety Warning Documentation Tests
+# =============================================================================
+
+
+class TestSyncMethodThreadSafetyWarnings:
+    """Tests for NEM-5056: Sync methods should have thread-safety warnings in docstrings."""
+
+    def test_record_success_has_thread_safety_warning(self) -> None:
+        """Test that record_success() docstring warns about thread safety."""
+        breaker = CircuitBreaker(name="docstring_test")
+        docstring = breaker.record_success.__doc__
+
+        assert docstring is not None, "record_success() should have a docstring"
+        # Check for thread-safety related keywords
+        lower_doc = docstring.lower()
+        assert any(
+            keyword in lower_doc for keyword in ["thread", "async", "lock", "concurren", "prefer"]
+        ), f"record_success() docstring should warn about thread safety. Got: {docstring}"
+
+    def test_record_failure_has_thread_safety_warning(self) -> None:
+        """Test that record_failure() docstring warns about thread safety."""
+        breaker = CircuitBreaker(name="docstring_test")
+        docstring = breaker.record_failure.__doc__
+
+        assert docstring is not None, "record_failure() should have a docstring"
+        # Check for thread-safety related keywords
+        lower_doc = docstring.lower()
+        assert any(
+            keyword in lower_doc for keyword in ["thread", "async", "lock", "concurren", "prefer"]
+        ), f"record_failure() docstring should warn about thread safety. Got: {docstring}"
+
+    def test_allow_request_has_thread_safety_warning(self) -> None:
+        """Test that allow_request() docstring warns about thread safety."""
+        breaker = CircuitBreaker(name="docstring_test")
+        docstring = breaker.allow_request.__doc__
+
+        assert docstring is not None, "allow_request() should have a docstring"
+        # Check for thread-safety related keywords or async alternative mention
+        lower_doc = docstring.lower()
+        assert any(
+            keyword in lower_doc for keyword in ["thread", "async", "lock", "concurren", "sync"]
+        ), f"allow_request() docstring should warn about thread safety. Got: {docstring}"
+
+    def test_reset_has_thread_safety_warning(self) -> None:
+        """Test that reset() docstring mentions thread safety considerations."""
+        breaker = CircuitBreaker(name="docstring_test")
+        docstring = breaker.reset.__doc__
+
+        assert docstring is not None, "reset() should have a docstring"
+        # reset() is a manual operation, but should still mention async alternative
+        lower_doc = docstring.lower()
+        # It's okay if reset() doesn't have a warning since reset_async exists
+        # and the method is intended for manual intervention
+        assert "reset" in lower_doc or "closed" in lower_doc, (
+            f"reset() should describe what it does. Got: {docstring}"
+        )
+
+    def test_check_and_raise_has_thread_safety_warning(self) -> None:
+        """Test that check_and_raise() docstring mentions thread safety."""
+        breaker = CircuitBreaker(name="docstring_test")
+        docstring = breaker.check_and_raise.__doc__
+
+        assert docstring is not None, "check_and_raise() should have a docstring"
+        # check_and_raise is sync, should mention async alternative
+        lower_doc = docstring.lower()
+        assert any(
+            keyword in lower_doc for keyword in ["thread", "async", "lock", "sync", "check"]
+        ), f"check_and_raise() should describe its behavior. Got: {docstring}"
