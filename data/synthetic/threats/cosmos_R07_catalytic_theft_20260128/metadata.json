@@ -1,24 +1,7 @@
 {
   "run_id": "20260128_170526",
   "source": "cosmos",
-<<<<<<<< HEAD:data/synthetic/normal/cosmos_P27_teenager_backpack_20260128/metadata.json
-  "video_id": "P27",
-  "scenario": "teenager_backpack",
-  "category": "normal",
-========
   "video_id": "R07",
   "scenario": "catalytic_theft",
-  "category": "threats",
->>>>>>>> b932b89e (fix: rename 26 synthetic video directories to match actual content):data/synthetic/threats/cosmos_R07_catalytic_theft_20260128/metadata.json
-  "format": "video",
-  "duration_sec": 5.8,
-  "resolution": "1280x704",
-  "fps": 16,
-  "generated_at": "2026-01-28T17:05:26.671662+00:00",
-  "files": ["media/P27_5s.mp4"],
-  "cosmos_metadata": {
-    "model": "Cosmos-Predict2.5-14B",
-    "seed": 0,
-    "guidance": 7
-  }
+  "category": "threats"
 }

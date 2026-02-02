@@ -1,15 +1,9 @@
 {
   "run_id": "20260128_170526",
   "source": "cosmos",
-<<<<<<<< HEAD:data/synthetic/normal/cosmos_P30_utility_worker_20260128/metadata.json
   "video_id": "P30",
   "scenario": "utility_worker",
   "category": "normal",
-========
-  "video_id": "R04",
-  "scenario": "vehicle_breakin",
-  "category": "threats",
->>>>>>>> b932b89e (fix: rename 26 synthetic video directories to match actual content):data/synthetic/threats/cosmos_R04_vehicle_breakin_20260128/metadata.json
   "format": "video",
   "duration_sec": 5.8,
   "resolution": "1280x704",

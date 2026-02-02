@@ -1,24 +1,7 @@
 {
   "run_id": "20260128_170526",
   "source": "cosmos",
-<<<<<<<< HEAD:data/synthetic/normal/cosmos_P29_service_worker_20260128/metadata.json
-  "video_id": "P29",
-  "scenario": "service_worker",
-  "category": "normal",
-========
   "video_id": "R05",
   "scenario": "car_handle_check",
-  "category": "threats",
->>>>>>>> b932b89e (fix: rename 26 synthetic video directories to match actual content):data/synthetic/threats/cosmos_R05_car_handle_check_20260128/metadata.json
-  "format": "video",
-  "duration_sec": 5.8,
-  "resolution": "1280x704",
-  "fps": 16,
-  "generated_at": "2026-01-28T17:05:26.672679+00:00",
-  "files": ["media/P29_5s.mp4"],
-  "cosmos_metadata": {
-    "model": "Cosmos-Predict2.5-14B",
-    "seed": 0,
-    "guidance": 7
-  }
+  "category": "threats"
 }
