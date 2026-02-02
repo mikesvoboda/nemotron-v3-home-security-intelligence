@@ -69,7 +69,7 @@ async def mqtt_broker_container():
     # Wait for broker to be ready
     import asyncio
 
-    await asyncio.sleep(2)  # broker startup time - integration test
+    await asyncio.sleep(2)  # intentional - broker startup time for integration test
 
     host = container.get_container_host_ip()
     port = int(container.get_exposed_port(1883))
@@ -205,7 +205,7 @@ async def test_full_publish_subscribe_flow(mqtt_client, second_mqtt_client):
     await mqtt_client.publish("events/test", test_payload)
 
     # Wait for message delivery
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # Process messages (this should be done by background task in real implementation)
     # For now, manually trigger processing
@@ -238,7 +238,7 @@ async def test_qos_0_delivery(mqtt_client, second_mqtt_client):
     # Publish with QoS 0
     await mqtt_client.publish("qos/test", {"qos": 0, "message": "fire and forget"}, qos=0)
 
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # Message may or may not be received (QoS 0 guarantee)
     # Just verify no errors occurred
@@ -263,7 +263,7 @@ async def test_qos_1_delivery(mqtt_client, second_mqtt_client):
     # Publish with QoS 1
     await mqtt_client.publish("qos/test", {"qos": 1, "message": "at least once"}, qos=1)
 
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # QoS 1 guarantees at least one delivery
     assert len(received_messages) >= 1
@@ -287,7 +287,7 @@ async def test_qos_2_delivery(mqtt_client, second_mqtt_client):
     # Publish with QoS 2
     await mqtt_client.publish("qos/test", {"qos": 2, "message": "exactly once"}, qos=2)
 
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # QoS 2 guarantees exactly one delivery
     # Note: In practice, need message deduplication in handler
@@ -327,7 +327,7 @@ async def test_retained_message(mqtt_client, mqtt_test_settings):
     await new_client.subscribe("status/system", message_handler)
 
     # Should receive retained message immediately
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     assert len(received_messages) > 0
     assert received_messages[0]["status"] == "online"
@@ -361,7 +361,7 @@ async def test_wildcard_subscription(mqtt_client, second_mqtt_client):
     for topic in topics:
         await mqtt_client.publish(topic, {"topic": topic})
 
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # Should receive all messages matching wildcard
     assert len(received_messages) >= len(topics)
@@ -390,7 +390,7 @@ async def test_single_level_wildcard(mqtt_client, second_mqtt_client):
     # This should NOT match (two levels)
     await mqtt_client.publish("commands/zones/1/group/arm", {"zone_id": 1})
 
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # Should receive only the two matching messages
     matching_topics = [msg["topic"] for msg in received_messages]
@@ -618,7 +618,7 @@ async def test_message_latency(mqtt_client, second_mqtt_client):
         await mqtt_client.publish("latency/test", {"message_id": i, "send_time": send_time})
         await asyncio.sleep(0.1)
 
-    await asyncio.sleep(1)  # message propagation - integration test
+    await asyncio.sleep(1)  # intentional - message propagation time for integration test
 
     # Verify latencies
     if latencies:
