@@ -2,7 +2,7 @@
   "id": "cosmos_P40_two_exit_vehicle",
   "category": "suspicious",
   "name": "Two Exit Vehicle",
-  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. The car parks, both driver and passenger exit and walk toward the house together. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high",
+  "description": "daytime driveway scene with two vehicles parked - a silver sedan and a dark red SUV. A person in red clothing stands between the vehicles having apparently exited one of them. View from vehicle-mounted camera. License plates visible, bright daylight conditions.",
   "source": "cosmos",
   "scene": {
     "location": "driveway",

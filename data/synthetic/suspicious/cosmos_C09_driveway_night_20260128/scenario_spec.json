@@ -2,7 +2,7 @@
   "id": "cosmos_C09_driveway_night",
   "category": "suspicious",
   "name": "Driveway Night",
-  "description": "Suburban home front porch at night during thunderstorm, viewed from an elevated vantage point near the door. A person runs to the door as lightning flashes illuminate the scene in bright strobes, dramatic contrast between dark and flash-lit moments. Static elevated viewpoint, IR-tinted footage with lightning flashes. Real-time speed, natural fluid motion at 1x playback rate.",
+  "description": "Suburban home front porch at night, viewed from an elevated vantage point. A person approaches the illuminated front door, with warm porch lighting contrasting against the dark surroundings. Landscaping lights visible in the yard. No visible storm effects in the generated footage.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",

@@ -2,7 +2,7 @@
   "id": "cosmos_P07_crouching",
   "category": "threats",
   "name": "Crouching",
-  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They crouch down near the door, staying low and out of direct light. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage qual",
+  "description": "Suburban home front porch at night with bright overhead porch light. Person in gray hoodie with hood up approaches and crouches down near the door. Face partially visible. Wide-angle doorbell camera perspective with fisheye distortion.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",

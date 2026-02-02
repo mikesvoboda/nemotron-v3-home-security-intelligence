@@ -2,7 +2,7 @@
   "id": "cosmos_P08_tool_visible",
   "category": "threats",
   "name": "Tool Visible",
-  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark clothing carrying what appears to be a pry bar or tool. They walk at normal pace toward the front door. Natural walking speed, arms swinging normally, continuous forward motion. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted footage",
+  "description": "Suburban home front yard at night with porch light. Person in dark clothing approaches house along the walkway, carrying an indistinct object at their side. Wide-angle elevated camera perspective.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",

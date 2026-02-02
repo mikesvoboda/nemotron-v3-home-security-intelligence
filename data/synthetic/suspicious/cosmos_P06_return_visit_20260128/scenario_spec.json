@@ -2,7 +2,7 @@
   "id": "cosmos_P06_return_visit",
   "category": "suspicious",
   "name": "Return Visit",
-  "description": "suburban home front porch, viewed from an elevated vantage point near the front door, looking outward at night. Single porch light provides harsh overhead illumination with deep shadows. A person in dark hoodie with hood pulled up, face obscured by hood, average build, moving with cautious purposeful gait. They return to the porch after briefly leaving, looking around more cautiously. Static downward-angled viewpoint, wide-angle with slight barrel distortion, fisheye edge distortion, IR-tinted f",
+  "description": "Suburban home front walkway at night, elevated view. A person in dark hoodie approaches the porch area. Face is partially visible. Porch light provides illumination. Two-story house visible in background.",
   "source": "cosmos",
   "scene": {
     "location": "front_porch",

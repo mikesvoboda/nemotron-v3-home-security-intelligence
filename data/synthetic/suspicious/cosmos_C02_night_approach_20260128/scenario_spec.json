@@ -1,21 +1,7 @@
 {
-  "id": "cosmos_C02_night_approach",
-  "category": "suspicious",
+  "id": "cosmos_C02_night_approach_20260128",
   "name": "Night Approach",
-  "description": "Suburban home driveway during active snowfall, viewed from an elevated position on the garage. A person walks up the snowy driveway as snowflakes fall heavily, reduced visibility, white specs throughout frame. Winter storm conditions. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate.",
-  "source": "cosmos",
-  "scene": {
-    "location": "driveway",
-    "camera_type": "security_camera",
-    "resolution": "720p"
-  },
-  "environment": {
-    "time_of_day": "day",
-    "weather": "clear"
-  },
-  "generation": {
-    "format": "video",
-    "duration_sec": 5.8,
-    "cosmos_prompt": "Suburban home driveway during active snowfall, viewed from an elevated position on the garage. A person walks up the snowy driveway as snowflakes fall heavily, reduced visibility, white specs throughout frame. Winter storm conditions. Static elevated viewpoint, muted winter colors. Real-time speed, natural fluid motion at 1x playback rate."
-  }
+  "category": "suspicious",
+  "description": "Suburban home driveway during daytime snowfall, viewed from a street-level perspective. A person walks up the brick paver driveway toward the garage as snow falls heavily, with snow accumulation visible on the ground, rooftops, and surroundings. Overcast winter conditions with reduced visibility.",
+  "cosmos_prompt": "Suburban home driveway during daytime snowfall, viewed from a street-level perspective. A person walks up the brick paver driveway toward the garage as snow falls heavily, with snow accumulation visible on the ground, rooftops, and surroundings. Overcast winter conditions with reduced visibility."
 }

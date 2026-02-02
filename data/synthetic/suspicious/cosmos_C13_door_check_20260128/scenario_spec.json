@@ -1,21 +1,7 @@
 {
-  "id": "cosmos_C13_door_check",
-  "category": "suspicious",
+  "id": "cosmos_C13_door_check_20260128",
   "name": "Door Check",
-  "description": "Suburban home driveway at midday, viewed from an elevated position on the garage. A group of five people walks toward the house, one person mostly hidden behind others, occasionally visible through gaps. Crowd occlusion challenge. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate.",
-  "source": "cosmos",
-  "scene": {
-    "location": "driveway",
-    "camera_type": "security_camera",
-    "resolution": "720p"
-  },
-  "environment": {
-    "time_of_day": "day",
-    "weather": "clear"
-  },
-  "generation": {
-    "format": "video",
-    "duration_sec": 5.8,
-    "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated position on the garage. A group of five people walks toward the house, one person mostly hidden behind others, occasionally visible through gaps. Crowd occlusion challenge. Static elevated viewpoint, clear daytime footage. Real-time speed, natural fluid motion at 1x playback rate."
-  }
+  "category": "suspicious",
+  "description": "Suburban home driveway at midday, viewed from an elevated drone/aerial position. A group of five people (family with children) stands on the driveway near a two-car garage. Colorful casual clothing visible. Clear daytime conditions.",
+  "cosmos_prompt": "Suburban home driveway at midday, viewed from an elevated drone/aerial position. A group of five people (family with children) stands on the driveway near a two-car garage. Colorful casual clothing visible. Clear daytime conditions."
 }

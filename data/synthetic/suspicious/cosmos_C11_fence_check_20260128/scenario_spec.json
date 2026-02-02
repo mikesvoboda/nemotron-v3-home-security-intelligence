@@ -1,21 +1,7 @@
 {
-  "id": "cosmos_C11_fence_check",
-  "category": "suspicious",
+  "id": "cosmos_C11_fence_check_20260128",
   "name": "Fence Check",
-  "description": "Suburban home front porch at night in rain, viewed from an elevated vantage point near the door. A person approaches holding a large umbrella that completely hides their face and upper body from the elevated camera angle. Face and body obscured by umbrella. Static elevated viewpoint, IR-tinted footage with rain. Real-time speed, natural fluid motion at 1x playback rate.",
-  "source": "cosmos",
-  "scene": {
-    "location": "front_porch",
-    "camera_type": "security_camera",
-    "resolution": "720p"
-  },
-  "environment": {
-    "time_of_day": "night",
-    "weather": "rain"
-  },
-  "generation": {
-    "format": "video",
-    "duration_sec": 5.8,
-    "cosmos_prompt": "Suburban home front porch at night in rain, viewed from an elevated vantage point near the door. A person approaches holding a large umbrella that completely hides their face and upper body from the elevated camera angle. Face and body obscured by umbrella. Static elevated viewpoint, IR-tinted footage with rain. Real-time speed, natural fluid motion at 1x playback rate."
-  }
+  "category": "suspicious",
+  "description": "Suburban home front porch at night in rain, viewed from an elevated vantage point. A person approaches the front door holding a large blue and white umbrella that partially obscures their face and body from the camera angle. The illuminated yellow door provides contrast against dark surroundings.",
+  "cosmos_prompt": "Suburban home front porch at night in rain, viewed from an elevated vantage point. A person approaches the front door holding a large blue and white umbrella that partially obscures their face and body from the camera angle. The illuminated yellow door provides contrast against dark surroundings."
 }

@@ -2,7 +2,7 @@
   "id": "cosmos_R15_lookout",
   "category": "threats",
   "name": "Lookout",
-  "description": "Suburban home side yard at night, viewed from a corner vantage point at the house edge. A person works on the garage side door with a pry bar, forcing it open, then slips inside the garage. Garage break-in. Static viewpoint, IR-tinted footage quality. Real-time speed, natural fluid motion at 1x playback rate.",
+  "description": "Suburban home garage at night, viewed from front yard. A person approaches the main garage door, manipulates the door mechanism to open it, then enters the garage. Garage break-in. Static viewpoint, IR-tinted footage quality.",
   "source": "cosmos",
   "scene": {
     "location": "side_yard",

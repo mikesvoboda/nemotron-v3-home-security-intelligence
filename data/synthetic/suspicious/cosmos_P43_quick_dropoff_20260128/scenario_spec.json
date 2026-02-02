@@ -2,7 +2,7 @@
   "id": "cosmos_P43_quick_dropoff",
   "category": "suspicious",
   "name": "Quick Dropoff",
-  "description": "suburban home driveway and front yard, viewed from an elevated position on the garage, looking down at the driveway at midday. Bright natural daylight with clear sky, well-lit scene with defined shadows. An unfamiliar dark sedan, license plate visible, tinted windows, parks in driveway. The car barely stops before passenger jumps out and runs to the door. Static elevated viewpoint, wide field of view covering driveway and street approach, slight barrel distortion at edges, Clear high-quality foo",
+  "description": "daytime driveway scene showing a dark maroon SUV viewed from a vehicle-mounted camera. A person is visible exiting from the passenger side of the vehicle. Suburban residential setting with green lawns, bright daylight conditions.",
   "source": "cosmos",
   "scene": {
     "location": "driveway",
