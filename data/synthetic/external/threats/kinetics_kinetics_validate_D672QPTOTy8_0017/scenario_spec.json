@@ -1,0 +1,20 @@
+{
+  "id": "kinetics_validate_D672QPTOTy8_0017",
+  "category": "threats",
+  "name": "Sword Fighting",
+  "description": "Person performing action: sword fighting. Video clip from YouTube (D672QPTOTy8), seconds 17-27.",
+  "source": "kinetics",
+  "scene": {
+    "location": "varies",
+    "camera_type": "varies",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 10.0
+  }
+}

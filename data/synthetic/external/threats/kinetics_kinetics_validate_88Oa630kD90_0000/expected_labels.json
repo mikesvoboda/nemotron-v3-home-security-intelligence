@@ -1,0 +1,36 @@
+{
+  "source": "kinetics",
+  "video_id": "kinetics_validate_88Oa630kD90_0000",
+  "category": "threats",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "breaking window",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 70,
+    "max_score": 90,
+    "level": "high"
+  },
+  "validation": {
+    "prompt_excerpt": "Person performing action: breaking glass. Video clip from YouTube (88Oa630kD90), seconds 0-10."
+  }
+}
