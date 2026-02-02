@@ -258,6 +258,7 @@ class FallbackQueue:
                 filepath = self._fallback_dir / filename
 
                 # Write item to disk
+                # nosemgrep: path-traversal-open - filepath from validated _fallback_dir + generated filename
                 with open(filepath, "w") as outfile:
                     json.dump(
                         {
@@ -297,6 +298,7 @@ class FallbackQueue:
                 oldest = files[0]
 
                 # Read and delete
+                # nosemgrep: path-traversal-open - oldest from glob of validated _fallback_dir
                 with open(oldest) as infile:
                     data = json.load(infile)
 
@@ -331,6 +333,7 @@ class FallbackQueue:
 
         for f in files:
             try:
+                # nosemgrep: path-traversal-open - f from glob of validated _fallback_dir
                 with open(f) as fp:
                     data = json.load(fp)
                     items.append(data.get("item", {}))
@@ -1063,7 +1066,8 @@ class DegradationManager:
             return
 
         self._running = True
-        self._task = asyncio.create_task(self._health_check_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._task = asyncio.create_task(self._health_check_loop(), name="degradation-manager")
         logger.info("DegradationManager started")
 
     async def stop(self) -> None:

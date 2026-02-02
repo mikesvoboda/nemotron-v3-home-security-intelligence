@@ -15,7 +15,7 @@
 
 import { useShallow } from 'zustand/react/shallow';
 
-import { createImmerSelectorStore, type ImmerSetState } from './middleware';
+import { createComputedSelector, createImmerSelectorStore, type ImmerSetState } from './middleware';
 
 import type { PrometheusAlertPayload, PrometheusAlertSeverity } from '../types/websocket-events';
 
@@ -222,49 +222,57 @@ export const usePrometheusAlertStore = createImmerSelectorStore<PrometheusAlertS
 );
 
 // ============================================================================
-// Selectors
+// Selectors (Memoized - NEM-5034)
 // ============================================================================
 
 /**
- * Selector for critical alerts.
+ * Memoized selector for critical alerts.
+ * Returns stable reference when alerts haven't changed.
  */
-export const selectCriticalAlerts = (state: PrometheusAlertState): StoredPrometheusAlert[] => {
-  return Object.values(state.alerts).filter((a) => a.severity === 'critical');
-};
+export const selectCriticalAlerts = createComputedSelector(
+  (state: PrometheusAlertState): StoredPrometheusAlert[] =>
+    Object.values(state.alerts).filter((a) => a.severity === 'critical')
+);
 
 /**
- * Selector for warning alerts.
+ * Memoized selector for warning alerts.
+ * Returns stable reference when alerts haven't changed.
  */
-export const selectWarningAlerts = (state: PrometheusAlertState): StoredPrometheusAlert[] => {
-  return Object.values(state.alerts).filter((a) => a.severity === 'warning');
-};
+export const selectWarningAlerts = createComputedSelector(
+  (state: PrometheusAlertState): StoredPrometheusAlert[] =>
+    Object.values(state.alerts).filter((a) => a.severity === 'warning')
+);
 
 /**
- * Selector for info alerts.
+ * Memoized selector for info alerts.
+ * Returns stable reference when alerts haven't changed.
  */
-export const selectInfoAlerts = (state: PrometheusAlertState): StoredPrometheusAlert[] => {
-  return Object.values(state.alerts).filter((a) => a.severity === 'info');
-};
+export const selectInfoAlerts = createComputedSelector(
+  (state: PrometheusAlertState): StoredPrometheusAlert[] =>
+    Object.values(state.alerts).filter((a) => a.severity === 'info')
+);
 
 /**
- * Selector for all alerts sorted by severity (critical first, then warning, then info).
+ * Memoized selector for all alerts sorted by severity (critical first, then warning, then info).
+ * Returns stable reference when alerts haven't changed.
  */
-export const selectAlertsSortedBySeverity = (
-  state: PrometheusAlertState
-): StoredPrometheusAlert[] => {
-  const severityOrder: Record<PrometheusAlertSeverity, number> = {
-    critical: 0,
-    warning: 1,
-    info: 2,
-  };
+export const selectAlertsSortedBySeverity = createComputedSelector(
+  (state: PrometheusAlertState): StoredPrometheusAlert[] => {
+    const severityOrder: Record<PrometheusAlertSeverity, number> = {
+      critical: 0,
+      warning: 1,
+      info: 2,
+    };
 
-  return Object.values(state.alerts).sort(
-    (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
-  );
-};
+    return Object.values(state.alerts).sort(
+      (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
+    );
+  }
+);
 
 /**
  * Selector for a specific alert by fingerprint.
+ * Not memoized as it returns a direct lookup (O(1) operation).
  */
 export const selectAlertByFingerprint = (
   state: PrometheusAlertState,
@@ -274,13 +282,37 @@ export const selectAlertByFingerprint = (
 };
 
 /**
- * Selector for alerts by alertname.
+ * Factory for creating memoized alert-by-name selectors.
+ * Each unique alertname gets its own memoized selector.
+ *
+ * @example
+ * ```typescript
+ * const selectHighCPUAlerts = createSelectAlertsByName('HighCPU');
+ * const alerts = selectHighCPUAlerts(state);
+ * ```
+ */
+const alertsByNameSelectors = new Map<
+  string,
+  (state: PrometheusAlertState) => StoredPrometheusAlert[]
+>();
+
+/**
+ * Memoized selector for alerts by alertname.
+ * Uses a factory pattern to cache selectors per alertname.
  */
 export const selectAlertsByName = (
   state: PrometheusAlertState,
   alertname: string
 ): StoredPrometheusAlert[] => {
-  return Object.values(state.alerts).filter((a) => a.alertname === alertname);
+  let selector = alertsByNameSelectors.get(alertname);
+  if (!selector) {
+    selector = createComputedSelector(
+      (s: PrometheusAlertState): StoredPrometheusAlert[] =>
+        Object.values(s.alerts).filter((a) => a.alertname === alertname)
+    );
+    alertsByNameSelectors.set(alertname, selector);
+  }
+  return selector(state);
 };
 
 /**

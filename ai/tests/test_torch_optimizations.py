@@ -27,6 +27,7 @@ from torch_optimizations import (
     BatchConfig,
     BatchProcessor,
     compile_model,
+    compile_model_with_timeout,
     get_optimal_device_map,
     get_torch_dtype_for_device,
     load_model_with_accelerate,
@@ -380,6 +381,194 @@ class TestWarmupCompiledModel:
 
         # Should not raise, just log warning
         warmup_compiled_model(mock_model, sample_input, num_warmup=2)
+
+
+class TestCompileModelWithTimeout:
+    """Tests for compile_model_with_timeout() function (NEM-4997)."""
+
+    def test_returns_original_model_when_compile_not_supported(self):
+        """Test that original model is returned when compilation is not supported."""
+        mock_model = MagicMock()
+
+        with patch("torch_optimizations.is_compile_supported", return_value=False):
+            result = compile_model_with_timeout(mock_model)
+            assert result is mock_model
+
+    def test_compiles_model_when_supported(self):
+        """Test that model is compiled when supported and completes within timeout."""
+        mock_model = MagicMock()
+        compiled_mock = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", return_value=compiled_mock) as mock_compile,
+        ):
+            result = compile_model_with_timeout(
+                mock_model, mode="reduce-overhead", timeout_seconds=300.0
+            )
+
+            mock_compile.assert_called_once_with(
+                mock_model,
+                mode="reduce-overhead",
+                fullgraph=False,
+                dynamic=True,
+                backend="inductor",
+            )
+            assert result is compiled_mock
+
+    def test_returns_original_on_compile_failure(self):
+        """Test that original model is returned when compilation fails."""
+        mock_model = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", side_effect=Exception("Compile error")),
+        ):
+            result = compile_model_with_timeout(mock_model)
+            assert result is mock_model
+
+    def test_returns_original_on_timeout(self):
+        """Test that original model is returned when compilation times out."""
+        import concurrent.futures
+        import time
+
+        mock_model = MagicMock()
+
+        def slow_compile(*args, **kwargs):
+            """Simulate a slow compilation that takes longer than timeout."""
+            time.sleep(2.0)  # Sleep longer than timeout
+            return MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", side_effect=slow_compile),
+        ):
+            # Use a very short timeout to trigger timeout behavior
+            result = compile_model_with_timeout(mock_model, timeout_seconds=0.1)
+            # Should return original model due to timeout
+            assert result is mock_model
+
+    def test_timeout_default_value(self):
+        """Test that default timeout is 300 seconds."""
+        mock_model = MagicMock()
+        compiled_mock = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", return_value=compiled_mock),
+            patch("concurrent.futures.ThreadPoolExecutor") as mock_executor_class,
+        ):
+            mock_executor = MagicMock()
+            mock_future = MagicMock()
+            mock_future.result.return_value = compiled_mock
+            mock_executor.submit.return_value = mock_future
+            mock_executor.__enter__ = MagicMock(return_value=mock_executor)
+            mock_executor.__exit__ = MagicMock(return_value=False)
+            mock_executor_class.return_value = mock_executor
+
+            compile_model_with_timeout(mock_model)
+
+            # Verify the future.result was called with default timeout
+            mock_future.result.assert_called_once_with(timeout=300.0)
+
+    def test_custom_timeout_value(self):
+        """Test that custom timeout value is used."""
+        mock_model = MagicMock()
+        compiled_mock = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", return_value=compiled_mock),
+            patch("concurrent.futures.ThreadPoolExecutor") as mock_executor_class,
+        ):
+            mock_executor = MagicMock()
+            mock_future = MagicMock()
+            mock_future.result.return_value = compiled_mock
+            mock_executor.submit.return_value = mock_future
+            mock_executor.__enter__ = MagicMock(return_value=mock_executor)
+            mock_executor.__exit__ = MagicMock(return_value=False)
+            mock_executor_class.return_value = mock_executor
+
+            compile_model_with_timeout(mock_model, timeout_seconds=600.0)
+
+            # Verify the future.result was called with custom timeout
+            mock_future.result.assert_called_once_with(timeout=600.0)
+
+    def test_passes_kwargs_to_compile(self):
+        """Test that additional kwargs are passed to torch.compile."""
+        mock_model = MagicMock()
+        compiled_mock = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", return_value=compiled_mock) as mock_compile,
+        ):
+            result = compile_model_with_timeout(
+                mock_model,
+                mode="max-autotune",
+                timeout_seconds=300.0,
+                fullgraph=True,
+                dynamic=False,
+                backend="cudagraphs",
+            )
+
+            mock_compile.assert_called_once_with(
+                mock_model,
+                mode="max-autotune",
+                fullgraph=True,
+                dynamic=False,
+                backend="cudagraphs",
+            )
+            assert result is compiled_mock
+
+    def test_uses_default_mode_when_none_provided(self):
+        """Test that default mode is used when None is provided."""
+        mock_model = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch_optimizations.get_compile_mode", return_value="default") as mock_mode,
+            patch("torch.compile", return_value=MagicMock()),
+        ):
+            compile_model_with_timeout(mock_model, mode=None)
+            mock_mode.assert_called_once()
+
+    def test_logs_warning_on_timeout(self, caplog):
+        """Test that a warning is logged when compilation times out."""
+        import logging
+        import time
+
+        mock_model = MagicMock()
+
+        def slow_compile(*args, **kwargs):
+            time.sleep(2.0)
+            return MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", side_effect=slow_compile),
+            caplog.at_level(logging.WARNING),
+        ):
+            compile_model_with_timeout(mock_model, timeout_seconds=0.1)
+
+        # Check that timeout warning was logged
+        assert any("timed out" in record.message.lower() for record in caplog.records)
+
+    def test_logs_warning_on_compile_error(self, caplog):
+        """Test that a warning is logged when compilation fails."""
+        import logging
+
+        mock_model = MagicMock()
+
+        with (
+            patch("torch_optimizations.is_compile_supported", return_value=True),
+            patch("torch.compile", side_effect=RuntimeError("Test compile error")),
+            caplog.at_level(logging.WARNING),
+        ):
+            compile_model_with_timeout(mock_model)
+
+        # Check that error warning was logged
+        assert any("failed" in record.message.lower() for record in caplog.records)
 
 
 class TestGetTorchDtypeForDevice:

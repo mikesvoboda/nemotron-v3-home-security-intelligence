@@ -146,6 +146,12 @@ export {
   // Compatibility functions
   getDashboardConfig,
   setDashboardConfig,
+
+  // Shallow hooks (Zustand 5 pattern)
+  useDashboardWidgets,
+  useDashboardTheme,
+  useDashboardRefreshInterval,
+  useDashboardConfigActions,
 } from './dashboard-config-store';
 
 // ============================================================================

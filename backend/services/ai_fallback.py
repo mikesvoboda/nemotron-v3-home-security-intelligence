@@ -321,7 +321,10 @@ class AIFallbackService:
             return
 
         self._running = True
-        self._health_check_task = asyncio.create_task(self._health_check_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._health_check_task = asyncio.create_task(
+            self._health_check_loop(), name="ai-fallback-health-check"
+        )
         logger.info("AIFallbackService started")
 
     async def stop(self) -> None:

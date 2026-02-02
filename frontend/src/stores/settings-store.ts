@@ -17,7 +17,7 @@
 import { produce, type Draft } from 'immer';
 import { create } from 'zustand';
 import { createJSONStorage, devtools, persist } from 'zustand/middleware';
-import { useShallow } from 'zustand/shallow';
+import { useShallow } from 'zustand/react/shallow';
 
 // ============================================================================
 // Types

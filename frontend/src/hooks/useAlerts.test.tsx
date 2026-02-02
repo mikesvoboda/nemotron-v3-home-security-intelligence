@@ -37,6 +37,7 @@ const createMockAlertResponse = (
   created_at: '2025-12-28T12:00:00Z',
   updated_at: '2025-12-28T12:01:00Z',
   delivered_at: '2025-12-28T12:00:30Z',
+  version_id: 1,
 });
 
 // MSW server setup

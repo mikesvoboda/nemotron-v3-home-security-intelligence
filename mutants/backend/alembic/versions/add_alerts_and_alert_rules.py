@@ -40,10 +40,18 @@ def upgrade() -> None:
         create_type=False,
     )
 
-    # Create enum types first
-    op.execute("CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical')")
+    # Create enum types first (idempotent - handles existing types gracefully)
     op.execute(
-        "CREATE TYPE alert_status AS ENUM ('pending', 'delivered', 'acknowledged', 'dismissed')"
+        "DO $$ BEGIN "
+        "CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical'); "
+        "EXCEPTION WHEN duplicate_object THEN null; "
+        "END $$;"
+    )
+    op.execute(
+        "DO $$ BEGIN "
+        "CREATE TYPE alert_status AS ENUM ('pending', 'delivered', 'acknowledged', 'dismissed'); "
+        "EXCEPTION WHEN duplicate_object THEN null; "
+        "END $$;"
     )
 
     # Create alert_rules table first (referenced by alerts)

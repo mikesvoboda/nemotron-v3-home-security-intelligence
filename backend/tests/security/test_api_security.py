@@ -274,6 +274,96 @@ class TestCORSHeaders:
             "CORS is reflecting arbitrary origins - security vulnerability"
         )
 
+    def test_cors_uses_explicit_headers_not_wildcard(self, security_client: TestClient):
+        """Test that CORS uses explicit allowed headers instead of wildcard.
+
+        NEM-5059: Using wildcard (*) for allowed headers is a security concern
+        as it permits any header to be sent in cross-origin requests. Explicit
+        headers should be defined to follow the principle of least privilege.
+
+        When wildcard is configured, CORS middleware reflects requested headers.
+        With an explicit list, only configured headers are allowed.
+        """
+        # Test with an arbitrary header that should NOT be allowed
+        # If wildcard is used, this header will be reflected back (security issue)
+        # If explicit list is used, only the configured headers will be allowed
+        test_header = "X-Arbitrary-Test-Header"
+        response = security_client.options(
+            "/api/cameras",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": test_header,
+            },
+        )
+
+        # Get the Access-Control-Allow-Headers response header
+        allow_headers = response.headers.get("Access-Control-Allow-Headers", "")
+
+        # The response should NOT reflect arbitrary headers (security check)
+        # With wildcard, the exact requested header would be reflected
+        # With explicit list, only configured headers are allowed
+        assert test_header.lower() not in allow_headers.lower(), (
+            f"CORS is reflecting arbitrary headers ('{test_header}' found in response). "
+            "This indicates allow_headers=['*'] is being used. "
+            "Use an explicit header list for security."
+        )
+
+    def test_cors_allowed_headers_include_required_headers(self, security_client: TestClient):
+        """Test that CORS allows the required API headers.
+
+        NEM-5059: Verify that all necessary headers for API functionality
+        are explicitly allowed in CORS configuration.
+        """
+        required_headers = ["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"]
+
+        for header in required_headers:
+            response = security_client.options(
+                "/api/cameras",
+                headers={
+                    "Origin": "http://localhost:3000",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": header,
+                },
+            )
+
+            # Preflight should succeed (200 or 204)
+            assert response.status_code in [200, 204], f"CORS preflight failed for header: {header}"
+
+            # The requested header should be allowed
+            allow_headers = response.headers.get("Access-Control-Allow-Headers", "")
+            assert header.lower() in allow_headers.lower(), (
+                f"Required header '{header}' not in CORS allowed headers. Got: {allow_headers}"
+            )
+
+    def test_cors_rejects_unauthorized_headers(self, security_client: TestClient):
+        """Test that CORS does not allow arbitrary/dangerous headers.
+
+        NEM-5059: With explicit header allowlist, arbitrary headers should
+        be rejected to prevent potential security issues.
+        """
+        # These are headers that should NOT be allowed in typical API usage
+        unauthorized_headers = ["X-Malicious-Header", "X-Forwarded-Host", "X-Internal-Token"]
+
+        for header in unauthorized_headers:
+            response = security_client.options(
+                "/api/cameras",
+                headers={
+                    "Origin": "http://localhost:3000",
+                    "Access-Control-Request-Method": "GET",
+                    "Access-Control-Request-Headers": header,
+                },
+            )
+
+            allow_headers = response.headers.get("Access-Control-Allow-Headers", "")
+
+            # Unauthorized headers should NOT be in the allowed headers response
+            # This verifies explicit header list is being used (not wildcard)
+            assert header.lower() not in allow_headers.lower(), (
+                f"Unauthorized header '{header}' should not be in CORS allowed headers. "
+                "This indicates allow_headers=['*'] may be configured."
+            )
+
 
 class TestSecurityHeaders:
     """Test presence of security headers in responses."""

@@ -16,7 +16,7 @@
 
 import { useShallow } from 'zustand/react/shallow';
 
-import { createImmerSelectorStore, type Draft, type ImmerSetState } from './middleware';
+import { createComputedSelector, createImmerSelectorStore, type Draft, type ImmerSetState } from './middleware';
 
 import type {
   WorkerType,
@@ -343,34 +343,41 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
 );
 
 // ============================================================================
-// Selectors
+// Selectors (Memoized - NEM-5034)
 // ============================================================================
 
 /**
- * Selector for workers with errors.
+ * Memoized selector for workers with errors.
+ * Returns stable reference when workers haven't changed.
  */
-export const selectErrorWorkers = (state: WorkerStatusState): WorkerStatus[] => {
-  return Object.values(state.workers).filter((w) => w.state === 'error');
-};
+export const selectErrorWorkers = createComputedSelector(
+  (state: WorkerStatusState): WorkerStatus[] =>
+    Object.values(state.workers).filter((w) => w.state === 'error')
+);
 
 /**
- * Selector for workers in warning state (stopped/restarting).
+ * Memoized selector for workers in warning state (stopped/restarting).
+ * Returns stable reference when workers haven't changed.
  */
-export const selectWarningWorkers = (state: WorkerStatusState): WorkerStatus[] => {
-  return Object.values(state.workers).filter(
-    (w) => w.state === 'stopped' || w.state === 'stopping' || w.state === 'starting'
-  );
-};
+export const selectWarningWorkers = createComputedSelector(
+  (state: WorkerStatusState): WorkerStatus[] =>
+    Object.values(state.workers).filter(
+      (w) => w.state === 'stopped' || w.state === 'stopping' || w.state === 'starting'
+    )
+);
 
 /**
- * Selector for running workers.
+ * Memoized selector for running workers.
+ * Returns stable reference when workers haven't changed.
  */
-export const selectRunningWorkers = (state: WorkerStatusState): WorkerStatus[] => {
-  return Object.values(state.workers).filter((w) => w.state === 'running');
-};
+export const selectRunningWorkers = createComputedSelector(
+  (state: WorkerStatusState): WorkerStatus[] =>
+    Object.values(state.workers).filter((w) => w.state === 'running')
+);
 
 /**
  * Selector for a specific worker by name.
+ * Not memoized as it returns a direct lookup (O(1) operation).
  */
 export const selectWorkerByName = (
   state: WorkerStatusState,
@@ -380,10 +387,28 @@ export const selectWorkerByName = (
 };
 
 /**
- * Selector for workers by type.
+ * Factory for creating memoized workers-by-type selectors.
+ * Each unique worker type gets its own memoized selector.
+ */
+const workersByTypeSelectors = new Map<
+  WorkerType,
+  (state: WorkerStatusState) => WorkerStatus[]
+>();
+
+/**
+ * Memoized selector for workers by type.
+ * Uses a factory pattern to cache selectors per worker type.
  */
 export const selectWorkersByType = (state: WorkerStatusState, type: WorkerType): WorkerStatus[] => {
-  return Object.values(state.workers).filter((w) => w.type === type);
+  let selector = workersByTypeSelectors.get(type);
+  if (!selector) {
+    selector = createComputedSelector(
+      (s: WorkerStatusState): WorkerStatus[] =>
+        Object.values(s.workers).filter((w) => w.type === type)
+    );
+    workersByTypeSelectors.set(type, selector);
+  }
+  return selector(state);
 };
 
 // ============================================================================

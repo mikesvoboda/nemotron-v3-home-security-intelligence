@@ -490,4 +490,126 @@ describe('prometheus-alert-store', () => {
       expect(Object.keys(newState.alerts)).toHaveLength(1);
     });
   });
+
+  describe('memoized selectors (NEM-5034)', () => {
+    beforeEach(() => {
+      const { handlePrometheusAlert } = usePrometheusAlertStore.getState();
+
+      handlePrometheusAlert(
+        createAlertPayload({
+          fingerprint: 'critical1',
+          alertname: 'HighCPU',
+          severity: 'critical',
+        })
+      );
+      handlePrometheusAlert(
+        createAlertPayload({
+          fingerprint: 'critical2',
+          alertname: 'HighMemory',
+          severity: 'critical',
+        })
+      );
+      handlePrometheusAlert(
+        createAlertPayload({
+          fingerprint: 'warning1',
+          alertname: 'HighDisk',
+          severity: 'warning',
+        })
+      );
+      handlePrometheusAlert(
+        createAlertPayload({ fingerprint: 'info1', alertname: 'InfoAlert', severity: 'info' })
+      );
+    });
+
+    it('selectCriticalAlerts returns stable reference when state unchanged', () => {
+      const state = usePrometheusAlertStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectCriticalAlerts(state);
+      const result2 = selectCriticalAlerts(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectWarningAlerts returns stable reference when state unchanged', () => {
+      const state = usePrometheusAlertStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectWarningAlerts(state);
+      const result2 = selectWarningAlerts(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectInfoAlerts returns stable reference when state unchanged', () => {
+      const state = usePrometheusAlertStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectInfoAlerts(state);
+      const result2 = selectInfoAlerts(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectAlertsSortedBySeverity returns stable reference when state unchanged', () => {
+      const state = usePrometheusAlertStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectAlertsSortedBySeverity(state);
+      const result2 = selectAlertsSortedBySeverity(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectAlertsByName returns stable reference when state unchanged', () => {
+      const state = usePrometheusAlertStore.getState();
+
+      // Call selector twice with same state and name
+      const result1 = selectAlertsByName(state, 'HighCPU');
+      const result2 = selectAlertsByName(state, 'HighCPU');
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectCriticalAlerts returns new reference when state changes', () => {
+      const state1 = usePrometheusAlertStore.getState();
+      const result1 = selectCriticalAlerts(state1);
+
+      // Add another alert
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({
+            fingerprint: 'critical3',
+            alertname: 'NewCritical',
+            severity: 'critical',
+          })
+        );
+      });
+
+      const state2 = usePrometheusAlertStore.getState();
+      const result2 = selectCriticalAlerts(state2);
+
+      // Should return different references (state changed)
+      expect(result1).not.toBe(result2);
+      expect(result2.length).toBe(3);
+    });
+
+    it('selectAlertsByName returns new reference for different alert names', () => {
+      const state = usePrometheusAlertStore.getState();
+
+      // Call selector with different names
+      const result1 = selectAlertsByName(state, 'HighCPU');
+      const result2 = selectAlertsByName(state, 'HighDisk');
+
+      // Should return different references (different parameters)
+      expect(result1).not.toBe(result2);
+      expect(result1[0].alertname).toBe('HighCPU');
+      expect(result2[0].alertname).toBe('HighDisk');
+    });
+  });
 });

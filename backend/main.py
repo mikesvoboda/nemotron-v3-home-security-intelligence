@@ -1179,18 +1179,25 @@ app.add_middleware(DeprecationMiddleware, config=_get_deprecation_config())
 # Note: Must be added AFTER DeprecationMiddleware so it can see the Deprecation header
 app.add_middleware(DeprecationLoggerMiddleware)
 
-# Security: Restrict CORS methods to only what's needed
-# Using explicit methods instead of wildcard "*" to follow least-privilege principle
+# Security: Restrict CORS methods and headers to only what's needed
+# Using explicit methods and headers instead of wildcards to follow least-privilege principle
+# NEM-5059: Explicit header allowlist prevents arbitrary headers in cross-origin requests
 # Note: When allow_credentials=True, allow_origins cannot be ["*"]
 # If "*" is in origins, we disable credentials to allow any origin
 _cors_origins = get_settings().cors_origins
 _allow_credentials = "*" not in _cors_origins
+# Explicit list of allowed headers for cross-origin requests
+# - Content-Type: Required for JSON API requests
+# - Authorization: Required for Bearer token authentication
+# - X-Request-ID: Used for request tracing and log correlation
+# - X-API-Key: Used for API key authentication
+_cors_allowed_headers = ["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=_allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=_cors_allowed_headers,
 )
 
 # Add security headers middleware for defense-in-depth

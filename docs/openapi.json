@@ -1332,7 +1332,8 @@
           "rule_id": "550e8400-e29b-41d4-a716-446655440000",
           "severity": "high",
           "status": "delivered",
-          "updated_at": "2025-12-28T12:01:00Z"
+          "updated_at": "2025-12-28T12:01:00Z",
+          "version_id": 1
         },
         "properties": {
           "channels": {
@@ -1415,6 +1416,12 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "version_id": {
+            "default": 1,
+            "description": "Optimistic locking version. Include in updates to prevent concurrent modification conflicts.",
+            "title": "Version Id",
+            "type": "integer"
           }
         },
         "required": [
@@ -14257,7 +14264,7 @@
                 "type": "null"
               }
             ],
-            "description": "Full prompt sent to Nemotron LLM (for debugging/improvement)",
+            "description": "Full prompt sent to Nemotron LLM (for debugging/improvement). DEFERRED: This field is not loaded by default in list queries. Use undefer() when querying.",
             "title": "Llm Prompt"
           },
           "notes": {
@@ -14281,7 +14288,7 @@
                 "type": "null"
               }
             ],
-            "description": "LLM reasoning for risk score",
+            "description": "LLM reasoning for risk score. DEFERRED: This field is not loaded by default in list queries to reduce memory usage. Use undefer() when querying to include it.",
             "title": "Reasoning"
           },
           "recommended_action": {

@@ -865,6 +865,148 @@ Mutation testing starts with well-tested utility modules:
 
 For detailed guidance, see [Mutation Testing Guide](../developer/patterns/mutation-testing.md).
 
+## Snapshot Testing with Syrupy (NEM-5021)
+
+Snapshot testing validates API response schemas by capturing structure-only snapshots. This detects breaking changes while ignoring dynamic data like timestamps and IDs.
+
+### When to Use Snapshot Testing
+
+- **API endpoints:** Validate response structure stays consistent
+- **Schema validation:** Detect unintended field additions/removals
+- **Regression prevention:** Catch breaking changes in CI
+
+### Basic Usage
+
+```python
+import pytest
+from syrupy.assertion import SnapshotAssertion
+from backend.tests.conftest import extract_schema
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_cameras_response_schema(
+    client,
+    snapshot: SnapshotAssertion,
+):
+    """Test GET /api/cameras response schema with snapshot."""
+    response = await client.get("/api/cameras")
+    assert response.status_code == 200
+
+    # Extract structure-only schema (types instead of values)
+    schema = extract_schema(response.json())
+    assert schema == snapshot
+```
+
+### Schema Extraction Utility
+
+The `extract_schema()` function recursively converts response data to type names:
+
+```python
+# Input
+{
+    "id": 123,
+    "name": "Camera 1",
+    "active": True,
+    "tags": ["indoor", "front"],
+    "created_at": "2024-01-01T00:00:00Z"
+}
+
+# Output (snapshot)
+{
+    "id": "int",
+    "name": "str",
+    "active": "bool",
+    "tags": ["str"],
+    "created_at": "str"
+}
+```
+
+### Parameters
+
+- `preserve_lengths=False`: Use first item as representative (default)
+- `preserve_lengths=True`: Preserve list lengths for validation
+
+```python
+# Default: [item1, item2] → [schema_of_item1]
+schema = extract_schema(data)
+
+# Preserve lengths: [item1, item2] → [schema1, schema2]
+schema = extract_schema(data, preserve_lengths=True)
+```
+
+### Updating Snapshots
+
+When schemas change intentionally:
+
+```bash
+# Run tests and review diff
+pytest backend/tests/integration/api/test_*_snapshots.py -v
+
+# Update snapshots after review
+pytest backend/tests/integration/api/test_*_snapshots.py --snapshot-update
+
+# Commit updated snapshots
+git add **/__snapshots__/
+git commit -m "Update API snapshots for schema change"
+```
+
+### Best Practices
+
+1. **Test all endpoints:** Create, Read, Update, Delete operations
+2. **Test error responses:** Validate error schema consistency
+3. **Test pagination:** Validate pagination metadata structure
+4. **Test empty responses:** Ensure empty lists maintain structure
+5. **Cross-endpoint consistency:** Validate same resource returns same schema
+
+### Example: Complete Endpoint Coverage
+
+```python
+# Success responses
+async def test_create_resource_schema(client, snapshot):
+    response = await client.post("/api/resource", json=data)
+    assert extract_schema(response.json()) == snapshot
+
+async def test_get_resource_schema(client, snapshot):
+    response = await client.get("/api/resource/1")
+    assert extract_schema(response.json()) == snapshot
+
+async def test_list_resources_schema(client, snapshot):
+    response = await client.get("/api/resource")
+    assert extract_schema(response.json()) == snapshot
+
+# Error responses
+async def test_not_found_error_schema(client, snapshot):
+    response = await client.get("/api/resource/999999")
+    assert response.status_code == 404
+    assert extract_schema(response.json()) == snapshot
+
+async def test_validation_error_schema(client, snapshot):
+    response = await client.post("/api/resource", json={})
+    assert response.status_code == 422
+    assert extract_schema(response.json()) == snapshot
+```
+
+### Snapshot Files Location
+
+Snapshots are stored in `__snapshots__/` directories:
+
+```
+backend/tests/integration/api/
+├── test_calibration_routes_snapshots.py
+├── test_feedback_routes_snapshots.py
+└── __snapshots__/
+    ├── test_calibration_routes_snapshots.ambr
+    └── test_feedback_routes_snapshots.ambr
+```
+
+### CI Integration
+
+Snapshots are automatically validated in CI:
+
+- **Test failures:** Indicate schema changes that need review
+- **Snapshot updates:** Must be committed with code changes
+- **Diff review:** Required for all snapshot updates in PRs
+
 ## Related Documentation
 
 - [Setup Guide](setup.md) - Development environment setup
