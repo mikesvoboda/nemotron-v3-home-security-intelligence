@@ -3339,7 +3339,7 @@ class EnrichmentPipeline:
             if path.suffix.lower() in VIDEO_MIME_TYPES:
                 return await self._extract_frame_from_video(path)
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, lambda: Image.open(path))
         except Exception as e:
             logger.warning(f"Failed to load image: {e}")
@@ -3379,7 +3379,7 @@ class EnrichmentPipeline:
                     return None
 
                 # Load the extracted frame as PIL Image
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 pil_image = await loop.run_in_executor(
                     None, lambda: Image.open(thumbnail_path).copy()
                 )
@@ -3442,7 +3442,7 @@ class EnrichmentPipeline:
                 )
                 return None
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(None, lambda: pil_image.crop((x1, y1, x2, y2)))
         except Exception as e:
             logger.warning(f"Failed to crop image: {e}")
@@ -3464,7 +3464,7 @@ class EnrichmentPipeline:
         results: list[LicensePlateResult] = []
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             detections = await loop.run_in_executor(
                 None, lambda: model.predict(image, verbose=False)
             )
@@ -3509,7 +3509,7 @@ class EnrichmentPipeline:
         results: list[FaceResult] = []
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             detections = await loop.run_in_executor(
                 None, lambda: model.predict(image, verbose=False)
             )
@@ -3552,7 +3552,7 @@ class EnrichmentPipeline:
             import numpy as np
 
             # Convert PIL to numpy for PaddleOCR
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def run_ocr() -> tuple[str, float]:
                 img_array = np.array(image)

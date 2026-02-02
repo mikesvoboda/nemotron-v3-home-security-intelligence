@@ -124,7 +124,7 @@ async def load_osnet_model(model_path: str) -> dict[str, Any]:
 
         logger.info(f"Loading OSNet-x0-25 model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             """Load model synchronously."""
@@ -307,7 +307,7 @@ async def extract_person_embedding(
         model = model_dict["model"]
         transform = model_dict["transform"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _extract() -> PersonEmbeddingResult:
             """Extract embedding synchronously."""
@@ -397,7 +397,7 @@ async def extract_person_embeddings_batch(
         model = model_dict["model"]
         transform = model_dict["transform"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _extract_batch() -> list[PersonEmbeddingResult]:
             """Extract embeddings for batch synchronously."""

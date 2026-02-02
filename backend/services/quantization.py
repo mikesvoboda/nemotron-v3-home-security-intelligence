@@ -524,7 +524,7 @@ async def apply_int8_quantization_async(
     Returns:
         QuantizationResult with the quantized model and metrics
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     if use_static and calibration_data is not None:
 

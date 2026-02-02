@@ -121,7 +121,7 @@ class RTSPTestService:
 
         try:
             # Run capture in thread pool to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             result = await asyncio.wait_for(
                 loop.run_in_executor(None, self._test_capture, rtsp_url, has_credentials),
                 timeout=self.CONNECTION_TIMEOUT,

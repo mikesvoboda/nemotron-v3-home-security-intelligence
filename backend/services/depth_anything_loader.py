@@ -190,7 +190,7 @@ async def load_depth_model(model_path: str) -> Any:
 
         logger.info(f"Loading Depth Anything V2 model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load_pipeline() -> Any:
             """Load depth estimation pipeline synchronously."""
@@ -513,7 +513,7 @@ async def analyze_depth(
         return DepthAnalysisResult()
 
     # Run depth estimation in executor (model inference is sync)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     def _estimate_depth() -> NDArray[np.float32]:
         """Run depth estimation synchronously."""

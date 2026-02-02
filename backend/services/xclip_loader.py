@@ -238,7 +238,7 @@ async def load_xclip_model(model_path: str) -> Any:
 
         logger.info(f"Loading X-CLIP model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         # Load model and processor in thread pool to avoid blocking
         def _load() -> dict[str, Any]:
@@ -446,7 +446,7 @@ async def classify_actions(
         model = model_dict["model"]
         processor = model_dict["processor"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify() -> dict[str, Any]:
             import numpy as np

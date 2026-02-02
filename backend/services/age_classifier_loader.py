@@ -142,7 +142,7 @@ async def load_age_classifier_model(model_path: str) -> dict[str, Any]:
 
         logger.info(f"Loading age classifier model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             """Load model and processor synchronously."""
@@ -230,7 +230,7 @@ async def classify_age(
         processor = model_dict["processor"]
         labels = model_dict["labels"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify() -> AgeClassificationResult:
             """Run classification synchronously."""
@@ -310,7 +310,7 @@ async def classify_ages_batch(
         processor = model_dict["processor"]
         labels = model_dict["labels"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify_batch() -> list[AgeClassificationResult]:
             """Run batch classification synchronously."""

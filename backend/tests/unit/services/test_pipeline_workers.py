@@ -65,8 +65,8 @@ async def wait_for_condition(
     Raises:
         TimeoutError: If the condition is not met within the timeout
     """
-    deadline = asyncio.get_event_loop().time() + timeout
-    while asyncio.get_event_loop().time() < deadline:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while asyncio.get_running_loop().time() < deadline:
         if condition():
             return True
         await asyncio.sleep(poll_interval)

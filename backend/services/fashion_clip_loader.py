@@ -299,7 +299,7 @@ async def load_fashion_clip_model(model_path: str) -> Any:
 
         logger.info(f"Loading FashionSigLIP model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             """Load model, preprocess, and tokenizer synchronously."""
@@ -387,7 +387,7 @@ async def classify_clothing(
         preprocess = model_dict["preprocess"]
         tokenizer = model_dict["tokenizer"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify() -> ClothingClassification:
             """Run classification synchronously."""
@@ -487,7 +487,7 @@ async def classify_clothing_batch(
         preprocess = model_dict["preprocess"]
         tokenizer = model_dict["tokenizer"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify_batch() -> list[ClothingClassification]:
             """Run batch classification synchronously."""
