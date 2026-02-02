@@ -7,9 +7,9 @@ name: Linear CI Status Sync
 # - When CI fails on main branch -> Create a new Linear issue to track the failure
 
 on:
-  # Triggered when CI workflow completes on a PR
+  # Triggered when CI or Deploy workflow completes
   workflow_run:
-    workflows: ['CI']
+    workflows: ['CI', 'Deploy']
     types: [completed]
 
   # Triggered when a PR is merged to main
