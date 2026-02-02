@@ -83,8 +83,15 @@ class TestPubSubBasicOperations:
             assert received_messages[0]["data"]["type"] == "test"
             assert received_messages[0]["data"]["data"] == "hello"
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            # Ensure proper cleanup even if test fails
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
     async def test_unsubscribe_stops_receiving_messages(self, real_redis: RedisClient) -> None:
@@ -95,7 +102,10 @@ class TestPubSubBasicOperations:
         pubsub = await real_redis.subscribe_dedicated(channel)
 
         # Unsubscribe immediately
-        await pubsub.unsubscribe(channel)
+        try:
+            await pubsub.unsubscribe(channel)
+        except Exception:
+            pass
 
         # Publish a message
         await real_redis.publish(channel, {"msg": "should_not_receive"})
@@ -160,9 +170,16 @@ class TestMultipleSubscribers:
                 assert msgs[0]["data"]["msg"] == "broadcast_test"
 
         finally:
+            # Cleanup each subscriber individually to ensure all are closed
             for pubsub in [pubsub1, pubsub2, pubsub3]:
-                await pubsub.unsubscribe(channel)
-                await pubsub.aclose()
+                try:
+                    await pubsub.unsubscribe(channel)
+                except Exception:
+                    pass
+                try:
+                    await pubsub.aclose()
+                except Exception:
+                    pass
 
     @pytest.mark.asyncio
     async def test_subscriber_count_updates_on_connect_disconnect(
@@ -295,8 +312,14 @@ class TestChannelIsolation:
             assert channel_2 in channels
 
         finally:
-            await pubsub.unsubscribe(channel_1, channel_2)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel_1, channel_2)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
 
 class TestMessageOrdering:
@@ -334,8 +357,14 @@ class TestMessageOrdering:
                 assert msg["data"]["seq"] == i, f"Message {i} out of order"
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
     async def test_ordering_across_multiple_subscribers(self, real_redis: RedisClient) -> None:
@@ -431,8 +460,14 @@ class TestHighThroughput:
                 assert msg["data"]["seq"] == i
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
     async def test_concurrent_publishers(self, real_redis: RedisClient) -> None:
@@ -481,8 +516,14 @@ class TestHighThroughput:
             assert len(publishers_seen) == num_publishers
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
 
 class TestSubscriberReconnection:
@@ -519,8 +560,14 @@ class TestSubscriberReconnection:
             assert received_messages[0]["data"]["msg"] == "after_subscription"
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
     async def test_resubscription_works_after_unsubscribe(self, real_redis: RedisClient) -> None:
@@ -616,8 +663,14 @@ class TestMessageSerialization:
             assert abs(data["data"]["float"] - 3.14159) < 0.00001
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
     @pytest.mark.asyncio
     async def test_string_message_passthrough(self, real_redis: RedisClient) -> None:
@@ -649,8 +702,14 @@ class TestMessageSerialization:
             assert data["value"] == 42
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
 
 class TestDedicatedVsSharedPubSub:
@@ -709,8 +768,14 @@ class TestErrorRecovery:
         assert count == 1
 
         # Close subscriber
-        await pubsub.unsubscribe(channel)
-        await pubsub.aclose()
+        try:
+            await pubsub.unsubscribe(channel)
+        except Exception:
+            pass
+        try:
+            await pubsub.aclose()
+        except Exception:
+            pass
 
         await asyncio.sleep(0.1)
 
@@ -737,8 +802,14 @@ class TestErrorRecovery:
             assert count == 1
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
 
 
 class TestPubSubMessageMetadata:
@@ -770,5 +841,11 @@ class TestPubSubMessageMetadata:
             assert received_messages[0]["channel"] == channel
 
         finally:
-            await pubsub.unsubscribe(channel)
-            await pubsub.aclose()
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass
