@@ -50,6 +50,14 @@ backend/data/thumbnails/*
 !backend/data/thumbnails/.gitkeep
 backend/data/security.db
 
+# External datasets (downloaded, not committed)
+data/external/.cache/
+data/external/*/raw/
+data/external/*/converted/
+data/external/*/LICENSE.txt
+data/external/*/manifest.json
+data/external/kinetics/security_classes.json
+
 # AI Models (large files)
 ai/rtdetr/weights/
 ai/nemotron/*.gguf

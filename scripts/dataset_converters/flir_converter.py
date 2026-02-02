@@ -141,7 +141,7 @@ class FLIRConverter(DatasetConverter):
                 # Convert annotations
                 sample = self._convert_image(
                     img_id=img_id,
-                    img_info=img_info,
+                    _img_info=img_info,
                     img_path=img_path,
                     annotations=img_annotations,
                     categories=categories,
