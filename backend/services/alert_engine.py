@@ -51,8 +51,8 @@ from backend.models import (
     PoseResult,
     ThreatDetection,
 )
+from backend.models.analytics_zone import PolygonZone
 from backend.models.enums import TrustStatus
-from backend.services import household_matcher_service
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.webhook_service import get_webhook_service
 
@@ -101,6 +101,14 @@ THREAT_SEVERITY_PRIORITY = {
 
 
 @dataclass(slots=True)
+class DwellTimeMatch:
+    """Captures zone_id and track_id from a dwell time match for dedup key generation."""
+
+    zone_id: int
+    track_id: int
+
+
+@dataclass(slots=True)
 class TriggeredRule:
     """Result of a rule evaluation that matched."""
 
@@ -110,6 +118,7 @@ class TriggeredRule:
     dedup_key: str = ""
     original_severity: AlertSeverity | None = None  # Severity before trust adjustment
     trust_adjusted: bool = False  # Whether severity was adjusted based on trust
+    dwell_time_match: DwellTimeMatch | None = None  # For zone_id/track_id in dedup keys
 
 
 @dataclass(slots=True)
@@ -205,13 +214,15 @@ class AlertRuleEngine:
 
         for rule in rules:
             try:
-                matches, conditions = await self._evaluate_rule(
+                matches, conditions, dwell_time_match = await self._evaluate_rule(
                     rule, event, detections, current_time
                 )
 
                 if matches:
                     # Check cooldown before adding to triggered list
-                    dedup_key = self._build_dedup_key(rule, event, detections)
+                    dedup_key = self._build_dedup_key(
+                        rule, event, detections, dwell_time_match=dwell_time_match
+                    )
                     is_in_cooldown = await self._check_cooldown(rule, dedup_key, current_time)
 
                     if is_in_cooldown:
@@ -240,6 +251,7 @@ class AlertRuleEngine:
                         dedup_key=dedup_key,
                         original_severity=original_severity,
                         trust_adjusted=trust_adjusted,
+                        dwell_time_match=dwell_time_match,
                     )
                     result.triggered_rules.append(triggered)
 
@@ -423,38 +435,39 @@ class AlertRuleEngine:
         event: Event,
         detections: list[Detection],
         current_time: datetime,
-    ) -> tuple[bool, list[str]]:
+    ) -> tuple[bool, list[str], DwellTimeMatch | None]:
         """Evaluate a single rule against an event.
 
         All conditions must match (AND logic).
 
         Returns:
-            Tuple of (matches, list of matched condition descriptions)
+            Tuple of (matches, list of matched condition descriptions, optional dwell time match)
         """
         matched_conditions: list[str] = []
+        dwell_time_match: DwellTimeMatch | None = None
 
         # Check risk threshold
         if rule.risk_threshold is not None:
             if event.risk_score is None or event.risk_score < rule.risk_threshold:
-                return False, []
+                return False, [], None
             matched_conditions.append(f"risk_score >= {rule.risk_threshold}")
 
         # Check camera IDs
         if rule.camera_ids:
             if event.camera_id not in rule.camera_ids:
-                return False, []
+                return False, [], None
             matched_conditions.append(f"camera_id in {rule.camera_ids}")
 
         # Check object types
         if rule.object_types:
             if not self._check_object_types(rule.object_types, detections):
-                return False, []
+                return False, [], None
             matched_conditions.append(f"object_type in {rule.object_types}")
 
         # Check minimum confidence
         if rule.min_confidence is not None:
             if not self._check_min_confidence(rule.min_confidence, detections):
-                return False, []
+                return False, [], None
             matched_conditions.append(f"confidence >= {rule.min_confidence}")
 
         # Check zone IDs
@@ -467,46 +480,46 @@ class AlertRuleEngine:
         # Check schedule
         if rule.schedule:
             if not self._check_schedule(rule.schedule, current_time):
-                return False, []
+                return False, [], None
             matched_conditions.append("within_schedule")
 
         # =========================================================================
-        # New Alert Condition Types (NEM-5085)
+        # New Alert Condition Types (NEM-5019, NEM-5107)
         # =========================================================================
 
-        # Check dwell time condition
-        if rule.dwell_threshold_seconds is not None:
-            dwell_matched = await self._check_dwell_time(rule, event, detections)
-            if not dwell_matched:
-                return False, []
-            matched_conditions.append(f"dwell_time >= {rule.dwell_threshold_seconds}s")
+        # Check dwell time / loitering (uses zone's loitering_threshold_seconds)
+        if rule.dwell_time_enabled:
+            matches, details, dwell_time_match = await self._check_dwell_time(rule, event)
+            if not matches:
+                return False, [], None
+            matched_conditions.extend(details)
 
         # Check pose type condition
         if rule.pose_types:
             pose_matched = await self._check_pose_type(rule, detections)
             if not pose_matched:
-                return False, []
+                return False, [], None
             matched_conditions.append(f"pose_type in {rule.pose_types}")
 
         # Check action type condition
         if rule.action_types:
             action_matched = await self._check_action_type(rule, detections)
             if not action_matched:
-                return False, []
+                return False, [], None
             matched_conditions.append(f"action_type in {rule.action_types}")
 
         # Check threat detection condition
         if rule.threat_detection_enabled:
             threat_matched = await self._check_threat_detected(rule, detections)
             if not threat_matched:
-                return False, []
+                return False, [], None
             matched_conditions.append("threat_detected")
 
         # Check smoke/fire condition
         if rule.smoke_fire_detection_enabled:
             smoke_fire_matched = await self._check_smoke_fire(rule, detections)
             if not smoke_fire_matched:
-                return False, []
+                return False, [], None
             matched_conditions.append("smoke_fire_detected")
 
         # If we get here, all conditions matched (or no conditions were specified)
@@ -514,7 +527,7 @@ class AlertRuleEngine:
         if not matched_conditions:
             matched_conditions.append("no_conditions (always matches)")
 
-        return True, matched_conditions
+        return True, matched_conditions, dwell_time_match
 
     def _check_object_types(self, required_types: list[str], detections: list[Detection]) -> bool:
         """Check if any detection has a matching object type."""
@@ -538,75 +551,99 @@ class AlertRuleEngine:
         return False
 
     # =========================================================================
-    # New Alert Condition Check Methods (NEM-5085)
+    # New Alert Condition Check Methods (NEM-5019, NEM-5107)
     # =========================================================================
 
     async def _check_dwell_time(
         self,
         rule: AlertRule,
         event: Event,
-        detections: list[Detection],  # noqa: ARG002 - reserved for future zone matching
-    ) -> bool:
-        """Check if dwell time condition is met.
+    ) -> tuple[bool, list[str], DwellTimeMatch | None]:
+        """Check if any detection exceeds zone loitering threshold.
 
-        Queries DwellTimeRecord for entries matching the event's camera and
-        optionally filtered by zone_ids. Returns True if any dwell record
-        exceeds the threshold.
+        Queries active dwell time records (where exit_time IS NULL) and checks
+        if any object has been dwelling longer than the zone's configured
+        loitering_threshold_seconds.
 
         Args:
-            rule: The alert rule with dwell_threshold_seconds set
+            rule: The alert rule being evaluated
             event: The event being evaluated
-            detections: List of detections for the event
 
         Returns:
-            True if dwell time exceeds threshold, False otherwise
+            Tuple of (matches, details, dwell_time_match) where matches is True if any zone has
+            loitering that exceeds the threshold, details lists the matched
+            zone names and dwell times, and dwell_time_match contains the first matched
+            zone_id and track_id for dedup key generation.
         """
-        if rule.dwell_threshold_seconds is None:
-            return False
+        details: list[str] = []
+        dwell_time_match: DwellTimeMatch | None = None
 
-        # Build query for DwellTimeRecord
-        stmt = (
-            select(DwellTimeRecord)
-            .where(DwellTimeRecord.camera_id == event.camera_id)
-            .where(DwellTimeRecord.triggered_alert.is_(False))
-        )
-
-        # Filter by zone_ids if specified
+        # Get zone IDs to check - if rule.zone_ids is empty/None, get all zones
+        # with active dwell records for the event's camera
         if rule.zone_ids:
-            # Convert zone_ids to integers if they're strings
-            zone_ids = [int(z) if isinstance(z, str) else z for z in rule.zone_ids]
-            stmt = stmt.where(DwellTimeRecord.zone_id.in_(zone_ids))
+            zone_ids = rule.zone_ids
+        else:
+            # Query all zones with active dwell records for this camera
+            stmt = (
+                select(DwellTimeRecord.zone_id)
+                .where(DwellTimeRecord.camera_id == event.camera_id)
+                .where(DwellTimeRecord.exit_time.is_(None))
+                .distinct()
+            )
+            result = await self.session.execute(stmt)
+            zone_ids = list(result.scalars().all())
 
-        result = await self.session.execute(stmt)
-        dwell_records = list(result.scalars().all())
+        if not zone_ids:
+            return False, [], None
 
-        if not dwell_records:
-            return False
+        # Get current time for dwell calculation
+        current_time = utc_now_naive()
 
-        # Apply Python-level filtering for threshold
-        # (This ensures tests with mocked database work correctly)
-        threshold = rule.dwell_threshold_seconds
-        matching_records = [
-            r for r in dwell_records if r.total_seconds is not None and r.total_seconds >= threshold
-        ]
+        # Query zones with their loitering thresholds
+        zones_stmt = select(PolygonZone).where(
+            PolygonZone.id.in_(zone_ids),
+            PolygonZone.loitering_alert_enabled.is_(True),
+        )
+        zones_result = await self.session.execute(zones_stmt)
+        zones = {z.id: z for z in zones_result.scalars().all()}
 
-        if not matching_records:
-            return False
+        if not zones:
+            return False, [], None
 
-        # Check household exclusion if enabled
-        if rule.exclude_household_members:
-            for record in matching_records:
-                # Check if this dwell record is from a household member
-                is_household = await household_matcher_service.check_household_match(
-                    self.session, record.track_id, record.camera_id
-                )
-                if not is_household:
-                    # Found a dwell record that's NOT a household member
-                    return True
-            # All dwell records are from household members
-            return False
+        matched = False
 
-        return True
+        for zone_id, zone in zones.items():
+            # Query active dwell records for this zone
+            dwell_stmt = (
+                select(DwellTimeRecord)
+                .where(DwellTimeRecord.zone_id == zone_id)
+                .where(DwellTimeRecord.exit_time.is_(None))
+            )
+            dwell_result = await self.session.execute(dwell_stmt)
+            active_records = dwell_result.scalars().all()
+
+            for record in active_records:
+                dwell_seconds = record.calculate_dwell_time(current_time)
+                if dwell_seconds >= zone.loitering_threshold_seconds:
+                    matched = True
+                    # Capture the first match for dedup key generation
+                    if dwell_time_match is None:
+                        dwell_time_match = DwellTimeMatch(
+                            zone_id=zone_id,
+                            track_id=record.track_id,
+                        )
+                    details.append(
+                        f"loitering_in_zone:{zone.name}:{dwell_seconds:.0f}s"
+                        f"(threshold:{zone.loitering_threshold_seconds:.0f}s)"
+                    )
+                    logger.debug(
+                        f"Loitering detected for rule {rule.id}: "
+                        f"track {record.track_id} in zone {zone.name} "
+                        f"for {dwell_seconds:.1f}s "
+                        f"(threshold: {zone.loitering_threshold_seconds}s)"
+                    )
+
+        return matched, details, dwell_time_match
 
     async def _check_pose_type(
         self,
@@ -907,6 +944,8 @@ class AlertRuleEngine:
         rule: AlertRule,
         event: Event,
         detections: list[Detection],
+        *,
+        dwell_time_match: DwellTimeMatch | None = None,
     ) -> str:
         """Build a deduplication key using the rule's template.
 
@@ -914,6 +953,8 @@ class AlertRuleEngine:
         - {camera_id}: The event's camera ID
         - {rule_id}: The rule's ID
         - {object_type}: First detected object type (or "unknown")
+        - {zone_id}: Zone ID from dwell time match (or empty string if not available)
+        - {track_id}: Track ID from dwell time match (or empty string if not available)
         """
         template = rule.dedup_key_template or "{camera_id}:{rule_id}"
 
@@ -922,11 +963,17 @@ class AlertRuleEngine:
         if detections and detections[0].object_type:
             object_type = detections[0].object_type
 
+        # Get zone_id and track_id from dwell time match (for loitering alerts)
+        zone_id = str(dwell_time_match.zone_id) if dwell_time_match else ""
+        track_id = str(dwell_time_match.track_id) if dwell_time_match else ""
+
         try:
             return template.format(
                 camera_id=event.camera_id,
                 rule_id=str(rule.id),
                 object_type=object_type,
+                zone_id=zone_id,
+                track_id=track_id,
             )
         except KeyError as e:
             logger.warning(f"Invalid dedup_key_template variable: {e}")
@@ -1079,7 +1126,9 @@ class AlertRuleEngine:
         results = []
         for event in events:
             detections = detections_by_event.get(event.id, [])
-            matches, conditions = await self._evaluate_rule(rule, event, detections, current_time)
+            matches, conditions, _dwell_match = await self._evaluate_rule(
+                rule, event, detections, current_time
+            )
 
             results.append(
                 {

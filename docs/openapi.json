@@ -1527,6 +1527,7 @@
           "cooldown_seconds": 300,
           "dedup_key_template": "{camera_id}:{rule_id}",
           "description": "High-priority alert for person detection at night",
+          "dwell_time_enabled": false,
           "enabled": true,
           "min_confidence": 0.8,
           "name": "Night Intruder Alert",
@@ -1650,6 +1651,12 @@
             ],
             "description": "Dwell time threshold in seconds (alert when exceeded)",
             "title": "Dwell Threshold Seconds"
+          },
+          "dwell_time_enabled": {
+            "default": false,
+            "description": "Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.",
+            "title": "Dwell Time Enabled",
+            "type": "boolean"
           },
           "enabled": {
             "default": true,
@@ -1916,6 +1923,7 @@
           "created_at": "2025-12-28T12:00:00Z",
           "dedup_key_template": "{camera_id}:{rule_id}",
           "description": "High-priority alert for person detection at night",
+          "dwell_time_enabled": false,
           "enabled": true,
           "id": "550e8400-e29b-41d4-a716-446655440000",
           "min_confidence": 0.8,
@@ -2040,6 +2048,12 @@
             ],
             "description": "Dwell time threshold in seconds",
             "title": "Dwell Threshold Seconds"
+          },
+          "dwell_time_enabled": {
+            "default": false,
+            "description": "Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.",
+            "title": "Dwell Time Enabled",
+            "type": "boolean"
           },
           "enabled": {
             "description": "Whether the rule is active",
@@ -2317,6 +2331,7 @@
         "description": "Schema for updating an alert rule (PATCH).\n\nOnly provided fields will be updated. Null values clear the field.",
         "example": {
           "cooldown_seconds": 600,
+          "dwell_time_enabled": true,
           "enabled": false,
           "risk_threshold": 80
         },
@@ -2441,6 +2456,18 @@
             ],
             "description": "Dwell time threshold in seconds",
             "title": "Dwell Threshold Seconds"
+          },
+          "dwell_time_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.",
+            "title": "Dwell Time Enabled"
           },
           "enabled": {
             "anyOf": [
@@ -28554,6 +28581,7 @@
           "camera_id": "front_door",
           "color": "#FF0000",
           "is_active": true,
+          "loitering_threshold_seconds": 60.0,
           "name": "Restricted Area",
           "polygon": [
             [
@@ -28605,6 +28633,14 @@
             "description": "Whether the zone is actively monitoring",
             "title": "Is Active",
             "type": "boolean"
+          },
+          "loitering_threshold_seconds": {
+            "default": 60.0,
+            "description": "Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.",
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Loitering Threshold Seconds",
+            "type": "number"
           },
           "name": {
             "description": "Descriptive name for the polygon zone",
@@ -28660,6 +28696,7 @@
               "current_count": 0,
               "id": 1,
               "is_active": true,
+              "loitering_threshold_seconds": 60.0,
               "name": "Restricted Area",
               "polygon": [
                 [
@@ -28719,6 +28756,7 @@
           "current_count": 0,
           "id": 1,
           "is_active": true,
+          "loitering_threshold_seconds": 60.0,
           "name": "Restricted Area",
           "polygon": [
             [
@@ -28787,6 +28825,14 @@
             "title": "Is Active",
             "type": "boolean"
           },
+          "loitering_threshold_seconds": {
+            "default": 60.0,
+            "description": "Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.",
+            "maximum": 3600.0,
+            "minimum": 0.0,
+            "title": "Loitering Threshold Seconds",
+            "type": "number"
+          },
           "name": {
             "description": "Descriptive name for the polygon zone",
             "maxLength": 100,
@@ -28845,6 +28891,7 @@
         "example": {
           "alert_threshold": 2,
           "is_active": false,
+          "loitering_threshold_seconds": 120.0,
           "name": "Updated Restricted Area"
         },
         "properties": {
@@ -28885,6 +28932,20 @@
             ],
             "description": "Whether the zone is actively monitoring",
             "title": "Is Active"
+          },
+          "loitering_threshold_seconds": {
+            "anyOf": [
+              {
+                "maximum": 3600.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.",
+            "title": "Loitering Threshold Seconds"
           },
           "name": {
             "anyOf": [

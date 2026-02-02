@@ -250,6 +250,7 @@ class PolygonZoneBase(BaseModel):
                 "target_classes": ["person"],
                 "color": "#FF0000",
                 "is_active": True,
+                "loitering_threshold_seconds": 60.0,
             }
         }
     )
@@ -286,6 +287,13 @@ class PolygonZoneBase(BaseModel):
     is_active: bool = Field(
         default=True,
         description="Whether the zone is actively monitoring",
+    )
+    loitering_threshold_seconds: float = Field(
+        default=60.0,
+        ge=0,
+        le=3600,
+        description="Loitering threshold in seconds (0-3600). "
+        "Objects present longer than this trigger loitering alerts.",
     )
 
     @field_validator("polygon")
@@ -329,6 +337,7 @@ class PolygonZoneCreate(PolygonZoneBase):
                 "target_classes": ["person"],
                 "color": "#FF0000",
                 "is_active": True,
+                "loitering_threshold_seconds": 60.0,
             }
         }
     )
@@ -353,6 +362,7 @@ class PolygonZoneUpdate(BaseModel):
                 "name": "Updated Restricted Area",
                 "alert_threshold": 2,
                 "is_active": False,
+                "loitering_threshold_seconds": 120.0,
             }
         }
     )
@@ -389,6 +399,13 @@ class PolygonZoneUpdate(BaseModel):
     is_active: bool | None = Field(
         None,
         description="Whether the zone is actively monitoring",
+    )
+    loitering_threshold_seconds: float | None = Field(
+        None,
+        ge=0,
+        le=3600,
+        description="Loitering threshold in seconds (0-3600). "
+        "Objects present longer than this trigger loitering alerts.",
     )
 
     @field_validator("polygon")
@@ -439,6 +456,7 @@ class PolygonZoneResponse(PolygonZoneBase):
                 "target_classes": ["person"],
                 "color": "#FF0000",
                 "is_active": True,
+                "loitering_threshold_seconds": 60.0,
                 "current_count": 0,
                 "created_at": "2026-01-26T10:00:00Z",
             }
@@ -468,6 +486,7 @@ class PolygonZoneListResponse(BaseModel):
                         "target_classes": ["person"],
                         "color": "#FF0000",
                         "is_active": True,
+                        "loitering_threshold_seconds": 60.0,
                         "current_count": 0,
                         "created_at": "2026-01-26T10:00:00Z",
                     }

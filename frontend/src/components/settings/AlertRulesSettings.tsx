@@ -394,6 +394,7 @@ export default function AlertRulesSettings() {
           schedule: formData.schedule,
           cooldown_seconds: formData.cooldown_seconds,
           channels: formData.channels,
+          dwell_time_enabled: false,
           dedup_key_template: '{camera_id}:{rule_id}',
           exclude_household_members: false,
           smoke_fire_consecutive_required: 2,

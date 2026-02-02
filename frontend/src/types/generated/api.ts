@@ -13392,6 +13392,7 @@ export interface components {
          *       "cooldown_seconds": 300,
          *       "dedup_key_template": "{camera_id}:{rule_id}",
          *       "description": "High-priority alert for person detection at night",
+         *       "dwell_time_enabled": false,
          *       "enabled": true,
          *       "min_confidence": 0.8,
          *       "name": "Night Intruder Alert",
@@ -13459,6 +13460,12 @@ export interface components {
              * @description Dwell time threshold in seconds (alert when exceeded)
              */
             dwell_threshold_seconds?: number | null;
+            /**
+             * Dwell Time Enabled
+             * @description Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.
+             * @default false
+             */
+            dwell_time_enabled: boolean;
             /**
              * Enabled
              * @description Whether the rule is active
@@ -13605,6 +13612,7 @@ export interface components {
          *       "created_at": "2025-12-28T12:00:00Z",
          *       "dedup_key_template": "{camera_id}:{rule_id}",
          *       "description": "High-priority alert for person detection at night",
+         *       "dwell_time_enabled": false,
          *       "enabled": true,
          *       "id": "550e8400-e29b-41d4-a716-446655440000",
          *       "min_confidence": 0.8,
@@ -13678,6 +13686,12 @@ export interface components {
              * @description Dwell time threshold in seconds
              */
             dwell_threshold_seconds?: number | null;
+            /**
+             * Dwell Time Enabled
+             * @description Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.
+             * @default false
+             */
+            dwell_time_enabled: boolean;
             /**
              * Enabled
              * @description Whether the rule is active
@@ -13832,6 +13846,7 @@ export interface components {
          *     Only provided fields will be updated. Null values clear the field.
          * @example {
          *       "cooldown_seconds": 600,
+         *       "dwell_time_enabled": true,
          *       "enabled": false,
          *       "risk_threshold": 80
          *     }
@@ -13879,6 +13894,11 @@ export interface components {
              * @description Dwell time threshold in seconds
              */
             dwell_threshold_seconds?: number | null;
+            /**
+             * Dwell Time Enabled
+             * @description Enable dwell time / loitering detection. Uses the zone's loitering_threshold_seconds to trigger alerts.
+             */
+            dwell_time_enabled?: boolean | null;
             /**
              * Enabled
              * @description Whether the rule is active
@@ -32502,6 +32522,7 @@ export interface components {
          *       "camera_id": "front_door",
          *       "color": "#FF0000",
          *       "is_active": true,
+         *       "loitering_threshold_seconds": 60,
          *       "name": "Restricted Area",
          *       "polygon": [
          *         [
@@ -32552,6 +32573,12 @@ export interface components {
              */
             is_active: boolean;
             /**
+             * Loitering Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.
+             * @default 60
+             */
+            loitering_threshold_seconds: number;
+            /**
              * Name
              * @description Descriptive name for the polygon zone
              */
@@ -32586,6 +32613,7 @@ export interface components {
          *           "current_count": 0,
          *           "id": 1,
          *           "is_active": true,
+         *           "loitering_threshold_seconds": 60,
          *           "name": "Restricted Area",
          *           "polygon": [
          *             [
@@ -32638,6 +32666,7 @@ export interface components {
          *       "current_count": 0,
          *       "id": 1,
          *       "is_active": true,
+         *       "loitering_threshold_seconds": 60,
          *       "name": "Restricted Area",
          *       "polygon": [
          *         [
@@ -32705,6 +32734,12 @@ export interface components {
              */
             is_active: boolean;
             /**
+             * Loitering Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.
+             * @default 60
+             */
+            loitering_threshold_seconds: number;
+            /**
              * Name
              * @description Descriptive name for the polygon zone
              */
@@ -32739,6 +32774,7 @@ export interface components {
          * @example {
          *       "alert_threshold": 2,
          *       "is_active": false,
+         *       "loitering_threshold_seconds": 120,
          *       "name": "Updated Restricted Area"
          *     }
          */
@@ -32758,6 +32794,11 @@ export interface components {
              * @description Whether the zone is actively monitoring
              */
             is_active?: boolean | null;
+            /**
+             * Loitering Threshold Seconds
+             * @description Loitering threshold in seconds (0-3600). Objects present longer than this trigger loitering alerts.
+             */
+            loitering_threshold_seconds?: number | null;
             /**
              * Name
              * @description Descriptive name for the polygon zone

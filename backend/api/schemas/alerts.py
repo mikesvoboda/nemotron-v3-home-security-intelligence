@@ -283,6 +283,7 @@ class AlertRuleCreate(BaseModel):
                 "dedup_key_template": "{camera_id}:{rule_id}",
                 "cooldown_seconds": 300,
                 "channels": ["pushover", "webhook"],
+                "dwell_time_enabled": False,
             }
         }
     )
@@ -388,6 +389,11 @@ class AlertRuleCreate(BaseModel):
     channels: list[str] = Field(
         default_factory=list, description="Notification channels for this rule"
     )
+    dwell_time_enabled: bool = Field(
+        default=False,
+        description="Enable dwell time / loitering detection. "
+        "Uses the zone's loitering_threshold_seconds to trigger alerts.",
+    )
 
     @field_validator("pose_types")
     @classmethod
@@ -448,6 +454,7 @@ class AlertRuleUpdate(BaseModel):
                 "enabled": False,
                 "risk_threshold": 80,
                 "cooldown_seconds": 600,
+                "dwell_time_enabled": True,
             }
         }
     )
@@ -525,6 +532,11 @@ class AlertRuleUpdate(BaseModel):
         None, ge=0, description="Minimum seconds between duplicate alerts"
     )
     channels: list[str] | None = Field(None, description="Notification channels for this rule")
+    dwell_time_enabled: bool | None = Field(
+        None,
+        description="Enable dwell time / loitering detection. "
+        "Uses the zone's loitering_threshold_seconds to trigger alerts.",
+    )
 
     @field_validator("pose_types")
     @classmethod
@@ -598,6 +610,7 @@ class AlertRuleResponse(BaseModel):
                 "dedup_key_template": "{camera_id}:{rule_id}",
                 "cooldown_seconds": 300,
                 "channels": ["pushover", "webhook"],
+                "dwell_time_enabled": False,
                 "created_at": "2025-12-28T12:00:00Z",
                 "updated_at": "2025-12-28T12:00:00Z",
             }
@@ -656,6 +669,11 @@ class AlertRuleResponse(BaseModel):
     dedup_key_template: str = Field(..., description="Template for dedup key")
     cooldown_seconds: int = Field(..., description="Minimum seconds between duplicate alerts")
     channels: list[str] = Field(default_factory=list, description="Notification channels")
+    dwell_time_enabled: bool = Field(
+        default=False,
+        description="Enable dwell time / loitering detection. "
+        "Uses the zone's loitering_threshold_seconds to trigger alerts.",
+    )
 
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
