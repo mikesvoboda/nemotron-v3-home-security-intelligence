@@ -381,7 +381,8 @@ class FileService:
             return
 
         self._running = True
-        self._task = asyncio.create_task(self._background_worker())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._task = asyncio.create_task(self._background_worker(), name="file-service-worker")
         logger.info("FileService background task started")
 
     async def stop(self) -> None:

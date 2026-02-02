@@ -176,3 +176,53 @@ class TestDockerfileConfig:
             f"--forwarded-allow-ips has value '{forwarded_ips}'. "
             "Should be '*' or a valid CIDR range for trusted proxy IPs."
         )
+
+    def test_no_server_header_in_prod(self, dockerfile_content: str) -> None:
+        """Test that production target disables uvicorn Server header (NEM-5064).
+
+        The --no-server-header flag prevents uvicorn from sending the 'Server'
+        response header, which would otherwise disclose the server software
+        (e.g., 'Server: uvicorn'). This follows the security principle of
+        minimizing information disclosure.
+
+        Combined with nginx's 'server_tokens off', this ensures no server
+        version information is leaked in HTTP responses.
+        """
+        assert "--no-server-header" in dockerfile_content, (
+            "Dockerfile prod target CMD must include '--no-server-header' flag. "
+            "This prevents uvicorn from exposing 'Server: uvicorn' header. "
+            'Expected format: CMD ["uvicorn", ..., "--no-server-header"]'
+        )
+
+    def test_graceful_shutdown_timeout_in_prod(self, dockerfile_content: str) -> None:
+        """Test that production target has graceful shutdown timeout (NEM-5063).
+
+        The --timeout-graceful-shutdown flag gives in-flight requests time to
+        complete before the server shuts down. This is critical for:
+        - Ensuring batch processing completes (30s idle timeout)
+        - Allowing WebSocket connections to close cleanly
+        - Preventing data loss during container restarts/deployments
+
+        The 30 second timeout aligns with the application's batch idle timeout
+        (batch_idle_timeout_seconds = 30) to ensure batches can complete.
+        """
+        assert "--timeout-graceful-shutdown" in dockerfile_content, (
+            "Dockerfile prod target CMD must include '--timeout-graceful-shutdown' flag. "
+            "This gives in-flight requests time to complete during shutdown. "
+            'Expected format: CMD ["uvicorn", ..., "--timeout-graceful-shutdown", "30"]'
+        )
+
+        # Verify the timeout value is 30 seconds (matches batch idle timeout)
+        timeout_pattern = r'--timeout-graceful-shutdown["\s,]+(\d+)'
+        match = re.search(timeout_pattern, dockerfile_content)
+
+        assert match is not None, (
+            "Could not find value for --timeout-graceful-shutdown in Dockerfile. "
+            'Expected format: --timeout-graceful-shutdown "30"'
+        )
+
+        timeout_value = int(match.group(1))
+        assert timeout_value == 30, (
+            f"--timeout-graceful-shutdown has value {timeout_value}, but should be 30. "
+            "This aligns with batch_idle_timeout_seconds (30s) to ensure batches complete."
+        )

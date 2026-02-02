@@ -439,6 +439,14 @@ server {
     resolver ${RESOLVER:-127.0.0.11} valid=10s ipv6=off;
     set \$backend_upstream http://backend:8000;
 
+    # ==========================================================================
+    # Connection Limits (slowloris/DoS protection)
+    # ==========================================================================
+    # Per-IP: 100 connections allows multi-tab browsing while preventing abuse
+    limit_conn perip 100;
+    # Per-server: 1000 total connections protects against distributed attacks
+    limit_conn perserver 1000;
+
     # Enable gzip compression
     gzip on;
     gzip_vary on;

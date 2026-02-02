@@ -1,6 +1,7 @@
 """API key authentication middleware."""
 
 import hashlib
+import hmac
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response, WebSocket, status
@@ -39,6 +40,23 @@ def _get_valid_key_hashes() -> set[str]:
         key_value = key.get_secret_value() if hasattr(key, "get_secret_value") else key
         hashes.add(_hash_key(str(key_value)))
     return hashes
+
+
+def _validate_key_hash_constant_time(key_hash: str, valid_hashes: set[str]) -> bool:
+    """Validate API key hash using constant-time comparison.
+
+    Uses hmac.compare_digest to prevent timing attacks (OWASP A07:2021).
+    Compares the key hash against all valid hashes using constant-time
+    comparison to avoid leaking information about which keys are valid.
+
+    Args:
+        key_hash: SHA-256 hash of the API key to validate
+        valid_hashes: Set of valid API key hashes
+
+    Returns:
+        True if the key hash matches any valid hash, False otherwise
+    """
+    return any(hmac.compare_digest(key_hash, valid_hash) for valid_hash in valid_hashes)
 
 
 async def validate_websocket_api_key(websocket: WebSocket) -> bool:
@@ -86,10 +104,10 @@ async def validate_websocket_api_key(websocket: WebSocket) -> bool:
         )
         return False
 
-    # Validate the API key
+    # Validate the API key using constant-time comparison (OWASP A07:2021)
     key_hash = _hash_key(api_key)
     valid_hashes = _get_valid_key_hashes()
-    is_valid = key_hash in valid_hashes
+    is_valid = _validate_key_hash_constant_time(key_hash, valid_hashes)
 
     if not is_valid:
         logger.warning(
@@ -165,6 +183,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
             SHA-256 hash of the key
         """
         return hashlib.sha256(key.encode()).hexdigest()
+
+    def _validate_key_hash(self, key_hash: str) -> bool:
+        """Validate API key hash using constant-time comparison.
+
+        Uses hmac.compare_digest to prevent timing attacks (OWASP A07:2021).
+        Compares the key hash against all valid hashes using constant-time
+        comparison to avoid leaking information about which keys are valid.
+
+        Args:
+            key_hash: SHA-256 hash of the API key to validate
+
+        Returns:
+            True if the key hash matches any valid hash, False otherwise
+        """
+        return any(
+            hmac.compare_digest(key_hash, valid_hash) for valid_hash in self.valid_key_hashes
+        )
 
     def _is_exempt_path(self, path: str) -> bool:
         """Check if path is exempt from authentication.
@@ -295,9 +330,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        # Hash and validate API key
+        # Hash and validate API key using constant-time comparison (OWASP A07:2021)
         key_hash = self._hash_key(api_key)
-        if key_hash not in self.valid_key_hashes:
+        if not self._validate_key_hash(key_hash):
             logger.warning(
                 "Authentication attempt with invalid API key",
                 extra={

@@ -28,3 +28,8 @@ backend/tests/integration/conftest.py
 # Table/column names validated via identifier pattern before execution
 # All inputs come from migration scripts (developer-controlled), not user input
 backend/alembic/helpers.py
+
+# Degradation manager - file paths constructed from validated internal directory
+# FallbackQueue uses self._fallback_dir (validated Path) with generated filenames
+# No user input in file paths, only internal queue management
+backend/services/degradation_manager.py

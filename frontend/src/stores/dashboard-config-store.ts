@@ -17,6 +17,8 @@ import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 
+import { createComputedSelector } from './middleware';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -378,15 +380,17 @@ export const useDashboardConfigStore = create<DashboardConfigStore>()(
 );
 
 // ============================================================================
-// Selectors
+// Selectors (Memoized - NEM-5034)
 // ============================================================================
 
 /**
- * Selector for visible widgets in display order.
+ * Memoized selector for visible widgets in display order.
+ * Returns stable reference when widgets haven't changed.
  */
-export const selectVisibleWidgets = (state: DashboardConfigStore): WidgetConfig[] => {
-  return state.widgets.filter((widget) => widget.visible);
-};
+export const selectVisibleWidgets = createComputedSelector(
+  (state: DashboardConfigStore): WidgetConfig[] =>
+    state.widgets.filter((widget) => widget.visible)
+);
 
 /**
  * Selector to check if a specific widget is visible.

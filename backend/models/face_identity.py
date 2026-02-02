@@ -214,6 +214,11 @@ class FaceDetectionEvent(Base):
             "timestamp",
             postgresql_using="brin",
         ),
+        # NEM-5054: Index for match_confidence queries (filtering/sorting by confidence)
+        Index("idx_face_events_confidence", "match_confidence"),
+        # NEM-5054: Composite index for matched_person_id + match_confidence
+        # Enables efficient queries like "all matches for person X sorted by confidence"
+        Index("idx_face_events_matched_confidence", "matched_person_id", "match_confidence"),
     )
 
     def __repr__(self) -> str:

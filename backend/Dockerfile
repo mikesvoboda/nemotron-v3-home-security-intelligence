@@ -226,6 +226,18 @@ ENTRYPOINT ["/app/backend/entrypoint.sh"]
 # - Security logging with correct client addresses
 # - HSTS and other protocol-dependent headers using X-Forwarded-Proto
 # - Correct client detection in request.client for audit trails
+#
+# ============================================================================
+# Security Hardening Flags
+# ============================================================================
+# --no-server-header: Prevents uvicorn from exposing 'Server: uvicorn' header
+#                     Combined with nginx 'server_tokens off', this minimizes
+#                     server software disclosure to potential attackers.
+#
+# --timeout-graceful-shutdown 30: Gives in-flight requests 30 seconds to complete
+#                                 before forceful shutdown. Aligns with the app's
+#                                 batch_idle_timeout_seconds (30s) to ensure
+#                                 batch processing can complete during restarts.
 # ============================================================================
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-server-header", "--timeout-graceful-shutdown", "30"]

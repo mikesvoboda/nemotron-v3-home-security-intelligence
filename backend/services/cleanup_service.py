@@ -589,7 +589,8 @@ class CleanupService:
         self.running = True
 
         # Start cleanup loop in background
-        self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._cleanup_task = asyncio.create_task(self._cleanup_loop(), name="cleanup-service")
 
         logger.info("CleanupService started successfully")
 

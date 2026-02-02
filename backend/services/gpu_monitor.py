@@ -1147,7 +1147,8 @@ class GPUMonitor:
         self.running = True
 
         # Start polling task
-        self._poll_task = asyncio.create_task(self._poll_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._poll_task = asyncio.create_task(self._poll_loop(), name="gpu-monitor")
 
         logger.info("GPU monitoring started successfully")
 

@@ -342,3 +342,63 @@ class TestSecurityHeaderValues:
         assert re.search(pattern, nginx_conf_content), (
             "Referrer-Policy should be set to a secure value like 'strict-origin-when-cross-origin'."
         )
+
+
+class TestNginxServerTokensConfig:
+    """Tests for nginx server_tokens configuration (NEM-5041).
+
+    The server_tokens directive controls whether nginx exposes its version
+    in error pages and the 'Server' response header. Hiding the version
+    prevents attackers from targeting known vulnerabilities in specific
+    nginx versions.
+
+    Security best practice: server_tokens off;
+    See: https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens
+    """
+
+    @pytest.fixture
+    def nginx_conf_path(self) -> Path:
+        """Get the path to nginx.conf."""
+        return Path(__file__).parent.parent.parent.parent.parent / "frontend" / "nginx.conf"
+
+    @pytest.fixture
+    def nginx_conf_content(self, nginx_conf_path: Path) -> str:
+        """Read the nginx.conf content."""
+        if not nginx_conf_path.exists():
+            pytest.skip(f"nginx.conf not found at {nginx_conf_path}")
+        return nginx_conf_path.read_text()
+
+    def test_server_tokens_off_present(self, nginx_conf_content: str) -> None:
+        """Test that server_tokens is set to 'off' to hide nginx version.
+
+        Without 'server_tokens off', nginx exposes its version number in:
+        - The 'Server' response header (e.g., 'Server: nginx/1.25.3')
+        - Error pages (404, 500, etc.)
+
+        This information aids attackers in identifying exploitable vulnerabilities.
+        """
+        # Match server_tokens off; with optional whitespace
+        pattern = r"server_tokens\s+off\s*;"
+        assert re.search(pattern, nginx_conf_content), (
+            "nginx.conf must include 'server_tokens off;' to hide nginx version. "
+            "This prevents version disclosure in error pages and Server header. "
+            "Add 'server_tokens off;' to the http or server block."
+        )
+
+    def test_server_tokens_not_on(self, nginx_conf_content: str) -> None:
+        """Test that server_tokens is not explicitly set to 'on'.
+
+        While nginx defaults to 'server_tokens on', explicitly setting it to 'on'
+        in the config indicates intentional version disclosure, which is a security risk.
+        """
+        # Check for explicit server_tokens on (which would be a security issue)
+        pattern = r"server_tokens\s+on\s*;"
+        lines = nginx_conf_content.split("\n")
+        for i, line in enumerate(lines, 1):
+            # Skip comment lines
+            if line.strip().startswith("#"):
+                continue
+            assert not re.search(pattern, line), (
+                f"Line {i} has 'server_tokens on' which exposes nginx version. "
+                "Change to 'server_tokens off;' to hide version information."
+            )
