@@ -288,18 +288,18 @@ class AlertRule(Base):
     )
 
     # Pose condition: Alert on specific poses (crouching, lying_down, etc.)
-    pose_types: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    pose_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     pose_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Action condition: Alert on X-CLIP recognized actions (loitering, etc.)
-    action_types: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    action_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     action_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Threat condition: Alert on weapon detection
     threat_detection_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, insert_default=False, nullable=False
     )
-    threat_types: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    threat_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     threat_min_severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     threat_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
