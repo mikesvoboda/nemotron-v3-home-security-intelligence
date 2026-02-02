@@ -171,14 +171,17 @@ class TestEventTypeMetadata:
     def test_metadata_channels_are_valid(self):
         """Verify all metadata channels are valid values."""
         valid_channels = {
+            "ai",  # NEM-5019: AI events channel
             "alerts",
             "cameras",
+            "detections",
+            "enrichment",  # NEM-3627: Enrichment events channel
+            "entities",  # NEM-5019: Entity events channel
+            "events",
             "jobs",
             "system",
-            "events",
-            "detections",
             "workers",  # NEM-2461: Worker events channel
-            "enrichment",  # NEM-3627: Enrichment events channel
+            "zones",  # NEM-5019: Zone events channel
             None,
         }
         for event_type, metadata in EVENT_TYPE_METADATA.items():
