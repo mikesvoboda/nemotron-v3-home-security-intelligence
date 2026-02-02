@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000181666",
+  "category": "normal",
+  "name": "COCO Scene 181666",
+  "description": "Scene containing 13 sheep, 3 person. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}
