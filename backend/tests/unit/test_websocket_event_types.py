@@ -404,14 +404,17 @@ class TestGetAllChannels:
         """Verify expected channels are returned."""
         channels = get_all_channels()
         expected = {
+            "ai",
             "alerts",
             "cameras",
+            "detections",
+            "enrichment",
+            "entities",
+            "events",
             "jobs",
             "system",
-            "events",
-            "detections",
             "workers",
-            "enrichment",
+            "zones",
         }
         assert set(channels) == expected
 
