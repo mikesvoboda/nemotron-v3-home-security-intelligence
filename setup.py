@@ -38,6 +38,7 @@ from setup_lib.nvidia_detect import prompt_and_check_nvidia
 from setup_lib.platform_detect import get_platform_info, print_platform_info
 from setup_lib.podman_install import prompt_and_install_podman
 from setup_lib.ssl_certs import prompt_and_generate_certificates
+from setup_lib.storage_config import prompt_and_configure_storage
 
 # Re-export for backward compatibility
 __all__ = [
@@ -794,11 +795,16 @@ def main() -> None:
                 print("  macOS is not supported due to lack of NVIDIA CUDA support.")
                 sys.exit(1)
 
-            # Step 1: Container Runtime (Podman)
+            # Step 1/5: Container Runtime (Podman)
             prompt_and_install_podman({})
 
-            # Step 2: NVIDIA GPU detection
+            # Step 2/5: NVIDIA GPU detection
             prompt_and_check_nvidia({})
+
+            # Step 3/5: Storage configuration
+            storage_result = prompt_and_configure_storage({})
+        else:
+            storage_result = None
 
         if args.defaults:
             config = run_defaults_mode()
@@ -807,6 +813,11 @@ def main() -> None:
             config = run_guided_mode()
         else:
             config = run_quick_mode()
+
+        # Merge storage config from step 3 (if interactive mode)
+        if storage_result is not None:
+            config["foscam_base_path"] = storage_result["foscam_base_path"]
+            config["ai_models_path"] = storage_result["ai_models_path"]
 
         # Ask about Docker secrets if not specified via command line (skip in defaults mode)
         create_secrets = args.create_secrets
@@ -895,7 +906,7 @@ def main() -> None:
                 print("       docker compose -f docker-compose.prod.yml up -d")
             print()
 
-        # Configure firewall (skip in defaults mode)
+        # Step 4/5: Network configuration (skip in defaults mode)
         if not args.defaults:
             # Get all external ports that need firewall access
             external_ports = [
@@ -905,7 +916,7 @@ def main() -> None:
             ]
             prompt_and_configure_firewall({"firewall_ports": external_ports})
 
-        # Generate SSL certificates (skip in defaults mode)
+        # Step 5/5: Credentials & Security (skip in defaults mode)
         if not args.defaults:
             prompt_and_generate_certificates(config)
 
