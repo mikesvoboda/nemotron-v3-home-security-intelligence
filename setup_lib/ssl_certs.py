@@ -38,7 +38,8 @@ def get_local_ip() -> str | None:
         # Connect to a public IP to determine local interface
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
-            return s.getsockname()[0]
+            ip_address: str = s.getsockname()[0]
+            return ip_address
     except OSError:
         return None
 
@@ -209,8 +210,8 @@ def check_existing_certificates(cert_path: Path, key_path: Path) -> bool:
         not_after = cert.not_valid_after_utc
 
         # Consider valid if more than 7 days remaining
-        days_remaining = (not_after - now).days
-        return days_remaining > 7
+        days_remaining: int = (not_after - now).days
+        return bool(days_remaining > 7)
     except Exception:
         return False
 
