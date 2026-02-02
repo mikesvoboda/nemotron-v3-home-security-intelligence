@@ -755,14 +755,23 @@ class TestPartialFailureScenarios:
         import backend.core.database as db_module
 
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
             mock_factory = MagicMock()
             mock_factory.return_value.__aenter__ = AsyncMock(
                 side_effect=RuntimeError("Pool exhausted")
             )
+            mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            # Set up mock engine with AsyncMock dispose() to prevent init_db() errors
+            mock_engine = AsyncMock()
+            mock_engine.dispose = AsyncMock()
 
             db_module._async_session_factory = mock_factory
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = None  # Set to None to prevent loop mismatch
 
             with pytest.raises(RuntimeError) as exc_info:
                 async with db_module.get_session():
@@ -772,6 +781,8 @@ class TestPartialFailureScenarios:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
 
 # =============================================================================
