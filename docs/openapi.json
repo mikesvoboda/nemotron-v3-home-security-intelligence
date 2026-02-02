@@ -25631,6 +25631,48 @@
         "title": "OrphanedFileCleanupResponse",
         "type": "object"
       },
+      "PTZCommand": {
+        "description": "PTZ (Pan-Tilt-Zoom) command schema.\n\nNEM-4207: Defines PTZ movement commands with value and speed parameters.",
+        "example": {
+          "command": "pan",
+          "speed": 1.0,
+          "value": 0.5
+        },
+        "properties": {
+          "command": {
+            "description": "PTZ command type (pan, tilt, zoom, or stop)",
+            "enum": [
+              "pan",
+              "tilt",
+              "zoom",
+              "stop"
+            ],
+            "title": "Command",
+            "type": "string"
+          },
+          "speed": {
+            "default": 1.0,
+            "description": "Movement speed (0.0 to 1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Speed",
+            "type": "number"
+          },
+          "value": {
+            "description": "Movement value (-1.0 to 1.0)",
+            "maximum": 1.0,
+            "minimum": -1.0,
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "command",
+          "value"
+        ],
+        "title": "PTZCommand",
+        "type": "object"
+      },
       "PaginationInfo": {
         "description": "Pagination metadata for list responses (NEM-2075).\n\nStandard pagination envelope used by entities and other list endpoints.\nSupports both cursor-based pagination (recommended) and offset pagination.",
         "properties": {
@@ -44035,6 +44077,301 @@
         "summary": "Reset Baseline",
         "tags": [
           "cameras"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/onvif/capabilities": {
+      "get": {
+        "description": "Get ONVIF device capabilities for a camera.\n\nRetrieves device information and capability flags including:\n- Manufacturer, model, firmware version\n- PTZ support\n- Media support\n- Analytics support\n\nArgs:\n    camera_id: ID of the camera to get capabilities for\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for capability retrieval\n\nReturns:\n    Dictionary with device info and capability flags\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
+        "operationId": "onvif_get_capabilities_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Onvif Get Capabilities Endpoint",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Device capabilities"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "409": {
+            "description": "Camera is not an ONVIF device"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Device unreachable"
+          }
+        },
+        "summary": "Get ONVIF device capabilities",
+        "tags": [
+          "onvif"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/onvif/presets": {
+      "get": {
+        "description": "Get available PTZ presets for a camera.\n\nRetrieves the list of saved PTZ positions (presets) configured on\nthe camera. Each preset has a token and optional name.\n\nArgs:\n    camera_id: ID of the camera to get presets for\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for preset retrieval\n\nReturns:\n    Dictionary with:\n    - presets: List of preset objects with token and name\n    - count: Number of presets available\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
+        "operationId": "onvif_get_presets_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Onvif Get Presets Endpoint",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of PTZ presets"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "409": {
+            "description": "Camera is not an ONVIF device"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Device unreachable"
+          }
+        },
+        "summary": "Get PTZ presets",
+        "tags": [
+          "onvif"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/onvif/presets/{preset_token}": {
+      "post": {
+        "description": "Navigate camera to a saved PTZ preset position.\n\nMoves the camera to a previously saved preset position. The preset_token\nis obtained from the GET /presets endpoint.\n\nArgs:\n    camera_id: ID of the camera to control\n    preset_token: Token identifying the preset position\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    Dictionary with:\n    - success: True if navigation started\n    - preset_token: The preset token that was used\n\nRaises:\n    HTTPException: 400 if invalid preset token, 404 if camera not found,\n                  409 if not ONVIF device, 503 if device unreachable",
+        "operationId": "onvif_goto_preset_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "preset_token",
+            "required": true,
+            "schema": {
+              "title": "Preset Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Onvif Goto Preset Endpoint",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Camera moving to preset position"
+          },
+          "400": {
+            "description": "Invalid preset token"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "409": {
+            "description": "Camera is not an ONVIF device"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Device unreachable"
+          }
+        },
+        "summary": "Go to PTZ preset",
+        "tags": [
+          "onvif"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/onvif/ptz": {
+      "post": {
+        "description": "Execute a PTZ command (pan, tilt, zoom, stop) on a camera.\n\nThis endpoint controls PTZ cameras via ONVIF protocol. The frontend uses\nthis for the PTZ control D-pad and zoom buttons.\n\nArgs:\n    camera_id: ID of the camera to control\n    command: PTZ command with type, value, and speed\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    Dictionary with success status and executed command details:\n    - success: True if command executed\n    - command: The command type executed\n    - value: The movement value used\n    - speed: The speed used\n\nRaises:\n    HTTPException: 400 if invalid command/value, 404 if camera not found,\n                  409 if not ONVIF device, 503 if device unreachable",
+        "operationId": "onvif_ptz_command_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PTZCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Onvif Ptz Command Endpoint",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "PTZ command executed successfully"
+          },
+          "400": {
+            "description": "Invalid PTZ command or value"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "409": {
+            "description": "Camera is not an ONVIF device"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Device unreachable"
+          }
+        },
+        "summary": "Execute PTZ command",
+        "tags": [
+          "onvif"
+        ]
+      }
+    },
+    "/api/cameras/{camera_id}/onvif/ptz/stop": {
+      "post": {
+        "description": "Stop all PTZ movement on a camera.\n\nConvenience endpoint that sends a stop command without requiring\na request body. The frontend calls this when the user releases\nthe PTZ controls.\n\nArgs:\n    camera_id: ID of the camera to stop\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    Dictionary with success status\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
+        "operationId": "onvif_ptz_stop_endpoint",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Onvif Ptz Stop Endpoint",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "PTZ movement stopped"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "409": {
+            "description": "Camera is not an ONVIF device"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Device unreachable"
+          }
+        },
+        "summary": "Stop PTZ movement",
+        "tags": [
+          "onvif"
         ]
       }
     },

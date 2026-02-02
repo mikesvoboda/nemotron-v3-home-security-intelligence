@@ -2945,6 +2945,195 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/onvif/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get ONVIF device capabilities
+         * @description Get ONVIF device capabilities for a camera.
+         *
+         *     Retrieves device information and capability flags including:
+         *     - Manufacturer, model, firmware version
+         *     - PTZ support
+         *     - Media support
+         *     - Analytics support
+         *
+         *     Args:
+         *         camera_id: ID of the camera to get capabilities for
+         *         db: Database session for camera lookup
+         *         onvif_service: ONVIF service for capability retrieval
+         *
+         *     Returns:
+         *         Dictionary with device info and capability flags
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found, 409 if not ONVIF device,
+         *                       503 if device unreachable
+         */
+        get: operations["onvif_get_capabilities_endpoint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/onvif/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get PTZ presets
+         * @description Get available PTZ presets for a camera.
+         *
+         *     Retrieves the list of saved PTZ positions (presets) configured on
+         *     the camera. Each preset has a token and optional name.
+         *
+         *     Args:
+         *         camera_id: ID of the camera to get presets for
+         *         db: Database session for camera lookup
+         *         onvif_service: ONVIF service for preset retrieval
+         *
+         *     Returns:
+         *         Dictionary with:
+         *         - presets: List of preset objects with token and name
+         *         - count: Number of presets available
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found, 409 if not ONVIF device,
+         *                       503 if device unreachable
+         */
+        get: operations["onvif_get_presets_endpoint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/onvif/presets/{preset_token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Go to PTZ preset
+         * @description Navigate camera to a saved PTZ preset position.
+         *
+         *     Moves the camera to a previously saved preset position. The preset_token
+         *     is obtained from the GET /presets endpoint.
+         *
+         *     Args:
+         *         camera_id: ID of the camera to control
+         *         preset_token: Token identifying the preset position
+         *         db: Database session for camera lookup
+         *         onvif_service: ONVIF service for PTZ control
+         *
+         *     Returns:
+         *         Dictionary with:
+         *         - success: True if navigation started
+         *         - preset_token: The preset token that was used
+         *
+         *     Raises:
+         *         HTTPException: 400 if invalid preset token, 404 if camera not found,
+         *                       409 if not ONVIF device, 503 if device unreachable
+         */
+        post: operations["onvif_goto_preset_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/onvif/ptz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute PTZ command
+         * @description Execute a PTZ command (pan, tilt, zoom, stop) on a camera.
+         *
+         *     This endpoint controls PTZ cameras via ONVIF protocol. The frontend uses
+         *     this for the PTZ control D-pad and zoom buttons.
+         *
+         *     Args:
+         *         camera_id: ID of the camera to control
+         *         command: PTZ command with type, value, and speed
+         *         db: Database session for camera lookup
+         *         onvif_service: ONVIF service for PTZ control
+         *
+         *     Returns:
+         *         Dictionary with success status and executed command details:
+         *         - success: True if command executed
+         *         - command: The command type executed
+         *         - value: The movement value used
+         *         - speed: The speed used
+         *
+         *     Raises:
+         *         HTTPException: 400 if invalid command/value, 404 if camera not found,
+         *                       409 if not ONVIF device, 503 if device unreachable
+         */
+        post: operations["onvif_ptz_command_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/onvif/ptz/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop PTZ movement
+         * @description Stop all PTZ movement on a camera.
+         *
+         *     Convenience endpoint that sends a stop command without requiring
+         *     a request body. The frontend calls this when the user releases
+         *     the PTZ controls.
+         *
+         *     Args:
+         *         camera_id: ID of the camera to stop
+         *         db: Database session for camera lookup
+         *         onvif_service: ONVIF service for PTZ control
+         *
+         *     Returns:
+         *         Dictionary with success status
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found, 409 if not ONVIF device,
+         *                       503 if device unreachable
+         */
+        post: operations["onvif_ptz_stop_endpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/preview/start": {
         parameters: {
             query?: never;
@@ -30186,6 +30375,36 @@ export interface components {
             total_size_formatted: string;
         };
         /**
+         * PTZCommand
+         * @description PTZ (Pan-Tilt-Zoom) command schema.
+         *
+         *     NEM-4207: Defines PTZ movement commands with value and speed parameters.
+         * @example {
+         *       "command": "pan",
+         *       "speed": 1,
+         *       "value": 0.5
+         *     }
+         */
+        PTZCommand: {
+            /**
+             * Command
+             * @description PTZ command type (pan, tilt, zoom, or stop)
+             * @enum {string}
+             */
+            command: "pan" | "tilt" | "zoom" | "stop";
+            /**
+             * Speed
+             * @description Movement speed (0.0 to 1.0)
+             * @default 1
+             */
+            speed: number;
+            /**
+             * Value
+             * @description Movement value (-1.0 to 1.0)
+             */
+            value: number;
+        };
+        /**
          * PaginationInfo
          * @description Pagination metadata for list responses (NEM-2075).
          *
@@ -43437,6 +43656,295 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    onvif_get_capabilities_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device capabilities */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera is not an ONVIF device */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Device unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    onvif_get_presets_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of PTZ presets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera is not an ONVIF device */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Device unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    onvif_goto_preset_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                preset_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Camera moving to preset position */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid preset token */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera is not an ONVIF device */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Device unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    onvif_ptz_command_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PTZCommand"];
+            };
+        };
+        responses: {
+            /** @description PTZ command executed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid PTZ command or value */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera is not an ONVIF device */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Device unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    onvif_ptz_stop_endpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PTZ movement stopped */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Camera not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera is not an ONVIF device */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Device unreachable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -265,6 +265,12 @@ class ContainerRuntime:
         result = self.process.run(cmd, check=False, capture=True)
         if result.success:
             return result.stdout.strip()[:12]  # Return short container ID
+
+        # Log the error for debugging
+        from scripts.redeploy.core import output
+
+        error_msg = result.stderr.strip() or result.stdout.strip() or "Unknown error"
+        output.error(f"Failed to start container '{name}': {error_msg}")
         return None
 
     def logs(self, name: str, tail: int | None = None, follow: bool = False) -> str:
