@@ -1,0 +1,138 @@
+name: Build Setup Executables
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: false
+        default: 'dev'
+
+jobs:
+  build-linux:
+    name: Build Linux Executable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller cryptography pyyaml huggingface_hub
+
+      - name: Build executable
+        run: |
+          pyinstaller \
+            --onefile \
+            --name setup-linux \
+            --add-data "setup_lib:setup_lib" \
+            --hidden-import=setup_lib.core \
+            --hidden-import=setup_lib.platform_detect \
+            --hidden-import=setup_lib.podman_install \
+            --hidden-import=setup_lib.nvidia_detect \
+            --hidden-import=setup_lib.firewall_config \
+            --hidden-import=setup_lib.ssl_certs \
+            --hidden-import=setup_lib.model_downloader \
+            --hidden-import=setup_lib.image_pull \
+            --hidden-import=setup_lib.linux_optimizer \
+            --hidden-import=cryptography \
+            --hidden-import=yaml \
+            --hidden-import=huggingface_hub \
+            --collect-all certifi \
+            setup.py
+
+      - name: Test executable
+        run: |
+          chmod +x dist/setup-linux
+          ./dist/setup-linux --help
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: setup-linux
+          path: dist/setup-linux
+          retention-days: 30
+
+  build-windows:
+    name: Build Windows Executable
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller cryptography pyyaml huggingface_hub
+
+      - name: Build executable
+        run: |
+          pyinstaller `
+            --onefile `
+            --name setup `
+            --add-data "setup_lib;setup_lib" `
+            --hidden-import=setup_lib.core `
+            --hidden-import=setup_lib.platform_detect `
+            --hidden-import=setup_lib.podman_install `
+            --hidden-import=setup_lib.nvidia_detect `
+            --hidden-import=setup_lib.firewall_config `
+            --hidden-import=setup_lib.ssl_certs `
+            --hidden-import=setup_lib.model_downloader `
+            --hidden-import=setup_lib.image_pull `
+            --hidden-import=setup_lib.linux_optimizer `
+            --hidden-import=cryptography `
+            --hidden-import=yaml `
+            --hidden-import=huggingface_hub `
+            --collect-all certifi `
+            setup.py
+
+      - name: Test executable
+        run: |
+          .\dist\setup.exe --help
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: setup-windows
+          path: dist/setup.exe
+          retention-days: 30
+
+  attach-to-release:
+    name: Attach to Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: setup-linux
+          path: artifacts/
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: setup-windows
+          path: artifacts/
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2
+        with:
+          files: |
+            artifacts/setup-linux
+            artifacts/setup.exe

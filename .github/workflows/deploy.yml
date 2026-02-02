@@ -9,9 +9,9 @@ env:
   IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
-  # Build each image on native architecture runners
-  build:
-    name: Build ${{ matrix.image }} (${{ matrix.platform.arch }})
+  # Build core services (backend, frontend) on both architectures
+  build-core:
+    name: Build ${{ matrix.image.name }} (${{ matrix.platform.arch }})
     runs-on: ${{ matrix.platform.runner }}
     permissions:
       contents: read
@@ -29,9 +29,6 @@ jobs:
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
             target: prod
-          - name: ai-yolo26
-            context: .
-            dockerfile: ./ai/yolo26/Dockerfile
         platform:
           - runner: ubuntu-latest
             arch: linux/amd64
@@ -75,9 +72,6 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest
 
-      # Build and push by digest (for later manifest merge)
-      # Note: Trivy scan temporarily disabled to reduce disk usage during build
-      # TODO: Re-enable scanning from registry after push (see option 3 in PR #128)
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v5
@@ -91,7 +85,6 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.platform.suffix }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.platform.suffix }}
 
-      # Export digest to file for artifact upload
       - name: Export digest
         run: |
           mkdir -p /tmp/digests/${{ matrix.image.name }}
@@ -106,11 +99,101 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Merge architecture-specific images into multi-arch manifests
-  merge:
+  # Build AI services (NVIDIA CUDA - amd64 only)
+  build-ai:
+    name: Build ${{ matrix.image.name }} (linux/amd64)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: ai-yolo26
+            context: .
+            dockerfile: ./ai/yolo26/Dockerfile
+          - name: ai-llm
+            context: .
+            dockerfile: ./ai/nemotron/Dockerfile
+          - name: ai-florence
+            context: .
+            dockerfile: ./ai/florence/Dockerfile
+          - name: ai-clip
+            context: .
+            dockerfile: ./ai/clip/Dockerfile
+          - name: ai-enrichment
+            context: .
+            dockerfile: ./ai/enrichment/Dockerfile
+
+    steps:
+      # AI images are large - always free disk space
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      # Build and push AI image (amd64 only - NVIDIA CUDA)
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          platforms: linux/amd64
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image.name }}-amd64
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-amd64
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests/${{ matrix.image.name }}
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: digests-${{ matrix.image.name }}-amd64
+          path: /tmp/digests/${{ matrix.image.name }}/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Merge architecture-specific images into multi-arch manifests (core services)
+  merge-core:
     name: Create multi-arch manifest (${{ matrix.image }})
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-core
     permissions:
       contents: read
       packages: write
@@ -156,12 +239,62 @@ jobs:
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
 
+  # Create manifests for AI services (single-arch amd64)
+  merge-ai:
+    name: Create manifest (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    needs: build-ai
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        image: [ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          pattern: digests-${{ matrix.image }}-*
+          path: /tmp/digests/${{ matrix.image }}
+          merge-multiple: true
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Create manifest and push
+        working-directory: /tmp/digests/${{ matrix.image }}
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
+
   # Smoke test deployment verification
   # Runs after images are pushed to verify containers work correctly
   smoke-test:
     name: Smoke Test Deployment
     runs-on: ubuntu-latest
-    needs: merge
+    needs: merge-core
     timeout-minutes: 15
     permissions:
       contents: read
@@ -348,7 +481,7 @@ jobs:
   sbom-and-sign:
     name: SBOM & Sign (${{ matrix.image }})
     runs-on: ubuntu-latest
-    needs: merge
+    needs: [merge-core, merge-ai]
     permissions:
       contents: read
       packages: write
@@ -356,7 +489,7 @@ jobs:
 
     strategy:
       matrix:
-        image: [backend, frontend]
+        image: [backend, frontend, ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Log in to Container Registry
@@ -401,7 +534,7 @@ jobs:
   staging-deployment:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: merge
+    needs: [merge-core, merge-ai]
     if: success()
     permissions:
       contents: read
@@ -596,7 +729,7 @@ jobs:
   slsa-provenance:
     name: SLSA Provenance (${{ matrix.image }})
     runs-on: ubuntu-latest
-    needs: merge
+    needs: [merge-core, merge-ai]
     permissions:
       contents: read
       packages: write
@@ -605,7 +738,7 @@ jobs:
 
     strategy:
       matrix:
-        image: [backend, frontend]
+        image: [backend, frontend, ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Checkout

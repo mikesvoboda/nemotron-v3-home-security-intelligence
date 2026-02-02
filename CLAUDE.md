@@ -20,127 +20,36 @@ cd frontend && bun install  # Sync frontend dependencies
 pre-commit install      # Install git hooks
 ```
 
-## Container Rebuild Rules
+## Container Rebuilds
 
-**CRITICAL: Always rebuild containers without cache and from the local worktree.**
+**Always use `--no-cache` when rebuilding containers** - cached layers may contain stale code. See [Container Rebuild Guide](docs/development/container-rebuilds.md) for details.
 
-When rebuilding containers during development:
+## Testing
 
-1. **Always use `--no-cache`** to ensure changes are picked up (cached layers may contain stale code)
-2. **Always rebuild from your local worktree/branch**, not from `main` directly
-3. **Never use pre-built GHCR images** when testing local changes
+This project follows **Test-Driven Development (TDD)**. See [Testing Guide](docs/development/testing.md) for full documentation.
 
-```bash
-# Correct: Rebuild without cache from local code
-podman-compose -f docker-compose.prod.yml build --no-cache frontend
-podman-compose -f docker-compose.prod.yml build --no-cache backend
+| Test Type           | Minimum Coverage | Command                                        |
+| ------------------- | ---------------- | ---------------------------------------------- |
+| Backend Unit        | 85%              | `uv run pytest backend/tests/unit/ -n auto`    |
+| Backend Integration | —                | `uv run pytest backend/tests/integration/ -n0` |
+| Frontend            | 83%+             | `cd frontend && npm test`                      |
+| **Full validation** | —                | `./scripts/validate.sh`                        |
 
-# Correct: Rebuild and restart
-podman-compose -f docker-compose.prod.yml up -d --build --force-recreate frontend
+## Git Rules
 
-# Wrong: Simple restart won't pick up code changes
-podman-compose -f docker-compose.prod.yml restart frontend  # DON'T DO THIS
-
-# Wrong: Rebuild with cache may use stale layers
-podman-compose -f docker-compose.prod.yml build frontend  # DON'T DO THIS
-```
-
-**Why this matters:** Docker/Podman layer caching can cause confusing bugs where your code changes aren't reflected in the running container. Always use `--no-cache` when rebuilding during development.
-
-## Testing and TDD
-
-This project follows **Test-Driven Development (TDD)** for all feature implementation. Tests drive the design and ensure correctness from the start.
-
-**Documentation:**
-
-- **[TDD Workflow Guide](docs/development/testing-workflow.md)** - RED-GREEN-REFACTOR cycle, test patterns by layer
-- **[Testing Guide](docs/development/testing.md)** - Test infrastructure, fixtures, running tests
-- **[Testing Patterns](docs/developer/patterns/AGENTS.md)** - Comprehensive testing patterns and examples
-
-### Coverage Requirements
-
-| Test Type        | Minimum Coverage | Enforcement   |
-| ---------------- | ---------------- | ------------- |
-| Backend Unit     | 85%              | CI gate       |
-| Backend Combined | 95%              | CI gate       |
-| Frontend         | 83%/77%/81%/84%  | CI gate       |
-| E2E              | Critical paths   | Manual review |
-
-### Quick Test Commands
+**Never bypass pre-commit hooks.** See [Git Workflow Guide](docs/development/git-workflow.md).
 
 ```bash
-# Backend unit tests (parallel)
-uv run pytest backend/tests/unit/ -n auto --dist=worksteal
-
-# Backend integration tests (serial)
-uv run pytest backend/tests/integration/ -n0
-
-# Frontend tests
-cd frontend && npm test
-
-# Full validation (recommended before PRs)
-./scripts/validate.sh
-```
-
-## Git and Pre-commit Rules
-
-**CRITICAL: Never bypass git pre-commit hooks.** For detailed git safety protocols and the "NEVER DISABLE TESTING" policy, see **[Git Workflow Guide](docs/development/git-workflow.md)**.
-
-**Setup (run once per clone):**
-
-```bash
-pre-commit install                    # Install pre-commit hooks
-pre-commit install --hook-type pre-push  # Install pre-push hooks
-ln -sf ../../scripts/hooks/post-checkout .git/hooks/post-checkout  # Worktree protection
-```
-
-For pre-commit hook details, see **[Pre-commit Hooks](docs/development/hooks.md)**.
-
-## Code Quality Tooling
-
-For comprehensive code quality tool documentation, see **[Code Quality Tools](docs/development/code-quality.md)**.
-
-### Quick Reference
-
-```bash
-# Full validation (recommended before PRs)
-./scripts/validate.sh
-
-# Dead code detection
-uv run vulture backend/ --min-confidence 80
-cd frontend && npx knip
-
-# Architecture review
-/code-review
+pre-commit install && pre-commit install --hook-type pre-push
 ```
 
 ## Key Design Decisions
 
-- **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
-- **Batch processing:** 90-second time windows with 30-second idle timeout
+- **Risk scoring:** LLM-determined (Nemotron assigns 0-100 score)
+- **Batch processing:** 90-second windows, 30-second idle timeout
 - **No auth:** Single-user local deployment
 - **Retention:** 30 days
-- **Deployment:** Fully containerized (Docker or Podman) with GPU passthrough for AI models
-
-## AGENTS.md Navigation
-
-Every directory contains an `AGENTS.md` file that documents purpose, key files, patterns, and entry points. **Always read the AGENTS.md file first when exploring a new directory.**
-
-```bash
-# List all AGENTS.md files
-find . -name "AGENTS.md" -type f | head -20
-```
-
-### Key AGENTS.md Locations
-
-| Directory                  | Purpose                           |
-| -------------------------- | --------------------------------- |
-| `/AGENTS.md`               | Project overview and entry points |
-| `/ai/AGENTS.md`            | AI pipeline overview              |
-| `/backend/AGENTS.md`       | Backend architecture overview     |
-| `/backend/tests/AGENTS.md` | Test infrastructure overview      |
-| `/frontend/AGENTS.md`      | Frontend architecture overview    |
-| `/docs/AGENTS.md`          | Documentation overview            |
+- **Deployment:** Containerized with GPU passthrough
 
 ## File Structure
 
@@ -157,178 +66,36 @@ frontend/
 ai/
   yolo26/              # YOLO26 detection server
   nemotron/            # Nemotron model files
-docs/decisions/        # Architectural decision records
 ```
+
+## AGENTS.md Navigation
+
+Every directory contains an `AGENTS.md` file documenting purpose, key files, and patterns. **Read AGENTS.md first when exploring a new directory.**
+
+| Directory             | Purpose                           |
+| --------------------- | --------------------------------- |
+| `/AGENTS.md`          | Project overview and entry points |
+| `/ai/AGENTS.md`       | AI pipeline overview              |
+| `/backend/AGENTS.md`  | Backend architecture              |
+| `/frontend/AGENTS.md` | Frontend architecture             |
 
 ## Session Workflow
 
-1. Check available work in [Linear Active view](https://linear.app/nemotron-v3-home-security/team/NEM/active)
-2. Filter by label (e.g., phase-1, backend, frontend)
-3. Claim task by assigning to yourself and setting status to "In Progress"
-4. Implement following TDD (test first for `tdd` labeled tasks)
-5. Validate before closing: run `./scripts/validate.sh`
-6. Close task by setting status to "Done" in Linear
-7. End session: `git push`
+1. Check [Linear Active view](https://linear.app/nemotron-v3-home-security/team/NEM/active)
+2. Claim task (assign to yourself, set "In Progress")
+3. Implement following TDD
+4. Validate: `./scripts/validate.sh`
+5. Close task in Linear, push changes
 
-## Linear Task Management
+## Linear Integration
 
-**CRITICAL: Use ONLY the `/linear-python` skill for all Linear operations.** Do NOT use Linear MCP tools directly.
+**Use ONLY `/linear-python` skill** for Linear operations. Do not use Linear MCP tools directly.
 
-```bash
-# Invoke the skill
-/linear-python <command>
+## Feature Documentation
 
-# Common commands:
-/linear-python get-issue NEM-123           # Get issue details
-/linear-python update-status NEM-123 done  # Update status
-/linear-python list-issues todo            # List issues by status
-/linear-python search "keyword"            # Search issues
-/linear-python my-issues                   # List assigned issues
-```
+For detailed feature-specific documentation:
 
-The skill handles:
-
-- Searching and listing issues
-- Updating issue status (uses human-readable names: `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled`)
-- Creating issues and epics with proper TDD structure
-- Batch operations and epic hydration
-
-**Team ID:** `998946a2-aa75-491b-a39d-189660131392`
-
-For skill documentation, see `~/.claude/skills/linear-python/README.md`.
-
-## One-Task-One-PR Policy
-
-Each Linear issue should result in exactly one PR:
-
-- **PR title format:** `<type>: <issue title> (NEM-<id>)`
-- **Example:** `fix: resolve WebSocket broadcast error (NEM-123)`
-
-**Anti-patterns (do not do):**
-
-| Bad PR Title                        | Problem                    |
-| ----------------------------------- | -------------------------- |
-| "fix: resolve 9 issues"             | Split into 9 PRs           |
-| "fix: resolve 20 production issues" | Create 20 issues, 20 PRs   |
-| "feat: X AND Y"                     | Split into separate issues |
-
-**Why this matters:** Enables precise rollbacks, clear attribution, better code review quality, and easier regression identification.
-
-## Issue Closure Requirements
-
-Before marking an issue as "Done" in Linear, verify ALL of the following:
-
-```bash
-# Quick validation (recommended)
-./scripts/validate.sh
-
-# Or run individually:
-uv run pytest backend/tests/unit/ -n auto --dist=worksteal  # Backend unit tests
-uv run pytest backend/tests/integration/ -n0                 # Backend integration tests
-cd frontend && npm test                                       # Frontend tests
-uv run mypy backend/                                          # Backend type check
-cd frontend && npm run typecheck                              # Frontend type check
-pre-commit run --all-files                                    # Pre-commit hooks
-```
-
-### For UI Changes, Also Run
-
-```bash
-cd frontend && npx playwright test  # E2E tests (multi-browser)
-```
-
-**CRITICAL:** Do not close an issue if any validation fails. Fix the issue first.
-
-## Multi-GPU Configuration
-
-The system supports multi-GPU configurations for distributing AI workloads. For the complete user guide, see **[Multi-GPU Support](docs/development/multi-gpu.md)**.
-
-### Key Files
-
-| Component        | Location                                             |
-| ---------------- | ---------------------------------------------------- |
-| API Schemas      | `backend/api/schemas/gpu_config.py`                  |
-| Database Models  | `backend/models/gpu_config.py`                       |
-| Config Service   | `backend/services/gpu_config_service.py`             |
-| Frontend Hook    | `frontend/src/hooks/useGpuConfig.ts`                 |
-| API Client       | `frontend/src/services/gpuConfigApi.ts`              |
-| Override File    | `config/docker-compose.gpu-override.yml` (generated) |
-| Assignments File | `config/gpu-assignments.yml` (generated)             |
-| Design Document  | `docs/plans/2025-01-23-multi-gpu-support-design.md`  |
-
-### Testing GPU Features Locally
-
-```bash
-# Run GPU-related tests
-uv run pytest backend/tests/unit/services/test_gpu_config_service.py -v
-uv run pytest backend/tests/unit/api/schemas/test_gpu_config.py -v
-uv run pytest backend/tests/unit/models/test_gpu_config.py -v
-
-# Frontend tests
-cd frontend && npm test -- --testPathPattern=useGpuConfig
-cd frontend && npm test -- --testPathPattern=gpuConfigApi
-```
-
-### API Endpoints
-
-| Method | Endpoint                         | Purpose                                |
-| ------ | -------------------------------- | -------------------------------------- |
-| GET    | `/api/system/gpus`               | List detected GPUs with utilization    |
-| GET    | `/api/system/gpu-config`         | Get current assignments and strategies |
-| PUT    | `/api/system/gpu-config`         | Update assignments                     |
-| POST   | `/api/system/gpu-config/apply`   | Apply config and restart services      |
-| GET    | `/api/system/gpu-config/status`  | Get restart progress and health        |
-| POST   | `/api/system/gpu-config/detect`  | Re-scan for GPUs                       |
-| GET    | `/api/system/gpu-config/preview` | Preview auto-assignment for strategy   |
-
-## Video Analytics Services
-
-Key services for video analytics features:
-
-| Service               | Location                                        | Purpose                                       |
-| --------------------- | ----------------------------------------------- | --------------------------------------------- |
-| **Zone Service**      | `backend/services/zone_service.py`              | Zone detection, line crossing, dwell tracking |
-| **Face Detector**     | `backend/services/face_detector.py`             | Face detection using YOLO11                   |
-| **Plate Detector**    | `backend/services/plate_detector.py`            | License plate detection and OCR               |
-| **Re-ID Service**     | `backend/services/reid_service.py`              | Person re-identification across cameras       |
-| **Entity Clustering** | `backend/services/entity_clustering_service.py` | Embedding similarity matching                 |
-| **Household Matcher** | `backend/services/household_matcher.py`         | Match detections to household members         |
-| **Context Enricher**  | `backend/services/context_enricher.py`          | Aggregate context from zones, baselines       |
-| **Baseline Service**  | `backend/services/baseline.py`                  | Activity baseline tracking                    |
-| **Model Zoo**         | `backend/services/model_zoo.py`                 | On-demand AI model management                 |
-
-### Video Analytics Documentation
-
-| Document                                                      | Purpose                                                      |
-| ------------------------------------------------------------- | ------------------------------------------------------------ |
-| [Video Analytics Guide](docs/guides/video-analytics.md)       | AI pipeline overview, detection, scene understanding         |
-| [Zone Configuration Guide](docs/guides/zone-configuration.md) | Zone setup, dwell time, line crossing, household integration |
-| [Face Recognition Guide](docs/guides/face-recognition.md)     | Face detection, person re-ID, household matching             |
-| [Analytics API](docs/api/analytics-endpoints.md)              | Analytics endpoints reference                                |
-
-### Analytics API Endpoints
-
-| Method | Endpoint                                 | Purpose                           |
-| ------ | ---------------------------------------- | --------------------------------- |
-| GET    | `/api/analytics/detection-trends`        | Daily detection counts            |
-| GET    | `/api/analytics/risk-history`            | Risk level distribution over time |
-| GET    | `/api/analytics/camera-uptime`           | Camera uptime percentages         |
-| GET    | `/api/analytics/object-distribution`     | Detection counts by object type   |
-| GET    | `/api/analytics/risk-score-distribution` | Risk score histogram              |
-| GET    | `/api/analytics/risk-score-trends`       | Average risk score over time      |
-
-## Development Documentation Index
-
-| Document                                                     | Purpose                                             |
-| ------------------------------------------------------------ | --------------------------------------------------- |
-| [TDD Workflow](docs/development/testing-workflow.md)         | RED-GREEN-REFACTOR cycle, test patterns             |
-| [Testing Guide](docs/development/testing.md)                 | Test infrastructure, fixtures, running tests        |
-| [Git Workflow](docs/development/git-workflow.md)             | Git safety, pre-commit rules, NEVER DISABLE TESTING |
-| [Pre-commit Hooks](docs/development/hooks.md)                | Detailed hook documentation                         |
-| [Code Quality](docs/development/code-quality.md)             | Linting, formatting, static analysis                |
-| [Linear Integration](docs/development/linear-integration.md) | Legacy API reference (use `/linear-python` skill)   |
-| [Contributing](docs/development/contributing.md)             | PR process and code standards                       |
-| [Multi-GPU Support](docs/development/multi-gpu.md)           | GPU configuration and assignment strategies         |
-| [Video Analytics](docs/guides/video-analytics.md)            | AI detection pipeline and features                  |
-| [Zone Configuration](docs/guides/zone-configuration.md)      | Detection zone setup and intelligence               |
-| [Face Recognition](docs/guides/face-recognition.md)          | Face detection and person re-identification         |
+- **Multi-GPU:** [docs/development/multi-gpu.md](docs/development/multi-gpu.md)
+- **Video Analytics:** [docs/guides/video-analytics.md](docs/guides/video-analytics.md)
+- **Zone Configuration:** [docs/guides/zone-configuration.md](docs/guides/zone-configuration.md)
+- **Face Recognition:** [docs/guides/face-recognition.md](docs/guides/face-recognition.md)
