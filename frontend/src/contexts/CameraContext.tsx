@@ -69,7 +69,7 @@ export interface CameraProviderProps {
 /**
  * Context for camera data. Do not use directly - use the useCameraContext hook.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const CameraContext = createContext<CameraContextData | null>(null);
 
 CameraContext.displayName = 'CameraContext';
@@ -162,7 +162,7 @@ export function CameraProvider({
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useCameraContext(): CameraContextData {
   const context = useContext(CameraContext);
   if (!context) {
@@ -177,7 +177,7 @@ export function useCameraContext(): CameraContextData {
  * Use this when the component may be rendered outside the provider context,
  * or when you want to handle the absence of context gracefully.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useCameraContextOptional(): CameraContextData | null {
   return useContext(CameraContext);
 }

@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+
 /**
  * ThemeContext - React context for theme state management
  *

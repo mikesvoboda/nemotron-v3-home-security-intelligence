@@ -33,7 +33,7 @@ export interface BoundingBoxOverlayProps {
  * @param nextProps - Next component props
  * @returns true if props are equal (skip re-render), false otherwise
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function arePropsEqual(
   prevProps: BoundingBoxOverlayProps,
   nextProps: BoundingBoxOverlayProps

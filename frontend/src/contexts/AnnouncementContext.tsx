@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+
 /**
  * AnnouncementContext - Global ARIA live region announcements for React.
  *

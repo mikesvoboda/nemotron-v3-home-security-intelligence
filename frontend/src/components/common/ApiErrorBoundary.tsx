@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+
 /**
  * ApiErrorBoundary - Centralized error boundary for API errors (NEM-3179)
  *

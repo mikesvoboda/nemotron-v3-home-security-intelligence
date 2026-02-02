@@ -149,7 +149,7 @@ export interface SystemDataProviderProps {
 /**
  * Context for system data. Do not use directly - use the useSystemData hook.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const SystemDataContext = createContext<SystemData | null>(null);
 
 SystemDataContext.displayName = 'SystemDataContext';
@@ -318,7 +318,7 @@ export function SystemDataProvider({
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useSystemData(): SystemData {
   const context = useContext(SystemDataContext);
   if (!context) {
@@ -345,7 +345,7 @@ export function useSystemData(): SystemData {
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useSystemDataOptional(): SystemData | null {
   return useContext(SystemDataContext);
 }
