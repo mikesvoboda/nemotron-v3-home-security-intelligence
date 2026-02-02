@@ -24,6 +24,7 @@ import {
   usePushNotifications,
   type SecurityAlertOptions as PushSecurityAlertOptions,
 } from './usePushNotifications';
+import { useThreatAudio } from './useThreatAudio';
 import { type RiskLevel } from '../utils/risk';
 
 export interface IntegratedNotificationOptions {
@@ -60,6 +61,10 @@ export interface SecurityAlertOptions {
   eventId?: string;
   /** Callback when notification is clicked */
   onClick?: () => void;
+  /** Whether this alert contains threat detections (weapons, etc.) */
+  hasThreat?: boolean;
+  /** Whether the threat is high priority (firearms, bladed weapons) */
+  isHighPriorityThreat?: boolean;
 }
 
 export interface UseIntegratedNotificationsReturn {
@@ -106,6 +111,14 @@ export interface UseIntegratedNotificationsReturn {
   audioReady: boolean;
   /** Resume audio context after user interaction */
   resumeAudio: () => Promise<void>;
+
+  // Threat audio notifications
+  /** Whether threat audio is muted */
+  threatAudioMuted: boolean;
+  /** Toggle threat audio mute state */
+  toggleThreatAudioMute: () => void;
+  /** Play threat alert sound manually */
+  playThreatAlert: (isHighPriority: boolean) => void;
 
   // Unified actions
   /** Show a security alert through all enabled channels */
@@ -208,6 +221,9 @@ export function useIntegratedNotifications(
     riskFilters,
   });
 
+  // Initialize threat audio hook for weapon/threat detection alerts
+  const threatAudio = useThreatAudio();
+
   /**
    * Show a security alert through all enabled channels
    */
@@ -217,7 +233,15 @@ export function useIntegratedNotifications(
         return;
       }
 
-      const { camera, riskLevel, summary, eventId, onClick } = alertOptions;
+      const {
+        camera,
+        riskLevel,
+        summary,
+        eventId,
+        onClick,
+        hasThreat,
+        isHighPriorityThreat,
+      } = alertOptions;
 
       // Check if this risk level is in the filters
       if (riskFilters.length > 0 && !riskFilters.includes(riskLevel)) {
@@ -243,10 +267,15 @@ export function useIntegratedNotifications(
       };
       await push.showSecurityAlert(pushOptions);
 
-      // Play audio alert
-      await audio.playRiskSound(riskLevel);
+      // Play threat-specific audio alert if this alert contains threat detections
+      if (hasThreat) {
+        threatAudio.playThreatAlert(isHighPriorityThreat ?? false);
+      } else {
+        // Play standard risk-based audio alert for non-threat events
+        await audio.playRiskSound(riskLevel);
+      }
     },
-    [isEnabled, riskFilters, desktop, push, audio]
+    [isEnabled, riskFilters, desktop, push, audio, threatAudio]
   );
 
   /**
@@ -300,6 +329,11 @@ export function useIntegratedNotifications(
     setAudioVolume: audio.setVolume,
     audioReady: audio.isReady,
     resumeAudio: audio.resume,
+
+    // Threat audio notifications
+    threatAudioMuted: threatAudio.isMuted,
+    toggleThreatAudioMute: threatAudio.toggleMute,
+    playThreatAlert: threatAudio.playThreatAlert,
 
     // Unified actions
     showSecurityAlert,

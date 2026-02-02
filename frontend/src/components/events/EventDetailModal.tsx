@@ -32,6 +32,7 @@ import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import RiskFactorsBreakdown from './RiskFactorsBreakdown';
 import RiskFactorsList from './RiskFactorsList';
+import ThreatBoundingBox from './ThreatBoundingBox';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import { useToast } from '../../hooks/useToast';
@@ -45,6 +46,7 @@ import {
   submitEventFeedback,
 } from '../../services/api';
 import { triggerEvaluation, AuditApiError } from '../../services/auditApi';
+import { THREAT_CLASSES, HIGH_PRIORITY_THREATS } from '../../types/threat';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -69,6 +71,7 @@ import EntityDetailModal from '../entities/EntityDetailModal';
 import EnrollFaceModal from '../face-recognition/EnrollFaceModal';
 import VideoPlayer from '../video/VideoPlayer';
 
+import type { ThreatData } from './ThreatBoundingBox';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
@@ -183,6 +186,11 @@ export default function EventDetailModal({
   // State for face enrollment modal
   const [enrollFaceModalOpen, setEnrollFaceModalOpen] = useState<boolean>(false);
 
+  // State for tracking image dimensions for ThreatBoundingBox overlay
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(
+    null
+  );
+
   // Hooks for feedback
   const { success: toastSuccess, error: toastError } = useToast();
   const queryClient = useQueryClient();
@@ -248,6 +256,8 @@ export default function EventDetailModal({
       setFeedbackFormType(null);
       // Reset selected detection when switching events
       setSelectedDetectionId(undefined);
+      // Reset image dimensions for ThreatBoundingBox overlay
+      setImageDimensions(null);
     }
   }, [event]);
 
@@ -542,6 +552,40 @@ export default function EventDetailModal({
       });
   };
 
+  // Convert event detections to ThreatData format for ThreatBoundingBox overlay
+  // Filters for threat classes (weapons, etc.) that have bounding box data
+  const convertToThreatData = (): ThreatData[] => {
+    return event.detections
+      .filter((d) => {
+        // Must have bbox data
+        if (!d.bbox) return false;
+        // Must be a known threat class
+        const label = d.label.toLowerCase();
+        return THREAT_CLASSES.has(label);
+      })
+      .map((d) => {
+        const bbox = d.bbox as { x: number; y: number; width: number; height: number };
+        const label = d.label.toLowerCase();
+        // Convert from {x, y, width, height} to [x1, y1, x2, y2] format
+        return {
+          class_name: d.label,
+          confidence: d.confidence,
+          // ThreatBoundingBox expects [x1, y1, x2, y2] format
+          bbox: [bbox.x, bbox.y, bbox.x + bbox.width, bbox.y + bbox.height] as [
+            number,
+            number,
+            number,
+            number,
+          ],
+          is_high_priority: HIGH_PRIORITY_THREATS.has(label),
+        };
+      });
+  };
+
+  // Compute threat data from event detections
+  const threatData = convertToThreatData();
+  const hasThreats = threatData.length > 0;
+
   // Get risk level from score
   const riskLevel = getRiskLevel(event.risk_score);
 
@@ -739,6 +783,16 @@ export default function EventDetailModal({
                             className="w-full"
                             enableLightbox={true}
                             lightboxCaption={`${event.camera_name} - ${selectedDetection.object_type || 'Detection'}${selectedDetection.confidence ? ` (${Math.round(selectedDetection.confidence * 100)}%)` : ''}`}
+                            onImageLoad={setImageDimensions}
+                            overlayContent={
+                              hasThreats && imageDimensions ? (
+                                <ThreatBoundingBox
+                                  threats={threatData}
+                                  imageWidth={imageDimensions.width}
+                                  imageHeight={imageDimensions.height}
+                                />
+                              ) : undefined
+                            }
                           />
                         </div>
                       ) : imageUrl ? (
@@ -754,6 +808,16 @@ export default function EventDetailModal({
                               className="w-full"
                               enableLightbox={true}
                               lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
+                              onImageLoad={setImageDimensions}
+                              overlayContent={
+                                hasThreats && imageDimensions ? (
+                                  <ThreatBoundingBox
+                                    threats={threatData}
+                                    imageWidth={imageDimensions.width}
+                                    imageHeight={imageDimensions.height}
+                                  />
+                                ) : undefined
+                              }
                             />
                           ) : (
                             <DetectionImage
@@ -763,6 +827,16 @@ export default function EventDetailModal({
                               className="w-full"
                               enableLightbox={true}
                               lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
+                              onImageLoad={setImageDimensions}
+                              overlayContent={
+                                hasThreats && imageDimensions ? (
+                                  <ThreatBoundingBox
+                                    threats={threatData}
+                                    imageWidth={imageDimensions.width}
+                                    imageHeight={imageDimensions.height}
+                                  />
+                                ) : undefined
+                              }
                             />
                           )}
                         </div>

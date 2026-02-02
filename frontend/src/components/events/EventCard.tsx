@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
+import ThreatIndicator from './ThreatIndicator';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -33,6 +34,7 @@ import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
 
+import type { ThreatData } from '../../types/threat';
 import type { ApproachUrgency } from '../common/ApproachVectorIndicator';
 
 export interface Detection {
@@ -178,6 +180,8 @@ export interface EventCardProps {
   clipUrl?: string | null;
   /** Approach vector data for displaying zone approach info (NEM-5024 Phase 6) */
   approachVector?: ApproachVectorData | null;
+  /** Threat detections for this event (NEM-5025) */
+  threats?: ThreatData[] | null;
 }
 
 /**
@@ -205,6 +209,7 @@ const EventCard = memo(function EventCard({
   isGeneratingClip = false,
   clipUrl,
   approachVector,
+  threats,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -400,9 +405,11 @@ const EventCard = memo(function EventCard({
             </div>
           </div>
 
-          {/* Risk Badge, Duration, and Snooze Status Row */}
+          {/* Risk Badge, Threat Indicator, Duration, and Snooze Status Row */}
           <div className={`mb-3 flex items-center gap-3 ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
             <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
+            {/* Threat Indicator (NEM-5019) - shown when threats are detected */}
+            <ThreatIndicator threats={threats} compact={true} />
             {(started_at || ended_at !== undefined) && (
               <div className="flex items-center gap-1.5 text-sm text-gray-400">
                 <Timer className="h-3.5 w-3.5" />
