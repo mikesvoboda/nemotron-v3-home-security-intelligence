@@ -573,6 +573,8 @@ class TestGetSessionNestedContexts:
         import backend.core.database as db_module
 
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
             # Track session instances created
@@ -593,7 +595,13 @@ class TestGetSessionNestedContexts:
 
             mock_factory.side_effect = create_session_cm
 
+            # Set up mock engine with AsyncMock dispose() to prevent init_db() errors
+            mock_engine = AsyncMock()
+            mock_engine.dispose = AsyncMock()
+
             db_module._async_session_factory = mock_factory
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = None  # Set to None to prevent loop mismatch
 
             # Open two nested sessions
             async with (
@@ -611,6 +619,8 @@ class TestGetSessionNestedContexts:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
     @pytest.mark.asyncio
     async def test_inner_session_rollback_independent(self) -> None:
@@ -674,6 +684,8 @@ class TestPartialFailureScenarios:
         import backend.core.database as db_module
 
         original_factory = db_module._async_session_factory
+        original_engine = db_module._engine
+        original_bound_loop_id = db_module._bound_loop_id
 
         try:
             mock_session = AsyncMock()
@@ -684,7 +696,13 @@ class TestPartialFailureScenarios:
             mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
             mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
+            # Set up mock engine with AsyncMock dispose() to prevent init_db() errors
+            mock_engine = AsyncMock()
+            mock_engine.dispose = AsyncMock()
+
             db_module._async_session_factory = mock_factory
+            db_module._engine = mock_engine
+            db_module._bound_loop_id = None  # Set to None to prevent loop mismatch
 
             # The exception from commit should propagate
             with pytest.raises(RuntimeError) as exc_info:
@@ -697,6 +715,8 @@ class TestPartialFailureScenarios:
 
         finally:
             db_module._async_session_factory = original_factory
+            db_module._engine = original_engine
+            db_module._bound_loop_id = original_bound_loop_id
 
     @pytest.mark.asyncio
     async def test_rollback_failure_after_user_error(self) -> None:
