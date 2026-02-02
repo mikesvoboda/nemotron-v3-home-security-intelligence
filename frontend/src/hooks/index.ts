@@ -336,6 +336,16 @@ export type {
   UseSceneChangeEventsReturn,
 } from './useSceneChangeEvents';
 
+export { useSceneChangesQuery } from './useSceneChangesQuery';
+export type {
+  SceneChangeType,
+  SceneChangeTimeRange,
+  AcknowledgementFilter,
+  UseSceneChangesQueryOptions,
+  SceneChangeWithCamera,
+  UseSceneChangesQueryReturn,
+} from './useSceneChangesQuery';
+
 export { useCameraStatusWebSocket } from './useCameraStatusWebSocket';
 export type {
   CameraStatusState,

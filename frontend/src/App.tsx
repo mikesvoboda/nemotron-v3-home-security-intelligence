@@ -148,6 +148,9 @@ const FaceRecognitionPage = lazy(() => import('./pages/FaceRecognitionPage'));
 // Heatmaps Visualization Page
 const HeatmapsPage = lazy(() => import('./pages/HeatmapsPage'));
 
+// Scene Changes History Page
+const SceneChangesPage = lazy(() => import('./pages/SceneChangesPage'));
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -223,6 +226,7 @@ export default function App() {
                           <Route path="/household" element={<HouseholdPage />} />
                           <Route path="/face-recognition" element={<FaceRecognitionPage />} />
                           <Route path="/heatmaps" element={<HeatmapsPage />} />
+                          <Route path="/scene-changes" element={<SceneChangesPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>

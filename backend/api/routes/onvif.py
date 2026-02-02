@@ -3,10 +3,14 @@
 NEM-4207: Endpoints for ONVIF device discovery, capabilities, PTZ control,
 and preset navigation.
 
+NEM-4885 Phase 3: Wire PTZ HTTP endpoints to expose the PTZ helper functions
+as proper FastAPI routes that the frontend can call.
+
 Endpoints:
 - POST /api/cameras/onvif/discover - Discover ONVIF devices on the network
 - GET /api/cameras/{camera_id}/onvif/capabilities - Get device capabilities
 - POST /api/cameras/{camera_id}/onvif/ptz - Execute PTZ command
+- POST /api/cameras/{camera_id}/onvif/ptz/stop - Stop PTZ movement
 - GET /api/cameras/{camera_id}/onvif/presets - List PTZ presets
 - POST /api/cameras/{camera_id}/onvif/presets/{preset_token} - Go to preset
 """
@@ -17,6 +21,8 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
+from backend.api.dependencies import DbSession, OnvifServiceDep, get_camera_or_404
+from backend.api.schemas.onvif import PTZCommand
 from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -234,3 +240,263 @@ async def goto_ptz_preset(
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
         raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
+
+
+# =============================================================================
+# HTTP Route Handlers (NEM-4885 Phase 3)
+# =============================================================================
+# These routes expose the PTZ helper functions as HTTP endpoints that match
+# what the frontend expects in ptzApi.ts.
+# =============================================================================
+
+
+@router.post(
+    "/{camera_id}/onvif/ptz",
+    summary="Execute PTZ command",
+    responses={
+        200: {"description": "PTZ command executed successfully"},
+        400: {"description": "Invalid PTZ command or value"},
+        404: {"description": "Camera not found"},
+        409: {"description": "Camera is not an ONVIF device"},
+        503: {"description": "Device unreachable"},
+    },
+)
+async def ptz_command_endpoint(
+    camera_id: str,
+    command: PTZCommand,
+    db: DbSession,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Execute a PTZ command (pan, tilt, zoom, stop) on a camera.
+
+    This endpoint controls PTZ cameras via ONVIF protocol. The frontend uses
+    this for the PTZ control D-pad and zoom buttons.
+
+    Args:
+        camera_id: ID of the camera to control
+        command: PTZ command with type, value, and speed
+        db: Database session for camera lookup
+        onvif_service: ONVIF service for PTZ control
+
+    Returns:
+        Dictionary with success status and executed command details:
+        - success: True if command executed
+        - command: The command type executed
+        - value: The movement value used
+        - speed: The speed used
+
+    Raises:
+        HTTPException: 400 if invalid command/value, 404 if camera not found,
+                      409 if not ONVIF device, 503 if device unreachable
+    """
+    # Verify camera exists using the database directly
+    await get_camera_or_404(camera_id, db)
+
+    try:
+        result = await onvif_service.execute_ptz_command(
+            camera_id=camera_id,
+            command=command.command,
+            value=command.value,
+            speed=command.speed,
+        )
+        return {
+            "success": result,
+            "command": command.command,
+            "value": command.value,
+            "speed": command.speed,
+        }
+    except ValueError as e:
+        raise _handle_onvif_value_error(e) from e
+    except Exception as e:
+        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
+
+
+@router.post(
+    "/{camera_id}/onvif/ptz/stop",
+    summary="Stop PTZ movement",
+    responses={
+        200: {"description": "PTZ movement stopped"},
+        404: {"description": "Camera not found"},
+        409: {"description": "Camera is not an ONVIF device"},
+        503: {"description": "Device unreachable"},
+    },
+)
+async def ptz_stop_endpoint(
+    camera_id: str,
+    db: DbSession,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Stop all PTZ movement on a camera.
+
+    Convenience endpoint that sends a stop command without requiring
+    a request body. The frontend calls this when the user releases
+    the PTZ controls.
+
+    Args:
+        camera_id: ID of the camera to stop
+        db: Database session for camera lookup
+        onvif_service: ONVIF service for PTZ control
+
+    Returns:
+        Dictionary with success status
+
+    Raises:
+        HTTPException: 404 if camera not found, 409 if not ONVIF device,
+                      503 if device unreachable
+    """
+    await get_camera_or_404(camera_id, db)
+
+    try:
+        result = await onvif_service.execute_ptz_command(
+            camera_id=camera_id,
+            command="stop",
+            value=0.0,
+            speed=0.0,
+        )
+        return {"success": result, "command": "stop"}
+    except ValueError as e:
+        raise _handle_onvif_value_error(e) from e
+    except Exception as e:
+        raise _handle_onvif_error(e, camera_id, "stop PTZ movement") from e
+
+
+@router.get(
+    "/{camera_id}/onvif/presets",
+    summary="Get PTZ presets",
+    responses={
+        200: {"description": "List of PTZ presets"},
+        404: {"description": "Camera not found"},
+        409: {"description": "Camera is not an ONVIF device"},
+        503: {"description": "Device unreachable"},
+    },
+)
+async def get_presets_endpoint(
+    camera_id: str,
+    db: DbSession,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Get available PTZ presets for a camera.
+
+    Retrieves the list of saved PTZ positions (presets) configured on
+    the camera. Each preset has a token and optional name.
+
+    Args:
+        camera_id: ID of the camera to get presets for
+        db: Database session for camera lookup
+        onvif_service: ONVIF service for preset retrieval
+
+    Returns:
+        Dictionary with:
+        - presets: List of preset objects with token and name
+        - count: Number of presets available
+
+    Raises:
+        HTTPException: 404 if camera not found, 409 if not ONVIF device,
+                      503 if device unreachable
+    """
+    await get_camera_or_404(camera_id, db)
+
+    try:
+        presets = await onvif_service.get_presets(camera_id=camera_id)
+        return {"presets": presets, "count": len(presets)}
+    except ValueError as e:
+        raise _handle_onvif_value_error(e) from e
+    except Exception as e:
+        raise _handle_onvif_error(e, camera_id, "get PTZ presets") from e
+
+
+@router.post(
+    "/{camera_id}/onvif/presets/{preset_token}",
+    summary="Go to PTZ preset",
+    responses={
+        200: {"description": "Camera moving to preset position"},
+        400: {"description": "Invalid preset token"},
+        404: {"description": "Camera not found"},
+        409: {"description": "Camera is not an ONVIF device"},
+        503: {"description": "Device unreachable"},
+    },
+)
+async def goto_preset_endpoint(
+    camera_id: str,
+    preset_token: str,
+    db: DbSession,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Navigate camera to a saved PTZ preset position.
+
+    Moves the camera to a previously saved preset position. The preset_token
+    is obtained from the GET /presets endpoint.
+
+    Args:
+        camera_id: ID of the camera to control
+        preset_token: Token identifying the preset position
+        db: Database session for camera lookup
+        onvif_service: ONVIF service for PTZ control
+
+    Returns:
+        Dictionary with:
+        - success: True if navigation started
+        - preset_token: The preset token that was used
+
+    Raises:
+        HTTPException: 400 if invalid preset token, 404 if camera not found,
+                      409 if not ONVIF device, 503 if device unreachable
+    """
+    await get_camera_or_404(camera_id, db)
+
+    try:
+        result = await onvif_service.goto_preset(
+            camera_id=camera_id,
+            preset_token=preset_token,
+        )
+        return {"success": result, "preset_token": preset_token}
+    except ValueError as e:
+        raise _handle_onvif_value_error(e) from e
+    except Exception as e:
+        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
+
+
+@router.get(
+    "/{camera_id}/onvif/capabilities",
+    summary="Get ONVIF device capabilities",
+    responses={
+        200: {"description": "Device capabilities"},
+        404: {"description": "Camera not found"},
+        409: {"description": "Camera is not an ONVIF device"},
+        503: {"description": "Device unreachable"},
+    },
+)
+async def get_capabilities_endpoint(
+    camera_id: str,
+    db: DbSession,
+    onvif_service: OnvifServiceDep,
+) -> dict[str, Any]:
+    """Get ONVIF device capabilities for a camera.
+
+    Retrieves device information and capability flags including:
+    - Manufacturer, model, firmware version
+    - PTZ support
+    - Media support
+    - Analytics support
+
+    Args:
+        camera_id: ID of the camera to get capabilities for
+        db: Database session for camera lookup
+        onvif_service: ONVIF service for capability retrieval
+
+    Returns:
+        Dictionary with device info and capability flags
+
+    Raises:
+        HTTPException: 404 if camera not found, 409 if not ONVIF device,
+                      503 if device unreachable
+    """
+    await get_camera_or_404(camera_id, db)
+
+    try:
+        capabilities = await onvif_service.get_capabilities(camera_id=camera_id)
+        return dict(capabilities)  # type: ignore[arg-type]
+    except ValueError as e:
+        raise _handle_onvif_value_error(e) from e
+    except Exception as e:
+        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e

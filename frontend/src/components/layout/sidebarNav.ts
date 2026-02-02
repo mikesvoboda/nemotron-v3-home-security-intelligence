@@ -15,6 +15,7 @@ import {
   Clock,
   Cpu,
   Database,
+  Eye,
   Flame,
   Gauge,
   Grid3X3,
@@ -83,6 +84,7 @@ export const navGroups: NavGroup[] = [
       { id: 'plate-reads', label: 'Plate Reads', icon: Car, path: '/plate-reads' },
       { id: 'face-recognition', label: 'Face Recognition', icon: ScanFace, path: '/face-recognition' },
       { id: 'heatmaps', label: 'Heatmaps', icon: Grid3X3, path: '/heatmaps' },
+      { id: 'scene-changes', label: 'Scene Changes', icon: Eye, path: '/scene-changes' },
     ],
   },
   {
