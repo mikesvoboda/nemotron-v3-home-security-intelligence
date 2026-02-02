@@ -296,7 +296,7 @@ async def load_yolo_world_model(model_path: str) -> Any:
         logger.info(f"Loading YOLO-World model from {model_path}")
 
         # Run model loading in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load_model() -> Any:
             """Load YOLO-World model synchronously."""
@@ -364,7 +364,7 @@ async def detect_with_prompts(
         for det in detections:
             print(f"Found {det['class_name']} at {det['bbox']} (conf: {det['confidence']:.2f})")
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     # Use security prompts by default
     detection_prompts = prompts if prompts is not None else SECURITY_PROMPTS

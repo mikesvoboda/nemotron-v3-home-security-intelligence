@@ -330,6 +330,7 @@ export default function PerformanceCharts({
                 connectNulls={true}
                 yAxisWidth={50}
                 data-testid="gpu-area-chart"
+                aria-label="GPU utilization chart showing GPU usage and VRAM consumption over time"
               />
             ) : (
               <EmptyChart message="No GPU data available" icon={Cpu} />
@@ -363,6 +364,7 @@ export default function PerformanceCharts({
                 connectNulls={true}
                 yAxisWidth={50}
                 data-testid="temperature-line-chart"
+                aria-label="GPU temperature chart showing temperature readings with warning and critical thresholds"
               />
             ) : (
               <EmptyChart message="No temperature data available" icon={Thermometer} />
@@ -412,6 +414,7 @@ export default function PerformanceCharts({
                 connectNulls={true}
                 yAxisWidth={60}
                 data-testid="latency-line-chart"
+                aria-label="Inference latency chart showing RT-DETRv2, Nemotron, and pipeline latencies over time"
               />
             ) : (
               <EmptyChart message="No inference latency data available" icon={Timer} />
@@ -448,6 +451,7 @@ export default function PerformanceCharts({
                 connectNulls={true}
                 yAxisWidth={50}
                 data-testid="resource-area-chart"
+                aria-label="System resources chart showing CPU, RAM, and disk usage over time"
               />
             ) : (
               <EmptyChart message="No system resource data available" icon={HardDrive} />

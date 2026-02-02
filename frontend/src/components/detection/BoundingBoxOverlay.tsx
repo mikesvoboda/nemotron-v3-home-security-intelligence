@@ -1,5 +1,7 @@
 import React, { memo } from 'react';
 
+import { getDetectionColor } from '../../constants/chartColors';
+
 export interface BoundingBox {
   x: number; // top-left x (pixels or percentage)
   y: number; // top-left y
@@ -75,16 +77,6 @@ export function arePropsEqual(
   return true;
 }
 
-// Default color scheme for common object types
-const DEFAULT_COLORS: Record<string, string> = {
-  person: '#ef4444', // red
-  car: '#3b82f6', // blue
-  dog: '#f59e0b', // amber
-  cat: '#8b5cf6', // purple
-  package: '#10b981', // green
-  default: '#6b7280', // gray
-};
-
 const BoundingBoxOverlayComponent: React.FC<BoundingBoxOverlayProps> = ({
   boxes,
   imageWidth,
@@ -102,7 +94,7 @@ const BoundingBoxOverlayComponent: React.FC<BoundingBoxOverlayProps> = ({
     if (box.color) {
       return box.color;
     }
-    return DEFAULT_COLORS[box.label.toLowerCase()] || DEFAULT_COLORS.default;
+    return getDetectionColor(box.label);
   };
 
   // Format confidence as percentage

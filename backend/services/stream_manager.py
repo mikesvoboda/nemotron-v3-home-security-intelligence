@@ -363,7 +363,7 @@ class StreamManager:
             camera_id: Camera identifier.
             capture: VideoCapture instance to monitor.
         """
-        last_fps_calc_time = asyncio.get_event_loop().time()
+        last_fps_calc_time = asyncio.get_running_loop().time()
         frame_count = 0
 
         while self.running and camera_id in self._streams:
@@ -386,7 +386,7 @@ class StreamManager:
                 frame_count += 1
 
                 # Calculate FPS periodically
-                current_time = asyncio.get_event_loop().time()
+                current_time = asyncio.get_running_loop().time()
                 elapsed = current_time - last_fps_calc_time
 
                 if elapsed >= self._health_update_interval:

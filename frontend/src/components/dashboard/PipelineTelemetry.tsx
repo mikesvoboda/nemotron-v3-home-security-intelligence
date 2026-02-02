@@ -515,6 +515,7 @@ export default function PipelineTelemetry({
               showGridLines={false}
               curveType="monotone"
               data-testid="telemetry-chart"
+              aria-label="Pipeline telemetry chart showing processing metrics history"
             />
           ) : (
             <div

@@ -117,7 +117,7 @@ async def load_weather_model(model_path: str) -> Any:
 
         logger.info(f"Loading Weather Classification model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load() -> dict[str, Any]:
             """Load model and processor synchronously."""
@@ -182,7 +182,7 @@ async def classify_weather(
         model = model_dict["model"]
         processor = model_dict["processor"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _classify() -> WeatherResult:
             """Run classification synchronously."""

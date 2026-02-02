@@ -704,16 +704,24 @@ class TestOSNetLoaderIntegration:
         mock_model = MagicMock()
         mock_model.parameters = MagicMock(return_value=iter([MagicMock()]))
         mock_model.eval = MagicMock(return_value=mock_model)
+        # load_state_dict returns (missing_keys, unexpected_keys)
+        mock_model.load_state_dict = MagicMock(return_value=([], []))
         mock_torchreid.models.build_model.return_value = mock_model
 
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
 
-        # Mock Path.glob to return a weights file
+        # Mock Path.glob to return a weights file and torch.load
+        # Use /tmp which is in allowed directories for security validation
         from unittest.mock import patch
 
-        with patch("pathlib.Path.exists", return_value=True):
-            result = await load_osnet_model("/path/to/model")
+        mock_weights = {"state_dict": {"conv1.weight": MagicMock()}}
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.glob", return_value=[MagicMock()]),
+            patch("torch.load", return_value=mock_weights),
+        ):
+            result = await load_osnet_model("/tmp/osnet_model")  # noqa: S108
 
         assert result is not None
         assert "model" in result

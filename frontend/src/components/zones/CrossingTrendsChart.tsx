@@ -161,6 +161,7 @@ function CrossingTrendsChartComponent({
         showLegend
         showGridLines={false}
         data-testid="crossing-area-chart"
+        aria-label="Crossing trends chart showing zone entry and exit counts over time"
       />
     </Card>
   );

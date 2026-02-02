@@ -125,7 +125,7 @@ async def load_segformer_model(model_path: str) -> Any:
 
         logger.info(f"Loading SegFormer B2 Clothes model from {model_path}")
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load_model() -> tuple[Any, Any]:
             """Load model and processor synchronously."""
@@ -198,7 +198,7 @@ async def segment_clothing(
         import numpy as np
         import torch
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _segment() -> ClothingSegmentationResult:
             """Run segmentation synchronously."""

@@ -253,7 +253,7 @@ class TestSubscriberReconnection:
 
         async def attempt_reconnect(delay: float):
             reconnect_attempts.append(
-                {"timestamp": asyncio.get_event_loop().time(), "delay": delay}
+                {"timestamp": asyncio.get_running_loop().time(), "delay": delay}
             )
             await asyncio.sleep(delay)
 

@@ -1960,10 +1960,10 @@ class TestRateLimitingBehavior:
         image = Image.new("RGB", (100, 100), color="red")
 
         # Launch 5 concurrent requests
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         tasks = [service.generate_embedding(image) for _ in range(5)]
         await asyncio.gather(*tasks)
-        end_time = asyncio.get_event_loop().time()
+        end_time = asyncio.get_running_loop().time()
 
         # With max 2 concurrent and 5 requests at 0.1s each:
         # First batch (2 concurrent): 0.1s
@@ -2002,10 +2002,10 @@ class TestRateLimitingBehavior:
             for i in range(5)
         ]
 
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         tasks = [service.store_embedding(mock_redis, emb) for emb in embeddings]
         await asyncio.gather(*tasks)
-        end_time = asyncio.get_event_loop().time()
+        end_time = asyncio.get_running_loop().time()
 
         elapsed = end_time - start_time
         # With rate limiting of 2, should take at least 0.25s for 5 operations
@@ -2026,13 +2026,13 @@ class TestRateLimitingBehavior:
 
         service = ReIdentificationService(max_concurrent_requests=2)
 
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         tasks = [
             service.find_matching_entities(mock_redis, [0.1] * EMBEDDING_DIMENSION)
             for _ in range(4)
         ]
         await asyncio.gather(*tasks)
-        end_time = asyncio.get_event_loop().time()
+        end_time = asyncio.get_running_loop().time()
 
         elapsed = end_time - start_time
         # With rate limiting of 2, should take at least 0.2s for 4 operations
@@ -2050,10 +2050,10 @@ class TestRateLimitingBehavior:
         service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=100)
         image = Image.new("RGB", (100, 100), color="blue")
 
-        start_time = asyncio.get_event_loop().time()
+        start_time = asyncio.get_running_loop().time()
         tasks = [service.generate_embedding(image) for _ in range(5)]
         await asyncio.gather(*tasks)
-        end_time = asyncio.get_event_loop().time()
+        end_time = asyncio.get_running_loop().time()
 
         elapsed = end_time - start_time
         # Should complete almost instantly since we're under the limit

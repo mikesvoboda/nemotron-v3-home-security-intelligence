@@ -1011,28 +1011,33 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
         # Get tables in FK-safe deletion order (children first, parents last)
         deletion_order = await get_table_deletion_order(engine)
 
+        # Use a dedicated session for cleanup to avoid savepoint conflicts
+        # with test sessions that may have open transactions
         async with get_session() as session:
-            # Truncate tables in order (CASCADE handles any remaining FK issues)
-            for table_name in deletion_order:
-                try:
-                    # Use SAVEPOINT so failures don't abort the transaction
-                    # This handles missing tables (not yet migrated) gracefully
-                    await session.execute(text(f"SAVEPOINT sp_{table_name}"))  # nosemgrep
-                    # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
-                    # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                    await session.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))  # nosemgrep
-                    await session.execute(text(f"RELEASE SAVEPOINT sp_{table_name}"))  # nosemgrep
-                except Exception as e:
-                    # Rollback to savepoint and continue - table may not exist yet
+            try:
+                # Truncate all tables in a single transaction
+                # Disable FK checks temporarily for faster truncation
+                await session.execute(text("SET session_replication_role = replica"))
+
+                # Truncate tables in order (CASCADE handles any remaining FK issues)
+                for table_name in deletion_order:
                     try:
+                        # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
+                        # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
                         await session.execute(
-                            text(f"ROLLBACK TO SAVEPOINT sp_{table_name}")
+                            text(f"TRUNCATE TABLE {table_name} CASCADE")
                         )  # nosemgrep
-                    except Exception as rb_err:
-                        logger.debug(f"Savepoint rollback failed for {table_name}: {rb_err}")
-                    # Skip tables that don't exist
-                    logger.debug(f"Skipping table {table_name}: {e}")
-            await session.commit()
+                    except Exception as e:
+                        # Skip tables that don't exist - they may not be migrated yet
+                        logger.debug(f"Skipping table {table_name}: {e}")
+
+                # Re-enable FK checks
+                await session.execute(text("SET session_replication_role = DEFAULT"))
+
+                await session.commit()
+            except Exception as e:
+                logger.warning(f"Error during table cleanup: {e}")
+                await session.rollback()
 
     # Test runs first
     yield
@@ -1042,12 +1047,11 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
 
 
 @pytest.fixture
-async def db_session(integration_db: str):
+async def db_session(integration_db: str, clean_tables):
     """Yield a live AsyncSession bound to the integration test database.
 
-    This fixture provides a database session for each test. The autouse
-    `clean_tables` fixture automatically truncates all tables after each
-    test for isolation.
+    This fixture provides a database session for each test. The `clean_tables`
+    fixture automatically truncates all tables after each test for isolation.
 
     When used standalone (without `client`), use `isolated_db_session`
     for automatic savepoint-based rollback.
@@ -1062,7 +1066,7 @@ async def db_session(integration_db: str):
 
 
 @pytest.fixture
-async def isolated_db_session(integration_db: str):
+async def isolated_db_session(integration_db: str, clean_tables):
     """Yield an isolated AsyncSession with transaction rollback for each test.
 
     This fixture provides a database session for each test with automatic
@@ -1071,16 +1075,18 @@ async def isolated_db_session(integration_db: str):
     - Tests can run repeatedly without data accumulation
     - Test failures still trigger proper cleanup via rollback
 
-    Implementation uses PostgreSQL savepoints:
-    1. Start a transaction and create a savepoint before the test
+    Implementation:
+    1. Create a new session (transaction starts automatically on first use)
     2. Yield the session to the test
-    3. Rollback to the savepoint after the test (success or failure)
+    3. Rollback the transaction after the test (success or failure)
 
     IMPORTANT: Do NOT use this fixture with `client` fixture - use `db_session` instead.
-    The `client` fixture handles cleanup via DELETE statements.
-    """
-    from sqlalchemy import text
+    The `client` fixture handles cleanup via TRUNCATE statements.
 
+    Note: This fixture now depends on clean_tables to ensure proper cleanup
+    order. The rollback happens during the test, and clean_tables provides
+    final cleanup after the test completes.
+    """
     from backend.core.database import get_session_factory
 
     # Get a raw session (not the auto-commit context manager)
@@ -1088,20 +1094,23 @@ async def isolated_db_session(integration_db: str):
     session = factory()
 
     try:
-        # Start a savepoint that we'll roll back to after the test
-        await session.execute(text("SAVEPOINT test_savepoint"))
-
+        # SQLAlchemy AsyncSession starts a transaction automatically on first use
+        # We don't need to call begin() explicitly
         yield session
     finally:
-        # Roll back to savepoint to undo all changes from this test
+        # Roll back the transaction to undo all changes from this test
         # This works whether the test passed, failed, or raised an exception
         try:
-            await session.execute(text("ROLLBACK TO SAVEPOINT test_savepoint"))
-        except Exception:
-            # If rollback fails, just rollback the entire transaction
-            await session.rollback()
+            if session.in_transaction():
+                await session.rollback()
+        except Exception as e:
+            # Log but don't fail - cleanup errors shouldn't break tests
+            logger.debug(f"Session rollback error: {e}")
         finally:
-            await session.close()
+            try:
+                await session.close()
+            except Exception as e:
+                logger.debug(f"Session close error: {e}")
 
 
 @pytest.fixture
@@ -1114,9 +1123,9 @@ async def session(isolated_db_session):
     Tests in backend/tests/integration/ that use the 'session' fixture will
     automatically use the worker-specific database.
     """
-    # isolated_db_session is the actual AsyncSession object, not None
-    # Just yield it directly for tests to use
-    return isolated_db_session
+    # isolated_db_session is the actual AsyncSession object
+    # Yield it directly for tests to use
+    yield isolated_db_session
 
 
 @pytest.fixture
@@ -1242,37 +1251,38 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
             # Get tables in FK-safe deletion order (dependent tables first)
             deletion_order = await get_table_deletion_order(engine)
 
+            # Use a dedicated session for cleanup to avoid savepoint conflicts
             async with get_session() as session:
-                # Truncate all test-related data in FK-safe order
-                # The order is automatically computed from foreign key relationships
-                for tbl in deletion_order:
-                    try:
-                        # Use SAVEPOINT so failures don't abort the transaction
-                        # This handles missing tables (not yet migrated) gracefully
-                        await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
-                        # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
-                        # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                        # Add per-table timeout to prevent hanging on large tables
+                try:
+                    # Disable FK checks temporarily for faster truncation
+                    await session.execute(text("SET session_replication_role = replica"))
+
+                    # Truncate all test-related data in FK-safe order
+                    # The order is automatically computed from foreign key relationships
+                    for tbl in deletion_order:
                         try:
+                            # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
+                            # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
+                            # Add per-table timeout to prevent hanging on large tables
                             await asyncio.wait_for(
                                 session.execute(text(f"TRUNCATE TABLE {tbl} CASCADE")),  # nosemgrep
                                 timeout=5.0,
                             )
                         except TimeoutError:
                             logger.warning(f"Truncate timed out for table {tbl}, skipping")
-                            raise  # Re-raise to trigger savepoint rollback
-                        await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
-                    except Exception as e:
-                        # Rollback to savepoint and continue - table may not exist yet
-                        try:
-                            await session.execute(
-                                text(f"ROLLBACK TO SAVEPOINT sp_{tbl}")
-                            )  # nosemgrep
-                        except Exception as rb_err:
-                            logger.debug(f"Savepoint rollback failed for {tbl}: {rb_err}")
-                        logger.debug(f"Skipping table {tbl}: {e}")
+                        except Exception as e:
+                            # Skip tables that don't exist - they may not be migrated yet
+                            logger.debug(f"Skipping table {tbl}: {e}")
 
-                await session.commit()
+                    # Re-enable FK checks
+                    await session.execute(text("SET session_replication_role = DEFAULT"))
+
+                    await session.commit()
+                except Exception as e:
+                    logger.warning(f"Error during cleanup transaction: {e}")
+                    await session.rollback()
+                    raise
+
             # Success - exit retry loop
             return
 

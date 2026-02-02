@@ -212,6 +212,13 @@ class Event(Base):
             "id",
             postgresql_where="reviewed = false",
         ),
+        # NEM-5052: Partial index for soft delete (active events only)
+        # Optimizes queries filtering for non-deleted records (deleted_at IS NULL)
+        Index(
+            "idx_events_active",
+            "id",
+            postgresql_where="deleted_at IS NULL",
+        ),
         # NEM-3601: GIN indexes for JSONB columns to enable efficient containment queries
         # These allow fast queries like "find events with critical flags"
         Index("idx_events_entities_gin", "entities", postgresql_using="gin"),

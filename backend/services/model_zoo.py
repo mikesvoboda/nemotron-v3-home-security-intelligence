@@ -183,7 +183,7 @@ async def load_yolo_model(model_path: str) -> Any:
             return model
 
         # Run model loading in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         model = await loop.run_in_executor(None, _load_and_fuse)
 
         logger.info(f"Successfully loaded YOLO model from {model_path}")
@@ -248,7 +248,7 @@ async def load_paddle_ocr(model_path: str) -> Any:
         logger.info(f"Loading PaddleOCR model (config: {model_path})")
 
         # Run model loading in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         # PaddleOCR downloads models automatically on first use
         # use_angle_cls=True enables text direction classification
         # lang='en' for English text recognition (license plates)

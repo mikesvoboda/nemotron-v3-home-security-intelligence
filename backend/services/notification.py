@@ -207,7 +207,7 @@ class NotificationService:
             msg.attach(MIMEText(html_body, "html"))
 
             # Send email (run in thread pool to not block async)
-            await asyncio.get_event_loop().run_in_executor(
+            await asyncio.get_running_loop().run_in_executor(
                 None, self._send_email_sync, msg, email_recipients
             )
 

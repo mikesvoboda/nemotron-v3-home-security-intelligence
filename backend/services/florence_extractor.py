@@ -297,7 +297,7 @@ class FlorenceExtractor:
         try:
             import torch
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             def _inference() -> str:
                 """Run inference synchronously."""

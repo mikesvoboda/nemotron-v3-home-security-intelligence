@@ -583,6 +583,31 @@ class TestEventTableArgs:
                 assert "id" in col_names
                 break
 
+    def test_event_partial_index_active(self):
+        """Test Event has partial index for active (non-deleted) events.
+
+        NEM-5052: Partial index WHERE deleted_at IS NULL enables efficient
+        queries filtering for non-deleted records.
+        """
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_active" in index_names
+
+        # Verify partial index has WHERE clause
+        for idx in table.indexes:
+            if idx.name == "idx_events_active":
+                # Check that the index has a WHERE clause (partial index)
+                # SQLAlchemy stores this in postgresql_where
+                assert idx.dialect_options.get("postgresql", {}).get("where") is not None
+                # Verify it indexes the 'id' column
+                col_names = [col.name for col in idx.columns]
+                assert "id" in col_names
+                break
+
 
 # =============================================================================
 # Property-based Tests

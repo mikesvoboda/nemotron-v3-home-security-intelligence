@@ -45,7 +45,7 @@ async def load_florence_model(model_path: str) -> Any:
         logger.info(f"Loading Florence-2 model from {model_path}")
 
         # Run model loading in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _load_model() -> tuple[Any, Any]:
             """Load model and processor synchronously."""
