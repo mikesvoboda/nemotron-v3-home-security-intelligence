@@ -942,8 +942,18 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
         yield integration_env
     finally:
         # Clean up test cameras before closing the database
-        await _cleanup_test_cameras()
-        await close_db()
+        # Add timeout protection to prevent hanging during teardown
+        try:
+            await asyncio.wait_for(_cleanup_test_cameras(), timeout=10.0)
+        except TimeoutError:
+            logger.warning("Test data cleanup timed out after 10s during integration_db teardown")
+
+        # Close database with timeout protection
+        try:
+            await asyncio.wait_for(close_db(), timeout=5.0)
+        except TimeoutError:
+            logger.warning("Database close timed out after 5s during integration_db teardown")
+
         get_settings.cache_clear()
 
 
@@ -1192,7 +1202,11 @@ async def real_redis(
         yield client
     finally:
         # Disconnect without flushing to avoid affecting parallel tests
-        await client.disconnect()
+        # Add timeout protection to prevent hanging during teardown
+        try:
+            await asyncio.wait_for(client.disconnect(), timeout=5.0)
+        except TimeoutError:
+            logger.warning("Redis disconnect timed out after 5s during test teardown")
 
 
 async def _cleanup_test_data(max_retries: int = 3) -> None:
@@ -1238,7 +1252,15 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                         await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
                         # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
                         # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
-                        await session.execute(text(f"TRUNCATE TABLE {tbl} CASCADE"))  # nosemgrep
+                        # Add per-table timeout to prevent hanging on large tables
+                        try:
+                            await asyncio.wait_for(
+                                session.execute(text(f"TRUNCATE TABLE {tbl} CASCADE")),  # nosemgrep
+                                timeout=5.0,
+                            )
+                        except TimeoutError:
+                            logger.warning(f"Truncate timed out for table {tbl}, skipping")
+                            raise  # Re-raise to trigger savepoint rollback
                         await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
                     except Exception as e:
                         # Rollback to savepoint and continue - table may not exist yet
@@ -1435,14 +1457,21 @@ async def cleanup_keys(real_redis: RedisClient, test_prefix: str):
     yield
 
     # Cleanup after test - delete all keys with this test's prefix
+    # Add timeout protection to prevent hanging during teardown
     try:
         keys = []
         async for key in real_redis._client.scan_iter(match=f"{test_prefix}:*"):
             keys.append(key)
+            # Limit keys to prevent excessive cleanup time
+            if len(keys) >= 1000:
+                break
 
         if keys:
-            await real_redis._client.delete(*keys)
+            # Use asyncio.wait_for to timeout the delete operation
+            await asyncio.wait_for(real_redis._client.delete(*keys), timeout=5.0)
             logger.debug(f"Cleaned up {len(keys)} Redis keys with prefix {test_prefix}")
+    except TimeoutError:
+        logger.warning(f"Redis cleanup timed out after 5s for prefix {test_prefix}")
     except Exception as e:
         logger.warning(f"Failed to clean up Redis keys: {e}")
 
@@ -1683,10 +1712,18 @@ class PrefixedRedis:
             keys = []
             async for key in self._client._client.scan_iter(match=f"{self._prefix}*"):
                 keys.append(key)
+                # Limit keys to prevent excessive cleanup time
+                if len(keys) >= 1000:
+                    break
 
             if keys:
-                keys_deleted = await self._client._client.delete(*keys)
+                # Use asyncio.wait_for to timeout the delete operation
+                keys_deleted = await asyncio.wait_for(
+                    self._client._client.delete(*keys), timeout=5.0
+                )
                 logger.debug(f"Cleaned up {keys_deleted} Redis keys with prefix {self._prefix}")
+        except TimeoutError:
+            logger.warning(f"Redis cleanup timed out after 5s for prefix {self._prefix}")
         except Exception as e:
             logger.warning(f"Failed to clean up Redis keys with prefix {self._prefix}: {e}")
         return keys_deleted
