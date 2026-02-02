@@ -67,6 +67,7 @@ from backend.api.routes import (
     hierarchy,
     household,
     household_matcher,
+    inbound_webhooks,
     jobs,
     llm_reasoning,
     logs,
@@ -1249,6 +1250,7 @@ app.include_router(hierarchy.property_router)
 app.include_router(hierarchy.area_router)
 app.include_router(household.router)
 app.include_router(household_matcher.router)
+app.include_router(inbound_webhooks.router)
 app.include_router(jobs.router)
 app.include_router(llm_reasoning.router)
 app.include_router(logs.router)
