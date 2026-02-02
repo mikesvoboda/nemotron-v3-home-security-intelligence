@@ -208,4 +208,24 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # The entrypoint runs migrations with retry logic, then executes CMD
 ENTRYPOINT ["/app/backend/entrypoint.sh"]
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# ============================================================================
+# Proxy Headers Configuration for Nginx Reverse Proxy
+# ============================================================================
+# This application runs behind an nginx reverse proxy that sets X-Forwarded-*
+# headers. The following flags are critical for correct operation:
+#
+# --proxy-headers: Enables uvicorn to trust and parse X-Forwarded-For,
+#                  X-Forwarded-Proto, X-Forwarded-Host headers from reverse proxy
+#
+# --forwarded-allow-ips "*": Trusts all IPs to set proxy headers. This is safe
+#                            in containerized environments where only the nginx
+#                            reverse proxy can reach the backend container.
+#
+# These headers are essential for:
+# - IP-based rate limiting to use actual client IP (not nginx container IP)
+# - Security logging with correct client addresses
+# - HSTS and other protocol-dependent headers using X-Forwarded-Proto
+# - Correct client detection in request.client for audit trails
+# ============================================================================
+
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
