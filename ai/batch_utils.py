@@ -455,7 +455,7 @@ class BatchProcessor:
                 input_tensor = {k: v.to(device) for k, v in input_tensor.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 if isinstance(input_tensor, dict):
                     outputs = model(**input_tensor)
                 else:
@@ -516,7 +516,7 @@ def create_batch_inference_fn(
         inputs = {k: v.to(device, model_dtype) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = model(**inputs)
 
         # Post-process if function provided

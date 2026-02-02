@@ -114,6 +114,13 @@ describe('stores/index', () => {
       expect(typeof stores.getDashboardConfig).toBe('function');
       expect(typeof stores.setDashboardConfig).toBe('function');
     });
+
+    it('exports dashboard config shallow hooks', () => {
+      expect(typeof stores.useDashboardWidgets).toBe('function');
+      expect(typeof stores.useDashboardTheme).toBe('function');
+      expect(typeof stores.useDashboardRefreshInterval).toBe('function');
+      expect(typeof stores.useDashboardConfigActions).toBe('function');
+    });
   });
 
   describe('prometheus alert store exports', () => {

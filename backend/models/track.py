@@ -77,6 +77,8 @@ class Track(Base):
         Index("idx_tracks_object_class", "object_class"),
         # Composite index for camera + time range queries
         Index("idx_tracks_camera_first_seen", "camera_id", "first_seen"),
+        # NEM-5053: Index for last_seen queries (e.g., "recently active tracks")
+        Index("idx_tracks_last_seen", "last_seen"),
     )
 
     def __repr__(self) -> str:

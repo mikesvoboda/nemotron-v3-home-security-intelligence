@@ -693,4 +693,114 @@ describe('worker-status-store', () => {
       expect(typeof useWorkerStatusActions).toBe('function');
     });
   });
+
+  describe('memoized selectors (NEM-5034)', () => {
+    beforeEach(() => {
+      const { handleWorkerStarted, handleWorkerStopped, handleWorkerError } =
+        useWorkerStatusStore.getState();
+
+      handleWorkerStarted({
+        worker_name: 'detection-worker-1',
+        worker_type: 'detection',
+        timestamp: new Date().toISOString(),
+      });
+      handleWorkerStarted({
+        worker_name: 'detection-worker-2',
+        worker_type: 'detection',
+        timestamp: new Date().toISOString(),
+      });
+      handleWorkerStopped({
+        worker_name: 'analysis-worker-1',
+        worker_type: 'analysis',
+        timestamp: new Date().toISOString(),
+      });
+      handleWorkerError({
+        worker_name: 'metrics-worker-1',
+        worker_type: 'metrics',
+        error: 'Failed',
+        timestamp: new Date().toISOString(),
+        recoverable: true,
+      });
+    });
+
+    it('selectErrorWorkers returns stable reference when state unchanged', () => {
+      const state = useWorkerStatusStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectErrorWorkers(state);
+      const result2 = selectErrorWorkers(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectWarningWorkers returns stable reference when state unchanged', () => {
+      const state = useWorkerStatusStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectWarningWorkers(state);
+      const result2 = selectWarningWorkers(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectRunningWorkers returns stable reference when state unchanged', () => {
+      const state = useWorkerStatusStore.getState();
+
+      // Call selector twice with same state
+      const result1 = selectRunningWorkers(state);
+      const result2 = selectRunningWorkers(state);
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectWorkersByType returns stable reference when state unchanged', () => {
+      const state = useWorkerStatusStore.getState();
+
+      // Call selector twice with same state and type
+      const result1 = selectWorkersByType(state, 'detection');
+      const result2 = selectWorkersByType(state, 'detection');
+
+      // Should return same reference (memoized)
+      expect(result1).toBe(result2);
+    });
+
+    it('selectErrorWorkers returns new reference when state changes', () => {
+      const state1 = useWorkerStatusStore.getState();
+      const result1 = selectErrorWorkers(state1);
+
+      // Add another error worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'new-error-worker',
+          worker_type: 'detection',
+          error: 'New error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      const state2 = useWorkerStatusStore.getState();
+      const result2 = selectErrorWorkers(state2);
+
+      // Should return different references (state changed)
+      expect(result1).not.toBe(result2);
+      expect(result2.length).toBe(2);
+    });
+
+    it('selectWorkersByType returns new reference for different worker types', () => {
+      const state = useWorkerStatusStore.getState();
+
+      // Call selector with different types
+      const result1 = selectWorkersByType(state, 'detection');
+      const result2 = selectWorkersByType(state, 'analysis');
+
+      // Should return different references (different parameters)
+      expect(result1).not.toBe(result2);
+      expect(result1[0].type).toBe('detection');
+      expect(result2[0].type).toBe('analysis');
+    });
+  });
 });

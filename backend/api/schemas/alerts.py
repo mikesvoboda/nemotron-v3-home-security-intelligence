@@ -787,6 +787,7 @@ class AlertResponse(BaseModel):
                 "channels": ["pushover"],
                 "dedup_key": "front_door:person:entry_zone",
                 "metadata": {"camera_name": "Front Door"},
+                "version_id": 1,
             }
         },
     )
@@ -806,6 +807,12 @@ class AlertResponse(BaseModel):
         None,
         description="Additional context",
         validation_alias="alert_metadata",
+    )
+    # Optimistic locking version column (NEM-4843)
+    # Prevents race conditions during concurrent acknowledge/dismiss operations
+    version_id: int = Field(
+        1,
+        description="Optimistic locking version. Include in updates to prevent concurrent modification conflicts.",
     )
 
 

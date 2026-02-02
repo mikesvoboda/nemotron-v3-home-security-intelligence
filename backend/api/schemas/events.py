@@ -187,9 +187,15 @@ class EventResponse(BaseModel):
         """
         return _compute_risk_level(self.risk_score)
 
-    reasoning: str | None = Field(None, description="LLM reasoning for risk score")
+    reasoning: str | None = Field(
+        None,
+        description="LLM reasoning for risk score. DEFERRED: This field is not loaded by default "
+        "in list queries to reduce memory usage. Use undefer() when querying to include it.",
+    )
     llm_prompt: str | None = Field(
-        None, description="Full prompt sent to Nemotron LLM (for debugging/improvement)"
+        None,
+        description="Full prompt sent to Nemotron LLM (for debugging/improvement). DEFERRED: "
+        "This field is not loaded by default in list queries. Use undefer() when querying.",
     )
     reviewed: bool = Field(False, description="Whether event has been reviewed")
     flagged: bool = Field(False, description="Whether event is flagged for follow-up (NEM-3839)")

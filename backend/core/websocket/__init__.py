@@ -6,6 +6,7 @@ This module provides centralized WebSocket event management including:
 - WebSocket emitter service for broadcasting events
 - Subscription management for event filtering (NEM-2383)
 - Message compression for bandwidth optimization (NEM-3154)
+- Message buffer for replay functionality (NEM-4983)
 
 Usage:
     from backend.core.websocket import (
@@ -92,6 +93,11 @@ from backend.core.websocket.message_batcher import (
     reset_message_batcher_state,
     stop_message_batcher,
 )
+from backend.core.websocket.message_buffer import (
+    MessageBuffer,
+    get_message_buffer,
+    reset_message_buffer_state,
+)
 from backend.core.websocket.sequence_tracker import (
     SequenceTracker,
     get_sequence_tracker,
@@ -117,6 +123,7 @@ __all__ = [
     "ConnectionHealthTracker",
     "ConnectionMetrics",
     "MessageBatcher",
+    "MessageBuffer",
     "SequenceTracker",
     "SerializationFormat",
     "SubscriptionManager",
@@ -139,6 +146,7 @@ __all__ = [
     "get_event_types_by_channel",
     "get_health_tracker",
     "get_message_batcher",
+    "get_message_buffer",
     "get_required_payload_fields",
     "get_sequence_tracker",
     "get_subscription_manager",
@@ -149,6 +157,7 @@ __all__ = [
     "reset_compression_stats",
     "reset_health_tracker_state",
     "reset_message_batcher_state",
+    "reset_message_buffer_state",
     "reset_sequence_tracker_state",
     "reset_subscription_manager_state",
     "should_compress",

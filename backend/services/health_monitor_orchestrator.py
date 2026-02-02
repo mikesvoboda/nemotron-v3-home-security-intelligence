@@ -194,7 +194,10 @@ class HealthMonitor:
 
         logger.info("Starting HealthMonitor")
         self._running = True
-        self._task = asyncio.create_task(self._health_check_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._task = asyncio.create_task(
+            self._health_check_loop(), name="health-monitor-orchestrator"
+        )
         logger.info("HealthMonitor started successfully")
 
     async def stop(self) -> None:

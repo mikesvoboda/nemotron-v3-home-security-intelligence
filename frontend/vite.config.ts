@@ -324,6 +324,9 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',
       css: true,
+      // NEM-5022: Auto-clear and restore mocks between tests
+      clearMocks: true,
+      restoreMocks: true,
       // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
       // Also exclude contract tests (Playwright-based API contract validation)
       exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/contract/**'],

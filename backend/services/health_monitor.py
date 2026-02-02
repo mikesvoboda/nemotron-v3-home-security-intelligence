@@ -102,7 +102,8 @@ class ServiceHealthMonitor:
         self._failure_counts.clear()
 
         # Start health check loop in background
-        self._task = asyncio.create_task(self._health_check_loop())
+        # NEM-5057: Add task name for easier debugging with asyncio.all_tasks()
+        self._task = asyncio.create_task(self._health_check_loop(), name="service-health-monitor")
 
         logger.info("ServiceHealthMonitor started successfully")
 
