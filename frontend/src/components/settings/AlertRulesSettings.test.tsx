@@ -81,6 +81,10 @@ describe('AlertRulesSettings', () => {
       channels: ['pushover', 'webhook'],
       created_at: '2025-01-01T00:00:00Z',
       updated_at: '2025-01-01T00:00:00Z',
+      exclude_household_members: false,
+      smoke_fire_consecutive_required: 2,
+      smoke_fire_detection_enabled: false,
+      threat_detection_enabled: false,
     },
     {
       id: 'rule-2',
@@ -100,6 +104,10 @@ describe('AlertRulesSettings', () => {
       channels: ['email'],
       created_at: '2025-01-02T00:00:00Z',
       updated_at: '2025-01-02T00:00:00Z',
+      exclude_household_members: false,
+      smoke_fire_consecutive_required: 2,
+      smoke_fire_detection_enabled: false,
+      threat_detection_enabled: false,
     },
   ];
 
@@ -385,6 +393,10 @@ describe('AlertRulesSettings', () => {
         channels: [],
         created_at: '2025-01-10T00:00:00Z',
         updated_at: '2025-01-10T00:00:00Z',
+        exclude_household_members: false,
+        smoke_fire_consecutive_required: 2,
+        smoke_fire_detection_enabled: false,
+        threat_detection_enabled: false,
       };
 
       vi.mocked(api.fetchAlertRules)
@@ -609,6 +621,10 @@ describe('AlertRulesSettings', () => {
         channels: ['email'],
         created_at: '2025-01-10T00:00:00Z',
         updated_at: '2025-01-10T00:00:00Z',
+        exclude_household_members: false,
+        smoke_fire_consecutive_required: 2,
+        smoke_fire_detection_enabled: false,
+        threat_detection_enabled: false,
       };
 
       vi.mocked(api.fetchAlertRules)

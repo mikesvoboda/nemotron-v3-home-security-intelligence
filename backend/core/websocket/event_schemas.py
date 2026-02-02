@@ -849,6 +849,143 @@ class PipelineThroughputPayload(BasePayload):
 
 
 # =============================================================================
+# Zone Event Payloads (NEM-5073)
+# =============================================================================
+
+
+class ZoneCrossingPayload(BasePayload):
+    """Payload for zone.crossing events.
+
+    Represents an entity crossing a zone boundary (line zone).
+    """
+
+    zone_id: str = Field(..., description="Zone identifier")
+    zone_name: str | None = Field(None, description="Human-readable zone name")
+    entity_id: str = Field(..., description="Entity identifier")
+    entity_type: str | None = Field(None, description="Type of entity (person, vehicle)")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    direction: str = Field(..., description="Crossing direction (entering, exiting)")
+    bbox: dict[str, float] | None = Field(None, description="Bounding box {x, y, width, height}")
+
+
+class ZoneDwellStartedPayload(BasePayload):
+    """Payload for zone.dwell_started events.
+
+    Represents an entity entering a zone and starting dwell tracking.
+    """
+
+    zone_id: str = Field(..., description="Zone identifier")
+    zone_name: str | None = Field(None, description="Human-readable zone name")
+    entity_id: str = Field(..., description="Entity identifier")
+    entity_type: str | None = Field(None, description="Type of entity (person, vehicle)")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+
+
+class ZoneDwellAlertPayload(BasePayload):
+    """Payload for zone.dwell_alert events.
+
+    Represents an entity dwell time exceeding the configured threshold.
+    """
+
+    zone_id: str = Field(..., description="Zone identifier")
+    zone_name: str | None = Field(None, description="Human-readable zone name")
+    entity_id: str = Field(..., description="Entity identifier")
+    entity_type: str | None = Field(None, description="Type of entity (person, vehicle)")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    dwell_duration_seconds: int = Field(
+        ..., ge=0, description="How long entity has been in zone (seconds)"
+    )
+    threshold_seconds: int = Field(..., gt=0, description="Configured dwell threshold (seconds)")
+
+
+class ZoneApproachPayload(BasePayload):
+    """Payload for zone.approach events.
+
+    Represents an entity approaching a zone with velocity tracking.
+    """
+
+    zone_id: str = Field(..., description="Zone identifier")
+    zone_name: str | None = Field(None, description="Human-readable zone name")
+    entity_id: str = Field(..., description="Entity identifier")
+    entity_type: str | None = Field(None, description="Type of entity (person, vehicle)")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    direction: str = Field(..., description="Approach direction (north, south, east, west)")
+    speed: float = Field(..., ge=0, description="Speed of approach (units per second)")
+    eta_seconds: int = Field(..., ge=0, description="Estimated time of arrival (seconds)")
+
+
+# =============================================================================
+# Entity Event Payloads (NEM-5073)
+# =============================================================================
+
+
+class EntityMatchedPayload(BasePayload):
+    """Payload for entity.matched events.
+
+    Represents a re-identification match found between entities.
+    """
+
+    entity_id: str = Field(..., description="Current entity identifier")
+    matched_entity_id: str = Field(..., description="Matched entity identifier")
+    similarity_score: float = Field(..., ge=0, le=1, description="Similarity score (0-1)")
+    camera_id: str = Field(..., description="Camera identifier where match was detected")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    match_type: str | None = Field(None, description="Type of match (face, body, clothing)")
+
+
+class EntityTrackUpdatedPayload(BasePayload):
+    """Payload for entity.track_updated events.
+
+    Represents an entity track position update.
+    """
+
+    entity_id: str = Field(..., description="Entity identifier")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    position: dict[str, float] = Field(..., description="Position {x, y}")
+    bbox: dict[str, float] = Field(..., description="Bounding box {x, y, width, height}")
+    velocity: dict[str, float] | None = Field(None, description="Velocity vector {x, y}")
+
+
+# =============================================================================
+# AI Event Payloads (NEM-5073)
+# =============================================================================
+
+
+class AIThreatDetectedPayload(BasePayload):
+    """Payload for ai.threat_detected events.
+
+    Represents a threat detection by an AI model (weapon, dangerous object).
+    """
+
+    detection_id: str = Field(..., description="Detection identifier")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    threat_type: str = Field(..., description="Type of threat (weapon, knife, etc.)")
+    severity: str = Field(..., description="Severity level (low, medium, high, critical)")
+    confidence: float = Field(..., ge=0, le=1, description="Detection confidence (0-1)")
+    bbox: dict[str, float] | None = Field(None, description="Bounding box {x, y, width, height}")
+
+
+class AIActionRecognizedPayload(BasePayload):
+    """Payload for ai.action_recognized events.
+
+    Represents an action recognized by X-CLIP model.
+    """
+
+    detection_id: str = Field(..., description="Detection identifier")
+    camera_id: str = Field(..., description="Camera identifier")
+    timestamp: str = Field(..., description="ISO 8601 timestamp")
+    action_type: str = Field(..., description="Type of action (climbing, running, etc.)")
+    confidence: float = Field(..., ge=0, le=1, description="Action confidence (0-1)")
+    bbox: dict[str, float] | None = Field(None, description="Bounding box {x, y, width, height}")
+
+
+# =============================================================================
 # Payload Type Mapping
 # =============================================================================
 
@@ -913,6 +1050,17 @@ EVENT_PAYLOAD_SCHEMAS: dict[WebSocketEventType, type[BasePayload]] = {
     # Queue metrics events (NEM-3637)
     WebSocketEventType.QUEUE_STATUS: QueueStatusPayload,
     WebSocketEventType.PIPELINE_THROUGHPUT: PipelineThroughputPayload,
+    # Zone events (NEM-5073)
+    WebSocketEventType.ZONE_CROSSING: ZoneCrossingPayload,
+    WebSocketEventType.ZONE_DWELL_STARTED: ZoneDwellStartedPayload,
+    WebSocketEventType.ZONE_DWELL_ALERT: ZoneDwellAlertPayload,
+    WebSocketEventType.ZONE_APPROACH: ZoneApproachPayload,
+    # Entity events (NEM-5073)
+    WebSocketEventType.ENTITY_MATCHED: EntityMatchedPayload,
+    WebSocketEventType.ENTITY_TRACK_UPDATED: EntityTrackUpdatedPayload,
+    # AI events (NEM-5073)
+    WebSocketEventType.AI_THREAT_DETECTED: AIThreatDetectedPayload,
+    WebSocketEventType.AI_ACTION_RECOGNIZED: AIActionRecognizedPayload,
 }
 
 

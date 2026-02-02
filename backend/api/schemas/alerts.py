@@ -70,6 +70,20 @@ VALID_DAYS = frozenset(
     ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 )
 
+# Valid pose classes for pose_types validation
+# Based on PoseResult model CHECK constraint (ck_pose_results_pose_class)
+VALID_POSE_CLASSES = frozenset(
+    ["standing", "crouching", "bending_over", "arms_raised", "sitting", "lying_down", "unknown"]
+)
+
+# Valid threat types for threat_types validation
+# Based on ThreatDetection model CHECK constraint (ck_threat_detections_threat_type)
+VALID_THREAT_TYPES = frozenset(["gun", "knife", "grenade", "explosive", "weapon", "other"])
+
+# Valid threat severity levels
+# Based on ThreatDetection model CHECK constraint (ck_threat_detections_severity)
+VALID_THREAT_SEVERITIES = frozenset(["critical", "high", "medium", "low"])
+
 
 def validate_time_format(time_str: str) -> tuple[int, int]:
     """Validate time format and return hours and minutes.
@@ -303,6 +317,67 @@ class AlertRuleCreate(BaseModel):
         None, description="Legacy conditions (use explicit fields instead)"
     )
 
+    # =========================================================================
+    # New Alert Condition Types (NEM-5085)
+    # =========================================================================
+
+    # Dwell time condition: Alert when dwell exceeds threshold in a zone
+    dwell_threshold_seconds: int | None = Field(
+        None, ge=0, description="Dwell time threshold in seconds (alert when exceeded)"
+    )
+    exclude_household_members: bool = Field(
+        False, description="Whether to exclude household members from dwell time alerts"
+    )
+
+    # Pose condition: Alert on specific poses
+    pose_types: list[str] | None = Field(
+        None,
+        description="Pose types to alert on (e.g., ['crouching', 'lying_down']). "
+        "Valid: standing, crouching, bending_over, arms_raised, sitting, lying_down, unknown",
+    )
+    pose_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum pose confidence (0.0-1.0)"
+    )
+
+    # Action condition: Alert on X-CLIP recognized actions
+    action_types: list[str] | None = Field(
+        None,
+        description="Action types to alert on (e.g., ['loitering', 'peering_through_window']). "
+        "Actions are recognized by X-CLIP model.",
+    )
+    action_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum action confidence (0.0-1.0)"
+    )
+
+    # Threat condition: Alert on weapon detection
+    threat_detection_enabled: bool = Field(
+        False, description="Enable alert on threat/weapon detection"
+    )
+    threat_types: list[str] | None = Field(
+        None,
+        description="Threat types to alert on (e.g., ['gun', 'knife']). "
+        "Valid: gun, knife, grenade, explosive, weapon, other",
+    )
+    threat_min_severity: str | None = Field(
+        None, description="Minimum threat severity (critical, high, medium, low)"
+    )
+    threat_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum threat detection confidence (0.0-1.0)"
+    )
+
+    # Smoke/fire condition: Alert on smoke or fire detection
+    smoke_fire_detection_enabled: bool = Field(
+        False, description="Enable alert on smoke/fire detection"
+    )
+    smoke_fire_consecutive_required: int = Field(
+        2,
+        ge=1,
+        description="Number of consecutive smoke/fire detections required (reduces false positives)",
+    )
+    smoke_fire_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum smoke/fire confidence (0.0-1.0)"
+    )
+
     # Deduplication settings
     dedup_key_template: str = Field(
         "{camera_id}:{rule_id}",
@@ -313,6 +388,52 @@ class AlertRuleCreate(BaseModel):
     channels: list[str] = Field(
         default_factory=list, description="Notification channels for this rule"
     )
+
+    @field_validator("pose_types")
+    @classmethod
+    def validate_pose_types(cls, v: list[str] | None) -> list[str] | None:
+        """Validate that pose_types contains valid pose classes."""
+        if v is None or len(v) == 0:
+            return v
+
+        invalid_poses = [pose for pose in v if pose not in VALID_POSE_CLASSES]
+        if invalid_poses:
+            raise ValueError(
+                f"Invalid pose type(s): {', '.join(invalid_poses)}. "
+                f"Valid pose types are: {', '.join(sorted(VALID_POSE_CLASSES))}"
+            )
+        return v
+
+    @field_validator("threat_types")
+    @classmethod
+    def validate_threat_types(cls, v: list[str] | None) -> list[str] | None:
+        """Validate that threat_types contains valid threat types."""
+        if v is None or len(v) == 0:
+            return v
+
+        # Threat types are validated but we allow them even when disabled
+        # This permits configuring the filter before enabling
+        invalid_threats = [threat for threat in v if threat not in VALID_THREAT_TYPES]
+        if invalid_threats:
+            raise ValueError(
+                f"Invalid threat type(s): {', '.join(invalid_threats)}. "
+                f"Valid threat types are: {', '.join(sorted(VALID_THREAT_TYPES))}"
+            )
+        return v
+
+    @field_validator("threat_min_severity")
+    @classmethod
+    def validate_threat_min_severity(cls, v: str | None) -> str | None:
+        """Validate that threat_min_severity is a valid severity level."""
+        if v is None:
+            return v
+
+        if v not in VALID_THREAT_SEVERITIES:
+            raise ValueError(
+                f"Invalid threat severity: {v}. "
+                f"Valid severities are: {', '.join(sorted(VALID_THREAT_SEVERITIES))}"
+            )
+        return v
 
 
 class AlertRuleUpdate(BaseModel):
@@ -351,6 +472,51 @@ class AlertRuleUpdate(BaseModel):
     # Legacy conditions
     conditions: AlertRuleConditions | None = Field(None, description="Legacy conditions")
 
+    # =========================================================================
+    # New Alert Condition Types (NEM-5085)
+    # =========================================================================
+
+    # Dwell time condition
+    dwell_threshold_seconds: int | None = Field(
+        None, ge=0, description="Dwell time threshold in seconds"
+    )
+    exclude_household_members: bool | None = Field(
+        None, description="Whether to exclude household members from dwell time alerts"
+    )
+
+    # Pose condition
+    pose_types: list[str] | None = Field(None, description="Pose types to alert on")
+    pose_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum pose confidence"
+    )
+
+    # Action condition
+    action_types: list[str] | None = Field(None, description="Action types to alert on")
+    action_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum action confidence"
+    )
+
+    # Threat condition
+    threat_detection_enabled: bool | None = Field(
+        None, description="Enable alert on threat detection"
+    )
+    threat_types: list[str] | None = Field(None, description="Threat types to alert on")
+    threat_min_severity: str | None = Field(None, description="Minimum threat severity")
+    threat_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum threat confidence"
+    )
+
+    # Smoke/fire condition
+    smoke_fire_detection_enabled: bool | None = Field(
+        None, description="Enable alert on smoke/fire detection"
+    )
+    smoke_fire_consecutive_required: int | None = Field(
+        None, ge=1, description="Consecutive detections required"
+    )
+    smoke_fire_confidence_threshold: float | None = Field(
+        None, ge=0.0, le=1.0, description="Minimum smoke/fire confidence"
+    )
+
     # Deduplication settings
     dedup_key_template: str | None = Field(
         None, max_length=255, description="Template for dedup key"
@@ -359,6 +525,50 @@ class AlertRuleUpdate(BaseModel):
         None, ge=0, description="Minimum seconds between duplicate alerts"
     )
     channels: list[str] | None = Field(None, description="Notification channels for this rule")
+
+    @field_validator("pose_types")
+    @classmethod
+    def validate_pose_types(cls, v: list[str] | None) -> list[str] | None:
+        """Validate that pose_types contains valid pose classes."""
+        if v is None or len(v) == 0:
+            return v
+
+        invalid_poses = [pose for pose in v if pose not in VALID_POSE_CLASSES]
+        if invalid_poses:
+            raise ValueError(
+                f"Invalid pose type(s): {', '.join(invalid_poses)}. "
+                f"Valid pose types are: {', '.join(sorted(VALID_POSE_CLASSES))}"
+            )
+        return v
+
+    @field_validator("threat_types")
+    @classmethod
+    def validate_threat_types(cls, v: list[str] | None) -> list[str] | None:
+        """Validate that threat_types contains valid threat types."""
+        if v is None or len(v) == 0:
+            return v
+
+        invalid_threats = [threat for threat in v if threat not in VALID_THREAT_TYPES]
+        if invalid_threats:
+            raise ValueError(
+                f"Invalid threat type(s): {', '.join(invalid_threats)}. "
+                f"Valid threat types are: {', '.join(sorted(VALID_THREAT_TYPES))}"
+            )
+        return v
+
+    @field_validator("threat_min_severity")
+    @classmethod
+    def validate_threat_min_severity(cls, v: str | None) -> str | None:
+        """Validate that threat_min_severity is a valid severity level."""
+        if v is None:
+            return v
+
+        if v not in VALID_THREAT_SEVERITIES:
+            raise ValueError(
+                f"Invalid threat severity: {v}. "
+                f"Valid severities are: {', '.join(sorted(VALID_THREAT_SEVERITIES))}"
+            )
+        return v
 
 
 class AlertRuleResponse(BaseModel):
@@ -410,6 +620,37 @@ class AlertRuleResponse(BaseModel):
 
     # Legacy conditions
     conditions: AlertRuleConditions | None = Field(None, description="Legacy conditions")
+
+    # =========================================================================
+    # New Alert Condition Types (NEM-5085)
+    # =========================================================================
+
+    # Dwell time condition
+    dwell_threshold_seconds: int | None = Field(None, description="Dwell time threshold in seconds")
+    exclude_household_members: bool = Field(
+        False, description="Exclude household members from dwell time alerts"
+    )
+
+    # Pose condition
+    pose_types: list[str] | None = Field(None, description="Pose types to alert on")
+    pose_confidence_threshold: float | None = Field(None, description="Minimum pose confidence")
+
+    # Action condition
+    action_types: list[str] | None = Field(None, description="Action types to alert on")
+    action_confidence_threshold: float | None = Field(None, description="Minimum action confidence")
+
+    # Threat condition
+    threat_detection_enabled: bool = Field(False, description="Enable threat detection alerts")
+    threat_types: list[str] | None = Field(None, description="Threat types to alert on")
+    threat_min_severity: str | None = Field(None, description="Minimum threat severity")
+    threat_confidence_threshold: float | None = Field(None, description="Minimum threat confidence")
+
+    # Smoke/fire condition
+    smoke_fire_detection_enabled: bool = Field(False, description="Enable smoke/fire alerts")
+    smoke_fire_consecutive_required: int = Field(2, description="Consecutive detections required")
+    smoke_fire_confidence_threshold: float | None = Field(
+        None, description="Minimum smoke/fire confidence"
+    )
 
     # Deduplication settings
     dedup_key_template: str = Field(..., description="Template for dedup key")

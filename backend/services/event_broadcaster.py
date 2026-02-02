@@ -1646,6 +1646,296 @@ class EventBroadcaster:
             logger.error(f"Failed to broadcast batch analysis failed: {e}")
             raise
 
+    # =========================================================================
+    # Zone Event Broadcasting Methods (NEM-5073)
+    # =========================================================================
+
+    async def broadcast_zone_crossing(self, payload: dict[str, Any]) -> int:
+        """Broadcast a zone.crossing event to all connected WebSocket clients.
+
+        This method validates the payload against the ZoneCrossingPayload schema
+        before publishing to Redis.
+
+        Args:
+            payload: Zone crossing event payload containing zone_id, entity_id, etc.
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import ZoneCrossingPayload
+
+        try:
+            # Validate payload
+            validated = ZoneCrossingPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "zone.crossing",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Zone crossing broadcast to Redis: zone_id={payload.get('zone_id')}, "
+                f"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Zone crossing payload validation failed: {ve}")
+            raise ValueError(f"Invalid zone crossing payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast zone crossing: {e}")
+            raise
+
+    async def broadcast_zone_dwell_started(self, payload: dict[str, Any]) -> int:
+        """Broadcast a zone.dwell_started event to all connected WebSocket clients.
+
+        Args:
+            payload: Zone dwell started event payload
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import ZoneDwellStartedPayload
+
+        try:
+            validated = ZoneDwellStartedPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "zone.dwell_started",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Zone dwell started broadcast to Redis: zone_id={payload.get('zone_id')}, "
+                f"entity_id={payload.get('entity_id')}, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Zone dwell started payload validation failed: {ve}")
+            raise ValueError(f"Invalid zone dwell started payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast zone dwell started: {e}")
+            raise
+
+    async def broadcast_zone_dwell_alert(self, payload: dict[str, Any]) -> int:
+        """Broadcast a zone.dwell_alert event to all connected WebSocket clients.
+
+        Args:
+            payload: Zone dwell alert event payload with dwell_duration_seconds
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import ZoneDwellAlertPayload
+
+        try:
+            validated = ZoneDwellAlertPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "zone.dwell_alert",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Zone dwell alert broadcast to Redis: zone_id={payload.get('zone_id')}, "
+                f"dwell={payload.get('dwell_duration_seconds')}s, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Zone dwell alert payload validation failed: {ve}")
+            raise ValueError(f"Invalid zone dwell alert payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast zone dwell alert: {e}")
+            raise
+
+    async def broadcast_zone_approach(self, payload: dict[str, Any]) -> int:
+        """Broadcast a zone.approach event to all connected WebSocket clients.
+
+        Args:
+            payload: Zone approach event payload with direction, speed, eta_seconds
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import ZoneApproachPayload
+
+        try:
+            validated = ZoneApproachPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "zone.approach",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Zone approach broadcast to Redis: zone_id={payload.get('zone_id')}, "
+                f"eta={payload.get('eta_seconds')}s, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Zone approach payload validation failed: {ve}")
+            raise ValueError(f"Invalid zone approach payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast zone approach: {e}")
+            raise
+
+    # =========================================================================
+    # Entity Event Broadcasting Methods (NEM-5073)
+    # =========================================================================
+
+    async def broadcast_entity_matched(self, payload: dict[str, Any]) -> int:
+        """Broadcast an entity.matched event to all connected WebSocket clients.
+
+        Args:
+            payload: Entity matched event payload with similarity_score (0-1)
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import EntityMatchedPayload
+
+        try:
+            validated = EntityMatchedPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "entity.matched",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Entity matched broadcast to Redis: entity_id={payload.get('entity_id')}, "
+                f"matched={payload.get('matched_entity_id')}, "
+                f"score={payload.get('similarity_score')}, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Entity matched payload validation failed: {ve}")
+            raise ValueError(f"Invalid entity matched payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast entity matched: {e}")
+            raise
+
+    async def broadcast_entity_track_updated(self, payload: dict[str, Any]) -> int:
+        """Broadcast an entity.track_updated event to all connected WebSocket clients.
+
+        Args:
+            payload: Entity track updated event payload with position and bbox
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import EntityTrackUpdatedPayload
+
+        try:
+            validated = EntityTrackUpdatedPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "entity.track_updated",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Entity track updated broadcast to Redis: entity_id={payload.get('entity_id')}, "
+                f"camera={payload.get('camera_id')}, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"Entity track updated payload validation failed: {ve}")
+            raise ValueError(f"Invalid entity track updated payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast entity track updated: {e}")
+            raise
+
+    # =========================================================================
+    # AI Event Broadcasting Methods (NEM-5073)
+    # =========================================================================
+
+    async def broadcast_ai_threat_detected(self, payload: dict[str, Any]) -> int:
+        """Broadcast an ai.threat_detected event to all connected WebSocket clients.
+
+        Args:
+            payload: AI threat detected event payload with threat_type, severity, confidence
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import AIThreatDetectedPayload
+
+        try:
+            validated = AIThreatDetectedPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "ai.threat_detected",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"AI threat detected broadcast to Redis: threat_type={payload.get('threat_type')}, "
+                f"severity={payload.get('severity')}, confidence={payload.get('confidence')}, "
+                f"subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"AI threat detected payload validation failed: {ve}")
+            raise ValueError(f"Invalid AI threat detected payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast AI threat detected: {e}")
+            raise
+
+    async def broadcast_ai_action_recognized(self, payload: dict[str, Any]) -> int:
+        """Broadcast an ai.action_recognized event to all connected WebSocket clients.
+
+        Args:
+            payload: AI action recognized event payload with action_type, confidence
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the payload fails schema validation
+        """
+        from backend.core.websocket.event_schemas import AIActionRecognizedPayload
+
+        try:
+            validated = AIActionRecognizedPayload.model_validate(payload)
+            broadcast_data = {
+                "type": "ai.action_recognized",
+                "data": validated.model_dump(mode="json"),
+            }
+
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"AI action recognized broadcast to Redis: action_type={payload.get('action_type')}, "
+                f"confidence={payload.get('confidence')}, subscribers={subscriber_count}"
+            )
+            return subscriber_count
+        except ValidationError as ve:
+            logger.error(f"AI action recognized payload validation failed: {ve}")
+            raise ValueError(f"Invalid AI action recognized payload: {ve}") from ve
+        except Exception as e:
+            logger.error(f"Failed to broadcast AI action recognized: {e}")
+            raise
+
     def _enter_degraded_mode(self) -> None:
         """Enter degraded mode after exhausting all recovery attempts.
 

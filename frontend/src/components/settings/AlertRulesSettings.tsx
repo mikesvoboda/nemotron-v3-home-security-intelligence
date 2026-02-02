@@ -395,6 +395,10 @@ export default function AlertRulesSettings() {
           cooldown_seconds: formData.cooldown_seconds,
           channels: formData.channels,
           dedup_key_template: '{camera_id}:{rule_id}',
+          exclude_household_members: false,
+          smoke_fire_consecutive_required: 2,
+          smoke_fire_detection_enabled: false,
+          threat_detection_enabled: false,
         };
         await createAlertRule(createData);
       }
