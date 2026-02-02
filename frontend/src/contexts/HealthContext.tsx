@@ -26,7 +26,7 @@ import type { HealthResponse, ServiceStatus } from '../services/api';
 /**
  * Default health status values when data is not yet available.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const DEFAULT_HEALTH: HealthResponse = {
   status: 'unknown',
   timestamp: new Date().toISOString(),
@@ -83,7 +83,7 @@ export interface HealthProviderProps {
 /**
  * Context for health data. Do not use directly - use the useHealthContext hook.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const HealthContext = createContext<HealthContextData | null>(null);
 
 HealthContext.displayName = 'HealthContext';
@@ -186,7 +186,7 @@ export function HealthProvider({
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useHealthContext(): HealthContextData {
   const context = useContext(HealthContext);
   if (!context) {
@@ -201,7 +201,7 @@ export function useHealthContext(): HealthContextData {
  * Use this when the component may be rendered outside the provider context,
  * or when you want to handle the absence of context gracefully.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useHealthContextOptional(): HealthContextData | null {
   return useContext(HealthContext);
 }

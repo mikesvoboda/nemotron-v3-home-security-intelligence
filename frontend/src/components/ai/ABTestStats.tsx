@@ -61,7 +61,7 @@ export interface AggregateStats {
  * @param results - Array of ABTestResult objects
  * @returns AggregateStats with computed metrics
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function calculateStats(results: ABTestResult[]): AggregateStats {
   if (results.length === 0) {
     return {

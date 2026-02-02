@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+
 /**
  * DebugModeContext - React context for sharing debug mode state
  *

@@ -190,7 +190,7 @@ export function renderWithProviders(ui: ReactElement, options?: RenderWithProvid
  * import { renderWithProviders, screen, waitFor } from '@/test/utils';
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export * from '@testing-library/react';
 
 // Override the default render with our custom version

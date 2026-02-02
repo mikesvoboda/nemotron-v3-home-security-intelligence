@@ -85,7 +85,7 @@ export interface SeverityProviderProps {
 /**
  * Context for severity data. Do not use directly - use the useSeverity hook.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const SeverityContext = createContext<SeverityContextData | null>(null);
 
 SeverityContext.displayName = 'SeverityContext';
@@ -204,7 +204,7 @@ export function SeverityProvider({
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useSeverity(): SeverityContextData {
   const context = useContext(SeverityContext);
   if (!context) {
@@ -234,7 +234,7 @@ export function useSeverity(): SeverityContextData {
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useSeverityOptional(): SeverityContextData | null {
   return useContext(SeverityContext);
 }
@@ -243,7 +243,7 @@ export function useSeverityOptional(): SeverityContextData | null {
  * Default severity context value for use in tests or when rendering
  * outside the provider with known fallback behavior.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const DEFAULT_SEVERITY_CONTEXT: SeverityContextData = {
   thresholds: DEFAULT_SEVERITY_THRESHOLDS,
   definitions: DEFAULT_SEVERITY_DEFINITIONS,

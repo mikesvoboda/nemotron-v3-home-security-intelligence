@@ -26,7 +26,7 @@ import type { GPUStats } from '../services/api';
 /**
  * Default GPU stats values when data is not yet available.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const DEFAULT_GPU_STATS: GPUStats = {
   gpu_name: 'Unknown',
   utilization: 0,
@@ -97,7 +97,7 @@ export interface MetricsProviderProps {
 /**
  * Context for metrics data. Do not use directly - use the useMetricsContext hook.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const MetricsContext = createContext<MetricsContextData | null>(null);
 
 MetricsContext.displayName = 'MetricsContext';
@@ -217,7 +217,7 @@ export function MetricsProvider({
  * }
  * ```
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useMetricsContext(): MetricsContextData {
   const context = useContext(MetricsContext);
   if (!context) {
@@ -232,7 +232,7 @@ export function useMetricsContext(): MetricsContextData {
  * Use this when the component may be rendered outside the provider context,
  * or when you want to handle the absence of context gracefully.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useMetricsContextOptional(): MetricsContextData | null {
   return useContext(MetricsContext);
 }

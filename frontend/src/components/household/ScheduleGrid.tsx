@@ -73,7 +73,7 @@ function isHourAllowed(schedule: WeeklySchedule, day: DayOfWeek, hour: number): 
 /**
  * Create an empty schedule (no hours allowed).
  */
-// eslint-disable-next-line react-refresh/only-export-components -- Schedule factory function
+
 export function createEmptySchedule(): WeeklySchedule {
   return {
     monday: [],
@@ -89,7 +89,7 @@ export function createEmptySchedule(): WeeklySchedule {
 /**
  * Create a full schedule (all hours allowed).
  */
-// eslint-disable-next-line react-refresh/only-export-components -- Schedule factory function
+
 export function createFullSchedule(): WeeklySchedule {
   const allHours = HOURS.slice();
   return {
@@ -106,7 +106,7 @@ export function createFullSchedule(): WeeklySchedule {
 /**
  * Create a business hours schedule (9am-5pm weekdays).
  */
-// eslint-disable-next-line react-refresh/only-export-components -- Schedule factory function
+
 export function createBusinessHoursSchedule(): WeeklySchedule {
   const businessHours = [9, 10, 11, 12, 13, 14, 15, 16, 17];
   return {

@@ -66,7 +66,7 @@ export interface EnrichmentBadgesProps {
 /**
  * Convert full EnrichmentData to EnrichmentSummary for badge display.
  */
-// eslint-disable-next-line react-refresh/only-export-components -- utility function used by EventCard
+
 export function enrichmentDataToSummary(data: EnrichmentData | null | undefined): EnrichmentSummary {
   if (!data) return {};
 

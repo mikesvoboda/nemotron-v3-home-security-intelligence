@@ -43,7 +43,7 @@ export type ThreatCategory = 'normal' | 'elevated' | 'high' | 'critical';
 /**
  * Converts a threat level score (0-100) to a category
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function getThreatCategory(score: number): ThreatCategory {
   if (score <= 30) return 'normal';
   if (score <= 60) return 'elevated';
@@ -54,7 +54,7 @@ export function getThreatCategory(score: number): ThreatCategory {
 /**
  * Converts a threat level score (0-100) to a RiskLevel
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function threatLevelToRiskLevel(score: number): RiskLevel {
   if (score <= 30) return 'low';
   if (score <= 60) return 'medium';

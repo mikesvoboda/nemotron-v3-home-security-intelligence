@@ -88,7 +88,7 @@ export const SEVERITY_ZONES: readonly SeverityZone[] = [
 /**
  * Get the severity zone for a given threshold value.
  */
-// eslint-disable-next-line react-refresh/only-export-components -- utility function used by tests
+
 export function getSeverityZone(value: number | null): SeverityZone | null {
   if (value === null) return null;
   return SEVERITY_ZONES.find((zone) => value >= zone.min && value <= zone.max) ?? null;
@@ -97,7 +97,7 @@ export function getSeverityZone(value: number | null): SeverityZone | null {
 /**
  * Get the color for a given threshold value on the gradient.
  */
-// eslint-disable-next-line react-refresh/only-export-components -- utility function used by tests
+
 export function getThresholdColor(value: number): string {
   if (value <= 25) return '#22c55e'; // green
   if (value <= 50) return '#eab308'; // yellow

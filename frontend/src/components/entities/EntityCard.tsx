@@ -27,7 +27,7 @@ export type ActivityTier = 'hot' | 'active' | 'normal' | 'cold';
  * @param now - Current timestamp (optional, defaults to Date.now() for testing)
  * @returns The calculated activity tier
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function getActivityTier(
   appearanceCount: number,
   lastSeen: string,
@@ -58,7 +58,7 @@ export function getActivityTier(
 /**
  * CSS classes for each activity tier applied to the card container.
  */
-// eslint-disable-next-line react-refresh/only-export-components
+
 export const tierStyles: Record<ActivityTier, string> = {
   hot: 'ring-2 ring-red-500 scale-105 z-10',
   active: 'ring-1 ring-[#76B900]',

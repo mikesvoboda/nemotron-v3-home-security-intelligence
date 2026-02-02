@@ -27,7 +27,7 @@
  * development mode. Use the `enabled` prop to control at runtime.
  */
 
-/* eslint-disable react-refresh/only-export-components */
+
 
 import { ComponentType, Profiler, ProfilerOnRenderCallback, ReactNode } from 'react';
 

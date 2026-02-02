@@ -48,7 +48,7 @@ interface AccessViolationBadgeProps {
 /**
  * Check if a timestamp is within the allowed schedule.
  */
-// eslint-disable-next-line react-refresh/only-export-components -- Utility function for schedule validation
+
 export function isWithinSchedule(
   timestamp: string | Date,
   schedule: WeeklySchedule | null | undefined

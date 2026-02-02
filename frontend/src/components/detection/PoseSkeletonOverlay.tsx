@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- exporting pose skeleton utilities alongside component for convenient co-location */
+
 /**
  * PoseSkeletonOverlay Component
  *
