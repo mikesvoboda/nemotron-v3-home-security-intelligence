@@ -11772,6 +11772,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/webhooks/inbound/alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Alert
+         * @description Create an alert from an external webhook.
+         *
+         *     This endpoint allows external systems to create alerts in HSI.
+         *
+         *     Args:
+         *         payload: Alert payload with source, message, and severity.
+         *         request: FastAPI request object.
+         *         background_tasks: For async processing.
+         *         db: Database session.
+         *         api_key: Validated API key.
+         *
+         *     Returns:
+         *         InboundWebhookResponse with status.
+         */
+        post: operations["inbound-webhooks_create_alert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/inbound/arm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arm Zones
+         * @description Arm zones via webhook.
+         *
+         *     Args:
+         *         payload: Arm payload with optional zone IDs.
+         *         request: FastAPI request object.
+         *         db: Database session.
+         *         api_key: Validated API key.
+         *
+         *     Returns:
+         *         InboundWebhookResponse with status.
+         */
+        post: operations["inbound-webhooks_arm_zones"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/inbound/disarm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disarm Zones
+         * @description Disarm zones via webhook.
+         *
+         *     Args:
+         *         payload: Disarm payload with optional zone IDs.
+         *         request: FastAPI request object.
+         *         db: Database session.
+         *         api_key: Validated API key.
+         *
+         *     Returns:
+         *         InboundWebhookResponse with status.
+         */
+        post: operations["inbound-webhooks_disarm_zones"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/webhooks/inbound/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set System Mode
+         * @description Set system mode via webhook.
+         *
+         *     Valid modes:
+         *     - home: Family at home, known faces suppressed
+         *     - away: Nobody home, all alerts enabled
+         *     - night: Sleeping, perimeter zones only
+         *     - disarmed: No alerts, logging only
+         *
+         *     Args:
+         *         payload: Mode payload.
+         *         request: FastAPI request object.
+         *         db: Database session.
+         *         api_key: Validated API key.
+         *
+         *     Returns:
+         *         InboundWebhookResponse with status.
+         */
+        post: operations["inbound-webhooks_set_system_mode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/zones/anomalies": {
         parameters: {
             query?: never;
@@ -26990,6 +27115,104 @@ export interface components {
              * @description Quality score (0-100)
              */
             score?: number | null;
+        };
+        /**
+         * InboundAlertPayload
+         * @description Payload for creating an external alert.
+         */
+        InboundAlertPayload: {
+            /**
+             * Message
+             * @description Alert message.
+             */
+            message: string;
+            /**
+             * Metadata
+             * @description Additional metadata.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Severity
+             * @description Alert severity: low, medium, high, critical.
+             * @default medium
+             */
+            severity: string;
+            /**
+             * Source
+             * @description Source system identifier (e.g., 'ifttt', 'zapier').
+             */
+            source: string;
+        };
+        /**
+         * InboundArmPayload
+         * @description Payload for arming zones.
+         */
+        InboundArmPayload: {
+            /**
+             * Mode
+             * @description Optional arm mode (full, perimeter, instant).
+             */
+            mode?: string | null;
+            /**
+             * Zone Ids
+             * @description Zone IDs to arm. If None, arms all zones.
+             */
+            zone_ids?: string[] | null;
+        };
+        /**
+         * InboundDisarmPayload
+         * @description Payload for disarming zones.
+         */
+        InboundDisarmPayload: {
+            /**
+             * Reason
+             * @description Optional reason for disarming.
+             */
+            reason?: string | null;
+            /**
+             * Zone Ids
+             * @description Zone IDs to disarm. If None, disarms all zones.
+             */
+            zone_ids?: string[] | null;
+        };
+        /**
+         * InboundModePayload
+         * @description Payload for setting system mode.
+         */
+        InboundModePayload: {
+            /**
+             * Mode
+             * @description System mode: home, away, night, disarmed.
+             */
+            mode: string;
+        };
+        /**
+         * InboundWebhookResponse
+         * @description Standard response for inbound webhooks.
+         */
+        InboundWebhookResponse: {
+            /**
+             * Message
+             * @description Status message.
+             */
+            message: string;
+            /**
+             * Request Id
+             * @description Request tracking ID.
+             */
+            request_id?: string | null;
+            /**
+             * Status
+             * @description Request status.
+             */
+            status: string;
+            /**
+             * Timestamp
+             * @description Processing timestamp.
+             */
+            timestamp: string;
         };
         /**
          * InferenceMetrics
@@ -56885,6 +57108,173 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "inbound-webhooks_create_alert": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboundAlertPayload"];
+            };
+        };
+        responses: {
+            /** @description Alert created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundWebhookResponse"];
+                };
+            };
+            /** @description Authentication failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid payload */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "inbound-webhooks_arm_zones": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboundArmPayload"];
+            };
+        };
+        responses: {
+            /** @description Zones armed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundWebhookResponse"];
+                };
+            };
+            /** @description Authentication failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid payload */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "inbound-webhooks_disarm_zones": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboundDisarmPayload"];
+            };
+        };
+        responses: {
+            /** @description Zones disarmed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundWebhookResponse"];
+                };
+            };
+            /** @description Authentication failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid payload */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "inbound-webhooks_set_system_mode": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboundModePayload"];
+            };
+        };
+        responses: {
+            /** @description System mode changed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboundWebhookResponse"];
+                };
+            };
+            /** @description Authentication failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid payload or mode */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

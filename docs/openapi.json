@@ -20877,6 +20877,166 @@
         "title": "ImageQualityEnrichment",
         "type": "object"
       },
+      "InboundAlertPayload": {
+        "description": "Payload for creating an external alert.",
+        "properties": {
+          "message": {
+            "description": "Alert message.",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "description": "Additional metadata.",
+            "title": "Metadata",
+            "type": "object"
+          },
+          "severity": {
+            "default": "medium",
+            "description": "Alert severity: low, medium, high, critical.",
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "description": "Source system identifier (e.g., 'ifttt', 'zapier').",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "message"
+        ],
+        "title": "InboundAlertPayload",
+        "type": "object"
+      },
+      "InboundArmPayload": {
+        "description": "Payload for arming zones.",
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional arm mode (full, perimeter, instant).",
+            "title": "Mode"
+          },
+          "zone_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Zone IDs to arm. If None, arms all zones.",
+            "title": "Zone Ids"
+          }
+        },
+        "title": "InboundArmPayload",
+        "type": "object"
+      },
+      "InboundDisarmPayload": {
+        "description": "Payload for disarming zones.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional reason for disarming.",
+            "title": "Reason"
+          },
+          "zone_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Zone IDs to disarm. If None, disarms all zones.",
+            "title": "Zone Ids"
+          }
+        },
+        "title": "InboundDisarmPayload",
+        "type": "object"
+      },
+      "InboundModePayload": {
+        "description": "Payload for setting system mode.",
+        "properties": {
+          "mode": {
+            "description": "System mode: home, away, night, disarmed.",
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "InboundModePayload",
+        "type": "object"
+      },
+      "InboundWebhookResponse": {
+        "description": "Standard response for inbound webhooks.",
+        "properties": {
+          "message": {
+            "description": "Status message.",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Request tracking ID.",
+            "title": "Request Id"
+          },
+          "status": {
+            "description": "Request status.",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Processing timestamp.",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "timestamp"
+        ],
+        "title": "InboundWebhookResponse",
+        "type": "object"
+      },
       "InferenceMetrics": {
         "description": "AI inference latency and throughput metrics.",
         "example": {
@@ -62234,6 +62394,233 @@
         "summary": "Receive Alertmanager Webhook",
         "tags": [
           "webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/inbound/alert": {
+      "post": {
+        "description": "Create an alert from an external webhook.\n\nThis endpoint allows external systems to create alerts in HSI.\n\nArgs:\n    payload: Alert payload with source, message, and severity.\n    request: FastAPI request object.\n    background_tasks: For async processing.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "operationId": "inbound-webhooks_create_alert",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboundAlertPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundWebhookResponse"
+                }
+              }
+            },
+            "description": "Alert created successfully"
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "422": {
+            "description": "Invalid payload"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        },
+        "summary": "Create Alert",
+        "tags": [
+          "inbound-webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/inbound/arm": {
+      "post": {
+        "description": "Arm zones via webhook.\n\nArgs:\n    payload: Arm payload with optional zone IDs.\n    request: FastAPI request object.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "operationId": "inbound-webhooks_arm_zones",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboundArmPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundWebhookResponse"
+                }
+              }
+            },
+            "description": "Zones armed successfully"
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "422": {
+            "description": "Invalid payload"
+          }
+        },
+        "summary": "Arm Zones",
+        "tags": [
+          "inbound-webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/inbound/disarm": {
+      "post": {
+        "description": "Disarm zones via webhook.\n\nArgs:\n    payload: Disarm payload with optional zone IDs.\n    request: FastAPI request object.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "operationId": "inbound-webhooks_disarm_zones",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboundDisarmPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundWebhookResponse"
+                }
+              }
+            },
+            "description": "Zones disarmed successfully"
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "422": {
+            "description": "Invalid payload"
+          }
+        },
+        "summary": "Disarm Zones",
+        "tags": [
+          "inbound-webhooks"
+        ]
+      }
+    },
+    "/api/webhooks/inbound/mode": {
+      "post": {
+        "description": "Set system mode via webhook.\n\nValid modes:\n- home: Family at home, known faces suppressed\n- away: Nobody home, all alerts enabled\n- night: Sleeping, perimeter zones only\n- disarmed: No alerts, logging only\n\nArgs:\n    payload: Mode payload.\n    request: FastAPI request object.\n    db: Database session.\n    api_key: Validated API key.\n\nReturns:\n    InboundWebhookResponse with status.",
+        "operationId": "inbound-webhooks_set_system_mode",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboundModePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundWebhookResponse"
+                }
+              }
+            },
+            "description": "System mode changed successfully"
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "422": {
+            "description": "Invalid payload or mode"
+          }
+        },
+        "summary": "Set System Mode",
+        "tags": [
+          "inbound-webhooks"
         ]
       }
     },
