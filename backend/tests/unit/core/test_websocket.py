@@ -47,6 +47,14 @@ class MockEventBroadcaster:
     - broadcast_batch_analysis_started(batch_data) -> int (NEM-3607)
     - broadcast_batch_analysis_completed(batch_data) -> int (NEM-3607)
     - broadcast_batch_analysis_failed(batch_data) -> int (NEM-3607)
+    - broadcast_zone_crossing(zone_data) -> int (NEM-5019)
+    - broadcast_zone_dwell_started(zone_data) -> int (NEM-5019)
+    - broadcast_zone_dwell_alert(zone_data) -> int (NEM-5019)
+    - broadcast_zone_approach(zone_data) -> int (NEM-5019)
+    - broadcast_entity_matched(entity_data) -> int (NEM-5019)
+    - broadcast_entity_track_updated(entity_data) -> int (NEM-5019)
+    - broadcast_ai_threat_detected(threat_data) -> int (NEM-5019)
+    - broadcast_ai_action_recognized(action_data) -> int (NEM-5019)
     - get_circuit_state() -> str
     - get_broadcast_metrics() -> dict (NEM-2984)
     - get_instance() -> EventBroadcaster (class method)
@@ -502,6 +510,174 @@ class MockEventBroadcaster:
                 await connection.send_json(batch_data)
                 count += 1
             except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_zone_crossing(self, zone_data: dict[str, Any]) -> int:
+        """Broadcast a zone.crossing event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            zone_data: Zone crossing data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in zone_data:
+            zone_data = {"type": "zone.crossing", "data": zone_data}
+        self.messages.append(zone_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(zone_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_zone_dwell_started(self, zone_data: dict[str, Any]) -> int:
+        """Broadcast a zone.dwell_started event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            zone_data: Zone dwell started data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in zone_data:
+            zone_data = {"type": "zone.dwell_started", "data": zone_data}
+        self.messages.append(zone_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(zone_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_zone_dwell_alert(self, zone_data: dict[str, Any]) -> int:
+        """Broadcast a zone.dwell_alert event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            zone_data: Zone dwell alert data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in zone_data:
+            zone_data = {"type": "zone.dwell_alert", "data": zone_data}
+        self.messages.append(zone_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(zone_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_zone_approach(self, zone_data: dict[str, Any]) -> int:
+        """Broadcast a zone.approach event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            zone_data: Zone approach data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in zone_data:
+            zone_data = {"type": "zone.approach", "data": zone_data}
+        self.messages.append(zone_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(zone_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_entity_matched(self, entity_data: dict[str, Any]) -> int:
+        """Broadcast an entity.matched event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            entity_data: Entity matched data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in entity_data:
+            entity_data = {"type": "entity.matched", "data": entity_data}
+        self.messages.append(entity_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(entity_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_entity_track_updated(self, entity_data: dict[str, Any]) -> int:
+        """Broadcast an entity.track_updated event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            entity_data: Entity track updated data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in entity_data:
+            entity_data = {"type": "entity.track_updated", "data": entity_data}
+        self.messages.append(entity_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(entity_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_ai_threat_detected(self, threat_data: dict[str, Any]) -> int:
+        """Broadcast an ai.threat_detected event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            threat_data: AI threat detected data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in threat_data:
+            threat_data = {"type": "ai.threat_detected", "data": threat_data}
+        self.messages.append(threat_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(threat_data)
+                count += 1
+            except Exception:
+                pass
+        return count
+
+    async def broadcast_ai_action_recognized(self, action_data: dict[str, Any]) -> int:
+        """Broadcast an ai.action_recognized event to all connected WebSocket clients (NEM-5019).
+
+        Args:
+            action_data: AI action recognized data dictionary
+
+        Returns:
+            Number of clients that received the message
+        """
+        if "type" not in action_data:
+            action_data = {"type": "ai.action_recognized", "data": action_data}
+        self.messages.append(action_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(action_data)
+                count += 1
+            except Exception:
                 pass
         return count
 

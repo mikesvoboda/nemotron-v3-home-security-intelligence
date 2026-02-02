@@ -76,6 +76,8 @@ dependencies = [
     # CLI tools for deployment scripts
     "typer>=0.15.0",
     "rich>=13.0.0",
+    # MQTT async client for Home Assistant integration (NEM-5069)
+    "aiomqtt>=2.0.0",
 ]
 
 [project.optional-dependencies]

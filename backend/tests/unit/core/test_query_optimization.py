@@ -190,6 +190,20 @@ class TestAlertEngineBatchLoading:
         mock_rule.zone_ids = None
         mock_rule.schedule = None
         mock_rule.severity = AlertSeverity.MEDIUM
+        # New alert condition attributes (NEM-5019) - set to None/False to skip checks
+        mock_rule.dwell_threshold_seconds = None
+        mock_rule.exclude_household_members = False
+        mock_rule.pose_types = None
+        mock_rule.pose_confidence_threshold = None
+        mock_rule.action_types = None
+        mock_rule.action_confidence_threshold = None
+        mock_rule.threat_detection_enabled = False
+        mock_rule.threat_types = None
+        mock_rule.threat_min_severity = None
+        mock_rule.threat_confidence_threshold = None
+        mock_rule.smoke_fire_detection_enabled = False
+        mock_rule.smoke_fire_consecutive_required = None
+        mock_rule.smoke_fire_confidence_threshold = None
 
         # Create test events
         events = []

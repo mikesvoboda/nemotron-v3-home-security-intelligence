@@ -192,6 +192,39 @@ class WebSocketEventType(StrEnum):
     """Prometheus/Alertmanager alert received (infrastructure monitoring)."""
 
     # ==========================================================================
+    # Zone Events - Zone intelligence and spatial analysis (NEM-5073)
+    # ==========================================================================
+    ZONE_CROSSING = "zone.crossing"
+    """Entity crossed a zone boundary (line zone)."""
+
+    ZONE_DWELL_STARTED = "zone.dwell_started"
+    """Entity entered a zone and dwell tracking started."""
+
+    ZONE_DWELL_ALERT = "zone.dwell_alert"
+    """Entity dwell time exceeded configured threshold."""
+
+    ZONE_APPROACH = "zone.approach"
+    """Entity approaching a zone with velocity tracking."""
+
+    # ==========================================================================
+    # Entity Events - Re-identification and tracking (NEM-5073)
+    # ==========================================================================
+    ENTITY_MATCHED = "entity.matched"
+    """Entity re-identification match found across cameras."""
+
+    ENTITY_TRACK_UPDATED = "entity.track_updated"
+    """Entity track position updated in camera view."""
+
+    # ==========================================================================
+    # AI Events - Advanced detection events (NEM-5073)
+    # ==========================================================================
+    AI_THREAT_DETECTED = "ai.threat_detected"
+    """Threat (weapon, dangerous object) detected by AI model."""
+
+    AI_ACTION_RECOGNIZED = "ai.action_recognized"
+    """Action recognized by X-CLIP model (climbing, running, etc.)."""
+
+    # ==========================================================================
     # Enrichment Events - Detection enrichment pipeline (NEM-3627)
     # ==========================================================================
     ENRICHMENT_STARTED = "enrichment.started"
@@ -620,6 +653,85 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": None,
         "requires_payload": True,
         "payload_fields": ["error", "message"],
+    },
+    # Zone events (NEM-5073)
+    WebSocketEventType.ZONE_CROSSING: {
+        "description": "Entity crossed a zone boundary (line zone)",
+        "channel": "zones",
+        "requires_payload": True,
+        "payload_fields": ["zone_id", "entity_id", "camera_id", "direction", "timestamp"],
+    },
+    WebSocketEventType.ZONE_DWELL_STARTED: {
+        "description": "Entity entered a zone and dwell tracking started",
+        "channel": "zones",
+        "requires_payload": True,
+        "payload_fields": ["zone_id", "entity_id", "camera_id", "timestamp"],
+    },
+    WebSocketEventType.ZONE_DWELL_ALERT: {
+        "description": "Entity dwell time exceeded configured threshold",
+        "channel": "zones",
+        "requires_payload": True,
+        "payload_fields": [
+            "zone_id",
+            "entity_id",
+            "camera_id",
+            "dwell_duration_seconds",
+            "threshold_seconds",
+            "timestamp",
+        ],
+    },
+    WebSocketEventType.ZONE_APPROACH: {
+        "description": "Entity approaching a zone with velocity tracking",
+        "channel": "zones",
+        "requires_payload": True,
+        "payload_fields": [
+            "zone_id",
+            "entity_id",
+            "camera_id",
+            "direction",
+            "speed",
+            "eta_seconds",
+            "timestamp",
+        ],
+    },
+    # Entity events (NEM-5073)
+    WebSocketEventType.ENTITY_MATCHED: {
+        "description": "Entity re-identification match found across cameras",
+        "channel": "entities",
+        "requires_payload": True,
+        "payload_fields": [
+            "entity_id",
+            "matched_entity_id",
+            "similarity_score",
+            "camera_id",
+            "timestamp",
+        ],
+    },
+    WebSocketEventType.ENTITY_TRACK_UPDATED: {
+        "description": "Entity track position updated in camera view",
+        "channel": "entities",
+        "requires_payload": True,
+        "payload_fields": ["entity_id", "camera_id", "position", "bbox", "timestamp"],
+    },
+    # AI events (NEM-5073)
+    WebSocketEventType.AI_THREAT_DETECTED: {
+        "description": "Threat (weapon, dangerous object) detected by AI model",
+        "channel": "ai",
+        "requires_payload": True,
+        "payload_fields": [
+            "detection_id",
+            "camera_id",
+            "threat_type",
+            "severity",
+            "confidence",
+            "timestamp",
+        ],
+    },
+    WebSocketEventType.AI_ACTION_RECOGNIZED: {
+        "description": "Action recognized by X-CLIP model",
+        "channel": "ai",
+        "requires_payload": True,
+        "payload_fields": ["detection_id", "camera_id", "action_type", "confidence", "timestamp"],
     },
 }
 

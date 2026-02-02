@@ -172,6 +172,7 @@ from .household_matcher import (
     get_household_matcher,
     reset_household_matcher,
 )
+from .household_matcher_service import check_household_match
 from .job_status import (
     DEFAULT_COMPLETED_JOB_TTL,
     JOB_STATUS_KEY_PREFIX,
@@ -614,6 +615,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_guided_choice_config",
     "get_guided_regex_config",
     "get_household_matcher",
+    "check_household_match",
     "get_highest_priority_zone",
     "get_job_status_service",
     "get_job_timeout_service",
