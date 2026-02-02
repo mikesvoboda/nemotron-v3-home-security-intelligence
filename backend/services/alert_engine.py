@@ -430,7 +430,7 @@ class AlertRuleEngine:
 
         return result_map
 
-    async def _evaluate_rule(  # noqa: PLR0911 - Multiple returns for AND logic short-circuit evaluation
+    async def _evaluate_rule(  # noqa: PLR0911 - multiple conditions require multiple returns
         self,
         rule: AlertRule,
         event: Event,
@@ -874,6 +874,8 @@ class AlertRuleEngine:
 
         except Exception as e:
             logger.debug(f"Smoke/fire check error (expected during testing): {e}")
+
+        return False
 
     def _check_schedule(self, schedule: dict, current_time: datetime) -> bool:
         """Check if current time falls within the schedule.
