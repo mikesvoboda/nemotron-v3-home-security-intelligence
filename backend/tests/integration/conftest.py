@@ -1043,7 +1043,11 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
     yield
 
     # Truncate after test (cleanup for next test)
-    await truncate_all()
+    # Add timeout protection to prevent hanging during teardown
+    try:
+        await asyncio.wait_for(truncate_all(), timeout=10.0)
+    except TimeoutError:
+        logger.warning("Test cleanup timed out after 10s during clean_tables teardown")
 
 
 @pytest.fixture
