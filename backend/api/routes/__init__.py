@@ -24,6 +24,7 @@ from .jobs import router as jobs_router
 from .llm_reasoning import router as llm_reasoning_router
 from .logs import router as logs_router
 from .model_management import router as model_management_router
+from .mqtt_config import router as mqtt_config_router
 from .notification_preferences import router as notification_preferences_router
 from .onvif import router as onvif_router
 from .outbound_webhooks import router as outbound_webhooks_router
@@ -63,6 +64,7 @@ __all__ = [
     "llm_reasoning_router",
     "logs_router",
     "model_management_router",
+    "mqtt_config_router",
     "notification_preferences_router",
     "onvif_router",
     "outbound_webhooks_router",

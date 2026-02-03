@@ -25897,6 +25897,725 @@
         "title": "MovementMetrics",
         "type": "object"
       },
+      "MqttBrokerConfig": {
+        "description": "MQTT broker connection settings.\n\nConfigures how to connect to the MQTT broker including\nauthentication and TLS settings.",
+        "example": {
+          "client_id": "home-security-backend",
+          "host": "mqtt.example.com",
+          "port": 1883,
+          "use_tls": false,
+          "username": "user"
+        },
+        "properties": {
+          "client_id": {
+            "default": "home-security-backend",
+            "description": "MQTT client identifier (must be unique per connection)",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Client Id",
+            "type": "string"
+          },
+          "host": {
+            "default": "localhost",
+            "description": "MQTT broker hostname or IP address",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Host",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Password for broker authentication (optional, never returned in responses)",
+            "title": "Password"
+          },
+          "port": {
+            "default": 1883,
+            "description": "MQTT broker port (typically 1883 for TCP, 8883 for TLS)",
+            "maximum": 65535.0,
+            "minimum": 1.0,
+            "title": "Port",
+            "type": "integer"
+          },
+          "use_tls": {
+            "default": false,
+            "description": "Enable TLS/SSL for broker connection",
+            "title": "Use Tls",
+            "type": "boolean"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Username for broker authentication (optional)",
+            "title": "Username"
+          }
+        },
+        "title": "MqttBrokerConfig",
+        "type": "object"
+      },
+      "MqttBrokerConfigUpdate": {
+        "description": "MQTT broker connection settings update (all fields optional).\n\nUsed for partial updates to broker configuration.",
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MQTT client identifier",
+            "title": "Client Id"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MQTT broker hostname or IP address",
+            "title": "Host"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Password for broker authentication",
+            "title": "Password"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "maximum": 65535.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MQTT broker port",
+            "title": "Port"
+          },
+          "use_tls": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable TLS/SSL for broker connection",
+            "title": "Use Tls"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Username for broker authentication",
+            "title": "Username"
+          }
+        },
+        "title": "MqttBrokerConfigUpdate",
+        "type": "object"
+      },
+      "MqttConfigResponse": {
+        "description": "Response schema for MQTT configuration.\n\nSame as MqttConfig but with password always masked/excluded.",
+        "example": {
+          "broker": {
+            "client_id": "home-security-backend",
+            "host": "mqtt.example.com",
+            "port": 1883,
+            "use_tls": false,
+            "username": "user"
+          },
+          "integration": {
+            "enabled": true,
+            "publish_detections": false,
+            "publish_events": true,
+            "publish_system_status": true
+          },
+          "publisher": {
+            "qos": 1,
+            "retain": false,
+            "topic_prefix": "home-security"
+          },
+          "updated_at": "2026-01-15T10:30:00Z"
+        },
+        "properties": {
+          "broker": {
+            "$ref": "#/components/schemas/MqttBrokerConfig",
+            "description": "MQTT broker connection settings (password excluded)"
+          },
+          "integration": {
+            "$ref": "#/components/schemas/MqttIntegrationConfig",
+            "description": "MQTT integration settings"
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/MqttPublisherConfig",
+            "description": "MQTT publisher settings"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last configuration update",
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "broker",
+          "publisher",
+          "integration"
+        ],
+        "title": "MqttConfigResponse",
+        "type": "object"
+      },
+      "MqttConfigUpdate": {
+        "description": "Request schema for updating MQTT configuration.\n\nAll fields are optional for partial updates.",
+        "example": {
+          "broker": {
+            "host": "new-mqtt.example.com",
+            "port": 8883,
+            "use_tls": true
+          },
+          "integration": {
+            "enabled": true
+          }
+        },
+        "properties": {
+          "broker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MqttBrokerConfigUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MQTT broker connection settings to update"
+          },
+          "integration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MqttIntegrationConfigUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MQTT integration settings to update"
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MqttPublisherConfigUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MQTT publisher settings to update"
+          }
+        },
+        "title": "MqttConfigUpdate",
+        "type": "object"
+      },
+      "MqttConnectionStatus": {
+        "description": "MQTT connection status information.\n\nReports the current state of the MQTT broker connection.",
+        "example": {
+          "broker_host": "mqtt.example.com",
+          "broker_port": 1883,
+          "connected": true,
+          "last_connected_at": "2026-01-15T10:30:00Z",
+          "messages_published": 1234
+        },
+        "properties": {
+          "broker_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Currently configured broker host",
+            "title": "Broker Host"
+          },
+          "broker_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Currently configured broker port",
+            "title": "Broker Port"
+          },
+          "connected": {
+            "description": "Whether currently connected to the broker",
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "last_connected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last successful connection",
+            "title": "Last Connected At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last connection error message (if any)",
+            "title": "Last Error"
+          },
+          "last_error_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last connection error",
+            "title": "Last Error At"
+          },
+          "messages_published": {
+            "default": 0,
+            "description": "Total messages published since last connect",
+            "minimum": 0.0,
+            "title": "Messages Published",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "MqttConnectionStatus",
+        "type": "object"
+      },
+      "MqttDisconnectResponse": {
+        "description": "Response schema for MQTT disconnect request.\n\nReports the result of a disconnect request.",
+        "example": {
+          "message": "Disconnected from MQTT broker",
+          "success": true,
+          "was_connected": true
+        },
+        "properties": {
+          "message": {
+            "description": "Human-readable result message",
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the disconnect was successful",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "was_connected": {
+            "description": "Whether the client was connected before disconnect",
+            "title": "Was Connected",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "was_connected"
+        ],
+        "title": "MqttDisconnectResponse",
+        "type": "object"
+      },
+      "MqttIntegrationConfig": {
+        "description": "MQTT integration settings.\n\nConfigures which events and data are published to MQTT.",
+        "example": {
+          "enabled": true,
+          "publish_detections": false,
+          "publish_events": true,
+          "publish_system_status": true
+        },
+        "properties": {
+          "enabled": {
+            "default": false,
+            "description": "Enable MQTT integration",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "publish_detections": {
+            "default": false,
+            "description": "Publish detection events (high volume)",
+            "title": "Publish Detections",
+            "type": "boolean"
+          },
+          "publish_events": {
+            "default": true,
+            "description": "Publish security events to MQTT",
+            "title": "Publish Events",
+            "type": "boolean"
+          },
+          "publish_system_status": {
+            "default": true,
+            "description": "Publish system status updates",
+            "title": "Publish System Status",
+            "type": "boolean"
+          }
+        },
+        "title": "MqttIntegrationConfig",
+        "type": "object"
+      },
+      "MqttIntegrationConfigUpdate": {
+        "description": "MQTT integration settings update (all fields optional).\n\nUsed for partial updates to integration configuration.",
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable MQTT integration",
+            "title": "Enabled"
+          },
+          "publish_detections": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publish detection events",
+            "title": "Publish Detections"
+          },
+          "publish_events": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publish security events to MQTT",
+            "title": "Publish Events"
+          },
+          "publish_system_status": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Publish system status updates",
+            "title": "Publish System Status"
+          }
+        },
+        "title": "MqttIntegrationConfigUpdate",
+        "type": "object"
+      },
+      "MqttPublisherConfig": {
+        "description": "MQTT publisher settings.\n\nConfigures how messages are published to the broker including\ntopic prefix, QoS level, and retention settings.",
+        "example": {
+          "qos": 1,
+          "retain": false,
+          "topic_prefix": "home-security"
+        },
+        "properties": {
+          "qos": {
+            "default": 1,
+            "description": "Quality of Service level (0=at most once, 1=at least once, 2=exactly once)",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Qos",
+            "type": "integer"
+          },
+          "retain": {
+            "default": false,
+            "description": "Retain last message on each topic for new subscribers",
+            "title": "Retain",
+            "type": "boolean"
+          },
+          "topic_prefix": {
+            "default": "home-security",
+            "description": "Prefix for all MQTT topics (e.g., 'home-security/events')",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Topic Prefix",
+            "type": "string"
+          }
+        },
+        "title": "MqttPublisherConfig",
+        "type": "object"
+      },
+      "MqttPublisherConfigUpdate": {
+        "description": "MQTT publisher settings update (all fields optional).\n\nUsed for partial updates to publisher configuration.",
+        "properties": {
+          "qos": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quality of Service level",
+            "title": "Qos"
+          },
+          "retain": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Retain last message on each topic",
+            "title": "Retain"
+          },
+          "topic_prefix": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Prefix for all MQTT topics",
+            "title": "Topic Prefix"
+          }
+        },
+        "title": "MqttPublisherConfigUpdate",
+        "type": "object"
+      },
+      "MqttReconnectResponse": {
+        "description": "Response schema for MQTT reconnect request.\n\nReports the result of a reconnection attempt.",
+        "example": {
+          "message": "Reconnected to mqtt.example.com:1883",
+          "new_state": "connected",
+          "previous_state": "disconnected",
+          "success": true
+        },
+        "properties": {
+          "message": {
+            "description": "Human-readable result message",
+            "title": "Message",
+            "type": "string"
+          },
+          "new_state": {
+            "description": "Connection state after reconnect attempt",
+            "title": "New State",
+            "type": "string"
+          },
+          "previous_state": {
+            "description": "Connection state before reconnect (connected/disconnected)",
+            "title": "Previous State",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the reconnection was initiated successfully",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "message",
+          "previous_state",
+          "new_state"
+        ],
+        "title": "MqttReconnectResponse",
+        "type": "object"
+      },
+      "MqttTestRequest": {
+        "description": "Request schema for testing MQTT connection.\n\nOptionally override configuration for testing without saving.",
+        "example": {
+          "broker_override": {
+            "client_id": "test-client",
+            "host": "test-mqtt.example.com",
+            "port": 1883,
+            "use_tls": false,
+            "username": "testuser"
+          },
+          "timeout_seconds": 10.0,
+          "use_saved_config": false
+        },
+        "properties": {
+          "broker_override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MqttBrokerConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override broker config for testing (not saved)"
+          },
+          "timeout_seconds": {
+            "default": 10.0,
+            "description": "Connection timeout in seconds",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Timeout Seconds",
+            "type": "number"
+          },
+          "use_saved_config": {
+            "default": true,
+            "description": "Use saved configuration (if False, broker_override is required)",
+            "title": "Use Saved Config",
+            "type": "boolean"
+          }
+        },
+        "title": "MqttTestRequest",
+        "type": "object"
+      },
+      "MqttTestResult": {
+        "description": "Result schema for MQTT connection test.\n\nReports whether the test connection was successful and any errors.",
+        "example": {
+          "broker_version": "Mosquitto 2.0.15",
+          "latency_ms": 45.2,
+          "message": "Successfully connected to mqtt.example.com:1883",
+          "success": true
+        },
+        "properties": {
+          "broker_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Broker version string (if available)",
+            "title": "Broker Version"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error code (if failed)",
+            "title": "Error Code"
+          },
+          "error_details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detailed error message (if failed)",
+            "title": "Error Details"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Connection latency in milliseconds (if successful)",
+            "title": "Latency Ms"
+          },
+          "message": {
+            "description": "Human-readable result message",
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the connection test was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "MqttTestResult",
+        "type": "object"
+      },
       "NemotronLatencyOptimizerResponse": {
         "description": "Response schema for Nemotron latency optimizer status (NEM-4522).\n\nProvides visibility into the latency optimizer state including circuit breaker\nstatus, queue depth, and latency statistics for monitoring and debugging.",
         "example": {
@@ -56061,6 +56780,191 @@
         "summary": "Metrics",
         "tags": [
           "metrics"
+        ]
+      }
+    },
+    "/api/mqtt-config": {
+      "get": {
+        "description": "Returns current MQTT configuration with password masked.",
+        "operationId": "mqtt-config_get_mqtt_config",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MqttConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Failed to load configuration"
+          }
+        },
+        "summary": "Get MQTT configuration",
+        "tags": [
+          "mqtt-config"
+        ]
+      },
+      "put": {
+        "description": "Updates MQTT configuration. Supports partial updates.",
+        "operationId": "mqtt-config_update_mqtt_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MqttConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MqttConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid configuration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to save configuration"
+          }
+        },
+        "summary": "Update MQTT configuration",
+        "tags": [
+          "mqtt-config"
+        ]
+      }
+    },
+    "/api/mqtt-config/disconnect": {
+      "post": {
+        "description": "Gracefully disconnects from the MQTT broker.",
+        "operationId": "mqtt-config_disconnect_mqtt",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MqttDisconnectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Disconnect from MQTT broker",
+        "tags": [
+          "mqtt-config"
+        ]
+      }
+    },
+    "/api/mqtt-config/reconnect": {
+      "post": {
+        "description": "Disconnects and reconnects to the MQTT broker.",
+        "operationId": "mqtt-config_reconnect_mqtt",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MqttReconnectResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Reconnection failed"
+          }
+        },
+        "summary": "Reconnect to MQTT broker",
+        "tags": [
+          "mqtt-config"
+        ]
+      }
+    },
+    "/api/mqtt-config/status": {
+      "get": {
+        "description": "Returns current MQTT broker connection status.",
+        "operationId": "mqtt-config_get_mqtt_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MqttConnectionStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get MQTT connection status",
+        "tags": [
+          "mqtt-config"
+        ]
+      }
+    },
+    "/api/mqtt-config/test": {
+      "post": {
+        "description": "Tests connection to MQTT broker without modifying configuration.",
+        "operationId": "mqtt-config_test_mqtt_connection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MqttTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MqttTestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid test configuration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test MQTT connection",
+        "tags": [
+          "mqtt-config"
         ]
       }
     },

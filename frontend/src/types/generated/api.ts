@@ -7856,6 +7856,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mqtt-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get MQTT configuration
+         * @description Returns current MQTT configuration with password masked.
+         */
+        get: operations["mqtt-config_get_mqtt_config"];
+        /**
+         * Update MQTT configuration
+         * @description Updates MQTT configuration. Supports partial updates.
+         */
+        put: operations["mqtt-config_update_mqtt_config"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disconnect from MQTT broker
+         * @description Gracefully disconnects from the MQTT broker.
+         */
+        post: operations["mqtt-config_disconnect_mqtt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconnect to MQTT broker
+         * @description Disconnects and reconnects to the MQTT broker.
+         */
+        post: operations["mqtt-config_reconnect_mqtt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get MQTT connection status
+         * @description Returns current MQTT broker connection status.
+         */
+        get: operations["mqtt-config_get_mqtt_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test MQTT connection
+         * @description Tests connection to MQTT broker without modifying configuration.
+         */
+        post: operations["mqtt-config_test_mqtt_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notification-preferences/": {
         parameters: {
             query?: never;
@@ -30834,6 +30938,469 @@ export interface components {
             total_distance: number;
         };
         /**
+         * MqttBrokerConfig
+         * @description MQTT broker connection settings.
+         *
+         *     Configures how to connect to the MQTT broker including
+         *     authentication and TLS settings.
+         * @example {
+         *       "client_id": "home-security-backend",
+         *       "host": "mqtt.example.com",
+         *       "port": 1883,
+         *       "use_tls": false,
+         *       "username": "user"
+         *     }
+         */
+        MqttBrokerConfig: {
+            /**
+             * Client Id
+             * @description MQTT client identifier (must be unique per connection)
+             * @default home-security-backend
+             */
+            client_id: string;
+            /**
+             * Host
+             * @description MQTT broker hostname or IP address
+             * @default localhost
+             */
+            host: string;
+            /**
+             * Password
+             * @description Password for broker authentication (optional, never returned in responses)
+             */
+            password?: string | null;
+            /**
+             * Port
+             * @description MQTT broker port (typically 1883 for TCP, 8883 for TLS)
+             * @default 1883
+             */
+            port: number;
+            /**
+             * Use Tls
+             * @description Enable TLS/SSL for broker connection
+             * @default false
+             */
+            use_tls: boolean;
+            /**
+             * Username
+             * @description Username for broker authentication (optional)
+             */
+            username?: string | null;
+        };
+        /**
+         * MqttBrokerConfigUpdate
+         * @description MQTT broker connection settings update (all fields optional).
+         *
+         *     Used for partial updates to broker configuration.
+         */
+        MqttBrokerConfigUpdate: {
+            /**
+             * Client Id
+             * @description MQTT client identifier
+             */
+            client_id?: string | null;
+            /**
+             * Host
+             * @description MQTT broker hostname or IP address
+             */
+            host?: string | null;
+            /**
+             * Password
+             * @description Password for broker authentication
+             */
+            password?: string | null;
+            /**
+             * Port
+             * @description MQTT broker port
+             */
+            port?: number | null;
+            /**
+             * Use Tls
+             * @description Enable TLS/SSL for broker connection
+             */
+            use_tls?: boolean | null;
+            /**
+             * Username
+             * @description Username for broker authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * MqttConfigResponse
+         * @description Response schema for MQTT configuration.
+         *
+         *     Same as MqttConfig but with password always masked/excluded.
+         * @example {
+         *       "broker": {
+         *         "client_id": "home-security-backend",
+         *         "host": "mqtt.example.com",
+         *         "port": 1883,
+         *         "use_tls": false,
+         *         "username": "user"
+         *       },
+         *       "integration": {
+         *         "enabled": true,
+         *         "publish_detections": false,
+         *         "publish_events": true,
+         *         "publish_system_status": true
+         *       },
+         *       "publisher": {
+         *         "qos": 1,
+         *         "retain": false,
+         *         "topic_prefix": "home-security"
+         *       },
+         *       "updated_at": "2026-01-15T10:30:00Z"
+         *     }
+         */
+        MqttConfigResponse: {
+            /** @description MQTT broker connection settings (password excluded) */
+            broker: components["schemas"]["MqttBrokerConfig"];
+            /** @description MQTT integration settings */
+            integration: components["schemas"]["MqttIntegrationConfig"];
+            /** @description MQTT publisher settings */
+            publisher: components["schemas"]["MqttPublisherConfig"];
+            /**
+             * Updated At
+             * @description Timestamp of last configuration update
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * MqttConfigUpdate
+         * @description Request schema for updating MQTT configuration.
+         *
+         *     All fields are optional for partial updates.
+         * @example {
+         *       "broker": {
+         *         "host": "new-mqtt.example.com",
+         *         "port": 8883,
+         *         "use_tls": true
+         *       },
+         *       "integration": {
+         *         "enabled": true
+         *       }
+         *     }
+         */
+        MqttConfigUpdate: {
+            /** @description MQTT broker connection settings to update */
+            broker?: components["schemas"]["MqttBrokerConfigUpdate"] | null;
+            /** @description MQTT integration settings to update */
+            integration?: components["schemas"]["MqttIntegrationConfigUpdate"] | null;
+            /** @description MQTT publisher settings to update */
+            publisher?: components["schemas"]["MqttPublisherConfigUpdate"] | null;
+        };
+        /**
+         * MqttConnectionStatus
+         * @description MQTT connection status information.
+         *
+         *     Reports the current state of the MQTT broker connection.
+         * @example {
+         *       "broker_host": "mqtt.example.com",
+         *       "broker_port": 1883,
+         *       "connected": true,
+         *       "last_connected_at": "2026-01-15T10:30:00Z",
+         *       "messages_published": 1234
+         *     }
+         */
+        MqttConnectionStatus: {
+            /**
+             * Broker Host
+             * @description Currently configured broker host
+             */
+            broker_host?: string | null;
+            /**
+             * Broker Port
+             * @description Currently configured broker port
+             */
+            broker_port?: number | null;
+            /**
+             * Connected
+             * @description Whether currently connected to the broker
+             */
+            connected: boolean;
+            /**
+             * Last Connected At
+             * @description Timestamp of last successful connection
+             */
+            last_connected_at?: string | null;
+            /**
+             * Last Error
+             * @description Last connection error message (if any)
+             */
+            last_error?: string | null;
+            /**
+             * Last Error At
+             * @description Timestamp of last connection error
+             */
+            last_error_at?: string | null;
+            /**
+             * Messages Published
+             * @description Total messages published since last connect
+             * @default 0
+             */
+            messages_published: number;
+        };
+        /**
+         * MqttDisconnectResponse
+         * @description Response schema for MQTT disconnect request.
+         *
+         *     Reports the result of a disconnect request.
+         * @example {
+         *       "message": "Disconnected from MQTT broker",
+         *       "success": true,
+         *       "was_connected": true
+         *     }
+         */
+        MqttDisconnectResponse: {
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * Success
+             * @description Whether the disconnect was successful
+             */
+            success: boolean;
+            /**
+             * Was Connected
+             * @description Whether the client was connected before disconnect
+             */
+            was_connected: boolean;
+        };
+        /**
+         * MqttIntegrationConfig
+         * @description MQTT integration settings.
+         *
+         *     Configures which events and data are published to MQTT.
+         * @example {
+         *       "enabled": true,
+         *       "publish_detections": false,
+         *       "publish_events": true,
+         *       "publish_system_status": true
+         *     }
+         */
+        MqttIntegrationConfig: {
+            /**
+             * Enabled
+             * @description Enable MQTT integration
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Publish Detections
+             * @description Publish detection events (high volume)
+             * @default false
+             */
+            publish_detections: boolean;
+            /**
+             * Publish Events
+             * @description Publish security events to MQTT
+             * @default true
+             */
+            publish_events: boolean;
+            /**
+             * Publish System Status
+             * @description Publish system status updates
+             * @default true
+             */
+            publish_system_status: boolean;
+        };
+        /**
+         * MqttIntegrationConfigUpdate
+         * @description MQTT integration settings update (all fields optional).
+         *
+         *     Used for partial updates to integration configuration.
+         */
+        MqttIntegrationConfigUpdate: {
+            /**
+             * Enabled
+             * @description Enable MQTT integration
+             */
+            enabled?: boolean | null;
+            /**
+             * Publish Detections
+             * @description Publish detection events
+             */
+            publish_detections?: boolean | null;
+            /**
+             * Publish Events
+             * @description Publish security events to MQTT
+             */
+            publish_events?: boolean | null;
+            /**
+             * Publish System Status
+             * @description Publish system status updates
+             */
+            publish_system_status?: boolean | null;
+        };
+        /**
+         * MqttPublisherConfig
+         * @description MQTT publisher settings.
+         *
+         *     Configures how messages are published to the broker including
+         *     topic prefix, QoS level, and retention settings.
+         * @example {
+         *       "qos": 1,
+         *       "retain": false,
+         *       "topic_prefix": "home-security"
+         *     }
+         */
+        MqttPublisherConfig: {
+            /**
+             * Qos
+             * @description Quality of Service level (0=at most once, 1=at least once, 2=exactly once)
+             * @default 1
+             */
+            qos: number;
+            /**
+             * Retain
+             * @description Retain last message on each topic for new subscribers
+             * @default false
+             */
+            retain: boolean;
+            /**
+             * Topic Prefix
+             * @description Prefix for all MQTT topics (e.g., 'home-security/events')
+             * @default home-security
+             */
+            topic_prefix: string;
+        };
+        /**
+         * MqttPublisherConfigUpdate
+         * @description MQTT publisher settings update (all fields optional).
+         *
+         *     Used for partial updates to publisher configuration.
+         */
+        MqttPublisherConfigUpdate: {
+            /**
+             * Qos
+             * @description Quality of Service level
+             */
+            qos?: number | null;
+            /**
+             * Retain
+             * @description Retain last message on each topic
+             */
+            retain?: boolean | null;
+            /**
+             * Topic Prefix
+             * @description Prefix for all MQTT topics
+             */
+            topic_prefix?: string | null;
+        };
+        /**
+         * MqttReconnectResponse
+         * @description Response schema for MQTT reconnect request.
+         *
+         *     Reports the result of a reconnection attempt.
+         * @example {
+         *       "message": "Reconnected to mqtt.example.com:1883",
+         *       "new_state": "connected",
+         *       "previous_state": "disconnected",
+         *       "success": true
+         *     }
+         */
+        MqttReconnectResponse: {
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * New State
+             * @description Connection state after reconnect attempt
+             */
+            new_state: string;
+            /**
+             * Previous State
+             * @description Connection state before reconnect (connected/disconnected)
+             */
+            previous_state: string;
+            /**
+             * Success
+             * @description Whether the reconnection was initiated successfully
+             */
+            success: boolean;
+        };
+        /**
+         * MqttTestRequest
+         * @description Request schema for testing MQTT connection.
+         *
+         *     Optionally override configuration for testing without saving.
+         * @example {
+         *       "broker_override": {
+         *         "client_id": "test-client",
+         *         "host": "test-mqtt.example.com",
+         *         "port": 1883,
+         *         "use_tls": false,
+         *         "username": "testuser"
+         *       },
+         *       "timeout_seconds": 10,
+         *       "use_saved_config": false
+         *     }
+         */
+        MqttTestRequest: {
+            /** @description Override broker config for testing (not saved) */
+            broker_override?: components["schemas"]["MqttBrokerConfig"] | null;
+            /**
+             * Timeout Seconds
+             * @description Connection timeout in seconds
+             * @default 10
+             */
+            timeout_seconds: number;
+            /**
+             * Use Saved Config
+             * @description Use saved configuration (if False, broker_override is required)
+             * @default true
+             */
+            use_saved_config: boolean;
+        };
+        /**
+         * MqttTestResult
+         * @description Result schema for MQTT connection test.
+         *
+         *     Reports whether the test connection was successful and any errors.
+         * @example {
+         *       "broker_version": "Mosquitto 2.0.15",
+         *       "latency_ms": 45.2,
+         *       "message": "Successfully connected to mqtt.example.com:1883",
+         *       "success": true
+         *     }
+         */
+        MqttTestResult: {
+            /**
+             * Broker Version
+             * @description Broker version string (if available)
+             */
+            broker_version?: string | null;
+            /**
+             * Error Code
+             * @description Error code (if failed)
+             */
+            error_code?: string | null;
+            /**
+             * Error Details
+             * @description Detailed error message (if failed)
+             */
+            error_details?: string | null;
+            /**
+             * Latency Ms
+             * @description Connection latency in milliseconds (if successful)
+             */
+            latency_ms?: number | null;
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * Success
+             * @description Whether the connection test was successful
+             */
+            success: boolean;
+        };
+        /**
          * NemotronLatencyOptimizerResponse
          * @description Response schema for Nemotron latency optimizer status (NEM-4522).
          *
@@ -52031,6 +52598,187 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "mqtt-config_get_mqtt_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttConfigResponse"];
+                };
+            };
+            /** @description Failed to load configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "mqtt-config_update_mqtt_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MqttConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttConfigResponse"];
+                };
+            };
+            /** @description Invalid configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to save configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "mqtt-config_disconnect_mqtt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttDisconnectResponse"];
+                };
+            };
+        };
+    };
+    "mqtt-config_reconnect_mqtt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttReconnectResponse"];
+                };
+            };
+            /** @description Reconnection failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "mqtt-config_get_mqtt_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttConnectionStatus"];
+                };
+            };
+        };
+    };
+    "mqtt-config_test_mqtt_connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MqttTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttTestResult"];
+                };
+            };
+            /** @description Invalid test configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
