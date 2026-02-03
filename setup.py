@@ -257,6 +257,7 @@ def generate_env_content(config: dict) -> str:
         f"POSTGRES_PASSWORD={config.get('postgres_password', '')}",
         f"REDIS_PASSWORD={config.get('redis_password', '')}",
         f"FTP_PASSWORD={config.get('ftp_password', '')}",
+        f"JWT_SECRET={config.get('jwt_secret', '')}",
         "",
         "# -- Database " + "-" * 47,
         "POSTGRES_USER=security",
@@ -424,6 +425,8 @@ def run_quick_mode() -> dict:
     default_ftp_pw = existing_env.get("FTP_PASSWORD") or generate_password(16)
     default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
+    # JWT secret for authentication (NEM-5307)
+    jwt_secret = existing_env.get("JWT_SECRET") or generate_password(48)
 
     if existing_env.get("POSTGRES_PASSWORD"):
         print("* Using existing database password from .env")
@@ -456,6 +459,7 @@ def run_quick_mode() -> dict:
         "redis_password": redis_password,
         "grafana_password": grafana_password,
         "ftp_password": ftp_password,
+        "jwt_secret": jwt_secret,
         "ports": ports,
     }
 
@@ -543,6 +547,8 @@ def run_guided_mode() -> dict:
     default_ftp_pw = existing_env.get("FTP_PASSWORD") or generate_password(16)
     default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
+    # JWT secret for authentication (NEM-5307)
+    jwt_secret = existing_env.get("JWT_SECRET") or generate_password(48)
 
     if existing_env.get("POSTGRES_PASSWORD"):
         print("* Found existing .env - using current passwords as defaults")
@@ -609,6 +615,7 @@ def run_guided_mode() -> dict:
         "redis_password": redis_password,
         "grafana_password": grafana_password,
         "ftp_password": ftp_password,
+        "jwt_secret": jwt_secret,
         "ports": ports,
     }
 
@@ -736,6 +743,8 @@ def run_defaults_mode() -> dict:
     postgres_password = generate_password(32)
     redis_password = generate_password(32)
     ftp_password = generate_password(16)
+    # JWT secret for authentication (NEM-5307)
+    jwt_secret = generate_password(48)
 
     return {
         "foscam_base_path": "/export/foscam",
@@ -744,6 +753,7 @@ def run_defaults_mode() -> dict:
         "redis_password": redis_password,
         "grafana_password": "",
         "ftp_password": ftp_password,
+        "jwt_secret": jwt_secret,
         "ports": ports,
     }
 

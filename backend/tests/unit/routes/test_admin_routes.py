@@ -496,3 +496,125 @@ class TestClearDataResponseSchema:
         assert schema.cameras_cleared == 6
         assert schema.events_cleared == 15
         assert schema.detections_cleared == 50
+
+
+# =============================================================================
+# User Management Tests (Phase 2: API Protection)
+# =============================================================================
+
+
+class TestAdminUserManagement:
+    """Tests for admin user management endpoints.
+
+    These tests cover the Phase 2 API Protection requirements where admins
+    can create additional users after initial setup. Tests MUST FAIL initially
+    as these endpoints don't exist yet.
+    """
+
+    def test_create_user_requires_admin(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that creating users requires admin privileges."""
+        user_data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePassword123!",  # pragma: allowlist secret
+            "is_admin": False,
+        }
+
+        # Authenticated as regular user
+        response = client.post(
+            "/api/admin/users",
+            json=user_data,
+            headers={"X-User-Role": "user"},  # Non-admin
+        )
+
+        assert response.status_code == 403
+        data = response.json()
+        assert "admin" in data["detail"].lower()
+
+    def test_create_user_non_admin_forbidden(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that non-admin users cannot create users."""
+        user_data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePassword123!",  # pragma: allowlist secret
+        }
+
+        response = client.post(
+            "/api/admin/users",
+            json=user_data,
+            headers={"Authorization": "Bearer user_token"},
+        )
+
+        assert response.status_code == 403
+
+    def test_create_user_creates_non_admin_by_default(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that newly created users are non-admin by default."""
+        user_data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePassword123!",  # pragma: allowlist secret
+        }
+
+        # Mock admin user
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.post(
+            "/api/admin/users",
+            json=user_data,
+            headers={"X-User-Role": "admin"},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["username"] == "newuser"
+        assert data["is_admin"] is False
+
+    def test_list_users_requires_admin(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that listing users requires admin privileges."""
+        response = client.get(
+            "/api/admin/users", headers={"X-User-Role": "user"}  # Non-admin
+        )
+
+        assert response.status_code == 403
+
+    def test_delete_user_requires_admin(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that deleting users requires admin privileges."""
+        response = client.delete(
+            "/api/admin/users/user123", headers={"X-User-Role": "user"}  # Non-admin
+        )
+
+        assert response.status_code == 403
+
+    def test_admin_cannot_delete_self(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that admins cannot delete their own account."""
+        # Mock admin user
+        mock_user = MagicMock()
+        mock_user.id = "admin123"
+        mock_user.is_admin = True
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_user
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.delete(
+            "/api/admin/users/admin123",
+            headers={"X-User-Id": "admin123", "X-User-Role": "admin"},
+        )
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "cannot delete" in data["detail"].lower() or "yourself" in data["detail"].lower()
