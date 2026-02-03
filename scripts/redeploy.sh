@@ -2186,10 +2186,6 @@ main() {
         rebuild_tensorrt_engine
     fi
 
-    # Post-build cleanup: prune dangling images and build cache
-    # This prevents disk space exhaustion from --no-cache rebuilds
-    prune_build_artifacts
-
     # Prepare directories for container volume mounts
     prepare_directories
 
@@ -2211,6 +2207,11 @@ main() {
 
     # Verify deployment
     verify_deployment
+
+    # Post-container-start cleanup: prune dangling images and build cache
+    # This prevents disk space exhaustion from --no-cache rebuilds
+    # NOTE: Must run AFTER containers start so AI images are "in use" and not pruned
+    prune_build_artifacts
 
     # Seed database if volumes were destroyed and seeding not skipped
     if [ "$KEEP_VOLUMES" != "true" ] && [ "$SKIP_SEED" != "true" ]; then
