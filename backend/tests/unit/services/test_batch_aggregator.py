@@ -3653,3 +3653,878 @@ async def test_batch_closing_flag_ttl_constant_exists():
 
     assert BATCH_CLOSING_FLAG_TTL_SECONDS == 300
     assert isinstance(BATCH_CLOSING_FLAG_TTL_SECONDS, int)
+
+
+# ===========================================================================
+# NEM-5278: Threat Detection Fast-Path Bypass Tests (TDD Red Phase)
+# ===========================================================================
+# These tests verify the batch aggregator's ability to bypass the 90-second
+# batch window for high-priority threat detections (weapons).
+# All tests are expected to FAIL until the implementation is complete.
+
+
+class TestShouldBypassBatchForThreats:
+    """Tests for should_bypass_batch() method - threat detection fast-path bypass.
+
+    NEM-5278: When a weapon is detected with high confidence, the batch aggregator
+    should immediately process the detection instead of waiting for the 90-second
+    batch window to expire.
+    """
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_true_for_gun(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that should_bypass_batch returns True for gun detection.
+
+        Firearms (gun, pistol, rifle) should trigger immediate processing
+        to minimize response time for critical threats.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="gun",
+            confidence=0.85,
+            threat_type="gun",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_true_for_pistol(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that should_bypass_batch returns True for pistol detection."""
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",  # Person holding weapon
+            confidence=0.90,
+            threat_type="pistol",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_true_for_rifle(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that should_bypass_batch returns True for rifle detection."""
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.88,
+            threat_type="rifle",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_true_for_knife(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that should_bypass_batch returns True for knife detection.
+
+        Bladed weapons (knife, machete, sword) are also high-priority threats.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.82,
+            threat_type="knife",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_true_for_machete(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that should_bypass_batch returns True for machete detection."""
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.80,
+            threat_type="machete",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_false_for_low_confidence_gun(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that low-confidence gun detection does NOT bypass batch.
+
+        To avoid false positives, we require confidence >= 0.7 to trigger
+        the fast-path bypass for threat detections.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.45,  # Below 0.7 threshold
+            threat_type="gun",
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_false_for_low_confidence_knife(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that low-confidence knife detection does NOT bypass batch."""
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.50,  # Below 0.7 threshold
+            threat_type="knife",
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_false_for_non_threat(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that non-threat detections do NOT bypass batch.
+
+        Regular person/vehicle detections should go through normal batching.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.95,
+            threat_type=None,  # No threat detected
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_at_exactly_threshold(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that detection at exactly 0.7 confidence DOES bypass batch."""
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.70,  # Exactly at threshold
+            threat_type="gun",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_false_for_bat(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that bat detection does NOT bypass batch.
+
+        Blunt weapons (bat, crowbar) are MEDIUM severity and should NOT
+        trigger the fast-path bypass - they go through normal batching.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.85,
+            threat_type="bat",
+        )
+
+        # Bats are medium severity, should NOT bypass
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_batch_returns_false_for_crowbar(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that crowbar detection does NOT bypass batch."""
+        result = await batch_aggregator.should_bypass_batch(
+            object_type="person",
+            confidence=0.88,
+            threat_type="crowbar",
+        )
+
+        assert result is False
+
+
+class TestAddDetectionWithThreatBypass:
+    """Tests for add_detection() integration with threat fast-path bypass.
+
+    NEM-5278: When add_detection() is called with a high-priority threat,
+    it should trigger immediate processing instead of batching.
+    """
+
+    @pytest.mark.asyncio
+    async def test_add_detection_triggers_threat_bypass_for_gun(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that add_detection triggers fast path for gun detection.
+
+        When a gun is detected with high confidence, add_detection should:
+        1. Call should_bypass_batch() which returns True
+        2. Immediately process the detection via threat fast path
+        3. NOT add the detection to the normal batch
+        """
+        camera_id = "front_door"
+        detection_id = 100
+        file_path = "/export/foscam/front_door/threat_100.jpg"
+
+        # Mock: No existing batch
+        mock_redis_instance.get.return_value = None
+
+        # Mock the threat processing
+        batch_aggregator._process_threat_fast_path = AsyncMock()
+
+        batch_id = await batch_aggregator.add_detection(
+            camera_id=camera_id,
+            detection_id=detection_id,
+            _file_path=file_path,
+            confidence=0.90,
+            object_type="person",
+            threat_type="gun",  # Gun threat detected
+        )
+
+        # Should return a threat fast path ID
+        assert batch_id.startswith("threat_fast_path_") or batch_id.startswith("fast_path_")
+
+        # Should have called threat fast path processing
+        batch_aggregator._process_threat_fast_path.assert_called_once()
+
+        # Should NOT have added to normal batch
+        # (RPUSH should not be called for threat bypass)
+
+    @pytest.mark.asyncio
+    async def test_add_detection_normal_batch_for_low_confidence_gun(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that low-confidence gun goes through normal batching."""
+        camera_id = "front_door"
+        detection_id = 101
+        file_path = "/export/foscam/front_door/maybe_threat_101.jpg"
+
+        # Mock: No existing batch
+        mock_redis_instance.get.return_value = None
+        mock_redis_instance._client.rpush.return_value = 1
+
+        # Create a mock pipeline for batch creation
+        class MockPipeline:
+            def set(self, key, value, ex=None):
+                return self
+
+            async def execute(self):
+                return [True]
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
+
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "batch_normal_threat"
+
+            batch_id = await batch_aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                _file_path=file_path,
+                confidence=0.45,  # Low confidence
+                object_type="person",
+                threat_type="gun",  # Gun detected but low confidence
+            )
+
+        # Should use normal batching
+        assert batch_id == "batch_normal_threat"
+
+        # Should have added to batch via RPUSH
+        assert mock_redis_instance._client.rpush.called
+
+
+class TestProcessThreatFastPath:
+    """Tests for _process_threat_fast_path() method.
+
+    NEM-5278: This method handles immediate processing of high-priority
+    threat detections, bypassing the normal batch window.
+    """
+
+    @pytest.mark.asyncio
+    async def test_process_threat_fast_path_creates_immediate_alert(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that _process_threat_fast_path creates an immediate alert.
+
+        The method should:
+        1. Create a ThreatMonitorService instance if needed
+        2. Call process_threat_detection() to create alert
+        3. Log the fast path processing
+        """
+        camera_id = "front_door"
+        detection_id = 200
+        threat_type = "gun"
+        confidence = 0.90
+
+        # Mock the ThreatMonitorService
+        with patch("backend.services.threat_monitor_service.ThreatMonitorService") as MockService:
+            mock_service_instance = AsyncMock()
+            mock_service_instance.process_threat_detection = AsyncMock(return_value=MagicMock())
+            MockService.return_value = mock_service_instance
+
+            await batch_aggregator._process_threat_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                threat_type=threat_type,
+                confidence=confidence,
+            )
+
+            # Should have created the service
+            MockService.assert_called_once()
+
+            # Should have called process_threat_detection
+            mock_service_instance.process_threat_detection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_threat_fast_path_logs_on_error(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that _process_threat_fast_path logs errors gracefully.
+
+        If alert creation fails, the error should be logged but not propagated.
+        """
+        camera_id = "back_door"
+        detection_id = 201
+        threat_type = "knife"
+        confidence = 0.85
+
+        # Mock the ThreatMonitorService to raise an error
+        with patch("backend.services.threat_monitor_service.ThreatMonitorService") as MockService:
+            mock_service_instance = AsyncMock()
+            mock_service_instance.process_threat_detection = AsyncMock(
+                side_effect=Exception("Database error")
+            )
+            MockService.return_value = mock_service_instance
+
+            # Should not raise - errors are logged
+            await batch_aggregator._process_threat_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                threat_type=threat_type,
+                confidence=confidence,
+            )
+
+
+class TestThreatBypassConstants:
+    """Tests for threat bypass-related constants.
+
+    NEM-5278: Verify that the required constants are defined.
+    """
+
+    def test_threat_bypass_confidence_threshold_exists(self):
+        """Test that THREAT_BYPASS_CONFIDENCE_THRESHOLD constant is defined.
+
+        This threshold determines the minimum confidence required for a
+        threat detection to trigger the fast-path bypass.
+        """
+        from backend.services.batch_aggregator import THREAT_BYPASS_CONFIDENCE_THRESHOLD
+
+        assert THREAT_BYPASS_CONFIDENCE_THRESHOLD == 0.7
+        assert isinstance(THREAT_BYPASS_CONFIDENCE_THRESHOLD, float)
+
+    def test_threat_bypass_types_constant_exists(self):
+        """Test that THREAT_BYPASS_TYPES constant is defined.
+
+        This set contains the threat types that trigger fast-path bypass.
+        Should include firearms and bladed weapons (CRITICAL and HIGH severity).
+        """
+        from backend.services.batch_aggregator import THREAT_BYPASS_TYPES
+
+        # Should include firearms
+        assert "gun" in THREAT_BYPASS_TYPES
+        assert "pistol" in THREAT_BYPASS_TYPES
+        assert "rifle" in THREAT_BYPASS_TYPES
+        assert "firearm" in THREAT_BYPASS_TYPES
+        assert "handgun" in THREAT_BYPASS_TYPES
+
+        # Should include bladed weapons
+        assert "knife" in THREAT_BYPASS_TYPES
+        assert "machete" in THREAT_BYPASS_TYPES
+        assert "sword" in THREAT_BYPASS_TYPES
+
+        # Should NOT include blunt weapons (medium severity)
+        assert "bat" not in THREAT_BYPASS_TYPES
+        assert "crowbar" not in THREAT_BYPASS_TYPES
+
+
+# ===========================================================================
+# Smoke/Fire Bypass Tests (NEM-5298)
+# ===========================================================================
+
+
+class TestShouldBypassBatchForSmokeFire:
+    """Tests for should_bypass_batch() with smoke/fire detection.
+
+    NEM-5298: Smoke and fire detections should bypass normal batching
+    for immediate alerting due to life safety implications.
+    """
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_for_fire_above_threshold(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that fire detection above 0.70 confidence bypasses batch.
+
+        Fire detections at or above 70% confidence should immediately
+        bypass the batch window for fast alerting.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            detection_type="fire",
+            confidence=0.75,
+            smoke_fire_type="fire",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_bypass_for_smoke_above_threshold(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that smoke detection above 0.75 confidence bypasses batch.
+
+        Smoke detections at or above 75% confidence should bypass
+        the batch window. Smoke has a higher threshold than fire
+        to reduce false positives from steam/fog.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            detection_type="smoke",
+            confidence=0.80,
+            smoke_fire_type="smoke",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_not_bypass_for_fire_below_threshold(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that fire detection below 0.70 uses normal batching.
+
+        Low confidence fire detections should go through normal
+        batch processing to avoid false alarm fatigue.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            detection_type="fire",
+            confidence=0.60,  # Below 0.70 threshold
+            smoke_fire_type="fire",
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_not_bypass_for_smoke_below_threshold(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that smoke detection below 0.75 uses normal batching.
+
+        Low confidence smoke detections should go through normal
+        batch processing to avoid false alarm fatigue from steam/fog.
+        """
+        result = await batch_aggregator.should_bypass_batch(
+            detection_type="smoke",
+            confidence=0.70,  # Below 0.75 threshold for smoke
+            smoke_fire_type="smoke",
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_bypass_at_exact_fire_threshold(self, batch_aggregator, mock_redis_instance):
+        """Test fire detection at exactly 0.70 threshold bypasses batch."""
+        result = await batch_aggregator.should_bypass_batch(
+            detection_type="fire",
+            confidence=0.70,  # Exact threshold
+            smoke_fire_type="fire",
+        )
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_bypass_at_exact_smoke_threshold(self, batch_aggregator, mock_redis_instance):
+        """Test smoke detection at exactly 0.75 threshold bypasses batch."""
+        result = await batch_aggregator.should_bypass_batch(
+            detection_type="smoke",
+            confidence=0.75,  # Exact threshold for smoke
+            smoke_fire_type="smoke",
+        )
+
+        assert result is True
+
+
+class TestAddDetectionWithSmokeFireBypass:
+    """Tests for add_detection() smoke/fire bypass integration.
+
+    NEM-5298: When smoke or fire is detected with sufficient confidence,
+    add_detection() should use the fast-path bypass.
+    """
+
+    @pytest.mark.asyncio
+    async def test_add_detection_with_fire_bypasses_batch(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test add_detection creates immediate alert for high-confidence fire.
+
+        When fire is detected at >= 0.70 confidence, the detection should
+        bypass the normal batch window and trigger immediate processing.
+        """
+        camera_id = "parking_lot"
+        detection_id = 500
+        file_path = "/data/frames/fire_001.jpg"
+
+        # Configure mock for batch operations
+        mock_redis_instance._client.exists = AsyncMock(return_value=False)
+        mock_redis_instance._client.rpush = AsyncMock(return_value=1)
+        mock_redis_instance._client.expire = AsyncMock(return_value=True)
+        mock_redis_instance._client.hset = AsyncMock(return_value=1)
+        mock_redis_instance._client.incr = AsyncMock(return_value=1)
+
+        class MockPipeline:
+            def __init__(self):
+                self.commands = []
+
+            def exists(self, key):
+                self.commands.append(("exists", key))
+                return self
+
+            def rpush(self, key, value):
+                self.commands.append(("rpush", key, value))
+                return self
+
+            def expire(self, key, ttl):
+                self.commands.append(("expire", key, ttl))
+                return self
+
+            async def execute(self):
+                return [True]
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
+
+        with (
+            patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen,
+            patch.object(
+                batch_aggregator,
+                "_process_smoke_fire_fast_path",
+                new_callable=AsyncMock,
+            ) as mock_fast_path,
+        ):
+            mock_gen.return_value = "batch_fire_fast"
+
+            batch_id = await batch_aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                _file_path=file_path,
+                confidence=0.85,
+                object_type="fire",
+                smoke_fire_type="fire",
+            )
+
+        # Should have called the smoke/fire fast path
+        mock_fast_path.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_add_detection_with_smoke_bypasses_batch(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test add_detection creates immediate alert for high-confidence smoke.
+
+        When smoke is detected at >= 0.75 confidence, the detection should
+        bypass the normal batch window and trigger immediate processing.
+        """
+        camera_id = "warehouse"
+        detection_id = 501
+        file_path = "/data/frames/smoke_001.jpg"
+
+        # Configure mock for batch operations
+        mock_redis_instance._client.exists = AsyncMock(return_value=False)
+        mock_redis_instance._client.rpush = AsyncMock(return_value=1)
+        mock_redis_instance._client.expire = AsyncMock(return_value=True)
+        mock_redis_instance._client.hset = AsyncMock(return_value=1)
+        mock_redis_instance._client.incr = AsyncMock(return_value=1)
+
+        class MockPipeline:
+            def __init__(self):
+                self.commands = []
+
+            def exists(self, key):
+                self.commands.append(("exists", key))
+                return self
+
+            def rpush(self, key, value):
+                self.commands.append(("rpush", key, value))
+                return self
+
+            def expire(self, key, ttl):
+                self.commands.append(("expire", key, ttl))
+                return self
+
+            async def execute(self):
+                return [True]
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
+
+        with (
+            patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen,
+            patch.object(
+                batch_aggregator,
+                "_process_smoke_fire_fast_path",
+                new_callable=AsyncMock,
+            ) as mock_fast_path,
+        ):
+            mock_gen.return_value = "batch_smoke_fast"
+
+            batch_id = await batch_aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                _file_path=file_path,
+                confidence=0.90,
+                object_type="smoke",
+                smoke_fire_type="smoke",
+            )
+
+        # Should have called the smoke/fire fast path
+        mock_fast_path.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_add_detection_with_low_confidence_fire_uses_normal_batch(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test add_detection uses normal batching for low-confidence fire.
+
+        Fire detections below 70% confidence should go through normal
+        batch processing to be combined with other detections.
+        """
+        camera_id = "kitchen"
+        detection_id = 502
+        file_path = "/data/frames/fire_low_001.jpg"
+
+        # Configure mock for batch operations
+        mock_redis_instance._client.exists = AsyncMock(return_value=False)
+        mock_redis_instance._client.rpush = AsyncMock(return_value=1)
+        mock_redis_instance._client.expire = AsyncMock(return_value=True)
+        mock_redis_instance._client.hset = AsyncMock(return_value=1)
+        mock_redis_instance._client.incr = AsyncMock(return_value=1)
+
+        class MockPipeline:
+            def __init__(self):
+                self.commands = []
+
+            def exists(self, key):
+                self.commands.append(("exists", key))
+                return self
+
+            def set(self, key, value, ex=None):
+                self.commands.append(("set", key, value, ex))
+                return self
+
+            def rpush(self, key, value):
+                self.commands.append(("rpush", key, value))
+                return self
+
+            def expire(self, key, ttl):
+                self.commands.append(("expire", key, ttl))
+                return self
+
+            async def execute(self):
+                return [True]
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc_val, exc_tb):
+                return False
+
+        mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
+
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "batch_normal_fire"
+
+            batch_id = await batch_aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                _file_path=file_path,
+                confidence=0.50,  # Low confidence
+                object_type="fire",
+                smoke_fire_type="fire",
+            )
+
+        # Should use normal batching
+        assert batch_id == "batch_normal_fire"
+
+        # Should have added to batch via RPUSH
+        assert mock_redis_instance._client.rpush.called
+
+
+class TestProcessSmokeFireFastPath:
+    """Tests for _process_smoke_fire_fast_path() method.
+
+    NEM-5298: This method handles immediate processing of high-priority
+    smoke/fire detections, bypassing the normal batch window.
+    """
+
+    @pytest.mark.asyncio
+    async def test_process_smoke_fire_fast_path_creates_immediate_alert(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that _process_smoke_fire_fast_path creates an immediate alert.
+
+        The method should:
+        1. Create a SmokeFireConsecutiveService instance if needed
+        2. Check consecutive detection count
+        3. Call process_smoke_fire_detection() to potentially create alert
+        4. Log the fast path processing
+        """
+        camera_id = "factory_floor"
+        detection_id = 600
+        smoke_fire_type = "fire"
+        confidence = 0.90
+
+        # Mock the SmokeFireConsecutiveService
+        with patch(
+            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService"
+        ) as MockService:
+            mock_service_instance = AsyncMock()
+            mock_service_instance.process_smoke_fire_detection = AsyncMock(return_value=MagicMock())
+            MockService.return_value = mock_service_instance
+
+            await batch_aggregator._process_smoke_fire_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                smoke_fire_type=smoke_fire_type,
+                confidence=confidence,
+            )
+
+            # Should have created the service
+            MockService.assert_called_once()
+
+            # Should have called process_smoke_fire_detection
+            mock_service_instance.process_smoke_fire_detection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_process_smoke_fire_fast_path_logs_on_error(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that _process_smoke_fire_fast_path logs errors gracefully.
+
+        If alert creation fails, the error should be logged but not propagated.
+        """
+        camera_id = "boiler_room"
+        detection_id = 601
+        smoke_fire_type = "smoke"
+        confidence = 0.85
+
+        # Mock the SmokeFireConsecutiveService to raise an error
+        with patch(
+            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService"
+        ) as MockService:
+            mock_service_instance = AsyncMock()
+            mock_service_instance.process_smoke_fire_detection = AsyncMock(
+                side_effect=Exception("Database error")
+            )
+            MockService.return_value = mock_service_instance
+
+            # Should not raise - errors are logged
+            await batch_aggregator._process_smoke_fire_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                smoke_fire_type=smoke_fire_type,
+                confidence=confidence,
+            )
+
+    @pytest.mark.asyncio
+    async def test_process_smoke_fire_fast_path_passes_correct_params(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """Test that _process_smoke_fire_fast_path passes correct parameters.
+
+        The method should forward camera_id, detection_id, smoke_fire_type,
+        and confidence to the consecutive service.
+        """
+        camera_id = "garage"
+        detection_id = 602
+        smoke_fire_type = "fire"
+        confidence = 0.88
+
+        with patch(
+            "backend.services.smoke_fire_consecutive.SmokeFireConsecutiveService"
+        ) as MockService:
+            mock_service_instance = AsyncMock()
+            mock_service_instance.process_smoke_fire_detection = AsyncMock(return_value=MagicMock())
+            MockService.return_value = mock_service_instance
+
+            await batch_aggregator._process_smoke_fire_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                smoke_fire_type=smoke_fire_type,
+                confidence=confidence,
+            )
+
+            # Verify the call was made with correct parameters
+            call_kwargs = mock_service_instance.process_smoke_fire_detection.call_args.kwargs
+            assert call_kwargs["camera_id"] == camera_id
+            assert call_kwargs["detection_id"] == detection_id
+            assert call_kwargs["smoke_fire_type"] == smoke_fire_type
+            assert call_kwargs["confidence"] == confidence
+
+
+class TestSmokeFireBypassConstants:
+    """Tests for smoke/fire bypass-related constants.
+
+    NEM-5298: Verify that the required constants are defined.
+    """
+
+    def test_smoke_fire_bypass_confidence_threshold_smoke_exists(self):
+        """Test that SMOKE_BYPASS_CONFIDENCE_THRESHOLD constant is defined.
+
+        This threshold determines the minimum confidence required for a
+        smoke detection to trigger the fast-path bypass (0.75).
+        """
+        from backend.services.batch_aggregator import SMOKE_BYPASS_CONFIDENCE_THRESHOLD
+
+        assert SMOKE_BYPASS_CONFIDENCE_THRESHOLD == 0.75
+        assert isinstance(SMOKE_BYPASS_CONFIDENCE_THRESHOLD, float)
+
+    def test_smoke_fire_bypass_confidence_threshold_fire_exists(self):
+        """Test that FIRE_BYPASS_CONFIDENCE_THRESHOLD constant is defined.
+
+        This threshold determines the minimum confidence required for a
+        fire detection to trigger the fast-path bypass (0.70).
+        """
+        from backend.services.batch_aggregator import FIRE_BYPASS_CONFIDENCE_THRESHOLD
+
+        assert FIRE_BYPASS_CONFIDENCE_THRESHOLD == 0.70
+        assert isinstance(FIRE_BYPASS_CONFIDENCE_THRESHOLD, float)
+
+    def test_smoke_fire_bypass_types_constant_exists(self):
+        """Test that SMOKE_FIRE_BYPASS_TYPES constant is defined.
+
+        This set contains the detection types that trigger smoke/fire
+        fast-path bypass processing.
+        """
+        from backend.services.batch_aggregator import SMOKE_FIRE_BYPASS_TYPES
+
+        # Should include smoke and fire
+        assert "smoke" in SMOKE_FIRE_BYPASS_TYPES
+        assert "fire" in SMOKE_FIRE_BYPASS_TYPES
+
+        # Should be a set or frozenset
+        assert isinstance(SMOKE_FIRE_BYPASS_TYPES, set | frozenset)
+
+    def test_smoke_threshold_higher_than_fire(self):
+        """Test that smoke threshold is higher than fire threshold.
+
+        Smoke detection has more false positives (steam, fog) so it
+        requires a higher confidence threshold (0.75 vs 0.70).
+        """
+        from backend.services.batch_aggregator import (
+            FIRE_BYPASS_CONFIDENCE_THRESHOLD,
+            SMOKE_BYPASS_CONFIDENCE_THRESHOLD,
+        )
+
+        assert SMOKE_BYPASS_CONFIDENCE_THRESHOLD > FIRE_BYPASS_CONFIDENCE_THRESHOLD

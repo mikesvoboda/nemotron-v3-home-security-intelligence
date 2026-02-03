@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from .enums import CameraStatus, IngestionMode
@@ -129,6 +130,9 @@ class Camera(Base):
     stream_profile: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
     motion_sensitivity: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
 
+    # Depth calibration data for depth-to-distance conversion (NEM-5283)
+    calibration_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
+
     def __init__(
         self,
         *,
@@ -146,6 +150,7 @@ class Camera(Base):
         rtsp_password: str | None = None,
         stream_profile: str | None = None,
         motion_sensitivity: float | None = None,
+        calibration_data: dict | None = None,
     ):
         """Initialize a Camera instance with Python-level defaults.
 
@@ -167,6 +172,7 @@ class Camera(Base):
         self.rtsp_password = rtsp_password
         self.stream_profile = stream_profile
         self.motion_sensitivity = motion_sensitivity if motion_sensitivity is not None else 0.5
+        self.calibration_data = calibration_data
 
     # Relationships
     detections: Mapped[list[Detection]] = relationship(

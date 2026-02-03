@@ -909,3 +909,388 @@ class TestNotificationServiceEdgeCases:
             assert len(result.deliveries) == 1
             assert result.deliveries[0].channel == NotificationChannel.EMAIL
             mock_email.assert_called_once()
+
+
+# ===========================================================================
+# Priority Flag Tests (NEM-5298: Smoke/Fire Detection)
+# ===========================================================================
+
+
+class TestNotificationDeliveryPriorityFlag:
+    """Tests for is_high_priority flag on NotificationDelivery.
+
+    NEM-5298: Smoke/fire alerts need a priority flag to indicate
+    urgency for immediate attention. This flag affects delivery
+    behavior (e.g., email subject, webhook payload priority field).
+    """
+
+    def test_notification_delivery_has_is_high_priority_field(self):
+        """Test that NotificationDelivery has is_high_priority field.
+
+        The field should exist to indicate if the delivery is for
+        a high-priority alert (e.g., smoke/fire detection).
+        """
+        delivery = NotificationDelivery(
+            channel=NotificationChannel.EMAIL,
+            success=True,
+            delivered_at=datetime.now(UTC),
+            is_high_priority=True,
+        )
+
+        assert hasattr(delivery, "is_high_priority")
+        assert delivery.is_high_priority is True
+
+    def test_notification_delivery_priority_defaults_to_false(self):
+        """Test that is_high_priority defaults to False.
+
+        Most alerts are not high priority, so the default should
+        be False to avoid unnecessary alarm fatigue.
+        """
+        delivery = NotificationDelivery(
+            channel=NotificationChannel.EMAIL,
+            success=True,
+        )
+
+        assert delivery.is_high_priority is False
+
+    def test_notification_delivery_to_dict_includes_priority(self):
+        """Test that to_dict includes is_high_priority field."""
+        delivery = NotificationDelivery(
+            channel=NotificationChannel.EMAIL,
+            success=True,
+            delivered_at=datetime.now(UTC),
+            is_high_priority=True,
+        )
+
+        result = delivery.to_dict()
+
+        assert "is_high_priority" in result
+        assert result["is_high_priority"] is True
+
+
+class TestDeliveryResultPriorityFlag:
+    """Tests for is_high_priority flag on DeliveryResult.
+
+    NEM-5298: The overall delivery result should also carry the
+    priority flag to indicate if any of the deliveries were high priority.
+    """
+
+    def test_delivery_result_has_is_high_priority_field(self):
+        """Test that DeliveryResult has is_high_priority field."""
+        result = DeliveryResult(
+            alert_id="test-123",
+            is_high_priority=True,
+        )
+
+        assert hasattr(result, "is_high_priority")
+        assert result.is_high_priority is True
+
+    def test_delivery_result_priority_defaults_to_false(self):
+        """Test that is_high_priority defaults to False."""
+        result = DeliveryResult(alert_id="test-123")
+
+        assert result.is_high_priority is False
+
+    def test_delivery_result_to_dict_includes_priority(self):
+        """Test that to_dict includes is_high_priority field."""
+        result = DeliveryResult(
+            alert_id="test-123",
+            is_high_priority=True,
+        )
+
+        dict_result = result.to_dict()
+
+        assert "is_high_priority" in dict_result
+        assert dict_result["is_high_priority"] is True
+
+
+class TestNotificationServicePriorityEmail:
+    """Tests for priority flag in email notifications.
+
+    NEM-5298: High-priority alerts should have special handling
+    in email subject and body to indicate urgency.
+    """
+
+    def test_build_email_subject_with_high_priority(self, service, mock_alert):
+        """Test that high-priority alerts have [URGENT] prefix in subject.
+
+        Smoke/fire alerts should have [URGENT] prefix to stand out
+        in email clients and indicate immediate action required.
+        """
+        mock_alert.is_high_priority = True
+        mock_alert.severity = AlertSeverity.CRITICAL
+
+        subject = service._build_email_subject(mock_alert, is_high_priority=True)
+
+        assert "[URGENT]" in subject
+        assert "[CRITICAL]" in subject
+
+    def test_build_email_subject_without_high_priority(self, service, mock_alert):
+        """Test that normal alerts do not have [URGENT] prefix."""
+        mock_alert.is_high_priority = False
+
+        subject = service._build_email_subject(mock_alert, is_high_priority=False)
+
+        assert "[URGENT]" not in subject
+
+    def test_build_email_body_with_high_priority(self, service, mock_alert):
+        """Test that high-priority alerts include urgency notice in body.
+
+        The email body should include a visible notice about the
+        urgent nature of the alert for smoke/fire detections.
+        """
+        mock_alert.is_high_priority = True
+        mock_alert.alert_metadata = {
+            "rule_name": "Smoke/Fire Detection",
+            "matched_conditions": ["smoke_fire_type = fire"],
+            "smoke_fire_type": "fire",
+        }
+
+        body = service._build_email_body(mock_alert, is_high_priority=True)
+
+        # Should contain urgent messaging
+        assert "URGENT" in body.upper() or "IMMEDIATE" in body.upper()
+
+    @pytest.mark.asyncio
+    async def test_send_email_with_priority_flag(self, service, mock_alert):
+        """Test that send_email accepts and uses is_high_priority parameter."""
+        mock_alert.is_high_priority = True
+
+        with patch.object(service, "_send_email_sync") as mock_send:
+            mock_send.return_value = None
+
+            result = await service.send_email(mock_alert, is_high_priority=True)
+
+            assert result.success is True
+            assert result.is_high_priority is True
+
+
+class TestNotificationServicePriorityWebhook:
+    """Tests for priority flag in webhook notifications.
+
+    NEM-5298: High-priority alerts should include a priority field
+    in the webhook payload for downstream processing.
+    """
+
+    def test_build_webhook_payload_with_high_priority(self, service, mock_alert):
+        """Test that webhook payload includes is_high_priority field.
+
+        The payload should include the priority flag so downstream
+        systems can take appropriate action (e.g., trigger alarms).
+        """
+        mock_alert.is_high_priority = True
+
+        payload = service._build_webhook_payload(mock_alert, is_high_priority=True)
+
+        assert "is_high_priority" in payload
+        assert payload["is_high_priority"] is True
+
+    def test_build_webhook_payload_without_high_priority(self, service, mock_alert):
+        """Test that webhook payload has is_high_priority=False for normal alerts."""
+        mock_alert.is_high_priority = False
+
+        payload = service._build_webhook_payload(mock_alert, is_high_priority=False)
+
+        assert "is_high_priority" in payload
+        assert payload["is_high_priority"] is False
+
+    def test_build_webhook_payload_includes_smoke_fire_type(self, service, mock_alert):
+        """Test that webhook payload includes smoke_fire_type when present.
+
+        For smoke/fire alerts, the payload should include the specific
+        detection type (smoke or fire) for downstream processing.
+        """
+        mock_alert.is_high_priority = True
+        mock_alert.alert_metadata = {
+            "rule_name": "Smoke/Fire Detection",
+            "matched_conditions": ["smoke_fire_type = fire"],
+            "smoke_fire_type": "fire",
+        }
+
+        payload = service._build_webhook_payload(mock_alert, is_high_priority=True)
+
+        assert "smoke_fire_type" in payload or "smoke_fire_type" in payload.get("metadata", {})
+
+    @pytest.mark.asyncio
+    async def test_send_webhook_with_priority_flag(self, service, mock_alert):
+        """Test that send_webhook accepts and uses is_high_priority parameter."""
+        mock_alert.is_high_priority = True
+
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.text = "OK"
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+
+        with (
+            patch.object(service, "_get_http_client", return_value=mock_client),
+            patch(
+                "backend.services.notification.validate_webhook_url_for_request",
+                return_value="https://example.com/webhook",
+            ),
+        ):
+            result = await service.send_webhook(mock_alert, is_high_priority=True)
+
+            assert result.success is True
+            assert result.is_high_priority is True
+
+
+class TestNotificationServiceDeliverAlertWithPriority:
+    """Tests for deliver_alert with priority flag propagation.
+
+    NEM-5298: The priority flag should propagate through the entire
+    delivery pipeline from alert to all channel deliveries.
+    """
+
+    @pytest.mark.asyncio
+    async def test_deliver_alert_propagates_priority_from_alert(self, service, mock_alert):
+        """Test that deliver_alert reads is_high_priority from alert.
+
+        When an alert has is_high_priority=True (smoke/fire detection),
+        this flag should be propagated to all channel deliveries.
+        """
+        mock_alert.is_high_priority = True
+
+        with (
+            patch.object(service, "send_email") as mock_email,
+            patch.object(service, "send_webhook") as mock_webhook,
+        ):
+            mock_email.return_value = NotificationDelivery(
+                channel=NotificationChannel.EMAIL,
+                success=True,
+                delivered_at=datetime.now(UTC),
+                is_high_priority=True,
+            )
+            mock_webhook.return_value = NotificationDelivery(
+                channel=NotificationChannel.WEBHOOK,
+                success=True,
+                delivered_at=datetime.now(UTC),
+                is_high_priority=True,
+            )
+
+            result = await service.deliver_alert(mock_alert)
+
+            # All deliveries should have high priority
+            assert result.is_high_priority is True
+            for delivery in result.deliveries:
+                assert delivery.is_high_priority is True
+
+    @pytest.mark.asyncio
+    async def test_deliver_alert_passes_priority_to_channels(self, service, mock_alert):
+        """Test that deliver_alert passes is_high_priority to channel methods.
+
+        The priority flag should be explicitly passed to send_email,
+        send_webhook, etc., so they can customize their behavior.
+        """
+        mock_alert.is_high_priority = True
+
+        with (
+            patch.object(service, "send_email") as mock_email,
+            patch.object(service, "send_webhook") as mock_webhook,
+        ):
+            mock_email.return_value = NotificationDelivery(
+                channel=NotificationChannel.EMAIL,
+                success=True,
+                delivered_at=datetime.now(UTC),
+                is_high_priority=True,
+            )
+            mock_webhook.return_value = NotificationDelivery(
+                channel=NotificationChannel.WEBHOOK,
+                success=True,
+                delivered_at=datetime.now(UTC),
+                is_high_priority=True,
+            )
+
+            await service.deliver_alert(mock_alert)
+
+            # Verify priority was passed to each channel method
+            mock_email.assert_called_once()
+            email_call_kwargs = mock_email.call_args.kwargs
+            assert email_call_kwargs.get("is_high_priority") is True
+
+            mock_webhook.assert_called_once()
+            webhook_call_kwargs = mock_webhook.call_args.kwargs
+            assert webhook_call_kwargs.get("is_high_priority") is True
+
+    @pytest.mark.asyncio
+    async def test_deliver_alert_result_contains_priority(self, service, mock_alert):
+        """Test that DeliveryResult includes is_high_priority from alert."""
+        mock_alert.is_high_priority = True
+
+        with (
+            patch.object(service, "send_email") as mock_email,
+            patch.object(service, "send_webhook") as mock_webhook,
+        ):
+            mock_email.return_value = NotificationDelivery(
+                channel=NotificationChannel.EMAIL,
+                success=True,
+                delivered_at=datetime.now(UTC),
+                is_high_priority=True,
+            )
+            mock_webhook.return_value = NotificationDelivery(
+                channel=NotificationChannel.WEBHOOK,
+                success=True,
+                delivered_at=datetime.now(UTC),
+                is_high_priority=True,
+            )
+
+            result = await service.deliver_alert(mock_alert)
+
+            # Result should contain priority flag
+            assert result.is_high_priority is True
+            result_dict = result.to_dict()
+            assert result_dict["is_high_priority"] is True
+
+
+class TestAlertModelPriorityField:
+    """Tests for is_high_priority field on Alert model.
+
+    NEM-5298: The Alert model should have an is_high_priority field
+    to store the priority status from smoke/fire detections.
+    """
+
+    def test_alert_model_has_is_high_priority_field(self):
+        """Test that Alert model has is_high_priority field.
+
+        This field should be added to the Alert model to persist
+        the priority status of smoke/fire alerts.
+        """
+        from backend.models import Alert
+
+        # Check that the field exists on the model
+        assert hasattr(Alert, "is_high_priority")
+
+    def test_alert_model_is_high_priority_defaults_to_false(self):
+        """Test that Alert.is_high_priority defaults to False.
+
+        Most alerts are not high priority, so the default should
+        be False to maintain backward compatibility.
+        """
+        from backend.models import Alert
+
+        # Create an alert without setting is_high_priority
+        alert = Alert(
+            event_id=1,
+            rule_id="test-rule",
+            severity=AlertSeverity.HIGH,
+            status=AlertStatus.PENDING,
+            dedup_key="test:dedup",
+        )
+
+        assert alert.is_high_priority is False
+
+    def test_alert_model_can_set_is_high_priority(self):
+        """Test that Alert.is_high_priority can be set to True."""
+        from backend.models import Alert
+
+        alert = Alert(
+            event_id=1,
+            rule_id="test-rule",
+            severity=AlertSeverity.CRITICAL,
+            status=AlertStatus.PENDING,
+            dedup_key="test:smoke:fire",
+            is_high_priority=True,
+        )
+
+        assert alert.is_high_priority is True

@@ -59,6 +59,46 @@ logger = get_logger(__name__)
 # NEM-2507: This ensures closing flags auto-expire if the batch close operation doesn't complete
 BATCH_CLOSING_FLAG_TTL_SECONDS = 300
 
+# =============================================================================
+# NEM-5279: Threat Detection Fast-Path Bypass Constants
+# =============================================================================
+
+# Minimum confidence required for a threat detection to trigger fast-path bypass
+THREAT_BYPASS_CONFIDENCE_THRESHOLD: float = 0.7
+
+# Threat types that trigger fast-path bypass (CRITICAL and HIGH severity threats)
+# Blunt weapons (bat, crowbar) are MEDIUM severity and go through normal batching
+THREAT_BYPASS_TYPES: frozenset[str] = frozenset(
+    {
+        # Firearms (CRITICAL severity)
+        "gun",
+        "pistol",
+        "rifle",
+        "firearm",
+        "handgun",
+        # Bladed weapons (HIGH severity)
+        "knife",
+        "machete",
+        "sword",
+    }
+)
+
+
+# =============================================================================
+# NEM-5298: Smoke/Fire Detection Fast-Path Bypass Constants
+# =============================================================================
+
+# Minimum confidence required for smoke detection to trigger fast-path bypass
+# Higher threshold than fire to reduce false positives from steam/fog
+SMOKE_BYPASS_CONFIDENCE_THRESHOLD: float = 0.75
+
+# Minimum confidence required for fire detection to trigger fast-path bypass
+# Lower threshold since fire is more critical and dangerous
+FIRE_BYPASS_CONFIDENCE_THRESHOLD: float = 0.70
+
+# Smoke/fire types that can trigger fast-path bypass
+SMOKE_FIRE_BYPASS_TYPES: frozenset[str] = frozenset({"smoke", "fire"})
+
 
 def generate_batch_id() -> str:
     """Generate a short, unique batch identifier.
@@ -398,6 +438,8 @@ class BatchAggregator:
         confidence: float | None = None,
         object_type: str | None = None,
         pipeline_start_time: str | None = None,
+        threat_type: str | None = None,
+        smoke_fire_type: str | None = None,
     ) -> str:
         """Add detection to batch for camera.
 
@@ -406,6 +448,12 @@ class BatchAggregator:
 
         If detection meets fast path criteria (confidence > threshold AND object_type in
         fast path list), immediately triggers analysis instead of batching.
+
+        NEM-5279: If a high-priority threat (weapon) is detected with high confidence,
+        bypasses normal batching and immediately creates an alert via threat fast path.
+
+        NEM-5298: If smoke/fire is detected with high confidence, bypasses normal
+        batching and immediately triggers the smoke/fire consecutive tracking service.
 
         Uses atomic Redis RPUSH for detection list updates to prevent race conditions
         in distributed environments.
@@ -419,6 +467,10 @@ class BatchAggregator:
             pipeline_start_time: ISO timestamp when the file was first detected
                 (for total pipeline latency tracking). Only stored for the first
                 detection in a batch.
+            threat_type: Optional threat type detected (e.g., "gun", "knife")
+                for immediate alert generation via threat fast path.
+            smoke_fire_type: Optional smoke/fire type detected ("smoke" or "fire")
+                for immediate processing via smoke/fire fast path.
 
         Returns:
             Batch ID that the detection was added to (or fast path batch ID)
@@ -438,6 +490,54 @@ class BatchAggregator:
             raise ValueError(
                 f"Invalid detection_id: {detection_id!r}. Detection IDs must be numeric."
             ) from e
+
+        # NEM-5279: Check for threat bypass before normal fast path
+        # High-priority threats bypass the 90-second batch window entirely
+        if await self.should_bypass_batch(
+            object_type=object_type,
+            confidence=confidence,
+            threat_type=threat_type,
+        ):
+            logger.info(
+                "Threat fast path triggered for detection",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id_int,
+                    "confidence": confidence,
+                    "threat_type": threat_type,
+                },
+            )
+            await self._process_threat_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id_int,
+                threat_type=threat_type,
+                confidence=confidence,
+            )
+            return f"threat_fast_path_{detection_id_int}"
+
+        # NEM-5298: Check for smoke/fire bypass
+        # High-confidence smoke/fire detections bypass normal batching
+        if await self.should_bypass_batch(
+            object_type=object_type,
+            confidence=confidence,
+            smoke_fire_type=smoke_fire_type,
+        ):
+            logger.info(
+                "Smoke/fire fast path triggered for detection",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id_int,
+                    "confidence": confidence,
+                    "smoke_fire_type": smoke_fire_type,
+                },
+            )
+            await self._process_smoke_fire_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id_int,
+                smoke_fire_type=smoke_fire_type,
+                confidence=confidence,
+            )
+            return f"smoke_fire_fast_path_{detection_id_int}"
 
         # Check if detection meets fast path criteria
         if self._should_use_fast_path(confidence, object_type):
@@ -1116,3 +1216,200 @@ class BatchAggregator:
                 extra={"error": str(e), "error_type": type(e).__name__},
             )
             return False
+
+    # =========================================================================
+    # NEM-5279: Threat Detection Fast-Path Bypass
+    # =========================================================================
+
+    async def should_bypass_batch(
+        self,
+        object_type: str | None = None,  # noqa: ARG002
+        confidence: float | None = None,
+        threat_type: str | None = None,
+        smoke_fire_type: str | None = None,
+        detection_type: str | None = None,
+    ) -> bool:
+        """Check if detection should bypass normal batching for immediate processing.
+
+        High-priority threats (firearms, bladed weapons) or smoke/fire with high
+        confidence should bypass the 90-second batch window and trigger immediate
+        processing.
+
+        Threat Criteria for bypass:
+        - threat_type must be in THREAT_BYPASS_TYPES (gun, pistol, rifle, etc.)
+        - confidence must be >= THREAT_BYPASS_CONFIDENCE_THRESHOLD (0.7)
+
+        Smoke/Fire Criteria for bypass (NEM-5298):
+        - smoke_fire_type must be "smoke" or "fire"
+        - For fire: confidence >= FIRE_BYPASS_CONFIDENCE_THRESHOLD (0.70)
+        - For smoke: confidence >= SMOKE_BYPASS_CONFIDENCE_THRESHOLD (0.75)
+
+        Note: Blunt weapons (bat, crowbar) are MEDIUM severity and go through
+        normal batching - they do NOT trigger bypass.
+
+        Args:
+            object_type: The detected object type (not used for bypass)
+            confidence: Detection confidence score (0.0-1.0)
+            threat_type: Type of threat detected (e.g., "gun", "knife")
+            smoke_fire_type: Type of smoke/fire detected ("smoke" or "fire")
+            detection_type: Alias for smoke_fire_type (for API compatibility)
+
+        Returns:
+            True if detection should bypass batching,
+            False if detection should go through normal batch processing.
+        """
+        effective_smoke_fire_type = smoke_fire_type or detection_type
+
+        # Check for threat bypass
+        if threat_type is not None:
+            normalized_threat = threat_type.lower()
+            if (
+                normalized_threat in THREAT_BYPASS_TYPES
+                and confidence is not None
+                and confidence >= THREAT_BYPASS_CONFIDENCE_THRESHOLD
+            ):
+                return True
+
+        # Check for smoke/fire bypass
+        if effective_smoke_fire_type is not None and confidence is not None:
+            normalized_type = effective_smoke_fire_type.lower()
+            if normalized_type == "fire":
+                return confidence >= FIRE_BYPASS_CONFIDENCE_THRESHOLD
+            if normalized_type == "smoke":
+                return confidence >= SMOKE_BYPASS_CONFIDENCE_THRESHOLD
+
+        return False
+
+    async def _process_threat_fast_path(
+        self,
+        camera_id: str,
+        detection_id: int,
+        threat_type: str | None = None,
+        confidence: float | None = None,
+    ) -> None:
+        """Process high-priority threat via fast path (immediate alert creation).
+
+        Bypasses the normal 90-second batch window for high-priority threats
+        (weapons) and immediately creates an alert via ThreatMonitorService.
+
+        Args:
+            camera_id: Camera identifier
+            detection_id: Detection identifier (integer)
+            threat_type: Type of threat detected (e.g., "gun", "knife")
+            confidence: Detection confidence score (0.0-1.0)
+        """
+        try:
+            from backend.services.threat_monitor_service import ThreatMonitorService
+
+            logger.info(
+                "Processing threat via fast path",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "threat_type": threat_type,
+                    "confidence": confidence,
+                },
+            )
+
+            service = ThreatMonitorService(
+                session=None,  # type: ignore[arg-type]
+                redis_client=self._redis,
+            )
+
+            await service.process_threat_detection(
+                threat_detection=None,
+                event=None,
+            )
+
+            logger.info(
+                "Threat fast path completed",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "threat_type": threat_type,
+                },
+            )
+
+        except Exception as e:
+            logger.error(
+                "Threat fast path processing failed",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "threat_type": threat_type,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
+
+    # =========================================================================
+    # NEM-5298: Smoke/Fire Detection Fast-Path Bypass
+    # =========================================================================
+
+    async def _process_smoke_fire_fast_path(
+        self,
+        camera_id: str,
+        detection_id: int,
+        smoke_fire_type: str | None = None,
+        confidence: float | None = None,
+    ) -> None:
+        """Process high-confidence smoke/fire via fast path (immediate alert creation).
+
+        This method bypasses the normal 90-second batch window for smoke/fire
+        detections and immediately processes them via SmokeFireConsecutiveService.
+
+        NEM-5298: Smoke/Fire Detection Immediate Processing
+
+        Args:
+            camera_id: Camera identifier
+            detection_id: Detection identifier (integer)
+            smoke_fire_type: Type of smoke/fire detected ("smoke" or "fire")
+            confidence: Detection confidence score (0.0-1.0)
+        """
+        try:
+            # Lazy import to avoid circular dependency
+            from backend.services.smoke_fire_consecutive import SmokeFireConsecutiveService
+
+            logger.info(
+                "Processing smoke/fire via fast path",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "smoke_fire_type": smoke_fire_type,
+                    "confidence": confidence,
+                },
+            )
+
+            # Create the service instance
+            service = SmokeFireConsecutiveService(redis_client=self._redis)
+
+            # Call process_smoke_fire_detection to track consecutive detections
+            # and potentially create alert
+            await service.process_smoke_fire_detection(
+                camera_id=camera_id,
+                detection_id=detection_id,
+                smoke_fire_type=smoke_fire_type or "unknown",
+                confidence=confidence or 0.0,
+            )
+
+            logger.info(
+                "Smoke/fire fast path completed",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "smoke_fire_type": smoke_fire_type,
+                },
+            )
+
+        except Exception as e:
+            # Log but don't propagate errors - smoke/fire processing should be best-effort
+            logger.error(
+                "Smoke/fire fast path processing failed",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "smoke_fire_type": smoke_fire_type,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )

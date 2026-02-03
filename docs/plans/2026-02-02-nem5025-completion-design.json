@@ -1,0 +1,341 @@
+{
+  "title": "NEM-5025 Completion: AI Differentiation Gaps",
+  "overview": "Complete the remaining implementation gaps from NEM-5025 (AI Differentiation Epic). Research agents verified that while the epic was marked Done, several phases have significant missing functionality: Phase 3 (Threat immediate alerts), Phase 4 (Depth distance conversion), Phase 5 (Weather risk modifiers), Phase 8 (Package detection), and Phase 9 (Smoke/fire detection).",
+  "phases": [
+    {
+      "name": "Phase 3 Completion: Threat Detection Immediate Alerts",
+      "objective": "Implement auto-CRITICAL alerts for weapons with batch bypass for immediate processing",
+      "research_findings": {
+        "codebase": [
+          "Threat detection model exists in model_zoo.py (lines 541-553)",
+          "HIGH_PRIORITY_THREATS constant in threat_detection_loader.py (lines 58-70)",
+          "Alert engine has _check_threat_detected() but no auto-escalation",
+          "Batch aggregator uses 90-second windows with no bypass mechanism"
+        ],
+        "online": [],
+        "decisions": [
+          "Add fast-path queue in batch_aggregator.py for high-priority threats",
+          "Create threat monitor service that auto-generates CRITICAL alerts",
+          "Add severity auto-mapping: gun/rifle/pistol→CRITICAL, knife→HIGH, bat/crowbar→MEDIUM"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "backend/services/threat_monitor_service.py",
+            "purpose": "Auto-generate CRITICAL alerts when weapons detected"
+          }
+        ],
+        "modify": [
+          {
+            "path": "backend/services/batch_aggregator.py",
+            "changes": "Add fast-path bypass for high-priority threats"
+          },
+          {
+            "path": "backend/services/alert_engine.py",
+            "changes": "Add auto-severity mapping for threat types"
+          },
+          {
+            "path": "backend/services/enrichment_pipeline.py",
+            "changes": "Invoke threat detection model during enrichment"
+          }
+        ]
+      },
+      "code_examples": [],
+      "tests": {
+        "unit": [
+          "Test threat monitor auto-creates CRITICAL alert for gun detection",
+          "Test batch aggregator bypasses queue for high-priority threats",
+          "Test severity mapping: gun→CRITICAL, knife→HIGH, bat→MEDIUM"
+        ],
+        "integration": ["End-to-end: weapon detection → immediate alert (no batch delay)"],
+        "edge_cases": [
+          "Multiple weapons in single frame",
+          "Low confidence weapon detection (should not bypass)",
+          "Threat detection during high system load"
+        ]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Weapon detection triggers CRITICAL alert within 5 seconds (bypasses 90s batch)",
+        "Alert severity automatically set based on weapon type",
+        "Threat detection model invoked in enrichment pipeline"
+      ]
+    },
+    {
+      "name": "Phase 4 Completion: Depth Distance Conversion",
+      "objective": "Convert normalized depth values to real-world distances (feet/meters) for LLM context",
+      "research_findings": {
+        "codebase": [
+          "Depth Anything V2 loader exists at depth_anything_loader.py",
+          "Proximity labels exist (very close, close, etc.) but no distance conversion",
+          "format_depth_for_nemotron() outputs relative proximity only",
+          "No camera calibration data stored"
+        ],
+        "online": [],
+        "decisions": [
+          "Add camera calibration model for reference distance",
+          "Create depth-to-distance conversion function",
+          "Update prompt context to include 'X feet from door' format"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "backend/services/depth_calibration_service.py",
+            "purpose": "Convert normalized depth to real-world distance"
+          }
+        ],
+        "modify": [
+          {
+            "path": "backend/models/camera.py",
+            "changes": "Add calibration_data field for reference distances"
+          },
+          {
+            "path": "backend/services/depth_anything_loader.py",
+            "changes": "Add depth_to_feet() conversion function"
+          },
+          {
+            "path": "backend/services/context_enricher.py",
+            "changes": "Include calibrated distance in zone context"
+          }
+        ]
+      },
+      "code_examples": [],
+      "tests": {
+        "unit": [
+          "Test depth-to-feet conversion with known calibration",
+          "Test proximity labels include distance estimates",
+          "Test format outputs 'X feet from front door' style"
+        ],
+        "integration": ["End-to-end: detection → depth analysis → calibrated distance in prompt"],
+        "edge_cases": [
+          "Uncalibrated camera (should fall back to relative proximity)",
+          "Multiple zones with different reference points",
+          "Edge of frame depth estimation"
+        ]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Nemotron receives 'Person is approximately X feet from front door' context",
+        "Calibration UI allows setting reference distance per camera",
+        "Falls back gracefully to relative proximity if uncalibrated"
+      ]
+    },
+    {
+      "name": "Phase 5 Completion: Weather Risk Modifiers",
+      "objective": "Implement weather-based risk score adjustments in the enrichment pipeline",
+      "research_findings": {
+        "codebase": [
+          "Weather classifier (SigLIP, 5 classes) fully functional",
+          "get_visibility_factor() exists but not used in risk scoring",
+          "get_risk_modifiers() in enrichment_pipeline.py has no weather logic",
+          "No night/day detection mechanism"
+        ],
+        "online": [],
+        "decisions": [
+          "Add weather modifiers to get_risk_modifiers() method",
+          "Rainy conditions reduce risk (-0.15)",
+          "Clear night increases risk (+0.25) - requires night detection",
+          "Foggy/snowy adds uncertainty modifier"
+        ]
+      },
+      "files": {
+        "create": [],
+        "modify": [
+          {
+            "path": "backend/services/enrichment_pipeline.py",
+            "changes": "Add weather-based risk modifiers to get_risk_modifiers()"
+          },
+          {
+            "path": "backend/services/weather_loader.py",
+            "changes": "Add is_nighttime detection or time-based inference"
+          },
+          {
+            "path": "backend/services/context_enricher.py",
+            "changes": "Add weather field to EnrichedContext dataclass"
+          }
+        ]
+      },
+      "code_examples": [],
+      "tests": {
+        "unit": [
+          "Test rainy weather reduces risk score",
+          "Test clear night increases risk score",
+          "Test foggy weather adds uncertainty modifier"
+        ],
+        "integration": ["End-to-end: weather detection → risk modifier → adjusted Nemotron score"],
+        "edge_cases": [
+          "Weather classification confidence below threshold",
+          "Transition between weather conditions",
+          "Indoor cameras (weather N/A)"
+        ]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Rainy conditions reduce suspicion level in risk scoring",
+        "Clear night conditions increase suspicion level",
+        "Weather context influences Nemotron risk assessment"
+      ]
+    },
+    {
+      "name": "Phase 8: Package Detection",
+      "objective": "Detect packages, track delivery/removal, and alert on suspicious package removal",
+      "research_findings": {
+        "codebase": [
+          "EntityType.PACKAGE exists in enums.py but not used",
+          "YOLO26 SECURITY_CLASSES does not include 'package'",
+          "No package-specific events in WebhookEventType",
+          "ZoneHouseholdConfig exists for zone-member relationships"
+        ],
+        "online": [],
+        "decisions": [
+          "Use Florence 2.0 or YOLO-World for zero-shot package detection",
+          "Add PACKAGE_DELIVERED and PACKAGE_REMOVED event types",
+          "Create package tracking service with zone-based state machine",
+          "Alert when package removed without household member present"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "backend/services/package_detection_loader.py",
+            "purpose": "Load and run package detection model"
+          },
+          {
+            "path": "backend/services/package_tracking_service.py",
+            "purpose": "Track package state (delivered/removed) per zone"
+          },
+          {
+            "path": "backend/models/package_event.py",
+            "purpose": "Package delivery/removal event storage"
+          }
+        ],
+        "modify": [
+          {
+            "path": "backend/services/model_zoo.py",
+            "changes": "Register package detection model"
+          },
+          {
+            "path": "backend/models/outbound_webhook.py",
+            "changes": "Add PACKAGE_DELIVERED, PACKAGE_REMOVED, PACKAGE_THEFT_SUSPECTED events"
+          },
+          {
+            "path": "backend/services/enrichment_pipeline.py",
+            "changes": "Add package detection to enrichment phases"
+          },
+          { "path": "backend/models/camera_zone.py", "changes": "Add DELIVERY_ZONE type" }
+        ]
+      },
+      "code_examples": [],
+      "tests": {
+        "unit": [
+          "Test package detection model loads and infers",
+          "Test package state transitions (none→delivered→removed)",
+          "Test alert triggered when package removed without household member"
+        ],
+        "integration": [
+          "End-to-end: package appears → DELIVERED event → package disappears → REMOVED event",
+          "End-to-end: package removed by non-household → THEFT_SUSPECTED alert"
+        ],
+        "edge_cases": [
+          "Multiple packages in delivery zone",
+          "Package partially occluded",
+          "Delivery person still present when package removed (legitimate)"
+        ]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "System detects packages in delivery zones",
+        "PACKAGE_DELIVERED webhook fires when package appears",
+        "PACKAGE_REMOVED webhook fires when package disappears",
+        "Alert generated if package removed with no household member in scene"
+      ]
+    },
+    {
+      "name": "Phase 9: Smoke/Fire Detection",
+      "objective": "Implement life-safety smoke/fire detection with immediate alerting",
+      "research_findings": {
+        "codebase": [
+          "Alert rule conditions framework exists (smoke_fire_detection_enabled)",
+          "No smoke/fire model in Model Zoo",
+          "No SmokeFireResult database model",
+          "No immediate alert bypass mechanism",
+          "No fire-specific notification channel"
+        ],
+        "online": [],
+        "decisions": [
+          "Add YOLOv8 smoke/fire model to Model Zoo with CRITICAL priority",
+          "Create SmokeFireResult database model",
+          "Implement immediate alert bypass (skip all batching)",
+          "Add FIRE_SAFETY notification channel with escalation"
+        ]
+      },
+      "files": {
+        "create": [
+          {
+            "path": "backend/services/smoke_fire_loader.py",
+            "purpose": "Load smoke/fire detection model"
+          },
+          {
+            "path": "backend/models/smoke_fire_result.py",
+            "purpose": "Store smoke/fire detection results"
+          }
+        ],
+        "modify": [
+          {
+            "path": "backend/services/model_zoo.py",
+            "changes": "Register smoke/fire model with CRITICAL priority (never evict)"
+          },
+          {
+            "path": "backend/services/batch_aggregator.py",
+            "changes": "Add immediate bypass for smoke/fire detections"
+          },
+          {
+            "path": "backend/services/alert_engine.py",
+            "changes": "Update _check_smoke_fire() to query real SmokeFireResult table"
+          },
+          {
+            "path": "backend/services/notification.py",
+            "changes": "Add FIRE_SAFETY channel with escalation support"
+          }
+        ]
+      },
+      "code_examples": [],
+      "tests": {
+        "unit": [
+          "Test smoke/fire model loads with CRITICAL priority",
+          "Test model never evicted from VRAM",
+          "Test smoke detection triggers immediate alert (no batch delay)",
+          "Test fire detection uses FIRE_SAFETY notification channel"
+        ],
+        "integration": [
+          "End-to-end: smoke detected → immediate CRITICAL alert → FIRE_SAFETY notification"
+        ],
+        "edge_cases": [
+          "Steam/fog false positive handling (consecutive detection requirement)",
+          "Multiple cameras detecting same fire",
+          "Outdoor fire pit (legitimate fire detection)"
+        ]
+      },
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Smoke/fire model always loaded (CRITICAL priority)",
+        "Detection triggers alert within 2 seconds (bypasses all batching)",
+        "FIRE_SAFETY notification channel delivers via all configured methods",
+        "Requires 2+ consecutive detections to reduce false positives"
+      ]
+    }
+  ],
+  "risks": [
+    "Package detection may require fine-tuned model for accuracy",
+    "Smoke/fire false positives from steam, fog, or outdoor cooking",
+    "Camera calibration requires user setup per camera",
+    "Immediate alert bypass may cause notification fatigue if thresholds too low"
+  ],
+  "open_questions": [
+    "Should package detection use Florence 2.0 (zero-shot) or fine-tuned YOLO?",
+    "What smoke/fire model to use? (YOLOv8 variants available)",
+    "How to handle FIRE_SAFETY escalation? (SMS → phone call → alarm service)"
+  ]
+}

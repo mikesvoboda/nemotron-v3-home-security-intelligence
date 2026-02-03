@@ -49,6 +49,8 @@ backend/models/
 ├── prompt_version.py        # AI prompt configuration version tracking (historical)
 ├── property.py              # Property/location model for multi-site support
 ├── scene_change.py          # Scene change detection for camera tampering alerts
+├── smoke_fire_result.py     # Smoke/fire detection result model (NEM-5025)
+├── package_event.py         # Package detection and tracking events (NEM-5025)
 ├── summary.py               # Summary model for dashboard summaries
 ├── user_calibration.py      # Personalized risk threshold calibration
 ├── zone.py                  # Zone model (legacy alias for CameraZone)

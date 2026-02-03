@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,9 @@ from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.prompt_sanitizer import sanitize_camera_name, sanitize_zone_name
 from backend.services.prompts import ClassAnomalyResult, format_class_anomaly_context
 from backend.services.zone_service import bbox_center, point_in_zone
+
+if TYPE_CHECKING:
+    from backend.services.weather_loader import WeatherResult
 
 # Aliases for backward compatibility
 Zone = CameraZone
@@ -143,6 +147,7 @@ class EnrichedContext:
         cross_camera: Activity from other cameras
         start_time: Start of detection window
         end_time: End of detection window
+        weather: Weather classification result (NEM-5288)
     """
 
     camera_name: str
@@ -153,6 +158,7 @@ class EnrichedContext:
     cross_camera: list[CrossCameraActivity] = field(default_factory=list)
     start_time: datetime | None = None
     end_time: datetime | None = None
+    weather: WeatherResult | None = None  # NEM-5288: Weather classification for risk modifiers
 
 
 # Zone type to risk weight mapping
