@@ -720,6 +720,7 @@ def test_detection_depth_to_dict():
         "depth_value": 0.5,
         "proximity_label": "moderate distance",
         "is_approaching": False,
+        "distance_feet": None,
     }
 
 
@@ -936,3 +937,324 @@ async def test_analyze_depth_with_detections():
     assert "det_1" in result.detection_depths
     assert "det_2" in result.detection_depths
     assert result.closest_detection_id == "det_1"  # det_1 is closer (lower depth value)
+
+
+# =============================================================================
+# Test depth_to_feet conversion (NEM-5283)
+# =============================================================================
+# NOTE: These tests will FAIL until depth_to_feet is implemented
+# in depth_anything_loader.py as part of NEM-5283 Phase 3
+
+
+def test_depth_to_feet_function_exists():
+    """Test that depth_to_feet function exists in depth_anything_loader.
+
+    NEM-5283: This test will fail until the function is implemented.
+    The function should convert normalized depth (0-1) to feet using calibration data.
+    """
+    from backend.services.depth_anything_loader import depth_to_feet
+
+    # Function should be callable
+    assert callable(depth_to_feet)
+
+
+def test_depth_to_feet_with_calibration():
+    """Test depth_to_feet returns distance in feet when calibration data provided.
+
+    NEM-5283: This test will fail until depth_to_feet is implemented.
+    """
+    from backend.services.depth_anything_loader import depth_to_feet
+
+    # Sample calibration data
+    calibration = {
+        "calibration_points": [
+            {"depth_value": 0.3, "distance_feet": 10.0},
+            {"depth_value": 0.6, "distance_feet": 25.0},
+        ],
+    }
+
+    result = depth_to_feet(depth_value=0.3, calibration_data=calibration)
+
+    assert result == pytest.approx(10.0)
+
+
+def test_depth_to_feet_without_calibration_returns_none():
+    """Test depth_to_feet returns None when no calibration data.
+
+    NEM-5283: This test will fail until depth_to_feet is implemented.
+    """
+    from backend.services.depth_anything_loader import depth_to_feet
+
+    result = depth_to_feet(depth_value=0.5, calibration_data=None)
+
+    assert result is None
+
+
+def test_depth_to_feet_interpolation():
+    """Test depth_to_feet interpolates between calibration points.
+
+    NEM-5283: This test will fail until depth_to_feet is implemented.
+    """
+    from backend.services.depth_anything_loader import depth_to_feet
+
+    calibration = {
+        "calibration_points": [
+            {"depth_value": 0.2, "distance_feet": 5.0},
+            {"depth_value": 0.6, "distance_feet": 20.0},
+        ],
+    }
+
+    # Midpoint between 0.2 and 0.6 should give midpoint between 5 and 20
+    result = depth_to_feet(depth_value=0.4, calibration_data=calibration)
+
+    expected = (5.0 + 20.0) / 2  # 12.5
+    assert result == pytest.approx(expected)
+
+
+# =============================================================================
+# Test DetectionDepth with distance_feet field (NEM-5283)
+# =============================================================================
+
+
+def test_detection_depth_with_distance_feet():
+    """Test DetectionDepth includes optional distance_feet field.
+
+    NEM-5283: This test will fail until distance_feet field is added.
+    """
+    from backend.services.depth_anything_loader import DetectionDepth
+
+    depth = DetectionDepth(
+        detection_id="det_1",
+        class_name="person",
+        depth_value=0.3,
+        proximity_label="close",
+        distance_feet=10.0,  # New field
+    )
+
+    assert depth.distance_feet == 10.0
+
+
+def test_detection_depth_distance_feet_default_none():
+    """Test DetectionDepth distance_feet defaults to None.
+
+    NEM-5283: This test will fail until distance_feet field is added.
+    """
+    from backend.services.depth_anything_loader import DetectionDepth
+
+    depth = DetectionDepth(
+        detection_id="det_1",
+        class_name="person",
+        depth_value=0.3,
+        proximity_label="close",
+    )
+
+    assert depth.distance_feet is None
+
+
+def test_detection_depth_to_dict_includes_distance_feet():
+    """Test DetectionDepth to_dict includes distance_feet.
+
+    NEM-5283: This test will fail until distance_feet field is added.
+    """
+    from backend.services.depth_anything_loader import DetectionDepth
+
+    depth = DetectionDepth(
+        detection_id="det_1",
+        class_name="person",
+        depth_value=0.3,
+        proximity_label="close",
+        distance_feet=8.5,
+    )
+
+    result = depth.to_dict()
+
+    assert "distance_feet" in result
+    assert result["distance_feet"] == 8.5
+
+
+# =============================================================================
+# Test DepthAnalysisResult with calibrated distances (NEM-5283)
+# =============================================================================
+
+
+def test_depth_analysis_result_to_context_string_with_distances():
+    """Test DepthAnalysisResult.to_context_string includes distances when available.
+
+    NEM-5283: This test will fail until distance formatting is implemented.
+    """
+    from backend.services.depth_anything_loader import (
+        DepthAnalysisResult,
+        DetectionDepth,
+    )
+
+    detection_depths = {
+        "det_1": DetectionDepth(
+            detection_id="det_1",
+            class_name="person",
+            depth_value=0.2,
+            proximity_label="close",
+            distance_feet=6.5,
+        ),
+    }
+
+    result = DepthAnalysisResult(
+        detection_depths=detection_depths,
+        closest_detection_id="det_1",
+        has_close_objects=True,
+        average_depth=0.2,
+        depth_variance=0.0,
+    )
+
+    context = result.to_context_string()
+
+    # Context should mention actual distance in feet
+    assert "6.5 feet" in context or "6 feet" in context or "approximately 6" in context.lower()
+
+
+# =============================================================================
+# Test analyze_depth with calibration (NEM-5283)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_analyze_depth_with_calibration_data():
+    """Test analyze_depth populates distance_feet when calibration provided.
+
+    NEM-5283: This test will fail until calibration support is implemented.
+    """
+    from backend.services.depth_anything_loader import analyze_depth
+
+    # Create a mock depth map
+    depth_map = np.array(
+        [
+            [0.2, 0.3],
+            [0.3, 0.4],
+        ],
+        dtype=np.float32,
+    )
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.return_value = {"depth": depth_map}
+
+    mock_image = MagicMock()
+
+    detections = [
+        {"detection_id": "det_1", "class_name": "person", "bbox": (0, 0, 1, 1)},
+    ]
+
+    # Calibration data
+    calibration = {
+        "calibration_points": [
+            {"depth_value": 0.2, "distance_feet": 5.0},
+            {"depth_value": 0.5, "distance_feet": 15.0},
+        ],
+    }
+
+    result = await analyze_depth(
+        mock_pipeline,
+        mock_image,
+        detections,
+        calibration_data=calibration,
+    )
+
+    assert result.has_detections
+    detection_depth = result.detection_depths["det_1"]
+    assert detection_depth.distance_feet is not None
+    assert detection_depth.distance_feet > 0
+
+
+@pytest.mark.asyncio
+async def test_analyze_depth_without_calibration_sets_none():
+    """Test analyze_depth sets distance_feet=None when no calibration.
+
+    NEM-5283: This test will fail until calibration support is implemented.
+    """
+    from backend.services.depth_anything_loader import analyze_depth
+
+    depth_map = np.array(
+        [
+            [0.3, 0.4],
+            [0.4, 0.5],
+        ],
+        dtype=np.float32,
+    )
+
+    mock_pipeline = MagicMock()
+    mock_pipeline.return_value = {"depth": depth_map}
+
+    mock_image = MagicMock()
+
+    detections = [
+        {"detection_id": "det_1", "class_name": "person", "bbox": (0, 0, 1, 1)},
+    ]
+
+    # No calibration data
+    result = await analyze_depth(
+        mock_pipeline,
+        mock_image,
+        detections,
+        calibration_data=None,
+    )
+
+    detection_depth = result.detection_depths["det_1"]
+    assert detection_depth.distance_feet is None
+
+
+# =============================================================================
+# Test format_depth_for_nemotron with distances (NEM-5283)
+# =============================================================================
+
+
+def test_format_depth_for_nemotron_with_distances():
+    """Test format_depth_for_nemotron includes distances when available.
+
+    NEM-5283: This test will fail until distance formatting is implemented.
+    """
+    from backend.services.depth_anything_loader import format_depth_for_nemotron_with_distances
+
+    detections = [
+        {"class_name": "person", "confidence": 0.95},
+        {"class_name": "car", "confidence": 0.87},
+    ]
+    depth_values = [0.2, 0.5]
+    distance_values = [6.0, 20.0]  # Calibrated distances in feet
+
+    result = format_depth_for_nemotron_with_distances(
+        detections,
+        depth_values,
+        distance_values,
+    )
+
+    assert "person" in result
+    assert "6 feet" in result or "6.0 feet" in result or "approximately 6" in result.lower()
+    assert "car" in result
+    assert "20 feet" in result or "20.0 feet" in result
+
+
+def test_format_depth_for_nemotron_with_partial_distances():
+    """Test format_depth_for_nemotron handles mixed calibrated/uncalibrated.
+
+    NEM-5283: This test will fail until distance formatting is implemented.
+    """
+    from backend.services.depth_anything_loader import format_depth_for_nemotron_with_distances
+
+    detections = [
+        {"class_name": "person", "confidence": 0.95},
+        {"class_name": "car", "confidence": 0.87},
+    ]
+    depth_values = [0.2, 0.5]
+    distance_values = [6.0, None]  # Only person has calibrated distance
+
+    result = format_depth_for_nemotron_with_distances(
+        detections,
+        depth_values,
+        distance_values,
+    )
+
+    # Person should have distance
+    assert "person" in result
+    assert "6 feet" in result or "6.0 feet" in result
+
+    # Car should fall back to proximity label
+    assert "car" in result
+    assert "moderate distance" in result  # 0.5 maps to moderate distance

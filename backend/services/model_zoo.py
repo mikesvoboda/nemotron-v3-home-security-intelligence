@@ -58,6 +58,7 @@ from backend.services.image_quality_loader import load_brisque_model
 from backend.services.osnet_loader import load_osnet_model
 from backend.services.pet_classifier_loader import load_pet_classifier_model
 from backend.services.segformer_loader import load_segformer_model
+from backend.services.smoke_fire_loader import load_smoke_fire_model
 from backend.services.threat_detection_loader import load_threat_detection_model
 from backend.services.vehicle_classifier_loader import load_vehicle_classifier
 from backend.services.vehicle_damage_loader import load_vehicle_damage_model
@@ -120,6 +121,10 @@ class ModelConfig:
         load_fn: Async callable that loads the model and returns it
         enabled: Whether the model is enabled for use (default True)
         available: Set to True after successful initial load (default False)
+        priority: Model priority level ("critical", "high", "medium", "low")
+                  Critical models should never be evicted from VRAM
+        preload: Whether the model should be preloaded at startup
+        never_evict: Whether the model should never be evicted from VRAM
     """
 
     name: str
@@ -129,6 +134,9 @@ class ModelConfig:
     load_fn: Callable[[str], Awaitable[Any]]
     enabled: bool = True
     available: bool = False
+    priority: str = "medium"
+    preload: bool = False
+    never_evict: bool = False
 
 
 async def load_yolo_model(model_path: str) -> Any:
@@ -550,6 +558,24 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             load_fn=load_threat_detection_model,
             enabled=True,
             available=False,
+        ),
+        # YOLOv8n Smoke/Fire Detection (CRITICAL PRIORITY)
+        # Detects smoke and fire for immediate safety alerts
+        # Source: luminous0219/fire-and-smoke-detection-yolov8
+        # CRITICAL priority: Never evict from VRAM, preload at startup
+        # Smoke requires consecutive detections to reduce false positives (steam/fog)
+        # Fire triggers immediate alert on single high-confidence detection
+        "smoke-fire-yolov8n": ModelConfig(
+            name="smoke-fire-yolov8n",
+            path=f"{base_path}/smoke-fire-yolov8n",
+            category="detection",
+            vram_mb=350,  # ~350MB (YOLOv8n, within 300-400MB range)
+            load_fn=load_smoke_fire_model,
+            enabled=True,
+            available=False,
+            priority="critical",  # CRITICAL: Never evict from VRAM
+            preload=True,  # Preload at startup for safety-critical detection
+            never_evict=True,  # Explicit flag for VRAM management
         ),
         # ViT Age Classifier for age estimation from face/person crops
         # Classifies into age groups: child, teenager, young_adult, adult, middle_aged, senior

@@ -58,6 +58,7 @@ class NotificationDelivery:
     error: str | None = None
     delivered_at: datetime | None = None
     recipient: str | None = None
+    is_high_priority: bool = False
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -67,6 +68,7 @@ class NotificationDelivery:
             "error": self.error,
             "delivered_at": self.delivered_at.isoformat() if self.delivered_at else None,
             "recipient": self.recipient,
+            "is_high_priority": self.is_high_priority,
         }
 
 
@@ -77,6 +79,7 @@ class DeliveryResult:
     alert_id: str
     deliveries: list[NotificationDelivery] = field(default_factory=list)
     all_successful: bool = False
+    is_high_priority: bool = False
 
     @property
     def successful_count(self) -> int:
@@ -96,6 +99,7 @@ class DeliveryResult:
             "all_successful": self.all_successful,
             "successful_count": self.successful_count,
             "failed_count": self.failed_count,
+            "is_high_priority": self.is_high_priority,
         }
 
 
@@ -166,12 +170,14 @@ class NotificationService:
         self,
         alert: Alert,
         recipients: list[str] | None = None,
+        is_high_priority: bool = False,
     ) -> NotificationDelivery:
         """Send an alert notification via email.
 
         Args:
             alert: The alert to send
             recipients: Optional list of email recipients (defaults to settings)
+            is_high_priority: Whether this is a high-priority alert (adds [URGENT] prefix)
 
         Returns:
             NotificationDelivery with success/failure status
@@ -193,9 +199,9 @@ class NotificationService:
             )
 
         try:
-            # Build email content
-            subject = self._build_email_subject(alert)
-            html_body = self._build_email_body(alert)
+            # Build email content with priority flag
+            subject = self._build_email_subject(alert, is_high_priority=is_high_priority)
+            html_body = self._build_email_body(alert, is_high_priority=is_high_priority)
 
             # Create message
             msg = MIMEMultipart("alternative")
@@ -219,6 +225,7 @@ class NotificationService:
                 success=True,
                 delivered_at=datetime.now(UTC),
                 recipient=", ".join(email_recipients),
+                is_high_priority=is_high_priority,
             )
 
         except smtplib.SMTPAuthenticationError as e:
@@ -228,6 +235,7 @@ class NotificationService:
                 channel=NotificationChannel.EMAIL,
                 success=False,
                 error=error_msg,
+                is_high_priority=is_high_priority,
             )
         except smtplib.SMTPException as e:
             error_msg = f"SMTP error: {e}"
@@ -236,6 +244,7 @@ class NotificationService:
                 channel=NotificationChannel.EMAIL,
                 success=False,
                 error=error_msg,
+                is_high_priority=is_high_priority,
             )
         except Exception as e:
             error_msg = f"Email delivery failed: {e}"
@@ -244,6 +253,7 @@ class NotificationService:
                 channel=NotificationChannel.EMAIL,
                 success=False,
                 error=error_msg,
+                is_high_priority=is_high_priority,
             )
 
     def _send_email_sync(self, msg: MIMEMultipart, recipients: list[str]) -> None:
@@ -284,23 +294,27 @@ class NotificationService:
                     msg.as_string(),
                 )
 
-    def _build_email_subject(self, alert: Alert) -> str:
+    def _build_email_subject(self, alert: Alert, is_high_priority: bool = False) -> str:
         """Build email subject line for an alert.
 
         Args:
             alert: The alert to build subject for
+            is_high_priority: Whether to add [URGENT] prefix for high-priority alerts
 
         Returns:
             Email subject string
         """
         severity = alert.severity.value.upper()
+        if is_high_priority:
+            return f"[URGENT] [{severity}] Security Alert - Home Security Intelligence"
         return f"[{severity}] Security Alert - Home Security Intelligence"
 
-    def _build_email_body(self, alert: Alert) -> str:
+    def _build_email_body(self, alert: Alert, is_high_priority: bool = False) -> str:
         """Build HTML email body for an alert.
 
         Args:
             alert: The alert to build body for
+            is_high_priority: Whether to include urgent messaging
 
         Returns:
             HTML string for email body
@@ -325,6 +339,15 @@ class NotificationService:
         }
         severity_color = severity_colors.get(alert.severity.value, "#6c757d")
 
+        # Build urgent notice for high-priority alerts
+        urgent_notice = ""
+        if is_high_priority:
+            urgent_notice = """
+        <div style="background-color: #dc3545; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;">
+            <strong>URGENT: IMMEDIATE ATTENTION REQUIRED</strong>
+            <p style="margin: 5px 0 0 0;">This is a high-priority security alert that requires immediate review.</p>
+        </div>"""
+
         return f"""
 <!DOCTYPE html>
 <html>
@@ -343,6 +366,7 @@ class NotificationService:
         <h2>Security Alert: {alert.severity.value.upper()}</h2>
     </div>
     <div class="content">
+        {urgent_notice}
         <p class="label">Alert ID:</p>
         <p class="value">{alert.id}</p>
 
@@ -373,12 +397,14 @@ class NotificationService:
         self,
         alert: Alert,
         webhook_url: str | None = None,
+        is_high_priority: bool = False,
     ) -> NotificationDelivery:
         """Send an alert notification via webhook (HTTP POST).
 
         Args:
             alert: The alert to send
             webhook_url: Optional webhook URL (defaults to settings)
+            is_high_priority: Whether this is a high-priority alert
 
         Returns:
             NotificationDelivery with success/failure status
@@ -404,11 +430,12 @@ class NotificationService:
                 success=False,
                 error=error_msg,
                 recipient=url,
+                is_high_priority=is_high_priority,
             )
 
         try:
-            # Build webhook payload
-            payload = self._build_webhook_payload(alert)
+            # Build webhook payload with priority flag
+            payload = self._build_webhook_payload(alert, is_high_priority=is_high_priority)
 
             # Send HTTP POST using validated URL
             client = await self._get_http_client()
@@ -426,6 +453,7 @@ class NotificationService:
                     success=True,
                     delivered_at=datetime.now(UTC),
                     recipient=url,
+                    is_high_priority=is_high_priority,
                 )
             else:
                 # Log status code only to avoid log injection from response body
@@ -436,6 +464,7 @@ class NotificationService:
                     success=False,
                     error=error_msg,
                     recipient=url,
+                    is_high_priority=is_high_priority,
                 )
 
         except httpx.TimeoutException:
@@ -446,6 +475,7 @@ class NotificationService:
                 success=False,
                 error=error_msg,
                 recipient=url,
+                is_high_priority=is_high_priority,
             )
         except httpx.RequestError as e:
             error_msg = f"Webhook request failed: {e}"
@@ -455,6 +485,7 @@ class NotificationService:
                 success=False,
                 error=error_msg,
                 recipient=url,
+                is_high_priority=is_high_priority,
             )
         except Exception as e:
             error_msg = f"Webhook delivery failed: {e}"
@@ -464,19 +495,21 @@ class NotificationService:
                 success=False,
                 error=error_msg,
                 recipient=url,
+                is_high_priority=is_high_priority,
             )
 
-    def _build_webhook_payload(self, alert: Alert) -> dict:
+    def _build_webhook_payload(self, alert: Alert, is_high_priority: bool = False) -> dict:
         """Build JSON payload for webhook notification.
 
         Args:
             alert: The alert to build payload for
+            is_high_priority: Whether this is a high-priority alert
 
         Returns:
             Dictionary payload for JSON serialization
         """
         metadata = alert.alert_metadata or {}
-        return {
+        payload = {
             "type": "security_alert",
             "alert": {
                 "id": alert.id,
@@ -492,9 +525,16 @@ class NotificationService:
                 "rule_name": metadata.get("rule_name"),
                 "matched_conditions": metadata.get("matched_conditions", []),
             },
+            "is_high_priority": is_high_priority,
             "source": "home_security_intelligence",
             "timestamp": datetime.now(UTC).isoformat(),
         }
+
+        # Include smoke_fire_type in payload if present in metadata
+        if "smoke_fire_type" in metadata:
+            payload["smoke_fire_type"] = metadata["smoke_fire_type"]
+
+        return payload
 
     async def send_push(
         self,
@@ -555,6 +595,7 @@ class NotificationService:
         alert: Alert,
         email_recipients: list[str] | None,
         webhook_url: str | None,
+        is_high_priority: bool = False,
     ) -> NotificationDelivery:
         """Send to a specific channel.
 
@@ -563,13 +604,18 @@ class NotificationService:
             alert: The alert to send
             email_recipients: Email recipients for email channel
             webhook_url: Webhook URL for webhook channel
+            is_high_priority: Whether this is a high-priority alert
 
         Returns:
             NotificationDelivery result
         """
         channel_handlers = {
-            NotificationChannel.EMAIL: lambda: self.send_email(alert, email_recipients),
-            NotificationChannel.WEBHOOK: lambda: self.send_webhook(alert, webhook_url),
+            NotificationChannel.EMAIL: lambda: self.send_email(
+                alert, email_recipients, is_high_priority=is_high_priority
+            ),
+            NotificationChannel.WEBHOOK: lambda: self.send_webhook(
+                alert, webhook_url, is_high_priority=is_high_priority
+            ),
             NotificationChannel.PUSH: lambda: self.send_push(alert),
         }
 
@@ -581,6 +627,7 @@ class NotificationService:
             channel=channel,
             success=False,
             error=f"Unknown channel: {channel}",
+            is_high_priority=is_high_priority,
         )
 
     async def deliver_alert(
@@ -617,15 +664,23 @@ class NotificationService:
             f"Delivering alert {alert.id} via channels: {[c.value for c in resolved_channels]}"
         )
 
-        # Deliver through each channel
+        # Get priority from alert (NEM-5298: smoke/fire detection priority)
+        is_high_priority = getattr(alert, "is_high_priority", False)
+
+        # Deliver through each channel with priority flag
         deliveries = [
-            await self._send_to_channel(ch, alert, email_recipients, webhook_url)
+            await self._send_to_channel(
+                ch, alert, email_recipients, webhook_url, is_high_priority=is_high_priority
+            )
             for ch in resolved_channels
         ]
 
         all_successful = all(d.success for d in deliveries)
         result = DeliveryResult(
-            alert_id=alert.id, deliveries=deliveries, all_successful=all_successful
+            alert_id=alert.id,
+            deliveries=deliveries,
+            all_successful=all_successful,
+            is_high_priority=is_high_priority,
         )
 
         self._log_delivery_result(alert.id, deliveries, all_successful)

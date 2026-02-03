@@ -114,6 +114,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `vehicle_classifier_loader.py` | Load vehicle segment classifier                  | No (import directly)       |
 | `vehicle_damage_loader.py`     | Load vehicle damage detection model              | No (import directly)       |
 | `pet_classifier_loader.py`     | Load pet classifier for false positive reduction | No (import directly)       |
+| `smoke_fire_loader.py`         | Load smoke/fire detection model                  | No (import directly)       |
 
 ### Model Loader Base
 
@@ -123,11 +124,15 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Specialized Detection Services
 
-| Service             | Purpose                                     | Exported via `__init__.py` |
-| ------------------- | ------------------------------------------- | -------------------------- |
-| `plate_detector.py` | License plate detection and OCR             | Yes                        |
-| `face_detector.py`  | Face detection for person re-identification | Yes                        |
-| `ocr_service.py`    | OCR text extraction from detected regions   | Yes                        |
+| Service                        | Purpose                                     | Exported via `__init__.py` |
+| ------------------------------ | ------------------------------------------- | -------------------------- |
+| `plate_detector.py`            | License plate detection and OCR             | Yes                        |
+| `face_detector.py`             | Face detection for person re-identification | Yes                        |
+| `ocr_service.py`               | OCR text extraction from detected regions   | Yes                        |
+| `package_tracking_service.py`  | Package detection and theft monitoring      | No (import directly)       |
+| `smoke_fire_consecutive.py`    | Consecutive smoke/fire detection tracking   | No (import directly)       |
+| `threat_monitor_service.py`    | Weapon detection immediate alert generation | No (import directly)       |
+| `depth_calibration_service.py` | Depth-to-distance calibration for cameras   | No (import directly)       |
 
 ### Pipeline Workers
 

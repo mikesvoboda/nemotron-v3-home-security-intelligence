@@ -38,7 +38,7 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import UTC
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
@@ -591,6 +591,11 @@ class EnrichmentResult:
     errors: list[str] = field(default_factory=list)
     structured_errors: list[EnrichmentError] = field(default_factory=list)
     processing_time_ms: float = 0.0
+    # Weather risk modifier fields (NEM-5288)
+    is_nighttime: bool = False  # Whether event occurred during nighttime hours
+    is_indoor_camera: bool = False  # Whether this is an indoor camera (weather N/A)
+    event_timestamp: datetime | None = None  # Timestamp of the event for nighttime detection
+    time_of_day: str | None = None  # Optional time context (dawn, dusk, etc.)
 
     @property
     def has_license_plates(self) -> bool:
@@ -808,6 +813,11 @@ class EnrichmentResult:
     def has_person_embeddings(self) -> bool:
         """Check if any person embeddings (OSNet) are available."""
         return bool(self.person_embeddings)
+
+    @property
+    def has_weather(self) -> bool:
+        """Check if weather classification results are available (NEM-5288)."""
+        return self.weather_classification is not None
 
     @property
     def has_structured_errors(self) -> bool:
@@ -1065,6 +1075,19 @@ class EnrichmentResult:
             if self.quality_change_detected:
                 lines.append(f"  **ALERT**: {self.quality_change_description}")
 
+        # Weather Classification (NEM-5288)
+        if self.weather_classification:
+            lines.append("## Weather Conditions")
+            lines.append(f"  {self.weather_classification.to_context_string()}")
+            # Add visibility note for relevant conditions
+            condition = self.weather_classification.simple_condition
+            if condition in ("foggy", "snowy"):
+                lines.append(
+                    f"  **NOTE**: {condition.capitalize()} conditions may reduce visibility"
+                )
+            elif condition == "rainy":
+                lines.append("  **NOTE**: Rain may affect detection accuracy")
+
         if not lines:
             return "No additional context extracted."
 
@@ -1154,6 +1177,23 @@ class EnrichmentResult:
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }
+
+    def _determine_nighttime(self) -> bool:
+        """Determine if this event occurred during nighttime.
+
+        Uses the is_nighttime flag if set, otherwise falls back to
+        timestamp-based detection.
+
+        Returns:
+            True if nighttime, False otherwise
+        """
+        if self.is_nighttime:
+            return True
+        if self.event_timestamp is not None:
+            from backend.services.weather_loader import is_nighttime as check_nighttime
+
+            return check_nighttime(self.event_timestamp)
+        return False
 
     def _serialize_pose_result(self, pose: PoseResult) -> dict[str, Any]:
         """Serialize a PoseResult to the frontend-expected PoseEnrichment format.
@@ -1365,7 +1405,36 @@ class EnrichmentResult:
                 # Low risk action (delivering, knocking, etc.)
                 modifiers["benign_action"] = -0.15
 
+        # Weather-based modifiers (skip for indoor cameras)
+        if not self.is_indoor_camera:
+            weather = self.weather_classification
+            if weather and weather.confidence >= 0.5:
+                condition = weather.simple_condition
+                is_night = self._determine_nighttime()
+
+                if condition == "rainy":
+                    modifiers["weather_rainy"] = -0.15
+                elif condition in ("foggy", "snowy"):
+                    modifiers["weather_low_visibility"] = 0.1
+
+                if condition == "clear" and is_night:
+                    modifiers["weather_clear_night"] = 0.25
+
         return modifiers
+
+    def get_weather_risk_modifier(self) -> float:
+        """Get aggregate weather risk modifier value.
+
+        Returns the total weather-based risk modifier for easy use in
+        risk calculation. This is a convenience method that extracts
+        weather-related modifiers from get_risk_modifiers().
+
+        Returns:
+            Aggregate weather risk modifier value (can be positive or negative)
+        """
+        from backend.services.weather_loader import get_weather_risk_modifier
+
+        return get_weather_risk_modifier(self.weather_classification, self._determine_nighttime())
 
     def get_summary_flags(self) -> list[dict[str, str]]:
         """Generate summary flags for the risk assessment output.
@@ -1459,6 +1528,21 @@ class EnrichmentResult:
                     "severity": severity,
                 }
             )
+
+        # Weather-related flags (NEM-5288)
+        if self.weather_classification and self.weather_classification.confidence >= 0.5:
+            condition = self.weather_classification.simple_condition
+            confidence = self.weather_classification.confidence
+
+            # Low visibility weather flag
+            if condition in ("foggy", "snowy"):
+                flags.append(
+                    {
+                        "type": "weather_low_visibility",
+                        "description": f"{condition.capitalize()} conditions ({confidence:.0%} confidence) - reduced visibility",
+                        "severity": "info",
+                    }
+                )
 
         return flags
 

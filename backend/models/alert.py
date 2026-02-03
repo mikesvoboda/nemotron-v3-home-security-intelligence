@@ -124,6 +124,12 @@ class Alert(Base):
     # Prevents race conditions during concurrent acknowledge/dismiss operations
     version_id: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
+    # Priority flag for smoke/fire and other urgent alerts (NEM-5298)
+    # High priority alerts trigger [URGENT] email subjects and priority webhook fields
+    is_high_priority: Mapped[bool] = mapped_column(
+        Boolean, default=False, insert_default=False, nullable=False
+    )
+
     # Relationships
     event: Mapped[Event] = relationship("Event", back_populates="alerts")
     rule: Mapped[AlertRule | None] = relationship("AlertRule", back_populates="alerts")
@@ -146,6 +152,20 @@ class Alert(Base):
     # on updates and raise StaleDataError if version doesn't match (NEM-2581)
     # Note: SQLAlchemy mapper_args is a special class attribute that doesn't use ClassVar
     __mapper_args__ = {"version_id_col": version_id}  # noqa: RUF012  # type: ignore[misc]
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize an Alert with Python-level defaults.
+
+        SQLAlchemy's mapped_column defaults only apply at database insert time.
+        This __init__ ensures defaults are available at Python object construction.
+
+        Args:
+            **kwargs: Field values for the Alert
+        """
+        # Apply defaults for boolean fields that should default to False
+        kwargs.setdefault("is_high_priority", False)
+
+        super().__init__(**kwargs)
 
     def __repr__(self) -> str:
         return (

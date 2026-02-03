@@ -47,6 +47,7 @@ from backend.models.household import (
     VehicleType,
 )
 from backend.models.household_org import Household
+from backend.models.package_event import PackageEvent, PackageEventType
 from backend.models.property import Property
 
 # Aliases for backward compatibility in tests
@@ -937,3 +938,82 @@ async def bulk_create_events(
     session.add_all(events)
     await session.flush()
     return events
+
+
+# =============================================================================
+# Package Event Factory
+# =============================================================================
+
+
+class PackageEventFactory(factory.Factory):
+    """Factory for creating PackageEvent model instances.
+
+    Examples:
+        # Create a package event with default values
+        event = PackageEventFactory()
+
+        # Create a delivered package event
+        event = PackageEventFactory(delivered=True)
+
+        # Create a theft suspected event
+        event = PackageEventFactory(theft_suspected=True)
+    """
+
+    class Meta:
+        model = PackageEvent
+
+    id: int = Sequence(lambda n: n + 1)
+    camera_id: str = Sequence(lambda n: f"camera_{n}")
+    zone_id: int | None = None
+    event_type: str = PackageEventType.DELIVERED.value
+    detected_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+    delivery_timestamp: datetime | None = None
+    removal_timestamp: datetime | None = None
+    confidence: float | None = 0.72
+    bbox: dict | None = factory.LazyFunction(lambda: {"x1": 0.3, "y1": 0.4, "x2": 0.5, "y2": 0.7})
+    package_class: str | None = "cardboard delivery package"
+    household_member_present: bool | None = None
+    delivery_person_present: bool | None = None
+    notes: str | None = None
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+    deleted_at: datetime | None = None
+
+    class Params:
+        """Traits for common package event configurations."""
+
+        # Delivered event trait
+        delivered = factory.Trait(
+            event_type=PackageEventType.DELIVERED.value,
+            delivery_timestamp=LazyFunction(lambda: datetime.now(UTC)),
+        )
+
+        # Removed event trait
+        removed = factory.Trait(
+            event_type=PackageEventType.REMOVED.value,
+            removal_timestamp=LazyFunction(lambda: datetime.now(UTC)),
+            household_member_present=True,
+        )
+
+        # Theft suspected trait
+        theft_suspected = factory.Trait(
+            event_type=PackageEventType.THEFT_SUSPECTED.value,
+            removal_timestamp=LazyFunction(lambda: datetime.now(UTC)),
+            household_member_present=False,
+            delivery_person_present=False,
+        )
+
+        # Retrieved by owner trait
+        retrieved = factory.Trait(
+            event_type=PackageEventType.RETRIEVED_BY_OWNER.value,
+            removal_timestamp=LazyFunction(lambda: datetime.now(UTC)),
+            household_member_present=True,
+        )
+
+        # With zone trait
+        with_zone = factory.Trait(zone_id=Sequence(lambda n: n + 1))
+
+        # High confidence trait
+        high_confidence = factory.Trait(confidence=0.95)
+
+        # Low confidence trait
+        low_confidence = factory.Trait(confidence=0.40)

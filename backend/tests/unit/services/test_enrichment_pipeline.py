@@ -6271,3 +6271,453 @@ class TestEnrichmentPipelineRecognizeActions:
             # Should propagate the error
             with pytest.raises(RuntimeError, match="X-CLIP"):
                 await pipeline._recognize_actions(frames)
+
+
+# =============================================================================
+# Weather Risk Modifiers Tests (NEM-5288)
+# =============================================================================
+
+
+class TestEnrichmentResultWeatherRiskModifiers:
+    """Tests for weather-based risk modifiers in get_risk_modifiers().
+
+    These tests verify the implementation of weather-based risk score adjustments:
+    - Rainy weather: -0.15 (less suspicious, people avoid rain)
+    - Clear night: +0.25 (more suspicious, nighttime activity in clear weather)
+    - Low visibility (foggy/snowy): +0.1 (uncertainty increases risk)
+    """
+
+    def test_risk_modifiers_weather_rainy(self) -> None:
+        """Test get_risk_modifiers returns weather_rainy: -0.15 when weather is rainy.
+
+        Rainy weather makes outdoor activity less suspicious because people
+        typically avoid being outside in the rain unless necessary.
+        """
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.85,
+            all_scores={"rain/storm": 0.85, "cloudy/overcast": 0.10, "sun/clear": 0.05},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_rainy" in modifiers
+        assert modifiers["weather_rainy"] == pytest.approx(-0.15, abs=0.01)
+
+    def test_risk_modifiers_weather_rainy_high_confidence(self) -> None:
+        """Test rainy modifier only applies above confidence threshold.
+
+        High confidence rainy weather should apply the full -0.15 modifier.
+        """
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.95,
+            all_scores={"rain/storm": 0.95},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_rainy" in modifiers
+        assert modifiers["weather_rainy"] < 0  # Should decrease risk
+
+    def test_risk_modifiers_weather_clear_night(self) -> None:
+        """Test get_risk_modifiers returns weather_clear_night: +0.25 when clear AND nighttime.
+
+        Clear nighttime conditions increase suspicion because visibility is good
+        but the darkness provides cover for suspicious activity.
+        """
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.92,
+            all_scores={"sun/clear": 0.92, "cloudy/overcast": 0.08},
+        )
+        # Simulate nighttime via is_nighttime flag or timestamp
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=True,  # Expected new field for night detection
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_clear_night" in modifiers
+        assert modifiers["weather_clear_night"] == pytest.approx(0.25, abs=0.01)
+
+    def test_risk_modifiers_weather_clear_daytime_no_modifier(self) -> None:
+        """Test no night modifier when daytime even if clear weather.
+
+        Clear daytime should NOT trigger the weather_clear_night modifier.
+        """
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.95,
+            all_scores={"sun/clear": 0.95},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=False,  # Daytime
+        )
+        modifiers = result.get_risk_modifiers()
+
+        # Should NOT have clear night modifier during day
+        assert "weather_clear_night" not in modifiers
+
+    def test_risk_modifiers_weather_low_visibility_foggy(self) -> None:
+        """Test get_risk_modifiers returns weather_low_visibility: +0.1 when foggy.
+
+        Foggy conditions reduce visibility, making detection less reliable,
+        which adds uncertainty and increases risk assessment.
+        """
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.88,
+            all_scores={"foggy/hazy": 0.88},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_low_visibility" in modifiers
+        assert modifiers["weather_low_visibility"] == pytest.approx(0.1, abs=0.01)
+
+    def test_risk_modifiers_weather_low_visibility_snowy(self) -> None:
+        """Test get_risk_modifiers returns weather_low_visibility: +0.1 when snowy.
+
+        Snowy conditions reduce visibility similar to fog.
+        """
+        weather = WeatherResult(
+            condition="snow/frosty",
+            simple_condition="snowy",
+            confidence=0.82,
+            all_scores={"snow/frosty": 0.82},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_low_visibility" in modifiers
+        assert modifiers["weather_low_visibility"] == pytest.approx(0.1, abs=0.01)
+
+    def test_risk_modifiers_no_weather_no_modifier(self) -> None:
+        """Test no weather modifier when weather classification is None.
+
+        If weather classification failed or was not run, no weather
+        modifiers should be applied.
+        """
+        result = EnrichmentResult(weather_classification=None)
+        modifiers = result.get_risk_modifiers()
+
+        # No weather-related modifiers should be present
+        weather_modifiers = [k for k in modifiers if k.startswith("weather_")]
+        assert len(weather_modifiers) == 0
+
+    def test_risk_modifiers_cloudy_no_visibility_modifier(self) -> None:
+        """Test cloudy weather does not trigger low_visibility modifier.
+
+        Cloudy conditions have good visibility, unlike foggy/snowy.
+        """
+        weather = WeatherResult(
+            condition="cloudy/overcast",
+            simple_condition="cloudy",
+            confidence=0.90,
+            all_scores={"cloudy/overcast": 0.90},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_low_visibility" not in modifiers
+
+    def test_risk_modifiers_weather_confidence_below_threshold(self) -> None:
+        """Test weather modifiers not applied when confidence below threshold.
+
+        If the weather classification confidence is too low (e.g., < 0.5),
+        the modifier should not be applied due to uncertainty.
+        """
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.35,  # Below typical 0.5 threshold
+            all_scores={"rain/storm": 0.35, "cloudy/overcast": 0.30},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        # Should NOT apply rainy modifier with low confidence
+        assert "weather_rainy" not in modifiers
+
+    def test_risk_modifiers_weather_combined_with_other_modifiers(self) -> None:
+        """Test weather modifiers work alongside existing modifiers.
+
+        Weather modifiers should be additive with other modifiers like
+        suspicious_attire, violence, etc.
+        """
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.88,
+            all_scores={"rain/storm": 0.88},
+        )
+        clothing = ClothingClassification(
+            top_category="ski mask",
+            confidence=0.9,
+            all_scores={},
+            is_suspicious=True,
+            is_service_uniform=False,
+            raw_description="Alert: ski mask",
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            clothing_classifications={"1": clothing},
+        )
+        modifiers = result.get_risk_modifiers()
+
+        # Both modifiers should be present
+        assert "weather_rainy" in modifiers
+        assert "suspicious_attire" in modifiers
+
+    def test_risk_modifiers_foggy_night_both_modifiers(self) -> None:
+        """Test foggy night applies low_visibility but not clear_night modifier.
+
+        Foggy conditions at night should only trigger low_visibility, not clear_night
+        since clear_night specifically requires clear weather.
+        """
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.85,
+            all_scores={"foggy/hazy": 0.85},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=True,
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_low_visibility" in modifiers
+        assert "weather_clear_night" not in modifiers
+
+
+class TestEnrichmentResultWeatherRiskModifiersEdgeCases:
+    """Edge case tests for weather risk modifiers."""
+
+    def test_risk_modifiers_indoor_camera_no_weather_modifier(self) -> None:
+        """Test indoor cameras should not have weather modifiers applied.
+
+        Weather classification may still run on indoor cameras, but the
+        results should be marked as N/A and no modifier applied.
+        """
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.70,
+            all_scores={"sun/clear": 0.70},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_indoor_camera=True,  # Expected new field
+        )
+        modifiers = result.get_risk_modifiers()
+
+        # Indoor cameras should not have weather modifiers
+        weather_modifiers = [k for k in modifiers if k.startswith("weather_")]
+        assert len(weather_modifiers) == 0
+
+    def test_risk_modifiers_dusk_transition(self) -> None:
+        """Test dusk (civil twilight) is treated as nighttime for clear_night.
+
+        Dusk provides enough darkness for the clear_night modifier to apply.
+        """
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.90,
+            all_scores={"sun/clear": 0.90},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=True,  # Dusk counts as nighttime
+            time_of_day="dusk",  # Optional field for more context
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_clear_night" in modifiers
+
+    def test_risk_modifiers_dawn_transition(self) -> None:
+        """Test dawn (civil twilight) is treated as nighttime for clear_night.
+
+        Dawn provides enough darkness for the clear_night modifier to apply.
+        """
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.90,
+            all_scores={"sun/clear": 0.90},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=True,  # Dawn counts as nighttime
+            time_of_day="dawn",
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_clear_night" in modifiers
+
+    def test_risk_modifiers_multiple_weather_conditions(self) -> None:
+        """Test only most confident weather condition applies modifier.
+
+        When weather classification has multiple high scores, only the
+        highest confidence condition should trigger its modifier.
+        """
+        # Ambiguous classification between rainy and foggy
+        weather = WeatherResult(
+            condition="rain/storm",  # Top prediction
+            simple_condition="rainy",
+            confidence=0.45,  # Close to foggy
+            all_scores={"rain/storm": 0.45, "foggy/hazy": 0.40, "cloudy/overcast": 0.15},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        modifiers = result.get_risk_modifiers()
+
+        # Low confidence should prevent any weather modifier
+        assert "weather_rainy" not in modifiers
+        assert "weather_low_visibility" not in modifiers
+
+    def test_risk_modifiers_night_detection_from_timestamp(self) -> None:
+        """Test is_nighttime can be derived from event timestamp.
+
+        The enrichment result should support nighttime detection from
+        the event timestamp when available.
+        """
+        from datetime import datetime
+
+        weather = WeatherResult(
+            condition="sun/clear",
+            simple_condition="clear",
+            confidence=0.92,
+            all_scores={"sun/clear": 0.92},
+        )
+        # Late night timestamp (2 AM)
+        result = EnrichmentResult(
+            weather_classification=weather,
+            event_timestamp=datetime(2024, 6, 15, 2, 0, 0),  # 2 AM
+        )
+        modifiers = result.get_risk_modifiers()
+
+        # Should detect nighttime from timestamp
+        assert "weather_clear_night" in modifiers
+
+    def test_risk_modifiers_rainy_night_combination(self) -> None:
+        """Test rainy night does not trigger clear_night modifier.
+
+        Rainy weather at night should only trigger the rainy modifier,
+        not the clear_night modifier (which requires clear weather).
+        """
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.88,
+            all_scores={"rain/storm": 0.88},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=True,
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "weather_rainy" in modifiers
+        assert "weather_clear_night" not in modifiers
+
+
+class TestEnrichmentResultWeatherIntegration:
+    """Integration tests for weather modifiers in the enrichment pipeline."""
+
+    def test_weather_modifier_reflected_in_context_string(self) -> None:
+        """Test weather modifiers appear in the context string for Nemotron.
+
+        The to_context_string method should include weather modifier
+        information for the LLM to use in risk assessment.
+        """
+        weather = WeatherResult(
+            condition="rain/storm",
+            simple_condition="rainy",
+            confidence=0.90,
+            all_scores={"rain/storm": 0.90},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        context = result.to_context_string()
+
+        # Context should mention weather condition
+        assert "rainy" in context.lower() or "rain" in context.lower()
+
+    def test_weather_modifiers_in_to_prompt_context(self) -> None:
+        """Test weather classification appears in prompt context."""
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.85,
+            all_scores={"foggy/hazy": 0.85},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        prompt_context = result.to_prompt_context()
+
+        # Should include weather context
+        assert "weather_context" in prompt_context
+        assert prompt_context["weather_context"] is not None
+
+    def test_has_weather_property(self) -> None:
+        """Test has_weather property for weather classification presence."""
+        # Without weather
+        result_no_weather = EnrichmentResult()
+        assert result_no_weather.has_weather is False
+
+        # With weather
+        weather = WeatherResult(
+            condition="cloudy/overcast",
+            simple_condition="cloudy",
+            confidence=0.80,
+            all_scores={},
+        )
+        result_with_weather = EnrichmentResult(weather_classification=weather)
+        assert result_with_weather.has_weather is True
+
+    def test_get_weather_risk_modifier_value(self) -> None:
+        """Test dedicated method to get weather risk modifier value.
+
+        A dedicated method should return the aggregate weather risk modifier
+        for easy use in risk calculation.
+        """
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.90,
+            all_scores={"foggy/hazy": 0.90},
+        )
+        result = EnrichmentResult(
+            weather_classification=weather,
+            is_nighttime=False,
+        )
+
+        # Expected dedicated method
+        modifier_value = result.get_weather_risk_modifier()
+
+        assert modifier_value == pytest.approx(0.1, abs=0.01)  # Low visibility
+
+    def test_weather_summary_flags(self) -> None:
+        """Test weather conditions generate appropriate summary flags.
+
+        Significant weather conditions should appear in summary flags
+        for the risk assessment output.
+        """
+        weather = WeatherResult(
+            condition="foggy/hazy",
+            simple_condition="foggy",
+            confidence=0.85,
+            all_scores={"foggy/hazy": 0.85},
+        )
+        result = EnrichmentResult(weather_classification=weather)
+        flags = result.get_summary_flags()
+
+        # Should have a weather-related flag for reduced visibility
+        weather_flags = [f for f in flags if "weather" in f.get("type", "").lower()]
+        assert len(weather_flags) >= 1
