@@ -78,6 +78,12 @@ from .request_recorder import (
 )
 from .request_timing import RequestTimingMiddleware
 from .security_headers import SecurityHeadersMiddleware
+from .setup_guard import (
+    SETUP_WHITELIST_EXACT,
+    SETUP_WHITELIST_PREFIXES,
+    SetupGuardMiddleware,
+    reset_setup_guard_state,
+)
 from .websocket_auth import validate_websocket_token
 
 __all__ = [
@@ -107,7 +113,10 @@ __all__ = [
     "RequestRecorderMiddleware",
     "RequestRecording",
     "RequestTimingMiddleware",
+    "SETUP_WHITELIST_EXACT",
+    "SETUP_WHITELIST_PREFIXES",
     "SecurityHeadersMiddleware",
+    "SetupGuardMiddleware",
     "ValidatedUploadFile",
     "authenticate_websocket",
     "check_websocket_rate_limit",
@@ -133,6 +142,7 @@ __all__ = [
     "rate_limit_search",
     "record_deprecated_call",
     "redact_request_body",
+    "reset_setup_guard_state",
     "select_best_media_type",
     "set_correlation_id",
     "set_pipeline_baggage",

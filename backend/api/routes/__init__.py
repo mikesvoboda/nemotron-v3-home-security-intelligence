@@ -6,6 +6,7 @@ from .alerts import alerts_instance_router
 from .alerts import router as alerts_router
 from .analytics_zones import router as analytics_zones_router
 from .audit import router as audit_router
+from .auth import router as auth_router
 from .backup import router as backup_router
 from .calibration import router as calibration_router
 from .detector import router as detector_router
@@ -48,6 +49,7 @@ __all__ = [
     "analytics_zones_router",
     "area_router",
     "audit_router",
+    "auth_router",
     "backup_router",
     "calibration_router",
     "detector_router",

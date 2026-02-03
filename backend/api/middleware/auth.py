@@ -253,6 +253,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/docs",
             "/redoc",
             "/openapi.json",
+            # Auth endpoints (NEM-5312: Phase 2 API Protection)
+            # These are exempt because:
+            # 1. Setup status must be checkable without auth
+            # 2. Registration must work when no users exist
+            # 3. Login endpoint needs to be accessible to authenticate
+            "/api/auth/setup-status",
+            "/api/auth/register",
+            "/api/auth/login",
         ]
 
         # Exempt prefix paths (for dynamic routes)

@@ -37,6 +37,7 @@ from backend.api.middleware import (
     RequestRecorderMiddleware,
     RequestTimingMiddleware,
     SecurityHeadersMiddleware,
+    SetupGuardMiddleware,
 )
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
@@ -49,6 +50,7 @@ from backend.api.routes import (
     analytics,
     analytics_zones,
     audit,
+    auth,
     calibration,
     cameras,
     cost_analytics,
@@ -1124,6 +1126,12 @@ def get_cached_openapi_schema() -> dict[str, Any]:
 app.openapi = get_cached_openapi_schema  # type: ignore[method-assign]
 
 
+# Add setup guard middleware (NEM-5312: Phase 2 API Protection)
+# Returns 503 for all endpoints except whitelist when no users exist
+# This ensures the application cannot be used until initial setup is complete
+# Must be early in the middleware chain (after auth) to block requests before processing
+app.add_middleware(SetupGuardMiddleware)
+
 # Add authentication middleware (if enabled in settings)
 app.add_middleware(AuthMiddleware)
 
@@ -1238,6 +1246,7 @@ app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
 app.include_router(analytics_zones.router)
 app.include_router(audit.router)
+app.include_router(auth.router)
 app.include_router(cost_analytics.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)

@@ -320,6 +320,199 @@
         "title": "AIServicesHealthResponse",
         "type": "object"
       },
+      "APIKeyCreateRequest": {
+        "description": "Request schema for creating a new API key.",
+        "properties": {
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days until the key expires (None = never expires)",
+            "title": "Expires In Days"
+          },
+          "name": {
+            "description": "Human-readable name for the API key",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "APIKeyCreateRequest",
+        "type": "object"
+      },
+      "APIKeyCreateResponse": {
+        "description": "Response schema for API key creation.\n\nIMPORTANT: The full API key is only returned once at creation time.\nIt cannot be retrieved later - only the prefix is stored.",
+        "properties": {
+          "created_at": {
+            "description": "When the key was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the key expires",
+            "title": "Expires At"
+          },
+          "id": {
+            "description": "API key ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "description": "Full API key (ONLY returned at creation, store it securely!)",
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable name",
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "description": "Key prefix for identification",
+            "title": "Prefix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "key",
+          "created_at"
+        ],
+        "title": "APIKeyCreateResponse",
+        "type": "object"
+      },
+      "APIKeyListResponse": {
+        "description": "Response schema for listing API keys.",
+        "properties": {
+          "items": {
+            "description": "List of API keys",
+            "items": {
+              "$ref": "#/components/schemas/APIKeyResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of API keys",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "APIKeyListResponse",
+        "type": "object"
+      },
+      "APIKeyResponse": {
+        "description": "Response schema for API key information (without the key itself).",
+        "properties": {
+          "created_at": {
+            "description": "When the key was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the key expires",
+            "title": "Expires At"
+          },
+          "id": {
+            "description": "API key ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "description": "Whether the key is active",
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_expired": {
+            "description": "Whether the key has expired",
+            "title": "Is Expired",
+            "type": "boolean"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the key was last used",
+            "title": "Last Used At"
+          },
+          "name": {
+            "description": "Human-readable name",
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "description": "Key prefix for identification",
+            "title": "Prefix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "created_at",
+          "is_active",
+          "is_expired"
+        ],
+        "title": "APIKeyResponse",
+        "type": "object"
+      },
+      "APIKeyRevokeResponse": {
+        "description": "Response schema for API key revocation.",
+        "properties": {
+          "message": {
+            "default": "API key revoked successfully",
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "APIKeyRevokeResponse",
+        "type": "object"
+      },
       "AccessSchedule": {
         "description": "Schema for time-based access schedule configuration.\n\nAllows defining when specific members have access to a zone using\ncron-style expressions for flexible scheduling.\n\nExample:\n    {\n        \"member_ids\": [1, 2, 3],\n        \"cron_expression\": \"0 9-17 * * 1-5\",  # Weekdays 9am-5pm\n        \"description\": \"Service workers during business hours\"\n    }",
         "example": {
@@ -23812,6 +24005,39 @@
         "title": "LogStats",
         "type": "object"
       },
+      "LoginResponse": {
+        "description": "Response schema for successful login.\n\nReturns user info. Session token is set via HTTP-only cookie.",
+        "properties": {
+          "message": {
+            "default": "Login successful",
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse",
+            "description": "Authenticated user information"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "title": "LoginResponse",
+        "type": "object"
+      },
+      "LogoutResponse": {
+        "description": "Response schema for logout.",
+        "properties": {
+          "message": {
+            "default": "Logged out successfully",
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "LogoutResponse",
+        "type": "object"
+      },
       "LogsListResponse": {
         "description": "Schema for paginated log query response.\n\nSupports both cursor-based pagination (recommended) and offset pagination.\nCursor-based pagination offers better performance for large datasets.",
         "example": {
@@ -35665,6 +35891,21 @@
         "title": "SettingsUpdate",
         "type": "object"
       },
+      "SetupStatusResponse": {
+        "description": "Response schema for setup status check.\n\nReturns whether initial setup (first user registration) is required.",
+        "properties": {
+          "setup_required": {
+            "description": "Whether initial setup is required (no users exist)",
+            "title": "Setup Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "setup_required"
+        ],
+        "title": "SetupStatusResponse",
+        "type": "object"
+      },
       "SeverityDefinitionResponse": {
         "description": "Definition of a single severity level.",
         "example": {
@@ -38329,6 +38570,125 @@
           }
         },
         "title": "UserCalibrationUpdate",
+        "type": "object"
+      },
+      "UserLoginRequest": {
+        "description": "Request schema for user login.",
+        "properties": {
+          "password": {
+            "description": "Password",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "description": "Username",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "UserLoginRequest",
+        "type": "object"
+      },
+      "UserRegisterRequest": {
+        "description": "Request schema for user registration.\n\nUsed for registering the first admin user during initial setup.\nAfter the first user exists, this endpoint is blocked.",
+        "properties": {
+          "email": {
+            "description": "Email address for the user",
+            "maxLength": 255,
+            "minLength": 5,
+            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "description": "Password (minimum 12 characters)",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "description": "Username for login (alphanumeric, underscores, hyphens only)",
+            "maxLength": 50,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "UserRegisterRequest",
+        "type": "object"
+      },
+      "UserResponse": {
+        "description": "Response schema for user information.\n\nDoes NOT include password hash or other sensitive fields.",
+        "properties": {
+          "created_at": {
+            "description": "When the user was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "description": "Email address",
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "description": "User ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "description": "Whether the user account is active",
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "is_admin": {
+            "description": "Whether the user has admin privileges",
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last login timestamp",
+            "title": "Last Login At"
+          },
+          "username": {
+            "description": "Username",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "is_active",
+          "is_admin",
+          "created_at"
+        ],
+        "title": "UserResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -45900,6 +46260,436 @@
         "summary": "Get Audit Log",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/auth/api-keys": {
+      "get": {
+        "description": "List all API keys for the current admin user.\n\nNote: The full API key is never returned - only the prefix for identification.\n\nArgs:\n    user: Current admin user (from dependency).\n    db: Database session.\n\nReturns:\n    APIKeyListResponse with all API keys belonging to the user.",
+        "operationId": "auth_list_api_keys",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIKeyListResponse"
+                }
+              }
+            },
+            "description": "List of API keys"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Api Keys",
+        "tags": [
+          "auth"
+        ]
+      },
+      "post": {
+        "description": "Create a new API key.\n\nOnly admin users can create API keys. The full API key is only returned\nonce at creation time - it cannot be retrieved later.\n\nArgs:\n    request: API key creation data (name, optional expiration).\n    user: Current admin user (from dependency).\n    db: Database session.\n\nReturns:\n    APIKeyCreateResponse with the full API key (store it securely!).",
+        "operationId": "auth_create_api_key",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/APIKeyCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIKeyCreateResponse"
+                }
+              }
+            },
+            "description": "API key created successfully"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Api Key",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/api-keys/{key_id}": {
+      "delete": {
+        "description": "Revoke (deactivate) an API key.\n\nThe key is not deleted, but marked as inactive. This preserves audit trail.\n\nArgs:\n    key_id: ID of the API key to revoke.\n    user: Current admin user (from dependency).\n    db: Database session.\n\nReturns:\n    APIKeyRevokeResponse confirming revocation.\n\nRaises:\n    HTTPException: 404 if API key not found or doesn't belong to user.",
+        "operationId": "auth_revoke_api_key",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIKeyRevokeResponse"
+                }
+              }
+            },
+            "description": "API key revoked successfully"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "403": {
+            "description": "Admin privileges required"
+          },
+          "404": {
+            "description": "API key not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Revoke Api Key",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "description": "Login with username and password.\n\nOn successful login, sets an HTTP-only session cookie and returns\nthe authenticated user's information.\n\nArgs:\n    request: Login credentials (username, password).\n    response: FastAPI Response object for setting cookies.\n    db: Database session.\n\nReturns:\n    LoginResponse with user information.\n\nRaises:\n    HTTPException: 401 if credentials are invalid.",
+        "operationId": "auth_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Login successful"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "description": "Logout and clear session.\n\nDeletes the session from Redis (if available) and clears the session cookie.\n\nArgs:\n    response: FastAPI Response object for clearing cookies.\n    session_id: Session ID from cookie.\n\nReturns:\n    LogoutResponse confirming logout.",
+        "operationId": "auth_logout",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            },
+            "description": "Logged out successfully"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "Get current authenticated user information.\n\nArgs:\n    user: Current authenticated user (from dependency).\n\nReturns:\n    UserResponse with the user's information.",
+        "operationId": "auth_get_me",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Current user information"
+          },
+          "401": {
+            "description": "Not authenticated"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "description": "Register the first admin user.\n\nThis endpoint is ONLY available when no users exist in the system.\nOnce the first user is registered, this endpoint returns 409 Conflict.\n\nThe first user is automatically granted admin privileges.\n\nArgs:\n    request: User registration data (username, email, password).\n    db: Database session.\n\nReturns:\n    UserResponse with the created user's information.\n\nRaises:\n    HTTPException: 409 if users already exist.\n    HTTPException: 400 if username or email already taken.",
+        "operationId": "auth_register_user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "User registered successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "Registration blocked (users already exist)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Register User",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/setup-status": {
+      "get": {
+        "description": "Check if initial setup is required.\n\nReturns whether the system needs initial setup (first admin user registration).\nSetup is required if no users exist in the database.\n\nReturns:\n    SetupStatusResponse indicating if setup is required.",
+        "operationId": "auth_get_setup_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            },
+            "description": "Setup status returned successfully"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Setup Status",
+        "tags": [
+          "auth"
         ]
       }
     },

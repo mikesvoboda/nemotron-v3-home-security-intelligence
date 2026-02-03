@@ -18,7 +18,7 @@ import {
 import Layout from './components/layout/Layout';
 import { InstallPrompt } from './components/pwa';
 import RetryingIndicator from './components/RetryingIndicator';
-import { AnnouncementProvider, ThemeProvider } from './contexts';
+import { AnnouncementProvider, AuthProvider, ThemeProvider } from './contexts';
 import { queryClient } from './services/queryClient';
 import {
   createQueryPersister,
@@ -177,6 +177,12 @@ const ReIDDashboard = lazy(() =>
 // 404 Not Found Page (NEM-4925)
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
+// Auth pages (NEM-5322)
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SetupPage = lazy(() =>
+  import('./components/auth').then((m) => ({ default: m.SetupPage }))
+);
+
 /**
  * Get persist options for query client.
  * Creates persister only once and memoizes the options.
@@ -208,80 +214,106 @@ export default function App() {
     <ThemeProvider defaultMode="dark">
       <ToastProvider>
         <AnnouncementProvider>
-          <BrowserRouter>
-            {/* Track navigation between routes for analytics */}
-            <NavigationTracker />
-            <ErrorBoundary
-              title="Application Error"
-              description="The application encountered an unexpected error. Please try again or refresh the page."
-            >
-              {/* Ambient status provider for visual/audio status awareness */}
-              <AmbientStatusProvider>
-                <Layout>
-                  <ChunkLoadErrorBoundary>
-                    <Suspense fallback={<RouteLoadingFallback />}>
-                      <PageTransition>
-                        <Routes>
-                          <Route path="/" element={<DashboardPage />} />
-                          <Route path="/timeline" element={<EventTimeline />} />
-                          <Route path="/analytics" element={<AnalyticsPage />} />
-                          <Route path="/jobs" element={<JobsPage />} />
-                          <Route path="/alerts" element={<AlertsPage />} />
-                          <Route path="/entities" element={<EntitiesPage />} />
-                          <Route path="/logs" element={<LogsPage />} />
-                          <Route path="/audit" element={<AuditLogPage />} />
-                          <Route path="/ai" element={<AIPerformancePage />} />
-                          <Route path="/ai-audit" element={<AIAuditPage />} />
-                          <Route path="/ai-services" element={<AIServicesPage />} />
-                          <Route path="/video-analytics" element={<VideoAnalyticsPage />} />
-                          <Route path="/pyroscope" element={<PyroscopePage />} />
-                          <Route path="/operations" element={<OperationsPage />} />
-                          <Route path="/operations-dashboard" element={<OperationsDashboardPage />} />
-                          <Route path="/gpu-metrics" element={<GpuMetricsPage />} />
-                          <Route path="/request-profiling" element={<RequestProfilingPage />} />
-                          <Route path="/tracing" element={<TracingPage />} />
-                          {/* Settings page with nested sub-routes (NEM-4938) */}
-                          <Route path="/settings" element={<SettingsPage />}>
-                            {/* Default redirect to cameras */}
-                            <Route index element={<Navigate to="cameras" replace />} />
-                            <Route path="cameras" element={<CamerasSettings />} />
-                            <Route path="rules" element={<AlertRulesSettings />} />
-                            <Route path="processing" element={<ProcessingSettings />} />
-                            <Route path="notifications" element={<NotificationSettings />} />
-                            <Route path="ambient" element={<AmbientStatusSettings />} />
-                            <Route path="calibration" element={<CalibrationPanel />} />
-                            <Route path="access" element={<AccessControlSettings />} />
-                            <Route path="prompts" element={<PromptManagementPage />} />
-                            <Route path="storage" element={<FileOperationsPanel />} />
-                            <Route path="ai-models" element={<AIModelsTab />} />
-                            <Route path="admin" element={<AdminSettings />} />
-                            <Route path="gpu" element={<GpuSettingsPage />} />
-                          </Route>
-                          <Route path="/notifications" element={<NotificationPreferencesPage />} />
-                          <Route path="/trash" element={<TrashPage />} />
-                          <Route path="/data" element={<DataManagementPage />} />
-                          <Route path="/zones" element={<ZonesPage />} />
-                          <Route path="/webhooks" element={<WebhooksPage />} />
-                          <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
-                          <Route path="/plate-reads" element={<PlateReadsPage />} />
-                          <Route path="/household" element={<HouseholdPage />} />
-                          <Route path="/face-recognition" element={<FaceRecognitionPage />} />
-                          <Route path="/heatmaps" element={<HeatmapsPage />} />
-                          <Route path="/scene-changes" element={<SceneChangesPage />} />
-                          <Route path="/tracks" element={<TracksPage />} />
-                          <Route path="/reid" element={<ReIDDashboard />} />
-                          {/* Catch-all route for 404 Not Found (NEM-4925) */}
-                          <Route path="*" element={<NotFoundPage />} />
-                        </Routes>
-                      </PageTransition>
-                    </Suspense>
-                  </ChunkLoadErrorBoundary>
-                </Layout>
-              </AmbientStatusProvider>
-            </ErrorBoundary>
-            {/* Interactive product tour for first-time users */}
-            <ProductTour />
-          </BrowserRouter>
+          <AuthProvider>
+            <BrowserRouter>
+              {/* Track navigation between routes for analytics */}
+              <NavigationTracker />
+              <ErrorBoundary
+                title="Application Error"
+                description="The application encountered an unexpected error. Please try again or refresh the page."
+              >
+                {/* Auth routes - outside main layout (NEM-5322) */}
+                <Routes>
+                  <Route
+                    path="/login"
+                    element={
+                      <Suspense fallback={<RouteLoadingFallback />}>
+                        <LoginPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/setup"
+                    element={
+                      <Suspense fallback={<RouteLoadingFallback />}>
+                        <SetupPage />
+                      </Suspense>
+                    }
+                  />
+                  {/* Main app routes with layout */}
+                  <Route
+                    path="/*"
+                    element={
+                      <AmbientStatusProvider>
+                        <Layout>
+                          <ChunkLoadErrorBoundary>
+                            <Suspense fallback={<RouteLoadingFallback />}>
+                              <PageTransition>
+                                <Routes>
+                                  <Route path="/" element={<DashboardPage />} />
+                                  <Route path="/timeline" element={<EventTimeline />} />
+                                  <Route path="/analytics" element={<AnalyticsPage />} />
+                                  <Route path="/jobs" element={<JobsPage />} />
+                                  <Route path="/alerts" element={<AlertsPage />} />
+                                  <Route path="/entities" element={<EntitiesPage />} />
+                                  <Route path="/logs" element={<LogsPage />} />
+                                  <Route path="/audit" element={<AuditLogPage />} />
+                                  <Route path="/ai" element={<AIPerformancePage />} />
+                                  <Route path="/ai-audit" element={<AIAuditPage />} />
+                                  <Route path="/ai-services" element={<AIServicesPage />} />
+                                  <Route path="/video-analytics" element={<VideoAnalyticsPage />} />
+                                  <Route path="/pyroscope" element={<PyroscopePage />} />
+                                  <Route path="/operations" element={<OperationsPage />} />
+                                  <Route path="/operations-dashboard" element={<OperationsDashboardPage />} />
+                                  <Route path="/gpu-metrics" element={<GpuMetricsPage />} />
+                                  <Route path="/request-profiling" element={<RequestProfilingPage />} />
+                                  <Route path="/tracing" element={<TracingPage />} />
+                                  {/* Settings page with nested sub-routes (NEM-4938) */}
+                                  <Route path="/settings" element={<SettingsPage />}>
+                                    {/* Default redirect to cameras */}
+                                    <Route index element={<Navigate to="cameras" replace />} />
+                                    <Route path="cameras" element={<CamerasSettings />} />
+                                    <Route path="rules" element={<AlertRulesSettings />} />
+                                    <Route path="processing" element={<ProcessingSettings />} />
+                                    <Route path="notifications" element={<NotificationSettings />} />
+                                    <Route path="ambient" element={<AmbientStatusSettings />} />
+                                    <Route path="calibration" element={<CalibrationPanel />} />
+                                    <Route path="access" element={<AccessControlSettings />} />
+                                    <Route path="prompts" element={<PromptManagementPage />} />
+                                    <Route path="storage" element={<FileOperationsPanel />} />
+                                    <Route path="ai-models" element={<AIModelsTab />} />
+                                    <Route path="admin" element={<AdminSettings />} />
+                                    <Route path="gpu" element={<GpuSettingsPage />} />
+                                  </Route>
+                                  <Route path="/notifications" element={<NotificationPreferencesPage />} />
+                                  <Route path="/trash" element={<TrashPage />} />
+                                  <Route path="/data" element={<DataManagementPage />} />
+                                  <Route path="/zones" element={<ZonesPage />} />
+                                  <Route path="/webhooks" element={<WebhooksPage />} />
+                                  <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
+                                  <Route path="/plate-reads" element={<PlateReadsPage />} />
+                                  <Route path="/household" element={<HouseholdPage />} />
+                                  <Route path="/face-recognition" element={<FaceRecognitionPage />} />
+                                  <Route path="/heatmaps" element={<HeatmapsPage />} />
+                                  <Route path="/scene-changes" element={<SceneChangesPage />} />
+                                  <Route path="/tracks" element={<TracksPage />} />
+                                  <Route path="/reid" element={<ReIDDashboard />} />
+                                  {/* Catch-all route for 404 Not Found (NEM-4925) */}
+                                  <Route path="*" element={<NotFoundPage />} />
+                                </Routes>
+                              </PageTransition>
+                            </Suspense>
+                          </ChunkLoadErrorBoundary>
+                        </Layout>
+                      </AmbientStatusProvider>
+                    }
+                  />
+                </Routes>
+              </ErrorBoundary>
+              {/* Interactive product tour for first-time users */}
+              <ProductTour />
+            </BrowserRouter>
+          </AuthProvider>
           {/* Rate limit indicator - fixed position overlay */}
           <RateLimitIndicator />
           {/* Retrying indicator - shows when rate limited AND requests in flight */}

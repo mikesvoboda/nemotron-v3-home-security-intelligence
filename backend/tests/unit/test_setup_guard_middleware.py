@@ -137,11 +137,13 @@ class TestSetupGuardWhitelist:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/auth/setup-status is accessible during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/auth/setup-status")
 
         assert response.status_code == 200
@@ -152,11 +154,13 @@ class TestSetupGuardWhitelist:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/auth/register is accessible during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.post("/api/auth/register", json={})
 
         assert response.status_code == 200
@@ -166,11 +170,13 @@ class TestSetupGuardWhitelist:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /health is accessible during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/health")
 
         assert response.status_code == 200
@@ -180,11 +186,13 @@ class TestSetupGuardWhitelist:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /ready is accessible during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/ready")
 
         assert response.status_code == 200
@@ -194,11 +202,13 @@ class TestSetupGuardWhitelist:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/system/health is accessible during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/system/health")
 
         assert response.status_code == 200
@@ -217,11 +227,13 @@ class TestSetupGuardBlocking:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/cameras returns 503 during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/cameras")
 
         assert response.status_code == 503
@@ -234,11 +246,13 @@ class TestSetupGuardBlocking:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/events returns 503 during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.post("/api/events", json={})
 
         assert response.status_code == 503
@@ -251,11 +265,13 @@ class TestSetupGuardBlocking:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/detections returns 503 during setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/detections")
 
         assert response.status_code == 503
@@ -265,11 +281,13 @@ class TestSetupGuardBlocking:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that 503 response includes setup_url in body."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/cameras")
 
         assert response.status_code == 503
@@ -282,11 +300,13 @@ class TestSetupGuardBlocking:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that 503 response includes error code."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/cameras")
 
         assert response.status_code == 503
@@ -308,11 +328,13 @@ class TestSetupGuardBypass:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/cameras is accessible after setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 1
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/cameras")
 
         # Should reach the endpoint handler, not return 503
@@ -324,11 +346,13 @@ class TestSetupGuardBypass:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/events is accessible after setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 1
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.post("/api/events", json={})
 
         assert response.status_code == 200
@@ -338,11 +362,13 @@ class TestSetupGuardBypass:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that /api/detections is accessible after setup."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 1
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             response = await client.get("/api/detections")
 
         assert response.status_code == 200
@@ -352,11 +378,13 @@ class TestSetupGuardBypass:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that all endpoints work with multiple users."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 5
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             # Test multiple endpoints
             response1 = await client.get("/api/cameras")
             response2 = await client.get("/api/detections")
@@ -380,7 +408,7 @@ class TestSetupGuardCache:
         self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
     ) -> None:
         """Test that user count is cached to avoid DB queries."""
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
         execute_count = 0
@@ -394,7 +422,9 @@ class TestSetupGuardCache:
 
         mock_db_session.execute = counting_execute
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             # Make multiple requests
             await client.get("/api/cameras")
             await client.get("/api/detections")
@@ -410,7 +440,7 @@ class TestSetupGuardCache:
         """Test that cache expires after TTL."""
         import asyncio
 
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
         execute_count = 0
@@ -424,7 +454,9 @@ class TestSetupGuardCache:
 
         mock_db_session.execute = counting_execute
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             # First request
             await client.get("/api/cameras")
             assert execute_count == 1
@@ -443,11 +475,13 @@ class TestSetupGuardCache:
         """Test that cache detects when first user is created."""
         import asyncio
 
-        from httpx import AsyncClient
+        from httpx import ASGITransport, AsyncClient
 
         mock_db_session._user_count = 0
 
-        async with AsyncClient(app=app_with_middleware, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
             # Initially blocked
             response1 = await client.get("/api/cameras")
             assert response1.status_code == 503

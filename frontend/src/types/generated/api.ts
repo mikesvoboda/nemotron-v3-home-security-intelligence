@@ -2362,6 +2362,234 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Api Keys
+         * @description List all API keys for the current admin user.
+         *
+         *     Note: The full API key is never returned - only the prefix for identification.
+         *
+         *     Args:
+         *         user: Current admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         APIKeyListResponse with all API keys belonging to the user.
+         */
+        get: operations["auth_list_api_keys"];
+        put?: never;
+        /**
+         * Create Api Key
+         * @description Create a new API key.
+         *
+         *     Only admin users can create API keys. The full API key is only returned
+         *     once at creation time - it cannot be retrieved later.
+         *
+         *     Args:
+         *         request: API key creation data (name, optional expiration).
+         *         user: Current admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         APIKeyCreateResponse with the full API key (store it securely!).
+         */
+        post: operations["auth_create_api_key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Api Key
+         * @description Revoke (deactivate) an API key.
+         *
+         *     The key is not deleted, but marked as inactive. This preserves audit trail.
+         *
+         *     Args:
+         *         key_id: ID of the API key to revoke.
+         *         user: Current admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         APIKeyRevokeResponse confirming revocation.
+         *
+         *     Raises:
+         *         HTTPException: 404 if API key not found or doesn't belong to user.
+         */
+        delete: operations["auth_revoke_api_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Login with username and password.
+         *
+         *     On successful login, sets an HTTP-only session cookie and returns
+         *     the authenticated user's information.
+         *
+         *     Args:
+         *         request: Login credentials (username, password).
+         *         response: FastAPI Response object for setting cookies.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         LoginResponse with user information.
+         *
+         *     Raises:
+         *         HTTPException: 401 if credentials are invalid.
+         */
+        post: operations["auth_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Logout and clear session.
+         *
+         *     Deletes the session from Redis (if available) and clears the session cookie.
+         *
+         *     Args:
+         *         response: FastAPI Response object for clearing cookies.
+         *         session_id: Session ID from cookie.
+         *
+         *     Returns:
+         *         LogoutResponse confirming logout.
+         */
+        post: operations["auth_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Me
+         * @description Get current authenticated user information.
+         *
+         *     Args:
+         *         user: Current authenticated user (from dependency).
+         *
+         *     Returns:
+         *         UserResponse with the user's information.
+         */
+        get: operations["auth_get_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register User
+         * @description Register the first admin user.
+         *
+         *     This endpoint is ONLY available when no users exist in the system.
+         *     Once the first user is registered, this endpoint returns 409 Conflict.
+         *
+         *     The first user is automatically granted admin privileges.
+         *
+         *     Args:
+         *         request: User registration data (username, email, password).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         UserResponse with the created user's information.
+         *
+         *     Raises:
+         *         HTTPException: 409 if users already exist.
+         *         HTTPException: 400 if username or email already taken.
+         */
+        post: operations["auth_register_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/setup-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Setup Status
+         * @description Check if initial setup is required.
+         *
+         *     Returns whether the system needs initial setup (first admin user registration).
+         *     Setup is required if no users exist in the database.
+         *
+         *     Returns:
+         *         SetupStatusResponse indicating if setup is required.
+         */
+        get: operations["auth_get_setup_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auto-enrollment/settings": {
         parameters: {
             query?: never;
@@ -12764,6 +12992,137 @@ export interface components {
              * @description Timestamp when this health check was performed
              */
             timestamp: string;
+        };
+        /**
+         * APIKeyCreateRequest
+         * @description Request schema for creating a new API key.
+         */
+        APIKeyCreateRequest: {
+            /**
+             * Expires In Days
+             * @description Number of days until the key expires (None = never expires)
+             */
+            expires_in_days?: number | null;
+            /**
+             * Name
+             * @description Human-readable name for the API key
+             */
+            name: string;
+        };
+        /**
+         * APIKeyCreateResponse
+         * @description Response schema for API key creation.
+         *
+         *     IMPORTANT: The full API key is only returned once at creation time.
+         *     It cannot be retrieved later - only the prefix is stored.
+         */
+        APIKeyCreateResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the key was created
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * @description When the key expires
+             */
+            expires_at?: string | null;
+            /**
+             * Id
+             * @description API key ID
+             */
+            id: string;
+            /**
+             * Key
+             * @description Full API key (ONLY returned at creation, store it securely!)
+             */
+            key: string;
+            /**
+             * Name
+             * @description Human-readable name
+             */
+            name: string;
+            /**
+             * Prefix
+             * @description Key prefix for identification
+             */
+            prefix: string;
+        };
+        /**
+         * APIKeyListResponse
+         * @description Response schema for listing API keys.
+         */
+        APIKeyListResponse: {
+            /**
+             * Items
+             * @description List of API keys
+             */
+            items: components["schemas"]["APIKeyResponse"][];
+            /**
+             * Total
+             * @description Total number of API keys
+             */
+            total: number;
+        };
+        /**
+         * APIKeyResponse
+         * @description Response schema for API key information (without the key itself).
+         */
+        APIKeyResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the key was created
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * @description When the key expires
+             */
+            expires_at?: string | null;
+            /**
+             * Id
+             * @description API key ID
+             */
+            id: string;
+            /**
+             * Is Active
+             * @description Whether the key is active
+             */
+            is_active: boolean;
+            /**
+             * Is Expired
+             * @description Whether the key has expired
+             */
+            is_expired: boolean;
+            /**
+             * Last Used At
+             * @description When the key was last used
+             */
+            last_used_at?: string | null;
+            /**
+             * Name
+             * @description Human-readable name
+             */
+            name: string;
+            /**
+             * Prefix
+             * @description Key prefix for identification
+             */
+            prefix: string;
+        };
+        /**
+         * APIKeyRevokeResponse
+         * @description Response schema for API key revocation.
+         */
+        APIKeyRevokeResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default API key revoked successfully
+             */
+            message: string;
         };
         /**
          * AccessSchedule
@@ -29340,6 +29699,34 @@ export interface components {
             warnings_today: number;
         };
         /**
+         * LoginResponse
+         * @description Response schema for successful login.
+         *
+         *     Returns user info. Session token is set via HTTP-only cookie.
+         */
+        LoginResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default Login successful
+             */
+            message: string;
+            /** @description Authenticated user information */
+            user: components["schemas"]["UserResponse"];
+        };
+        /**
+         * LogoutResponse
+         * @description Response schema for logout.
+         */
+        LogoutResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default Logged out successfully
+             */
+            message: string;
+        };
+        /**
          * LogsListResponse
          * @description Schema for paginated log query response.
          *
@@ -37661,6 +38048,19 @@ export interface components {
             severity?: components["schemas"]["SeveritySettingsUpdate"] | null;
         };
         /**
+         * SetupStatusResponse
+         * @description Response schema for setup status check.
+         *
+         *     Returns whether initial setup (first user registration) is required.
+         */
+        SetupStatusResponse: {
+            /**
+             * Setup Required
+             * @description Whether initial setup is required (no users exist)
+             */
+            setup_required: boolean;
+        };
+        /**
          * SeverityDefinitionResponse
          * @description Definition of a single severity level.
          * @example {
@@ -39697,6 +40097,90 @@ export interface components {
              * @description Score threshold for medium risk classification (0-100)
              */
             medium_threshold?: number | null;
+        };
+        /**
+         * UserLoginRequest
+         * @description Request schema for user login.
+         */
+        UserLoginRequest: {
+            /**
+             * Password
+             * @description Password
+             */
+            password: string;
+            /**
+             * Username
+             * @description Username
+             */
+            username: string;
+        };
+        /**
+         * UserRegisterRequest
+         * @description Request schema for user registration.
+         *
+         *     Used for registering the first admin user during initial setup.
+         *     After the first user exists, this endpoint is blocked.
+         */
+        UserRegisterRequest: {
+            /**
+             * Email
+             * @description Email address for the user
+             */
+            email: string;
+            /**
+             * Password
+             * @description Password (minimum 12 characters)
+             */
+            password: string;
+            /**
+             * Username
+             * @description Username for login (alphanumeric, underscores, hyphens only)
+             */
+            username: string;
+        };
+        /**
+         * UserResponse
+         * @description Response schema for user information.
+         *
+         *     Does NOT include password hash or other sensitive fields.
+         */
+        UserResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the user was created
+             */
+            created_at: string;
+            /**
+             * Email
+             * @description Email address
+             */
+            email: string;
+            /**
+             * Id
+             * @description User ID
+             */
+            id: string;
+            /**
+             * Is Active
+             * @description Whether the user account is active
+             */
+            is_active: boolean;
+            /**
+             * Is Admin
+             * @description Whether the user has admin privileges
+             */
+            is_admin: boolean;
+            /**
+             * Last Login At
+             * @description Last login timestamp
+             */
+            last_login_at?: string | null;
+            /**
+             * Username
+             * @description Username
+             */
+            username: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -45176,6 +45660,386 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_list_api_keys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of API keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyListResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_create_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["APIKeyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description API key created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyCreateResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_revoke_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key revoked successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyRevokeResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Login successful */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logged out successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_get_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_register_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description User registered successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration blocked (users already exist) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_get_setup_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup status returned successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatusResponse"];
                 };
             };
             /** @description Internal server error */
