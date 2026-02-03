@@ -9,6 +9,10 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from backend.api.middleware.websocket_auth import (
+    WebSocketAuthMethod,
+    verify_websocket_auth,
+)
 from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
 
@@ -124,15 +128,28 @@ async def validate_websocket_api_key(websocket: WebSocket) -> bool:
 
 
 async def authenticate_websocket(websocket: WebSocket) -> bool:
-    """Authenticate a WebSocket connection.
+    """Authenticate a WebSocket connection using hybrid authentication.
+
+    Supports multiple authentication methods in priority order:
+    1. Cookie authentication (web UI clients)
+    2. JWT token in query parameter (API/mobile clients)
+    3. API key (existing functionality for backward compatibility)
 
     If authentication fails, the connection is first accepted and then closed
-    with a policy violation code (1008). This is required because in the
-    WebSocket protocol, you cannot send a close frame without first completing
-    the handshake (accepting the connection).
+    with an appropriate code. This is required because in the WebSocket protocol,
+    you cannot send a close frame without first completing the handshake.
 
     Note: Attempting to close without accepting would result in the HTTP layer
     returning a 403 Forbidden, which is not a proper WebSocket close.
+
+    Close codes:
+    - 4001: Authentication failure (invalid/missing credentials)
+    - 4002: Token expired
+    - 1008: Policy violation (API key failure)
+
+    IMPORTANT: This function does NOT accept the WebSocket on success.
+    The caller (route) is responsible for accepting via broadcaster.connect()
+    or websocket.accept().
 
     Args:
         websocket: WebSocket connection to authenticate
@@ -140,12 +157,37 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     Returns:
         True if authenticated successfully, False if connection was rejected
     """
+    # Check if hybrid auth credentials are present (cookie or JWT token)
+    has_cookie = websocket.cookies.get("session") is not None
+    has_jwt_token = websocket.query_params.get("token") is not None
+
+    # Try hybrid auth first if credentials are present
+    if has_cookie or has_jwt_token:
+        success, auth_method = await verify_websocket_auth(websocket, timeout=5.0)
+        if success:
+            logger.info(
+                f"WebSocket authenticated via {auth_method.value}",
+                extra={
+                    "path": str(websocket.url.path),
+                    "auth_method": auth_method.value,
+                },
+            )
+            # Do NOT accept here - let the route/broadcaster handle it
+            return True
+        # verify_websocket_auth already closed the connection on failure
+        if auth_method != WebSocketAuthMethod.NONE:
+            return False
+
+    # Fall back to API key authentication
     if not await validate_websocket_api_key(websocket):
         # Must accept the WebSocket before we can close it with a proper close frame.
         # Without accept(), calling close() results in HTTP 403 during handshake.
         await websocket.accept()
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        # Use 4001 (authentication failure) for consistency with hybrid auth
+        await websocket.close(code=4001)
         return False
+
+    # API key auth succeeded - do NOT accept here, let the caller handle it
     return True
 
 

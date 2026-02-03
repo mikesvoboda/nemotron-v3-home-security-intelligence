@@ -35,8 +35,8 @@ _JWT_ALGORITHM = "HS256"
 _DEFAULT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)
 _DEFAULT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
 
-# API key prefix format
-_API_KEY_PREFIX = "nemo_k1_"
+# API key prefix format (not a secret, just a prefix pattern)
+_API_KEY_PREFIX = "nemo_k1_"  # pragma: allowlist secret
 
 
 class TokenExpiredError(Exception):
@@ -97,7 +97,8 @@ def hash_password(password: str) -> str:
     Returns:
         Argon2id hash string (includes algorithm parameters and salt).
     """
-    return _password_hasher.hash(password)
+    result: str = _password_hasher.hash(password)
+    return result
 
 
 def verify_password(password: str, hashed: str) -> bool:
