@@ -196,3 +196,68 @@ class APIKeyRevokeResponse(BaseModel):
         default="API key revoked successfully",
         description="Status message",
     )
+
+
+# =============================================================================
+# Admin User Management Schemas
+# =============================================================================
+
+
+class AdminUserCreateRequest(BaseModel):
+    """Request schema for admin creating a new user."""
+
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        description="Username for login (alphanumeric, underscores, hyphens only)",
+    )
+    email: str = Field(
+        ...,
+        min_length=5,
+        max_length=255,
+        pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+        description="Email address for the user",
+    )
+    password: str = Field(
+        ...,
+        min_length=12,
+        max_length=128,
+        description="Password (minimum 12 characters)",
+    )
+    is_admin: bool = Field(
+        default=False,
+        description="Whether the user should have admin privileges",
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password meets minimum security requirements."""
+        if not any(c.isupper() for c in v):
+            msg = "Password must contain at least one uppercase letter"
+            raise ValueError(msg)
+        if not any(c.islower() for c in v):
+            msg = "Password must contain at least one lowercase letter"
+            raise ValueError(msg)
+        if not any(c.isdigit() for c in v):
+            msg = "Password must contain at least one digit"
+            raise ValueError(msg)
+        return v
+
+
+class AdminUserListResponse(BaseModel):
+    """Response schema for listing users."""
+
+    items: list[UserResponse] = Field(..., description="List of users")
+    total: int = Field(..., description="Total number of users")
+
+
+class AdminUserDeleteResponse(BaseModel):
+    """Response schema for user deletion."""
+
+    message: str = Field(
+        default="User deleted successfully",
+        description="Status message",
+    )
