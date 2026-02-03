@@ -21,15 +21,11 @@ Test Coverage:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 # These imports WILL FAIL initially - that's the point of TDD
 try:
@@ -294,9 +290,7 @@ class TestUserRegistration:
         def execute_side_effect(query):
             # Count query returns 0, user lookup returns existing user
             if hasattr(query, "whereclause"):
-                mock_user_result.scalar_one_or_none.return_value = MagicMock(
-                    username="duplicate"
-                )
+                mock_user_result.scalar_one_or_none.return_value = MagicMock(username="duplicate")
                 return mock_user_result
             return mock_count_result
 
@@ -518,13 +512,9 @@ class TestUserLogin:
 class TestUserLogout:
     """Tests for POST /api/auth/logout endpoint."""
 
-    def test_logout_clears_session(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_logout_clears_session(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test that logout clears session cookie."""
-        response = client.post(
-            "/api/auth/logout", headers={"Authorization": "Bearer fake_token"}
-        )
+        response = client.post("/api/auth/logout", headers={"Authorization": "Bearer fake_token"})
 
         assert response.status_code == 200
         data = response.json()
@@ -536,9 +526,7 @@ class TestUserLogout:
             cookie_header = response.headers["set-cookie"]
             assert "max-age=0" in cookie_header.lower() or "expires" in cookie_header.lower()
 
-    def test_logout_requires_auth(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_logout_requires_auth(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test that logout requires authentication."""
         # No auth header
         response = client.post("/api/auth/logout")
@@ -554,9 +542,7 @@ class TestUserLogout:
 class TestCurrentUser:
     """Tests for GET /api/auth/me endpoint."""
 
-    def test_me_returns_current_user(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_me_returns_current_user(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test that /me returns current user info."""
         # Mock authenticated user
         mock_user = MagicMock()

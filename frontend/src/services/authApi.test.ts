@@ -23,7 +23,6 @@ import {
   logout,
   getCurrentUser,
   type User,
-  type SetupStatusResponse,
   type LoginRequest,
   type RegisterRequest,
 } from './authApi';
@@ -433,11 +432,9 @@ describe('authApi', () => {
 
   describe('request headers', () => {
     it('includes credentials in fetch requests', async () => {
-      let requestCredentials: RequestCredentials | undefined;
-
       // Note: MSW doesn't expose credentials directly, so we test via implementation
       server.use(
-        http.get('/api/auth/me', ({ request }) => {
+        http.get('/api/auth/me', () => {
           // In real implementation, fetch should include credentials: 'include'
           // This ensures cookies are sent with requests
           return HttpResponse.json(mockUser);

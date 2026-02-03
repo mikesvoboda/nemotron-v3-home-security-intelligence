@@ -23,7 +23,6 @@ Integration Points:
 Design Reference: NEM-5315 (research findings and approved design)
 """
 
-import asyncio
 import json
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -95,7 +94,9 @@ def _apply_common_lifespan_patches(stack, mocks):
     stack.enter_context(patch("backend.main.init_db", mock_init_db))
     stack.enter_context(patch("backend.core.database.close_db", mock_close_db))
     stack.enter_context(patch("backend.main.seed_cameras_if_empty", mock_seed_cameras))
-    stack.enter_context(patch("backend.main.validate_camera_paths_on_startup", mock_validate_cameras))
+    stack.enter_context(
+        patch("backend.main.validate_camera_paths_on_startup", mock_validate_cameras)
+    )
     stack.enter_context(
         patch("backend.main.get_system_broadcaster", return_value=mocks["system_broadcaster"])
     )
@@ -117,9 +118,10 @@ class TestWebSocketEventsAuthFlow:
     @pytest.fixture
     def auth_client(self):
         """Create test client with hybrid auth enabled."""
+        import os
+
         from backend.core.config import get_settings
         from backend.main import app
-        import os
 
         # Store original environment
         original_api_key = os.environ.get("API_KEY_ENABLED")
@@ -140,7 +142,9 @@ class TestWebSocketEventsAuthFlow:
         with ExitStack() as stack:
             _apply_common_lifespan_patches(stack, mocks)
             stack.enter_context(
-                patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
             )
             client = stack.enter_context(TestClient(app))
             yield client
@@ -182,7 +186,9 @@ class TestWebSocketEventsAuthFlow:
         - Accept connection and receive events
         """
         # Generate valid session cookie
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie"
+        ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
             # Mock cookie in headers (simulating browser behavior)
@@ -251,9 +257,10 @@ class TestWebSocketTokenRefreshFlow:
     @pytest.fixture
     def refresh_client(self):
         """Create test client with token refresh enabled."""
+        import os
+
         from backend.core.config import get_settings
         from backend.main import app
-        import os
 
         original_jwt_secret = os.environ.get("JWT_SECRET")
         os.environ["JWT_SECRET"] = "test_jwt_secret_key_for_refresh"
@@ -266,7 +273,9 @@ class TestWebSocketTokenRefreshFlow:
         with ExitStack() as stack:
             _apply_common_lifespan_patches(stack, mocks)
             stack.enter_context(
-                patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
             )
             client = stack.enter_context(TestClient(app))
             yield client
@@ -330,9 +339,10 @@ class TestWebSocketSessionInvalidation:
     @pytest.fixture
     def session_client(self):
         """Create test client with session management enabled."""
+        import os
+
         from backend.core.config import get_settings
         from backend.main import app
-        import os
 
         original_session_secret = os.environ.get("SESSION_SECRET")
         os.environ["SESSION_SECRET"] = "test_session_secret_key"
@@ -345,7 +355,9 @@ class TestWebSocketSessionInvalidation:
         with ExitStack() as stack:
             _apply_common_lifespan_patches(stack, mocks)
             stack.enter_context(
-                patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
             )
             client = stack.enter_context(TestClient(app))
             yield client
@@ -371,7 +383,9 @@ class TestWebSocketSessionInvalidation:
         - WebSocket receives disconnect signal
         - Connection closes with code 4002 (token expired)
         """
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie"
+        ) as mock_validate:
             # Initially valid session
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
@@ -408,9 +422,10 @@ class TestWebSocketSystemAuthFlow:
     @pytest.fixture
     def system_auth_client(self):
         """Create test client for system status endpoint with auth."""
+        import os
+
         from backend.core.config import get_settings
         from backend.main import app
-        import os
 
         original_jwt_secret = os.environ.get("JWT_SECRET")
         os.environ["JWT_SECRET"] = "test_jwt_secret_system"
@@ -423,7 +438,9 @@ class TestWebSocketSystemAuthFlow:
         with ExitStack() as stack:
             _apply_common_lifespan_patches(stack, mocks)
             stack.enter_context(
-                patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
             )
             client = stack.enter_context(TestClient(app))
             yield client
@@ -472,9 +489,10 @@ class TestWebSocketDetectionsAuthFlow:
     @pytest.fixture
     def detections_auth_client(self):
         """Create test client for detections endpoint with auth."""
+        import os
+
         from backend.core.config import get_settings
         from backend.main import app
-        import os
 
         original_jwt_secret = os.environ.get("JWT_SECRET")
         os.environ["JWT_SECRET"] = "test_jwt_secret_detections"
@@ -487,7 +505,9 @@ class TestWebSocketDetectionsAuthFlow:
         with ExitStack() as stack:
             _apply_common_lifespan_patches(stack, mocks)
             stack.enter_context(
-                patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
             )
             client = stack.enter_context(TestClient(app))
             yield client
@@ -509,7 +529,9 @@ class TestWebSocketDetectionsAuthFlow:
         - Receive detection events
         - Subscribe to detection.* events automatically
         """
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie"
+        ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
             headers = {"cookie": "session=valid_detection_session"}
@@ -538,9 +560,10 @@ class TestWebSocketAuthPriorityIntegration:
     @pytest.fixture
     def priority_client(self):
         """Create test client for testing auth priority."""
+        import os
+
         from backend.core.config import get_settings
         from backend.main import app
-        import os
 
         original_jwt_secret = os.environ.get("JWT_SECRET")
         original_session_secret = os.environ.get("SESSION_SECRET")
@@ -556,7 +579,9 @@ class TestWebSocketAuthPriorityIntegration:
         with ExitStack() as stack:
             _apply_common_lifespan_patches(stack, mocks)
             stack.enter_context(
-                patch("backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit)
+                patch(
+                    "backend.api.routes.websocket.check_websocket_rate_limit", mock_check_rate_limit
+                )
             )
             client = stack.enter_context(TestClient(app))
             yield client

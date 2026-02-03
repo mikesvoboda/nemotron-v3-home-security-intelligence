@@ -582,7 +582,8 @@ class TestAdminUserManagement:
     ) -> None:
         """Test that listing users requires admin privileges."""
         response = client.get(
-            "/api/admin/users", headers={"X-User-Role": "user"}  # Non-admin
+            "/api/admin/users",
+            headers={"X-User-Role": "user"},  # Non-admin
         )
 
         assert response.status_code == 403
@@ -592,14 +593,13 @@ class TestAdminUserManagement:
     ) -> None:
         """Test that deleting users requires admin privileges."""
         response = client.delete(
-            "/api/admin/users/user123", headers={"X-User-Role": "user"}  # Non-admin
+            "/api/admin/users/user123",
+            headers={"X-User-Role": "user"},  # Non-admin
         )
 
         assert response.status_code == 403
 
-    def test_admin_cannot_delete_self(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_admin_cannot_delete_self(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test that admins cannot delete their own account."""
         # Mock admin user
         mock_user = MagicMock()

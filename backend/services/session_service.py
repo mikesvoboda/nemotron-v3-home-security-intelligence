@@ -137,8 +137,10 @@ class SessionService:
         if isinstance(data, bytes):
             data = data.decode("utf-8")
         if isinstance(data, str):
-            return json.loads(data)
-        return data
+            result: dict[str, Any] = json.loads(data)
+            return result
+        # Cast to expected type (Redis returns Any)
+        return dict(data) if data else {}
 
     async def delete_session(self, session_id: str) -> bool:
         """Delete a session from Redis.
@@ -150,7 +152,7 @@ class SessionService:
             True if the session was deleted, False if it didn't exist.
         """
         key = self._session_key(session_id)
-        deleted = await self._redis.delete(key)
+        deleted: int = await self._redis.delete(key)
         return deleted > 0
 
     async def get_session_ttl(self, session_id: str) -> int:
@@ -165,7 +167,8 @@ class SessionService:
             - -2 if the key doesn't exist
         """
         key = self._session_key(session_id)
-        return await self._redis.ttl(key)
+        ttl: int = await self._redis.ttl(key)
+        return ttl
 
     async def refresh_session(
         self,
@@ -183,4 +186,5 @@ class SessionService:
         """
         key = self._session_key(session_id)
         ttl_seconds = int(new_ttl.total_seconds())
-        return await self._redis.expire(key, ttl_seconds)
+        result: bool = await self._redis.expire(key, ttl_seconds)
+        return result

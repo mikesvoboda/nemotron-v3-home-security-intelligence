@@ -249,7 +249,7 @@ class TestAPIKeyUserRelationship:
         # Should have foreign key constraint
         assert len(user_id_col.foreign_keys) > 0
         # Foreign key should point to users table
-        fk = list(user_id_col.foreign_keys)[0]
+        fk = next(iter(user_id_col.foreign_keys))
         assert "users" in str(fk.target_fullname)
 
     def test_api_key_user_id_required(self) -> None:

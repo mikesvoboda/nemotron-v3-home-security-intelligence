@@ -412,7 +412,7 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr | None = Field(
         default=None,
         description="Secret key for signing JWT tokens. MUST be set for production. "
-        "Generate with: python -c \"import secrets; print(secrets.token_urlsafe(48))\" "
+        'Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
         "Minimum 32 characters recommended for security.",
     )
     jwt_access_token_expire_minutes: int = Field(

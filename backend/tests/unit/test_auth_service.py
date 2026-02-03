@@ -13,8 +13,7 @@ Test Categories:
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from datetime import timedelta
 
 import pytest
 
@@ -432,16 +431,12 @@ class TestAuthService:
         assert hasattr(auth_service, "verify_password")
         assert callable(auth_service.verify_password)
 
-    def test_auth_service_has_create_access_token_method(
-        self, auth_service: AuthService
-    ) -> None:
+    def test_auth_service_has_create_access_token_method(self, auth_service: AuthService) -> None:
         """Test that AuthService has create_access_token method."""
         assert hasattr(auth_service, "create_access_token")
         assert callable(auth_service.create_access_token)
 
-    def test_auth_service_has_generate_api_key_method(
-        self, auth_service: AuthService
-    ) -> None:
+    def test_auth_service_has_generate_api_key_method(self, auth_service: AuthService) -> None:
         """Test that AuthService has generate_api_key method."""
         assert hasattr(auth_service, "generate_api_key")
         assert callable(auth_service.generate_api_key)

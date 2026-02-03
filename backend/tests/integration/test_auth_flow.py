@@ -14,7 +14,6 @@ Test Categories:
 
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,7 +21,6 @@ from fastapi import status
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 # Mark as integration tests
 pytestmark = pytest.mark.integration
@@ -152,9 +150,7 @@ class TestUserLogin:
     """Tests for user login flow."""
 
     @pytest.mark.asyncio
-    async def test_user_login_returns_tokens(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_user_login_returns_tokens(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that successful login returns access and refresh tokens."""
         # First register a user
         registration_data = {
@@ -165,7 +161,10 @@ class TestUserLogin:
         await client.post("/api/auth/register", json=registration_data)
 
         # Then login
-        login_data = {"username": "loginuser", "password": "SecurePassword123!"}  # pragma: allowlist secret
+        login_data = {
+            "username": "loginuser",
+            "password": "SecurePassword123!",
+        }  # pragma: allowlist secret
         response = await client.post("/api/auth/login", json=login_data)
 
         assert response.status_code == status.HTTP_200_OK
@@ -189,7 +188,10 @@ class TestUserLogin:
         await client.post("/api/auth/register", json=registration_data)
 
         # Try to login with wrong password
-        login_data = {"username": "testuser", "password": "WrongPassword123!"}  # pragma: allowlist secret
+        login_data = {
+            "username": "testuser",
+            "password": "WrongPassword123!",
+        }  # pragma: allowlist secret
         response = await client.post("/api/auth/login", json=login_data)
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -219,7 +221,10 @@ class TestUserLogin:
         await client.post("/api/auth/register", json=registration_data)
 
         # Login with email
-        login_data = {"email": "email@example.com", "password": "Password123!"}  # pragma: allowlist secret
+        login_data = {
+            "email": "email@example.com",
+            "password": "Password123!",
+        }  # pragma: allowlist secret
         response = await client.post("/api/auth/login", json=login_data)
 
         assert response.status_code == status.HTTP_200_OK
@@ -257,7 +262,10 @@ class TestTokenRefresh:
 
         login_response = await client.post(
             "/api/auth/login",
-            json={"username": "refreshuser", "password": "Password123!"},  # pragma: allowlist secret
+            json={
+                "username": "refreshuser",
+                "password": "Password123!",
+            },  # pragma: allowlist secret
         )
         tokens = login_response.json()
         refresh_token = tokens["refresh_token"]
@@ -363,9 +371,7 @@ class TestAPIKeyAuthentication:
         assert data["name"] == "Test API Key"
 
     @pytest.mark.asyncio
-    async def test_api_key_authentication(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_api_key_authentication(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that API key can be used for authentication."""
         # Register user and create API key
         registration_data = {
@@ -389,25 +395,19 @@ class TestAPIKeyAuthentication:
         api_key = api_key_response.json()["api_key"]
 
         # Use API key to access protected endpoint
-        response = await client.get(
-            "/api/cameras", headers={"X-API-Key": api_key}
-        )
+        response = await client.get("/api/cameras", headers={"X-API-Key": api_key})
 
         assert response.status_code == status.HTTP_200_OK
 
     @pytest.mark.asyncio
     async def test_api_key_invalid(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that invalid API key is rejected."""
-        response = await client.get(
-            "/api/cameras", headers={"X-API-Key": "nemo_k1_invalid_key"}
-        )
+        response = await client.get("/api/cameras", headers={"X-API-Key": "nemo_k1_invalid_key"})
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.asyncio
-    async def test_api_key_list_user_keys(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_api_key_list_user_keys(self, client: AsyncClient, clean_tables: None) -> None:
         """Test listing user's API keys."""
         # Register and create API keys
         registration_data = {
@@ -608,23 +608,25 @@ class TestLogoutAndSessions:
         # Login twice (simulate two devices)
         login_response1 = await client.post(
             "/api/auth/login",
-            json={"username": "multisession", "password": "Password123!"},  # pragma: allowlist secret
+            json={
+                "username": "multisession",
+                "password": "Password123!",
+            },  # pragma: allowlist secret
         )
         login_response2 = await client.post(
             "/api/auth/login",
-            json={"username": "multisession", "password": "Password123!"},  # pragma: allowlist secret
+            json={
+                "username": "multisession",
+                "password": "Password123!",
+            },  # pragma: allowlist secret
         )
 
         token1 = login_response1.json()["access_token"]
         token2 = login_response2.json()["access_token"]
 
         # Both tokens should work
-        response1 = await client.get(
-            "/api/cameras", headers={"Authorization": f"Bearer {token1}"}
-        )
-        response2 = await client.get(
-            "/api/cameras", headers={"Authorization": f"Bearer {token2}"}
-        )
+        response1 = await client.get("/api/cameras", headers={"Authorization": f"Bearer {token1}"})
+        response2 = await client.get("/api/cameras", headers={"Authorization": f"Bearer {token2}"})
 
         assert response1.status_code == status.HTTP_200_OK
         assert response2.status_code == status.HTTP_200_OK

@@ -21,15 +21,13 @@ Test Coverage:
 
 from __future__ import annotations
 
-import time
+import asyncio
 from typing import TYPE_CHECKING
 
 import pytest
-from fastapi import status
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
-    from sqlalchemy.ext.asyncio import AsyncSession
 
 # Mark as integration tests
 pytestmark = pytest.mark.integration
@@ -121,9 +119,7 @@ class TestPreSetupProtection:
         assert response.status_code in [201, 422]
 
     @pytest.mark.asyncio
-    async def test_503_response_structure(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_503_response_structure(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that 503 response has proper structure."""
         response = await client.get("/api/cameras")
 
@@ -176,7 +172,7 @@ class TestSetupFlow:
         assert user_data["is_admin"] is True
 
         # Step 4: Wait for cache to refresh
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Step 5: Verify setup complete
         status_after = await client.get("/api/auth/setup-status")
@@ -243,9 +239,7 @@ class TestPostSetupAuthentication:
     """Tests for authentication requirement after setup."""
 
     @pytest.mark.asyncio
-    async def test_auth_required_after_setup(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_auth_required_after_setup(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that endpoints require auth after setup."""
         # Complete setup
         await client.post(
@@ -257,7 +251,7 @@ class TestPostSetupAuthentication:
             },
         )
 
-        time.sleep(1.5)  # Wait for cache
+        await asyncio.sleep(1.5)  # Wait for cache
 
         # Try to access endpoints without auth
         endpoints = [
@@ -297,20 +291,16 @@ class TestPostSetupAuthentication:
         )
         token = login_response.json()["access_token"]
 
-        time.sleep(1.5)  # Wait for cache
+        await asyncio.sleep(1.5)  # Wait for cache
 
         # Access endpoint with JWT
-        response = await client.get(
-            "/api/cameras", headers={"Authorization": f"Bearer {token}"}
-        )
+        response = await client.get("/api/cameras", headers={"Authorization": f"Bearer {token}"})
 
         # Should succeed or return empty list, not 401 or 503
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_invalid_jwt_rejected(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_invalid_jwt_rejected(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that invalid JWT tokens are rejected."""
         # Complete setup
         await client.post(
@@ -322,7 +312,7 @@ class TestPostSetupAuthentication:
             },
         )
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Try with invalid token
         response = await client.get(
@@ -341,9 +331,7 @@ class TestApiKeyAuthentication:
     """Tests for API key authentication after setup."""
 
     @pytest.mark.asyncio
-    async def test_api_key_auth_works(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_api_key_auth_works(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that API key authentication works after setup."""
         # Complete setup and login
         await client.post(
@@ -364,7 +352,7 @@ class TestApiKeyAuthentication:
         )
         token = login_response.json()["access_token"]
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Create API key
         api_key_response = await client.post(
@@ -376,16 +364,12 @@ class TestApiKeyAuthentication:
         api_key = api_key_response.json()["key"]
 
         # Use API key to access endpoint
-        response = await client.get(
-            "/api/cameras", headers={"X-API-Key": api_key}
-        )
+        response = await client.get("/api/cameras", headers={"X-API-Key": api_key})
 
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_invalid_api_key_rejected(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_invalid_api_key_rejected(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that invalid API keys are rejected."""
         # Complete setup
         await client.post(
@@ -397,12 +381,10 @@ class TestApiKeyAuthentication:
             },
         )
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Try with invalid API key
-        response = await client.get(
-            "/api/cameras", headers={"X-API-Key": "invalid_key"}
-        )
+        response = await client.get("/api/cameras", headers={"X-API-Key": "invalid_key"})
 
         assert response.status_code == 401
 
@@ -416,9 +398,7 @@ class TestSessionCookieAuthentication:
     """Tests for session cookie authentication after setup."""
 
     @pytest.mark.asyncio
-    async def test_session_cookie_auth_works(
-        self, client: AsyncClient, clean_tables: None
-    ) -> None:
+    async def test_session_cookie_auth_works(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that session cookies work for authentication."""
         # Complete setup and login
         await client.post(
@@ -440,7 +420,7 @@ class TestSessionCookieAuthentication:
         )
         assert "set-cookie" in login_response.headers
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Subsequent requests should work with cookies
         # (AsyncClient automatically handles cookies)
@@ -473,7 +453,7 @@ class TestSessionCookieAuthentication:
         )
         token = login_response.json()["access_token"]
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Logout
         logout_response = await client.post(
@@ -484,10 +464,7 @@ class TestSessionCookieAuthentication:
         # Verify cookie is cleared
         if "set-cookie" in logout_response.headers:
             cookie_header = logout_response.headers["set-cookie"]
-            assert (
-                "max-age=0" in cookie_header.lower()
-                or "expires" in cookie_header.lower()
-            )
+            assert "max-age=0" in cookie_header.lower() or "expires" in cookie_header.lower()
 
 
 # =============================================================================
@@ -523,7 +500,7 @@ class TestMultiUserFlow:
         )
         admin_token = login_response.json()["access_token"]
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         # Create second user as admin
         create_user_response = await client.post(
@@ -566,7 +543,7 @@ class TestMultiUserFlow:
         )
         admin_token = login_response.json()["access_token"]
 
-        time.sleep(1.5)
+        await asyncio.sleep(1.5)
 
         await client.post(
             "/api/admin/users",

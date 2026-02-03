@@ -75,15 +75,15 @@ class TestWebSocketCookieAuth:
         """
         # Mock WebSocket with valid session cookie
         mock_websocket = MagicMock(spec=WebSocket)
-        mock_websocket.headers = {
-            "cookie": "session=valid_session_token_abc123; Path=/; HttpOnly"
-        }
+        mock_websocket.headers = {"cookie": "session=valid_session_token_abc123; Path=/; HttpOnly"}
         mock_websocket.cookies = {"session": "valid_session_token_abc123"}
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
         # Mock session validation to return valid user
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie"
+        ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 9999999999}
 
             result = await authenticate_websocket_cookie(mock_websocket)
@@ -111,7 +111,9 @@ class TestWebSocketCookieAuth:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie"
+        ) as mock_validate:
             mock_validate.return_value = None  # Invalid cookie
 
             result = await authenticate_websocket_cookie(mock_websocket)
@@ -137,7 +139,9 @@ class TestWebSocketCookieAuth:
         mock_websocket.accept = AsyncMock()
         mock_websocket.close = AsyncMock()
 
-        with patch("backend.api.middleware.websocket_auth.validate_session_cookie") as mock_validate:
+        with patch(
+            "backend.api.middleware.websocket_auth.validate_session_cookie"
+        ) as mock_validate:
             mock_validate.return_value = {"user_id": "test_user", "exp": 0}  # Expired
 
             result = await authenticate_websocket_cookie(mock_websocket)
@@ -470,9 +474,7 @@ class TestWebSocketAuthCloseCodes:
         mock_websocket.cookies = {}
         mock_websocket.query_params = {}
         mock_websocket.accept = AsyncMock()
-        mock_websocket.receive_text = AsyncMock(
-            return_value='{"type": "auth", "token": "invalid"}'
-        )
+        mock_websocket.receive_text = AsyncMock(return_value='{"type": "auth", "token": "invalid"}')
         mock_websocket.close = AsyncMock()
 
         with patch("backend.api.middleware.websocket_auth.validate_websocket_jwt") as mock_validate:

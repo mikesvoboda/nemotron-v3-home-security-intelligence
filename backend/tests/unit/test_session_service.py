@@ -20,7 +20,6 @@ import pytest
 # These imports WILL FAIL initially - that's expected for TDD RED phase
 from backend.services.session_service import (
     SessionExpiredError,
-    SessionNotFoundError,
     SessionService,
 )
 
@@ -400,9 +399,7 @@ class TestSessionServiceIntegration:
         assert deleted is True
 
     @pytest.mark.asyncio
-    async def test_concurrent_sessions_for_same_user(
-        self, mock_redis_client: MagicMock
-    ) -> None:
+    async def test_concurrent_sessions_for_same_user(self, mock_redis_client: MagicMock) -> None:
         """Test that same user can have multiple concurrent sessions."""
         mock_redis_client.set = AsyncMock(return_value=True)
         service = SessionService(mock_redis_client)

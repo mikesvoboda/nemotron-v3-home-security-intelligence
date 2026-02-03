@@ -453,11 +453,11 @@ describe('SetupPage', () => {
       });
 
       const emailInput = screen.getByLabelText(/email/i);
-      const nameInput = screen.getByLabelText(/full name/i);
       const passwordInput = screen.getByLabelText(/^password$/i);
       const confirmInput = screen.getByLabelText(/confirm password/i);
 
       expect(emailInput).toHaveAttribute('type', 'email');
+      expect(screen.getByLabelText(/full name/i)).toHaveAttribute('type', 'text');
       expect(passwordInput).toHaveAttribute('type', 'password');
       expect(confirmInput).toHaveAttribute('type', 'password');
     });

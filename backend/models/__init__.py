@@ -97,6 +97,7 @@ from .zone_baseline import ZoneActivityBaseline
 from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
+    "APIKey",
     "ActionEvent",
     "ActionResult",
     "ActivityBaseline",
@@ -106,7 +107,6 @@ __all__ = [
     "AlertStatus",
     "AnomalySeverity",
     "AnomalyType",
-    "APIKey",
     "Area",
     "AuditAction",
     "AuditLog",
