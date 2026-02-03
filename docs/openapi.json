@@ -1378,6 +1378,84 @@
         "title": "AddEmbeddingRequest",
         "type": "object"
       },
+      "AdminUserCreateRequest": {
+        "description": "Request schema for admin creating a new user.",
+        "properties": {
+          "email": {
+            "description": "Email address for the user",
+            "maxLength": 255,
+            "minLength": 5,
+            "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+            "title": "Email",
+            "type": "string"
+          },
+          "is_admin": {
+            "default": false,
+            "description": "Whether the user should have admin privileges",
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "password": {
+            "description": "Password (minimum 12 characters)",
+            "maxLength": 128,
+            "minLength": 12,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "description": "Username for login (alphanumeric, underscores, hyphens only)",
+            "maxLength": 50,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "AdminUserCreateRequest",
+        "type": "object"
+      },
+      "AdminUserDeleteResponse": {
+        "description": "Response schema for user deletion.",
+        "properties": {
+          "message": {
+            "default": "User deleted successfully",
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "AdminUserDeleteResponse",
+        "type": "object"
+      },
+      "AdminUserListResponse": {
+        "description": "Response schema for listing users.",
+        "properties": {
+          "items": {
+            "description": "List of users",
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of users",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUserListResponse",
+        "type": "object"
+      },
       "AiModelMetrics": {
         "description": "Metrics for YOLO26v2 model.",
         "example": {
@@ -42877,6 +42955,202 @@
           }
         },
         "summary": "Seed Pipeline Latency",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "description": "List all users (admin only).\n\nReturns a list of all users in the system.\n\nArgs:\n    current_admin: Current authenticated admin user (from dependency).\n    db: Database session.\n\nReturns:\n    AdminUserListResponse with all users and total count.",
+        "operationId": "admin_list_users",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserListResponse"
+                }
+              }
+            },
+            "description": "List of users"
+          },
+          "401": {
+            "description": "Unauthorized - Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden - Admin privileges required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Users",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "Create a new user (admin only).\n\nAllows administrators to create new user accounts with optional admin privileges.\n\nArgs:\n    request: User creation data (username, email, password, is_admin).\n    current_admin: Current authenticated admin user (from dependency).\n    db: Database session.\n\nReturns:\n    UserResponse with the created user's information.\n\nRaises:\n    HTTPException: 400 if username or email already exists.",
+        "operationId": "admin_create_user",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "User created successfully"
+          },
+          "400": {
+            "description": "Bad request - Username or email already exists"
+          },
+          "401": {
+            "description": "Unauthorized - Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden - Admin privileges required"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}": {
+      "delete": {
+        "description": "Delete a user (admin only).\n\nPermanently deletes a user account. Admins cannot delete their own account.\n\nArgs:\n    user_id: ID of the user to delete.\n    current_admin: Current authenticated admin user (from dependency).\n    db: Database session.\n\nReturns:\n    AdminUserDeleteResponse confirming deletion.\n\nRaises:\n    HTTPException: 400 if trying to delete self.\n    HTTPException: 404 if user not found.",
+        "operationId": "admin_delete_user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "session_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserDeleteResponse"
+                }
+              }
+            },
+            "description": "User deleted successfully"
+          },
+          "400": {
+            "description": "Bad request - Cannot delete yourself"
+          },
+          "401": {
+            "description": "Unauthorized - Not authenticated"
+          },
+          "403": {
+            "description": "Forbidden - Admin privileges required"
+          },
+          "404": {
+            "description": "User not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Delete User",
         "tags": [
           "admin"
         ]

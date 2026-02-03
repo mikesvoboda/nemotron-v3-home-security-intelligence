@@ -503,17 +503,105 @@ class TestClearDataResponseSchema:
 # =============================================================================
 
 
-@pytest.mark.xfail(reason="TDD RED phase - /api/admin/users endpoints not implemented")
 class TestAdminUserManagement:
     """Tests for admin user management endpoints.
 
     These tests cover the Phase 2 API Protection requirements where admins
-    can create additional users after initial setup. Tests MUST FAIL initially
-    as these endpoints don't exist yet.
+    can create additional users after initial setup.
     """
 
+    @pytest.fixture
+    def mock_admin_user(self) -> MagicMock:
+        """Create a mock admin user."""
+        user = MagicMock()
+        user.id = "admin-user-123"
+        user.username = "admin"
+        user.email = "admin@example.com"
+        user.is_admin = True
+        user.is_active = True
+        user.created_at = datetime(2025, 12, 23, 10, 0, 0)
+        user.last_login_at = None
+        return user
+
+    @pytest.fixture
+    def mock_regular_user(self) -> MagicMock:
+        """Create a mock regular (non-admin) user."""
+        user = MagicMock()
+        user.id = "regular-user-456"
+        user.username = "regularuser"
+        user.email = "user@example.com"
+        user.is_admin = False
+        user.is_active = True
+        user.created_at = datetime(2025, 12, 23, 10, 0, 0)
+        user.last_login_at = None
+        return user
+
+    @pytest.fixture
+    def admin_client(
+        self, mock_db_session: AsyncMock, mock_settings, mock_admin_user: MagicMock
+    ) -> TestClient:
+        """Create a test client authenticated as an admin user."""
+        from backend.api.routes.auth import get_current_admin_user, get_current_user
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_current_user():
+            return mock_admin_user
+
+        async def override_get_current_admin_user():
+            return mock_admin_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_current_admin_user] = override_get_current_admin_user
+
+        with (
+            patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+            TestClient(app) as test_client,
+        ):
+            yield test_client
+
+    @pytest.fixture
+    def non_admin_client(
+        self, mock_db_session: AsyncMock, mock_settings, mock_regular_user: MagicMock
+    ) -> TestClient:
+        """Create a test client authenticated as a non-admin user."""
+        from fastapi import HTTPException, status
+
+        from backend.api.routes.auth import get_current_admin_user, get_current_user
+
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_current_user():
+            return mock_regular_user
+
+        async def override_get_current_admin_user():
+            # Non-admin users should get 403 when accessing admin endpoints
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin privileges required",
+            )
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_current_admin_user] = override_get_current_admin_user
+
+        with (
+            patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+            TestClient(app) as test_client,
+        ):
+            yield test_client
+
     def test_create_user_requires_admin(
-        self, client: TestClient, mock_db_session: AsyncMock
+        self, non_admin_client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that creating users requires admin privileges."""
         user_data = {
@@ -523,19 +611,14 @@ class TestAdminUserManagement:
             "is_admin": False,
         }
 
-        # Authenticated as regular user
-        response = client.post(
-            "/api/admin/users",
-            json=user_data,
-            headers={"X-User-Role": "user"},  # Non-admin
-        )
+        response = non_admin_client.post("/api/admin/users", json=user_data)
 
         assert response.status_code == 403
         data = response.json()
         assert "admin" in data["detail"].lower()
 
     def test_create_user_non_admin_forbidden(
-        self, client: TestClient, mock_db_session: AsyncMock
+        self, non_admin_client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that non-admin users cannot create users."""
         user_data = {
@@ -544,16 +627,12 @@ class TestAdminUserManagement:
             "password": "SecurePassword123!",  # pragma: allowlist secret
         }
 
-        response = client.post(
-            "/api/admin/users",
-            json=user_data,
-            headers={"Authorization": "Bearer user_token"},
-        )
+        response = non_admin_client.post("/api/admin/users", json=user_data)
 
         assert response.status_code == 403
 
     def test_create_user_creates_non_admin_by_default(
-        self, client: TestClient, mock_db_session: AsyncMock
+        self, admin_client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that newly created users are non-admin by default."""
         user_data = {
@@ -562,16 +641,12 @@ class TestAdminUserManagement:
             "password": "SecurePassword123!",  # pragma: allowlist secret
         }
 
-        # Mock admin user
+        # Mock no existing users with same username/email
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         mock_db_session.execute.return_value = mock_result
 
-        response = client.post(
-            "/api/admin/users",
-            json=user_data,
-            headers={"X-User-Role": "admin"},
-        )
+        response = admin_client.post("/api/admin/users", json=user_data)
 
         assert response.status_code == 201
         data = response.json()
@@ -579,43 +654,62 @@ class TestAdminUserManagement:
         assert data["is_admin"] is False
 
     def test_list_users_requires_admin(
-        self, client: TestClient, mock_db_session: AsyncMock
+        self, non_admin_client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that listing users requires admin privileges."""
-        response = client.get(
-            "/api/admin/users",
-            headers={"X-User-Role": "user"},  # Non-admin
-        )
+        response = non_admin_client.get("/api/admin/users")
 
         assert response.status_code == 403
 
     def test_delete_user_requires_admin(
-        self, client: TestClient, mock_db_session: AsyncMock
+        self, non_admin_client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that deleting users requires admin privileges."""
-        response = client.delete(
-            "/api/admin/users/user123",
-            headers={"X-User-Role": "user"},  # Non-admin
-        )
+        response = non_admin_client.delete("/api/admin/users/user123")
 
         assert response.status_code == 403
 
-    def test_admin_cannot_delete_self(self, client: TestClient, mock_db_session: AsyncMock) -> None:
+    def test_admin_cannot_delete_self(
+        self,
+        mock_db_session: AsyncMock,
+        mock_settings,
+    ) -> None:
         """Test that admins cannot delete their own account."""
-        # Mock admin user
-        mock_user = MagicMock()
-        mock_user.id = "admin123"
-        mock_user.is_admin = True
+        from backend.api.routes.auth import get_current_admin_user, get_current_user
 
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_user
-        mock_db_session.execute.return_value = mock_result
+        # Create admin user with specific ID
+        admin_user = MagicMock()
+        admin_user.id = "admin-self-delete-test-id"
+        admin_user.username = "admin"
+        admin_user.email = "admin@example.com"
+        admin_user.is_admin = True
+        admin_user.is_active = True
+        admin_user.created_at = datetime(2025, 12, 23, 10, 0, 0)
+        admin_user.last_login_at = None
 
-        response = client.delete(
-            "/api/admin/users/admin123",
-            headers={"X-User-Id": "admin123", "X-User-Role": "admin"},
-        )
+        app = FastAPI()
+        app.include_router(router)
+
+        async def override_get_db():
+            yield mock_db_session
+
+        async def override_get_current_user():
+            return admin_user
+
+        async def override_get_current_admin_user():
+            return admin_user
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_current_admin_user] = override_get_current_admin_user
+
+        with (
+            patch("backend.api.routes.admin.get_settings", return_value=mock_settings),
+            TestClient(app) as test_client,
+        ):
+            # Try to delete self (using the admin's own ID)
+            response = test_client.delete(f"/api/admin/users/{admin_user.id}")
 
         assert response.status_code == 400
         data = response.json()
-        assert "cannot delete" in data["detail"].lower() or "yourself" in data["detail"].lower()
+        assert "cannot delete" in data["detail"].lower() or "your own" in data["detail"].lower()
