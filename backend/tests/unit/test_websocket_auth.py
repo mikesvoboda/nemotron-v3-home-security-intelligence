@@ -569,11 +569,16 @@ class TestWebSocketAuthHelpers:
 
         # This test verifies the function uses constant-time comparison
         # Implementation should use hmac.compare_digest()
-        with patch("hmac.compare_digest", return_value=True) as mock_compare:
-            result = validate_session_cookie(valid_cookie)
+        # We need to mock decode_token since the cookie isn't a real JWT
+        with patch("backend.api.middleware.websocket_auth.decode_token") as mock_decode:
+            with patch(
+                "backend.api.middleware.websocket_auth.hmac.compare_digest", return_value=True
+            ) as mock_compare:
+                mock_decode.return_value = {"user_id": "test", "exp": 9999999999}
+                result = validate_session_cookie(valid_cookie)
 
-            assert result is not None
-            mock_compare.assert_called()
+                assert result is not None
+                mock_compare.assert_called()
 
     def test_validate_websocket_jwt_constant_time_comparison(self):
         """Test that JWT validation uses constant-time comparison.
@@ -582,8 +587,13 @@ class TestWebSocketAuthHelpers:
         """
         valid_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.valid"
 
-        with patch("hmac.compare_digest", return_value=True) as mock_compare:
-            result = validate_websocket_jwt(valid_jwt)
+        # We need to mock decode_token since this isn't a real JWT
+        with patch("backend.api.middleware.websocket_auth.decode_token") as mock_decode:
+            with patch(
+                "backend.api.middleware.websocket_auth.hmac.compare_digest", return_value=True
+            ) as mock_compare:
+                mock_decode.return_value = {"sub": "user_123", "exp": 9999999999}
+                result = validate_websocket_jwt(valid_jwt)
 
-            assert result is not None
-            mock_compare.assert_called()
+                assert result is not None
+                mock_compare.assert_called()
