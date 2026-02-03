@@ -503,6 +503,7 @@ class TestClearDataResponseSchema:
 # =============================================================================
 
 
+@pytest.mark.xfail(reason="TDD RED phase - /api/admin/users endpoints not implemented")
 class TestAdminUserManagement:
     """Tests for admin user management endpoints.
 

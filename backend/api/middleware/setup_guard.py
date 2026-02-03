@@ -15,6 +15,7 @@ Whitelist (endpoints allowed during setup):
 - GET /docs - API documentation
 - GET /redoc - API documentation
 - GET /openapi.json - OpenAPI schema
+- GET /api/system/health/* - System health endpoints (websocket, ready, etc.)
 """
 
 from collections.abc import Awaitable, Callable
@@ -52,6 +53,7 @@ SETUP_WHITELIST_EXACT = frozenset(
 SETUP_WHITELIST_PREFIXES = (
     "/docs",
     "/redoc",
+    "/api/system/health",
 )
 
 
