@@ -9,6 +9,42 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _load_env_example_ports() -> dict[str, int]:
+    """Load port defaults from .env.example (single source of truth).
+
+    Returns:
+        Dictionary mapping env var names to port values.
+    """
+    env_example = Path(".env.example")
+    if not env_example.exists():
+        return {}
+
+    ports: dict[str, int] = {}
+    try:
+        for raw_line in env_example.read_text().splitlines():
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "=" in stripped and "_PORT" in stripped:
+                key, _, value = stripped.partition("=")
+                try:
+                    ports[key.strip()] = int(value.strip())
+                except ValueError:
+                    pass
+    except (OSError, UnicodeDecodeError):
+        pass
+    return ports
+
+
+# Load defaults from .env.example at module load time
+_ENV_PORTS = _load_env_example_ports()
+
+
+def _port_default(env_var: str, fallback: int) -> int:
+    """Get port default from .env.example, with hardcoded fallback."""
+    return _ENV_PORTS.get(env_var, fallback)
+
+
 class DeployMode(str, Enum):
     """Deployment mode selection."""
 
@@ -212,14 +248,104 @@ class DeployConfig(BaseSettings):
     ai_models_path: Path = Field(default=Path("/export/ai_models"), alias="AI_MODELS_PATH")
     foscam_base_path: Path = Field(default=Path("/export/foscam"), alias="FOSCAM_BASE_PATH")
 
-    # Service ports
-    api_port: int = Field(default=8000, alias="API_PORT")
-    frontend_port: int = Field(default=8444, alias="FRONTEND_HTTPS_PORT")
-    yolo26_port: int = Field(default=8095, alias="YOLO26_PORT")
-    llm_port: int = Field(default=8091, alias="LLM_PORT")
-    florence_port: int = Field(default=8092, alias="FLORENCE_PORT")
-    clip_port: int = Field(default=8093, alias="CLIP_PORT")
-    enrichment_port: int = Field(default=8094, alias="ENRICHMENT_PORT")
+    # Core service ports (defaults from .env.example)
+    postgres_port: int = Field(
+        default_factory=lambda: _port_default("POSTGRES_PORT", 5432), alias="POSTGRES_PORT"
+    )
+    redis_port: int = Field(
+        default_factory=lambda: _port_default("REDIS_PORT", 6379), alias="REDIS_PORT"
+    )
+    api_port: int = Field(default_factory=lambda: _port_default("API_PORT", 8000), alias="API_PORT")
+    frontend_port: int = Field(
+        default_factory=lambda: _port_default("FRONTEND_HTTPS_PORT", 8444),
+        alias="FRONTEND_HTTPS_PORT",
+    )
+    go2rtc_api_port: int = Field(
+        default_factory=lambda: _port_default("GO2RTC_API_PORT", 1984), alias="GO2RTC_API_PORT"
+    )
+    go2rtc_webrtc_port: int = Field(
+        default_factory=lambda: _port_default("GO2RTC_WEBRTC_PORT", 8555),
+        alias="GO2RTC_WEBRTC_PORT",
+    )
+
+    # AI service ports (defaults from .env.example)
+    yolo26_port: int = Field(
+        default_factory=lambda: _port_default("YOLO26_PORT", 8095), alias="YOLO26_PORT"
+    )
+    llm_port: int = Field(default_factory=lambda: _port_default("LLM_PORT", 8091), alias="LLM_PORT")
+    florence_port: int = Field(
+        default_factory=lambda: _port_default("FLORENCE_PORT", 8092), alias="FLORENCE_PORT"
+    )
+    clip_port: int = Field(
+        default_factory=lambda: _port_default("CLIP_PORT", 8093), alias="CLIP_PORT"
+    )
+    enrichment_port: int = Field(
+        default_factory=lambda: _port_default("ENRICHMENT_PORT", 8094), alias="ENRICHMENT_PORT"
+    )
+    enrichment_light_port: int = Field(
+        default_factory=lambda: _port_default("ENRICHMENT_LIGHT_PORT", 8096),
+        alias="ENRICHMENT_LIGHT_PORT",
+    )
+
+    # Monitoring service ports (defaults from .env.example)
+    prometheus_port: int = Field(
+        default_factory=lambda: _port_default("PROMETHEUS_PORT", 9090), alias="PROMETHEUS_PORT"
+    )
+    grafana_port: int = Field(
+        default_factory=lambda: _port_default("GRAFANA_PORT", 3002), alias="GRAFANA_PORT"
+    )
+    alertmanager_port: int = Field(
+        default_factory=lambda: _port_default("ALERTMANAGER_PORT", 9093), alias="ALERTMANAGER_PORT"
+    )
+    loki_port: int = Field(
+        default_factory=lambda: _port_default("LOKI_PORT", 3100), alias="LOKI_PORT"
+    )
+    jaeger_ui_port: int = Field(
+        default_factory=lambda: _port_default("JAEGER_UI_PORT", 16686), alias="JAEGER_UI_PORT"
+    )
+    jaeger_otlp_grpc_port: int = Field(
+        default_factory=lambda: _port_default("JAEGER_OTLP_GRPC_PORT", 4317),
+        alias="JAEGER_OTLP_GRPC_PORT",
+    )
+    jaeger_otlp_http_port: int = Field(
+        default_factory=lambda: _port_default("JAEGER_OTLP_HTTP_PORT", 4318),
+        alias="JAEGER_OTLP_HTTP_PORT",
+    )
+    pyroscope_port: int = Field(
+        default_factory=lambda: _port_default("PYROSCOPE_PORT", 4040), alias="PYROSCOPE_PORT"
+    )
+    alloy_ui_port: int = Field(
+        default_factory=lambda: _port_default("ALLOY_UI_PORT", 12345), alias="ALLOY_UI_PORT"
+    )
+    node_exporter_port: int = Field(
+        default_factory=lambda: _port_default("NODE_EXPORTER_PORT", 9100),
+        alias="NODE_EXPORTER_PORT",
+    )
+    redis_exporter_port: int = Field(
+        default_factory=lambda: _port_default("REDIS_EXPORTER_PORT", 9121),
+        alias="REDIS_EXPORTER_PORT",
+    )
+    json_exporter_port: int = Field(
+        default_factory=lambda: _port_default("JSON_EXPORTER_PORT", 7979),
+        alias="JSON_EXPORTER_PORT",
+    )
+    blackbox_exporter_port: int = Field(
+        default_factory=lambda: _port_default("BLACKBOX_EXPORTER_PORT", 9115),
+        alias="BLACKBOX_EXPORTER_PORT",
+    )
+    elasticsearch_port: int = Field(
+        default_factory=lambda: _port_default("ELASTICSEARCH_PORT", 9200),
+        alias="ELASTICSEARCH_PORT",
+    )
+
+    # Privileged monitoring ports (defaults from .env.example, require sudo podman)
+    cadvisor_port: int = Field(
+        default_factory=lambda: _port_default("CADVISOR_PORT", 8082), alias="CADVISOR_PORT"
+    )
+    dcgm_exporter_port: int = Field(
+        default_factory=lambda: _port_default("DCGM_EXPORTER_PORT", 9400),
+        alias="DCGM_EXPORTER_PORT",
+    )
 
     # GPU assignments
     gpu_ai_services: int = Field(default=1, alias="GPU_AI_SERVICES")
@@ -252,14 +378,42 @@ class DeployConfig(BaseSettings):
     def required_ports(self) -> dict[int, str]:
         """Map of required ports to service names."""
         return {
-            5432: "PostgreSQL",
-            6379: "Redis",
+            # Core services
+            self.postgres_port: "PostgreSQL",
+            self.redis_port: "Redis",
             self.api_port: "Backend API",
+            # AI services
             self.llm_port: "LLM",
             self.florence_port: "Florence",
             self.clip_port: "CLIP",
             self.enrichment_port: "Enrichment",
             self.yolo26_port: "YOLO26",
+            # Monitoring (subset - only critical ones)
+            self.prometheus_port: "Prometheus",
+            self.grafana_port: "Grafana",
+            self.loki_port: "Loki",
+        }
+
+    @property
+    def monitoring_ports(self) -> dict[int, str]:
+        """Map of monitoring ports to service names."""
+        return {
+            self.prometheus_port: "Prometheus",
+            self.grafana_port: "Grafana",
+            self.alertmanager_port: "Alertmanager",
+            self.loki_port: "Loki",
+            self.jaeger_ui_port: "Jaeger UI",
+            self.jaeger_otlp_grpc_port: "Jaeger OTLP gRPC",
+            self.jaeger_otlp_http_port: "Jaeger OTLP HTTP",
+            self.pyroscope_port: "Pyroscope",
+            self.alloy_ui_port: "Alloy",
+            self.node_exporter_port: "Node Exporter",
+            self.redis_exporter_port: "Redis Exporter",
+            self.json_exporter_port: "JSON Exporter",
+            self.blackbox_exporter_port: "Blackbox Exporter",
+            self.elasticsearch_port: "Elasticsearch",
+            self.cadvisor_port: "cAdvisor",
+            self.dcgm_exporter_port: "DCGM Exporter",
         }
 
     # Class-level constants

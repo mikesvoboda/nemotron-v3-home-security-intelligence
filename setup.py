@@ -72,36 +72,192 @@ class ServiceInfo(TypedDict):
     desc: str
 
 
-# Service definitions with STANDARDIZED DEFAULT PORTS (NEM-3148)
-# NOTE: Ports are the same for development and Docker environments.
-# Docker uses service names (postgres, redis, ai-yolo26) on the container network.
-# Development uses localhost. Ports themselves never change - only hostnames vary.
-#
-# Internal Service Ports (never change):
-#   - Backend: 8000 (FastAPI default)
-#   - PostgreSQL: 5432 (database standard)
-#   - Redis: 6379 (cache standard)
-#   - AI Services: 8091-8095 (llm, florence, clip, enrichment, yolo26)
-#
-# setup.py automatically detects port conflicts and finds alternatives for external
-# ports (5173, 8443, 3002, 9090, etc.) but internal service ports remain constant.
-SERVICES: dict[str, ServiceInfo] = {
-    "backend": {"port": 8000, "category": "Core", "desc": "Backend API"},
-    "frontend": {"port": 5173, "category": "Core", "desc": "Frontend web UI"},
-    "frontend_https": {"port": 8443, "category": "Core", "desc": "Frontend HTTPS"},
-    "postgres": {"port": 5432, "category": "Core", "desc": "PostgreSQL database"},
-    "redis": {"port": 6379, "category": "Core", "desc": "Redis cache/queue"},
-    "yolo26": {"port": 8095, "category": "AI", "desc": "YOLO26 object detection"},
-    "nemotron": {"port": 8091, "category": "AI", "desc": "Nemotron LLM reasoning"},
-    "florence": {"port": 8092, "category": "AI", "desc": "Florence-2 vision-language"},
-    "clip": {"port": 8093, "category": "AI", "desc": "CLIP embeddings"},
-    "enrichment": {"port": 8094, "category": "AI", "desc": "Entity enrichment"},
-    "grafana": {"port": 3002, "category": "Monitoring", "desc": "Grafana dashboards"},
-    "prometheus": {"port": 9090, "category": "Monitoring", "desc": "Prometheus metrics"},
-    "alertmanager": {"port": 3000, "category": "Monitoring", "desc": "Alert manager"},
-    "redis_exporter": {"port": 9121, "category": "Monitoring", "desc": "Redis exporter"},
-    "json_exporter": {"port": 7979, "category": "Monitoring", "desc": "JSON exporter"},
-}
+def load_ports_from_env_example(env_example_path: Path | None = None) -> dict[str, int]:
+    """Load port defaults from .env.example file.
+
+    .env.example is the single source of truth for all port configurations.
+    This function parses it to extract port values for use in setup and deployment.
+
+    Args:
+        env_example_path: Path to .env.example file. Defaults to .env.example in cwd.
+
+    Returns:
+        Dictionary mapping port variable names to their integer values.
+        Example: {"POSTGRES_PORT": 5432, "REDIS_PORT": 6379, ...}
+    """
+    if env_example_path is None:
+        env_example_path = Path(".env.example")
+
+    if not env_example_path.exists():
+        # Return empty dict if file doesn't exist - will use hardcoded fallbacks
+        return {}
+
+    ports: dict[str, int] = {}
+    try:
+        content = env_example_path.read_text(encoding="utf-8")
+        for raw_line in content.splitlines():
+            stripped = raw_line.strip()
+            # Skip comments and empty lines
+            if not stripped or stripped.startswith("#"):
+                continue
+            # Parse KEY=value for port variables
+            if "=" in stripped and "_PORT" in stripped:
+                key, _, value = stripped.partition("=")
+                key = key.strip()
+                value = value.strip()
+                # Try to parse as integer
+                try:
+                    ports[key] = int(value)
+                except ValueError:
+                    pass  # Skip non-integer values
+    except (OSError, UnicodeDecodeError):
+        pass
+
+    return ports
+
+
+def get_default_ports() -> dict[str, int]:
+    """Get default port values from .env.example.
+
+    Returns a mapping from internal service names to port numbers.
+    This is the bridge between .env.example variable names and internal service names.
+    """
+    env_ports = load_ports_from_env_example()
+
+    # Map from internal service name to .env.example variable name
+    # .env.example is the source of truth - these mappings define the relationship
+    port_mappings = {
+        "backend": "API_PORT",
+        "frontend": "FRONTEND_PORT",
+        "frontend_https": "FRONTEND_HTTPS_PORT",
+        "postgres": "POSTGRES_PORT",
+        "redis": "REDIS_PORT",
+        "go2rtc_api": "GO2RTC_API_PORT",
+        "go2rtc_webrtc": "GO2RTC_WEBRTC_PORT",
+        "yolo26": "YOLO26_PORT",
+        "nemotron": "LLM_PORT",
+        "florence": "FLORENCE_PORT",
+        "clip": "CLIP_PORT",
+        "enrichment": "ENRICHMENT_PORT",
+        "enrichment_light": "ENRICHMENT_LIGHT_PORT",
+        "grafana": "GRAFANA_PORT",
+        "prometheus": "PROMETHEUS_PORT",
+        "alertmanager": "ALERTMANAGER_PORT",
+        "loki": "LOKI_PORT",
+        "jaeger_ui": "JAEGER_UI_PORT",
+        "jaeger_otlp_grpc": "JAEGER_OTLP_GRPC_PORT",
+        "jaeger_otlp_http": "JAEGER_OTLP_HTTP_PORT",
+        "pyroscope": "PYROSCOPE_PORT",
+        "alloy_ui": "ALLOY_UI_PORT",
+        "node_exporter": "NODE_EXPORTER_PORT",
+        "redis_exporter": "REDIS_EXPORTER_PORT",
+        "json_exporter": "JSON_EXPORTER_PORT",
+        "blackbox_exporter": "BLACKBOX_EXPORTER_PORT",
+        "elasticsearch": "ELASTICSEARCH_PORT",
+        "cadvisor": "CADVISOR_PORT",
+        "dcgm_exporter": "DCGM_EXPORTER_PORT",
+    }
+
+    # Hardcoded fallbacks only used if .env.example is missing or malformed
+    fallbacks = {
+        "backend": 8000,
+        "frontend": 5173,
+        "frontend_https": 8443,
+        "postgres": 5432,
+        "redis": 6379,
+        "go2rtc_api": 1984,
+        "go2rtc_webrtc": 8555,
+        "yolo26": 8095,
+        "nemotron": 8091,
+        "florence": 8092,
+        "clip": 8093,
+        "enrichment": 8094,
+        "enrichment_light": 8096,
+        "grafana": 3002,
+        "prometheus": 9090,
+        "alertmanager": 9093,
+        "loki": 3100,
+        "jaeger_ui": 16686,
+        "jaeger_otlp_grpc": 4317,
+        "jaeger_otlp_http": 4318,
+        "pyroscope": 4040,
+        "alloy_ui": 12345,
+        "node_exporter": 9100,
+        "redis_exporter": 9121,
+        "json_exporter": 7979,
+        "blackbox_exporter": 9115,
+        "elasticsearch": 9200,
+        "cadvisor": 8082,
+        "dcgm_exporter": 9400,
+    }
+
+    # Build result using .env.example values, falling back to hardcoded if missing
+    result = {}
+    for service, env_var in port_mappings.items():
+        result[service] = env_ports.get(env_var, fallbacks.get(service, 0))
+
+    return result
+
+
+def build_services_dict() -> dict[str, ServiceInfo]:
+    """Build SERVICES dict dynamically from .env.example ports.
+
+    This ensures .env.example is the single source of truth for port values.
+    Service metadata (category, description) is defined here, but ports come from .env.example.
+    """
+    ports = get_default_ports()
+
+    # Service metadata - ports are loaded from .env.example
+    service_metadata = {
+        # Core Services
+        "backend": {"category": "Core", "desc": "Backend API"},
+        "frontend": {"category": "Core", "desc": "Frontend web UI"},
+        "frontend_https": {"category": "Core", "desc": "Frontend HTTPS"},
+        "postgres": {"category": "Core", "desc": "PostgreSQL database"},
+        "redis": {"category": "Core", "desc": "Redis cache/queue"},
+        "go2rtc_api": {"category": "Core", "desc": "go2rtc streaming API"},
+        "go2rtc_webrtc": {"category": "Core", "desc": "go2rtc WebRTC"},
+        # AI Services
+        "yolo26": {"category": "AI", "desc": "YOLO26 object detection"},
+        "nemotron": {"category": "AI", "desc": "Nemotron LLM reasoning"},
+        "florence": {"category": "AI", "desc": "Florence-2 vision-language"},
+        "clip": {"category": "AI", "desc": "CLIP embeddings"},
+        "enrichment": {"category": "AI", "desc": "Entity enrichment"},
+        "enrichment_light": {"category": "AI", "desc": "Light enrichment"},
+        # Monitoring Services
+        "grafana": {"category": "Monitoring", "desc": "Grafana dashboards"},
+        "prometheus": {"category": "Monitoring", "desc": "Prometheus metrics"},
+        "alertmanager": {"category": "Monitoring", "desc": "Alert manager"},
+        "loki": {"category": "Monitoring", "desc": "Log aggregation"},
+        "jaeger_ui": {"category": "Monitoring", "desc": "Jaeger tracing UI"},
+        "jaeger_otlp_grpc": {"category": "Monitoring", "desc": "Jaeger OTLP gRPC"},
+        "jaeger_otlp_http": {"category": "Monitoring", "desc": "Jaeger OTLP HTTP"},
+        "pyroscope": {"category": "Monitoring", "desc": "Continuous profiling"},
+        "alloy_ui": {"category": "Monitoring", "desc": "Alloy collector UI"},
+        "node_exporter": {"category": "Monitoring", "desc": "Node metrics"},
+        "redis_exporter": {"category": "Monitoring", "desc": "Redis exporter"},
+        "json_exporter": {"category": "Monitoring", "desc": "JSON exporter"},
+        "blackbox_exporter": {"category": "Monitoring", "desc": "Blackbox exporter"},
+        "elasticsearch": {"category": "Monitoring", "desc": "Elasticsearch"},
+        # Privileged Monitoring (require sudo podman)
+        "cadvisor": {"category": "Privileged", "desc": "Container metrics"},
+        "dcgm_exporter": {"category": "Privileged", "desc": "GPU metrics"},
+    }
+
+    services: dict[str, ServiceInfo] = {}
+    for name, meta in service_metadata.items():
+        services[name] = {
+            "port": ports.get(name, 0),
+            "category": meta["category"],
+            "desc": meta["desc"],
+        }
+
+    return services
+
+
+# SERVICES dict is built dynamically from .env.example
+# .env.example is the SINGLE SOURCE OF TRUTH for all port values
+SERVICES: dict[str, ServiceInfo] = build_services_dict()
 
 # NOTE: Development passwords are no longer hardcoded for security (NEM-3141).
 # When no existing .env is found, unique passwords are generated at setup time.
@@ -305,6 +461,41 @@ def generate_env_content(config: dict) -> str:
         "# GPU 1: All other AI models (YOLO26, Florence, CLIP, Enrichment)",
         f"GPU_LLM={config.get('gpu_llm', 0)}",
         f"GPU_AI_SERVICES={config.get('gpu_ai_services', 1)}",
+        "",
+        "# -- Core Service Ports " + "-" * 37,
+        f"POSTGRES_PORT={ports.get('postgres', 5432)}",
+        f"REDIS_PORT={ports.get('redis', 6379)}",
+        f"API_PORT={ports.get('backend', 8000)}",
+        f"GO2RTC_API_PORT={ports.get('go2rtc_api', 1984)}",
+        f"GO2RTC_WEBRTC_PORT={ports.get('go2rtc_webrtc', 8555)}",
+        "",
+        "# -- AI Service Ports " + "-" * 39,
+        f"YOLO26_PORT={ports.get('yolo26', 8095)}",
+        f"LLM_PORT={ports.get('nemotron', 8091)}",
+        f"FLORENCE_PORT={ports.get('florence', 8092)}",
+        f"CLIP_PORT={ports.get('clip', 8093)}",
+        f"ENRICHMENT_PORT={ports.get('enrichment', 8094)}",
+        f"ENRICHMENT_LIGHT_PORT={ports.get('enrichment_light', 8096)}",
+        "",
+        "# -- Monitoring Service Ports " + "-" * 31,
+        f"PROMETHEUS_PORT={ports.get('prometheus', 9090)}",
+        f"GRAFANA_PORT={ports.get('grafana', 3002)}",
+        f"ALERTMANAGER_PORT={ports.get('alertmanager', 9093)}",
+        f"LOKI_PORT={ports.get('loki', 3100)}",
+        f"JAEGER_UI_PORT={ports.get('jaeger_ui', 16686)}",
+        f"JAEGER_OTLP_GRPC_PORT={ports.get('jaeger_otlp_grpc', 4317)}",
+        f"JAEGER_OTLP_HTTP_PORT={ports.get('jaeger_otlp_http', 4318)}",
+        f"PYROSCOPE_PORT={ports.get('pyroscope', 4040)}",
+        f"ALLOY_UI_PORT={ports.get('alloy_ui', 12345)}",
+        f"NODE_EXPORTER_PORT={ports.get('node_exporter', 9100)}",
+        f"REDIS_EXPORTER_PORT={ports.get('redis_exporter', 9121)}",
+        f"JSON_EXPORTER_PORT={ports.get('json_exporter', 7979)}",
+        f"BLACKBOX_EXPORTER_PORT={ports.get('blackbox_exporter', 9115)}",
+        f"ELASTICSEARCH_PORT={ports.get('elasticsearch', 9200)}",
+        "",
+        "# -- Privileged Monitoring Ports (sudo podman) " + "-" * 14,
+        f"CADVISOR_PORT={ports.get('cadvisor', 8082)}",
+        f"DCGM_EXPORTER_PORT={ports.get('dcgm_exporter', 9400)}",
         "",
     ]
     return "\n".join(lines)
