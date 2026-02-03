@@ -78,6 +78,9 @@ dependencies = [
     "rich>=13.0.0",
     # MQTT async client for Home Assistant integration (NEM-5069)
     "aiomqtt>=2.0.0",
+    # Authentication (NEM-5307)
+    "argon2-cffi>=23.1.0",
+    "python-jose[cryptography]>=3.3.0",
 ]
 
 [project.optional-dependencies]
@@ -386,6 +389,15 @@ ignore = [
 ]
 "setup_lib/**/*.py" = [
     "T201",   # print() ok in setup library for CLI output
+    "S603",   # subprocess call ok for Docker commands
+]
+"setup_lib/tests/**/*.py" = [
+    "S101",   # assert is fine in tests
+    "S105",   # hardcoded passwords ok in tests
+    "S106",   # hardcoded passwords ok in tests
+    "ARG001", # unused function argument in fixtures
+    "ARG002", # unused method argument for fixtures used via side effects
+    "PLR2004",# magic values ok in tests
 ]
 
 [tool.ruff.format]
@@ -411,7 +423,7 @@ module = "backend.examples.*"
 disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
-testpaths = ["backend/tests", "ai/*/tests", "ai/*/test_*.py"]
+testpaths = ["backend/tests", "ai/*/tests", "ai/*/test_*.py", "setup_lib/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

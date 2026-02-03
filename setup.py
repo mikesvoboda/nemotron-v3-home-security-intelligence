@@ -14,6 +14,7 @@ Security features:
 
 import argparse
 import platform
+import secrets
 import shutil
 import stat
 import subprocess
@@ -45,9 +46,22 @@ __all__ = [
     "WEAK_PASSWORDS",
     "check_port_available",
     "find_available_port",
+    "generate_jwt_secret",
     "generate_password",
     "is_weak_password",
 ]
+
+
+def generate_jwt_secret() -> str:
+    """Generate a cryptographically secure JWT secret.
+
+    Generates a 64-byte (128-character hex) random secret suitable for
+    JWT signing. This provides strong security for token authentication.
+
+    Returns:
+        128-character hexadecimal string (64 bytes of entropy)
+    """
+    return secrets.token_hex(64)
 
 
 class ServiceInfo(TypedDict):
@@ -258,6 +272,11 @@ def generate_env_content(config: dict) -> str:
         f"REDIS_PASSWORD={config.get('redis_password', '')}",
         f"FTP_PASSWORD={config.get('ftp_password', '')}",
         "",
+        "# -- Authentication (NEM-3471) " + "-" * 30,
+        f"JWT_SECRET={config.get('jwt_secret', '')}",
+        f"JWT_EXPIRY_HOURS={config.get('jwt_expiry_hours', 24)}",
+        f"REFRESH_TOKEN_DAYS={config.get('refresh_token_days', 30)}",
+        "",
         "# -- Database " + "-" * 47,
         "POSTGRES_USER=security",
         "POSTGRES_DB=security",
@@ -424,6 +443,10 @@ def run_quick_mode() -> dict:
     default_ftp_pw = existing_env.get("FTP_PASSWORD") or generate_password(16)
     default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
+    # JWT secret for authentication (NEM-3471)
+    jwt_secret = existing_env.get("JWT_SECRET") or generate_jwt_secret()
+    jwt_expiry_hours = int(existing_env.get("JWT_EXPIRY_HOURS", "24"))
+    refresh_token_days = int(existing_env.get("REFRESH_TOKEN_DAYS", "30"))
 
     if existing_env.get("POSTGRES_PASSWORD"):
         print("* Using existing database password from .env")
@@ -456,6 +479,9 @@ def run_quick_mode() -> dict:
         "redis_password": redis_password,
         "grafana_password": grafana_password,
         "ftp_password": ftp_password,
+        "jwt_secret": jwt_secret,
+        "jwt_expiry_hours": jwt_expiry_hours,
+        "refresh_token_days": refresh_token_days,
         "ports": ports,
     }
 
@@ -543,6 +569,10 @@ def run_guided_mode() -> dict:
     default_ftp_pw = existing_env.get("FTP_PASSWORD") or generate_password(16)
     default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
+    # JWT secret for authentication (NEM-3471)
+    jwt_secret = existing_env.get("JWT_SECRET") or generate_jwt_secret()
+    jwt_expiry_hours = int(existing_env.get("JWT_EXPIRY_HOURS", "24"))
+    refresh_token_days = int(existing_env.get("REFRESH_TOKEN_DAYS", "30"))
 
     if existing_env.get("POSTGRES_PASSWORD"):
         print("* Found existing .env - using current passwords as defaults")
@@ -609,6 +639,9 @@ def run_guided_mode() -> dict:
         "redis_password": redis_password,
         "grafana_password": grafana_password,
         "ftp_password": ftp_password,
+        "jwt_secret": jwt_secret,
+        "jwt_expiry_hours": jwt_expiry_hours,
+        "refresh_token_days": refresh_token_days,
         "ports": ports,
     }
 
@@ -736,6 +769,8 @@ def run_defaults_mode() -> dict:
     postgres_password = generate_password(32)
     redis_password = generate_password(32)
     ftp_password = generate_password(16)
+    # JWT secret for authentication (NEM-3471)
+    jwt_secret = generate_jwt_secret()
 
     return {
         "foscam_base_path": "/export/foscam",
@@ -744,6 +779,9 @@ def run_defaults_mode() -> dict:
         "redis_password": redis_password,
         "grafana_password": "",
         "ftp_password": ftp_password,
+        "jwt_secret": jwt_secret,
+        "jwt_expiry_hours": 24,
+        "refresh_token_days": 30,
         "ports": ports,
     }
 

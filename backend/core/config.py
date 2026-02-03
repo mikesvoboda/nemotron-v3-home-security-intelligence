@@ -407,6 +407,39 @@ class Settings(BaseSettings):
         "Set via REDIS_PASSWORD environment variable for production deployments. "
         "Must match the `requirepass` value configured in Redis.",
     )
+
+    # JWT Authentication settings (NEM-5307)
+    jwt_secret: SecretStr | None = Field(
+        default=None,
+        description="Secret key for signing JWT tokens. MUST be set for production. "
+        'Generate with: python -c "import secrets; print(secrets.token_urlsafe(48))" '
+        "Minimum 32 characters recommended for security.",
+    )
+    jwt_access_token_expire_minutes: int = Field(
+        default=30,
+        ge=5,
+        le=1440,
+        description="Access token expiration time in minutes. Default: 30 minutes.",
+    )
+    jwt_refresh_token_expire_days: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+        description="Refresh token expiration time in days. Default: 7 days.",
+    )
+    session_ttl_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="Session TTL in hours for Redis-backed sessions. Default: 24 hours.",
+    )
+    auth_enabled: bool = Field(
+        default=False,
+        description="Enable authentication requirement for API endpoints. "
+        "When False, endpoints are accessible without authentication. "
+        "Set to True for production deployments.",
+    )
+
     redis_event_channel: str = Field(
         default="security_events",
         description="Redis pub/sub channel for security events",

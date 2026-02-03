@@ -2362,6 +2362,234 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Api Keys
+         * @description List all API keys for the current admin user.
+         *
+         *     Note: The full API key is never returned - only the prefix for identification.
+         *
+         *     Args:
+         *         user: Current admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         APIKeyListResponse with all API keys belonging to the user.
+         */
+        get: operations["auth_list_api_keys"];
+        put?: never;
+        /**
+         * Create Api Key
+         * @description Create a new API key.
+         *
+         *     Only admin users can create API keys. The full API key is only returned
+         *     once at creation time - it cannot be retrieved later.
+         *
+         *     Args:
+         *         request: API key creation data (name, optional expiration).
+         *         user: Current admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         APIKeyCreateResponse with the full API key (store it securely!).
+         */
+        post: operations["auth_create_api_key"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Api Key
+         * @description Revoke (deactivate) an API key.
+         *
+         *     The key is not deleted, but marked as inactive. This preserves audit trail.
+         *
+         *     Args:
+         *         key_id: ID of the API key to revoke.
+         *         user: Current admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         APIKeyRevokeResponse confirming revocation.
+         *
+         *     Raises:
+         *         HTTPException: 404 if API key not found or doesn't belong to user.
+         */
+        delete: operations["auth_revoke_api_key"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Login with username and password.
+         *
+         *     On successful login, sets an HTTP-only session cookie and returns
+         *     the authenticated user's information.
+         *
+         *     Args:
+         *         request: Login credentials (username, password).
+         *         response: FastAPI Response object for setting cookies.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         LoginResponse with user information.
+         *
+         *     Raises:
+         *         HTTPException: 401 if credentials are invalid.
+         */
+        post: operations["auth_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Logout and clear session.
+         *
+         *     Deletes the session from Redis (if available) and clears the session cookie.
+         *
+         *     Args:
+         *         response: FastAPI Response object for clearing cookies.
+         *         session_id: Session ID from cookie.
+         *
+         *     Returns:
+         *         LogoutResponse confirming logout.
+         */
+        post: operations["auth_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Me
+         * @description Get current authenticated user information.
+         *
+         *     Args:
+         *         user: Current authenticated user (from dependency).
+         *
+         *     Returns:
+         *         UserResponse with the user's information.
+         */
+        get: operations["auth_get_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register User
+         * @description Register the first admin user.
+         *
+         *     This endpoint is ONLY available when no users exist in the system.
+         *     Once the first user is registered, this endpoint returns 409 Conflict.
+         *
+         *     The first user is automatically granted admin privileges.
+         *
+         *     Args:
+         *         request: User registration data (username, email, password).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         UserResponse with the created user's information.
+         *
+         *     Raises:
+         *         HTTPException: 409 if users already exist.
+         *         HTTPException: 400 if username or email already taken.
+         */
+        post: operations["auth_register_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/setup-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Setup Status
+         * @description Check if initial setup is required.
+         *
+         *     Returns whether the system needs initial setup (first admin user registration).
+         *     Setup is required if no users exist in the database.
+         *
+         *     Returns:
+         *         SetupStatusResponse indicating if setup is required.
+         */
+        get: operations["auth_get_setup_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auto-enrollment/settings": {
         parameters: {
             query?: never;
@@ -7856,6 +8084,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mqtt-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get MQTT configuration
+         * @description Returns current MQTT configuration with password masked.
+         */
+        get: operations["mqtt-config_get_mqtt_config"];
+        /**
+         * Update MQTT configuration
+         * @description Updates MQTT configuration. Supports partial updates.
+         */
+        put: operations["mqtt-config_update_mqtt_config"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disconnect from MQTT broker
+         * @description Gracefully disconnects from the MQTT broker.
+         */
+        post: operations["mqtt-config_disconnect_mqtt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/reconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reconnect to MQTT broker
+         * @description Disconnects and reconnects to the MQTT broker.
+         */
+        post: operations["mqtt-config_reconnect_mqtt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get MQTT connection status
+         * @description Returns current MQTT broker connection status.
+         */
+        get: operations["mqtt-config_get_mqtt_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mqtt-config/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test MQTT connection
+         * @description Tests connection to MQTT broker without modifying configuration.
+         */
+        post: operations["mqtt-config_test_mqtt_connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notification-preferences/": {
         parameters: {
             query?: never;
@@ -12660,6 +12992,137 @@ export interface components {
              * @description Timestamp when this health check was performed
              */
             timestamp: string;
+        };
+        /**
+         * APIKeyCreateRequest
+         * @description Request schema for creating a new API key.
+         */
+        APIKeyCreateRequest: {
+            /**
+             * Expires In Days
+             * @description Number of days until the key expires (None = never expires)
+             */
+            expires_in_days?: number | null;
+            /**
+             * Name
+             * @description Human-readable name for the API key
+             */
+            name: string;
+        };
+        /**
+         * APIKeyCreateResponse
+         * @description Response schema for API key creation.
+         *
+         *     IMPORTANT: The full API key is only returned once at creation time.
+         *     It cannot be retrieved later - only the prefix is stored.
+         */
+        APIKeyCreateResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the key was created
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * @description When the key expires
+             */
+            expires_at?: string | null;
+            /**
+             * Id
+             * @description API key ID
+             */
+            id: string;
+            /**
+             * Key
+             * @description Full API key (ONLY returned at creation, store it securely!)
+             */
+            key: string;
+            /**
+             * Name
+             * @description Human-readable name
+             */
+            name: string;
+            /**
+             * Prefix
+             * @description Key prefix for identification
+             */
+            prefix: string;
+        };
+        /**
+         * APIKeyListResponse
+         * @description Response schema for listing API keys.
+         */
+        APIKeyListResponse: {
+            /**
+             * Items
+             * @description List of API keys
+             */
+            items: components["schemas"]["APIKeyResponse"][];
+            /**
+             * Total
+             * @description Total number of API keys
+             */
+            total: number;
+        };
+        /**
+         * APIKeyResponse
+         * @description Response schema for API key information (without the key itself).
+         */
+        APIKeyResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the key was created
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * @description When the key expires
+             */
+            expires_at?: string | null;
+            /**
+             * Id
+             * @description API key ID
+             */
+            id: string;
+            /**
+             * Is Active
+             * @description Whether the key is active
+             */
+            is_active: boolean;
+            /**
+             * Is Expired
+             * @description Whether the key has expired
+             */
+            is_expired: boolean;
+            /**
+             * Last Used At
+             * @description When the key was last used
+             */
+            last_used_at?: string | null;
+            /**
+             * Name
+             * @description Human-readable name
+             */
+            name: string;
+            /**
+             * Prefix
+             * @description Key prefix for identification
+             */
+            prefix: string;
+        };
+        /**
+         * APIKeyRevokeResponse
+         * @description Response schema for API key revocation.
+         */
+        APIKeyRevokeResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default API key revoked successfully
+             */
+            message: string;
         };
         /**
          * AccessSchedule
@@ -29236,6 +29699,34 @@ export interface components {
             warnings_today: number;
         };
         /**
+         * LoginResponse
+         * @description Response schema for successful login.
+         *
+         *     Returns user info. Session token is set via HTTP-only cookie.
+         */
+        LoginResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default Login successful
+             */
+            message: string;
+            /** @description Authenticated user information */
+            user: components["schemas"]["UserResponse"];
+        };
+        /**
+         * LogoutResponse
+         * @description Response schema for logout.
+         */
+        LogoutResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default Logged out successfully
+             */
+            message: string;
+        };
+        /**
          * LogsListResponse
          * @description Schema for paginated log query response.
          *
@@ -30832,6 +31323,469 @@ export interface components {
              * @description Total distance traveled (pixels)
              */
             total_distance: number;
+        };
+        /**
+         * MqttBrokerConfig
+         * @description MQTT broker connection settings.
+         *
+         *     Configures how to connect to the MQTT broker including
+         *     authentication and TLS settings.
+         * @example {
+         *       "client_id": "home-security-backend",
+         *       "host": "mqtt.example.com",
+         *       "port": 1883,
+         *       "use_tls": false,
+         *       "username": "user"
+         *     }
+         */
+        MqttBrokerConfig: {
+            /**
+             * Client Id
+             * @description MQTT client identifier (must be unique per connection)
+             * @default home-security-backend
+             */
+            client_id: string;
+            /**
+             * Host
+             * @description MQTT broker hostname or IP address
+             * @default localhost
+             */
+            host: string;
+            /**
+             * Password
+             * @description Password for broker authentication (optional, never returned in responses)
+             */
+            password?: string | null;
+            /**
+             * Port
+             * @description MQTT broker port (typically 1883 for TCP, 8883 for TLS)
+             * @default 1883
+             */
+            port: number;
+            /**
+             * Use Tls
+             * @description Enable TLS/SSL for broker connection
+             * @default false
+             */
+            use_tls: boolean;
+            /**
+             * Username
+             * @description Username for broker authentication (optional)
+             */
+            username?: string | null;
+        };
+        /**
+         * MqttBrokerConfigUpdate
+         * @description MQTT broker connection settings update (all fields optional).
+         *
+         *     Used for partial updates to broker configuration.
+         */
+        MqttBrokerConfigUpdate: {
+            /**
+             * Client Id
+             * @description MQTT client identifier
+             */
+            client_id?: string | null;
+            /**
+             * Host
+             * @description MQTT broker hostname or IP address
+             */
+            host?: string | null;
+            /**
+             * Password
+             * @description Password for broker authentication
+             */
+            password?: string | null;
+            /**
+             * Port
+             * @description MQTT broker port
+             */
+            port?: number | null;
+            /**
+             * Use Tls
+             * @description Enable TLS/SSL for broker connection
+             */
+            use_tls?: boolean | null;
+            /**
+             * Username
+             * @description Username for broker authentication
+             */
+            username?: string | null;
+        };
+        /**
+         * MqttConfigResponse
+         * @description Response schema for MQTT configuration.
+         *
+         *     Same as MqttConfig but with password always masked/excluded.
+         * @example {
+         *       "broker": {
+         *         "client_id": "home-security-backend",
+         *         "host": "mqtt.example.com",
+         *         "port": 1883,
+         *         "use_tls": false,
+         *         "username": "user"
+         *       },
+         *       "integration": {
+         *         "enabled": true,
+         *         "publish_detections": false,
+         *         "publish_events": true,
+         *         "publish_system_status": true
+         *       },
+         *       "publisher": {
+         *         "qos": 1,
+         *         "retain": false,
+         *         "topic_prefix": "home-security"
+         *       },
+         *       "updated_at": "2026-01-15T10:30:00Z"
+         *     }
+         */
+        MqttConfigResponse: {
+            /** @description MQTT broker connection settings (password excluded) */
+            broker: components["schemas"]["MqttBrokerConfig"];
+            /** @description MQTT integration settings */
+            integration: components["schemas"]["MqttIntegrationConfig"];
+            /** @description MQTT publisher settings */
+            publisher: components["schemas"]["MqttPublisherConfig"];
+            /**
+             * Updated At
+             * @description Timestamp of last configuration update
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * MqttConfigUpdate
+         * @description Request schema for updating MQTT configuration.
+         *
+         *     All fields are optional for partial updates.
+         * @example {
+         *       "broker": {
+         *         "host": "new-mqtt.example.com",
+         *         "port": 8883,
+         *         "use_tls": true
+         *       },
+         *       "integration": {
+         *         "enabled": true
+         *       }
+         *     }
+         */
+        MqttConfigUpdate: {
+            /** @description MQTT broker connection settings to update */
+            broker?: components["schemas"]["MqttBrokerConfigUpdate"] | null;
+            /** @description MQTT integration settings to update */
+            integration?: components["schemas"]["MqttIntegrationConfigUpdate"] | null;
+            /** @description MQTT publisher settings to update */
+            publisher?: components["schemas"]["MqttPublisherConfigUpdate"] | null;
+        };
+        /**
+         * MqttConnectionStatus
+         * @description MQTT connection status information.
+         *
+         *     Reports the current state of the MQTT broker connection.
+         * @example {
+         *       "broker_host": "mqtt.example.com",
+         *       "broker_port": 1883,
+         *       "connected": true,
+         *       "last_connected_at": "2026-01-15T10:30:00Z",
+         *       "messages_published": 1234
+         *     }
+         */
+        MqttConnectionStatus: {
+            /**
+             * Broker Host
+             * @description Currently configured broker host
+             */
+            broker_host?: string | null;
+            /**
+             * Broker Port
+             * @description Currently configured broker port
+             */
+            broker_port?: number | null;
+            /**
+             * Connected
+             * @description Whether currently connected to the broker
+             */
+            connected: boolean;
+            /**
+             * Last Connected At
+             * @description Timestamp of last successful connection
+             */
+            last_connected_at?: string | null;
+            /**
+             * Last Error
+             * @description Last connection error message (if any)
+             */
+            last_error?: string | null;
+            /**
+             * Last Error At
+             * @description Timestamp of last connection error
+             */
+            last_error_at?: string | null;
+            /**
+             * Messages Published
+             * @description Total messages published since last connect
+             * @default 0
+             */
+            messages_published: number;
+        };
+        /**
+         * MqttDisconnectResponse
+         * @description Response schema for MQTT disconnect request.
+         *
+         *     Reports the result of a disconnect request.
+         * @example {
+         *       "message": "Disconnected from MQTT broker",
+         *       "success": true,
+         *       "was_connected": true
+         *     }
+         */
+        MqttDisconnectResponse: {
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * Success
+             * @description Whether the disconnect was successful
+             */
+            success: boolean;
+            /**
+             * Was Connected
+             * @description Whether the client was connected before disconnect
+             */
+            was_connected: boolean;
+        };
+        /**
+         * MqttIntegrationConfig
+         * @description MQTT integration settings.
+         *
+         *     Configures which events and data are published to MQTT.
+         * @example {
+         *       "enabled": true,
+         *       "publish_detections": false,
+         *       "publish_events": true,
+         *       "publish_system_status": true
+         *     }
+         */
+        MqttIntegrationConfig: {
+            /**
+             * Enabled
+             * @description Enable MQTT integration
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * Publish Detections
+             * @description Publish detection events (high volume)
+             * @default false
+             */
+            publish_detections: boolean;
+            /**
+             * Publish Events
+             * @description Publish security events to MQTT
+             * @default true
+             */
+            publish_events: boolean;
+            /**
+             * Publish System Status
+             * @description Publish system status updates
+             * @default true
+             */
+            publish_system_status: boolean;
+        };
+        /**
+         * MqttIntegrationConfigUpdate
+         * @description MQTT integration settings update (all fields optional).
+         *
+         *     Used for partial updates to integration configuration.
+         */
+        MqttIntegrationConfigUpdate: {
+            /**
+             * Enabled
+             * @description Enable MQTT integration
+             */
+            enabled?: boolean | null;
+            /**
+             * Publish Detections
+             * @description Publish detection events
+             */
+            publish_detections?: boolean | null;
+            /**
+             * Publish Events
+             * @description Publish security events to MQTT
+             */
+            publish_events?: boolean | null;
+            /**
+             * Publish System Status
+             * @description Publish system status updates
+             */
+            publish_system_status?: boolean | null;
+        };
+        /**
+         * MqttPublisherConfig
+         * @description MQTT publisher settings.
+         *
+         *     Configures how messages are published to the broker including
+         *     topic prefix, QoS level, and retention settings.
+         * @example {
+         *       "qos": 1,
+         *       "retain": false,
+         *       "topic_prefix": "home-security"
+         *     }
+         */
+        MqttPublisherConfig: {
+            /**
+             * Qos
+             * @description Quality of Service level (0=at most once, 1=at least once, 2=exactly once)
+             * @default 1
+             */
+            qos: number;
+            /**
+             * Retain
+             * @description Retain last message on each topic for new subscribers
+             * @default false
+             */
+            retain: boolean;
+            /**
+             * Topic Prefix
+             * @description Prefix for all MQTT topics (e.g., 'home-security/events')
+             * @default home-security
+             */
+            topic_prefix: string;
+        };
+        /**
+         * MqttPublisherConfigUpdate
+         * @description MQTT publisher settings update (all fields optional).
+         *
+         *     Used for partial updates to publisher configuration.
+         */
+        MqttPublisherConfigUpdate: {
+            /**
+             * Qos
+             * @description Quality of Service level
+             */
+            qos?: number | null;
+            /**
+             * Retain
+             * @description Retain last message on each topic
+             */
+            retain?: boolean | null;
+            /**
+             * Topic Prefix
+             * @description Prefix for all MQTT topics
+             */
+            topic_prefix?: string | null;
+        };
+        /**
+         * MqttReconnectResponse
+         * @description Response schema for MQTT reconnect request.
+         *
+         *     Reports the result of a reconnection attempt.
+         * @example {
+         *       "message": "Reconnected to mqtt.example.com:1883",
+         *       "new_state": "connected",
+         *       "previous_state": "disconnected",
+         *       "success": true
+         *     }
+         */
+        MqttReconnectResponse: {
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * New State
+             * @description Connection state after reconnect attempt
+             */
+            new_state: string;
+            /**
+             * Previous State
+             * @description Connection state before reconnect (connected/disconnected)
+             */
+            previous_state: string;
+            /**
+             * Success
+             * @description Whether the reconnection was initiated successfully
+             */
+            success: boolean;
+        };
+        /**
+         * MqttTestRequest
+         * @description Request schema for testing MQTT connection.
+         *
+         *     Optionally override configuration for testing without saving.
+         * @example {
+         *       "broker_override": {
+         *         "client_id": "test-client",
+         *         "host": "test-mqtt.example.com",
+         *         "port": 1883,
+         *         "use_tls": false,
+         *         "username": "testuser"
+         *       },
+         *       "timeout_seconds": 10,
+         *       "use_saved_config": false
+         *     }
+         */
+        MqttTestRequest: {
+            /** @description Override broker config for testing (not saved) */
+            broker_override?: components["schemas"]["MqttBrokerConfig"] | null;
+            /**
+             * Timeout Seconds
+             * @description Connection timeout in seconds
+             * @default 10
+             */
+            timeout_seconds: number;
+            /**
+             * Use Saved Config
+             * @description Use saved configuration (if False, broker_override is required)
+             * @default true
+             */
+            use_saved_config: boolean;
+        };
+        /**
+         * MqttTestResult
+         * @description Result schema for MQTT connection test.
+         *
+         *     Reports whether the test connection was successful and any errors.
+         * @example {
+         *       "broker_version": "Mosquitto 2.0.15",
+         *       "latency_ms": 45.2,
+         *       "message": "Successfully connected to mqtt.example.com:1883",
+         *       "success": true
+         *     }
+         */
+        MqttTestResult: {
+            /**
+             * Broker Version
+             * @description Broker version string (if available)
+             */
+            broker_version?: string | null;
+            /**
+             * Error Code
+             * @description Error code (if failed)
+             */
+            error_code?: string | null;
+            /**
+             * Error Details
+             * @description Detailed error message (if failed)
+             */
+            error_details?: string | null;
+            /**
+             * Latency Ms
+             * @description Connection latency in milliseconds (if successful)
+             */
+            latency_ms?: number | null;
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * Success
+             * @description Whether the connection test was successful
+             */
+            success: boolean;
         };
         /**
          * NemotronLatencyOptimizerResponse
@@ -37094,6 +38048,19 @@ export interface components {
             severity?: components["schemas"]["SeveritySettingsUpdate"] | null;
         };
         /**
+         * SetupStatusResponse
+         * @description Response schema for setup status check.
+         *
+         *     Returns whether initial setup (first user registration) is required.
+         */
+        SetupStatusResponse: {
+            /**
+             * Setup Required
+             * @description Whether initial setup is required (no users exist)
+             */
+            setup_required: boolean;
+        };
+        /**
          * SeverityDefinitionResponse
          * @description Definition of a single severity level.
          * @example {
@@ -39130,6 +40097,90 @@ export interface components {
              * @description Score threshold for medium risk classification (0-100)
              */
             medium_threshold?: number | null;
+        };
+        /**
+         * UserLoginRequest
+         * @description Request schema for user login.
+         */
+        UserLoginRequest: {
+            /**
+             * Password
+             * @description Password
+             */
+            password: string;
+            /**
+             * Username
+             * @description Username
+             */
+            username: string;
+        };
+        /**
+         * UserRegisterRequest
+         * @description Request schema for user registration.
+         *
+         *     Used for registering the first admin user during initial setup.
+         *     After the first user exists, this endpoint is blocked.
+         */
+        UserRegisterRequest: {
+            /**
+             * Email
+             * @description Email address for the user
+             */
+            email: string;
+            /**
+             * Password
+             * @description Password (minimum 12 characters)
+             */
+            password: string;
+            /**
+             * Username
+             * @description Username for login (alphanumeric, underscores, hyphens only)
+             */
+            username: string;
+        };
+        /**
+         * UserResponse
+         * @description Response schema for user information.
+         *
+         *     Does NOT include password hash or other sensitive fields.
+         */
+        UserResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the user was created
+             */
+            created_at: string;
+            /**
+             * Email
+             * @description Email address
+             */
+            email: string;
+            /**
+             * Id
+             * @description User ID
+             */
+            id: string;
+            /**
+             * Is Active
+             * @description Whether the user account is active
+             */
+            is_active: boolean;
+            /**
+             * Is Admin
+             * @description Whether the user has admin privileges
+             */
+            is_admin: boolean;
+            /**
+             * Last Login At
+             * @description Last login timestamp
+             */
+            last_login_at?: string | null;
+            /**
+             * Username
+             * @description Username
+             */
+            username: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -44609,6 +45660,386 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_list_api_keys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of API keys */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyListResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_create_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["APIKeyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description API key created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyCreateResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_revoke_api_key: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API key revoked successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIKeyRevokeResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description API key not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Login successful */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logged out successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_get_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current user information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_register_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description User registered successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Registration blocked (users already exist) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_get_setup_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup status returned successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatusResponse"];
                 };
             };
             /** @description Internal server error */
@@ -52031,6 +53462,187 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "mqtt-config_get_mqtt_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttConfigResponse"];
+                };
+            };
+            /** @description Failed to load configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "mqtt-config_update_mqtt_config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MqttConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttConfigResponse"];
+                };
+            };
+            /** @description Invalid configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to save configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "mqtt-config_disconnect_mqtt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttDisconnectResponse"];
+                };
+            };
+        };
+    };
+    "mqtt-config_reconnect_mqtt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttReconnectResponse"];
+                };
+            };
+            /** @description Reconnection failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "mqtt-config_get_mqtt_status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttConnectionStatus"];
+                };
+            };
+        };
+    };
+    "mqtt-config_test_mqtt_connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MqttTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MqttTestResult"];
+                };
+            };
+            /** @description Invalid test configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

@@ -3,6 +3,7 @@
 from .action_event import ActionEvent
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from .analytics_zone import LineZone, PolygonZone
+from .api_key import APIKey
 from .area import Area, camera_areas
 from .audit import AuditAction, AuditLog, AuditStatus
 from .backup_job import BackupJob, BackupJobStatus, RestoreJob, RestoreJobStatus
@@ -89,12 +90,14 @@ from .scheduled_report import ReportFormat, ReportFrequency, ScheduledReport
 from .smoke_fire_result import SmokeFireResult, SmokeFireType
 from .summary import Summary, SummaryType
 from .track import Track
+from .user import User
 from .user_calibration import UserCalibration
 from .zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly
 from .zone_baseline import ZoneActivityBaseline
 from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
+    "APIKey",
     "ActionEvent",
     "ActionResult",
     "ActivityBaseline",
@@ -196,6 +199,7 @@ __all__ = [
     "Track",
     "TrustLevel",
     "TrustStatus",
+    "User",
     "UserCalibration",
     "VehicleType",
     "WebhookDelivery",

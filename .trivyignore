@@ -204,6 +204,16 @@ CVE-2026-22801
 # Python Package Vulnerabilities - No Fix Available
 # =============================================================================
 
+# CVE-2024-23342 - python-ecdsa Minerva timing attack (REVIEW BY: 2026-05-03)
+# HIGH severity, no fix planned by upstream maintainer
+# python-ecdsa project considers side-channel attacks out of scope
+# ecdsa 0.19.1 is transitive dependency via python-jose (JWT library)
+# Not exploitable in our context:
+#   1. JWT signing uses HMAC (HS256), not ECDSA in our implementation
+#   2. Timing attack requires local timing measurement capability
+#   3. No ECDH operations or ECDSA signing in production code paths
+CVE-2024-23342
+
 # GHSA-58pv-8j8x-9vj2 / CVE-2026-23949 - jaraco.context path traversal in tarfile.chdir() (REVIEW BY: 2026-04-13)
 # Affected version 5.3.0 is vendored inside setuptools (even latest 80.9.0)
 # No upstream fix available - setuptools has not updated vendored jaraco.context to 6.1.0

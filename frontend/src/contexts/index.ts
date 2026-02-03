@@ -86,3 +86,14 @@ export type {
   ResolvedTheme,
   ThemeProviderProps,
 } from './ThemeContext';
+
+// Auth context for authentication state (NEM-5322)
+export { AuthProvider, useAuth } from './AuthContext';
+
+export type {
+  AuthContextType,
+  AuthProviderProps,
+  User,
+  LoginRequest,
+  RegisterRequest,
+} from './AuthContext';

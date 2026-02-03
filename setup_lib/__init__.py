@@ -1,7 +1,8 @@
 """Setup package for Home Security Intelligence.
 
 This package provides reusable utilities for the setup script including
-port checking, password generation, and other configuration helpers.
+port checking, password generation, port scanning, NVIDIA toolkit management,
+credentials management, and other configuration helpers.
 """
 
 from setup_lib.core import (
@@ -11,11 +12,91 @@ from setup_lib.core import (
     generate_password,
     is_weak_password,
 )
+from setup_lib.credentials import (
+    CredentialConfig,
+    CredentialsManager,
+    PasswordStrength,
+    generate_api_key,
+    prompt_and_generate_credentials,
+    redact_secret,
+    validate_password_strength,
+)
+from setup_lib.credentials import generate_password as generate_secure_password
+from setup_lib.nvidia_toolkit import (
+    ToolkitInstallationSummary,
+    configure_docker_runtime,
+    configure_podman_runtime,
+    configure_runtimes,
+    get_detected_runtimes,
+    get_install_command,
+    get_toolkit_installation_summary,
+    get_toolkit_version,
+    install_toolkit,
+    is_docker_installed,
+    is_podman_installed,
+    is_toolkit_installed,
+    prompt_and_configure_runtimes,
+    prompt_and_install_toolkit,
+    restart_docker_daemon,
+    setup_nvidia_container_toolkit,
+    verify_gpu_passthrough,
+)
+from setup_lib.port_scanner import (
+    REQUIRED_PORTS,
+    PortConflict,
+    PortScanResult,
+    ProcessInfo,
+    find_alternative_port,
+    find_alternative_ports,
+    format_conflict_report,
+    get_process_using_port,
+    print_conflict_report,
+    prompt_and_scan_ports,
+    scan_ports,
+    scan_required_ports,
+)
 
 __all__ = [
+    "REQUIRED_PORTS",
     "WEAK_PASSWORDS",
+    "CredentialConfig",
+    "CredentialsManager",
+    "PasswordStrength",
+    "PortConflict",
+    "PortScanResult",
+    "ProcessInfo",
+    "ToolkitInstallationSummary",
     "check_port_available",
+    "configure_docker_runtime",
+    "configure_podman_runtime",
+    "configure_runtimes",
+    "find_alternative_port",
+    "find_alternative_ports",
     "find_available_port",
+    "format_conflict_report",
+    "generate_api_key",
     "generate_password",
+    "generate_secure_password",
+    "get_detected_runtimes",
+    "get_install_command",
+    "get_process_using_port",
+    "get_toolkit_installation_summary",
+    "get_toolkit_version",
+    "install_toolkit",
+    "is_docker_installed",
+    "is_podman_installed",
+    "is_toolkit_installed",
     "is_weak_password",
+    "print_conflict_report",
+    "prompt_and_configure_runtimes",
+    "prompt_and_generate_credentials",
+    "prompt_and_install_toolkit",
+    "prompt_and_scan_ports",
+    "redact_secret",
+    "restart_docker_daemon",
+    "scan_ports",
+    "scan_required_ports",
+    "setup_nvidia_container_toolkit",
+    "validate_password_strength",
+    "verify_gpu_passthrough",
 ]

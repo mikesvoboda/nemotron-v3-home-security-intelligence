@@ -61,6 +61,8 @@ paths = [
 
 # Regex patterns for allowlisted content (applies to all files including tests)
 regexes = [
+  # Dynamic secret generation (not hardcoded secrets)
+  '''generate_password\(\d+\)''',
   # Test fixture placeholder values (clearly fake)
   '''test[-_]?(api[-_]?)?key''',
   '''fake[-_]?(api[-_]?)?key''',
@@ -91,7 +93,10 @@ regexes = [
 ]
 
 # Specific commits to ignore (e.g., historical false positives)
-commits = []
+commits = [
+  # Commit that introduced dynamic JWT secret generation (not a hardcoded secret)
+  "38b26dd29949f9504f177d6b7619e4e0ede5fbb9",
+]
 
 # Stopwords - strings that if found in the secret will cause it to be ignored
 stopwords = [

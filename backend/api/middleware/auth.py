@@ -9,6 +9,10 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from backend.api.middleware.websocket_auth import (
+    WebSocketAuthMethod,
+    verify_websocket_auth,
+)
 from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
 
@@ -124,15 +128,28 @@ async def validate_websocket_api_key(websocket: WebSocket) -> bool:
 
 
 async def authenticate_websocket(websocket: WebSocket) -> bool:
-    """Authenticate a WebSocket connection.
+    """Authenticate a WebSocket connection using hybrid authentication.
+
+    Supports multiple authentication methods in priority order:
+    1. Cookie authentication (web UI clients)
+    2. JWT token in query parameter (API/mobile clients)
+    3. API key (existing functionality for backward compatibility)
 
     If authentication fails, the connection is first accepted and then closed
-    with a policy violation code (1008). This is required because in the
-    WebSocket protocol, you cannot send a close frame without first completing
-    the handshake (accepting the connection).
+    with an appropriate code. This is required because in the WebSocket protocol,
+    you cannot send a close frame without first completing the handshake.
 
     Note: Attempting to close without accepting would result in the HTTP layer
     returning a 403 Forbidden, which is not a proper WebSocket close.
+
+    Close codes:
+    - 4001: Authentication failure (when hybrid auth is configured - JWT_SECRET set)
+    - 4002: Token expired (hybrid auth)
+    - 1008: Policy violation (API key only - backward compatible when no JWT_SECRET)
+
+    IMPORTANT: This function does NOT accept the WebSocket on success.
+    The caller (route) is responsible for accepting via broadcaster.connect()
+    or websocket.accept().
 
     Args:
         websocket: WebSocket connection to authenticate
@@ -140,12 +157,46 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     Returns:
         True if authenticated successfully, False if connection was rejected
     """
+    settings = get_settings()
+
+    # Check if hybrid auth is configured (JWT_SECRET is set)
+    hybrid_auth_enabled = bool(settings.jwt_secret)
+
+    # Check if hybrid auth credentials are present (cookie or JWT token)
+    # Use isinstance check to handle MagicMock in tests (which is not None but also not a string)
+    cookie_value = websocket.cookies.get("session")
+    token_value = websocket.query_params.get("token")
+    has_cookie = isinstance(cookie_value, str) and bool(cookie_value)
+    has_jwt_token = isinstance(token_value, str) and bool(token_value)
+
+    # Try hybrid auth first if credentials are present
+    if has_cookie or has_jwt_token:
+        success, auth_method = await verify_websocket_auth(websocket, timeout=5.0)
+        if success:
+            logger.info(
+                f"WebSocket authenticated via {auth_method.value}",
+                extra={
+                    "path": str(websocket.url.path),
+                    "auth_method": auth_method.value,
+                },
+            )
+            # Do NOT accept here - let the route/broadcaster handle it
+            return True
+        # verify_websocket_auth already closed the connection on failure
+        if auth_method != WebSocketAuthMethod.NONE:
+            return False
+
+    # Fall back to API key authentication
     if not await validate_websocket_api_key(websocket):
         # Must accept the WebSocket before we can close it with a proper close frame.
         # Without accept(), calling close() results in HTTP 403 during handshake.
         await websocket.accept()
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        # Use 4001 if hybrid auth is enabled (new behavior), otherwise 1008 (backward compat)
+        close_code = 4001 if hybrid_auth_enabled else status.WS_1008_POLICY_VIOLATION
+        await websocket.close(code=close_code)
         return False
+
+    # API key auth succeeded - do NOT accept here, let the caller handle it
     return True
 
 
@@ -253,6 +304,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/docs",
             "/redoc",
             "/openapi.json",
+            # Auth endpoints (NEM-5312: Phase 2 API Protection)
+            # These are exempt because:
+            # 1. Setup status must be checkable without auth
+            # 2. Registration must work when no users exist
+            # 3. Login endpoint needs to be accessible to authenticate
+            "/api/auth/setup-status",
+            "/api/auth/register",
+            "/api/auth/login",
         ]
 
         # Exempt prefix paths (for dynamic routes)
