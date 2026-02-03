@@ -604,6 +604,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Users
+         * @description List all users (admin only).
+         *
+         *     Returns a list of all users in the system.
+         *
+         *     Args:
+         *         current_admin: Current authenticated admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         AdminUserListResponse with all users and total count.
+         */
+        get: operations["admin_list_users"];
+        put?: never;
+        /**
+         * Create User
+         * @description Create a new user (admin only).
+         *
+         *     Allows administrators to create new user accounts with optional admin privileges.
+         *
+         *     Args:
+         *         request: User creation data (username, email, password, is_admin).
+         *         current_admin: Current authenticated admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         UserResponse with the created user's information.
+         *
+         *     Raises:
+         *         HTTPException: 400 if username or email already exists.
+         */
+        post: operations["admin_create_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete User
+         * @description Delete a user (admin only).
+         *
+         *     Permanently deletes a user account. Admins cannot delete their own account.
+         *
+         *     Args:
+         *         user_id: ID of the user to delete.
+         *         current_admin: Current authenticated admin user (from dependency).
+         *         db: Database session.
+         *
+         *     Returns:
+         *         AdminUserDeleteResponse confirming deletion.
+         *
+         *     Raises:
+         *         HTTPException: 400 if trying to delete self.
+         *         HTTPException: 404 if user not found.
+         */
+        delete: operations["admin_delete_user"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai-audit/batch": {
         parameters: {
             query?: never;
@@ -13774,6 +13854,61 @@ export interface components {
              * @description ID of the event to extract embedding from
              */
             event_id: number;
+        };
+        /**
+         * AdminUserCreateRequest
+         * @description Request schema for admin creating a new user.
+         */
+        AdminUserCreateRequest: {
+            /**
+             * Email
+             * @description Email address for the user
+             */
+            email: string;
+            /**
+             * Is Admin
+             * @description Whether the user should have admin privileges
+             * @default false
+             */
+            is_admin: boolean;
+            /**
+             * Password
+             * @description Password (minimum 12 characters)
+             */
+            password: string;
+            /**
+             * Username
+             * @description Username for login (alphanumeric, underscores, hyphens only)
+             */
+            username: string;
+        };
+        /**
+         * AdminUserDeleteResponse
+         * @description Response schema for user deletion.
+         */
+        AdminUserDeleteResponse: {
+            /**
+             * Message
+             * @description Status message
+             * @default User deleted successfully
+             */
+            message: string;
+        };
+        /**
+         * AdminUserListResponse
+         * @description Response schema for listing users.
+         */
+        AdminUserListResponse: {
+            /**
+             * Items
+             * @description List of users
+             */
+            items: components["schemas"]["UserResponse"][];
+            /**
+             * Total
+             * @description Total number of users
+             */
+            total: number;
         };
         /**
          * AiModelMetrics
@@ -43194,6 +43329,187 @@ export interface operations {
             };
             /** @description Forbidden - Debug mode or admin not enabled */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_list_users: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of users */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserListResponse"];
+                };
+            };
+            /** @description Unauthorized - Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_create_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description User created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Bad request - Username or email already exists */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized - Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    admin_delete_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                session_id?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User deleted successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDeleteResponse"];
+                };
+            };
+            /** @description Bad request - Cannot delete yourself */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized - Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Admin privileges required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description User not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

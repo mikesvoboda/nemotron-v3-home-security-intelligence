@@ -15,6 +15,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.routes.auth import get_current_admin_user
+from backend.api.schemas.auth import (
+    AdminUserCreateRequest,
+    AdminUserDeleteResponse,
+    AdminUserListResponse,
+    UserResponse,
+)
 from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.dependencies import get_redis_dependency
@@ -24,7 +31,9 @@ from backend.models.audit import AuditAction, AuditStatus
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.user import User
 from backend.services.audit import get_db_audit_service
+from backend.services.auth_service import AuthService
 
 logger = get_logger(__name__)
 
@@ -1310,3 +1319,217 @@ async def flush_queues(
         duration_seconds=round(duration, 3),
         message=f"Flushed {total_items} items from {len(queues_flushed)} queues",
     )
+
+
+# --- User Management Endpoints ---
+
+
+def _generate_user_id() -> str:
+    """Generate a unique user ID."""
+    return str(uuid.uuid4())
+
+
+@router.post(
+    "/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {"description": "User created successfully"},
+        400: {"description": "Bad request - Username or email already exists"},
+        401: {"description": "Unauthorized - Not authenticated"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def create_user(
+    request: AdminUserCreateRequest,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Create a new user (admin only).
+
+    Allows administrators to create new user accounts with optional admin privileges.
+
+    Args:
+        request: User creation data (username, email, password, is_admin).
+        current_admin: Current authenticated admin user (from dependency).
+        db: Database session.
+
+    Returns:
+        UserResponse with the created user's information.
+
+    Raises:
+        HTTPException: 400 if username or email already exists.
+    """
+    # Check for duplicate username
+    username_check = await db.execute(select(User).where(User.username == request.username))
+    if username_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already taken",
+        )
+
+    # Check for duplicate email
+    email_check = await db.execute(select(User).where(User.email == request.email))
+    if email_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    # Hash password
+    auth_service = AuthService()
+    password_hash = auth_service.hash_password(request.password)
+
+    # Create user
+    user = User(
+        id=_generate_user_id(),
+        username=request.username,
+        email=request.email,
+        password_hash=password_hash,
+        is_active=True,
+        is_admin=request.is_admin,
+    )
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(
+        "Admin created new user",
+        extra={
+            "admin_user_id": current_admin.id,
+            "new_user_id": user.id,
+            "new_username": user.username,
+            "is_admin": user.is_admin,
+        },
+    )
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_active=user.is_active,
+        is_admin=user.is_admin,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+    )
+
+
+@router.get(
+    "/users",
+    response_model=AdminUserListResponse,
+    responses={
+        200: {"description": "List of users"},
+        401: {"description": "Unauthorized - Not authenticated"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def list_users(
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> AdminUserListResponse:
+    """List all users (admin only).
+
+    Returns a list of all users in the system.
+
+    Args:
+        current_admin: Current authenticated admin user (from dependency).
+        db: Database session.
+
+    Returns:
+        AdminUserListResponse with all users and total count.
+    """
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    users = result.scalars().all()
+
+    items = [
+        UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            is_admin=user.is_admin,
+            created_at=user.created_at,
+            last_login_at=user.last_login_at,
+        )
+        for user in users
+    ]
+
+    logger.info(
+        "Admin listed users",
+        extra={
+            "admin_user_id": current_admin.id,
+            "total_users": len(items),
+        },
+    )
+
+    return AdminUserListResponse(items=items, total=len(items))
+
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=AdminUserDeleteResponse,
+    responses={
+        200: {"description": "User deleted successfully"},
+        400: {"description": "Bad request - Cannot delete yourself"},
+        401: {"description": "Unauthorized - Not authenticated"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        404: {"description": "User not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def delete_user(
+    user_id: str,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> AdminUserDeleteResponse:
+    """Delete a user (admin only).
+
+    Permanently deletes a user account. Admins cannot delete their own account.
+
+    Args:
+        user_id: ID of the user to delete.
+        current_admin: Current authenticated admin user (from dependency).
+        db: Database session.
+
+    Returns:
+        AdminUserDeleteResponse confirming deletion.
+
+    Raises:
+        HTTPException: 400 if trying to delete self.
+        HTTPException: 404 if user not found.
+    """
+    # Prevent self-deletion
+    if user_id == current_admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account",
+        )
+
+    # Find the user
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not found",
+        )
+
+    # Delete the user
+    await db.delete(user)
+    await db.commit()
+
+    logger.warning(
+        "Admin deleted user",
+        extra={
+            "admin_user_id": current_admin.id,
+            "deleted_user_id": user_id,
+            "deleted_username": user.username,
+        },
+    )
+
+    return AdminUserDeleteResponse(message="User deleted successfully")
