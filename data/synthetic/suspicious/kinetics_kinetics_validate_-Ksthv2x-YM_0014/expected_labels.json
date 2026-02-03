@@ -1,0 +1,36 @@
+{
+  "source": "kinetics",
+  "video_id": "kinetics_validate_-Ksthv2x-YM_0014",
+  "category": "suspicious",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "visible": true
+  },
+  "pose": {
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "climbing",
+    "is_suspicious": true
+  },
+  "scene": {
+    "location": "varies",
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "risk": {
+    "min_score": 25,
+    "max_score": 45,
+    "level": "medium"
+  },
+  "validation": {
+    "prompt_excerpt": "Person performing action: climbing ladder. Video clip from YouTube (-Ksthv2x-YM), seconds 14-24."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "kinetics_validate_85bO6L4CPCk_0032",
+  "category": "threats",
+  "name": "Punching Person (Boxing)",
+  "description": "Person performing action: punching person (boxing). Video clip from YouTube (85bO6L4CPCk), seconds 32-42.",
+  "source": "kinetics",
+  "scene": {
+    "location": "varies",
+    "camera_type": "varies",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "video",
+    "duration_sec": 10.0
+  }
+}

@@ -97,4 +97,16 @@ frontend/src/api/types.ts linguist-generated=true
 *.lock linguist-generated=true
 package-lock.json linguist-generated=true
 uv.lock linguist-generated=true
+# Video files (global)
 *.mp4 filter=lfs diff=lfs merge=lfs -text
+
+# Synthetic data media files (images and videos)
+data/synthetic/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.png filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.gif filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.webp filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.webm filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.avi filter=lfs diff=lfs merge=lfs -text
+data/synthetic/**/*.mov filter=lfs diff=lfs merge=lfs -text

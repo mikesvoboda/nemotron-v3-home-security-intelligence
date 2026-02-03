@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000044279",
+  "category": "suspicious",
+  "name": "COCO Scene 44279",
+  "description": "Scene containing 1 knife, 2 person. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "coco_val2017_000000296649",
+  "category": "normal",
+  "name": "COCO Scene 296649",
+  "description": "Scene containing 1 bicycle, 13 person, 3 motorcycle, 4 car, 4 bird, 1 truck. From COCO object detection dataset.",
+  "source": "coco",
+  "scene": {
+    "location": "varies",
+    "camera_type": "photograph",
+    "resolution": "varies"
+  },
+  "environment": {
+    "time_of_day": "varies",
+    "weather": "varies"
+  },
+  "generation": {
+    "format": "image"
+  }
+}
