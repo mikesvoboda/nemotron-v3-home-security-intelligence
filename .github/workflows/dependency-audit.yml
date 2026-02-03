@@ -51,8 +51,14 @@ jobs:
           #   - Impact: We don't use ParseDict() with untrusted nested Any messages
           #   - Status: Awaiting upstream fix from google/protobuf
           #   - Review date: 2026-01-23
+          # CVE-2024-23342: python-ecdsa Minerva timing attack
+          #   - Severity: Moderate (requires local timing measurement for attack)
+          #   - Impact: ecdsa is transitive dep (used by jose for JWT signing)
+          #   - Status: Upstream considers side-channel attacks out of scope, no fix planned
+          #   - Review date: 2026-02-03
           pip-audit -r requirements-audit-filtered.txt --desc \
-            --ignore-vuln CVE-2026-0994
+            --ignore-vuln CVE-2026-0994 \
+            --ignore-vuln CVE-2024-23342
         continue-on-error: false
 
   npm-audit:
