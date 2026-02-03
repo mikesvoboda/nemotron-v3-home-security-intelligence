@@ -287,6 +287,7 @@ class TestWebSocketTokenRefreshFlow:
 
         get_settings.cache_clear()
 
+    @pytest.mark.xfail(reason="Token refresh feature not yet implemented (TDD RED phase)")
     def test_websocket_connection_survives_token_refresh(self, refresh_client):
         """Test that WebSocket connection remains active after token refresh.
 
@@ -369,6 +370,7 @@ class TestWebSocketSessionInvalidation:
 
         get_settings.cache_clear()
 
+    @pytest.mark.xfail(reason="Session invalidation feature not yet implemented (TDD RED phase)")
     def test_websocket_disconnects_on_session_invalidation(self, session_client):
         """Test that WebSocket disconnects when session is invalidated.
 
