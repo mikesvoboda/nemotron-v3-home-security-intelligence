@@ -582,8 +582,8 @@ rebuild_tensorrt_engine() {
         return 0
     fi
 
-    # Check if ai-yolo26 image exists
-    if ! $CONTAINER_CMD image exists ai-yolo26 2>/dev/null; then
+    # Check if ai-yolo26 image exists (use fully-qualified name for non-TTY mode)
+    if ! $CONTAINER_CMD image exists localhost/ai-yolo26:latest 2>/dev/null; then
         print_warn "ai-yolo26 image not built yet - skipping TensorRT rebuild"
         return 0
     fi
@@ -595,13 +595,14 @@ rebuild_tensorrt_engine() {
     print_info "This may take 2-5 minutes..."
 
     # Run the rebuild inside the container with GPU access and writable mounts
+    # NOTE: Use fully-qualified image name to avoid short-name resolution prompts in non-TTY mode
     local gpu_ai="${GPU_AI_SERVICES:-0}"
     if run_cmd $CONTAINER_CMD run --rm \
         --device "nvidia.com/gpu=${gpu_ai}" \
         --security-opt=label=disable \
         -e CUDA_VISIBLE_DEVICES=0 \
         -v "${yolo26_dir}:/models/yolo26:z" \
-        ai-yolo26 \
+        localhost/ai-yolo26:latest \
         python -c "
 from ultralytics import YOLO
 import os
@@ -655,6 +656,9 @@ build_ai_images_podman() {
     # IMPORTANT: If you add a new service, check its Dockerfile COPY commands:
     # - If COPY uses paths like "ai/<service>/..." -> use "." (project root) as context
     # - If COPY uses paths like "./requirements.txt" -> use the Dockerfile's directory as context
+    #
+    # NOTE: Images are tagged with fully-qualified names (localhost/...) to avoid short-name
+    # resolution prompts in non-TTY mode (e.g., background execution, CI/CD pipelines)
     local -a ai_services=(
         "ai-yolo26:ai/yolo26/Dockerfile:."
         "ai-llm:ai/nemotron/Dockerfile:."
@@ -670,7 +674,8 @@ build_ai_images_podman() {
             local rest="${svc#*:}"
             local dockerfile="${rest%%:*}"
             local context="${rest#*:}"
-            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $name -f $dockerfile $context"
+            local full_image="localhost/${name}:latest"
+            echo -e "${YELLOW}[DRY-RUN]${NC} $CONTAINER_CMD build --no-cache -t $full_image -f $dockerfile $context"
         done
         return 0
     fi
@@ -690,10 +695,11 @@ build_ai_images_podman() {
         local rest="${svc#*:}"
         local dockerfile="${rest%%:*}"
         local context="${rest#*:}"
+        local full_image="localhost/${name}:latest"
         local log_file="$log_dir/${name}.log"
 
         print_info "  Starting $name build (context: $context)..."
-        $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" "$context" > "$log_file" 2>&1 &
+        $CONTAINER_CMD build --no-cache -t "$full_image" -f "$dockerfile" "$context" > "$log_file" 2>&1 &
         pids+=($!)
         names+=("$name")
     done
@@ -761,6 +767,8 @@ start_ai_containers_podman() {
     local gpu_enrichment="${GPU_ENRICHMENT:-$gpu_ai}"
 
     # ai-yolo26 (YOLO26 TensorRT)
+    # NOTE: Use fully-qualified image names (localhost/...) to avoid short-name resolution
+    # prompts in non-TTY mode (e.g., background execution, CI/CD pipelines)
     print_step "Starting ai-yolo26 on GPU ${gpu_yolo26} (port ${yolo26_port})..."
     run_cmd $CONTAINER_CMD run -d \
         --name ai-yolo26 \
@@ -771,7 +779,7 @@ start_ai_containers_podman() {
         -e "YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}" \
         -e "YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine" \
         --restart unless-stopped \
-        ai-yolo26
+        localhost/ai-yolo26:latest
     print_success "ai-yolo26 started"
 
     # ai-llm (Nemotron)
@@ -785,7 +793,7 @@ start_ai_containers_podman() {
         -e "GPU_LAYERS=${GPU_LAYERS:-40}" \
         -e "CTX_SIZE=${CTX_SIZE:-65536}" \
         --restart unless-stopped \
-        ai-llm
+        localhost/ai-llm:latest
     print_success "ai-llm started"
 
     # ai-florence (shares GPU with LLM by default)
@@ -798,7 +806,7 @@ start_ai_containers_podman() {
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro,z" \
         -e "MODEL_PATH=/models/florence-2-large" \
         --restart unless-stopped \
-        ai-florence
+        localhost/ai-florence:latest
     print_success "ai-florence started"
 
     # ai-clip
@@ -811,7 +819,7 @@ start_ai_containers_podman() {
         -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro,z" \
         -e "CLIP_MODEL_PATH=/models/clip-vit-l" \
         --restart unless-stopped \
-        ai-clip
+        localhost/ai-clip:latest
     print_success "ai-clip started"
 
     # ai-enrichment
@@ -830,7 +838,7 @@ start_ai_containers_podman() {
         -e "CLOTHING_MODEL_PATH=/models/fashion-clip" \
         -e "DEPTH_MODEL_PATH=/models/depth-anything-v2-small" \
         --restart unless-stopped \
-        ai-enrichment
+        localhost/ai-enrichment:latest
     print_success "ai-enrichment started"
 
     return 0
@@ -1133,20 +1141,20 @@ check_prerequisites() {
     fi
     print_success "Found compose files"
 
-    # Check .env file exists, run setup.sh if missing
+    # Check .env file exists, run setup.py --defaults if missing
     print_step "Checking environment file..."
     if [ ! -f "$PROJECT_ROOT/.env" ]; then
-        print_warn ".env file not found - running setup.sh to generate it"
-        if [ -f "$PROJECT_ROOT/setup.sh" ]; then
-            print_step "Running setup.sh..."
-            if (cd "$PROJECT_ROOT" && ./setup.sh); then
-                print_success "Generated .env via setup.sh"
+        print_warn ".env file not found - running setup.py --defaults to generate it"
+        if [ -f "$PROJECT_ROOT/setup.py" ]; then
+            print_step "Running setup.py --defaults (non-interactive)..."
+            if (cd "$PROJECT_ROOT" && python3 setup.py --defaults); then
+                print_success "Generated .env via setup.py"
             else
-                print_fail "setup.sh failed - please run manually"
+                print_fail "setup.py --defaults failed - please run setup.py manually"
                 return 2
             fi
         else
-            print_fail "setup.sh not found - cannot generate .env"
+            print_fail "setup.py not found - cannot generate .env"
             return 2
         fi
     else
@@ -1265,22 +1273,33 @@ check_ci_build_status() {
 }
 
 update_to_latest_main() {
-    print_header "Updating to Latest origin/main"
+    print_header "Checking Git State"
 
     cd "$PROJECT_ROOT"
 
     # Check if we're in a git repository
     if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-        print_warn "Not a git repository - skipping git pull"
+        print_warn "Not a git repository - skipping git operations"
         return 0
     fi
 
-    # Save current branch/commit for reference
+    # Get current branch/commit for reference
     local current_branch
     current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "detached")
     local current_commit
     current_commit=$(git rev-parse --short HEAD 2>/dev/null)
     print_info "Current: $current_branch ($current_commit)"
+
+    # Only sync to origin/main if we're on the main branch
+    # Feature branches are preserved as-is to respect local development state
+    if [ "$current_branch" != "main" ]; then
+        print_info "On branch '$current_branch' - preserving local state"
+        print_success "Deploying from current branch state"
+        return 0
+    fi
+
+    # On main branch - sync to origin/main
+    print_step "On main branch - syncing to origin/main..."
 
     # Fetch latest from origin
     print_step "Fetching from origin..."
@@ -1316,17 +1335,12 @@ update_to_latest_main() {
 
     # Reset to origin/main
     print_step "Resetting to origin/main..."
-    if run_cmd git checkout main 2>/dev/null || run_cmd git checkout -b main origin/main 2>/dev/null; then
-        if run_cmd git reset --hard origin/main; then
-            local new_commit
-            new_commit=$(git rev-parse --short HEAD)
-            print_success "Updated to origin/main ($new_commit)"
-        else
-            print_fail "Failed to reset to origin/main"
-            return 1
-        fi
+    if run_cmd git reset --hard origin/main; then
+        local new_commit
+        new_commit=$(git rev-parse --short HEAD)
+        print_success "Updated to origin/main ($new_commit)"
     else
-        print_fail "Failed to checkout main branch"
+        print_fail "Failed to reset to origin/main"
         return 1
     fi
 
@@ -2172,10 +2186,6 @@ main() {
         rebuild_tensorrt_engine
     fi
 
-    # Post-build cleanup: prune dangling images and build cache
-    # This prevents disk space exhaustion from --no-cache rebuilds
-    prune_build_artifacts
-
     # Prepare directories for container volume mounts
     prepare_directories
 
@@ -2197,6 +2207,11 @@ main() {
 
     # Verify deployment
     verify_deployment
+
+    # Post-container-start cleanup: prune dangling images and build cache
+    # This prevents disk space exhaustion from --no-cache rebuilds
+    # NOTE: Must run AFTER containers start so AI images are "in use" and not pruned
+    prune_build_artifacts
 
     # Seed database if volumes were destroyed and seeding not skipped
     if [ "$KEEP_VOLUMES" != "true" ] && [ "$SKIP_SEED" != "true" ]; then
