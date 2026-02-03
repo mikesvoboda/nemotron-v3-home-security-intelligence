@@ -143,9 +143,9 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     returning a 403 Forbidden, which is not a proper WebSocket close.
 
     Close codes:
-    - 4001: Authentication failure (invalid/missing credentials)
-    - 4002: Token expired
-    - 1008: Policy violation (API key failure)
+    - 4001: Authentication failure (when hybrid auth is configured - JWT_SECRET set)
+    - 4002: Token expired (hybrid auth)
+    - 1008: Policy violation (API key only - backward compatible when no JWT_SECRET)
 
     IMPORTANT: This function does NOT accept the WebSocket on success.
     The caller (route) is responsible for accepting via broadcaster.connect()
@@ -157,6 +157,11 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     Returns:
         True if authenticated successfully, False if connection was rejected
     """
+    settings = get_settings()
+
+    # Check if hybrid auth is configured (JWT_SECRET is set)
+    hybrid_auth_enabled = bool(settings.jwt_secret)
+
     # Check if hybrid auth credentials are present (cookie or JWT token)
     has_cookie = websocket.cookies.get("session") is not None
     has_jwt_token = websocket.query_params.get("token") is not None
@@ -183,8 +188,9 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
         # Must accept the WebSocket before we can close it with a proper close frame.
         # Without accept(), calling close() results in HTTP 403 during handshake.
         await websocket.accept()
-        # Use 4001 (authentication failure) for consistency with hybrid auth
-        await websocket.close(code=4001)
+        # Use 4001 if hybrid auth is enabled (new behavior), otherwise 1008 (backward compat)
+        close_code = 4001 if hybrid_auth_enabled else status.WS_1008_POLICY_VIOLATION
+        await websocket.close(code=close_code)
         return False
 
     # API key auth succeeded - do NOT accept here, let the caller handle it
