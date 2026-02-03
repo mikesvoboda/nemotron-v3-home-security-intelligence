@@ -163,8 +163,11 @@ async def authenticate_websocket(websocket: WebSocket) -> bool:
     hybrid_auth_enabled = bool(settings.jwt_secret)
 
     # Check if hybrid auth credentials are present (cookie or JWT token)
-    has_cookie = websocket.cookies.get("session") is not None
-    has_jwt_token = websocket.query_params.get("token") is not None
+    # Use isinstance check to handle MagicMock in tests (which is not None but also not a string)
+    cookie_value = websocket.cookies.get("session")
+    token_value = websocket.query_params.get("token")
+    has_cookie = isinstance(cookie_value, str) and bool(cookie_value)
+    has_jwt_token = isinstance(token_value, str) and bool(token_value)
 
     # Try hybrid auth first if credentials are present
     if has_cookie or has_jwt_token:
