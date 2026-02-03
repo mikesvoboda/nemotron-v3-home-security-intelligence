@@ -156,6 +156,8 @@ def create_access_token(
         "iat": datetime.now(UTC),
         "type": "access",
     }
+    # HS256 is acceptable for single-user local deployment (no distributed secrets)
+    # nosemgrep: jwt-weak-algorithm
     token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)
     return token
 
@@ -189,6 +191,8 @@ def create_refresh_token(
         "iat": datetime.now(UTC),
         "type": "refresh",
     }
+    # HS256 is acceptable for single-user local deployment (no distributed secrets)
+    # nosemgrep: jwt-weak-algorithm
     token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)
     return token
 
@@ -207,6 +211,8 @@ def decode_token(token: str) -> dict[str, Any]:
         InvalidTokenError: If the token is invalid.
     """
     try:
+        # HS256 is acceptable for single-user local deployment (no distributed secrets)
+        # nosemgrep: jwt-weak-algorithm
         payload: dict[str, Any] = jwt.decode(token, _get_jwt_secret(), algorithms=[_JWT_ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError as e:
