@@ -12,10 +12,9 @@
  * Tests follow TDD principles and should initially FAIL until authApi is implemented.
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { server } from '../mocks/server';
 import {
   getSetupStatus,
   register,
@@ -26,6 +25,7 @@ import {
   type LoginRequest,
   type RegisterRequest,
 } from './authApi';
+import { server } from '../mocks/server';
 
 // ============================================================================
 // Test Utilities

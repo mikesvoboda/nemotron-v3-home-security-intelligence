@@ -14,15 +14,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { server } from '../mocks/server';
-import { AuthProvider } from '../contexts/AuthContext';
-import SetupPage from '../components/auth/SetupPage';
-import LoginPage from '../pages/LoginPage';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
+import SetupPage from '../components/auth/SetupPage';
+import { AuthProvider } from '../contexts/AuthContext';
+import { server } from '../mocks/server';
+import LoginPage from '../pages/LoginPage';
 
 import type { User } from '../services/authApi';
 

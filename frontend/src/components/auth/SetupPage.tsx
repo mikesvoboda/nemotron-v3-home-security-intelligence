@@ -23,8 +23,8 @@ import { AlertCircle, Shield, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import Button from '../common/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import Button from '../common/Button';
 
 // ============================================================================
 // Types

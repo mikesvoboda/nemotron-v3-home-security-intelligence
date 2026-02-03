@@ -14,13 +14,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { server } from '../../mocks/server';
-import { AuthProvider } from '../../contexts/AuthContext';
 import SetupPage from './SetupPage';
+import { AuthProvider } from '../../contexts/AuthContext';
+import { server } from '../../mocks/server';
 
 import type { User } from '../../services/authApi';
 

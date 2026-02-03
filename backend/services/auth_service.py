@@ -157,8 +157,7 @@ def create_access_token(
         "type": "access",
     }
     # HS256 is acceptable for single-user local deployment (no distributed secrets)
-    # nosemgrep: jwt-weak-algorithm
-    token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)
+    token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)  # nosemgrep: jwt-weak-algorithm
     return token
 
 
@@ -192,8 +191,7 @@ def create_refresh_token(
         "type": "refresh",
     }
     # HS256 is acceptable for single-user local deployment (no distributed secrets)
-    # nosemgrep: jwt-weak-algorithm
-    token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)
+    token: str = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)  # nosemgrep: jwt-weak-algorithm
     return token
 
 
@@ -212,8 +210,7 @@ def decode_token(token: str) -> dict[str, Any]:
     """
     try:
         # HS256 is acceptable for single-user local deployment (no distributed secrets)
-        # nosemgrep: jwt-weak-algorithm
-        payload: dict[str, Any] = jwt.decode(token, _get_jwt_secret(), algorithms=[_JWT_ALGORITHM])
+        payload: dict[str, Any] = jwt.decode(token, _get_jwt_secret(), algorithms=[_JWT_ALGORITHM])  # nosemgrep: jwt-weak-algorithm
         return payload
     except jwt.ExpiredSignatureError as e:
         raise TokenExpiredError("Token has expired") from e

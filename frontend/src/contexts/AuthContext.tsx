@@ -23,8 +23,8 @@
  *
  * @see NEM-5322 Phase 4: Frontend Integration
  */
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
 import {
   getSetupStatus,
@@ -200,7 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isAuthenticated,
       setupRequired,
-      error: error as Error | null,
+      error: error,
       login,
       logout,
       register,

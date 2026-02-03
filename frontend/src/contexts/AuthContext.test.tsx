@@ -12,12 +12,12 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { act } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { http, HttpResponse } from 'msw';
 
-import { server } from '../mocks/server';
 import { AuthProvider, useAuth } from './AuthContext';
+import { server } from '../mocks/server';
 
 import type { User } from '../services/authApi';
 

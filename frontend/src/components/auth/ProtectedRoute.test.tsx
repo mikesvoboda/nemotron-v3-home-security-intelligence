@@ -13,13 +13,13 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { server } from '../../mocks/server';
-import { AuthProvider } from '../../contexts/AuthContext';
 import ProtectedRoute from './ProtectedRoute';
+import { AuthProvider } from '../../contexts/AuthContext';
+import { server } from '../../mocks/server';
 
 import type { User } from '../../services/authApi';
 
@@ -76,7 +76,7 @@ describe('ProtectedRoute', () => {
   });
 
   describe('loading state', () => {
-    it('shows loading spinner while checking auth', async () => {
+    it('shows loading spinner while checking auth', () => {
       // Delay the response to keep loading state visible
       server.use(
         http.get('/api/auth/setup-status', async () => {
@@ -103,7 +103,7 @@ describe('ProtectedRoute', () => {
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     });
 
-    it('does not render children during loading', async () => {
+    it('does not render children during loading', () => {
       server.use(
         http.get('/api/auth/setup-status', async () => {
           await new Promise((resolve) => setTimeout(resolve, 100));
