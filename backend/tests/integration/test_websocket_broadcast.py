@@ -1105,9 +1105,13 @@ class TestChannelIsolation:
 class TestPingPongKeepalive:
     """Tests for ping/pong keepalive mechanism."""
 
+    # Integration test API key (from conftest.py integration_env fixture)
+    _API_KEY = "test-api-key-12345"  # pragma: allowlist secret
+
     def test_ping_receives_pong_response(self, sync_client_for_broadcast):
         """Test that sending ping receives pong response."""
-        with sync_client_for_broadcast.websocket_connect("/ws/events") as websocket:
+        url = f"/ws/events?api_key={self._API_KEY}"  # pragma: allowlist secret
+        with sync_client_for_broadcast.websocket_connect(url) as websocket:
             # Send legacy ping string
             websocket.send_text("ping")
 
@@ -1118,7 +1122,8 @@ class TestPingPongKeepalive:
 
     def test_json_ping_receives_pong(self, sync_client_for_broadcast):
         """Test that JSON ping message receives pong response."""
-        with sync_client_for_broadcast.websocket_connect("/ws/events") as websocket:
+        url = f"/ws/events?api_key={self._API_KEY}"  # pragma: allowlist secret
+        with sync_client_for_broadcast.websocket_connect(url) as websocket:
             # Send JSON ping
             websocket.send_text('{"type": "ping"}')
 
