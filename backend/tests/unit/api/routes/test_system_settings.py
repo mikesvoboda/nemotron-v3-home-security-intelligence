@@ -19,6 +19,7 @@ from backend.api.schemas.system_settings import (
     SystemSettingResponse,
     SystemSettingUpdate,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 
 def create_test_app() -> FastAPI:
@@ -151,6 +152,7 @@ class TestListSystemSettingsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/v1/system-settings")
 
@@ -185,6 +187,7 @@ class TestListSystemSettingsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/v1/system-settings")
 
@@ -224,6 +227,7 @@ class TestGetSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/v1/system-settings/test_setting")
 
@@ -250,6 +254,7 @@ class TestGetSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/v1/system-settings/nonexistent")
 
@@ -285,6 +290,7 @@ class TestUpdateSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.patch(
                 "/api/v1/system-settings/test_setting",
@@ -329,6 +335,7 @@ class TestUpdateSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.patch(
                 "/api/v1/system-settings/new_setting",
@@ -356,6 +363,7 @@ class TestUpdateSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             # Test uppercase
             response = await client.patch(
@@ -398,6 +406,7 @@ class TestUpdateSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.patch(
                 f"/api/v1/system-settings/{long_key}",
@@ -430,6 +439,7 @@ class TestDeleteSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.delete("/api/v1/system-settings/test_setting")
 
@@ -455,6 +465,7 @@ class TestDeleteSystemSettingEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.delete("/api/v1/system-settings/nonexistent")
 

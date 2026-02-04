@@ -16,6 +16,7 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.api.routes.settings_api import router
 from backend.api.schemas.settings_api import SettingsResponse, SettingsUpdate
+from backend.tests.unit.conftest import get_auth_headers
 
 
 def create_test_app() -> FastAPI:
@@ -98,6 +99,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -127,6 +129,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -149,6 +152,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -172,6 +176,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -199,6 +204,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -226,6 +232,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -249,6 +256,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -271,6 +279,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -290,6 +299,7 @@ class TestGetSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -475,6 +485,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -504,6 +515,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -542,6 +554,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -574,6 +587,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -600,6 +614,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -636,6 +651,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 # Value above 1.0 should fail validation
                 response = await client.patch(
@@ -666,6 +682,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 # Setting low_max higher than current medium_max should fail
                 response = await client.patch(
@@ -692,6 +709,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 # Update all three with valid ordering
                 response = await client.patch(
@@ -728,6 +746,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -756,6 +775,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -780,6 +800,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -815,6 +836,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -858,6 +880,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -887,6 +910,7 @@ class TestPatchSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -984,6 +1008,7 @@ class TestCameraSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/v1/settings")
 
@@ -1008,6 +1033,7 @@ class TestCameraSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -1037,6 +1063,7 @@ class TestCameraSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -1063,6 +1090,7 @@ class TestCameraSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -1091,6 +1119,7 @@ class TestCameraSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",
@@ -1117,6 +1146,7 @@ class TestCameraSettingsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/v1/settings",

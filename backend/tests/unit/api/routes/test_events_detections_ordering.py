@@ -13,6 +13,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.api.routes.events import VALID_DETECTION_ORDER_BY
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestValidDetectionOrderByValues:
@@ -71,6 +72,7 @@ class TestGetEventDetectionsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get(
                     "/api/events/1/detections?order_detections_by=invalid_value"
@@ -117,6 +119,7 @@ class TestGetEventDetectionsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 # No order_detections_by parameter - should use default
                 response = await client.get("/api/events/1/detections")
@@ -157,6 +160,7 @@ class TestGetEventDetectionsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get(
                     "/api/events/1/detections?order_detections_by=created_at"
@@ -189,6 +193,7 @@ class TestGetEventDetectionsEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 # Test with created_at ordering
                 response = await client.get(

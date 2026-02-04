@@ -15,6 +15,7 @@ from backend.api.routes.system import router as system_router
 from backend.api.routes.system import verify_api_key
 from backend.api.schemas.system import ConfigResponse
 from backend.core.database import get_db
+from backend.tests.unit.conftest import get_auth_headers
 
 
 def create_test_app() -> FastAPI:
@@ -89,6 +90,7 @@ class TestGetConfigDeprecationHeader:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/system/config")
 
@@ -109,6 +111,7 @@ class TestGetConfigDeprecationHeader:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/system/config")
 
@@ -160,6 +163,7 @@ class TestPatchConfigDeprecationHeader:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.patch(
                     "/api/system/config",

@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.middleware.content_type_validator import ContentTypeValidationMiddleware
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestContentTypeValidationMiddleware:
@@ -190,7 +191,7 @@ class TestContentTypeValidationMiddlewareConfiguration:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # JSON should pass
         response = client.post("/test", json={"test": "data"})
@@ -228,7 +229,7 @@ class TestContentTypeValidationMiddlewareConfiguration:
         async def data_endpoint():
             return {"data": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Custom exempt path should pass without Content-Type
         response = client.post(

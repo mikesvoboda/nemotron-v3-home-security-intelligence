@@ -21,7 +21,7 @@ from pydantic import SecretStr
 from backend.core.config import Settings
 from backend.core.redis import get_redis_optional
 from backend.main import app
-from backend.tests.unit.conftest import UNIT_TEST_API_KEY
+from backend.tests.unit.conftest import UNIT_TEST_API_KEY, get_auth_headers
 
 # Use the same API key that's configured in the unit test conftest
 TEST_API_KEY = UNIT_TEST_API_KEY
@@ -57,9 +57,7 @@ def debug_settings() -> Settings:
 async def authenticated_client() -> AsyncGenerator[AsyncClient]:
     """Create an AsyncClient with authentication headers."""
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        headers={"X-API-Key": TEST_API_KEY},
+        transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
     ) as client:
         yield client
 
