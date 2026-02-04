@@ -60,8 +60,8 @@ export interface RegisterRequest {
  * Request payload for user login.
  */
 export interface LoginRequest {
-  /** User email address */
-  email: string;
+  /** Username for login */
+  username: string;
   /** User password */
   password: string;
 }

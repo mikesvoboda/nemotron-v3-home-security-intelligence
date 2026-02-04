@@ -245,7 +245,7 @@ describe('AuthContext', () => {
 
       await act(async () => {
         await result.current.login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         });
       });
@@ -281,7 +281,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login({
-            email: 'test@example.com',
+            username: 'testuser',
             password: 'wrong',
           });
         })

@@ -98,6 +98,12 @@ function validateForm(data: SetupFormData): FormErrors {
     errors.password = 'Password is required';
   } else if (data.password.length < MIN_PASSWORD_LENGTH) {
     errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+  } else if (!/[A-Z]/.test(data.password)) {
+    errors.password = 'Password must contain at least one uppercase letter';
+  } else if (!/[a-z]/.test(data.password)) {
+    errors.password = 'Password must contain at least one lowercase letter';
+  } else if (!/\d/.test(data.password)) {
+    errors.password = 'Password must contain at least one number';
   }
 
   // Confirm password validation
@@ -316,15 +322,18 @@ export default function SetupPage() {
               value={formData.password}
               onChange={handleChange('password')}
               disabled={isSubmitting}
-              aria-describedby={errors.password ? `${formId}-password-error` : undefined}
+              aria-describedby={`${formId}-password-requirements ${errors.password ? `${formId}-password-error` : ''}`}
               className={clsx(
                 'mt-1 block w-full rounded-lg border bg-[#1E1E1E] px-3 py-2 text-white focus:outline-none focus:ring-2',
                 errors.password
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                   : 'border-gray-700 focus:border-[#76B900] focus:ring-[#76B900]'
               )}
-              placeholder="Minimum 8 characters"
+              placeholder="Enter a strong password"
             />
+            <p id={`${formId}-password-requirements`} className="mt-1 text-xs text-gray-400">
+              Must be at least 8 characters with uppercase, lowercase, and a number
+            </p>
             {errors.password && (
               <p id={`${formId}-password-error`} className="mt-1 text-sm text-red-500">
                 {errors.password}

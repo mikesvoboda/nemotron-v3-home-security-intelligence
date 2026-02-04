@@ -93,7 +93,7 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
       expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
@@ -124,31 +124,12 @@ describe('LoginPage', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/email is required/i)).toBeInTheDocument();
+        expect(screen.getByText(/username is required/i)).toBeInTheDocument();
       });
 
       expect(screen.getByText(/password is required/i)).toBeInTheDocument();
     });
 
-    it('validates email format', async () => {
-      const user = userEvent.setup();
-      const Wrapper = createWrapper();
-      render(<LoginPage />, { wrapper: Wrapper });
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-      });
-
-      const emailInput = screen.getByLabelText(/email/i);
-      await user.type(emailInput, 'invalid-email');
-
-      const submitButton = screen.getByRole('button', { name: /sign in/i });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/invalid email/i)).toBeInTheDocument();
-      });
-    });
   });
 
   describe('form submission', () => {
@@ -170,10 +151,10 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
       await user.type(screen.getByLabelText(/password/i), 'password123');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -181,7 +162,7 @@ describe('LoginPage', () => {
 
       await waitFor(() => {
         expect(loginData).toEqual({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         });
       });
@@ -201,10 +182,10 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
       await user.type(screen.getByLabelText(/password/i), 'password123');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -228,10 +209,10 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
       await user.type(screen.getByLabelText(/password/i), 'wrongpassword');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -255,10 +236,10 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
       await user.type(screen.getByLabelText(/password/i), 'password123');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -287,10 +268,10 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      await user.type(screen.getByLabelText(/email/i), 'test@example.com');
+      await user.type(screen.getByLabelText(/username/i), 'testuser');
       await user.type(screen.getByLabelText(/password/i), 'password123');
 
       const submitButton = screen.getByRole('button', { name: /sign in/i });
@@ -341,13 +322,13 @@ describe('LoginPage', () => {
       render(<LoginPage />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
       });
 
-      const emailInput = screen.getByLabelText(/email/i);
+      const usernameInput = screen.getByLabelText(/username/i);
       const passwordInput = screen.getByLabelText(/password/i);
 
-      expect(emailInput).toHaveAttribute('type', 'email');
+      expect(usernameInput).toHaveAttribute('type', 'text');
       expect(passwordInput).toHaveAttribute('type', 'password');
     });
   });

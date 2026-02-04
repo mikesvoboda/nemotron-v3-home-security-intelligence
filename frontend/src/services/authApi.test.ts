@@ -217,7 +217,7 @@ describe('authApi', () => {
       );
 
       const credentials: LoginRequest = {
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       };
 
@@ -235,7 +235,7 @@ describe('authApi', () => {
       );
 
       const result = await login({
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       });
 
@@ -251,7 +251,7 @@ describe('authApi', () => {
 
       await expect(
         login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'wrong',
         })
       ).rejects.toThrow();
@@ -266,7 +266,7 @@ describe('authApi', () => {
 
       await expect(
         login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         })
       ).rejects.toThrow();
@@ -283,11 +283,11 @@ describe('authApi', () => {
       );
 
       await login({
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       });
 
-      expect(requestBody).toHaveProperty('email', 'test@example.com');
+      expect(requestBody).toHaveProperty('username', 'testuser');
       expect(requestBody).toHaveProperty('password', 'password123');
     });
   });
@@ -410,7 +410,7 @@ describe('authApi', () => {
 
       await expect(
         login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         })
       ).rejects.toThrow();
@@ -458,7 +458,7 @@ describe('authApi', () => {
       );
 
       await login({
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       });
 
