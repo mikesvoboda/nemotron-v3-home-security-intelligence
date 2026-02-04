@@ -57,6 +57,12 @@ def sync_client_for_broadcast(integration_env):
         "connected": True,
         "redis_version": "7.0.0",
     }
+    # Mock _ensure_connected() as a synchronous method (not async) that returns
+    # a mock Redis client with proper async methods for rate limiting
+    mock_raw_redis = MagicMock()
+    mock_raw_redis.script_load = AsyncMock(return_value="mock-script-sha-12345")
+    mock_raw_redis.evalsha = AsyncMock(return_value=[1, 0])  # [allowed=1, count=0]
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_raw_redis)
 
     # Create mock init_db that does nothing (avoids slow real DB init)
     async def mock_init_db():
@@ -185,6 +191,11 @@ def sync_client_for_broadcast(integration_env):
     mock_analysis_worker = AsyncMock()
     mock_timeout_worker = AsyncMock()
     mock_metrics_worker = AsyncMock()
+
+    # Clear rate limit Lua script cache to ensure fresh state with our mock
+    from backend.api.middleware.rate_limit import clear_lua_script_cache
+
+    clear_lua_script_cache()
 
     # Patch all lifespan services for fast startup using ExitStack
     with ExitStack() as stack:
