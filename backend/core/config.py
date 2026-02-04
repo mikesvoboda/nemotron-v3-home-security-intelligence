@@ -191,18 +191,35 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # Container service port configuration
+    # Ports use validation_alias to read from standard .env variables (source of truth)
     # Infrastructure services
     postgres_port: int = Field(
         5432,
         ge=1,
         le=65535,
+        validation_alias="POSTGRES_PORT",
         description="PostgreSQL container service port for health checks.",
     )
     redis_port: int = Field(
         6379,
         ge=1,
         le=65535,
+        validation_alias="REDIS_PORT",
         description="Redis container service port for health checks.",
+    )
+    backend_port: int = Field(
+        8000,
+        ge=1,
+        le=65535,
+        validation_alias="API_PORT",
+        description="Backend API container service port for health checks.",
+    )
+    go2rtc_port: int = Field(
+        1984,
+        ge=1,
+        le=65535,
+        validation_alias="GO2RTC_API_PORT",
+        description="go2rtc video streaming API port for health checks.",
     )
 
     # AI services
@@ -210,31 +227,43 @@ class OrchestratorSettings(BaseSettings):
         8095,
         ge=1,
         le=65535,
+        validation_alias="YOLO26_PORT",
         description="YOLO26 (ai-yolo26) container service port for health checks.",
     )
     nemotron_port: int = Field(
         8091,
         ge=1,
         le=65535,
+        validation_alias="LLM_PORT",
         description="Nemotron (ai-llm) container service port for health checks.",
     )
     florence_port: int = Field(
         8092,
         ge=1,
         le=65535,
+        validation_alias="FLORENCE_PORT",
         description="Florence-2 (ai-florence) container service port for health checks.",
     )
     clip_port: int = Field(
         8093,
         ge=1,
         le=65535,
+        validation_alias="CLIP_PORT",
         description="CLIP (ai-clip) container service port for health checks.",
     )
     enrichment_port: int = Field(
         8094,
         ge=1,
         le=65535,
+        validation_alias="ENRICHMENT_PORT",
         description="Enrichment (ai-enrichment) container service port for health checks.",
+    )
+    enrichment_light_port: int = Field(
+        8096,
+        ge=1,
+        le=65535,
+        validation_alias="ENRICHMENT_LIGHT_PORT",
+        description="Enrichment Light (ai-enrichment-light) container service port for health checks.",
     )
 
     # Monitoring services
@@ -242,48 +271,105 @@ class OrchestratorSettings(BaseSettings):
         9090,
         ge=1,
         le=65535,
+        validation_alias="PROMETHEUS_PORT",
         description="Prometheus container service port for health checks.",
     )
     grafana_port: int = Field(
-        3000,
+        3002,
         ge=1,
         le=65535,
+        validation_alias="GRAFANA_PORT",
         description="Grafana container service port for health checks.",
     )
     redis_exporter_port: int = Field(
         9121,
         ge=1,
         le=65535,
+        validation_alias="REDIS_EXPORTER_PORT",
         description="Redis Exporter container service port for health checks.",
     )
     json_exporter_port: int = Field(
         7979,
         ge=1,
         le=65535,
+        validation_alias="JSON_EXPORTER_PORT",
         description="JSON Exporter container service port for health checks.",
     )
     alertmanager_port: int = Field(
         9093,
         ge=1,
         le=65535,
+        validation_alias="ALERTMANAGER_PORT",
         description="Alertmanager container service port for health checks.",
     )
     blackbox_exporter_port: int = Field(
         9115,
         ge=1,
         le=65535,
+        validation_alias="BLACKBOX_EXPORTER_PORT",
         description="Blackbox Exporter container service port for health checks.",
     )
     jaeger_port: int = Field(
         16686,
         ge=1,
         le=65535,
+        validation_alias="JAEGER_UI_PORT",
         description="Jaeger UI container service port for health checks.",
+    )
+    loki_port: int = Field(
+        3100,
+        ge=1,
+        le=65535,
+        validation_alias="LOKI_PORT",
+        description="Loki log aggregation service port for health checks.",
+    )
+    pyroscope_port: int = Field(
+        4040,
+        ge=1,
+        le=65535,
+        validation_alias="PYROSCOPE_PORT",
+        description="Pyroscope continuous profiling service port for health checks.",
+    )
+    alloy_port: int = Field(
+        12345,
+        ge=1,
+        le=65535,
+        validation_alias="ALLOY_UI_PORT",
+        description="Grafana Alloy observability agent port for health checks.",
+    )
+    node_exporter_port: int = Field(
+        9100,
+        ge=1,
+        le=65535,
+        validation_alias="NODE_EXPORTER_PORT",
+        description="Node Exporter system metrics port for health checks.",
+    )
+    cadvisor_port: int = Field(
+        8082,
+        ge=1,
+        le=65535,
+        validation_alias="CADVISOR_PORT",
+        description="cAdvisor container metrics port for health checks.",
+    )
+    dcgm_exporter_port: int = Field(
+        9400,
+        ge=1,
+        le=65535,
+        validation_alias="DCGM_EXPORTER_PORT",
+        description="DCGM Exporter GPU metrics port for health checks.",
+    )
+    elasticsearch_port: int = Field(
+        9200,
+        ge=1,
+        le=65535,
+        validation_alias="ELASTICSEARCH_PORT",
+        description="Elasticsearch trace storage port for health checks.",
     )
     frontend_port: int = Field(
         8080,
         ge=1,
         le=65535,
+        validation_alias="FRONTEND_INTERNAL_PORT",
         description="Frontend container internal service port for health checks.",
     )
 

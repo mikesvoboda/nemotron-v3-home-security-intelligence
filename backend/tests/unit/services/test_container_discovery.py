@@ -136,12 +136,14 @@ class TestPreConfiguredServices:
 
     def test_ai_configs_contains_all_ai_services(self) -> None:
         """Test that AI_CONFIGS contains all expected AI services."""
+        # Ports from .env.example (source of truth)
         expected_services = {
-            "ai-yolo26": ("YOLO26", 8090, 60),
+            "ai-yolo26": ("YOLO26", 8095, 60),
             "ai-llm": ("Nemotron", 8091, 120),
             "ai-florence": ("Florence-2", 8092, 60),
             "ai-clip": ("CLIP", 8093, 60),
             "ai-enrichment": ("Enrichment", 8094, 180),
+            "ai-enrichment-light": ("Enrichment Light", 8096, 120),
         }
 
         for name, (display_name, port, grace_period) in expected_services.items():
@@ -172,7 +174,7 @@ class TestPreConfiguredServices:
         config = MONITORING_CONFIGS["grafana"]
         assert config.display_name == "Grafana"
         assert config.category == ServiceCategory.MONITORING
-        assert config.port == 3000
+        assert config.port == 3002  # Port from .env.example
         assert config.health_endpoint == "/api/health"
 
     def test_monitoring_configs_contains_exporters(self) -> None:
@@ -303,7 +305,7 @@ class TestContainerDiscoveryService:
         assert discovered[0].name == "ai-yolo26"
         assert discovered[0].display_name == "YOLO26"
         assert discovered[0].container_id == "det123"
-        assert discovered[0].port == 8090
+        assert discovered[0].port == 8095  # Port from .env.example
         assert discovered[0].health_endpoint == "/health"
         assert discovered[0].category == ServiceCategory.AI
 
@@ -431,7 +433,7 @@ class TestContainerDiscoveryService:
         config = service.get_config("ai-yolo26")
         assert config is not None
         assert config.display_name == "YOLO26"
-        assert config.port == 8090
+        assert config.port == 8095  # Port from .env.example
 
     def test_get_config_returns_none_for_unknown_service(
         self, mock_docker_client: MagicMock
@@ -469,7 +471,7 @@ class TestContainerDiscoveryService:
 
         assert service.match_container_name("random-service") is None
         assert service.match_container_name("my-app") is None
-        assert service.match_container_name("backend") is None
+        assert service.match_container_name("unknown-container") is None
 
     def test_match_container_name_prefers_longer_match(self, mock_docker_client: MagicMock) -> None:
         """Test match_container_name prefers longer/more specific patterns."""
