@@ -44,6 +44,7 @@ class ContainerManager:
         "frontend",
         "postgres",
         "redis",
+        "go2rtc",
         # Observability services
         "pyroscope",
         "loki",
@@ -54,6 +55,7 @@ class ContainerManager:
         "cadvisor",
         "node-exporter",
         "jaeger",
+        "elasticsearch",
     ]
 
     # Standalone containers (started with 'run', not compose)
@@ -63,6 +65,7 @@ class ContainerManager:
         "ai-florence",
         "ai-clip",
         "ai-enrichment",
+        "ai-enrichment-light",
         "backend",
         "frontend",
     ]
@@ -307,15 +310,15 @@ class ContainerManager:
         if not self.runtime.network_exists(network):
             self.runtime.network_create(network)
 
-        # Start core infrastructure (postgres, redis)
+        # Start core infrastructure (postgres, redis, go2rtc)
         success = self.runtime.compose_up(
             self.config.compose_file_prod,
-            services=["postgres", "redis"],
+            services=["postgres", "redis", "go2rtc"],
             detach=True,
         )
 
         if not success:
-            raise ContainerError("infrastructure", "start", "Failed to start postgres/redis")
+            raise ContainerError("infrastructure", "start", "Failed to start postgres/redis/go2rtc")
 
         output.success("Core infrastructure started")
 
@@ -324,6 +327,7 @@ class ContainerManager:
         # because they require privileged access (see start_privileged_monitoring)
         output.step("Starting observability services...")
         observability_services = [
+            "elasticsearch",  # Must start before jaeger (trace storage backend)
             "pyroscope",
             "loki",
             "prometheus",
@@ -434,6 +438,27 @@ class ContainerManager:
                     "VEHICLE_MODEL_PATH": "/models/vehicle-segment-classification",
                     "PET_MODEL_PATH": "/models/pet-classifier",
                     "CLOTHING_MODEL_PATH": "/models/fashion-clip",
+                    "DEPTH_MODEL_PATH": "/models/depth-anything-v2-small",
+                },
+            },
+            {
+                "name": "ai-enrichment-light",
+                "image": "ai-enrichment-light",
+                "port": self.config.enrichment_light_port,
+                "gpu": self.config.gpu_clip,  # Shares GPU 1 with CLIP
+                "volumes": [
+                    f"{self.config.ai_models_path}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/pet-classifier:/models/pet-classifier:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro,z",
+                ],
+                "env": {
+                    "GPU_TIER": "light",
+                    "POSE_MODEL_PATH": "/models/yolov8n-pose/yolov8n-pose.pt",
+                    "THREAT_MODEL_PATH": "/models/threat-detection-yolov8n/weights/best.pt",
+                    "REID_MODEL_PATH": "/models/osnet-x0-25/osnet_x0_25.pth",
+                    "PET_MODEL_PATH": "/models/pet-classifier",
                     "DEPTH_MODEL_PATH": "/models/depth-anything-v2-small",
                 },
             },

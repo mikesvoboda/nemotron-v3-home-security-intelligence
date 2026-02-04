@@ -137,6 +137,15 @@ class HealthChecker:
         url = f"http://localhost:{self.config.enrichment_port}/health"
         return await self._check_http(url, "ai-enrichment")
 
+    async def check_enrichment_light(self) -> HealthStatus:
+        """Check Enrichment Light health.
+
+        Returns:
+            HealthStatus for ai-enrichment-light
+        """
+        url = f"http://localhost:{self.config.enrichment_light_port}/health"
+        return await self._check_http(url, "ai-enrichment-light")
+
     async def check_frontend(self) -> HealthStatus:
         """Check frontend health.
 
@@ -218,6 +227,7 @@ class HealthChecker:
             self.check_florence(),
             self.check_clip(),
             self.check_enrichment(),
+            self.check_enrichment_light(),
             self.check_frontend(),
         ]
 
@@ -230,6 +240,7 @@ class HealthChecker:
             "ai-florence",
             "ai-clip",
             "ai-enrichment",
+            "ai-enrichment-light",
             "frontend",
         ]
 
@@ -258,11 +269,19 @@ class HealthChecker:
             self.check_florence(),
             self.check_clip(),
             self.check_enrichment(),
+            self.check_enrichment_light(),
         ]
 
         results = await asyncio.gather(*checks, return_exceptions=True)
 
-        services = ["ai-yolo26", "ai-llm", "ai-florence", "ai-clip", "ai-enrichment"]
+        services = [
+            "ai-yolo26",
+            "ai-llm",
+            "ai-florence",
+            "ai-clip",
+            "ai-enrichment",
+            "ai-enrichment-light",
+        ]
 
         statuses: dict[str, HealthStatus] = {}
         for service, result in zip(services, results, strict=False):
@@ -313,6 +332,7 @@ class HealthChecker:
             "ai-florence": self.check_florence,
             "ai-clip": self.check_clip,
             "ai-enrichment": self.check_enrichment,
+            "ai-enrichment-light": self.check_enrichment_light,
             "frontend": self.check_frontend,
         }
 
@@ -396,6 +416,7 @@ class HealthChecker:
             "ai-florence",
             "ai-clip",
             "ai-enrichment",
+            "ai-enrichment-light",
         ]
         return await self.wait_healthy(ai_services, timeout=timeout)
 
