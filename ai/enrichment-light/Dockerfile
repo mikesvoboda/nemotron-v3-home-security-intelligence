@@ -71,14 +71,14 @@ ENV TENSORRT_ENGINE_CACHE=/cache/tensorrt
 ENV POSE_TENSORRT_ENGINE_PATH=/cache/tensorrt/yolov8n-pose.engine
 ENV THREAT_TENSORRT_ENGINE_PATH=/cache/tensorrt/threat-detector.engine
 
-# Create cache directories for HuggingFace and TensorRT engines
-RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
-
 # Expose port
 EXPOSE 8096
 
 # Switch to non-root user
 USER enrichment
+
+# Create cache directories for HuggingFace and TensorRT engines as non-root user (owns directory automatically)
+RUN mkdir -p /cache/huggingface /cache/tensorrt
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 90s allows time for loading models
