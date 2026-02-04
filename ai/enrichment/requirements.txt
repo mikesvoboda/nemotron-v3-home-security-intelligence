@@ -44,5 +44,6 @@ pyroscope-io>=0.8.7
 # License plate OCR (NEM-5372)
 # PaddlePaddle GPU version for CUDA-accelerated inference
 # Note: paddlepaddle-gpu requires CUDA and cuDNN installed in the container
-paddlepaddle-gpu>=3.0.0  # PaddlePaddle deep learning framework with GPU support
-paddleocr>=2.9.0         # PaddleOCR for text recognition (license plates, signs)
+# Version 2.6.2 is the latest available; 3.0.0+ not yet released on PyPI
+paddlepaddle-gpu>=2.6.0,<3.0.0  # PaddlePaddle deep learning framework with GPU support
+paddleocr>=2.9.0                 # PaddleOCR for text recognition (license plates, signs)

@@ -74,11 +74,11 @@ ENV THREAT_TENSORRT_ENGINE_PATH=/cache/tensorrt/threat-detector.engine
 # Expose port
 EXPOSE 8096
 
+# Create cache directories as root and set ownership before switching user
+RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
+
 # Switch to non-root user
 USER enrichment
-
-# Create cache directories for HuggingFace and TensorRT engines as non-root user (owns directory automatically)
-RUN mkdir -p /cache/huggingface /cache/tensorrt
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 90s allows time for loading models
