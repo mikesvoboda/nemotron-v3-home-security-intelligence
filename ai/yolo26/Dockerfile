@@ -87,6 +87,9 @@ RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
 # Switch to non-root user (use numeric UID for compatibility)
 USER 1000
 
+# Create model directory as non-root user (owns directory automatically)
+RUN mkdir -p /models/yolo26/exports
+
 # Health check using Python/httpx on /health endpoint
 # Start period of 60s allows time for model loading
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
