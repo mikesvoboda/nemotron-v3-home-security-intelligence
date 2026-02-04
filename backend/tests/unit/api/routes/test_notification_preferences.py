@@ -8,8 +8,6 @@ This module tests the notification preferences endpoints for:
 All tests use mocked database operations following TDD methodology.
 """
 
-import os
-from collections.abc import Generator
 from datetime import time
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -19,7 +17,6 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.core import get_db
-from backend.core.config import get_settings
 from backend.main import app
 from backend.models.notification_preferences import (
     CameraNotificationSetting,
@@ -30,24 +27,6 @@ from backend.models.notification_preferences import (
     RiskLevel,
 )
 from backend.tests.unit.api.routes.conftest import create_authenticated_client
-from backend.tests.unit.conftest import UNIT_TEST_API_KEY
-
-
-@pytest.fixture(autouse=True)
-def ensure_api_key_auth_enabled() -> Generator[None]:
-    """Ensure API key authentication is enabled for each test.
-
-    This fixture ensures test isolation by setting up the API key auth
-    environment variables and clearing the settings cache. This prevents
-    tests from failing with 401 errors when running with pytest-xdist
-    (parallel test execution) where session-scoped fixtures may not
-    properly propagate settings to all workers.
-    """
-    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
-    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
 
 
 @pytest.fixture
