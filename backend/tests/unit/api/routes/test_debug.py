@@ -12,13 +12,28 @@ When debug=False, endpoints return 404 Not Found.
 """
 
 import os
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.core.config import Settings
-from backend.tests.unit.conftest import get_auth_headers
+from backend.core.config import Settings, get_settings
+from backend.tests.unit.conftest import UNIT_TEST_API_KEY, get_auth_headers
+
+
+@pytest.fixture(autouse=True)
+def ensure_api_key_auth_enabled() -> Generator[None]:
+    """Ensure API key authentication is enabled for each test.
+
+    This fixture is needed because pytest-xdist workers may have stale
+    settings cache that doesn't reflect the session-scoped fixture's changes.
+    """
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture
