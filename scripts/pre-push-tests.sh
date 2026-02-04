@@ -82,7 +82,7 @@ API_PID=$!
     if uv run pytest backend/tests/unit/api/ -q --tb=line -x \
         --ignore=backend/tests/unit/api/schemas/ \
         -k "test_health or test_root or test_cameras_list or test_events_list" \
-        --timeout=30 -n auto 2>&1 | head -50 > "$BACKEND_LOG"; then
+        --timeout=30 -n 8 2>&1 | head -50 > "$BACKEND_LOG"; then
         echo "0" > "$BACKEND_EXIT_FILE"
     else
         # If specific tests not found, just run a quick import check
