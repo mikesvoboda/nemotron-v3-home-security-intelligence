@@ -855,7 +855,7 @@ services:
     networks:
       - security-net
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:1984/api/']
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:1984/api']
       interval: 30s
       timeout: 10s
       retries: 3
