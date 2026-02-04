@@ -312,7 +312,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/system/health",  # Detailed health check (includes AI services)
             "/api/system/health/ready",  # Detailed readiness probe
             "/api/metrics",  # Prometheus scraping endpoint
-            "/api/rum",  # Real User Monitoring endpoint (frontend telemetry)
             "/docs",
             "/redoc",
             "/openapi.json",
@@ -406,12 +405,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             HTTP response
         """
         settings = get_settings()
-
-        # Skip authentication for OPTIONS requests (CORS preflight)
-        # CORS preflight requests should not require authentication
-        # See: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests
-        if request.method == "OPTIONS":
-            return await call_next(request)
 
         # Skip authentication for exempt paths
         if self._is_exempt_path(request.url.path):

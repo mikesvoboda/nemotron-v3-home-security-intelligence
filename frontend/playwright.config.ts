@@ -104,8 +104,7 @@ export default defineConfig({
   // Shared settings for all the projects below
   use: {
     // Base URL to use in actions like `await page.goto('/')`
-    // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
-    baseURL: 'http://localhost:8444',
+    baseURL: 'https://localhost:8444',
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -240,8 +239,7 @@ export default defineConfig({
   // trying to forward them to localhost:8000 (causing ECONNREFUSED in CI)
   webServer: {
     command: 'npm run dev:e2e',
-    // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
-    url: 'http://localhost:8444',
+    url: 'https://localhost:8444',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
     stdout: 'pipe',
