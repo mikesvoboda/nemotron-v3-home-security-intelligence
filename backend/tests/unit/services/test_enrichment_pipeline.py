@@ -6086,10 +6086,10 @@ class TestEnrichmentPipelineGetActionFrames:
         # Create mock frame buffer with valid JPEG data
         mock_buffer = MagicMock()
 
-        # Create actual JPEG bytes for 8 frames
+        # Create actual JPEG bytes for 16 frames (NEM-3908 upgrade)
         jpeg_frames = []
-        for i in range(8):
-            img = Image.new("RGB", (100, 100), color=(i * 30, i * 30, i * 30))
+        for i in range(16):
+            img = Image.new("RGB", (100, 100), color=(i * 15, i * 15, i * 15))
             buffer = BytesIO()
             img.save(buffer, format="JPEG")
             jpeg_frames.append(buffer.getvalue())
@@ -6106,10 +6106,10 @@ class TestEnrichmentPipelineGetActionFrames:
                 frame_buffer=mock_buffer,
             )
 
-            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=8)
+            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=16)
 
-            # Should return 8 PIL Images from buffer
-            assert len(frames) == 8
+            # Should return 16 PIL Images from buffer (NEM-3908 upgrade)
+            assert len(frames) == 16
             for frame in frames:
                 assert isinstance(frame, Image.Image)
 
@@ -6132,7 +6132,7 @@ class TestEnrichmentPipelineGetActionFrames:
                 frame_buffer=mock_buffer,
             )
 
-            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=8)
+            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=16)
 
             # Should return single current frame as fallback
             assert len(frames) == 1
@@ -6154,7 +6154,7 @@ class TestEnrichmentPipelineGetActionFrames:
                 frame_buffer=None,  # No buffer
             )
 
-            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=8)
+            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=16)
 
             # Should return single current frame
             assert len(frames) == 1
@@ -6179,7 +6179,7 @@ class TestEnrichmentPipelineGetActionFrames:
             )
 
             # camera_id=None should skip buffer lookup
-            frames = await pipeline._get_action_frames(None, test_image, num_frames=8)
+            frames = await pipeline._get_action_frames(None, test_image, num_frames=16)
 
             # Should return single current frame
             assert len(frames) == 1

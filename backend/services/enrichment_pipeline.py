@@ -2683,7 +2683,7 @@ class EnrichmentPipeline:
         self,
         camera_id: str | None,
         current_frame: Image.Image,
-        num_frames: int = 8,
+        num_frames: int = 16,
     ) -> list[Image.Image]:
         """Get frames for X-CLIP action recognition.
 
@@ -2692,12 +2692,13 @@ class EnrichmentPipeline:
         evenly sampled frames from the buffer converted to PIL Images.
         Otherwise, falls back to using just the current frame.
 
-        X-CLIP works best with 8 frames spanning the action sequence.
+        X-CLIP xclip-base-patch16-16-frames model works best with 16 frames
+        spanning the action sequence (NEM-3908 upgrade for +4% accuracy).
 
         Args:
             camera_id: Camera identifier for looking up buffered frames
             current_frame: The current PIL Image (fallback if no buffer)
-            num_frames: Number of frames to retrieve (default 8)
+            num_frames: Number of frames to retrieve (default 16 for patch16 model)
 
         Returns:
             List of PIL Images for action recognition (may be single-frame fallback)

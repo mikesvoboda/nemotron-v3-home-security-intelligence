@@ -149,7 +149,7 @@ class ActionRecognitionService:
         self,
         session: AsyncSession,
         model_dict: dict[str, Any] | None = None,
-        model_path: str = "microsoft/xclip-base-patch32",
+        model_path: str = "microsoft/xclip-base-patch16-16-frames",
     ):
         """Initialize the action recognition service.
 
@@ -157,7 +157,8 @@ class ActionRecognitionService:
             session: Async database session for persistence operations
             model_dict: Optional pre-loaded X-CLIP model dictionary.
                        If None, model will be loaded on first use.
-            model_path: Path to X-CLIP model (HuggingFace or local path)
+            model_path: Path to X-CLIP model (HuggingFace or local path).
+                       Default is xclip-base-patch16-16-frames for +4% accuracy (NEM-3908).
         """
         self.session = session
         self._model_dict = model_dict
@@ -579,13 +580,13 @@ class ActionRecognitionService:
 # Factory function for creating service instances
 async def get_action_recognition_service(
     session: AsyncSession,
-    model_path: str = "microsoft/xclip-base-patch32",
+    model_path: str = "microsoft/xclip-base-patch16-16-frames",
 ) -> ActionRecognitionService:
     """Factory function to create an ActionRecognitionService.
 
     Args:
         session: Async database session
-        model_path: Path to X-CLIP model
+        model_path: Path to X-CLIP model (default: xclip-base-patch16-16-frames per NEM-3908)
 
     Returns:
         ActionRecognitionService instance
