@@ -34,6 +34,7 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core.redis import RedisClient
+from backend.tests.unit.conftest import get_auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -4294,11 +4295,10 @@ class TestPipelineLatencyHistoryParameterValidation:
 
     @pytest.fixture
     def client(self) -> TestClient:
-        """Create an authenticated test client."""
+        """Create a test client."""
         from backend.main import app
-        from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
-        return TestClient(app, headers={"X-API-Key": UNIT_TEST_API_KEY})
+        return TestClient(app, headers=get_auth_headers())
 
     # === since parameter validation ===
 
