@@ -39,8 +39,8 @@ vi.mock('react-router-dom', async () => {
 
 const mockUser: User = {
   id: 1,
+  username: 'adminuser',
   email: 'admin@example.com',
-  full_name: 'Admin User',
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -253,8 +253,8 @@ describe('SetupPage', () => {
         expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       });
 
+      await user.type(screen.getByLabelText(/username/i), 'adminuser');
       await user.type(screen.getByLabelText(/email/i), 'admin@example.com');
-      await user.type(screen.getByLabelText(/full name/i), 'Admin User');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
       await user.type(screen.getByLabelText(/confirm password/i), 'password123');
 
@@ -263,8 +263,8 @@ describe('SetupPage', () => {
 
       await waitFor(() => {
         expect(registrationData).toEqual({
+          username: 'adminuser',
           email: 'admin@example.com',
-          full_name: 'Admin User',
           password: 'password123',
         });
       });

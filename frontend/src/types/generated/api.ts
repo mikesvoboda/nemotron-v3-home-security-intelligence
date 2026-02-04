@@ -14072,7 +14072,7 @@ export interface components {
             is_admin: boolean;
             /**
              * Password
-             * @description Password (minimum 12 characters)
+             * @description Password (minimum 8 characters)
              */
             password: string;
             /**
@@ -40911,7 +40911,7 @@ export interface components {
             email: string;
             /**
              * Password
-             * @description Password (minimum 12 characters)
+             * @description Password (minimum 8 characters)
              */
             password: string;
             /**

@@ -49,9 +49,9 @@ class UserRegisterRequest(BaseModel):
     )
     password: str = Field(
         ...,
-        min_length=12,
+        min_length=8,
         max_length=128,
-        description="Password (minimum 12 characters)",
+        description="Password (minimum 8 characters)",
     )
 
     @field_validator("password")
@@ -60,7 +60,7 @@ class UserRegisterRequest(BaseModel):
         """Validate password meets minimum security requirements.
 
         Requirements:
-        - At least 12 characters
+        - At least 8 characters
         - At least one uppercase letter
         - At least one lowercase letter
         - At least one digit
@@ -222,9 +222,9 @@ class AdminUserCreateRequest(BaseModel):
     )
     password: str = Field(
         ...,
-        min_length=12,
+        min_length=8,
         max_length=128,
-        description="Password (minimum 12 characters)",
+        description="Password (minimum 8 characters)",
     )
     is_admin: bool = Field(
         default=False,

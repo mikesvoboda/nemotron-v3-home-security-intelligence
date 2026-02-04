@@ -34,7 +34,7 @@ import { server } from '../mocks/server';
 const mockUser: User = {
   id: 1,
   email: 'test@example.com',
-  full_name: 'Test User',
+  username: 'testuser',
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -124,7 +124,7 @@ describe('authApi', () => {
       const data: RegisterRequest = {
         email: 'new@example.com',
         password: 'password123',
-        full_name: 'New User',
+        username: 'newuser',
       };
 
       await register(data);
@@ -143,7 +143,7 @@ describe('authApi', () => {
       const result = await register({
         email: 'new@example.com',
         password: 'password123',
-        full_name: 'New User',
+        username: 'newuser',
       });
 
       expect(result).toEqual(mockUser);
@@ -160,7 +160,7 @@ describe('authApi', () => {
         register({
           email: 'existing@example.com',
           password: 'password123',
-          full_name: 'Test User',
+          username: 'testuser',
         })
       ).rejects.toThrow();
     });
@@ -176,7 +176,7 @@ describe('authApi', () => {
         register({
           email: 'test@example.com',
           password: 'password123',
-          full_name: 'Test User',
+          username: 'testuser',
         })
       ).rejects.toThrow();
     });
@@ -194,12 +194,12 @@ describe('authApi', () => {
       await register({
         email: 'test@example.com',
         password: 'password123',
-        full_name: 'Test User',
+        username: 'testuser',
       });
 
       expect(requestBody).toHaveProperty('email');
       expect(requestBody).toHaveProperty('password');
-      expect(requestBody).toHaveProperty('full_name');
+      expect(requestBody).toHaveProperty('username');
     });
   });
 

@@ -34,8 +34,8 @@ import Button from '../common/Button';
  * Form data for the setup registration form.
  */
 interface SetupFormData {
+  username: string;
   email: string;
-  full_name: string;
   password: string;
   confirmPassword: string;
 }
@@ -44,8 +44,8 @@ interface SetupFormData {
  * Validation errors for each form field.
  */
 interface FormErrors {
+  username?: string;
   email?: string;
-  full_name?: string;
   password?: string;
   confirmPassword?: string;
 }
@@ -65,21 +65,32 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
+ * Username validation regex pattern (alphanumeric, underscores, hyphens).
+ */
+const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
+
+/**
  * Validates the form data and returns any errors.
  */
 function validateForm(data: SetupFormData): FormErrors {
   const errors: FormErrors = {};
+
+  // Username validation
+  if (!data.username.trim()) {
+    errors.username = 'Username is required';
+  } else if (data.username.length < 3) {
+    errors.username = 'Username must be at least 3 characters';
+  } else if (data.username.length > 50) {
+    errors.username = 'Username must be at most 50 characters';
+  } else if (!USERNAME_REGEX.test(data.username)) {
+    errors.username = 'Username can only contain letters, numbers, underscores, and hyphens';
+  }
 
   // Email validation
   if (!data.email.trim()) {
     errors.email = 'Email is required';
   } else if (!EMAIL_REGEX.test(data.email)) {
     errors.email = 'Invalid email format';
-  }
-
-  // Full name validation
-  if (!data.full_name.trim()) {
-    errors.full_name = 'Full name is required';
   }
 
   // Password validation
@@ -111,8 +122,8 @@ export default function SetupPage() {
 
   // Form state
   const [formData, setFormData] = useState<SetupFormData>({
+    username: '',
     email: '',
-    full_name: '',
     password: '',
     confirmPassword: '',
   });
@@ -165,8 +176,8 @@ export default function SetupPage() {
 
       try {
         await registerUser({
+          username: formData.username,
           email: formData.email,
-          full_name: formData.full_name,
           password: formData.password,
         });
         // Navigate to dashboard on success
@@ -261,32 +272,32 @@ export default function SetupPage() {
             )}
           </div>
 
-          {/* Full Name Field */}
+          {/* Username Field */}
           <div>
             <label
-              htmlFor={`${formId}-full-name`}
+              htmlFor={`${formId}-username`}
               className="block text-sm font-medium text-white"
             >
-              Full Name
+              Username
             </label>
             <input
               type="text"
-              id={`${formId}-full-name`}
-              value={formData.full_name}
-              onChange={handleChange('full_name')}
+              id={`${formId}-username`}
+              value={formData.username}
+              onChange={handleChange('username')}
               disabled={isSubmitting}
-              aria-describedby={errors.full_name ? `${formId}-full-name-error` : undefined}
+              aria-describedby={errors.username ? `${formId}-username-error` : undefined}
               className={clsx(
                 'mt-1 block w-full rounded-lg border bg-[#1E1E1E] px-3 py-2 text-white focus:outline-none focus:ring-2',
-                errors.full_name
+                errors.username
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                   : 'border-gray-700 focus:border-[#76B900] focus:ring-[#76B900]'
               )}
-              placeholder="Admin User"
+              placeholder="admin"
             />
-            {errors.full_name && (
-              <p id={`${formId}-full-name-error`} className="mt-1 text-sm text-red-500">
-                {errors.full_name}
+            {errors.username && (
+              <p id={`${formId}-username-error`} className="mt-1 text-sm text-red-500">
+                {errors.username}
               </p>
             )}
           </div>
