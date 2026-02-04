@@ -429,7 +429,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
+addopts = "-n 8 --dist=worksteal -v --strict-markers --tb=short -p randomly"
 timeout = 5
 timeout_method = "thread"
 timeout_func_only = true  # Only timeout test functions, not fixture setup/teardown (prevents pytest-rerunfailures server thread from being killed)
