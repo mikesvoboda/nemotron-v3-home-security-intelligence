@@ -23,6 +23,7 @@ from backend.api.routes.dlq import DLQName
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.redis import QueueAddResult
 from backend.services.retry_handler import reset_retry_handler
+from backend.tests.unit.conftest import get_auth_headers
 
 
 @pytest.fixture
@@ -42,7 +43,7 @@ def mock_redis() -> MagicMock:
 
 @pytest.fixture
 def client(mock_redis: MagicMock) -> TestClient:
-    """Create a test client with mocked dependencies and auth disabled."""
+    """Create a test client with mocked dependencies."""
     from fastapi import FastAPI
 
     from backend.api.routes.dlq import router
@@ -60,16 +61,8 @@ def client(mock_redis: MagicMock) -> TestClient:
 
     app.dependency_overrides[get_redis] = override_get_redis
 
-    # Mock settings to disable API key auth for these tests
-    with patch("backend.api.routes.dlq.get_settings") as mock_settings:
-        settings = MagicMock()
-        settings.api_key_enabled = False
-        settings.api_keys = []
-        settings.max_requeue_iterations = 1000
-        mock_settings.return_value = settings
-
-        with TestClient(app) as test_client:
-            yield test_client
+    with TestClient(app, headers=get_auth_headers()) as test_client:
+        yield test_client
 
     # Cleanup
     reset_retry_handler()
@@ -77,7 +70,11 @@ def client(mock_redis: MagicMock) -> TestClient:
 
 @pytest.fixture
 def client_with_auth_enabled(mock_redis: MagicMock) -> TestClient:
-    """Create a test client with API key authentication enabled."""
+    """Create a test client with API key authentication enabled.
+
+    Note: This fixture provides auth headers by default. For testing
+    "no auth" scenarios, use client_with_auth_enabled_no_headers fixture.
+    """
     from fastapi import FastAPI
 
     from backend.api.routes.dlq import router
@@ -103,6 +100,45 @@ def client_with_auth_enabled(mock_redis: MagicMock) -> TestClient:
         settings.max_requeue_iterations = 1000
         mock_settings.return_value = settings
 
+        with TestClient(app, headers=get_auth_headers()) as test_client:
+            yield test_client
+
+    # Cleanup
+    reset_retry_handler()
+
+
+@pytest.fixture
+def client_with_auth_enabled_no_headers(mock_redis: MagicMock) -> TestClient:
+    """Create a test client with API key authentication enabled BUT no default headers.
+
+    Used for testing that endpoints correctly reject requests without auth headers.
+    """
+    from fastapi import FastAPI
+
+    from backend.api.routes.dlq import router
+    from backend.core.redis import get_redis
+
+    # Reset global retry handler
+    reset_retry_handler()
+
+    app = FastAPI()
+    app.include_router(router)
+
+    # Override the Redis dependency
+    async def override_get_redis():
+        yield mock_redis
+
+    app.dependency_overrides[get_redis] = override_get_redis
+
+    # Patch settings to enable API key auth
+    with patch("backend.api.routes.dlq.get_settings") as mock_settings:
+        settings = MagicMock()
+        settings.api_key_enabled = True
+        settings.api_keys = ["test-api-key-12345"]
+        settings.max_requeue_iterations = 1000
+        mock_settings.return_value = settings
+
+        # Note: No headers=get_auth_headers() here - that's the point!
         with TestClient(app) as test_client:
             yield test_client
 
@@ -314,8 +350,10 @@ class TestRequeueAllEndpoint:
         self, client: TestClient, mock_redis: MagicMock
     ) -> None:
         """Test that requeue-all stops at max_requeue_iterations from settings."""
-        # The client fixture mocks settings with max_requeue_iterations=1000
-        max_iterations = 1000
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        max_iterations = settings.max_requeue_iterations
 
         # Simulate a queue that always returns a job (never depletes)
         job_data = {
@@ -407,10 +445,10 @@ class TestAPIKeyAuthentication:
     """Tests for API key authentication on destructive operations."""
 
     def test_requeue_without_api_key_when_auth_enabled(
-        self, client_with_auth_enabled: TestClient, mock_redis: MagicMock
+        self, client_with_auth_enabled_no_headers: TestClient, mock_redis: MagicMock
     ) -> None:
         """Test requeue fails without API key when auth is enabled."""
-        response = client_with_auth_enabled.post("/api/dlq/requeue/dlq:detection_queue")
+        response = client_with_auth_enabled_no_headers.post("/api/dlq/requeue/dlq:detection_queue")
 
         assert response.status_code == 401
         assert "API key required" in response.json()["detail"]
@@ -450,7 +488,7 @@ class TestAPIKeyAuthentication:
         assert response.json()["success"] is True
 
     def test_requeue_with_valid_api_key_via_query_param(
-        self, client_with_auth_enabled: TestClient, mock_redis: MagicMock
+        self, client_with_auth_enabled_no_headers: TestClient, mock_redis: MagicMock
     ) -> None:
         """Test requeue succeeds with valid API key in query parameter."""
         mock_redis.pop_from_queue_nonblocking = AsyncMock(
@@ -463,7 +501,7 @@ class TestAPIKeyAuthentication:
                 "queue_name": "detection_queue",
             }
         )
-        response = client_with_auth_enabled.post(
+        response = client_with_auth_enabled_no_headers.post(
             "/api/dlq/requeue/dlq:detection_queue?api_key=test-api-key-12345"
         )
 
@@ -471,19 +509,21 @@ class TestAPIKeyAuthentication:
         assert response.json()["success"] is True
 
     def test_requeue_all_without_api_key_when_auth_enabled(
-        self, client_with_auth_enabled: TestClient, mock_redis: MagicMock
+        self, client_with_auth_enabled_no_headers: TestClient, mock_redis: MagicMock
     ) -> None:
         """Test requeue-all fails without API key when auth is enabled."""
-        response = client_with_auth_enabled.post("/api/dlq/requeue-all/dlq:detection_queue")
+        response = client_with_auth_enabled_no_headers.post(
+            "/api/dlq/requeue-all/dlq:detection_queue"
+        )
 
         assert response.status_code == 401
         assert "API key required" in response.json()["detail"]
 
     def test_clear_dlq_without_api_key_when_auth_enabled(
-        self, client_with_auth_enabled: TestClient, mock_redis: MagicMock
+        self, client_with_auth_enabled_no_headers: TestClient, mock_redis: MagicMock
     ) -> None:
         """Test clear DLQ fails without API key when auth is enabled."""
-        response = client_with_auth_enabled.delete("/api/dlq/dlq:detection_queue")
+        response = client_with_auth_enabled_no_headers.delete("/api/dlq/dlq:detection_queue")
 
         assert response.status_code == 401
         assert "API key required" in response.json()["detail"]
