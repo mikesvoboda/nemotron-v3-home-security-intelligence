@@ -14,8 +14,6 @@ For the single-user system, all endpoints use user_id="default".
 Calibration records are auto-created on first GET if they don't exist.
 """
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,22 +40,6 @@ DEFAULT_HIGH_THRESHOLD = 85
 DEFAULT_DECAY_FACTOR = 0.1
 
 router = APIRouter(prefix="/api/calibration", tags=["calibration"])
-
-
-def _calibration_to_response(calibration: UserCalibration) -> dict[str, Any]:
-    """Convert a UserCalibration model to response dict."""
-    return {
-        "id": calibration.id,
-        "user_id": calibration.user_id,
-        "low_threshold": calibration.low_threshold,
-        "medium_threshold": calibration.medium_threshold,
-        "high_threshold": calibration.high_threshold,
-        "decay_factor": calibration.decay_factor,
-        "false_positive_count": calibration.false_positive_count,
-        "missed_threat_count": calibration.missed_threat_count,
-        "created_at": calibration.created_at,
-        "updated_at": calibration.updated_at,
-    }
 
 
 async def _get_or_create_calibration(
@@ -142,7 +124,7 @@ async def get_calibration(
         CalibrationResponse with current threshold settings
     """
     calibration = await _get_or_create_calibration(db)
-    return CalibrationResponse(**_calibration_to_response(calibration))
+    return CalibrationResponse.model_validate(calibration)
 
 
 @router.put(
@@ -269,7 +251,7 @@ async def _apply_calibration_update(
         },
     )
 
-    return CalibrationResponse(**_calibration_to_response(calibration))
+    return CalibrationResponse.model_validate(calibration)
 
 
 @router.post(
@@ -314,7 +296,7 @@ async def reset_calibration(
 
     return CalibrationResetResponse(
         message="Calibration reset to default values",
-        calibration=CalibrationResponse(**_calibration_to_response(calibration)),
+        calibration=CalibrationResponse.model_validate(calibration),
     )
 
 

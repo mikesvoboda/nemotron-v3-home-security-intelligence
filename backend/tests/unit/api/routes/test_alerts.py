@@ -25,6 +25,80 @@ from backend.models.alert import Alert, AlertRule, AlertStatusEnum
 from backend.models.alert import AlertSeverity as ModelAlertSeverity
 
 
+def create_mock_rule(
+    *,
+    id: str = "rule-1",
+    name: str = "Test Rule",
+    description: str | None = None,
+    enabled: bool = True,
+    severity: ModelAlertSeverity = ModelAlertSeverity.HIGH,
+    risk_threshold: int | None = 70,
+    object_types: list[str] | None = None,
+    camera_ids: list[str] | None = None,
+    zone_ids: list[str] | None = None,
+    min_confidence: float | None = None,
+    schedule: dict | None = None,
+    conditions: dict | None = None,
+    dedup_key_template: str = "{camera_id}:{rule_id}",
+    cooldown_seconds: int = 300,
+    channels: list[str] | None = None,
+    dwell_time_enabled: bool = False,
+    dwell_threshold_seconds: int | None = None,
+    exclude_household_members: bool = False,
+    pose_types: list[str] | None = None,
+    pose_confidence_threshold: float | None = None,
+    action_types: list[str] | None = None,
+    action_confidence_threshold: float | None = None,
+    threat_detection_enabled: bool = False,
+    threat_types: list[str] | None = None,
+    threat_min_severity: str | None = None,
+    threat_confidence_threshold: float | None = None,
+    smoke_fire_detection_enabled: bool = False,
+    smoke_fire_consecutive_required: int = 2,
+    smoke_fire_confidence_threshold: float | None = None,
+    created_at: datetime | None = None,
+    updated_at: datetime | None = None,
+) -> MagicMock:
+    """Create a properly configured mock AlertRule with all required fields."""
+    mock_rule = MagicMock(spec=AlertRule)
+    mock_rule.id = id
+    mock_rule.name = name
+    mock_rule.description = description
+    mock_rule.enabled = enabled
+    mock_rule.severity = severity
+    mock_rule.risk_threshold = risk_threshold
+    mock_rule.object_types = object_types
+    mock_rule.camera_ids = camera_ids
+    mock_rule.zone_ids = zone_ids
+    mock_rule.min_confidence = min_confidence
+    mock_rule.schedule = schedule
+    mock_rule.conditions = conditions
+    mock_rule.dedup_key_template = dedup_key_template
+    mock_rule.cooldown_seconds = cooldown_seconds
+    mock_rule.channels = channels if channels is not None else []
+    mock_rule.dwell_time_enabled = dwell_time_enabled
+    mock_rule.dwell_threshold_seconds = dwell_threshold_seconds
+    mock_rule.exclude_household_members = exclude_household_members
+    mock_rule.pose_types = pose_types
+    mock_rule.pose_confidence_threshold = pose_confidence_threshold
+    mock_rule.action_types = action_types
+    mock_rule.action_confidence_threshold = action_confidence_threshold
+    mock_rule.threat_detection_enabled = threat_detection_enabled
+    mock_rule.threat_types = threat_types
+    mock_rule.threat_min_severity = threat_min_severity
+    mock_rule.threat_confidence_threshold = threat_confidence_threshold
+    mock_rule.smoke_fire_detection_enabled = smoke_fire_detection_enabled
+    mock_rule.smoke_fire_consecutive_required = smoke_fire_consecutive_required
+    mock_rule.smoke_fire_confidence_threshold = smoke_fire_confidence_threshold
+    mock_rule.created_at = (
+        created_at if created_at is not None else datetime(2025, 1, 1, tzinfo=UTC)
+    )
+    mock_rule.updated_at = (
+        updated_at if updated_at is not None else datetime(2025, 1, 1, tzinfo=UTC)
+    )
+    return mock_rule
+
+
 class TestListRules:
     """Tests for GET /api/alerts/rules endpoint."""
 
@@ -35,25 +109,16 @@ class TestListRules:
 
         mock_db = AsyncMock()
 
-        # Mock database query
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "rule-1"
-        mock_rule.name = "Test Rule"
-        mock_rule.description = "Test description"
-        mock_rule.enabled = True
-        mock_rule.severity = ModelAlertSeverity.HIGH
-        mock_rule.risk_threshold = 70
-        mock_rule.object_types = ["person"]
-        mock_rule.camera_ids = ["cam1"]
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = 0.8
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = ["pushover"]
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        # Mock database query using helper
+        mock_rule = create_mock_rule(
+            id="rule-1",
+            name="Test Rule",
+            description="Test description",
+            object_types=["person"],
+            camera_ids=["cam1"],
+            min_confidence=0.8,
+            channels=["pushover"],
+        )
 
         # Mock count query
         mock_count_result = MagicMock()
@@ -84,24 +149,14 @@ class TestListRules:
         mock_count_result = MagicMock()
         mock_count_result.scalar.return_value = 1
 
-        # Mock rules query
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "rule-enabled"
-        mock_rule.name = "Enabled Rule"
-        mock_rule.enabled = True
-        mock_rule.severity = ModelAlertSeverity.MEDIUM
-        mock_rule.risk_threshold = 50
-        mock_rule.object_types = None
-        mock_rule.camera_ids = None
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = None
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = []
-        mock_rule.description = None
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
+        # Mock rules query using helper
+        mock_rule = create_mock_rule(
+            id="rule-enabled",
+            name="Enabled Rule",
+            enabled=True,
+            severity=ModelAlertSeverity.MEDIUM,
+            risk_threshold=50,
+        )
         mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
 
         mock_rules_result = MagicMock()
@@ -125,25 +180,14 @@ class TestListRules:
         mock_count_result = MagicMock()
         mock_count_result.scalar.return_value = 1
 
-        # Mock rules query
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "rule-critical"
-        mock_rule.name = "Critical Rule"
-        mock_rule.enabled = True
-        mock_rule.severity = ModelAlertSeverity.CRITICAL
-        mock_rule.risk_threshold = 90
-        mock_rule.object_types = ["person"]
-        mock_rule.camera_ids = None
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = None
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = []
-        mock_rule.description = None
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        # Mock rules query using helper
+        mock_rule = create_mock_rule(
+            id="rule-critical",
+            name="Critical Rule",
+            severity=ModelAlertSeverity.CRITICAL,
+            risk_threshold=90,
+            object_types=["person"],
+        )
 
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = [mock_rule]
@@ -166,28 +210,16 @@ class TestListRules:
         mock_count_result = MagicMock()
         mock_count_result.scalar.return_value = 100
 
-        # Mock rules query - return 10 rules
-        mock_rules = []
-        for i in range(10):
-            mock_rule = MagicMock(spec=AlertRule)
-            mock_rule.id = f"rule-{i}"
-            mock_rule.name = f"Rule {i}"
-            mock_rule.enabled = True
-            mock_rule.severity = ModelAlertSeverity.MEDIUM
-            mock_rule.risk_threshold = 50
-            mock_rule.object_types = None
-            mock_rule.camera_ids = None
-            mock_rule.zone_ids = None
-            mock_rule.min_confidence = None
-            mock_rule.schedule = None
-            mock_rule.conditions = None
-            mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-            mock_rule.cooldown_seconds = 300
-            mock_rule.channels = []
-            mock_rule.description = None
-            mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-            mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
-            mock_rules.append(mock_rule)
+        # Mock rules query - return 10 rules using helper
+        mock_rules = [
+            create_mock_rule(
+                id=f"rule-{i}",
+                name=f"Rule {i}",
+                severity=ModelAlertSeverity.MEDIUM,
+                risk_threshold=50,
+            )
+            for i in range(10)
+        ]
 
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = mock_rules
@@ -236,44 +268,22 @@ class TestListRules:
         mock_count_result = MagicMock()
         mock_count_result.scalar.return_value = 2
 
-        # Mock rules query - should be sorted alphabetically
-        mock_rule_a = MagicMock(spec=AlertRule)
-        mock_rule_a.id = "rule-a"
-        mock_rule_a.name = "A Rule"
-        mock_rule_a.enabled = True
-        mock_rule_a.severity = ModelAlertSeverity.MEDIUM
-        mock_rule_a.risk_threshold = 50
-        mock_rule_a.object_types = None
-        mock_rule_a.camera_ids = None
-        mock_rule_a.zone_ids = None
-        mock_rule_a.min_confidence = None
-        mock_rule_a.schedule = None
-        mock_rule_a.conditions = None
-        mock_rule_a.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule_a.cooldown_seconds = 300
-        mock_rule_a.channels = []
-        mock_rule_a.description = None
-        mock_rule_a.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule_a.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        # Mock rules query - should be sorted alphabetically using helper
+        mock_rule_a = create_mock_rule(
+            id="rule-a",
+            name="A Rule",
+            severity=ModelAlertSeverity.MEDIUM,
+            risk_threshold=50,
+        )
 
-        mock_rule_b = MagicMock(spec=AlertRule)
-        mock_rule_b.id = "rule-b"
-        mock_rule_b.name = "B Rule"
-        mock_rule_b.enabled = True
-        mock_rule_b.severity = ModelAlertSeverity.HIGH
-        mock_rule_b.risk_threshold = 70
-        mock_rule_b.object_types = None
-        mock_rule_b.camera_ids = None
-        mock_rule_b.zone_ids = None
-        mock_rule_b.min_confidence = None
-        mock_rule_b.schedule = None
-        mock_rule_b.conditions = None
-        mock_rule_b.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule_b.cooldown_seconds = 300
-        mock_rule_b.channels = []
-        mock_rule_b.description = None
-        mock_rule_b.created_at = datetime(2025, 1, 2, tzinfo=UTC)
-        mock_rule_b.updated_at = datetime(2025, 1, 2, tzinfo=UTC)
+        mock_rule_b = create_mock_rule(
+            id="rule-b",
+            name="B Rule",
+            severity=ModelAlertSeverity.HIGH,
+            risk_threshold=70,
+            created_at=datetime(2025, 1, 2, tzinfo=UTC),
+            updated_at=datetime(2025, 1, 2, tzinfo=UTC),
+        )
 
         mock_rules_result = MagicMock()
         mock_rules_result.scalars.return_value.all.return_value = [
@@ -308,26 +318,14 @@ class TestCreateRule:
             severity=AlertSeverity.MEDIUM,
         )
 
-        # Mock the created rule
+        # Mock the created rule using helper
         with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
-            mock_rule_instance = MagicMock(spec=AlertRule)
-            mock_rule_instance.id = "new-rule-id"
-            mock_rule_instance.name = "Test Rule"
-            mock_rule_instance.description = None
-            mock_rule_instance.enabled = True
-            mock_rule_instance.severity = ModelAlertSeverity.MEDIUM
-            mock_rule_instance.risk_threshold = None
-            mock_rule_instance.object_types = None
-            mock_rule_instance.camera_ids = None
-            mock_rule_instance.zone_ids = None
-            mock_rule_instance.min_confidence = None
-            mock_rule_instance.schedule = None
-            mock_rule_instance.conditions = None
-            mock_rule_instance.dedup_key_template = "{camera_id}:{rule_id}"
-            mock_rule_instance.cooldown_seconds = 300
-            mock_rule_instance.channels = []
-            mock_rule_instance.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-            mock_rule_instance.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+            mock_rule_instance = create_mock_rule(
+                id="new-rule-id",
+                name="Test Rule",
+                severity=ModelAlertSeverity.MEDIUM,
+                risk_threshold=None,
+            )
 
             mock_rule_class.return_value = mock_rule_instance
 
@@ -371,31 +369,20 @@ class TestCreateRule:
             schedule=schedule,
         )
 
-        # Mock the created rule
+        # Mock the created rule using helper
         with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
-            mock_rule_instance = MagicMock(spec=AlertRule)
-            mock_rule_instance.id = "night-rule-id"
-            mock_rule_instance.name = "Night Alert"
-            mock_rule_instance.description = None
-            mock_rule_instance.enabled = True
-            mock_rule_instance.severity = ModelAlertSeverity.HIGH
-            mock_rule_instance.risk_threshold = 70
-            mock_rule_instance.object_types = None
-            mock_rule_instance.camera_ids = None
-            mock_rule_instance.zone_ids = None
-            mock_rule_instance.min_confidence = None
-            mock_rule_instance.schedule = {
-                "days": ["monday", "tuesday"],
-                "start_time": "22:00",
-                "end_time": "06:00",
-                "timezone": "America/New_York",
-            }
-            mock_rule_instance.conditions = None
-            mock_rule_instance.dedup_key_template = "{camera_id}:{rule_id}"
-            mock_rule_instance.cooldown_seconds = 300
-            mock_rule_instance.channels = []
-            mock_rule_instance.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-            mock_rule_instance.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+            mock_rule_instance = create_mock_rule(
+                id="night-rule-id",
+                name="Night Alert",
+                severity=ModelAlertSeverity.HIGH,
+                risk_threshold=70,
+                schedule={
+                    "days": ["monday", "tuesday"],
+                    "start_time": "22:00",
+                    "end_time": "06:00",
+                    "timezone": "America/New_York",
+                },
+            )
 
             mock_rule_class.return_value = mock_rule_instance
 
@@ -420,24 +407,12 @@ class TestCreateRule:
         rule_data = AlertRuleCreate(name="Critical Rule", severity=AlertSeverity.CRITICAL)
 
         with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
-            mock_rule_instance = MagicMock(spec=AlertRule)
-            mock_rule_instance.id = "critical-rule"
-            mock_rule_instance.name = "Critical Rule"
-            mock_rule_instance.description = None
-            mock_rule_instance.enabled = True
-            mock_rule_instance.severity = ModelAlertSeverity.CRITICAL
-            mock_rule_instance.risk_threshold = None
-            mock_rule_instance.object_types = None
-            mock_rule_instance.camera_ids = None
-            mock_rule_instance.zone_ids = None
-            mock_rule_instance.min_confidence = None
-            mock_rule_instance.schedule = None
-            mock_rule_instance.conditions = None
-            mock_rule_instance.dedup_key_template = "{camera_id}:{rule_id}"
-            mock_rule_instance.cooldown_seconds = 300
-            mock_rule_instance.channels = []
-            mock_rule_instance.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-            mock_rule_instance.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+            mock_rule_instance = create_mock_rule(
+                id="critical-rule",
+                name="Critical Rule",
+                severity=ModelAlertSeverity.CRITICAL,
+                risk_threshold=None,
+            )
 
             mock_rule_class.return_value = mock_rule_instance
 
@@ -460,24 +435,12 @@ class TestCreateRule:
         rule_data = AlertRuleCreate(name="Test Rule", severity=AlertSeverity.LOW)
 
         with patch("backend.api.routes.alerts.AlertRule") as mock_rule_class:
-            mock_rule_instance = MagicMock(spec=AlertRule)
-            mock_rule_instance.id = "rule-id"
-            mock_rule_instance.name = "Test Rule"
-            mock_rule_instance.description = None
-            mock_rule_instance.enabled = True
-            mock_rule_instance.severity = ModelAlertSeverity.LOW
-            mock_rule_instance.risk_threshold = None
-            mock_rule_instance.object_types = None
-            mock_rule_instance.camera_ids = None
-            mock_rule_instance.zone_ids = None
-            mock_rule_instance.min_confidence = None
-            mock_rule_instance.schedule = None
-            mock_rule_instance.conditions = None
-            mock_rule_instance.dedup_key_template = "{camera_id}:{rule_id}"
-            mock_rule_instance.cooldown_seconds = 300
-            mock_rule_instance.channels = []
-            mock_rule_instance.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-            mock_rule_instance.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+            mock_rule_instance = create_mock_rule(
+                id="rule-id",
+                name="Test Rule",
+                severity=ModelAlertSeverity.LOW,
+                risk_threshold=None,
+            )
 
             mock_rule_class.return_value = mock_rule_instance
 
@@ -501,24 +464,15 @@ class TestGetRule:
 
         mock_db = AsyncMock()
 
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "test-rule-id"
-        mock_rule.name = "Test Rule"
-        mock_rule.description = "Test description"
-        mock_rule.enabled = True
-        mock_rule.severity = ModelAlertSeverity.HIGH
-        mock_rule.risk_threshold = 70
-        mock_rule.object_types = ["person"]
-        mock_rule.camera_ids = ["cam1"]
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = 0.8
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = ["pushover"]
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        mock_rule = create_mock_rule(
+            id="test-rule-id",
+            name="Test Rule",
+            description="Test description",
+            object_types=["person"],
+            camera_ids=["cam1"],
+            min_confidence=0.8,
+            channels=["pushover"],
+        )
 
         with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
             result = await get_rule(rule_id="test-rule-id", db=mock_db)
@@ -557,25 +511,14 @@ class TestUpdateRule:
         mock_cache = AsyncMock()
         mock_background_tasks = MagicMock()
 
-        # Mock existing rule
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "rule-id"
-        mock_rule.name = "Original Name"
-        mock_rule.description = "Original description"
-        mock_rule.enabled = True
-        mock_rule.severity = ModelAlertSeverity.MEDIUM
-        mock_rule.risk_threshold = 50
-        mock_rule.object_types = None
-        mock_rule.camera_ids = None
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = None
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = []
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        # Mock existing rule using helper
+        mock_rule = create_mock_rule(
+            id="rule-id",
+            name="Original Name",
+            description="Original description",
+            severity=ModelAlertSeverity.MEDIUM,
+            risk_threshold=50,
+        )
 
         rule_update = AlertRuleUpdate(enabled=False)
 
@@ -604,24 +547,12 @@ class TestUpdateRule:
         mock_cache = AsyncMock()
         mock_background_tasks = MagicMock()
 
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "rule-id"
-        mock_rule.name = "Test Rule"
-        mock_rule.severity = ModelAlertSeverity.MEDIUM
-        mock_rule.description = None
-        mock_rule.enabled = True
-        mock_rule.risk_threshold = None
-        mock_rule.object_types = None
-        mock_rule.camera_ids = None
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = None
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = []
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        mock_rule = create_mock_rule(
+            id="rule-id",
+            name="Test Rule",
+            severity=ModelAlertSeverity.MEDIUM,
+            risk_threshold=None,
+        )
 
         rule_update = AlertRuleUpdate(severity=AlertSeverity.CRITICAL)
 
@@ -673,24 +604,12 @@ class TestUpdateRule:
         mock_cache = AsyncMock()
         mock_background_tasks = MagicMock()
 
-        mock_rule = MagicMock(spec=AlertRule)
-        mock_rule.id = "rule-id"
-        mock_rule.name = "Test Rule"
-        mock_rule.enabled = True
-        mock_rule.severity = ModelAlertSeverity.MEDIUM
-        mock_rule.description = None
-        mock_rule.risk_threshold = None
-        mock_rule.object_types = None
-        mock_rule.camera_ids = None
-        mock_rule.zone_ids = None
-        mock_rule.min_confidence = None
-        mock_rule.schedule = None
-        mock_rule.conditions = None
-        mock_rule.dedup_key_template = "{camera_id}:{rule_id}"
-        mock_rule.cooldown_seconds = 300
-        mock_rule.channels = []
-        mock_rule.created_at = datetime(2025, 1, 1, tzinfo=UTC)
-        mock_rule.updated_at = datetime(2025, 1, 1, tzinfo=UTC)
+        mock_rule = create_mock_rule(
+            id="rule-id",
+            name="Test Rule",
+            severity=ModelAlertSeverity.MEDIUM,
+            risk_threshold=None,
+        )
 
         rule_update = AlertRuleUpdate(enabled=False)
 

@@ -1,6 +1,26 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+/**
+ * useHealthStatus - TanStack Query hook for system health status with legacy API compatibility
+ *
+ * This hook provides system health monitoring using TanStack Query's built-in polling.
+ * It maintains backward compatibility with the original useHealthStatus interface
+ * while leveraging TanStack Query features:
+ *
+ * - Automatic request deduplication (multiple components share one request)
+ * - Built-in caching with configurable stale time
+ * - Background refetching via refetchInterval
+ * - AbortSignal integration for proper query cancellation
+ * - PlaceholderData for better UX during loading states
+ *
+ * @module hooks/useHealthStatus
+ * @see NEM-5008 - Migrate useHealthStatus hook from manual polling to TanStack Query
+ */
 
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useCallback } from 'react';
+
+import { createPlaceholderHealthStatus } from './useQueryPatterns';
 import { fetchHealth, type HealthResponse, type ServiceStatus } from '../services/api';
+import { queryKeys, REALTIME_STALE_TIME } from '../services/queryClient';
 
 export interface UseHealthStatusOptions {
   /** Polling interval in milliseconds. Defaults to 30000 (30 seconds). */
@@ -27,10 +47,11 @@ export interface UseHealthStatusReturn {
 const DEFAULT_POLLING_INTERVAL = 30000; // 30 seconds
 
 /**
- * Hook to fetch and poll system health status from the REST API.
+ * Hook to fetch and poll system health status using TanStack Query.
  *
- * This hook fetches from GET /api/system/health on mount and polls periodically.
- * It provides overall system status and per-service status information.
+ * This hook fetches from GET /api/system/health and polls periodically using
+ * TanStack Query's refetchInterval. It provides request deduplication, caching,
+ * and all the benefits of TanStack Query while maintaining backward compatibility.
  *
  * @param options - Configuration options for polling behavior
  * @returns Health status information and loading state
@@ -55,88 +76,78 @@ const DEFAULT_POLLING_INTERVAL = 30000; // 30 seconds
 export function useHealthStatus(options: UseHealthStatusOptions = {}): UseHealthStatusReturn {
   const { pollingInterval = DEFAULT_POLLING_INTERVAL, enabled = true } = options;
 
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  // Create stable placeholder data reference
+  const placeholderData = useMemo(() => createPlaceholderHealthStatus(), []);
 
-  // Use ref to track if component is mounted to avoid state updates after unmount
-  const isMountedRef = useRef<boolean>(true);
+  // Determine refetch interval - if pollingInterval is 0 or negative, disable polling
+  const refetchInterval = pollingInterval > 0 ? pollingInterval : false;
 
-  // Store enabled in a ref to avoid recreating fetchHealthStatus when enabled changes
-  // This prevents unnecessary interval restarts while still allowing the callback to
-  // check the current enabled state when called manually via refresh()
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
-
-  const fetchHealthStatus = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    // Check enabled state via ref to get current value without stale closure
-    if (!enabledRef.current) return;
-
-    try {
-      const response = await fetchHealth();
-      if (isMountedRef.current) {
-        setHealth(response);
-        setError(null);
-        setIsLoading(false);
-      }
-    } catch (err) {
-      if (isMountedRef.current) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch health status';
-        setError(errorMessage);
-        setIsLoading(false);
-        // Keep previous health data on error so UI doesn't flash empty
-      }
-    }
-  }, []);
-
-  // Initial fetch on mount
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    if (enabled) {
-      void fetchHealthStatus();
-    }
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [enabled, fetchHealthStatus]);
-
-  // Store fetchHealthStatus in a ref to avoid restarting the interval
-  // when the callback identity changes (which shouldn't happen, but this is defensive)
-  const fetchHealthStatusRef = useRef(fetchHealthStatus);
-  fetchHealthStatusRef.current = fetchHealthStatus;
-
-  // Set up polling interval
-  useEffect(() => {
-    if (!enabled || pollingInterval <= 0) return;
-
-    const intervalId = setInterval(() => {
-      void fetchHealthStatusRef.current();
-    }, pollingInterval);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-    // Only depend on enabled and pollingInterval - use ref for callback to avoid restarts
-  }, [enabled, pollingInterval]);
+  const query = useQuery({
+    queryKey: queryKeys.system.health,
+    // AbortSignal integration: Pass signal from queryFn context
+    queryFn: ({ signal }) => fetchHealth({ signal }),
+    enabled,
+    refetchInterval,
+    // Use faster stale time for health checks
+    staleTime: REALTIME_STALE_TIME,
+    // Disable retry for health checks to fail fast (matches original behavior)
+    retry: 1,
+    // Don't refetch in background when window is not focused
+    refetchIntervalInBackground: false,
+    // PlaceholderData for better UX during loading states
+    placeholderData,
+  });
 
   // Derive overall status from health response
-  const overallStatus: 'healthy' | 'degraded' | 'unhealthy' | null =
-    health?.status === 'healthy' || health?.status === 'degraded' || health?.status === 'unhealthy'
-      ? health.status
-      : null;
+  const overallStatus = useMemo((): 'healthy' | 'degraded' | 'unhealthy' | null => {
+    const status = query.data?.status;
+    if (status === 'healthy' || status === 'degraded' || status === 'unhealthy') {
+      return status;
+    }
+    return null;
+  }, [query.data?.status]);
 
   // Derive services map from health response
-  const services: Record<string, ServiceStatus> = health?.services ?? {};
+  const services = useMemo((): Record<string, ServiceStatus> => {
+    return query.data?.services ?? {};
+  }, [query.data?.services]);
+
+  // Create a stable refresh function that respects the enabled state
+  const refresh = useCallback(async (): Promise<void> => {
+    // Respect the enabled option - don't fetch if disabled
+    // This maintains compatibility with the original hook's behavior
+    if (!enabled) {
+      return;
+    }
+    await query.refetch();
+  }, [enabled, query]);
+
+  // Convert Error to string for backward compatibility
+  const errorMessage = useMemo((): string | null => {
+    if (!query.error) return null;
+
+    // Handle API errors with detail field
+    const err = query.error as Error & { detail?: string };
+    if (err.detail) {
+      return err.detail;
+    }
+
+    // Fallback to message property
+    if (query.error.message) {
+      return query.error.message;
+    }
+
+    return 'Failed to fetch health status';
+  }, [query.error]);
 
   return {
-    health,
-    isLoading,
-    error,
-    overallStatus,
-    services,
-    refresh: fetchHealthStatus,
+    // Return null instead of undefined for backward compatibility
+    // Also filter out placeholder data to match original behavior (null when loading)
+    health: query.isPlaceholderData ? null : (query.data ?? null),
+    isLoading: query.isLoading,
+    error: errorMessage,
+    overallStatus: query.isPlaceholderData ? null : overallStatus,
+    services: query.isPlaceholderData ? {} : services,
+    refresh,
   };
 }
