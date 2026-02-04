@@ -21,9 +21,10 @@ from pydantic import SecretStr
 from backend.core.config import Settings
 from backend.core.redis import get_redis_optional
 from backend.main import app
+from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
-# Test API key for authentication
-TEST_API_KEY = "test-debug-api-key-12345"  # pragma: allowlist secret
+# Test API key for authentication - use the same key as unit test conftest
+TEST_API_KEY = UNIT_TEST_API_KEY
 
 
 @pytest.fixture
