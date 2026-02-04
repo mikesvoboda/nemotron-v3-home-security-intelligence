@@ -99,11 +99,11 @@ function validateForm(data: SetupFormData): FormErrors {
   } else if (data.password.length < MIN_PASSWORD_LENGTH) {
     errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
   } else if (!/[A-Z]/.test(data.password)) {
-    errors.password = 'Password must contain at least one uppercase letter';
+    errors.password = 'Password must contain at least one uppercase letter'; // pragma: allowlist secret
   } else if (!/[a-z]/.test(data.password)) {
-    errors.password = 'Password must contain at least one lowercase letter';
+    errors.password = 'Password must contain at least one lowercase letter'; // pragma: allowlist secret
   } else if (!/\d/.test(data.password)) {
-    errors.password = 'Password must contain at least one number';
+    errors.password = 'Password must contain at least one number'; // pragma: allowlist secret
   }
 
   // Confirm password validation

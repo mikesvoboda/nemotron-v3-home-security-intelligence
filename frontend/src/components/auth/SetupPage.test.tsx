@@ -265,7 +265,7 @@ describe('SetupPage', () => {
         expect(registrationData).toEqual({
           username: 'adminuser',
           email: 'admin@example.com',
-          password: 'Password123',
+          password: 'Password123', // pragma: allowlist secret
         });
       });
     });
