@@ -176,9 +176,9 @@ services:
         reservations:
           memory: 2G
           devices:
-            # GPU assignment from .env (GPU_YOLO26, defaults to 1)
+            # GPU assignment from .env (single source of truth)
             - driver: nvidia
-              device_ids: ['${GPU_YOLO26:-1}']
+              device_ids: ['${GPU_YOLO26}']
               capabilities: [gpu]
 
   ai-llm:
@@ -231,14 +231,12 @@ services:
         reservations:
           memory: 8G
           devices:
-            # NEM-5369: Pin LLM to GPU 0 explicitly to prevent random GPU selection
-            # GPU assignment from .env (GPU_LLM, defaults to 0)
+            # GPU assignment from .env (single source of truth)
             - driver: nvidia
-              device_ids: ['${GPU_LLM:-0}']
+              device_ids: ['${GPU_LLM}']
               capabilities: [gpu]
 
   # Florence-2 vision-language model for dense captioning and visual understanding
-  # NEM-5369: Moved to GPU 1 to reduce GPU 0 memory pressure (saves ~1.5GB on GPU 0)
   ai-florence:
     # Security hardening: Drop all capabilities, prevent privilege escalation
     security_opt:
@@ -294,10 +292,9 @@ services:
         reservations:
           memory: 3G
           devices:
-            # NEM-5369: Moved Florence to GPU 1 to reduce GPU 0 memory pressure
-            # GPU assignment from .env (GPU_FLORENCE, defaults to 1)
+            # GPU assignment from .env (single source of truth)
             - driver: nvidia
-              device_ids: ['${GPU_FLORENCE:-1}']
+              device_ids: ['${GPU_FLORENCE}']
               capabilities: [gpu]
 
   # CLIP ViT-L model for entity re-identification embeddings
@@ -357,11 +354,9 @@ services:
         reservations:
           memory: 2G
           devices:
-            # NEM-5369: Pin CLIP to GPU 1 explicitly to prevent random GPU selection
-            # CLIP TensorRT uses ~722MB, shares with Florence (~1.5GB) and YOLO26 (~5MB)
-            # GPU assignment from .env (GPU_CLIP, defaults to 1)
+            # GPU assignment from .env (single source of truth)
             - driver: nvidia
-              device_ids: ['${GPU_CLIP:-1}']
+              device_ids: ['${GPU_CLIP}']
               capabilities: [gpu]
 
   # Lightweight enrichment service for small, efficient models (GPU 1)
@@ -442,10 +437,9 @@ services:
         reservations:
           memory: 2G
           devices:
-            # NEM-5369: GPU assignment from .env (GPU_ENRICHMENT_LIGHT, defaults to 1)
-            # Fixed: was incorrectly using GPU_CLIP variable
+            # GPU assignment from .env (single source of truth)
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT_LIGHT:-1}']
+              device_ids: ['${GPU_ENRICHMENT_LIGHT}']
               capabilities: [gpu]
 
   # Heavy enrichment service for large transformer models (GPU 0)
@@ -522,9 +516,9 @@ services:
         reservations:
           memory: 6G
           devices:
-            # GPU assignment from .env (GPU_ENRICHMENT, defaults to 1)
+            # GPU assignment from .env (single source of truth)
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT:-1}']
+              device_ids: ['${GPU_ENRICHMENT}']
               capabilities: [gpu]
 
   backend:
