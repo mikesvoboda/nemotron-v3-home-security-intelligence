@@ -7,11 +7,37 @@ Tests cover:
 - Session management
 """
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from backend.core.database import escape_ilike_pattern
+
+
+@pytest.fixture(autouse=True)
+def reset_database_module_state() -> Generator[None]:
+    """Reset database module global state before each test.
+
+    This prevents test pollution when tests run in different orders
+    in pytest-xdist parallel workers.
+    """
+    import backend.core.database as db_module
+
+    # Save original state
+    original_engine = db_module._engine
+    original_factory = db_module._async_session_factory
+
+    # Reset to None before test
+    db_module._engine = None
+    db_module._async_session_factory = None
+
+    yield
+
+    # Restore original state after test
+    db_module._engine = original_engine
+    db_module._async_session_factory = original_factory
+
 
 # =============================================================================
 # ILIKE Pattern Escaping Tests
