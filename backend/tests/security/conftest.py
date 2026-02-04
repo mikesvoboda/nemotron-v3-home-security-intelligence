@@ -150,7 +150,6 @@ def security_client() -> Generator[AuthenticatedTestClient]:
     original_environment = os.environ.get("ENVIRONMENT")
     original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
     original_api_keys = os.environ.get("API_KEYS")
-    original_cors_origins = os.environ.get("CORS_ORIGINS")
 
     # Use development environment to bypass password validation for security tests
     # The tests themselves mock the settings to test specific behaviors
@@ -160,10 +159,6 @@ def security_client() -> Generator[AuthenticatedTestClient]:
     # This allows tests to reach endpoints and test actual security behaviors
     os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
     os.environ["API_KEYS"] = f'["{SECURITY_TEST_API_KEY}"]'  # pragma: allowlist secret
-
-    # Configure CORS origins for testing
-    # Include the origin that the security tests use for CORS validation
-    os.environ["CORS_ORIGINS"] = '["http://localhost:3000", "https://localhost:8444"]'
 
     # Ensure DATABASE_URL is set
     if not original_db_url:
@@ -197,11 +192,6 @@ def security_client() -> Generator[AuthenticatedTestClient]:
     async def mock_get_pipeline_manager(_redis_client):
         return mocks["pipeline_manager"]
 
-    # Mock setup guard to always return setup complete
-    # This allows security tests to reach endpoints without creating test users
-    async def mock_setup_complete(self):
-        return True
-
     from backend.main import app
 
     with (
@@ -219,10 +209,6 @@ def security_client() -> Generator[AuthenticatedTestClient]:
         patch("backend.main.GPUMonitor", return_value=mocks["gpu_monitor"]),
         patch("backend.main.CleanupService", return_value=mocks["cleanup_service"]),
         patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"]),
-        patch(
-            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
-            mock_setup_complete,
-        ),
         TestClient(app, raise_server_exceptions=False) as client,
     ):
         # Wrap client with AuthenticatedTestClient to auto-add API key header
@@ -251,10 +237,5 @@ def security_client() -> Generator[AuthenticatedTestClient]:
         os.environ["API_KEYS"] = original_api_keys
     else:
         os.environ.pop("API_KEYS", None)
-
-    if original_cors_origins is not None:
-        os.environ["CORS_ORIGINS"] = original_cors_origins
-    else:
-        os.environ.pop("CORS_ORIGINS", None)
 
     get_settings.cache_clear()
