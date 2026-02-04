@@ -47,7 +47,7 @@ from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.models import Alert, AlertRule, Event
-from backend.models import AlertSeverity as ModelAlertSeverity
+from backend.models.alert import AlertSeverityEnum as ModelAlertSeverity
 from backend.models.alert import AlertStatusEnum
 from backend.services.alert_engine import AlertRuleEngine
 from backend.services.cache_service import CacheService
@@ -84,31 +84,6 @@ async def _invalidate_alerts_cache_background(
         await cache.invalidate_alerts(reason=reason)
     except Exception as e:
         logger.warning(f"Background cache invalidation failed: {e}")
-
-
-def _rule_to_response(rule: AlertRule) -> dict[str, Any]:
-    """Convert an AlertRule model to response dict."""
-    return {
-        "id": rule.id,
-        "name": rule.name,
-        "description": rule.description,
-        "enabled": rule.enabled,
-        "severity": rule.severity.value
-        if isinstance(rule.severity, ModelAlertSeverity)
-        else rule.severity,
-        "risk_threshold": rule.risk_threshold,
-        "object_types": rule.object_types,
-        "camera_ids": rule.camera_ids,
-        "zone_ids": rule.zone_ids,
-        "min_confidence": rule.min_confidence,
-        "schedule": rule.schedule,
-        "conditions": rule.conditions,
-        "dedup_key_template": rule.dedup_key_template,
-        "cooldown_seconds": rule.cooldown_seconds,
-        "channels": rule.channels or [],
-        "created_at": rule.created_at,
-        "updated_at": rule.updated_at,
-    }
 
 
 @router.get(
@@ -163,7 +138,7 @@ async def list_rules(
     rules = result.scalars().all()
 
     return AlertRuleListResponse(
-        items=[AlertRuleResponse(**_rule_to_response(rule)) for rule in rules],
+        items=[AlertRuleResponse.model_validate(rule) for rule in rules],
         pagination=PaginationMeta(
             total=total_count,
             limit=limit,
@@ -226,6 +201,21 @@ async def create_rule(
         dedup_key_template=rule_data.dedup_key_template,
         cooldown_seconds=rule_data.cooldown_seconds,
         channels=rule_data.channels,
+        # NEM-5085 new alert condition types
+        dwell_time_enabled=rule_data.dwell_time_enabled,
+        dwell_threshold_seconds=rule_data.dwell_threshold_seconds,
+        exclude_household_members=rule_data.exclude_household_members,
+        pose_types=rule_data.pose_types,
+        pose_confidence_threshold=rule_data.pose_confidence_threshold,
+        action_types=rule_data.action_types,
+        action_confidence_threshold=rule_data.action_confidence_threshold,
+        threat_detection_enabled=rule_data.threat_detection_enabled,
+        threat_types=rule_data.threat_types,
+        threat_min_severity=rule_data.threat_min_severity,
+        threat_confidence_threshold=rule_data.threat_confidence_threshold,
+        smoke_fire_detection_enabled=rule_data.smoke_fire_detection_enabled,
+        smoke_fire_consecutive_required=rule_data.smoke_fire_consecutive_required,
+        smoke_fire_confidence_threshold=rule_data.smoke_fire_confidence_threshold,
     )
 
     db.add(rule)
@@ -239,7 +229,7 @@ async def create_rule(
         CacheInvalidationReason.ALERT_RULE_CREATED,
     )
 
-    return AlertRuleResponse(**_rule_to_response(rule))
+    return AlertRuleResponse.model_validate(rule)
 
 
 @router.get(
@@ -268,7 +258,7 @@ async def get_rule(
         HTTPException: 404 if rule not found
     """
     rule = await get_alert_rule_or_404(rule_id, db)
-    return AlertRuleResponse(**_rule_to_response(rule))
+    return AlertRuleResponse.model_validate(rule)
 
 
 def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict: dict) -> None:
@@ -287,6 +277,21 @@ def _apply_rule_updates(rule: AlertRule, rule_data: AlertRuleUpdate, update_dict
         "zone_ids",
         "min_confidence",
         "channels",
+        # NEM-5085 new alert condition types
+        "dwell_time_enabled",
+        "dwell_threshold_seconds",
+        "exclude_household_members",
+        "pose_types",
+        "pose_confidence_threshold",
+        "action_types",
+        "action_confidence_threshold",
+        "threat_detection_enabled",
+        "threat_types",
+        "threat_min_severity",
+        "threat_confidence_threshold",
+        "smoke_fire_detection_enabled",
+        "smoke_fire_consecutive_required",
+        "smoke_fire_confidence_threshold",
     ]
     for field in simple_fields:
         if field in update_dict:
@@ -350,7 +355,7 @@ async def update_rule(
         CacheInvalidationReason.ALERT_RULE_UPDATED,
     )
 
-    return AlertRuleResponse(**_rule_to_response(rule))
+    return AlertRuleResponse.model_validate(rule)
 
 
 @router.delete(
@@ -621,7 +626,7 @@ async def acknowledge_alert(
         alert.id,
     )
 
-    return AlertResponse(**alert.to_dict())
+    return AlertResponse.model_validate(alert)
 
 
 @alerts_instance_router.post(
@@ -710,4 +715,4 @@ async def dismiss_alert(
         alert.id,
     )
 
-    return AlertResponse(**alert.to_dict())
+    return AlertResponse.model_validate(alert)
