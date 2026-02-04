@@ -28,6 +28,7 @@ from backend.api.middleware.deprecation import (
     format_http_date,
     format_unix_timestamp,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 # =============================================================================
 # Helper Function Tests
@@ -466,7 +467,7 @@ class TestDeprecationMiddleware:
         async def create_camera():
             return {"id": "123"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/api/v1/cameras")
 
         assert response.status_code == 200
@@ -496,7 +497,7 @@ class TestDeprecationMiddlewareEdgeCases:
 
             raise HTTPException(status_code=404, detail="Not found")
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/api/v1/error")
 
         assert response.status_code == 404
@@ -515,7 +516,7 @@ class TestDeprecationMiddlewareEdgeCases:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.status_code == 200
@@ -539,7 +540,7 @@ class TestDeprecationMiddlewareEdgeCases:
         async def cameras_endpoint():
             return {"cameras": []}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/api/v1/cameras?status=online&limit=10")
 
         assert response.status_code == 200
@@ -563,7 +564,7 @@ class TestDeprecationMiddlewareEdgeCases:
         async def get_camera(camera_id: str):
             return {"id": camera_id}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/api/v1/cameras/front-door")
 
         assert response.status_code == 200
@@ -661,7 +662,7 @@ class TestDeprecationMiddlewareIntegration:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/api/v1/test")
 
         assert response.status_code == 200
@@ -690,7 +691,7 @@ class TestDeprecationMiddlewareIntegration:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/api/v1/test")
 
         assert response.status_code == 200

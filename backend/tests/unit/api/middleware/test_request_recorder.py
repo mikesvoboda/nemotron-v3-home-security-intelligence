@@ -25,6 +25,7 @@ from backend.api.middleware.request_recorder import (
     RequestRecording,
     redact_request_body,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 # =============================================================================
 # RequestRecording Data Class Tests
@@ -324,7 +325,7 @@ class TestRequestRecorderMiddleware:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         response = client.get("/test")
 
@@ -439,7 +440,7 @@ class TestRequestRecorderMiddleware:
             await request.body()  # Just consume the body
             return {"received": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Send a large body
         large_body = {"data": "x" * 1000}
@@ -490,7 +491,7 @@ class TestRequestRecorderMiddleware:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.status_code == 200
@@ -583,7 +584,7 @@ class TestRecordingStorage:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         client.get("/test")
 
         recordings_path = Path(temp_recordings_dir)
@@ -604,7 +605,7 @@ class TestRecordingStorage:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         client.get("/test")
 
         recordings_path = Path(temp_recordings_dir)
@@ -632,7 +633,7 @@ class TestRecordingStorage:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         client.get("/test")
 
         assert new_dir.exists()
@@ -669,7 +670,7 @@ class TestRequestRecorderEdgeCases:
             await request.body()
             return {"received": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post(
             "/upload",
             content=b"\x00\x01\x02\x03",  # Binary data
@@ -697,7 +698,7 @@ class TestRequestRecorderEdgeCases:
         async def empty_endpoint():
             return {"received": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/empty")
 
         assert response.status_code == 200
@@ -721,7 +722,7 @@ class TestRequestRecorderEdgeCases:
             form = await request.form()
             return {"fields": list(form.keys())}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post(
             "/form",
             data={"field1": "value1", "field2": "value2"},
@@ -747,7 +748,7 @@ class TestRequestRecorderEdgeCases:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Request should succeed even if recording fails
         response = client.get("/test")
@@ -771,7 +772,7 @@ class TestRequestRecorderEdgeCases:
             await websocket.send_text("Hello")
             await websocket.close()
 
-        with TestClient(app) as client:
+        with TestClient(app, headers=get_auth_headers()) as client:
             try:
                 with client.websocket_connect("/ws") as ws:
                     data = ws.receive_text()
@@ -842,7 +843,7 @@ class TestReplayEndpoint:
         with patch("backend.api.routes.debug.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(debug=False)
 
-            client = TestClient(app)
+            client = TestClient(app, headers=get_auth_headers())
             response = client.post("/api/debug/replay/test-123")
 
             assert response.status_code == 404
@@ -854,7 +855,7 @@ class TestReplayEndpoint:
         with patch("backend.api.routes.debug.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(debug=True)
             with patch("backend.api.routes.debug.RECORDINGS_DIR", recordings_dir):
-                client = TestClient(app)
+                client = TestClient(app, headers=get_auth_headers())
                 response = client.post("/api/debug/replay/nonexistent-id")
 
                 assert response.status_code == 404
@@ -882,7 +883,7 @@ class TestReplayEndpoint:
                 ) as mock_request:
                     mock_request.return_value = mock_response
 
-                    client = TestClient(app)
+                    client = TestClient(app, headers=get_auth_headers())
                     response = client.post("/api/debug/replay/test-recording-123")
 
                     # Should return the result of replaying the request
@@ -935,7 +936,7 @@ class TestReplayEndpoint:
                 ) as mock_request:
                     mock_request.return_value = mock_response
 
-                    client = TestClient(app)
+                    client = TestClient(app, headers=get_auth_headers())
                     response = client.post("/api/debug/replay/header-test")
 
                     assert response.status_code == 200
@@ -986,7 +987,7 @@ class TestReplayEndpoint:
                 ) as mock_request:
                     mock_request.return_value = mock_response
 
-                    client = TestClient(app)
+                    client = TestClient(app, headers=get_auth_headers())
                     response = client.post("/api/debug/replay/query-test")
 
                     assert response.status_code == 200
@@ -1015,7 +1016,7 @@ class TestReplayEndpoint:
                 ) as mock_request:
                     mock_request.return_value = mock_response
 
-                    client = TestClient(app)
+                    client = TestClient(app, headers=get_auth_headers())
                     response = client.post("/api/debug/replay/test-recording-123")
 
                     assert response.status_code == 200

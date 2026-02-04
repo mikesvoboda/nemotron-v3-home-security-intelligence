@@ -18,6 +18,7 @@ from backend.api.middleware.accept_header import (
     parse_accept_header,
     select_best_media_type,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestParseAcceptHeader:
@@ -286,7 +287,7 @@ class TestAcceptHeaderMiddlewareConfiguration:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # JSON should work
         response = client.get("/test", headers={"Accept": "application/json"})
@@ -316,7 +317,7 @@ class TestAcceptHeaderMiddlewareConfiguration:
         async def data_endpoint():
             return {"data": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Exempt path should pass with any Accept header
         response = client.get(
@@ -479,7 +480,7 @@ class TestAcceptHeaderMiddlewareWithWebSocket:
         async def ws_system():
             return {"ws": "system"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # WebSocket paths should be exempt
         response = client.get("/ws/events", headers={"Accept": "text/xml"})
@@ -576,7 +577,7 @@ class TestAcceptHeaderMiddlewareOptimization:
         async def ws_events():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Both paths should be exempt via prefix matching
         response = client.get("/docs/test", headers={"Accept": "text/xml"})
@@ -602,7 +603,7 @@ class TestAcceptHeaderMiddlewareOptimization:
         async def metrics():
             return {"metrics": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Non-exempt path should validate Accept
         response = client.get("/test", headers={"Accept": "text/xml"})
@@ -627,7 +628,7 @@ class TestAcceptHeaderMiddlewareOptimization:
         async def ws_test():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # With empty prefixes, /ws/ paths should NOT be exempt
         response = client.get("/ws/test", headers={"Accept": "text/xml"})

@@ -14,6 +14,7 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.core.logging import set_request_id
 from backend.main import app
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestCorrelationIdMiddleware:
@@ -67,9 +68,7 @@ class TestCorrelationIdMiddleware:
         mock_settings = Settings(debug=True, database_url="postgresql+asyncpg://test")
         with patch("backend.api.routes.debug.get_settings", return_value=mock_settings):
             async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers={"X-API-Key": UNIT_TEST_API_KEY},
+                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
             ) as client:
                 response = await client.get(
                     "/api/debug/pipeline-state",

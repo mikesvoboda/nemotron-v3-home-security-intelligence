@@ -28,6 +28,7 @@ from backend.api.middleware.prometheus import (
     PrometheusMiddleware,
     http_request_duration_seconds,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 # =============================================================================
 # Test Fixtures
@@ -261,7 +262,7 @@ class TestPrometheusMiddleware:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Make requests to both endpoints
         client.get("/health")
@@ -302,7 +303,7 @@ class TestPrometheusMiddleware:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Make requests to both endpoints
         client.get("/api/metrics")
@@ -326,7 +327,7 @@ class TestPrometheusMiddleware:
         async def root():
             return {"status": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         client.get("/")
 
         # Root should be excluded
@@ -345,7 +346,7 @@ class TestPrometheusMiddleware:
         async def ready():
             return {"ready": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         client.get("/ready")
 
         # /ready should be excluded
@@ -373,7 +374,7 @@ class TestPrometheusMiddleware:
         async def api_data():
             return {"data": []}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Custom excluded paths should not be recorded
         client.get("/custom-health")
@@ -486,7 +487,7 @@ class TestPrometheusMiddlewareIntegration:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.status_code == 200
@@ -514,7 +515,7 @@ class TestPrometheusMiddlewareIntegration:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.status_code == 200

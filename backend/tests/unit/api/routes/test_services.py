@@ -18,6 +18,7 @@ from backend.api.routes.services import (
     router,
 )
 from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class MockManagedService:
@@ -234,6 +235,7 @@ class TestListServicesEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/system/services")
 
@@ -271,6 +273,7 @@ class TestListServicesEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/system/services?category=ai")
 
@@ -289,6 +292,7 @@ class TestListServicesEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/system/services")
 
@@ -316,6 +320,7 @@ class TestRestartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/restart")
 
@@ -336,6 +341,7 @@ class TestRestartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/unknown/restart")
 
@@ -358,6 +364,7 @@ class TestRestartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/restart")
 
@@ -372,6 +379,7 @@ class TestRestartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/restart")
 
@@ -399,6 +407,7 @@ class TestEnableServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/enable")
 
@@ -419,6 +428,7 @@ class TestEnableServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/unknown/enable")
 
@@ -447,6 +457,7 @@ class TestDisableServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/disable")
 
@@ -467,6 +478,7 @@ class TestDisableServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/unknown/disable")
 
@@ -494,6 +506,7 @@ class TestStartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/start")
 
@@ -514,6 +527,7 @@ class TestStartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/unknown/start")
 
@@ -536,6 +550,7 @@ class TestStartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/start")
 
@@ -558,6 +573,7 @@ class TestStartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/start")
 
@@ -572,6 +588,7 @@ class TestStartServiceEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/system/services/ai-yolo26/start")
 

@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from starlette.middleware.gzip import GZipMiddleware
 
 from backend.api.middleware.content_negotiation import ContentNegotiationMiddleware
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestContentNegotiationMiddleware:
@@ -85,7 +86,7 @@ class TestContentNegotiationMiddleware:
             response.headers["Vary"] = "Accept"
             return response
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/with-vary")
 
         assert response.status_code == 200
@@ -106,7 +107,7 @@ class TestContentNegotiationMiddleware:
             response.headers["Vary"] = "Accept-Encoding"
             return response
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/with-encoding-vary")
 
         assert response.status_code == 200
@@ -135,7 +136,7 @@ class TestContentNegotiationMiddlewareConfiguration:
                 media_type="application/vnd.api+json",
             )
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/custom")
 
         assert response.status_code == 200
@@ -152,7 +153,7 @@ class TestContentNegotiationMiddlewareConfiguration:
         async def no_vary_endpoint():
             return {"data": "test"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/no-vary")
 
         assert response.status_code == 200
@@ -183,7 +184,7 @@ class TestContentNegotiationWithProblemJson:
                 media_type="application/problem+json",
             )
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/error")
 
         assert response.status_code == 404
@@ -363,7 +364,7 @@ class TestCharsetNotDuplicated:
                 media_type="application/json; charset=utf-8",
             )
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/with-charset")
 
         assert response.status_code == 200
