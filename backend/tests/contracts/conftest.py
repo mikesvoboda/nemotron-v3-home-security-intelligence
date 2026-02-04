@@ -21,12 +21,18 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
 
+# Test API key for contract tests - must match API_KEYS env var below
+CONTRACT_TEST_API_KEY = "test-api-key-12345"  # pragma: allowlist secret
+
 # Set test environment before importing app
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",  # pragma: allowlist secret
 )
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
+# Enable API key authentication for contract tests
+os.environ.setdefault("API_KEY_ENABLED", "true")
+os.environ.setdefault("API_KEYS", f'["{CONTRACT_TEST_API_KEY}"]')
 
 
 @pytest.fixture(scope="module")
@@ -66,9 +72,19 @@ async def async_client(test_app) -> AsyncGenerator[AsyncClient]:
 
     This client connects directly to the ASGI app without going through
     the network, making tests faster and more reliable.
+
+    Includes X-API-Key header for API key authentication.
     """
+    from backend.core.config import get_settings
+
+    # Clear settings cache to pick up API key env vars
+    get_settings.cache_clear()
+
     transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+    headers = {"X-API-Key": CONTRACT_TEST_API_KEY}
+    async with AsyncClient(
+        transport=transport, base_url="http://testserver", headers=headers
+    ) as client:
         yield client
 
 
