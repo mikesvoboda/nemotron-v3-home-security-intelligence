@@ -69,11 +69,13 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 ENV CLIP_USE_TENSORRT=false
 # CLIP_ENGINE_PATH is set via docker-compose when TensorRT is enabled
 
+# Create cache directories for HuggingFace models and TensorRT engines
+# Use numeric UID:GID for NVIDIA image compatibility
+RUN mkdir -p /cache/huggingface /cache/tensorrt && \
+    chown -R 1000:1000 /cache/huggingface /cache/tensorrt
+
 # Expose port
 EXPOSE 8093
-
-# Create cache directories as root and set ownership
-RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R 1000:1000 /cache
 
 # Switch to non-root user (use numeric UID for compatibility)
 USER 1000
