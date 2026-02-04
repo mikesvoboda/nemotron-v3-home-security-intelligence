@@ -55,7 +55,7 @@ def clean_env(monkeypatch):
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("YOLO26_URL", "http://localhost:8090")
     monkeypatch.setenv("NEMOTRON_URL", "http://localhost:8091")
-    monkeypatch.setenv("CORS_ORIGINS", '["http://localhost:5173"]')
+    monkeypatch.setenv("CORS_ORIGINS", '["https://localhost:8444"]')
     monkeypatch.setenv("API_HOST", "0.0.0.0")  # noqa: S104
     monkeypatch.setenv("API_PORT", "8000")
     monkeypatch.setenv("RETENTION_DAYS", "30")
@@ -105,11 +105,11 @@ class TestSettingsDefaults:
         settings = Settings()
         assert settings.cors_origins == [
             "http://localhost:3000",
-            "http://localhost:5173",
+            "https://localhost:8444",
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173",
+            "https://127.0.0.1:8444",
             "http://0.0.0.0:3000",
-            "http://0.0.0.0:5173",
+            "https://0.0.0.0:8444",
         ]
         assert isinstance(settings.cors_origins, list)
 
@@ -224,30 +224,30 @@ class TestCORSConfiguration:
         """Test CORS_ORIGINS parses JSON array format."""
         clean_env.setenv(
             "CORS_ORIGINS",
-            '["http://localhost:3000","http://localhost:5173"]',
+            '["http://localhost:3000","https://localhost:8444"]',
         )
         settings = Settings()
         assert settings.cors_origins == [
             "http://localhost:3000",
-            "http://localhost:5173",
+            "https://localhost:8444",
         ]
 
     def test_cors_json_array_with_spaces(self, clean_env):
         """Test CORS_ORIGINS handles JSON array with spaces."""
         clean_env.setenv(
             "CORS_ORIGINS",
-            '["http://localhost:3000", "http://localhost:5173"]',
+            '["http://localhost:3000", "https://localhost:8444"]',
         )
         settings = Settings()
         assert settings.cors_origins == [
             "http://localhost:3000",
-            "http://localhost:5173",
+            "https://localhost:8444",
         ]
 
     def test_cors_default_when_not_set(self, clean_env):
         """Test CORS_ORIGINS uses default when set to default JSON array."""
         # Setting to default value explicitly - Pydantic Settings requires JSON for list types
-        clean_env.setenv("CORS_ORIGINS", '["http://localhost:5173"]')
+        clean_env.setenv("CORS_ORIGINS", '["https://localhost:8444"]')
         settings = Settings()
         assert isinstance(settings.cors_origins, list)
         assert len(settings.cors_origins) > 0

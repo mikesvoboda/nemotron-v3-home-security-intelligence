@@ -152,9 +152,9 @@ class HealthChecker:
         Returns:
             HealthStatus for frontend
         """
-        # Frontend on HTTP port 5173 (mapped from 8080)
-        url = "http://localhost:5173"
-        return await self._check_http(url, "frontend")
+        # Frontend on HTTPS port 8444 (mapped from 8443)
+        url = "https://localhost:8444"
+        return await self._check_https(url, "frontend")
 
     async def _check_http(self, url: str, service: str) -> HealthStatus:
         """Check health via HTTP endpoint.
@@ -190,6 +190,62 @@ class HealthChecker:
                     status=ContainerStatus.UNHEALTHY,
                     message=f"HTTP {response.status_code}",
                 )
+
+        except httpx.ConnectError:
+            return HealthStatus(
+                service=service,
+                status=ContainerStatus.STOPPED,
+                message="Connection refused",
+            )
+        except httpx.TimeoutException:
+            return HealthStatus(
+                service=service,
+                status=ContainerStatus.UNHEALTHY,
+                message="Timeout",
+            )
+        except Exception as e:
+            return HealthStatus(
+                service=service,
+                status=ContainerStatus.UNHEALTHY,
+                message=str(e),
+            )
+
+    async def _check_https(self, url: str, service: str) -> HealthStatus:
+        """Check health via HTTPS endpoint (skips SSL verification for self-signed certs).
+
+        Args:
+            url: Health check URL (https://)
+            service: Service name
+
+        Returns:
+            HealthStatus
+        """
+        try:
+            # Create a client that skips SSL verification for self-signed certs
+            # Security: This is intentional for local deployment with self-signed certificates
+            async with httpx.AsyncClient(timeout=10.0, verify=False) as client:  # noqa: S501
+                response = await client.get(url)
+
+                if response.status_code == 200:
+                    # Try to parse JSON response for details (ignore parse errors)
+                    details = None
+                    try:
+                        details = response.json()
+                    except (ValueError, TypeError):
+                        details = None  # Non-JSON response is OK
+
+                    return HealthStatus(
+                        service=service,
+                        status=ContainerStatus.HEALTHY,
+                        message="OK",
+                        details=details,
+                    )
+                else:
+                    return HealthStatus(
+                        service=service,
+                        status=ContainerStatus.UNHEALTHY,
+                        message=f"HTTP {response.status_code}",
+                    )
 
         except httpx.ConnectError:
             return HealthStatus(

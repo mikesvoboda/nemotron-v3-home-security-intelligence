@@ -19,10 +19,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 8444,
     strictPort: true,
+    // Enable HTTPS with auto-generated self-signed certificates for local development
+    https: true,
     // No proxy configuration - API requests will be intercepted by Playwright
-    // The frontend will make requests to localhost:5173/api/* which Vite will
+    // The frontend will make requests to localhost:8444/api/* which Vite will
     // return a 404 for, but Playwright's route() will intercept before that happens
   },
 });

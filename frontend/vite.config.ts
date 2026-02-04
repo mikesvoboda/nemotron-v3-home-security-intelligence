@@ -169,8 +169,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 5173,
+      port: 8444,
       strictPort: true,
+      // Enable HTTPS with auto-generated self-signed certificates for local development
+      https: true,
       // Listen on all network interfaces to allow access from other machines on the network
       // This is needed for WebSocket connections when accessing via network IP (e.g., 192.168.x.x)
       host: true,

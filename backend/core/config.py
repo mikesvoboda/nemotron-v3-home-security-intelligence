@@ -869,16 +869,17 @@ class Settings(BaseSettings):
     )
 
     # CORS settings
-    # Includes common development ports and 0.0.0.0 (accept from any origin when bound to all interfaces)
+    # HTTPS origins on port 8444 for external browser access
+    # Internal HTTP origins for container-to-container communication within Docker network
     # For production, override via CORS_ORIGINS env var with specific allowed origins
     cors_origins: list[str] = Field(
         default=[
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:5173",
-            "http://0.0.0.0:3000",
-            "http://0.0.0.0:5173",
+            # HTTPS origins for external browser access
+            "https://localhost:8444",
+            "https://127.0.0.1:8444",
+            "https://0.0.0.0:8444",
+            # Internal container communication (HTTP within Docker network)
+            "http://frontend:8080",
         ],
         description="Allowed CORS origins. Set CORS_ORIGINS env var to override for your network.",
     )
