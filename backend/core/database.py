@@ -385,7 +385,8 @@ async def init_db() -> None:
         )
 
     # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats, Zone  # noqa: F401
+    # This must import ALL models, not just a subset, otherwise tables won't be created
+    from backend import models  # noqa: F401
 
     # Create all tables with advisory lock to prevent deadlock on concurrent index creation
     # Use the Base from models, not the one defined in this module
