@@ -78,6 +78,9 @@ RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R 1000:1000 /cache
 # Switch to non-root user (use numeric UID for compatibility)
 USER 1000
 
+# Create cache directories for HuggingFace models and TensorRT engines as non-root user (owns directory automatically)
+RUN mkdir -p /cache/huggingface /cache/tensorrt
+
 # Health check using Python/httpx on /health endpoint
 # Start period of 300s allows time for model loading and TensorRT auto-export on first run
 HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \

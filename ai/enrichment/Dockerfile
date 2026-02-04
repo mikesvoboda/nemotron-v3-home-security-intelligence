@@ -133,6 +133,9 @@ RUN mkdir -p /cache/huggingface && chown -R enrichment:enrichment /cache
 # Switch to non-root user
 USER enrichment
 
+# Create cache directory for HuggingFace models as non-root user (owns directory automatically)
+RUN mkdir -p /cache/huggingface
+
 # Health check using Python/httpx on /health endpoint
 # Start period of 180s allows time for loading all models (vehicle, pet, clothing, pose, re-id)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
