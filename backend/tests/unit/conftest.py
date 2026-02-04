@@ -90,11 +90,19 @@ async def authenticated_async_client() -> AsyncGenerator[AsyncClient]:
         async with authenticated_async_client() as client:
             response = await client.get("/api/some-endpoint")
 
-    Note: Requires the FastAPI app to be imported. The app should have
-    API key authentication enabled via the enable_api_key_auth_for_unit_tests
-    fixture.
+    Note: This context manager ensures API key auth is enabled before creating
+    the client. The settings cache is cleared and API_KEY_ENABLED is set to
+    ensure the middleware sees the correct authentication mode.
     """
     from httpx import ASGITransport, AsyncClient
+
+    from backend.core.config import get_settings
+
+    # Ensure API key auth is enabled - this is critical because the app/middleware
+    # might have cached settings before the session fixture ran
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
+    get_settings.cache_clear()
 
     from backend.main import app
 
