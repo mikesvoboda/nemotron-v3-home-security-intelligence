@@ -1431,8 +1431,8 @@ async def test_manager_initialization(mock_redis_client):
     )
 
     assert manager.running is False
-    assert manager._detection_worker is not None
-    assert manager._analysis_worker is not None
+    assert len(manager._detection_workers) > 0
+    assert len(manager._analysis_workers) > 0
     assert manager._timeout_worker is not None
 
 
@@ -1446,8 +1446,8 @@ async def test_manager_selective_workers(mock_redis_client):
         enable_timeout_worker=False,
     )
 
-    assert manager._detection_worker is not None
-    assert manager._analysis_worker is None
+    assert len(manager._detection_workers) > 0
+    assert len(manager._analysis_workers) == 0
     assert manager._timeout_worker is None
 
 
@@ -1774,13 +1774,13 @@ async def test_manager_stops_all_workers_on_shutdown(mock_redis_client):
     )
 
     await manager.start()
-    assert manager._detection_worker.running is True
-    assert manager._analysis_worker.running is True
+    assert all(worker.running is True for worker in manager._detection_workers)
+    assert all(worker.running is True for worker in manager._analysis_workers)
     assert manager._timeout_worker.running is True
 
     await manager.stop()
-    assert manager._detection_worker.running is False
-    assert manager._analysis_worker.running is False
+    assert all(worker.running is False for worker in manager._detection_workers)
+    assert all(worker.running is False for worker in manager._analysis_workers)
     assert manager._timeout_worker.running is False
 
 
@@ -1795,8 +1795,8 @@ async def test_manager_with_all_workers_disabled(mock_redis_client):
         enable_metrics_worker=False,
     )
 
-    assert manager._detection_worker is None
-    assert manager._analysis_worker is None
+    assert len(manager._detection_workers) == 0
+    assert len(manager._analysis_workers) == 0
     assert manager._timeout_worker is None
     assert manager._metrics_worker is None
 
@@ -2905,12 +2905,12 @@ async def test_manager_stop_with_worker_exceptions():
     )
 
     # Mock one worker to fail during stop
-    original_stop = manager._detection_worker.stop
+    original_stop = manager._detection_workers[0].stop
 
     async def failing_stop():
         raise RuntimeError("Worker stop failed")
 
-    manager._detection_worker.stop = failing_stop
+    manager._detection_workers[0].stop = failing_stop
     manager._running = True  # Pretend we're running
 
     # Stop should complete despite exception (logged but not raised)
