@@ -12,28 +12,12 @@ When debug=False, endpoints return 404 Not Found.
 """
 
 import os
-from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from backend.core.config import Settings, get_settings
-from backend.tests.unit.conftest import UNIT_TEST_API_KEY, get_auth_headers
-
-
-@pytest.fixture(autouse=True)
-def ensure_api_key_auth_enabled() -> Generator[None]:
-    """Ensure API key authentication is enabled for each test.
-
-    This fixture is needed because pytest-xdist workers may have stale
-    settings cache that doesn't reflect the session-scoped fixture's changes.
-    """
-    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
-    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
+from backend.core.config import Settings
+from backend.tests.unit.conftest import authenticated_async_client
 
 
 @pytest.fixture
@@ -102,11 +86,7 @@ class TestDebugConfigEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/config")
 
                 assert response.status_code == 200
@@ -135,11 +115,7 @@ class TestDebugConfigEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/config")
 
                 assert response.status_code == 200
@@ -183,11 +159,7 @@ class TestDebugRedisInfoEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/redis/info")
 
                 assert response.status_code == 200
@@ -209,11 +181,7 @@ class TestDebugRedisInfoEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = _mock_redis_none
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/redis/info")
 
                 assert response.status_code == 200
@@ -242,11 +210,7 @@ class TestDebugWebSocketConnectionsEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/websocket/connections")
 
                 assert response.status_code == 200
@@ -279,11 +243,7 @@ class TestDebugCircuitBreakersEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/circuit-breakers")
 
                 assert response.status_code == 200
@@ -314,11 +274,7 @@ class TestDebugCircuitBreakersEndpoint:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/circuit-breakers")
 
                 assert response.status_code == 200
@@ -360,11 +316,7 @@ class TestDebugEndpointSecurity:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/config")
 
                 assert response.status_code == 200
@@ -400,11 +352,7 @@ class TestRedisInfoHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/redis/info")
 
                 assert response.status_code == 200
@@ -431,11 +379,7 @@ class TestRedisInfoHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/redis/info")
 
                 assert response.status_code == 200
@@ -464,11 +408,7 @@ class TestRedisInfoHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/redis/info")
 
                 assert response.status_code == 200
@@ -507,11 +447,7 @@ class TestWorkerStatusHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/pipeline-state")
 
                 assert response.status_code == 200
@@ -538,11 +474,7 @@ class TestWorkerStatusHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/pipeline-state")
 
                 assert response.status_code == 200
@@ -574,11 +506,7 @@ class TestQueueDepthsHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/pipeline-state")
 
                 assert response.status_code == 200
@@ -607,11 +535,7 @@ class TestConfigRedactionHelpers:
         with patch("backend.api.routes.debug.get_settings", return_value=debug_settings):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/config")
 
                 assert response.status_code == 200
@@ -655,11 +579,7 @@ class TestProfilingEndpoints:
 
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/profile/start")
 
                 assert response.status_code == 200
@@ -694,11 +614,7 @@ class TestProfilingEndpoints:
 
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/profile/start")
 
                 assert response.status_code == 200
@@ -730,11 +646,7 @@ class TestProfilingEndpoints:
 
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/profile/stop")
 
                 assert response.status_code == 200
@@ -767,11 +679,7 @@ class TestProfilingEndpoints:
 
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/profile/stop")
 
                 assert response.status_code == 200
@@ -803,11 +711,7 @@ class TestProfilingEndpoints:
 
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/profile/stats")
 
                 assert response.status_code == 200
@@ -840,11 +744,7 @@ class TestProfilingEndpoints:
 
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/profile/stats")
 
                 assert response.status_code == 200
@@ -876,11 +776,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings")
 
                 assert response.status_code == 200
@@ -928,11 +824,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings")
 
                 assert response.status_code == 200
@@ -967,11 +859,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings")
 
                 assert response.status_code == 200
@@ -1015,11 +903,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings/test-rec-1")
 
                 assert response.status_code == 200
@@ -1051,11 +935,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings/nonexistent")
 
                 assert response.status_code == 404
@@ -1082,11 +962,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings/../../../etc/passwd")
 
                 assert response.status_code == 404
@@ -1117,11 +993,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.get("/api/debug/recordings/test-rec-1")
 
                 assert response.status_code == 500
@@ -1163,11 +1035,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/replay/test-rec-1")
 
                 assert response.status_code == 200
@@ -1214,11 +1082,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/replay/test-rec-2")
 
                 assert response.status_code == 200
@@ -1262,11 +1126,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/replay/test-rec-3")
 
                 assert response.status_code == 200
@@ -1295,11 +1155,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post("/api/debug/replay/nonexistent")
 
                 assert response.status_code == 404
@@ -1331,11 +1187,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.delete("/api/debug/recordings/test-rec-1")
 
                 assert response.status_code == 200
@@ -1365,11 +1217,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.delete("/api/debug/recordings/nonexistent")
 
                 assert response.status_code == 404
@@ -1403,11 +1251,7 @@ class TestRecordingEndpoints:
         ):
             app.dependency_overrides[get_redis_optional] = mock_redis_gen
             try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.delete("/api/debug/recordings/test-rec-1")
 
                 assert response.status_code == 500
