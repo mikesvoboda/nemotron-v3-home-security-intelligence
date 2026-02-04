@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -36,6 +36,70 @@ if TYPE_CHECKING:
     from transformers import XCLIPModel, XCLIPProcessor
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Meta Tensor Utilities (NEM-5371)
+# =============================================================================
+# Helper functions for detecting and materializing meta tensors (lazy-loaded weights).
+# Meta tensors are placeholders without actual data, used during model saving.
+# Calling .to(device) on such tensors raises NotImplementedError.
+#
+# This pattern is used in vehicle_damage_loader.py and model.py (ClothingClassifier)
+# and should be applied consistently across all model loaders to prevent
+# "Cannot copy out of meta tensor" errors.
+
+
+def _has_meta_tensors(model: Any) -> bool:
+    """Check if a model contains meta tensors (lazy-loaded weights).
+
+    Meta tensors are placeholders without actual data, used for lazy weight loading.
+    Calling .to(device) on such tensors raises NotImplementedError.
+
+    Args:
+        model: PyTorch model to check
+
+    Returns:
+        True if any parameter is on the meta device
+    """
+    try:
+        return any(param.device.type == "meta" for param in model.parameters())
+    except Exception:
+        return False
+
+
+def _materialize_meta_tensors(model: Any, device: str) -> Any:
+    """Materialize meta tensors by using to_empty() + load_state_dict.
+
+    When models are saved with meta tensors (lazy initialization), calling
+    model.to(device) raises:
+        NotImplementedError: Cannot copy out of meta tensor; no data!
+
+    The fix is to use to_empty() to create empty tensors on the target device,
+    then reload the state_dict with assign=True to populate them.
+
+    Args:
+        model: Model with potential meta tensors
+        device: Target device ("cuda" or "cpu")
+
+    Returns:
+        Model with materialized tensors on the target device
+    """
+    logger.info(f"Materializing meta tensors to device: {device}")
+
+    # Get the current state dict before to_empty()
+    # We need the actual weights from the checkpoint
+    state_dict = model.state_dict()
+
+    # Move model structure to device without copying tensor data
+    model = model.to_empty(device=torch.device(device))
+
+    # Reload the state dict with assign=True to populate the empty tensors
+    # assign=True replaces parameter tensors in-place rather than copying
+    model.load_state_dict(state_dict, assign=True)
+
+    logger.info("Meta tensors materialized successfully")
+    return model
 
 
 @dataclass
@@ -161,12 +225,32 @@ class ActionRecognizer:
             logger.warning(f"SDPA not available, falling back to default attention: {e}")
             self.model = XCLIPModel.from_pretrained(self.model_path)
 
-        # Move to device
+        # Determine target device
         if "cuda" in self.device and torch.cuda.is_available():
-            self.model = self.model.to(self.device)  # type: ignore[arg-type]
-            logger.info(f"ActionRecognizer loaded on {self.device}")
+            target_device = self.device
         else:
+            target_device = "cpu"
             self.device = "cpu"
+
+        # Check if model has meta tensors and handle them properly (NEM-5371)
+        # This can happen when models are saved with lazy weight initialization
+        if _has_meta_tensors(self.model):
+            logger.warning(
+                "ActionRecognizer contains meta tensors (lazy-loaded weights). "
+                "Materializing tensors to avoid 'Cannot copy out of meta tensor' error."
+            )
+            try:
+                self.model = _materialize_meta_tensors(self.model, target_device)
+            except Exception as e:
+                logger.error(f"Meta tensor materialization failed: {e}")
+                raise RuntimeError(f"Failed to materialize meta tensors: {e}") from e
+        else:
+            # No meta tensors, safe to move directly
+            self.model = self.model.to(target_device)  # type: ignore[arg-type]
+
+        if "cuda" in target_device:
+            logger.info(f"ActionRecognizer loaded on {target_device}")
+        else:
             logger.info("ActionRecognizer using CPU (CUDA not available)")
 
         self.model.eval()

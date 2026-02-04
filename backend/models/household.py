@@ -123,10 +123,11 @@ class HouseholdMember(Base):
         "PersonEmbedding",
         back_populates="member",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     known_person: Mapped[KnownPerson | None] = relationship(
         "KnownPerson",
-        backref="household_member",
+        back_populates="household_member",
     )
 
     __table_args__ = (

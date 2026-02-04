@@ -11014,6 +11014,10 @@ export interface paths {
          *     This endpoint powers the System Performance Dashboard and provides
          *     a comprehensive snapshot of system health at the time of the request.
          *
+         *     Results are cached for 5 seconds to improve response times. The underlying
+         *     metric collection is expensive (1800-2500ms) and caching reduces load
+         *     while maintaining acceptable freshness for dashboard updates.
+         *
          *     Returns:
          *         PerformanceUpdate with all available metrics. Fields may be None
          *         if a particular metric source is unavailable.

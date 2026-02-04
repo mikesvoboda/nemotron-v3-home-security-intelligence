@@ -26,6 +26,7 @@ from backend.api.middleware.deprecation_logger import (
     DeprecationLoggerMiddleware,
     record_deprecated_call,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 # =============================================================================
 # DeprecationLoggerMiddleware Tests
@@ -126,7 +127,7 @@ class TestDeprecationLoggerMiddleware:
             response.headers["Deprecation"] = "true"
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/deprecated")
 
         warning = response.headers["Warning"]
@@ -222,7 +223,7 @@ class TestDeprecationLogging:
         async def normal():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         with caplog.at_level(logging.WARNING):
             response = client.get("/normal")
@@ -365,7 +366,7 @@ class TestDeprecationMiddlewareEdgeCases:
             response.headers["Deprecation"] = ""
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         # Empty string is falsy, so no Warning should be added
@@ -392,7 +393,7 @@ class TestDeprecationMiddlewareEdgeCases:
             response.headers["Deprecation"] = "Mon, 01 Jan 2024 00:00:00 GMT"
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # All should add Warning header since Deprecation header is present
         for path in ["/v1", "/v2", "/v3"]:
@@ -410,7 +411,7 @@ class TestDeprecationMiddlewareEdgeCases:
             response.headers["Warning"] = '110 - "Custom warning"'
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/deprecated")
 
         # Existing Warning should be preserved
@@ -428,7 +429,7 @@ class TestDeprecationMiddlewareEdgeCases:
             response.headers["Deprecation"] = "true"
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get(long_path)
 
         # Should complete without error
@@ -444,7 +445,7 @@ class TestDeprecationMiddlewareEdgeCases:
             response.headers["Deprecation"] = "true"
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Client ID with special characters
         response = client.get(
@@ -471,7 +472,7 @@ class TestDeprecationMiddlewareIntegration:
             response.headers["Deprecation"] = "true"
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/deprecated")
 
         assert response.status_code == 200
@@ -492,7 +493,7 @@ class TestDeprecationMiddlewareIntegration:
             response.headers["Deprecation"] = "true"
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/deprecated")
 
         assert response.status_code == 200

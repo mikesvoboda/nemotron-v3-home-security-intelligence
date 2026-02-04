@@ -19,7 +19,7 @@
  * showToast('Something went wrong', 'error');
  * showToast('Processing...', 'info', 10000); // Custom 10s duration
  */
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 /**
  * Toast notification types.
@@ -122,10 +122,34 @@ export function ToastProvider({
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   /**
+   * Map to track timer IDs for each toast.
+   * Used for cleanup on dismiss and unmount.
+   */
+  const timerRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  /**
    * Dismiss a specific toast by ID.
+   * Also clears the associated timer to prevent memory leaks.
    */
   const dismissToast = useCallback((id: string) => {
+    // Clear the timer if it exists
+    const timerId = timerRefs.current.get(id);
+    if (timerId) {
+      clearTimeout(timerId);
+      timerRefs.current.delete(id);
+    }
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  /**
+   * Cleanup all timers on unmount to prevent memory leaks.
+   */
+  useEffect(() => {
+    const timers = timerRefs.current;
+    return () => {
+      timers.forEach((timerId) => clearTimeout(timerId));
+      timers.clear();
+    };
   }, []);
 
   /**
@@ -143,17 +167,27 @@ export function ToastProvider({
       };
 
       setToasts((prev) => {
-        // If at max capacity, remove the oldest toast
-        const updatedToasts = prev.length >= maxToasts ? prev.slice(1) : prev;
-        return [...updatedToasts, newToast];
+        // If at max capacity, remove the oldest toast and its timer
+        if (prev.length >= maxToasts && prev[0]) {
+          const oldestId = prev[0].id;
+          const oldTimerId = timerRefs.current.get(oldestId);
+          if (oldTimerId) {
+            clearTimeout(oldTimerId);
+            timerRefs.current.delete(oldestId);
+          }
+          return [...prev.slice(1), newToast];
+        }
+        return [...prev, newToast];
       });
 
-      // Set up auto-dismiss timer
+      // Set up auto-dismiss timer and track it
       const dismissDuration = duration ?? defaultDuration;
       if (dismissDuration > 0) {
-        setTimeout(() => {
+        const timerId = setTimeout(() => {
+          timerRefs.current.delete(id);
           dismissToast(id);
         }, dismissDuration);
+        timerRefs.current.set(id, timerId);
       }
 
       return id;

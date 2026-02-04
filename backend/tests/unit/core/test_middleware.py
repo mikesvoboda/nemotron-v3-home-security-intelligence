@@ -486,6 +486,9 @@ class TestAuthenticateWebsocket:
 
         Note: The WebSocket must be accepted before closing to properly send the
         close frame with the policy violation code.
+
+        When JWT_SECRET is set (hybrid auth enabled), uses code 4001 (authentication failure).
+        When JWT_SECRET is not set, uses code 1008 (policy violation) for backward compatibility.
         """
         os.environ["API_KEY_ENABLED"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
@@ -494,6 +497,7 @@ class TestAuthenticateWebsocket:
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.query_params = {"api_key": "invalid_key"}
         mock_websocket.headers = {}
+        mock_websocket.cookies = {}  # No session cookie
         mock_websocket.accept = AsyncMock()  # Must be AsyncMock since we now call accept()
         mock_websocket.close = AsyncMock()
 
@@ -501,7 +505,11 @@ class TestAuthenticateWebsocket:
 
         assert result is False
         mock_websocket.accept.assert_awaited_once()  # Verify accept was called first
-        mock_websocket.close.assert_awaited_once_with(code=status.WS_1008_POLICY_VIOLATION)
+        # With JWT_SECRET set (hybrid auth enabled), uses 4001 (authentication failure)
+        # Without JWT_SECRET, uses 1008 (WS_1008_POLICY_VIOLATION)
+        settings = get_settings()
+        expected_code = 4001 if settings.jwt_secret else status.WS_1008_POLICY_VIOLATION
+        mock_websocket.close.assert_awaited_once_with(code=expected_code)
 
     @pytest.mark.asyncio
     async def test_closes_with_policy_violation_code(self):
@@ -509,6 +517,9 @@ class TestAuthenticateWebsocket:
 
         Note: The WebSocket must be accepted before closing to properly send the
         close frame with the policy violation code.
+
+        When JWT_SECRET is set (hybrid auth enabled), uses code 4001 (authentication failure).
+        When JWT_SECRET is not set, uses code 1008 (policy violation) for backward compatibility.
         """
         os.environ["API_KEY_ENABLED"] = "true"
         os.environ["API_KEYS"] = '["valid_key"]'
@@ -517,6 +528,7 @@ class TestAuthenticateWebsocket:
         mock_websocket = MagicMock(spec=WebSocket)
         mock_websocket.query_params = {}
         mock_websocket.headers = {}
+        mock_websocket.cookies = {}  # No session cookie
         mock_websocket.accept = AsyncMock()  # Must be AsyncMock since we now call accept()
         mock_websocket.close = AsyncMock()
 
@@ -524,8 +536,11 @@ class TestAuthenticateWebsocket:
 
         # Verify accept was called first
         mock_websocket.accept.assert_awaited_once()
-        # WS_1008_POLICY_VIOLATION is 1008
-        mock_websocket.close.assert_awaited_once_with(code=1008)
+        # With JWT_SECRET set (hybrid auth enabled), uses 4001 (authentication failure)
+        # Without JWT_SECRET, uses 1008 (WS_1008_POLICY_VIOLATION)
+        settings = get_settings()
+        expected_code = 4001 if settings.jwt_secret else 1008
+        mock_websocket.close.assert_awaited_once_with(code=expected_code)
 
     @pytest.mark.asyncio
     async def test_does_not_close_when_auth_disabled(self):

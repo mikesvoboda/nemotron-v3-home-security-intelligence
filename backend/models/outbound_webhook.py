@@ -196,6 +196,7 @@ class OutboundWebhook(Base):
         "WebhookDelivery",
         back_populates="webhook",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     __table_args__ = (

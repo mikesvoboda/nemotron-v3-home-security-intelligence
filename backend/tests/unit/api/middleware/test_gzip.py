@@ -16,6 +16,8 @@ from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.testclient import TestClient
 
+from backend.tests.unit.conftest import get_auth_headers
+
 
 class TestGZipMiddlewareConfiguration:
     """Tests for GZipMiddleware configuration as used in main.py."""
@@ -129,7 +131,7 @@ class TestGZipMiddlewareEdgeCases:
 
     def test_binary_content_data_integrity(self, app):
         """Test that binary content is handled correctly."""
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get(
             "/binary",
             headers={"Accept-Encoding": "gzip"},
@@ -141,7 +143,7 @@ class TestGZipMiddlewareEdgeCases:
 
     def test_empty_response_works(self, app):
         """Test that empty responses work correctly."""
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get(
             "/empty",
             headers={"Accept-Encoding": "gzip"},
@@ -152,7 +154,7 @@ class TestGZipMiddlewareEdgeCases:
 
     def test_unicode_content_preserved(self, app):
         """Test that Unicode content is preserved correctly."""
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get(
             "/unicode",
             headers={"Accept-Encoding": "gzip"},
@@ -179,7 +181,7 @@ class TestGZipMiddlewareIntegration:
         async def data_endpoint():
             return {"data": "x" * 500}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get(
             "/data",
             headers={"Accept-Encoding": "gzip", "Origin": "http://localhost:3000"},
@@ -206,7 +208,7 @@ class TestGZipMiddlewareIntegration:
             )
             return response
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get(
             "/custom-headers",
             headers={"Accept-Encoding": "gzip"},
@@ -233,7 +235,7 @@ class TestGZipMiddlewareIntegration:
         async def upload_endpoint():
             return {"received": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # GET should work with compression
         get_response = client.get("/data", headers={"Accept-Encoding": "gzip"})
@@ -265,7 +267,7 @@ class TestGZipMiddlewareMinimumSizeConfiguration:
         async def above_threshold():
             return {"d": "x" * 200}  # ~207 bytes serialized
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Both should return correct data
         response_at = client.get("/at-threshold", headers={"Accept-Encoding": "gzip"})

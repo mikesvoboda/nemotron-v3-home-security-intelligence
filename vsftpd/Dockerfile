@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM ubuntu:24.04
 
 # Security labels
@@ -11,6 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install vsftpd and required packages
 # --no-install-recommends reduces image size and attack surface
 # gosu is used for secure privilege dropping in the entrypoint
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends vsftpd openssl gosu && \
     apt-get clean && \
@@ -28,13 +30,10 @@ RUN mkdir -p /export/foscam && \
     chmod 755 /export/foscam && \
     chmod 555 /var/run/vsftpd/empty
 
-# Copy configuration files
+# Copy configuration files (use --chmod for entrypoint to avoid separate RUN)
 COPY vsftpd.conf /etc/vsftpd.conf
 COPY vsftpd.user_list /etc/vsftpd.user_list
-COPY entrypoint.sh /entrypoint.sh
-
-# Make entrypoint executable
-RUN chmod +x /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # Expose FTP ports
 # 21 for FTP control, 20 for FTP data (active mode)

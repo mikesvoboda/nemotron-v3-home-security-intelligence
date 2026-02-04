@@ -28,6 +28,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import ORJSONResponse
+from redis.exceptions import RedisError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -395,10 +396,36 @@ class SystemStatsCacheEntry:
         return (time.time() - self.cached_at) < HEALTH_CACHE_TTL_SECONDS
 
 
+# Performance metrics cache TTL - shorter than health cache for fresher data
+PERFORMANCE_CACHE_TTL_SECONDS = 5.0
+
+
+@dataclass(slots=True)
+class PerformanceMetricsCacheEntry:
+    """Cached performance metrics response with TTL tracking.
+
+    The performance endpoint is expensive (1800-2500ms) as it collects metrics
+    from all system components. Caching with a 5-second TTL significantly
+    reduces load while maintaining acceptable freshness for dashboard updates.
+
+    Attributes:
+        response: The cached PerformanceUpdate
+        cached_at: Timestamp when the response was cached
+    """
+
+    response: PerformanceUpdate
+    cached_at: float
+
+    def is_valid(self) -> bool:
+        """Check if the cached entry is still within TTL."""
+        return (time.time() - self.cached_at) < PERFORMANCE_CACHE_TTL_SECONDS
+
+
 # Global caches for various endpoints
 _readiness_cache: ReadinessCacheEntry | None = None
 _gpu_stats_cache: GPUStatsCacheEntry | None = None
 _system_stats_cache: SystemStatsCacheEntry | None = None
+_performance_metrics_cache: PerformanceMetricsCacheEntry | None = None
 
 
 def clear_health_cache() -> None:
@@ -407,11 +434,12 @@ def clear_health_cache() -> None:
     This is primarily for testing purposes to ensure tests don't see
     stale cached results from previous test runs.
     """
-    global _health_cache, _readiness_cache, _gpu_stats_cache, _system_stats_cache  # noqa: PLW0603
+    global _health_cache, _readiness_cache, _gpu_stats_cache, _system_stats_cache, _performance_metrics_cache  # noqa: PLW0603
     _health_cache = None
     _readiness_cache = None
     _gpu_stats_cache = None
     _system_stats_cache = None
+    _performance_metrics_cache = None
 
 
 # Global references for worker status tracking (set by main.py at startup)
@@ -2034,6 +2062,10 @@ async def get_performance_metrics(
     This endpoint powers the System Performance Dashboard and provides
     a comprehensive snapshot of system health at the time of the request.
 
+    Results are cached for 5 seconds to improve response times. The underlying
+    metric collection is expensive (1800-2500ms) and caching reduces load
+    while maintaining acceptable freshness for dashboard updates.
+
     Returns:
         PerformanceUpdate with all available metrics. Fields may be None
         if a particular metric source is unavailable.
@@ -2042,14 +2074,28 @@ async def get_performance_metrics(
         HTTPException: 503 if performance collector is not initialized
         HTTPException: 500 if metric collection fails
     """
+    global _performance_metrics_cache  # noqa: PLW0603
+
     if _performance_collector is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Performance collector not initialized",
         )
 
+    # Check cache first - return cached response if still valid
+    if _performance_metrics_cache is not None and _performance_metrics_cache.is_valid():
+        return _performance_metrics_cache.response
+
     try:
-        return await _performance_collector.collect_all()
+        response = await _performance_collector.collect_all()
+
+        # Cache the response for future requests
+        _performance_metrics_cache = PerformanceMetricsCacheEntry(
+            response=response,
+            cached_at=time.time(),
+        )
+
+        return response
     except Exception as e:
         logger.error(f"Failed to collect performance metrics: {e}", exc_info=True)
         raise HTTPException(
@@ -3907,9 +3953,24 @@ async def _get_batch_aggregator_status(
             batch_window_seconds=settings.batch_window_seconds,
             idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         )
-    except (ConnectionError, TimeoutError, OSError) as e:
-        # Redis connection failures
-        logger.error(f"Error getting batch aggregator status: {e}", exc_info=True)
+    except RedisError as e:
+        # Redis connection failures and operation errors
+        # Catch all RedisError types (ConnectionError, TimeoutError, ResponseError, etc.)
+        # to ensure graceful degradation instead of 503 CACHE_UNAVAILABLE
+        logger.error(
+            f"Redis error getting batch aggregator status: {type(e).__name__}: {e}",
+            exc_info=True,
+            extra={"error_type": type(e).__name__},
+        )
+        return None
+    except (OSError, Exception) as e:
+        # Catch OSError (network issues) and any other unexpected errors
+        # to prevent endpoint failures
+        logger.error(
+            f"Unexpected error getting batch aggregator status: {type(e).__name__}: {e}",
+            exc_info=True,
+            extra={"error_type": type(e).__name__},
+        )
         return None
 
 

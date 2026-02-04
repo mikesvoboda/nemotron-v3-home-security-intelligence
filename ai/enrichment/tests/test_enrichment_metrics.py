@@ -7,6 +7,7 @@ Tests cover:
 - Threat detection metrics
 - Demographics metrics
 - Face quality metrics
+- OCR metrics (PaddleOCR license plate text recognition)
 
 Note: VRAM and model loading metrics are already defined in model_manager.py
 and tested separately.
@@ -30,6 +31,15 @@ from metrics import (
     # Face quality metrics
     FACE_QUALITY_ASSESSMENTS_TOTAL,
     FACE_QUALITY_SCORES,
+    # OCR metrics
+    OCR_BLURRY_IMAGES_TOTAL,
+    OCR_CONFIDENCE,
+    OCR_ENHANCED_IMAGES_TOTAL,
+    OCR_ERRORS_TOTAL,
+    OCR_IMAGE_QUALITY,
+    OCR_INFERENCE_SECONDS,
+    OCR_REQUESTS_TOTAL,
+    OCR_TEXTS_PER_IMAGE,
     POSE_ESTIMATION_INFERENCE_LATENCY,
     # Pose estimation metrics
     POSE_ESTIMATION_INFERENCES_TOTAL,
@@ -50,6 +60,8 @@ from metrics import (
     record_action_recognition_inference,
     record_demographics_inference,
     record_face_quality_assessment,
+    record_ocr_error,
+    record_ocr_inference,
     record_pose_estimation_inference,
     record_reid_embedding_generated,
     record_reid_match,
@@ -293,3 +305,132 @@ class TestMetricsExposure:
         """Metrics should contain face quality metrics."""
         metrics = get_metrics().decode("utf-8")
         assert "enrichment_face_quality" in metrics
+
+    def test_get_metrics_contains_ocr(self) -> None:
+        """Metrics should contain OCR metrics."""
+        metrics = get_metrics().decode("utf-8")
+        assert "enrichment_ocr" in metrics
+
+
+# =============================================================================
+# OCR Metrics Tests
+# =============================================================================
+
+
+class TestOCRMetricsDefinitions:
+    """Test OCR metric definitions."""
+
+    def test_ocr_inference_seconds_histogram_exists(self) -> None:
+        """OCR_INFERENCE_SECONDS histogram should be defined."""
+        assert OCR_INFERENCE_SECONDS is not None
+
+    def test_ocr_texts_per_image_histogram_exists(self) -> None:
+        """OCR_TEXTS_PER_IMAGE histogram should be defined."""
+        assert OCR_TEXTS_PER_IMAGE is not None
+
+    def test_ocr_requests_counter_exists(self) -> None:
+        """OCR_REQUESTS_TOTAL counter should be defined."""
+        assert OCR_REQUESTS_TOTAL is not None
+        assert "status" in OCR_REQUESTS_TOTAL._labelnames
+
+    def test_ocr_errors_counter_exists(self) -> None:
+        """OCR_ERRORS_TOTAL counter should be defined."""
+        assert OCR_ERRORS_TOTAL is not None
+        assert "error_type" in OCR_ERRORS_TOTAL._labelnames
+
+    def test_ocr_confidence_histogram_exists(self) -> None:
+        """OCR_CONFIDENCE histogram should be defined."""
+        assert OCR_CONFIDENCE is not None
+
+    def test_ocr_image_quality_histogram_exists(self) -> None:
+        """OCR_IMAGE_QUALITY histogram should be defined."""
+        assert OCR_IMAGE_QUALITY is not None
+
+    def test_ocr_enhanced_images_counter_exists(self) -> None:
+        """OCR_ENHANCED_IMAGES_TOTAL counter should be defined."""
+        assert OCR_ENHANCED_IMAGES_TOTAL is not None
+
+    def test_ocr_blurry_images_counter_exists(self) -> None:
+        """OCR_BLURRY_IMAGES_TOTAL counter should be defined."""
+        assert OCR_BLURRY_IMAGES_TOTAL is not None
+
+
+class TestOCRMetricHelpers:
+    """Test OCR metric helper functions."""
+
+    def test_record_ocr_inference_success(self) -> None:
+        """record_ocr_inference should record successful inference."""
+        record_ocr_inference(
+            duration_seconds=0.15,
+            texts_detected=2,
+            success=True,
+            confidence=0.95,
+            image_quality=0.8,
+        )
+        # No exception means success
+
+    def test_record_ocr_inference_failure(self) -> None:
+        """record_ocr_inference should record failed inference."""
+        record_ocr_inference(
+            duration_seconds=0.05,
+            texts_detected=0,
+            success=False,
+            image_quality=0.3,
+        )
+
+    def test_record_ocr_inference_with_enhancement(self) -> None:
+        """record_ocr_inference should record enhanced image flag."""
+        record_ocr_inference(
+            duration_seconds=0.2,
+            texts_detected=1,
+            success=True,
+            confidence=0.88,
+            is_enhanced=True,
+        )
+
+    def test_record_ocr_inference_with_blur(self) -> None:
+        """record_ocr_inference should record blurry image flag."""
+        record_ocr_inference(
+            duration_seconds=0.12,
+            texts_detected=0,
+            success=True,
+            confidence=0.4,
+            is_blurry=True,
+        )
+
+    def test_record_ocr_inference_with_all_flags(self) -> None:
+        """record_ocr_inference should handle all optional parameters."""
+        record_ocr_inference(
+            duration_seconds=0.25,
+            texts_detected=3,
+            success=True,
+            confidence=0.92,
+            image_quality=0.75,
+            is_enhanced=True,
+            is_blurry=True,
+        )
+
+    def test_record_ocr_inference_zero_confidence(self) -> None:
+        """record_ocr_inference should handle zero confidence correctly."""
+        record_ocr_inference(
+            duration_seconds=0.1,
+            texts_detected=0,
+            success=True,
+            confidence=0.0,
+        )
+
+    def test_record_ocr_error_model_not_loaded(self) -> None:
+        """record_ocr_error should record model_not_loaded errors."""
+        record_ocr_error("model_not_loaded")
+
+    def test_record_ocr_error_inference_error(self) -> None:
+        """record_ocr_error should record inference_error."""
+        record_ocr_error("inference_error")
+
+    def test_record_ocr_error_invalid_image(self) -> None:
+        """record_ocr_error should record invalid_image errors."""
+        record_ocr_error("invalid_image")
+
+    def test_record_ocr_error_timeout(self) -> None:
+        """record_ocr_error should record timeout errors."""
+        record_ocr_error("timeout")

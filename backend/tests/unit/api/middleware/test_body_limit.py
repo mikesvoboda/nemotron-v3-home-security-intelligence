@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from backend.api.middleware.body_limit import BodySizeLimitMiddleware
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestBodySizeLimitMiddleware:
@@ -154,7 +155,7 @@ class TestBodySizeLimitMiddlewareConfiguration:
         async def upload():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/upload", content=b"x")
 
         assert response.status_code == 413
@@ -177,7 +178,7 @@ class TestBodySizeLimitMiddlewareErrorResponse:
 
     def test_error_response_has_error_code(self, app):
         """Test that error response includes error_code field."""
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/upload", content=b"x" * 200)
 
         assert response.status_code == 413
@@ -187,7 +188,7 @@ class TestBodySizeLimitMiddlewareErrorResponse:
 
     def test_error_response_has_message(self, app):
         """Test that error response includes message field."""
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/upload", content=b"x" * 200)
 
         json_response = response.json()
@@ -196,7 +197,7 @@ class TestBodySizeLimitMiddlewareErrorResponse:
 
     def test_error_response_is_json(self, app):
         """Test that error response is valid JSON."""
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/upload", content=b"x" * 200)
 
         assert response.headers.get("content-type") == "application/json"
@@ -220,7 +221,7 @@ class TestBodySizeLimitMiddlewareIntegration:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Small body should work
         response = client.post("/upload", content=b"small")
@@ -244,7 +245,7 @@ class TestBodySizeLimitMiddlewareIntegration:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Large body should fail with timing header
         response = client.post("/upload", content=b"x" * 200)
@@ -262,7 +263,7 @@ class TestBodySizeLimitMiddlewareIntegration:
             body = await request.body()
             return {"size": len(body), "method": request.method}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/upload", content=b"test body")
 
         assert response.status_code == 200
@@ -283,7 +284,7 @@ class TestBodySizeLimitMiddlewareEdgeCases:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post("/upload", content=b"")
 
         assert response.status_code == 200
@@ -299,7 +300,7 @@ class TestBodySizeLimitMiddlewareEdgeCases:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # Binary content with null bytes
         binary_content = bytes(range(256)) * 2  # 512 bytes
         response = client.post("/upload", content=binary_content)
@@ -317,7 +318,7 @@ class TestBodySizeLimitMiddlewareEdgeCases:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.post(
             "/data",
             json={"key": "value", "nested": {"data": "content"}},
@@ -334,7 +335,7 @@ class TestBodySizeLimitMiddlewareEdgeCases:
         async def upload():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # Large JSON payload
         large_data = {"data": "x" * 200}
         response = client.post("/data", json=large_data)
@@ -351,7 +352,7 @@ class TestBodySizeLimitMiddlewareEdgeCases:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # Content-Length is always a string in headers
         response = client.post(
             "/upload",
@@ -375,7 +376,7 @@ class TestBodySizeLimitMiddlewareEdgeCases:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # If header says large but body is small, middleware uses header
         # Note: TestClient may override headers, so this tests documented behavior
         response = client.post("/upload", content=b"small")
@@ -397,7 +398,7 @@ class TestBodySizeLimitMiddlewareRealisticScenarios:
             body = await request.body()
             return {"size": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # 500KB file
         file_content = b"x" * (500 * 1024)
         response = client.post("/upload", content=file_content)
@@ -415,7 +416,7 @@ class TestBodySizeLimitMiddlewareRealisticScenarios:
         async def upload():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # 2MB file
         file_content = b"x" * (2 * 1024 * 1024)
         response = client.post("/upload", content=file_content)
@@ -433,7 +434,7 @@ class TestBodySizeLimitMiddlewareRealisticScenarios:
             body = await request.body()
             return {"received": len(body)}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         # Typical API payload
         response = client.post(
             "/api/data",

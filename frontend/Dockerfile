@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for frontend (dev and production targets)
 #
 # Build Optimizations:
@@ -59,11 +60,8 @@ RUN --mount=type=cache,target=/root/.npm,sharing=shared \
 # =============================================================================
 FROM base AS dev
 
-# Copy application source
-COPY . .
-
-# Change ownership to non-root user
-RUN chown -R node:node /app
+# Copy application source with ownership set to non-root user
+COPY --chown=node:node . .
 
 # Switch to non-root user
 USER node

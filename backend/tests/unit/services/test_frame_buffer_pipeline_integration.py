@@ -554,9 +554,9 @@ class TestPipelineWorkerManagerFrameBufferIntegration:
             enable_metrics_worker=False,
         )
 
-        # Detection worker should have the frame_buffer
-        assert manager._detection_worker is not None
-        assert manager._detection_worker._frame_buffer is buffer
+        # Detection workers should have the frame_buffer
+        assert len(manager._detection_workers) > 0
+        assert manager._detection_workers[0]._frame_buffer is buffer
 
     def test_pipeline_worker_manager_detection_worker_uses_singleton_by_default(self):
         """DetectionQueueWorker should use singleton when PipelineWorkerManager doesn't provide buffer."""
@@ -573,7 +573,7 @@ class TestPipelineWorkerManagerFrameBufferIntegration:
             enable_metrics_worker=False,
         )
 
-        # Detection worker should use the singleton
+        # Detection workers should use the singleton
         singleton = get_frame_buffer()
-        assert manager._detection_worker is not None
-        assert manager._detection_worker._frame_buffer is singleton
+        assert len(manager._detection_workers) > 0
+        assert manager._detection_workers[0]._frame_buffer is singleton

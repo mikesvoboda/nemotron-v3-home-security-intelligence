@@ -821,7 +821,7 @@ export default function ZoneOwnershipPanel({
                   <div className="space-y-2">
                     {config.access_schedules.map((schedule, index) => (
                       <ScheduleCard
-                        key={index}
+                        key={`${schedule.cron_expression}-${schedule.member_ids.join(',')}`}
                         schedule={schedule}
                         members={members}
                         compact={compact}

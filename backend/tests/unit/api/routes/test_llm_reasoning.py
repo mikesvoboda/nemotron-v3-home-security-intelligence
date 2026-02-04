@@ -30,6 +30,7 @@ from backend.api.routes.llm_reasoning import (
 )
 from backend.models.event import Event
 from backend.models.llm_interaction import LLMInteraction
+from backend.tests.unit.conftest import get_auth_headers
 
 
 @pytest.fixture
@@ -393,7 +394,9 @@ class TestGetLLMReasoningEndpoint:
         ):
             try:
                 async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                    headers=get_auth_headers(),
                 ) as ac:
                     response = await ac.get("/api/llm-reasoning/events/123")
 
@@ -427,7 +430,9 @@ class TestGetLLMReasoningEndpoint:
         ):
             try:
                 async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                    headers=get_auth_headers(),
                 ) as ac:
                     response = await ac.get("/api/llm-reasoning/events/999")
 
@@ -460,7 +465,9 @@ class TestGetLLMReasoningEndpoint:
         ):
             try:
                 async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                    headers=get_auth_headers(),
                 ) as ac:
                     response = await ac.get("/api/llm-reasoning/events/123")
 
@@ -506,7 +513,9 @@ class TestGetLLMReasoningEndpoint:
         ):
             try:
                 async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                    headers=get_auth_headers(),
                 ) as ac:
                     response = await ac.get("/api/llm-reasoning/events/123?include_debug=true")
 
@@ -551,7 +560,9 @@ class TestGetLLMPromptDebugEndpoint:
         app.dependency_overrides[get_read_db] = override_get_read_db
 
         try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
+            ) as ac:
                 response = await ac.get("/api/llm-reasoning/events/123/prompt")
 
             assert response.status_code == 200
@@ -578,7 +589,9 @@ class TestGetLLMPromptDebugEndpoint:
         app.dependency_overrides[get_read_db] = override_get_read_db
 
         try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
+            ) as ac:
                 response = await ac.get("/api/llm-reasoning/events/999/prompt")
 
             assert response.status_code == 404
@@ -606,7 +619,9 @@ class TestGetLLMPromptDebugEndpoint:
         app.dependency_overrides[get_read_db] = override_get_read_db
 
         try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
+            ) as ac:
                 response = await ac.get("/api/llm-reasoning/events/123/prompt")
 
             assert response.status_code == 404

@@ -20,6 +20,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from backend.api.middleware.request_timing import RequestTimingMiddleware
+from backend.tests.unit.conftest import get_auth_headers
 
 # =============================================================================
 # RequestTimingMiddleware Tests
@@ -369,7 +370,7 @@ class TestRequestTimingMiddlewareIntegration:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.status_code == 200
@@ -390,7 +391,7 @@ class TestRequestTimingMiddlewareIntegration:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         # Response time should be positive and include all middleware time
@@ -410,7 +411,7 @@ class TestRequestTimingMiddlewareEdgeCases:
         async def fast_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/fast")
 
         assert response.status_code == 200
@@ -434,7 +435,7 @@ class TestRequestTimingMiddlewareEdgeCases:
         async def stream_endpoint():
             return StreamingResponse(generate())
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/stream")
 
         assert response.status_code == 200
@@ -460,7 +461,10 @@ class TestRequestTimingMiddlewareEdgeCases:
 
         # WebSocket connections should work without issues
         # BaseHTTPMiddleware does not intercept WebSocket requests
-        with TestClient(app) as client, client.websocket_connect("/ws") as ws:
+        with (
+            TestClient(app, headers=get_auth_headers()) as client,
+            client.websocket_connect("/ws") as ws,
+        ):
             ws.send_text("Hello")
             response = ws.receive_text()
             assert response == "Echo: Hello"

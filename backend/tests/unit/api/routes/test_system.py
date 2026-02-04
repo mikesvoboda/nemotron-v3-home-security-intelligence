@@ -73,9 +73,13 @@ def test_app() -> FastAPI:
 
 @pytest.fixture
 async def async_client(test_app: FastAPI) -> AsyncClient:
-    """Create async HTTP client for testing."""
+    """Create async HTTP client for testing with authentication."""
+    from backend.tests.unit.conftest import get_auth_headers
+
     transport = ASGITransport(app=test_app)  # type: ignore[arg-type]
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=get_auth_headers()
+    ) as client:
         yield client
 
 
@@ -1789,6 +1793,10 @@ class TestPerformanceMetricsEndpoint:
 
         import backend.api.routes.system as system_module
 
+        # Clear cache to ensure mock is called (prevents stale cached results
+        # from other parallel tests)
+        system_module.clear_health_cache()
+
         original_collector = system_module._performance_collector
         try:
             system_module._performance_collector = mock_collector
@@ -1838,6 +1846,8 @@ class TestPerformanceMetricsEndpoint:
 
         original_collector = system_module._performance_collector
         try:
+            # Clear cache to ensure collector is actually called
+            system_module.clear_health_cache()
             system_module._performance_collector = mock_collector
 
             response = await async_client.get("/api/system/performance")
@@ -1948,6 +1958,10 @@ class TestPerformanceMetricsEndpoint:
         mock_collector.collect_all.return_value = mock_update
 
         import backend.api.routes.system as system_module
+
+        # Clear cache to ensure mock is called (prevents stale cached results
+        # from other parallel tests)
+        system_module.clear_health_cache()
 
         original_collector = system_module._performance_collector
         try:

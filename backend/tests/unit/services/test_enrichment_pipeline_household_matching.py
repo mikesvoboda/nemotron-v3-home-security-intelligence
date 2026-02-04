@@ -98,6 +98,33 @@ def vehicle_match() -> HouseholdMatch:
     )
 
 
+@pytest.fixture
+def mock_enrichment_services():
+    """Mock all enrichment pipeline service dependencies.
+
+    This fixture patches the service getters that are called during
+    EnrichmentPipeline.__init__ to prevent initialization of real
+    HTTP clients and other heavyweight resources.
+
+    Usage:
+        def test_something(self, mock_enrichment_services):
+            with mock_enrichment_services:
+                pipeline = EnrichmentPipeline(...)
+    """
+    # Return a context manager stack that can be used in tests
+    from contextlib import ExitStack
+
+    stack = ExitStack()
+    stack.enter_context(patch("backend.services.enrichment_pipeline.get_vision_extractor"))
+    stack.enter_context(patch("backend.services.enrichment_pipeline.get_reid_service"))
+    stack.enter_context(patch("backend.services.enrichment_pipeline.get_scene_change_detector"))
+    stack.enter_context(patch("backend.services.enrichment_pipeline.get_scene_ocr_service"))
+
+    yield stack
+
+    stack.close()
+
+
 # =============================================================================
 # EnrichmentResult Household Match Fields Tests
 # =============================================================================
@@ -198,28 +225,33 @@ class TestEnrichmentResultHouseholdFields:
 class TestEnrichmentPipelineHouseholdMatching:
     """Tests for household matching integration in EnrichmentPipeline."""
 
-    def test_pipeline_has_household_matching_enabled_flag(self) -> None:
+    def test_pipeline_has_household_matching_enabled_flag(self, mock_enrichment_services) -> None:
         """Test that EnrichmentPipeline has household_matching_enabled flag."""
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-        )
-        assert pipeline.household_matching_enabled is True
+        with mock_enrichment_services:
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+            )
+            assert pipeline.household_matching_enabled is True
 
-        pipeline_disabled = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=False,
-        )
-        assert pipeline_disabled.household_matching_enabled is False
+            pipeline_disabled = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=False,
+            )
+            assert pipeline_disabled.household_matching_enabled is False
 
-    def test_pipeline_household_matching_disabled_by_default(self) -> None:
+    def test_pipeline_household_matching_disabled_by_default(
+        self, mock_enrichment_services
+    ) -> None:
         """Test that household matching is disabled by default for backward compatibility."""
-        pipeline = EnrichmentPipeline(model_manager=MagicMock())
-        assert pipeline.household_matching_enabled is False
+        with mock_enrichment_services:
+            pipeline = EnrichmentPipeline(model_manager=MagicMock())
+            assert pipeline.household_matching_enabled is False
 
     @pytest.mark.asyncio
     async def test_person_household_matching_via_embedding(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
         person_match: HouseholdMatch,
@@ -236,33 +268,11 @@ class TestEnrichmentPipelineHouseholdMatching:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        # Create pipeline with household matching enabled
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-            # Disable other features to isolate test
-            license_plate_enabled=False,
-            face_detection_enabled=False,
-            ocr_enabled=False,
-            vision_extraction_enabled=False,
-            reid_enabled=False,
-            scene_change_enabled=False,
-            violence_detection_enabled=False,
-            weather_classification_enabled=False,
-            clothing_classification_enabled=False,
-            clothing_segmentation_enabled=False,
-            vehicle_damage_detection_enabled=False,
-            vehicle_classification_enabled=False,
-            pet_classification_enabled=False,
-            depth_estimation_enabled=False,
-            pose_estimation_enabled=False,
-            action_recognition_enabled=False,
-        )
-
         # Mock person embedding in result
         mock_embedding = np.array([0.1, 0.2, 0.3], dtype=np.float32)
 
         with (
+            mock_enrichment_services,
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
@@ -272,6 +282,30 @@ class TestEnrichmentPipelineHouseholdMatching:
                 return_value=mock_session_cm,
             ),
         ):
+            # Create pipeline with household matching enabled
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+                # Disable other features to isolate test
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                ocr_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                scene_ocr_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=False,
+            )
+
             # Run enrich_batch with a person detection that has an embedding
             result = await pipeline.enrich_batch(
                 detections=[person_detection],
@@ -302,28 +336,11 @@ class TestEnrichmentPipelineHouseholdMatching:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-            license_plate_enabled=False,  # We'll inject plates directly
-            face_detection_enabled=False,
-            ocr_enabled=False,
-            vision_extraction_enabled=False,
-            reid_enabled=False,
-            scene_change_enabled=False,
-            violence_detection_enabled=False,
-            weather_classification_enabled=False,
-            clothing_classification_enabled=False,
-            clothing_segmentation_enabled=False,
-            vehicle_damage_detection_enabled=False,
-            vehicle_classification_enabled=False,
-            pet_classification_enabled=False,
-            depth_estimation_enabled=False,
-            pose_estimation_enabled=False,
-            action_recognition_enabled=False,
-        )
-
         with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_scene_ocr_service"),
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
@@ -333,6 +350,28 @@ class TestEnrichmentPipelineHouseholdMatching:
                 return_value=mock_session_cm,
             ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+                license_plate_enabled=False,  # We'll inject plates directly
+                face_detection_enabled=False,
+                ocr_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                scene_ocr_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=False,
+            )
+
             result = await pipeline.enrich_batch(
                 detections=[vehicle_detection],
                 images={None: test_image},
@@ -361,6 +400,7 @@ class TestEnrichmentPipelineHouseholdMatching:
     @pytest.mark.asyncio
     async def test_household_matching_handles_no_matches(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
     ) -> None:
@@ -375,28 +415,8 @@ class TestEnrichmentPipelineHouseholdMatching:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-            license_plate_enabled=False,
-            face_detection_enabled=False,
-            ocr_enabled=False,
-            vision_extraction_enabled=False,
-            reid_enabled=False,
-            scene_change_enabled=False,
-            violence_detection_enabled=False,
-            weather_classification_enabled=False,
-            clothing_classification_enabled=False,
-            clothing_segmentation_enabled=False,
-            vehicle_damage_detection_enabled=False,
-            vehicle_classification_enabled=False,
-            pet_classification_enabled=False,
-            depth_estimation_enabled=False,
-            pose_estimation_enabled=False,
-            action_recognition_enabled=False,
-        )
-
         with (
+            mock_enrichment_services,
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
@@ -406,6 +426,28 @@ class TestEnrichmentPipelineHouseholdMatching:
                 return_value=mock_session_cm,
             ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                ocr_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                scene_ocr_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=False,
+            )
+
             result = await pipeline.enrich_batch(
                 detections=[person_detection],
                 images={None: test_image},
@@ -419,6 +461,7 @@ class TestEnrichmentPipelineHouseholdMatching:
     @pytest.mark.asyncio
     async def test_household_matching_error_does_not_fail_pipeline(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
     ) -> None:
@@ -428,31 +471,35 @@ class TestEnrichmentPipelineHouseholdMatching:
         mock_session_cm.__aenter__ = AsyncMock(side_effect=Exception("Database connection failed"))
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-            license_plate_enabled=False,
-            face_detection_enabled=False,
-            ocr_enabled=False,
-            vision_extraction_enabled=False,
-            reid_enabled=False,
-            scene_change_enabled=False,
-            violence_detection_enabled=False,
-            weather_classification_enabled=False,
-            clothing_classification_enabled=False,
-            clothing_segmentation_enabled=False,
-            vehicle_damage_detection_enabled=False,
-            vehicle_classification_enabled=False,
-            pet_classification_enabled=False,
-            depth_estimation_enabled=False,
-            pose_estimation_enabled=False,
-            action_recognition_enabled=False,
-        )
-
-        with patch(
-            "backend.core.database.get_session",
-            return_value=mock_session_cm,
+        with (
+            mock_enrichment_services,
+            patch(
+                "backend.core.database.get_session",
+                return_value=mock_session_cm,
+            ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                ocr_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                scene_ocr_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=False,
+            )
+
             # Should not raise an exception - error is caught and logged
             result = await pipeline.enrich_batch(
                 detections=[person_detection],
@@ -467,6 +514,7 @@ class TestEnrichmentPipelineHouseholdMatching:
     @pytest.mark.asyncio
     async def test_household_matching_skipped_when_disabled(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
     ) -> None:
@@ -475,31 +523,35 @@ class TestEnrichmentPipelineHouseholdMatching:
         mock_matcher.match_person = AsyncMock()
         mock_matcher.match_vehicle = AsyncMock()
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=False,  # Disabled
-            license_plate_enabled=False,
-            face_detection_enabled=False,
-            ocr_enabled=False,
-            vision_extraction_enabled=False,
-            reid_enabled=False,
-            scene_change_enabled=False,
-            violence_detection_enabled=False,
-            weather_classification_enabled=False,
-            clothing_classification_enabled=False,
-            clothing_segmentation_enabled=False,
-            vehicle_damage_detection_enabled=False,
-            vehicle_classification_enabled=False,
-            pet_classification_enabled=False,
-            depth_estimation_enabled=False,
-            pose_estimation_enabled=False,
-            action_recognition_enabled=False,
-        )
-
-        with patch(
-            "backend.services.enrichment_pipeline.get_household_matcher",
-            return_value=mock_matcher,
+        with (
+            mock_enrichment_services,
+            patch(
+                "backend.services.enrichment_pipeline.get_household_matcher",
+                return_value=mock_matcher,
+            ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=False,  # Disabled
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                ocr_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                scene_ocr_enabled=False,
+                violence_detection_enabled=False,
+                weather_classification_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                vehicle_classification_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=False,
+            )
+
             result = await pipeline.enrich_batch(
                 detections=[person_detection],
                 images={None: test_image},
@@ -575,6 +627,7 @@ class TestRunHouseholdMatchingMethod:
     @pytest.mark.asyncio
     async def test_person_matching_with_embedding(
         self,
+        mock_enrichment_services,
         person_detection: DetectionInput,
         person_match: HouseholdMatch,
     ) -> None:
@@ -589,16 +642,8 @@ class TestRunHouseholdMatchingMethod:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-        )
-
-        # Create result with person embedding
-        result = EnrichmentResult()
-        result.person_embeddings = {"1": {"embedding": np.array([0.1, 0.2, 0.3], dtype=np.float32)}}
-
         with (
+            mock_enrichment_services,
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
@@ -608,6 +653,17 @@ class TestRunHouseholdMatchingMethod:
                 return_value=mock_session_cm,
             ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+            )
+
+            # Create result with person embedding
+            result = EnrichmentResult()
+            result.person_embeddings = {
+                "1": {"embedding": np.array([0.1, 0.2, 0.3], dtype=np.float32)}
+            }
+
             await pipeline._run_household_matching([person_detection], result)
 
             # Verify person was matched
@@ -618,6 +674,7 @@ class TestRunHouseholdMatchingMethod:
     @pytest.mark.asyncio
     async def test_vehicle_matching_with_readable_plate(
         self,
+        mock_enrichment_services,
         vehicle_detection: DetectionInput,
         vehicle_match: HouseholdMatch,
     ) -> None:
@@ -632,24 +689,8 @@ class TestRunHouseholdMatchingMethod:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-        )
-
-        # Create result with license plate
-        result = EnrichmentResult()
-        result.license_plates = [
-            LicensePlateResult(
-                bbox=BoundingBox(x1=0, y1=0, x2=100, y2=50),
-                text="ABC123",
-                confidence=0.95,
-                ocr_confidence=0.88,
-                source_detection_id=2,
-            )
-        ]
-
         with (
+            mock_enrichment_services,
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
@@ -659,6 +700,23 @@ class TestRunHouseholdMatchingMethod:
                 return_value=mock_session_cm,
             ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+            )
+
+            # Create result with license plate
+            result = EnrichmentResult()
+            result.license_plates = [
+                LicensePlateResult(
+                    bbox=BoundingBox(x1=0, y1=0, x2=100, y2=50),
+                    text="ABC123",
+                    confidence=0.95,
+                    ocr_confidence=0.88,
+                    source_detection_id=2,
+                )
+            ]
+
             await pipeline._run_household_matching([vehicle_detection], result)
 
             # Verify vehicle was matched
@@ -675,6 +733,7 @@ class TestRunHouseholdMatchingMethod:
     @pytest.mark.asyncio
     async def test_no_matching_without_embeddings_or_plates(
         self,
+        mock_enrichment_services,
         person_detection: DetectionInput,
     ) -> None:
         """Test that no matching occurs without embeddings or plates."""
@@ -688,15 +747,8 @@ class TestRunHouseholdMatchingMethod:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        pipeline = EnrichmentPipeline(
-            model_manager=MagicMock(),
-            household_matching_enabled=True,
-        )
-
-        # Create empty result
-        result = EnrichmentResult()
-
         with (
+            mock_enrichment_services,
             patch(
                 "backend.services.enrichment_pipeline.get_household_matcher",
                 return_value=mock_matcher,
@@ -706,6 +758,14 @@ class TestRunHouseholdMatchingMethod:
                 return_value=mock_session_cm,
             ),
         ):
+            pipeline = EnrichmentPipeline(
+                model_manager=MagicMock(),
+                household_matching_enabled=True,
+            )
+
+            # Create empty result
+            result = EnrichmentResult()
+
             await pipeline._run_household_matching([person_detection], result)
 
             # No matching should occur without embeddings

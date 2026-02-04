@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Lightweight Enrichment Service (GPU 1 - A400 4GB)
 # Hosts small, efficient models: pose, threat, reid, pet, depth
 # Port: 8096 | Expected VRAM: ~1.2GB (with TensorRT optimization)
@@ -42,11 +43,11 @@ COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 RUN groupadd -g 1000 enrichment && \
     useradd -u 1000 -g enrichment -s /bin/bash -m enrichment
 
-# Copy application files
-COPY ai/enrichment-light/*.py ./
-COPY ai/enrichment-light/models/*.py ./models/
+# Copy application files with ownership set to non-root user
+COPY --chown=enrichment:enrichment ai/enrichment-light/*.py ./
+COPY --chown=enrichment:enrichment ai/enrichment-light/models/*.py ./models/
 # Copy shared utilities from ai/ directory
-COPY ai/torch_optimizations.py ./
+COPY --chown=enrichment:enrichment ai/torch_optimizations.py ./
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -70,17 +71,17 @@ ENV TENSORRT_ENGINE_CACHE=/cache/tensorrt
 ENV POSE_TENSORRT_ENGINE_PATH=/cache/tensorrt/yolov8n-pose.engine
 ENV THREAT_TENSORRT_ENGINE_PATH=/cache/tensorrt/threat-detector.engine
 
-# Create cache directories for HuggingFace and TensorRT engines
-RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
-
-# Set ownership of app directory
-RUN chown -R enrichment:enrichment /app
-
 # Expose port
 EXPOSE 8096
 
+# Create cache directories as root and set ownership before switching user
+RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
+
 # Switch to non-root user
 USER enrichment
+
+# Create cache directories for HuggingFace and TensorRT engines as non-root user (owns directory automatically)
+RUN mkdir -p /cache/huggingface /cache/tensorrt
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 90s allows time for loading models

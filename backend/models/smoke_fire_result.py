@@ -95,7 +95,7 @@ class SmokeFireResult(Base):
     )
 
     # Relationships
-    detection: Mapped[Any] = relationship("Detection", backref="smoke_fire_results")
+    detection: Mapped[Any] = relationship("Detection", back_populates="smoke_fire_results")
 
     # Indexes for common queries
     __table_args__ = (

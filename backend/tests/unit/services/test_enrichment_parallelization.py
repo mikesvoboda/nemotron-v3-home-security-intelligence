@@ -31,6 +31,26 @@ from backend.services.enrichment_pipeline import (
 
 
 @pytest.fixture
+def mock_enrichment_services():
+    """Mock all global service getters used by EnrichmentPipeline.
+
+    This prevents network calls to external services during initialization.
+    """
+    with (
+        patch("backend.services.enrichment_pipeline.get_vision_extractor") as mock_vision,
+        patch("backend.services.enrichment_pipeline.get_reid_service") as mock_reid,
+        patch("backend.services.enrichment_pipeline.get_scene_change_detector") as mock_scene,
+        patch("backend.services.enrichment_pipeline.get_scene_ocr_service") as mock_ocr,
+    ):
+        # Configure mocks to return non-None values to avoid AttributeErrors
+        mock_vision.return_value = MagicMock()
+        mock_reid.return_value = MagicMock()
+        mock_scene.return_value = MagicMock()
+        mock_ocr.return_value = MagicMock()
+        yield
+
+
+@pytest.fixture
 def test_image() -> Image.Image:
     """Create a test RGB image for processing."""
     return Image.new("RGB", (640, 480), color=(128, 128, 128))
@@ -181,6 +201,7 @@ class TestPhase1ParallelExecution:
     @pytest.mark.asyncio
     async def test_phase1_models_run_in_parallel(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
         vehicle_detection: DetectionInput,
@@ -308,6 +329,7 @@ class TestPhase1ParallelExecution:
     @pytest.mark.asyncio
     async def test_phase1_execution_time_indicates_parallelism(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
         vehicle_detection: DetectionInput,
@@ -395,6 +417,7 @@ class TestPhase2Prerequisites:
     @pytest.mark.asyncio
     async def test_phase2_ocr_waits_for_plate_detection(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         vehicle_detection: DetectionInput,
     ) -> None:
@@ -475,6 +498,7 @@ class TestPhase2Prerequisites:
     @pytest.mark.asyncio
     async def test_phase2_ocr_skipped_when_no_plates(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         vehicle_detection: DetectionInput,
     ) -> None:
@@ -524,6 +548,7 @@ class TestPhase2Prerequisites:
     @pytest.mark.asyncio
     async def test_phase2_face_reid_waits_for_face_detection(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
     ) -> None:
@@ -605,6 +630,7 @@ class TestPartialFailureHandling:
     @pytest.mark.asyncio
     async def test_partial_failure_continues_other_models(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
         vehicle_detection: DetectionInput,
@@ -697,6 +723,7 @@ class TestPartialFailureHandling:
     @pytest.mark.asyncio
     async def test_multiple_failures_handled_independently(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
         vehicle_detection: DetectionInput,
@@ -769,6 +796,7 @@ class TestPartialFailureHandling:
     @pytest.mark.asyncio
     async def test_phase2_skipped_when_phase1_prerequisite_fails(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         vehicle_detection: DetectionInput,
     ) -> None:
@@ -833,6 +861,7 @@ class TestEnrichmentParallelizationIntegration:
     @pytest.mark.asyncio
     async def test_full_parallel_pipeline_with_all_models(
         self,
+        mock_enrichment_services,
         test_image: Image.Image,
         person_detection: DetectionInput,
         vehicle_detection: DetectionInput,

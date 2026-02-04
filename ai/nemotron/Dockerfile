@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Nemotron LLM Service Dockerfile
 # Multi-stage build for llama.cpp with CUDA support
 
@@ -55,21 +56,27 @@ COPY --from=builder /build/llama.cpp/build/bin/llama-server /usr/local/bin/llama
 COPY --from=builder /build/llama.cpp/build/bin/*.so* /usr/local/lib/
 RUN chmod +x /usr/local/bin/llama-server && ldconfig
 
-# Create model directory
-RUN mkdir -p /models && chown llama:llama /models
-
 # Environment variables for configuration
 ENV MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ENV PORT=8091
 ENV GPU_LAYERS=35
-ENV CTX_SIZE=131072
+# NEM-5369: Reduced default context size from 131072 to 32768 to save ~4GB VRAM
+ENV CTX_SIZE=32768
 ENV PARALLEL=1
+# NEM-5369: Flash attention enabled by default to reduce VRAM usage
+ENV FLASH_ATTENTION=true
 
 # Expose the service port
 EXPOSE 8091
 
+# Create model directory as root and set ownership before switching user
+RUN mkdir -p /models && chown -R llama:llama /models
+
 # Switch to non-root user
 USER llama
+
+# Create model directory as non-root user (owns directory automatically)
+RUN mkdir -p /models
 
 # Health check with 120s start period for large model loading
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
@@ -77,7 +84,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
 
 # Run llama-server with configuration
 # Model is expected to be mounted at /models/
-CMD ["sh", "-c", "llama-server \
+# NEM-5369: Conditionally enable flash attention for VRAM savings
+CMD ["sh", "-c", "FLASH_ARGS=''; \
+    if [ \"${FLASH_ATTENTION}\" = 'true' ]; then FLASH_ARGS='--flash-attn'; fi; \
+    llama-server \
     --model ${MODEL_PATH} \
     --host 0.0.0.0 \
     --port ${PORT} \
@@ -85,4 +95,5 @@ CMD ["sh", "-c", "llama-server \
     --ctx-size ${CTX_SIZE} \
     --parallel ${PARALLEL} \
     --cont-batching \
-    --metrics"]
+    --metrics \
+    ${FLASH_ARGS}"]

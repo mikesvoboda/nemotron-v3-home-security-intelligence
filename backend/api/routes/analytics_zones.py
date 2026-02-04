@@ -11,8 +11,8 @@ areas of interest for automated analytics.
 
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import ORJSONResponse
+from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import ORJSONResponse, RedirectResponse
 
 from backend.api.dependencies import DbSession, get_camera_or_404
 from backend.api.schemas.analytics_zone import (
@@ -71,6 +71,51 @@ router = APIRouter(
     tags=["analytics-zones"],
     default_response_class=ORJSONResponse,
 )
+
+# Redirect router for /api/zones -> /api/analytics-zones (NEM-5377)
+# This provides backward compatibility for clients using the old /api/zones path
+zones_redirect_router = APIRouter(
+    prefix="/api/zones",
+    tags=["analytics-zones"],
+    include_in_schema=False,  # Hide from OpenAPI docs since it's just a redirect
+)
+
+
+@zones_redirect_router.api_route(
+    "",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    include_in_schema=False,
+)
+@zones_redirect_router.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+    include_in_schema=False,
+)
+async def zones_redirect(request: Request, path: str = "") -> RedirectResponse:
+    """Redirect /api/zones requests to /api/analytics-zones.
+
+    This redirect provides backward compatibility for clients that may be
+    using the old /api/zones path. All requests are redirected with HTTP 308
+    Permanent Redirect to preserve the request method.
+
+    Args:
+        request: The incoming request (used to preserve query string).
+        path: Optional path suffix to append to the redirect URL.
+
+    Returns:
+        RedirectResponse with HTTP 308 status to /api/analytics-zones/{path}.
+    """
+    # Build redirect URL with path and query string
+    redirect_url = f"/api/analytics-zones/{path}" if path else "/api/analytics-zones/"
+    if request.url.query:
+        redirect_url = f"{redirect_url}?{request.url.query}"
+
+    logger.debug(
+        f"Redirecting {request.method} {request.url.path} -> {redirect_url}",
+        extra={"original_path": str(request.url.path), "redirect_url": redirect_url},
+    )
+
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_308_PERMANENT_REDIRECT)
 
 
 # ============================================================================

@@ -188,7 +188,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${GPU_YOLO26:-1}']
+              device_ids: ['${GPU_YOLO26}']
               capabilities: [gpu]
 
   ai-llm:
@@ -267,7 +267,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${GPU_FLORENCE:-0}']
+              device_ids: ['${GPU_FLORENCE}']
               capabilities: [gpu]
 
   ai-clip:
@@ -348,7 +348,8 @@ services:
       - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
       - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
       - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-}
+      # Default: All light models (pose, threat, reid, pet, depth) for fast inference
+      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-pose_estimator,threat_detector,person_reid,pet_classifier,depth_estimator}
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
       - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
       - PYTORCH_PROFILE_DIR=/tmp/profiles
@@ -366,7 +367,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${GPU_CLIP:-1}']
+              device_ids: ['${GPU_CLIP}']
               capabilities: [gpu]
 
   ai-enrichment:
@@ -421,7 +422,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT:-1}']
+              device_ids: ['${GPU_ENRICHMENT}']
               capabilities: [gpu]
 
   # =============================================================================

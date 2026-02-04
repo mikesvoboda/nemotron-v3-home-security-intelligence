@@ -9,6 +9,7 @@ Features:
 - Motion blur detection and image quality assessment
 - Alphanumeric character filtering
 - Confidence-weighted text extraction
+- Prometheus metrics for inference monitoring
 
 Model Details:
 - Model: PaddleOCR English model with angle classification
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,6 +36,25 @@ import numpy as np
 from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
+
+# Import metrics - use try/except to handle different import contexts
+try:
+    from metrics import record_ocr_error, record_ocr_inference
+except ImportError:
+    try:
+        from ai.enrichment.metrics import record_ocr_error, record_ocr_inference
+    except ImportError:
+        # Metrics not available - use no-op functions
+        logger.warning("OCR metrics not available - metrics recording will be disabled")
+
+        def record_ocr_inference(*args: Any, **kwargs: Any) -> None:
+            """No-op fallback when metrics module is not available."""
+            pass
+
+        def record_ocr_error(*args: Any, **kwargs: Any) -> None:
+            """No-op fallback when metrics module is not available."""
+            pass
+
 
 # Valid license plate characters (alphanumeric only)
 VALID_CHARS: frozenset[str] = frozenset("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -184,7 +205,8 @@ class PlateOCR:
         """Extract text from a cropped license plate image.
 
         This method performs OCR on a cropped plate image with optional
-        preprocessing for low-light and blur conditions.
+        preprocessing for low-light and blur conditions. Metrics are recorded
+        for inference latency, text detection counts, and quality assessment.
 
         Args:
             plate_crop: Cropped license plate image (BGR or RGB numpy array)
@@ -196,7 +218,10 @@ class PlateOCR:
         Raises:
             RuntimeError: If model is not loaded
         """
+        start_time = time.perf_counter()
+
         if self.ocr is None:
+            record_ocr_error("model_not_loaded")
             raise RuntimeError("Model not loaded. Call load_model() first.")
 
         # Assess image quality
@@ -215,7 +240,17 @@ class PlateOCR:
         try:
             results = self.ocr.ocr(processed_image, cls=True)
         except Exception as e:
+            duration = time.perf_counter() - start_time
             logger.warning(f"OCR inference failed: {e}")
+            record_ocr_error("inference_error")
+            record_ocr_inference(
+                duration_seconds=duration,
+                texts_detected=0,
+                success=False,
+                image_quality=quality_score,
+                is_enhanced=is_enhanced,
+                is_blurry=is_blurry,
+            )
             return PlateOCRResult(
                 plate_text="",
                 raw_text="",
@@ -228,6 +263,17 @@ class PlateOCR:
 
         # Process OCR results
         if not results or not results[0]:
+            duration = time.perf_counter() - start_time
+            # Record successful inference with zero texts detected
+            record_ocr_inference(
+                duration_seconds=duration,
+                texts_detected=0,
+                success=True,
+                confidence=0.0,
+                image_quality=quality_score,
+                is_enhanced=is_enhanced,
+                is_blurry=is_blurry,
+            )
             return PlateOCRResult(
                 plate_text="",
                 raw_text="",
@@ -243,6 +289,19 @@ class PlateOCR:
 
         # Filter to valid plate characters
         plate_text = self.filter_plate_text(raw_text)
+
+        # Calculate inference duration and record metrics
+        duration = time.perf_counter() - start_time
+        texts_detected = len(results[0]) if results[0] else 0
+        record_ocr_inference(
+            duration_seconds=duration,
+            texts_detected=texts_detected,
+            success=True,
+            confidence=ocr_confidence,
+            image_quality=quality_score,
+            is_enhanced=is_enhanced,
+            is_blurry=is_blurry,
+        )
 
         return PlateOCRResult(
             plate_text=plate_text,

@@ -948,6 +948,24 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
+    # Pipeline worker configuration (NEM-5375)
+    detection_worker_count: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Number of concurrent detection queue workers. "
+        "More workers = higher throughput for object detection. "
+        "Recommended: 2-4 workers depending on YOLO26 capacity.",
+    )
+    analysis_worker_count: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Number of concurrent analysis queue workers. "
+        "More workers = higher throughput for LLM analysis. "
+        "Recommended: 2-4 workers depending on Nemotron capacity.",
+    )
+
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
     # YOLO26 Detector Settings

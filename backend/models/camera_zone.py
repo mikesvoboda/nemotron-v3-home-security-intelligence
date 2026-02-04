@@ -111,17 +111,20 @@ class CameraZone(Base):
         back_populates="zone",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     activity_baseline: Mapped[ZoneActivityBaseline | None] = relationship(
         "ZoneActivityBaseline",
         back_populates="zone",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     anomalies: Mapped[list[ZoneAnomaly]] = relationship(
         "ZoneAnomaly",
         back_populates="zone",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # Indexes for common queries

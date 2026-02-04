@@ -77,6 +77,18 @@ def create_mock_camera(camera_id: str = SAMPLE_CAMERA_UUID) -> MagicMock:
     camera.status = "online"
     camera.created_at = datetime.now(UTC)
     camera.last_seen_at = datetime.now(UTC)
+    # Property and area relationships (NEM-3597)
+    camera.property_id = None
+    camera.areas = []
+    # RTSP/ONVIF streaming fields (NEM-4191)
+    camera.ingestion_mode = "ftp"
+    camera.rtsp_url = None
+    camera.rtsp_username = None
+    camera.rtsp_password = None
+    camera.stream_profile = None
+    camera.motion_sensitivity = 0.5
+    # Depth calibration data (NEM-5283)
+    camera.calibration_data = None
     return camera
 
 

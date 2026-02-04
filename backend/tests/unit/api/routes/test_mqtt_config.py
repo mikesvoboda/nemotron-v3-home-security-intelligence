@@ -21,6 +21,7 @@ from backend.api.schemas.mqtt_config import (
     MqttPublisherConfig,
     MqttQoS,
 )
+from backend.tests.unit.conftest import get_auth_headers
 
 
 def create_test_app() -> FastAPI:
@@ -175,6 +176,7 @@ class TestGetMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/mqtt-config")
 
@@ -218,6 +220,7 @@ class TestGetMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/mqtt-config")
 
@@ -266,6 +269,7 @@ class TestGetMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/mqtt-config")
 
@@ -321,6 +325,7 @@ class TestUpdateMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put(
                 "/api/mqtt-config",
@@ -361,6 +366,7 @@ class TestUpdateMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put(
                 "/api/mqtt-config",
@@ -403,6 +409,7 @@ class TestUpdateMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put(
                 "/api/mqtt-config",
@@ -431,6 +438,7 @@ class TestUpdateMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put(
                 "/api/mqtt-config",
@@ -456,6 +464,7 @@ class TestUpdateMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put(
                 "/api/mqtt-config",
@@ -481,6 +490,7 @@ class TestUpdateMqttConfigEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put(
                 "/api/mqtt-config",
@@ -532,6 +542,7 @@ class TestGetMqttStatusEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/mqtt-config/status")
 
@@ -579,6 +590,7 @@ class TestMqttTestEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.post(
                     "/api/mqtt-config/test",
@@ -611,6 +623,7 @@ class TestMqttTestEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.post(
                     "/api/mqtt-config/test",
@@ -645,6 +658,7 @@ class TestMqttTestEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post(
                 "/api/mqtt-config/test",
@@ -703,6 +717,7 @@ class TestMqttReconnectEndpoint:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.post("/api/mqtt-config/reconnect")
 
@@ -742,6 +757,7 @@ class TestMqttReconnectEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/mqtt-config/reconnect")
 
@@ -777,6 +793,7 @@ class TestMqttDisconnectEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/mqtt-config/disconnect")
 
@@ -804,6 +821,7 @@ class TestMqttDisconnectEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/mqtt-config/disconnect")
 

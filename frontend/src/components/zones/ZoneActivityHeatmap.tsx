@@ -336,8 +336,8 @@ function HeatmapLegend({ compact }: { compact?: boolean }) {
           'bg-[#76B900]/50',
           'bg-[#76B900]/70',
           'bg-[#76B900]/90',
-        ].map((color, idx) => (
-          <div key={idx} className={clsx('rounded', color, compact ? 'h-3 w-3' : 'h-4 w-4')} />
+        ].map((color) => (
+          <div key={color} className={clsx('rounded', color, compact ? 'h-3 w-3' : 'h-4 w-4')} />
         ))}
       </div>
       <Text className={clsx('text-gray-500', compact ? 'text-xs' : 'text-sm')}>High</Text>

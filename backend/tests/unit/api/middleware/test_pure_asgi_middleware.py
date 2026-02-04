@@ -20,6 +20,7 @@ from starlette.responses import StreamingResponse
 
 from backend.api.middleware.request_timing import RequestTimingMiddleware
 from backend.api.middleware.security_headers import SecurityHeadersMiddleware
+from backend.tests.unit.conftest import get_auth_headers
 
 # =============================================================================
 # Pure ASGI RequestTimingMiddleware Tests
@@ -344,7 +345,7 @@ class TestSecurityHeadersMiddlewareHSTSASGI:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test", headers={"X-Forwarded-Proto": "https"})
 
         assert response.status_code == 200
@@ -366,7 +367,7 @@ class TestSecurityHeadersMiddlewareCustomConfigASGI:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
@@ -381,7 +382,7 @@ class TestSecurityHeadersMiddlewareCustomConfigASGI:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert response.headers["Content-Security-Policy"] == custom_csp
@@ -395,7 +396,7 @@ class TestSecurityHeadersMiddlewareCustomConfigASGI:
         async def test_endpoint():
             return {"message": "ok"}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
         response = client.get("/test")
 
         assert "Content-Security-Policy-Report-Only" in response.headers
@@ -471,7 +472,7 @@ class TestMiddlewarePerformance:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Warm up
         client.get("/test")
@@ -498,7 +499,7 @@ class TestMiddlewarePerformance:
         async def test_endpoint():
             return {"ok": True}
 
-        client = TestClient(app)
+        client = TestClient(app, headers=get_auth_headers())
 
         # Warm up
         client.get("/test")

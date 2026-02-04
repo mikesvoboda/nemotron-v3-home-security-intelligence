@@ -24,6 +24,7 @@ from .camera import Base
 
 if TYPE_CHECKING:
     from .camera import Camera
+    from .household import HouseholdMember
 
 
 class EnrollmentStatus(str, Enum):
@@ -73,11 +74,16 @@ class KnownPerson(Base):
         "FaceEmbedding",
         back_populates="person",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     detection_events: Mapped[list[FaceDetectionEvent]] = relationship(
         "FaceDetectionEvent",
         back_populates="matched_person",
         foreign_keys="FaceDetectionEvent.matched_person_id",
+    )
+    household_member: Mapped[HouseholdMember | None] = relationship(
+        "HouseholdMember",
+        back_populates="known_person",
     )
 
     __table_args__ = (

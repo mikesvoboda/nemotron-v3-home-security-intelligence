@@ -69,51 +69,6 @@ import type {
 } from '../types/promptManagement';
 
 // ============================================================================
-// Query Key Extensions
-// ============================================================================
-
-/**
- * Extended query keys for AI audit queries.
- * These extend the base queryKeys from queryClient.ts.
- */
-export const aiAuditQueryKeys = {
-  /** Base key for all AI audit queries */
-  all: ['ai', 'audit'] as const,
-
-  /** Audit statistics */
-  stats: (params?: { days?: number; camera_id?: string }) =>
-    params
-      ? ([...aiAuditQueryKeys.all, 'stats', params] as const)
-      : ([...aiAuditQueryKeys.all, 'stats'] as const),
-
-  /** Model leaderboard */
-  leaderboard: (params?: { days?: number }) =>
-    params
-      ? ([...aiAuditQueryKeys.all, 'leaderboard', params] as const)
-      : ([...aiAuditQueryKeys.all, 'leaderboard'] as const),
-
-  /** Recommendations */
-  recommendations: (params?: { days?: number }) =>
-    params
-      ? ([...aiAuditQueryKeys.all, 'recommendations', params] as const)
-      : ([...aiAuditQueryKeys.all, 'recommendations'] as const),
-
-  /** Event audit */
-  event: (eventId: number) => [...aiAuditQueryKeys.all, 'event', eventId] as const,
-
-  /** Prompt management */
-  prompts: {
-    /** All prompts */
-    all: ['ai', 'prompts'] as const,
-    /** Prompt history */
-    history: (model?: AIModelEnum) =>
-      model
-        ? (['ai', 'prompts', 'history', model] as const)
-        : (['ai', 'prompts', 'history'] as const),
-  },
-};
-
-// ============================================================================
 // useAIAuditStats - Fetch aggregate audit statistics
 // ============================================================================
 
@@ -715,7 +670,7 @@ export function useEvaluateEventMutation(): UseEvaluateEventMutationReturn {
       });
       // Also invalidate stats since evaluation might affect them
       void queryClient.invalidateQueries({
-        queryKey: aiAuditQueryKeys.all,
+        queryKey: queryKeys.ai.audit.stats(),
       });
     },
   });
@@ -784,7 +739,13 @@ export function useBatchAuditMutation(): UseBatchAuditMutationReturn {
     onSuccess: () => {
       // Invalidate all audit queries since batch affects everything
       void queryClient.invalidateQueries({
-        queryKey: aiAuditQueryKeys.all,
+        queryKey: queryKeys.ai.audit.stats(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.ai.audit.leaderboard(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.ai.audit.recommendations(),
       });
     },
   });
@@ -975,7 +936,7 @@ export function useImportPromptsMutation(): UseImportPromptsMutationReturn {
       });
       // Invalidate all prompt history
       void queryClient.invalidateQueries({
-        queryKey: aiAuditQueryKeys.prompts.history(),
+        queryKey: queryKeys.ai.prompts.history(),
       });
     },
   });

@@ -7,6 +7,7 @@
  * - Person attributes (clothing, action, carrying, suspicious/service indicators)
  * - Pose analysis (posture, security alerts from ViTPose)
  * - License plate OCR results
+ * - Scene text OCR (detected text, service provider matches)
  * - Weather conditions
  * - Image quality assessment
  * - Pose visualization (posture, security alerts, keypoint confidence)
@@ -29,6 +30,7 @@ import {
   Heart,
   Swords,
   HandMetal,
+  ScanText,
   User,
 } from 'lucide-react';
 
@@ -40,7 +42,12 @@ import {
   getConfidenceTextColorClass,
 } from '../../utils/confidence';
 
-import type { EnrichmentData, SecurityAlertType, PostureType } from '../../types/enrichment';
+import type {
+  EnrichmentData,
+  SecurityAlertType,
+  PostureType,
+  SceneTextEnrichment,
+} from '../../types/enrichment';
 import type { ReactElement } from 'react';
 
 export interface EnrichmentPanelProps {
@@ -216,8 +223,46 @@ function hasEnrichmentContent(data?: EnrichmentData | null): boolean {
     data.license_plate ||
     data.weather ||
     data.image_quality ||
-    data.pose
+    data.pose ||
+    data.scene_text
   );
+}
+
+/**
+ * Check if scene text enrichment has meaningful content
+ */
+function hasSceneTextContent(sceneText?: SceneTextEnrichment | null): boolean {
+  if (!sceneText) return false;
+  return sceneText.texts.length > 0 || sceneText.service_providers.length > 0;
+}
+
+/**
+ * Get category badge color class for service provider categories
+ */
+function getCategoryBadgeClass(category: string): string {
+  switch (category.toLowerCase()) {
+    case 'delivery':
+    case 'food_delivery':
+      return 'bg-blue-500/20 border-blue-500/40 text-blue-400';
+    case 'utility':
+    case 'telecom':
+      return 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400';
+    case 'medical':
+    case 'emergency':
+      return 'bg-red-500/20 border-red-500/40 text-red-400';
+    case 'security':
+      return 'bg-purple-500/20 border-purple-500/40 text-purple-400';
+    case 'plumbing':
+    case 'hvac':
+    case 'electrical':
+    case 'home_services':
+      return 'bg-orange-500/20 border-orange-500/40 text-orange-400';
+    case 'landscaping':
+    case 'pest_control':
+      return 'bg-green-500/20 border-green-500/40 text-green-400';
+    default:
+      return 'bg-gray-500/20 border-gray-500/40 text-gray-400';
+  }
 }
 
 /**
@@ -621,6 +666,99 @@ export default function EnrichmentPanel({ enrichment_data, className }: Enrichme
                   </div>
                 }
               />
+            )}
+          </div>
+        </AccordionBody>
+      </Accordion>
+    );
+  }
+
+  // Scene Text (OCR) Section
+  if (enrichment_data?.scene_text && hasSceneTextContent(enrichment_data.scene_text)) {
+    const sceneText = enrichment_data.scene_text;
+    const textCount = sceneText.texts.length;
+    const providerCount = sceneText.service_providers.length;
+
+    accordionSections.push(
+      <Accordion key="scene_text" data-testid="enrichment-scene-text">
+        <AccordionHeader className="px-4 py-3 text-white hover:bg-gray-800/50">
+          <div className="flex w-full items-center justify-between pr-2">
+            <div className="flex items-center gap-2">
+              <ScanText className="h-4 w-4 text-[#76B900]" />
+              <span className="font-medium">Scene Text</span>
+              <span className="ml-1 rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
+                {textCount} text{textCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {providerCount > 0 && (
+              <span className="inline-flex items-center rounded-md border border-green-500/40 bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-400">
+                {providerCount} provider{providerCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </AccordionHeader>
+        <AccordionBody className="bg-black/20 px-4 py-3">
+          <div className="space-y-3">
+            {/* Service Provider Matches */}
+            {sceneText.service_providers.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-green-400">
+                  Service Providers Detected
+                </span>
+                <div className="space-y-2">
+                  {sceneText.service_providers.map((provider, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg border border-green-500/30 bg-green-500/10 p-3"
+                      data-testid={`scene-provider-${i}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-green-400" />
+                        <span className="font-medium text-green-400">{provider.provider_name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={clsx(
+                            'rounded-md border px-2 py-0.5 text-xs font-medium capitalize',
+                            getCategoryBadgeClass(provider.category)
+                          )}
+                        >
+                          {provider.category.replace('_', ' ')}
+                        </span>
+                        <ConfidenceBadge confidence={provider.confidence} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Detected Texts */}
+            {sceneText.texts.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Detected Text
+                </span>
+                <div className="space-y-1">
+                  {sceneText.texts.map((text, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded border border-gray-700 bg-gray-900/50 px-3 py-2"
+                      data-testid={`scene-text-${i}`}
+                    >
+                      <span className="font-mono text-sm text-gray-200">{text.text}</span>
+                      <div className="flex items-center gap-2">
+                        {text.source === 'crop' && (
+                          <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-xs text-blue-400">
+                            crop
+                          </span>
+                        )}
+                        <ConfidenceBadge confidence={text.confidence} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </AccordionBody>

@@ -19,6 +19,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.main import app
+from backend.tests.unit.conftest import get_auth_headers
 
 
 class TestMetricsEndpoint:
@@ -30,6 +31,7 @@ class TestMetricsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -41,6 +43,7 @@ class TestMetricsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -55,6 +58,7 @@ class TestMetricsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -71,6 +75,7 @@ class TestMetricsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -112,6 +117,7 @@ class TestMetricsEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -138,6 +144,7 @@ class TestMetricsWithMockedData:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -159,6 +166,7 @@ class TestMetricsWithMockedData:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -181,6 +189,7 @@ class TestMetricsWithMockedData:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -228,6 +237,7 @@ class TestMetricsErrorHandling:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
+                headers=get_auth_headers(),
             ) as client:
                 response = await client.get("/api/metrics")
 
@@ -244,6 +254,7 @@ class TestMetricsRouterConfiguration:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -256,6 +267,7 @@ class TestMetricsRouterConfiguration:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -267,6 +279,7 @@ class TestMetricsRouterConfiguration:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.post("/api/metrics")
 
@@ -279,6 +292,7 @@ class TestMetricsRouterConfiguration:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.put("/api/metrics")
 
@@ -291,6 +305,7 @@ class TestMetricsRouterConfiguration:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.delete("/api/metrics")
 
@@ -314,6 +329,7 @@ class TestMetricsLabeledMetrics:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -335,6 +351,7 @@ class TestMetricsLabeledMetrics:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -356,6 +373,7 @@ class TestMetricsLabeledMetrics:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -378,6 +396,7 @@ class TestMetricsLabeledMetrics:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -401,6 +420,7 @@ class TestMetricsHistogramBuckets:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -426,6 +446,7 @@ class TestMetricsHistogramBuckets:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -445,6 +466,7 @@ class TestMetricsHistogramBuckets:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -508,6 +530,7 @@ class TestMetricsIntegrationWithRouter:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             # Request without any auth headers
             response = await client.get("/api/metrics")
@@ -521,6 +544,7 @@ class TestMetricsIntegrationWithRouter:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics")
 
@@ -532,6 +556,7 @@ class TestMetricsIntegrationWithRouter:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
+            headers=get_auth_headers(),
         ) as client:
             response = await client.get("/api/metrics?unknown=value&another=param")
 

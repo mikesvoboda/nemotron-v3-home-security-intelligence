@@ -14,10 +14,11 @@ Security:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Protocol
@@ -571,6 +572,7 @@ if TYPE_CHECKING:
     from backend.services.image_quality_loader import ImageQualityResult
     from backend.services.osnet_loader import PersonEmbeddingResult
     from backend.services.pet_classifier_loader import PetClassificationResult
+    from backend.services.scene_ocr_service import SceneOCRResult
     from backend.services.segformer_loader import ClothingSegmentationResult
     from backend.services.threat_detection_loader import ThreatDetectionResult
     from backend.services.vehicle_classifier_loader import VehicleClassificationResult
@@ -2251,6 +2253,14 @@ def format_detections_with_all_enrichment(
 
         lines.append("")  # Empty line between detections
 
+    # Add scene OCR context if available
+    if enrichment_result and enrichment_result.scene_ocr:
+        scene_ocr_context = format_scene_ocr_context(enrichment_result.scene_ocr)
+        if scene_ocr_context:
+            lines.append("## Scene OCR")
+            lines.append(scene_ocr_context)
+            lines.append("")
+
     return "\n".join(lines).strip()
 
 
@@ -3660,3 +3670,88 @@ def format_florence_scene_context(florence_result: dict[str, Any] | None) -> str
 # - Predefined rubrics: THREAT_LEVEL_RUBRIC, INTENT_RUBRIC, TIME_CONTEXT_RUBRIC
 #
 # Import from backend.services.risk_rubrics for rubric-based scoring.
+
+
+# ==============================================================================
+# Scene OCR Context Formatting
+# ==============================================================================
+# Formats scene OCR results for Nemotron context enrichment.
+# See docs/plans/2026-02-04-scene-ocr-design.md for details.
+
+# Minimum confidence threshold for including OCR text in context
+_SCENE_OCR_MIN_CONFIDENCE = 0.50
+
+
+def format_scene_ocr_context(scene_ocr: SceneOCRResult | None) -> str:
+    """Format scene OCR results as JSON for Nemotron context.
+
+    Converts SceneOCRResult into a structured JSON string that provides
+    Nemotron with readable text context from the scene. This includes:
+    - Scene text (signs, house numbers, street names)
+    - Detection-associated text (uniform logos, vehicle markings)
+    - Service provider matches for risk assessment
+
+    Args:
+        scene_ocr: SceneOCRResult containing OCR data, or None if no OCR was performed.
+
+    Returns:
+        JSON-formatted string with scene_text and detection_ocr sections,
+        or empty string if scene_ocr is None or contains no relevant data.
+
+    Note:
+        Texts with confidence below 0.50 are filtered out to reduce noise
+        from false positive OCR detections (shadows, textures, etc.).
+
+    Example:
+        >>> from backend.services.scene_ocr_service import (
+        ...     SceneOCRResult, SceneTextResult, DetectionOCRResult, ServiceMatch
+        ... )
+        >>> result = SceneOCRResult(
+        ...     scene_texts=[SceneTextResult("FedEx", 0.95, (10, 20, 100, 50), "sign")],
+        ...     detection_ocr={}
+        ... )
+        >>> output = format_scene_ocr_context(result)
+        >>> "FedEx" in output
+        True
+    """
+    if scene_ocr is None:
+        return ""
+
+    # Filter scene texts by confidence threshold
+    filtered_scene_texts = [
+        {
+            "value": t.value,
+            "type": t.text_type,
+            "confidence": round(t.confidence, 2),
+        }
+        for t in scene_ocr.scene_texts
+        if t.confidence >= _SCENE_OCR_MIN_CONFIDENCE
+    ]
+
+    # Format detection OCR results
+    detection_ocr_output: dict[str, dict[str, Any]] = {}
+    for det_id, result in scene_ocr.detection_ocr.items():
+        # Filter texts by confidence threshold
+        filtered_texts = [
+            text
+            for text in result.texts
+            if text.get("confidence", 0.0) >= _SCENE_OCR_MIN_CONFIDENCE
+        ]
+
+        # Only include detection if it has filtered texts or a service match
+        if filtered_texts or result.service_match:
+            detection_ocr_output[det_id] = {
+                "texts": filtered_texts,
+                "service_match": asdict(result.service_match) if result.service_match else None,
+            }
+
+    # Return empty string if no content after filtering
+    if not filtered_scene_texts and not detection_ocr_output:
+        return ""
+
+    output = {
+        "scene_text": filtered_scene_texts,
+        "detection_ocr": detection_ocr_output,
+    }
+
+    return json.dumps(output, indent=2)

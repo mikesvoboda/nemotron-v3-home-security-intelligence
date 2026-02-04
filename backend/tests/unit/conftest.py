@@ -78,6 +78,35 @@ def enable_api_key_auth_for_unit_tests() -> Generator[None]:
         pass
 
 
+@pytest.fixture(autouse=True)
+def ensure_api_key_auth_per_test() -> Generator[None]:
+    """Ensure API key authentication is properly configured for each test.
+
+    This function-scoped autouse fixture complements the session-scoped fixture
+    by ensuring the settings cache is cleared and API key auth is enabled before
+    each individual test. This is critical for pytest-xdist parallel execution
+    where session-scoped fixtures may not properly propagate settings to all
+    worker processes.
+
+    Without this fixture, tests may fail with 401 Unauthorized errors when
+    running in parallel because the settings cache may contain stale values
+    from a different worker's session initialization.
+    """
+    from backend.core.config import get_settings
+
+    # Ensure env vars are set (may have been lost in worker process)
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
+
+    # Clear the settings cache to ensure fresh settings are loaded
+    get_settings.cache_clear()
+
+    yield
+
+    # Clear cache after test to avoid polluting other tests
+    get_settings.cache_clear()
+
+
 @asynccontextmanager
 async def authenticated_async_client() -> AsyncGenerator[AsyncClient]:
     """Create an authenticated AsyncClient for unit tests.
