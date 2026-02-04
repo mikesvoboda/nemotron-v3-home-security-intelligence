@@ -198,7 +198,7 @@ def security_client() -> Generator[AuthenticatedTestClient]:
 
     # Mock setup guard to always return setup complete
     # This allows security tests to reach endpoints without creating test users
-    async def mock_setup_complete(self):
+    async def mock_setup_complete():
         return True
 
     from backend.main import app
