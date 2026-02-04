@@ -100,7 +100,7 @@ class SessionService:
         await self._redis.set(
             key,
             json.dumps(full_data),
-            ex=ttl_seconds,
+            expire=ttl_seconds,
         )
 
         return session_id
