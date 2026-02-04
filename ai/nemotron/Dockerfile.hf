@@ -52,10 +52,10 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 RUN groupadd -g 1000 nemotron && \
     useradd -u 1000 -g nemotron -s /bin/bash -m nemotron
 
-# Create model and app directories
-RUN mkdir -p /models /app && chown -R nemotron:nemotron /models /app
-
 WORKDIR /app
+
+# Set ownership of app directory to non-root user
+RUN chown nemotron:nemotron /app
 
 # Copy requirements first for layer caching
 COPY requirements_hf.txt .
@@ -97,6 +97,9 @@ EXPOSE 8091
 
 # Switch to non-root user
 USER nemotron
+
+# Create model directory as non-root user (owns directory automatically)
+RUN mkdir -p /models
 
 # Health check with 180s start period for large model loading with quantization
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \

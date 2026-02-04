@@ -30,13 +30,10 @@ RUN mkdir -p /export/foscam && \
     chmod 755 /export/foscam && \
     chmod 555 /var/run/vsftpd/empty
 
-# Copy configuration files
+# Copy configuration files (use --chmod for entrypoint to avoid separate RUN)
 COPY vsftpd.conf /etc/vsftpd.conf
 COPY vsftpd.user_list /etc/vsftpd.user_list
-COPY entrypoint.sh /entrypoint.sh
-
-# Make entrypoint executable
-RUN chmod +x /entrypoint.sh
+COPY --chmod=755 entrypoint.sh /entrypoint.sh
 
 # Expose FTP ports
 # 21 for FTP control, 20 for FTP data (active mode)
