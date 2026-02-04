@@ -137,13 +137,14 @@ class TestBackgroundEvaluatorJobTracking:
         job_id = _unique_job_id()
 
         # Create a job and immediately cancel it
-        job_tracker.create_job(job_id, "evaluation", total_items=10)
+        job_tracker.create_job("evaluation", job_id=job_id)
         job_tracker.cancel_job(job_id)
 
-        # Verify job is cancelled
+        # Verify job is cancelled (status is FAILED with "Cancelled by user" error)
         job = job_tracker.get_job(job_id)
         assert job is not None
-        assert job.status == JobStatus.CANCELLED
+        assert job["status"] == JobStatus.FAILED
+        assert job["error"] == "Cancelled by user"
 
         # The evaluator should check cancellation status
         assert background_evaluator._is_job_cancelled(job_id) is True
@@ -186,24 +187,24 @@ class TestBackgroundEvaluatorJobTracking:
         job_id = _unique_job_id()
 
         # Simulate evaluation job lifecycle
-        job_tracker.create_job(job_id, "evaluation", total_items=5)
+        job_tracker.create_job("evaluation", job_id=job_id)
         job = job_tracker.get_job(job_id)
-        assert job.status == JobStatus.PENDING
+        assert job["status"] == JobStatus.PENDING
 
         job_tracker.start_job(job_id)
         job = job_tracker.get_job(job_id)
-        assert job.status == JobStatus.RUNNING
+        assert job["status"] == JobStatus.RUNNING
 
-        # Update progress
-        job_tracker.update_progress(job_id, processed=2, total=5)
+        # Update progress (0-100 scale)
+        job_tracker.update_progress(job_id, progress=40)
         job = job_tracker.get_job(job_id)
-        assert job.processed_items == 2
-        assert job.total_items == 5
+        assert job["progress"] == 40
 
         # Complete job
         job_tracker.complete_job(job_id, result={"evaluated": 5})
         job = job_tracker.get_job(job_id)
-        assert job.status == JobStatus.COMPLETED
+        assert job["status"] == JobStatus.COMPLETED
+        assert job["progress"] == 100
 
 
 class TestBackgroundEvaluatorCancellationChecks:
@@ -238,7 +239,7 @@ class TestBackgroundEvaluatorCancellationChecks:
     async def test_is_job_cancelled_with_active_job(self, background_evaluator, job_tracker):
         """Verify _is_job_cancelled returns False for active job."""
         job_id = _unique_job_id()
-        job_tracker.create_job(job_id, "evaluation", total_items=10)
+        job_tracker.create_job("evaluation", job_id=job_id)
         job_tracker.start_job(job_id)
 
         assert background_evaluator._is_job_cancelled(job_id) is False
@@ -247,7 +248,7 @@ class TestBackgroundEvaluatorCancellationChecks:
     async def test_is_job_cancelled_with_cancelled_job(self, background_evaluator, job_tracker):
         """Verify _is_job_cancelled returns True for cancelled job."""
         job_id = _unique_job_id()
-        job_tracker.create_job(job_id, "evaluation", total_items=10)
+        job_tracker.create_job("evaluation", job_id=job_id)
         job_tracker.cancel_job(job_id)
 
         assert background_evaluator._is_job_cancelled(job_id) is True
