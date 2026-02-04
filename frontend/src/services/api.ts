@@ -131,7 +131,11 @@ import type {
   ObjectDistributionResponse,
   RiskHistoryQueryParams,
   RiskHistoryResponse,
-} from '../types/analytics';
+
+  CameraActivityResponse,
+  CameraActivityDataPoint,
+  CameraActivityParams,
+  RiskLevel} from '../types/analytics';
 import type {
   BulkOperationResponse,
   DetectionBulkCreateItem,
@@ -7232,6 +7236,47 @@ export async function fetchRiskScoreTrends(
 }
 
 // ============================================================================
+// Camera Activity Heatmap API (NEM-5388/5389/5390/5391)
+// ============================================================================
+
+
+// Re-export for consumers
+export type { CameraActivityResponse, CameraActivityDataPoint, CameraActivityParams, RiskLevel };
+
+/**
+ * Fetch camera activity data for a date range.
+ *
+ * Returns aggregated event data per camera for building an activity
+ * heatmap visualization. Includes event count, max risk score, computed
+ * risk level, and the thumbnail path for the highest-risk detection.
+ *
+ * @param params - Date range parameters with start_date and end_date
+ * @returns CameraActivityResponse with per-camera activity data
+ *
+ * @example
+ * ```typescript
+ * // Get camera activity for the last 7 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const activity = await fetchCameraActivity({ start_date: startDate, end_date: endDate });
+ * activity.cameras.forEach(cam => {
+ *   console.log(`${cam.camera_name}: ${cam.event_count} events (max risk: ${cam.max_risk_score})`);
+ * });
+ * ```
+ */
+export async function fetchCameraActivity(
+  params: CameraActivityParams
+): Promise<CameraActivityResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<CameraActivityResponse>(
+    `/api/analytics/camera-activity?${searchParams.toString()}`
+  );
+}
+
+// ============================================================================
 // Request Recording API (NEM-2721)
 // ============================================================================
 
@@ -7909,6 +7954,71 @@ export async function fetchSummaries(): Promise<SummariesLatestResponse> {
     hourly: transformSummaryResponse(response.hourly),
     daily: transformSummaryResponse(response.daily),
   };
+}
+
+// ============================================================================
+// Entity Recognition Summary Types (NEM-5394)
+// ============================================================================
+
+/**
+ * Statistics for person recognition (known vs unknown faces).
+ */
+export interface PersonRecognitionStats {
+  /** Count of faces matched to known persons */
+  known: number;
+  /** Count of faces that did not match any known person */
+  unknown: number;
+  /** Total count of detected persons */
+  total: number;
+  /** Human-readable breakdown string */
+  breakdown: string;
+}
+
+/**
+ * Statistics for vehicle recognition (known vs unknown plates).
+ */
+export interface VehicleRecognitionStats {
+  /** Count of plates matched to registered household vehicles */
+  known: number;
+  /** Count of plates that did not match any registered vehicle */
+  unknown: number;
+  /** Total count of detected vehicles with plates */
+  total: number;
+  /** Human-readable breakdown string */
+  breakdown: string;
+}
+
+/**
+ * Combined entity recognition statistics for dashboard summary.
+ */
+export interface EntityRecognitionStats {
+  /** Person recognition statistics */
+  persons: PersonRecognitionStats;
+  /** Vehicle recognition statistics */
+  vehicles: VehicleRecognitionStats;
+  /** Start of the aggregation time window (ISO 8601) */
+  window_start: string;
+  /** End of the aggregation time window (ISO 8601) */
+  window_end: string;
+}
+
+/**
+ * Fetch entity recognition statistics for the dashboard summary.
+ *
+ * Returns aggregated counts of known vs unknown persons and vehicles
+ * detected within the past hour.
+ *
+ * @returns Entity recognition statistics
+ *
+ * @example
+ * ```typescript
+ * const stats = await fetchEntityRecognitionStats();
+ * console.log(`Persons: ${stats.persons.breakdown}`);
+ * console.log(`Vehicles: ${stats.vehicles.breakdown}`);
+ * ```
+ */
+export async function fetchEntityRecognitionStats(): Promise<EntityRecognitionStats> {
+  return fetchApi<EntityRecognitionStats>('/api/summaries/entities');
 }
 
 // ============================================================================
@@ -8993,4 +9103,109 @@ export async function fetchCostTrends(params: CostTrendParams): Promise<CostTren
   searchParams.append('end_date', params.end_date);
 
   return fetchApi<CostTrendResponse>(`/api/analytics/costs/trends?${searchParams.toString()}`);
+}
+
+// ============================================================================
+// Trend Comparison Sparklines Types (NEM-5406/5407/5408/5409)
+// ============================================================================
+
+/**
+ * Backend API response for a single trend metric (snake_case).
+ * @internal
+ */
+interface BackendTrendMetric {
+  /** Array of metric values for each time bucket */
+  values: number[];
+  /** Rolling 24-hour average baseline */
+  baseline: number;
+  /** Percentage deviation from baseline */
+  deviation_pct: number;
+}
+
+/**
+ * Backend API response for trends endpoint (snake_case).
+ * @internal
+ */
+interface BackendTrendsResponse {
+  /** Event count per time bucket */
+  event_count: BackendTrendMetric;
+  /** Average risk score per time bucket */
+  avg_risk: BackendTrendMetric;
+  /** High-risk event count per time bucket */
+  high_risk_count: BackendTrendMetric;
+}
+
+/**
+ * A single trend metric with baseline comparison.
+ */
+export interface TrendMetric {
+  /** Array of metric values for each time bucket (for sparkline display) */
+  values: number[];
+
+  /** Rolling 24-hour average baseline for comparison */
+  baseline: number;
+
+  /** Percentage deviation from baseline (positive = above, negative = below) */
+  deviationPct: number;
+}
+
+/**
+ * Trends data for dashboard sparkline visualization.
+ */
+export interface TrendsData {
+  /** Event count per time bucket with baseline comparison */
+  eventCount: TrendMetric;
+
+  /** Average risk score per time bucket with baseline comparison */
+  avgRisk: TrendMetric;
+
+  /** High-risk event count (>= 70) per time bucket with baseline comparison */
+  highRiskCount: TrendMetric;
+}
+
+/**
+ * Type of trend view.
+ */
+export type TrendType = 'hourly' | 'daily';
+
+/**
+ * Transform backend trend metric to frontend format.
+ * @internal
+ */
+function transformTrendMetric(backend: BackendTrendMetric): TrendMetric {
+  return {
+    values: backend.values,
+    baseline: backend.baseline,
+    deviationPct: backend.deviation_pct,
+  };
+}
+
+/**
+ * Fetch trend data for sparkline visualization.
+ *
+ * Returns time-bucketed event metrics with rolling 24-hour baseline comparisons:
+ * - eventCount: Number of events per bucket
+ * - avgRisk: Average risk score per bucket
+ * - highRiskCount: Number of high-risk events (>= 70) per bucket
+ *
+ * Part of NEM-5406/5407/5408/5409: Trend Comparison Sparklines.
+ *
+ * @param type - Type of trend: 'hourly' (5-min buckets) or 'daily' (1-hour buckets)
+ * @returns TrendsData with event_count, avg_risk, and high_risk_count metrics
+ *
+ * @example
+ * ```typescript
+ * const trends = await fetchTrends('hourly');
+ * console.log(`Events: ${trends.eventCount.values.length} buckets`);
+ * console.log(`Deviation: ${trends.eventCount.deviationPct}% from baseline`);
+ * ```
+ */
+export async function fetchTrends(type: TrendType = 'hourly'): Promise<TrendsData> {
+  const response = await fetchApi<BackendTrendsResponse>(`/api/summaries/trends?type=${type}`);
+
+  return {
+    eventCount: transformTrendMetric(response.event_count),
+    avgRisk: transformTrendMetric(response.avg_risk),
+    highRiskCount: transformTrendMetric(response.high_risk_count),
+  };
 }

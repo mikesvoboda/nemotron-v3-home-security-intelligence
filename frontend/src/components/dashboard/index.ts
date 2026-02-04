@@ -21,9 +21,18 @@ export type { GpuStatsProps } from './GpuStats';
 export { default as PipelineQueues } from './PipelineQueues';
 
 export { default as PipelineTelemetry } from './PipelineTelemetry';
+
+export { default as RiskDistributionChart } from './RiskDistributionChart';
+export type {
+  RiskDistributionChartProps,
+  RiskDistribution,
+} from './RiskDistributionChart';
 export type { PipelineTelemetryProps } from './PipelineTelemetry';
 
 export { default as StatsRow } from './StatsRow';
 export type { StatsRowProps } from './StatsRow';
 
 export { SummaryCards, SummaryCard } from './SummaryCards';
+
+export { default as ActionableInsights } from './ActionableInsights';
+export type { ActionableInsightsProps, InsightSchema } from './ActionableInsights';

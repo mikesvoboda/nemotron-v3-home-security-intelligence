@@ -76,6 +76,31 @@ class EventRepository(Repository[Event]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_ids(
+        self, event_ids: list[int], *, eager_load_camera: bool = False
+    ) -> list[Event]:
+        """Get multiple events by their IDs.
+
+        Args:
+            event_ids: List of event IDs to fetch.
+            eager_load_camera: If True, eager load the camera relationship
+                to avoid lazy loading issues in async context.
+
+        Returns:
+            List of Event objects found (may be fewer than requested if some IDs don't exist).
+
+        Example:
+            events = await repo.get_by_ids([1, 2, 3], eager_load_camera=True)
+        """
+        if not event_ids:
+            return []
+
+        stmt = select(Event).where(Event.id.in_(event_ids))
+        if eager_load_camera:
+            stmt = stmt.options(selectinload(Event.camera))
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_unreviewed(self) -> Sequence[Event]:
         """Get all events that haven't been reviewed yet.
 

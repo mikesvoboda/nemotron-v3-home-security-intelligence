@@ -8,6 +8,7 @@ import DashboardLayout from './DashboardLayout';
 import GpuStats from './GpuStats';
 import PipelineQueues from './PipelineQueues';
 import PipelineTelemetry from './PipelineTelemetry';
+import RiskDistributionChart from './RiskDistributionChart';
 import StatsRow from './StatsRow';
 import { SummaryCards } from './SummaryCards';
 import { useAIMetrics } from '../../hooks/useAIMetrics';
@@ -34,6 +35,8 @@ import {
   Skeleton,
   ThreatDetectionBanner,
 } from '../common';
+
+import type { RiskLevel } from '../../utils/risk';
 
 /**
  * Main Dashboard Page Component
@@ -309,6 +312,18 @@ export default function DashboardPage() {
     }
   }, [threatSummary?.latestThreat?.id, dismissThreat]);
 
+  // Handle risk level click from donut chart - navigate to timeline with filter (NEM-5400)
+  const handleRiskLevelSelect = useCallback(
+    (riskLevel: RiskLevel | null) => {
+      if (riskLevel) {
+        void navigate(`/timeline?risk_level=${riskLevel}`);
+      } else {
+        void navigate('/timeline');
+      }
+    },
+    [navigate]
+  );
+
   // Render loading skeleton
   const renderLoadingSkeleton = useCallback(
     () => (
@@ -483,6 +498,23 @@ export default function DashboardPage() {
         renderActivityFeed={(props) =>
           props ? (
             <>
+              {/* Risk Distribution Chart - clickable donut chart (NEM-5400) */}
+              <div className="mb-6">
+                <RiskDistributionChart
+                  distribution={
+                    eventStats?.events_by_risk_level
+                      ? {
+                          critical: eventStats.events_by_risk_level.critical ?? 0,
+                          high: eventStats.events_by_risk_level.high ?? 0,
+                          medium: eventStats.events_by_risk_level.medium ?? 0,
+                          low: eventStats.events_by_risk_level.low ?? 0,
+                        }
+                      : undefined
+                  }
+                  onRiskLevelSelect={handleRiskLevelSelect}
+                  isLoading={camerasLoading}
+                />
+              </div>
               {/* Summary Cards - hourly and daily event summaries */}
               <div className="mb-6">
                 <SummaryCards

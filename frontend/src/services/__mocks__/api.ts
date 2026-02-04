@@ -1028,6 +1028,13 @@ export const fetchCameraClassBaseline = vi.fn().mockResolvedValue({});
 export const fetchAnomalyConfig = vi.fn().mockResolvedValue({});
 export const updateAnomalyConfig = vi.fn().mockResolvedValue({});
 
+// Analytics endpoints (NEM-5388/5389/5390/5391)
+export const fetchCameraActivity = vi.fn().mockResolvedValue({
+  cameras: [],
+  start_date: '2026-01-01',
+  end_date: '2026-01-07',
+});
+
 // Storage endpoints
 export const fetchStorageStats = vi.fn().mockResolvedValue({});
 export const previewCleanup = vi.fn().mockResolvedValue({});

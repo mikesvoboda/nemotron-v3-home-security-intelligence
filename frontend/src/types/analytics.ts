@@ -232,3 +232,53 @@ export interface RiskScoreTrendsParams {
   /** End date in ISO format (YYYY-MM-DD) */
   end_date: string;
 }
+
+// ============================================================================
+// Camera Activity Heatmap Types (NEM-5388/5389/5390/5391)
+// ============================================================================
+
+/**
+ * Risk level type matching backend severity levels.
+ */
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Activity data for a single camera.
+ * Used for heatmap visualization with color intensity based on activity level.
+ */
+export interface CameraActivityDataPoint {
+  /** Camera ID */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** Total events in date range */
+  event_count: number;
+  /** Highest risk score in date range (0-100) or null */
+  max_risk_score: number | null;
+  /** Risk level derived from max_risk_score */
+  risk_level: RiskLevel | null;
+  /** Path to highest-risk detection thumbnail or null */
+  thumbnail_path: string | null;
+}
+
+/**
+ * Response from GET /api/analytics/camera-activity endpoint.
+ */
+export interface CameraActivityResponse {
+  /** Activity data per camera, sorted by event_count descending */
+  cameras: CameraActivityDataPoint[];
+  /** Start date of the range (ISO format) */
+  start_date: string;
+  /** End date of the range (ISO format) */
+  end_date: string;
+}
+
+/**
+ * Query parameters for the camera activity endpoint.
+ */
+export interface CameraActivityParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+}

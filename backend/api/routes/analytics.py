@@ -8,6 +8,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.analytics import (
+    CameraActivityDataPoint,
+    CameraActivityResponse,
     CameraUptimeDataPoint,
     CameraUptimeResponse,
     DetectionTrendDataPoint,
@@ -549,6 +551,154 @@ async def get_risk_score_trends(
 
     return RiskScoreTrendsResponse(
         data_points=data_points,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+def _get_risk_level(risk_score: int | None) -> str | None:
+    """Convert a risk score to a risk level string.
+
+    Uses the same thresholds as the frontend risk.ts utilities.
+
+    Args:
+        risk_score: Numeric risk score (0-100) or None
+
+    Returns:
+        Risk level string ('low', 'medium', 'high', 'critical') or None
+    """
+    if risk_score is None:
+        return None
+
+    # Thresholds match backend/core/config.py and frontend/src/utils/risk.ts:
+    # LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    if risk_score <= 29:
+        return "low"
+    elif risk_score <= 59:
+        return "medium"
+    elif risk_score <= 84:
+        return "high"
+    else:
+        return "critical"
+
+
+@router.get(
+    "/camera-activity",
+    response_model=CameraActivityResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_camera_activity(
+    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
+    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    db: AsyncSession = Depends(get_db),
+) -> CameraActivityResponse:
+    """Get aggregated event activity per camera for heatmap visualization.
+
+    Returns event counts, max risk score, and thumbnail path for each camera
+    in the specified date range. Results are sorted by event count (highest first).
+
+    The thumbnail_path corresponds to the detection with the highest risk score,
+    enabling visual representation of the most significant event per camera.
+
+    Args:
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+        db: Database session
+
+    Returns:
+        CameraActivityResponse with per-camera activity data
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date or range exceeds limit
+    """
+    # Validate date range (NEM-4484: includes unbounded range check)
+    _validate_date_range(start_date, end_date)
+
+    # Subquery to get the detection with max risk_score per camera
+    # This will give us the thumbnail for the highest-risk event
+    max_risk_subquery = (
+        select(
+            Event.camera_id,
+            func.max(Event.risk_score).label("max_risk"),
+        )
+        .where(
+            func.date(Event.started_at) >= start_date,
+            func.date(Event.started_at) <= end_date,
+            Event.deleted_at.is_(None),
+        )
+        .group_by(Event.camera_id)
+        .subquery()
+    )
+
+    # Get the thumbnail path for the highest-risk event per camera
+    # Join events to their detections to get thumbnail_path
+    thumbnail_subquery = (
+        select(
+            Event.camera_id,
+            Detection.thumbnail_path,
+        )
+        .select_from(Event)
+        .join(
+            max_risk_subquery,
+            (Event.camera_id == max_risk_subquery.c.camera_id)
+            & (Event.risk_score == max_risk_subquery.c.max_risk),
+        )
+        .outerjoin(Detection, Detection.camera_id == Event.camera_id)
+        .where(
+            func.date(Event.started_at) >= start_date,
+            func.date(Event.started_at) <= end_date,
+            Event.deleted_at.is_(None),
+            Detection.thumbnail_path.isnot(None),
+        )
+        .distinct(Event.camera_id)
+        .subquery()
+    )
+
+    # Main query: aggregate events per camera with camera info
+    query = (
+        select(
+            Camera.id.label("camera_id"),
+            Camera.name.label("camera_name"),
+            func.count(Event.id).label("event_count"),
+            func.max(Event.risk_score).label("max_risk_score"),
+            thumbnail_subquery.c.thumbnail_path.label("thumbnail_path"),
+        )
+        .outerjoin(
+            Event,
+            (Event.camera_id == Camera.id)
+            & (func.date(Event.started_at) >= start_date)
+            & (func.date(Event.started_at) <= end_date)
+            & (Event.deleted_at.is_(None)),
+        )
+        .outerjoin(thumbnail_subquery, thumbnail_subquery.c.camera_id == Camera.id)
+        .group_by(Camera.id, Camera.name, thumbnail_subquery.c.thumbnail_path)
+        .order_by(func.count(Event.id).desc())
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Build camera activity data points
+    cameras = []
+    for row in rows:
+        max_risk: int | None = row.max_risk_score
+        cameras.append(
+            CameraActivityDataPoint(
+                camera_id=row.camera_id,
+                camera_name=row.camera_name,
+                event_count=row.event_count or 0,
+                max_risk_score=max_risk,
+                risk_level=_get_risk_level(max_risk),
+                thumbnail_path=row.thumbnail_path,
+            )
+        )
+
+    return CameraActivityResponse(
+        cameras=cameras,
         start_date=start_date,
         end_date=end_date,
     )

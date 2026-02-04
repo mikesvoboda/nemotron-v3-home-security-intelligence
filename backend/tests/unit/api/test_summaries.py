@@ -114,7 +114,10 @@ class TestGetLatestSummaries:
         mock_daily_summary: MagicMock,
     ) -> None:
         """Test getting both hourly and daily summaries."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -123,6 +126,11 @@ class TestGetLatestSummaries:
                 }
             )
             MockRepo.return_value = mock_repo
+
+            # Mock EventRepository to return empty list (events not needed for basic test)
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/latest")
 
@@ -174,7 +182,10 @@ class TestGetLatestSummaries:
         mock_hourly_summary: MagicMock,
     ) -> None:
         """Test response when only hourly summary exists."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -183,6 +194,10 @@ class TestGetLatestSummaries:
                 }
             )
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/latest")
 
@@ -197,7 +212,10 @@ class TestGetLatestSummaries:
         mock_daily_summary: MagicMock,
     ) -> None:
         """Test response when only daily summary exists."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -206,6 +224,10 @@ class TestGetLatestSummaries:
                 }
             )
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/latest")
 
@@ -252,7 +274,10 @@ class TestGetLatestSummaries:
         # Cache raises exception
         mock_cache_service.get = AsyncMock(side_effect=Exception("Redis connection error"))
 
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -261,6 +286,10 @@ class TestGetLatestSummaries:
                 }
             )
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/latest")
 
@@ -284,10 +313,17 @@ class TestGetHourlySummary:
         mock_hourly_summary: MagicMock,
     ) -> None:
         """Test getting the latest hourly summary."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_by_type = AsyncMock(return_value=mock_hourly_summary)
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/hourly")
 
@@ -365,10 +401,17 @@ class TestGetDailySummary:
         mock_daily_summary: MagicMock,
     ) -> None:
         """Test getting the latest daily summary."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_by_type = AsyncMock(return_value=mock_daily_summary)
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/daily")
 
@@ -448,7 +491,10 @@ class TestCacheBehavior:
         mock_daily_summary: MagicMock,
     ) -> None:
         """Test that /latest caches result after database query."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -457,6 +503,10 @@ class TestCacheBehavior:
                 }
             )
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/latest")
 
@@ -474,10 +524,17 @@ class TestCacheBehavior:
         mock_hourly_summary: MagicMock,
     ) -> None:
         """Test that /hourly caches result after database query."""
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_by_type = AsyncMock(return_value=mock_hourly_summary)
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/hourly")
 
@@ -534,7 +591,10 @@ class TestCacheBehavior:
         """Test that response is returned even if cache write fails."""
         mock_cache_service.set = AsyncMock(side_effect=Exception("Redis write error"))
 
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = AsyncMock()
             mock_repo.get_latest_all = AsyncMock(
                 return_value={
@@ -543,6 +603,10 @@ class TestCacheBehavior:
                 }
             )
             MockRepo.return_value = mock_repo
+
+            mock_event_repo = AsyncMock()
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
+            MockEventRepo.return_value = mock_event_repo
 
             response = client.get("/api/summaries/latest")
 
@@ -651,9 +715,16 @@ class TestSummariesOpenAPI:
                 assert "summaries" in route.tags
 
     def test_routes_have_response_models(self, client: TestClient) -> None:
-        """Test that routes have response models defined."""
+        """Test that routes have response models defined.
+
+        Skip routes that intentionally have response_model=None (e.g., export endpoints
+        that return different content types).
+        """
         for route in router.routes:
-            if hasattr(route, "response_model"):
+            if hasattr(route, "response_model") and hasattr(route, "path"):
+                # Skip export endpoint which intentionally has response_model=None
+                if "/export" in route.path:
+                    continue
                 assert route.response_model is not None
 
     def test_routes_have_correct_prefix(self, client: TestClient) -> None:
