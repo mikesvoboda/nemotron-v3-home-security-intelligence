@@ -89,10 +89,10 @@ class TestDiscoverOnvifDevices:
             subnet="192.168.1.0/24", timeout=5, onvif_service=mock_onvif_service
         )
 
-        assert isinstance(result, dict)
-        assert "devices" in result
-        assert len(result["devices"]) == 2
-        assert result["devices"][0]["manufacturer"] == "Manufacturer A"
+        assert hasattr(result, "devices")
+        assert hasattr(result, "count")
+        assert len(result.devices) == 2
+        assert result.devices[0].manufacturer == "Manufacturer A"
         mock_onvif_service.discover_devices.assert_called_once_with(
             subnet="192.168.1.0/24", timeout=5
         )
@@ -106,8 +106,8 @@ class TestDiscoverOnvifDevices:
             subnet="192.168.1.0/24", timeout=5, onvif_service=mock_onvif_service
         )
 
-        assert result["devices"] == []
-        assert result["count"] == 0
+        assert result.devices == []
+        assert result.count == 0
 
     @pytest.mark.asyncio
     async def test_discover_devices_default_timeout(self, mock_onvif_service):
@@ -165,9 +165,9 @@ class TestGetDeviceCapabilities:
             camera_service=mock_camera_service,
         )
 
-        assert result["manufacturer"] == "Test Manufacturer"
-        assert result["model"] == "Test Model"
-        assert result["ptz_supported"] is True
+        assert result.manufacturer == "Test Manufacturer"
+        assert result.model == "Test Model"
+        assert result.ptz_supported is True
         mock_onvif_service.get_capabilities.assert_called_once_with(camera_id="front_door")
 
     @pytest.mark.asyncio
@@ -248,8 +248,8 @@ class TestExecutePTZCommand:
             camera_service=mock_camera_service,
         )
 
-        assert result["success"] is True
-        assert result["command"] == "pan"
+        assert result.success is True
+        assert result.command == "pan"
         mock_onvif_service.execute_ptz_command.assert_called_once_with(
             camera_id="front_door", command="pan", value=0.5, speed=1.0
         )
@@ -272,8 +272,8 @@ class TestExecutePTZCommand:
             camera_service=mock_camera_service,
         )
 
-        assert result["success"] is True
-        assert result["command"] == "tilt"
+        assert result.success is True
+        assert result.command == "tilt"
 
     @pytest.mark.asyncio
     async def test_execute_ptz_zoom_command(self, mock_onvif_service, mock_camera_service):
@@ -293,8 +293,8 @@ class TestExecutePTZCommand:
             camera_service=mock_camera_service,
         )
 
-        assert result["success"] is True
-        assert result["command"] == "zoom"
+        assert result.success is True
+        assert result.command == "zoom"
 
     @pytest.mark.asyncio
     async def test_execute_ptz_stop_command(self, mock_onvif_service, mock_camera_service):
@@ -314,8 +314,8 @@ class TestExecutePTZCommand:
             camera_service=mock_camera_service,
         )
 
-        assert result["success"] is True
-        assert result["command"] == "stop"
+        assert result.success is True
+        assert result.command == "stop"
 
     @pytest.mark.asyncio
     async def test_execute_ptz_camera_not_found(self, mock_onvif_service, mock_camera_service):
@@ -422,10 +422,10 @@ class TestGetPTZPresets:
             camera_service=mock_camera_service,
         )
 
-        assert isinstance(result, dict)
-        assert "presets" in result
-        assert len(result["presets"]) == 2
-        assert result["presets"][0]["name"] == "Front Door View"
+        assert hasattr(result, "presets")
+        assert hasattr(result, "count")
+        assert len(result.presets) == 2
+        assert result.presets[0].name == "Front Door View"
         mock_onvif_service.get_presets.assert_called_once_with(camera_id="front_door")
 
     @pytest.mark.asyncio
@@ -443,8 +443,8 @@ class TestGetPTZPresets:
             camera_service=mock_camera_service,
         )
 
-        assert result["presets"] == []
-        assert result["count"] == 0
+        assert result.presets == []
+        assert result.count == 0
 
     @pytest.mark.asyncio
     async def test_get_presets_camera_not_found(self, mock_onvif_service, mock_camera_service):
@@ -499,8 +499,8 @@ class TestGotoPTZPreset:
             camera_service=mock_camera_service,
         )
 
-        assert result["success"] is True
-        assert result["preset_token"] == "preset_1"
+        assert result.success is True
+        assert result.preset_token == "preset_1"
         mock_onvif_service.goto_preset.assert_called_once_with(
             camera_id="front_door", preset_token="preset_1"
         )

@@ -554,3 +554,94 @@ class AnomalyConfigUpdate(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# NEM-5000, NEM-5001: Typed Response Schemas for dict[str, Any] endpoints
+# =============================================================================
+
+
+class GlobalBaselineConfig(BaseModel):
+    """Global baseline configuration defaults."""
+
+    threshold_stdev: float = Field(
+        ...,
+        description="Default threshold standard deviation",
+    )
+    min_samples: int = Field(
+        ...,
+        description="Default minimum samples",
+    )
+    decay_factor: float | None = Field(
+        default=None,
+        description="Exponential decay factor for EWMA",
+    )
+    window_days: int | None = Field(
+        default=None,
+        description="Rolling window size in days",
+    )
+
+
+class BaselineConfigResponse(BaseModel):
+    """Response schema for baseline configuration.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    threshold_stdev: float = Field(
+        ...,
+        description="Active threshold value (from camera or global config)",
+    )
+    min_samples: int = Field(
+        ...,
+        description="Active minimum samples value (from camera or global config)",
+    )
+    override_global_config: bool = Field(
+        ...,
+        description="Whether per-camera overrides are active",
+    )
+    global_config: GlobalBaselineConfig = Field(
+        ...,
+        description="Global default configuration values",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "threshold_stdev": 2.0,
+                "min_samples": 10,
+                "override_global_config": False,
+                "global_config": {
+                    "threshold_stdev": 2.0,
+                    "min_samples": 10,
+                },
+            }
+        }
+    )
+
+
+class BaselineResetResponse(BaseModel):
+    """Response schema for baseline reset operation.
+
+    NEM-5000: Typed response replacing dict[str, int] return type.
+    """
+
+    activity_baselines_deleted: int = Field(
+        ...,
+        description="Number of ActivityBaseline records deleted",
+        ge=0,
+    )
+    class_baselines_deleted: int = Field(
+        ...,
+        description="Number of ClassBaseline records deleted",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "activity_baselines_deleted": 168,
+                "class_baselines_deleted": 72,
+            }
+        }
+    )

@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import PerformanceCharts from './PerformanceCharts';
 import * as usePerformanceMetricsModule from '../../hooks/usePerformanceMetrics';
+import { CHART_ANIMATION_THRESHOLD } from '../../utils/chartAnimation';
 
 import type { PerformanceUpdate, TimeRange } from '../../hooks/usePerformanceMetrics';
 
@@ -747,6 +748,76 @@ describe('PerformanceCharts', () => {
       unmount();
       // No lingering effects or errors
       expect(true).toBe(true);
+    });
+  });
+
+  describe('Animation Control (NEM-5045)', () => {
+    it('renders charts with small datasets (animations expected to be enabled)', () => {
+      const mockHistory = createMockHistory(10);
+      vi.mocked(usePerformanceMetricsModule.usePerformanceMetrics).mockReturnValue({
+        ...defaultHookReturn,
+        history: {
+          '5m': mockHistory,
+          '15m': [],
+          '60m': [],
+        },
+      });
+
+      render(<PerformanceCharts />);
+
+      // All charts should render
+      expect(screen.getByTestId('gpu-area-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('temperature-line-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('latency-line-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-area-chart')).toBeInTheDocument();
+
+      // For small datasets (< threshold), animations should be enabled
+      // The actual animation behavior is verified by unit tests of shouldAnimateChart
+    });
+
+    it('renders charts with large datasets (animations expected to be disabled)', () => {
+      const largeHistory = createMockHistory(CHART_ANIMATION_THRESHOLD + 50);
+      vi.mocked(usePerformanceMetricsModule.usePerformanceMetrics).mockReturnValue({
+        ...defaultHookReturn,
+        history: {
+          '5m': largeHistory,
+          '15m': [],
+          '60m': [],
+        },
+      });
+
+      render(<PerformanceCharts />);
+
+      // All charts should render even with large datasets
+      expect(screen.getByTestId('gpu-area-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('temperature-line-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('latency-line-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('resource-area-chart')).toBeInTheDocument();
+
+      // Data point count should reflect large dataset
+      const dataPointTexts = screen.getAllByText(`${CHART_ANIMATION_THRESHOLD + 50} data points`);
+      expect(dataPointTexts.length).toBeGreaterThan(0);
+    });
+
+    it('renders charts at exactly the threshold (animations expected to be enabled)', () => {
+      const thresholdHistory = createMockHistory(CHART_ANIMATION_THRESHOLD);
+      vi.mocked(usePerformanceMetricsModule.usePerformanceMetrics).mockReturnValue({
+        ...defaultHookReturn,
+        history: {
+          '5m': thresholdHistory,
+          '15m': [],
+          '60m': [],
+        },
+      });
+
+      render(<PerformanceCharts />);
+
+      // Charts should render at threshold
+      expect(screen.getByTestId('gpu-area-chart')).toBeInTheDocument();
+
+      // Data point count at threshold
+      const dataPointTexts = screen.getAllByText(`${CHART_ANIMATION_THRESHOLD} data points`);
+      expect(dataPointTexts.length).toBeGreaterThan(0);
     });
   });
 });

@@ -15,11 +15,14 @@ import { clsx } from 'clsx';
 import { Cpu, Thermometer, Timer, HardDrive } from 'lucide-react';
 import { useMemo } from 'react';
 
+
 import {
   usePerformanceMetrics,
   type PerformanceUpdate,
   type TimeRange,
 } from '../../hooks/usePerformanceMetrics';
+import { shouldAnimateChart } from '../../utils/chartAnimation';
+import { ChartLoadingState } from '../common/ChartLoadingState';
 
 export interface PerformanceChartsProps {
   /** Additional CSS classes */
@@ -30,6 +33,8 @@ export interface PerformanceChartsProps {
   historyData?: PerformanceUpdate[];
   /** Hide time range selector (for embedded use) */
   hideTimeRangeSelector?: boolean;
+  /** Whether data is loading */
+  isLoading?: boolean;
 }
 
 /**
@@ -246,6 +251,7 @@ export default function PerformanceCharts({
   timeRange: propTimeRange,
   historyData,
   hideTimeRangeSelector = false,
+  isLoading = false,
 }: PerformanceChartsProps) {
   const { history, timeRange: hookTimeRange, setTimeRange, isConnected } = usePerformanceMetrics();
 
@@ -268,6 +274,52 @@ export default function PerformanceCharts({
   const showGpuChart = hasGpuData(activeHistory);
   const showInferenceChart = hasInferenceData(activeHistory);
   const showResourceChart = hasHostData(activeHistory);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className={clsx('space-y-4', className)} data-testid="performance-charts-loading">
+        <Grid numItems={1} numItemsMd={2} className="gap-4">
+          <Col>
+            <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+              <Title className="mb-4 flex items-center gap-2 text-white">
+                <Cpu className="h-5 w-5 text-[#76B900]" />
+                GPU Utilization
+              </Title>
+              <ChartLoadingState height="h-48" />
+            </Card>
+          </Col>
+          <Col>
+            <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+              <Title className="mb-4 flex items-center gap-2 text-white">
+                <Thermometer className="h-5 w-5 text-[#76B900]" />
+                GPU Temperature
+              </Title>
+              <ChartLoadingState height="h-48" />
+            </Card>
+          </Col>
+          <Col>
+            <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+              <Title className="mb-4 flex items-center gap-2 text-white">
+                <Timer className="h-5 w-5 text-[#76B900]" />
+                Inference Latency
+              </Title>
+              <ChartLoadingState height="h-48" />
+            </Card>
+          </Col>
+          <Col>
+            <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+              <Title className="mb-4 flex items-center gap-2 text-white">
+                <HardDrive className="h-5 w-5 text-[#76B900]" />
+                System Resources
+              </Title>
+              <ChartLoadingState height="h-48" />
+            </Card>
+          </Col>
+        </Grid>
+      </div>
+    );
+  }
 
   return (
     <div className={clsx('space-y-4', className)} data-testid="performance-charts">
@@ -326,6 +378,7 @@ export default function PerformanceCharts({
                 valueFormatter={formatPercent}
                 showLegend={true}
                 showGridLines={true}
+                showAnimation={shouldAnimateChart(gpuChartData.length)}
                 curveType="monotone"
                 connectNulls={true}
                 yAxisWidth={50}
@@ -360,6 +413,7 @@ export default function PerformanceCharts({
                 valueFormatter={formatTemperature}
                 showLegend={true}
                 showGridLines={true}
+                showAnimation={shouldAnimateChart(temperatureChartData.length)}
                 curveType="monotone"
                 connectNulls={true}
                 yAxisWidth={50}
@@ -410,6 +464,7 @@ export default function PerformanceCharts({
                 valueFormatter={formatMs}
                 showLegend={true}
                 showGridLines={true}
+                showAnimation={shouldAnimateChart(latencyChartData.length)}
                 curveType="monotone"
                 connectNulls={true}
                 yAxisWidth={60}
@@ -447,6 +502,7 @@ export default function PerformanceCharts({
                 valueFormatter={formatPercent}
                 showLegend={true}
                 showGridLines={true}
+                showAnimation={shouldAnimateChart(resourceChartData.length)}
                 curveType="monotone"
                 connectNulls={true}
                 yAxisWidth={50}

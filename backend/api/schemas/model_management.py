@@ -91,6 +91,7 @@ class ModelRuntimeInfo(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "loaded": True,
@@ -98,7 +99,7 @@ class ModelRuntimeInfo(BaseModel):
                 "last_used": "2025-01-31T10:30:00Z",
                 "load_count": 5,
             }
-        }
+        },
     )
 
 
@@ -143,6 +144,7 @@ class ModelStatus(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "name": "threat-detection-yolov8n",
@@ -158,7 +160,7 @@ class ModelStatus(BaseModel):
                     "load_count": 5,
                 },
             }
-        }
+        },
     )
 
 
@@ -179,6 +181,7 @@ class ModelListResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "models": [
@@ -216,7 +219,7 @@ class ModelListResponse(BaseModel):
                     "ai-enrichment-light": "healthy",
                 },
             }
-        }
+        },
     )
 
 
@@ -263,6 +266,7 @@ class VramGpuInfo(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "gpu_id": 0,
@@ -273,7 +277,7 @@ class VramGpuInfo(BaseModel):
                 "utilization_percent": 30.9,
                 "loaded_models": ["fashion-clip", "vehicle-segment-classification"],
             }
-        }
+        },
     )
 
 
@@ -302,6 +306,7 @@ class VramTotals(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "budget_mb": 8000,
@@ -309,7 +314,7 @@ class VramTotals(BaseModel):
                 "available_mb": 5450,
                 "model_count": 4,
             }
-        }
+        },
     )
 
 
@@ -329,6 +334,7 @@ class VramSummaryResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "gpus": [
@@ -358,7 +364,7 @@ class VramSummaryResponse(BaseModel):
                     "model_count": 4,
                 },
             }
-        }
+        },
     )
 
 
@@ -397,6 +403,7 @@ class LoadModelResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -406,7 +413,7 @@ class LoadModelResponse(BaseModel):
                 "load_time_ms": 1250.0,
                 "vram_mb": 287,
             }
-        }
+        },
     )
 
 
@@ -431,13 +438,14 @@ class UnloadModelResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
                 "model_name": "threat-detection-yolov8n",
                 "freed_vram_mb": 287,
             }
-        }
+        },
     )
 
 
@@ -467,6 +475,7 @@ class UnloadAllResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -477,7 +486,7 @@ class UnloadAllResponse(BaseModel):
                     "ai-enrichment-light": 2,
                 },
             }
-        }
+        },
     )
 
 
@@ -527,6 +536,7 @@ class ModelDetailResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "name": "threat-detection-yolov8n",
@@ -544,7 +554,7 @@ class ModelDetailResponse(BaseModel):
                     "load_count": 5,
                 },
             }
-        }
+        },
     )
 
 

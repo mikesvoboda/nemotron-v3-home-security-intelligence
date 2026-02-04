@@ -12,8 +12,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import CrossingTrendsChart from './CrossingTrendsChart';
+import { CHART_ANIMATION_THRESHOLD } from '../../utils/chartAnimation';
 
 import type { CrossingTrendsResponse } from '../../types/zoneAnalytics';
+
 
 // Mock Tremor components to avoid rendering issues in tests
 vi.mock('@tremor/react', () => ({
@@ -31,14 +33,20 @@ vi.mock('@tremor/react', () => ({
   AreaChart: ({
     data,
     className,
+    showAnimation,
     'data-testid': dataTestId,
   }: {
     data: Array<Record<string, unknown>>;
     className?: string;
+    showAnimation?: boolean;
     'data-testid'?: string;
     [key: string]: unknown;
   }) => (
-    <div data-testid={dataTestId || 'area-chart'} className={className}>
+    <div
+      data-testid={dataTestId || 'area-chart'}
+      data-show-animation={showAnimation}
+      className={className}
+    >
       {data?.length ?? 0} data points
     </div>
   ),
@@ -256,6 +264,53 @@ describe('CrossingTrendsChart', () => {
       render(<CrossingTrendsChart data={data} />);
 
       expect(screen.getByTestId('crossing-area-chart')).toHaveTextContent('1 data points');
+    });
+  });
+
+  describe('Animation Control (NEM-5045)', () => {
+    it('should enable animation for small datasets', () => {
+      const data = createMockTrendsResponse({
+        trends: Array.from({ length: 10 }, (_, i) => ({
+          timestamp: `2024-01-01T${String(i).padStart(2, '0')}:00:00Z`,
+          in_count: i,
+          out_count: i,
+          net_flow: 0,
+        })),
+      });
+      render(<CrossingTrendsChart data={data} />);
+
+      const chart = screen.getByTestId('crossing-area-chart');
+      expect(chart).toHaveAttribute('data-show-animation', 'true');
+    });
+
+    it('should enable animation for datasets at threshold', () => {
+      const data = createMockTrendsResponse({
+        trends: Array.from({ length: CHART_ANIMATION_THRESHOLD }, (_, i) => ({
+          timestamp: `2024-01-01T${String(i).padStart(2, '0')}:00:00Z`,
+          in_count: i,
+          out_count: i,
+          net_flow: 0,
+        })),
+      });
+      render(<CrossingTrendsChart data={data} />);
+
+      const chart = screen.getByTestId('crossing-area-chart');
+      expect(chart).toHaveAttribute('data-show-animation', 'true');
+    });
+
+    it('should disable animation for large datasets exceeding threshold', () => {
+      const data = createMockTrendsResponse({
+        trends: Array.from({ length: CHART_ANIMATION_THRESHOLD + 1 }, (_, i) => ({
+          timestamp: `2024-01-01T${String(i % 24).padStart(2, '0')}:00:00Z`,
+          in_count: i,
+          out_count: i,
+          net_flow: 0,
+        })),
+      });
+      render(<CrossingTrendsChart data={data} />);
+
+      const chart = screen.getByTestId('crossing-area-chart');
+      expect(chart).toHaveAttribute('data-show-animation', 'false');
     });
   });
 });

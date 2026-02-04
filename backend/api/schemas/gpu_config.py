@@ -62,6 +62,7 @@ class GpuDeviceResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "index": 0,
@@ -70,7 +71,7 @@ class GpuDeviceResponse(BaseModel):
                 "vram_used_mb": 19304,
                 "compute_capability": "8.6",
             }
-        }
+        },
     )
 
 
@@ -83,6 +84,7 @@ class GpuDevicesResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "gpus": [
@@ -102,7 +104,7 @@ class GpuDevicesResponse(BaseModel):
                     },
                 ]
             }
-        }
+        },
     )
 
 
@@ -151,6 +153,7 @@ class GpuAssignment(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "service": "ai-enrichment",
@@ -160,7 +163,7 @@ class GpuAssignment(BaseModel):
                 "priority_weight": 50,
                 "incompatible_with": None,
             }
-        }
+        },
     )
 
 
@@ -184,6 +187,7 @@ class GpuConfigResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "strategy": "manual",
@@ -194,7 +198,7 @@ class GpuConfigResponse(BaseModel):
                 ],
                 "updated_at": "2026-01-23T10:30:00Z",
             }
-        }
+        },
     )
 
 
@@ -243,6 +247,7 @@ class GpuConfigUpdateResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -250,7 +255,7 @@ class GpuConfigUpdateResponse(BaseModel):
                     "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Auto-adjusted to 3.5 GB."
                 ],
             }
-        }
+        },
     )
 
 
@@ -274,13 +279,14 @@ class ServiceStatus(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "service": "ai-llm",
                 "status": "running",
                 "message": None,
             }
-        }
+        },
     )
 
 
@@ -313,6 +319,7 @@ class ServiceHealthStatus(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "name": "ai-llm",
@@ -321,7 +328,7 @@ class ServiceHealthStatus(BaseModel):
                 "gpu_index": 0,
                 "restart_status": None,
             }
-        }
+        },
     )
 
 
@@ -337,6 +344,7 @@ class ServiceHealthResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "services": [
@@ -356,7 +364,7 @@ class ServiceHealthResponse(BaseModel):
                     },
                 ]
             }
-        }
+        },
     )
 
 
@@ -391,6 +399,7 @@ class AiServiceInfo(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "name": "ai-llm",
@@ -399,7 +408,7 @@ class AiServiceInfo(BaseModel):
                 "vram_required_gb": 8.0,
                 "description": "Nemotron LLM for risk analysis and enrichment",
             }
-        }
+        },
     )
 
 
@@ -415,6 +424,7 @@ class AiServicesResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "services": [
@@ -434,7 +444,7 @@ class AiServicesResponse(BaseModel):
                     },
                 ]
             }
-        }
+        },
     )
 
 
@@ -463,6 +473,7 @@ class GpuApplyResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -472,7 +483,7 @@ class GpuApplyResponse(BaseModel):
                     {"service": "ai-enrichment", "status": "starting", "message": None}
                 ],
             }
-        }
+        },
     )
 
 
@@ -500,6 +511,7 @@ class GpuConfigStatusResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "in_progress": False,
@@ -509,7 +521,7 @@ class GpuConfigStatusResponse(BaseModel):
                     {"service": "ai-enrichment", "status": "running", "message": None}
                 ],
             }
-        }
+        },
     )
 
 
@@ -533,6 +545,7 @@ class GpuConfigPreviewResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "strategy": "vram_based",
@@ -545,7 +558,7 @@ class GpuConfigPreviewResponse(BaseModel):
                     "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Suggested budget: 3.5 GB."
                 ],
             }
-        }
+        },
     )
 
 
@@ -593,6 +606,7 @@ class GpuConfigVersionSummary(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -603,7 +617,7 @@ class GpuConfigVersionSummary(BaseModel):
                 "created_by": "system",
                 "assignment_count": 5,
             }
-        }
+        },
     )
 
 
@@ -620,6 +634,7 @@ class GpuConfigVersionDetail(GpuConfigVersionSummary):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -635,7 +650,7 @@ class GpuConfigVersionDetail(GpuConfigVersionSummary):
                     {"service": "ai-enrichment", "gpu_index": 1, "vram_budget_override": 3.5},
                 ],
             }
-        }
+        },
     )
 
 
@@ -656,6 +671,7 @@ class GpuConfigVersionListResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "versions": [
@@ -671,7 +687,7 @@ class GpuConfigVersionListResponse(BaseModel):
                 ],
                 "total_count": 3,
             }
-        }
+        },
     )
 
 
@@ -707,6 +723,7 @@ class GpuConfigAssignmentChange(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "service": "ai-llm",
@@ -716,7 +733,7 @@ class GpuConfigAssignmentChange(BaseModel):
                 "old_vram_override": None,
                 "new_vram_override": None,
             }
-        }
+        },
     )
 
 
@@ -753,6 +770,7 @@ class GpuConfigVersionDiffResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "from_version": 2,
@@ -771,7 +789,7 @@ class GpuConfigVersionDiffResponse(BaseModel):
                     }
                 ],
             }
-        }
+        },
     )
 
 
@@ -813,6 +831,7 @@ class GpuConfigExportData(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "export_version": "1.0",
@@ -825,7 +844,7 @@ class GpuConfigExportData(BaseModel):
                 "source_version": 3,
                 "description": "Production GPU configuration",
             }
-        }
+        },
     )
 
 
@@ -889,6 +908,7 @@ class GpuConfigImportValidation(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "valid": True,
@@ -898,7 +918,7 @@ class GpuConfigImportValidation(BaseModel):
                 ],
                 "errors": [],
             }
-        }
+        },
     )
 
 
@@ -927,6 +947,7 @@ class GpuConfigImportResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -946,7 +967,7 @@ class GpuConfigImportResponse(BaseModel):
                 },
                 "applied": False,
             }
-        }
+        },
     )
 
 
@@ -1008,6 +1029,7 @@ class GpuConfigRollbackResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -1024,7 +1046,7 @@ class GpuConfigRollbackResponse(BaseModel):
                 },
                 "applied": True,
             }
-        }
+        },
     )
 
 

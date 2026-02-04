@@ -326,6 +326,7 @@ class MqttConfigResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "broker": {
@@ -349,7 +350,7 @@ class MqttConfigResponse(BaseModel):
                 },
                 "updated_at": "2026-01-15T10:30:00Z",
             }
-        }
+        },
     )
 
 
@@ -425,6 +426,7 @@ class MqttConnectionStatus(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "connected": True,
@@ -435,7 +437,7 @@ class MqttConnectionStatus(BaseModel):
                 "broker_host": "mqtt.example.com",
                 "broker_port": 1883,
             }
-        }
+        },
     )
 
 
@@ -511,6 +513,7 @@ class MqttTestResult(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -520,7 +523,7 @@ class MqttTestResult(BaseModel):
                 "error_code": None,
                 "error_details": None,
             }
-        }
+        },
     )
 
 
@@ -548,6 +551,7 @@ class MqttReconnectResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -555,7 +559,7 @@ class MqttReconnectResponse(BaseModel):
                 "previous_state": "disconnected",
                 "new_state": "connected",
             }
-        }
+        },
     )
 
 
@@ -579,13 +583,14 @@ class MqttDisconnectResponse(BaseModel):
     )
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
                 "message": "Disconnected from MQTT broker",
                 "was_connected": True,
             }
-        }
+        },
     )
 
 

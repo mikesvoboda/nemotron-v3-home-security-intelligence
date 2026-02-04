@@ -24,6 +24,8 @@ from backend.api.schemas.baseline import (
     ActivityBaselineEntry,
     ActivityBaselineResponse,
     AnomalyListResponse,
+    BaselineConfigResponse,
+    BaselineResetResponse,
     BaselineSummaryResponse,
     ClassBaselineEntry,
     ClassBaselineResponse,
@@ -39,12 +41,13 @@ from backend.api.schemas.camera import (
     DeletedCamerasListResponse,
     PreviewStartRequest,
     PreviewStartResponse,
+    PreviewStopResponse,
     RTSPCapabilitiesResponse,
     RTSPTestRequest,
     RTSPTestResponse,
     SnapshotRefreshResponse,
 )
-from backend.api.schemas.onvif import OnvifDiscoveryRequest
+from backend.api.schemas.onvif import OnvifDiscoveryRequest, OnvifDiscoveryResponse
 from backend.api.schemas.pagination import create_pagination_meta
 from backend.api.schemas.scene_change import (
     SceneChangeAcknowledgeResponse,
@@ -481,6 +484,7 @@ async def stop_preview_by_stream_id(
 @router.post(
     "/onvif/discover",
     summary="Discover ONVIF devices on the network",
+    response_model=OnvifDiscoveryResponse,
     responses={
         200: {"description": "List of discovered ONVIF devices"},
         422: {"description": "Invalid request parameters"},
@@ -490,7 +494,7 @@ async def stop_preview_by_stream_id(
 async def discover_onvif_devices(
     request: OnvifDiscoveryRequest,
     onvif_service: OnvifServiceDep,
-) -> dict[str, Any]:
+) -> OnvifDiscoveryResponse:
     """Discover ONVIF devices on the network using WS-Discovery.
 
     Scans the specified subnet for ONVIF-compatible cameras and returns
@@ -500,9 +504,7 @@ async def discover_onvif_devices(
         request: Discovery request with subnet and timeout
 
     Returns:
-        Dictionary with discovered devices and count:
-        - devices: List of discovered device information
-        - count: Total number of devices found
+        OnvifDiscoveryResponse with discovered devices and count
 
     Raises:
         HTTPException: 500 if discovery fails
@@ -512,7 +514,7 @@ async def discover_onvif_devices(
             subnet=request.subnet,
             timeout=request.timeout,
         )
-        return {"devices": devices, "count": len(devices)}
+        return OnvifDiscoveryResponse(devices=devices, count=len(devices))
     except Exception as e:
         logger.error(
             "ONVIF device discovery failed",
@@ -2063,6 +2065,7 @@ async def start_camera_preview(
     "/{camera_id}/preview/stop",
     status_code=status.HTTP_200_OK,
     summary="Stop preview for a specific camera",
+    response_model=PreviewStopResponse,
     responses={
         200: {"description": "Preview stream stopped successfully"},
         404: {"description": "Camera not found"},
@@ -2071,7 +2074,7 @@ async def start_camera_preview(
 async def stop_camera_preview(
     camera_id: str,
     db: DbSession,
-) -> dict:
+) -> PreviewStopResponse:
     """Stop an RTSP preview stream for a specific camera.
 
     This endpoint is idempotent - calling it for a camera without active preview is OK.
@@ -2082,7 +2085,7 @@ async def stop_camera_preview(
         db: Database session
 
     Returns:
-        Success message
+        PreviewStopResponse with success status
     """
     # Verify camera exists
     await get_camera_or_404(camera_id, db)
@@ -2098,7 +2101,7 @@ async def stop_camera_preview(
         extra={"camera_id": camera_id},
     )
 
-    return {"status": "ok", "message": f"Preview stopped for camera {camera_id}"}
+    return PreviewStopResponse(message=f"Preview stopped for camera {camera_id}")
 
 
 # =============================================================================
@@ -2106,12 +2109,12 @@ async def stop_camera_preview(
 # =============================================================================
 
 
-@router.put("/{camera_id}/baseline/config")
+@router.put("/{camera_id}/baseline/config", response_model=BaselineConfigResponse)
 async def update_baseline_config(
     camera_id: str,
     config: BaselineConfigUpdate,
     db: DbSession,
-) -> dict[str, Any]:
+) -> BaselineConfigResponse:
     """Update per-camera baseline configuration.
 
     Allows tuning anomaly detection parameters for individual cameras.
@@ -2123,7 +2126,7 @@ async def update_baseline_config(
         db: Database session
 
     Returns:
-        Dictionary with updated configuration values
+        BaselineConfigResponse with updated configuration values
 
     Raises:
         HTTPException: 404 if camera not found
@@ -2148,14 +2151,15 @@ async def update_baseline_config(
     )
 
     # Return updated configuration
-    return await baseline_config_service.get_camera_config(camera_id, session=db)
+    config_data = await baseline_config_service.get_camera_config(camera_id, session=db)
+    return BaselineConfigResponse.model_validate(config_data)
 
 
-@router.post("/{camera_id}/baseline/reset")
+@router.post("/{camera_id}/baseline/reset", response_model=BaselineResetResponse)
 async def reset_baseline(
     camera_id: str,
     db: DbSession,
-) -> dict[str, int]:
+) -> BaselineResetResponse:
     """Reset all baseline data for a camera.
 
     Deletes all ActivityBaseline and ClassBaseline records for the camera,
@@ -2166,9 +2170,7 @@ async def reset_baseline(
         db: Database session
 
     Returns:
-        Dictionary with counts of deleted records:
-        - activity_baselines_deleted: Number of ActivityBaseline records deleted
-        - class_baselines_deleted: Number of ClassBaseline records deleted
+        BaselineResetResponse with counts of deleted records
 
     Raises:
         HTTPException: 404 if camera not found
@@ -2177,14 +2179,15 @@ async def reset_baseline(
     await get_camera_or_404(camera_id, db)
 
     # Reset baseline data via service
-    return await baseline_config_service.reset_camera_baseline(camera_id=camera_id, session=db)
+    result = await baseline_config_service.reset_camera_baseline(camera_id=camera_id, session=db)
+    return BaselineResetResponse.model_validate(result)
 
 
-@router.get("/{camera_id}/baseline/config")
+@router.get("/{camera_id}/baseline/config", response_model=BaselineConfigResponse)
 async def get_baseline_config(
     camera_id: str,
     db: DbSession,
-) -> dict[str, Any]:
+) -> BaselineConfigResponse:
     """Get baseline configuration for a camera.
 
     Returns the active configuration for the camera, which may be either
@@ -2195,11 +2198,7 @@ async def get_baseline_config(
         db: Database session
 
     Returns:
-        Dictionary containing:
-        - threshold_stdev: Active threshold value
-        - min_samples: Active minimum samples value
-        - override_global_config: Whether per-camera overrides are active
-        - global_config: Dictionary of global defaults
+        BaselineConfigResponse with active configuration values
 
     Raises:
         HTTPException: 404 if camera not found
@@ -2208,4 +2207,5 @@ async def get_baseline_config(
     await get_camera_or_404(camera_id, db)
 
     # Get configuration via service
-    return await baseline_config_service.get_camera_config(camera_id, session=db)
+    config_data = await baseline_config_service.get_camera_config(camera_id, session=db)
+    return BaselineConfigResponse.model_validate(config_data)

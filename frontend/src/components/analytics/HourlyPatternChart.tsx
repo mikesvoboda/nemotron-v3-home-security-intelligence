@@ -1,10 +1,14 @@
 import { useMemo, useState, useCallback } from 'react';
 
+import { ChartLoadingState } from '../common/ChartLoadingState';
+
 import type { HourlyPattern } from '../../services/api';
 
 interface HourlyPatternChartProps {
   /** Hourly pattern data keyed by hour (0-23) */
   patterns: Record<string, HourlyPattern>;
+  /** Whether data is loading */
+  isLoading?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -76,6 +80,7 @@ function getOpacity(sampleCount: number): number {
  */
 export default function HourlyPatternChart({
   patterns,
+  isLoading = false,
   className = '',
 }: HourlyPatternChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -162,6 +167,19 @@ export default function HourlyPatternChart({
     },
     [patterns, handlePointHover]
   );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div
+        className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 ${className}`}
+        data-testid="hourly-pattern-loading"
+      >
+        <h3 className="mb-4 text-lg font-semibold text-white">24-Hour Activity Pattern</h3>
+        <ChartLoadingState height="h-64" />
+      </div>
+    );
+  }
 
   // Empty state
   if (!chartData.hasAnyData) {

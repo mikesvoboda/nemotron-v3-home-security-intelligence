@@ -24,6 +24,7 @@ class CrossingTrendDataPoint(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "timestamp": "2026-01-26T12:00:00Z",
@@ -31,7 +32,7 @@ class CrossingTrendDataPoint(BaseModel):
                 "out_count": 12,
                 "net_flow": 3,
             }
-        }
+        },
     )
 
     timestamp: datetime = Field(..., description="Start of the time bucket")
@@ -58,6 +59,7 @@ class CrossingTrendsResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "zone_id": 1,
@@ -82,7 +84,7 @@ class CrossingTrendsResponse(BaseModel):
                 "end_time": "2026-01-26T14:00:00Z",
                 "interval": "hour",
             }
-        }
+        },
     )
 
     zone_id: int = Field(..., description="ID of the line zone")

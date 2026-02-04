@@ -54,11 +54,9 @@ RUN groupadd -g 1000 nemotron && \
 
 WORKDIR /app
 
-# Set ownership of app directory to non-root user
-RUN chown nemotron:nemotron /app
-
 # Copy requirements first for layer caching
-COPY requirements_hf.txt .
+# Using --chown to set ownership directly, avoiding separate RUN chown commands
+COPY --chown=nemotron:nemotron requirements_hf.txt .
 
 # Install Python dependencies with secure HuggingFace token handling
 # Note: We install torch with CUDA 12.1 support
@@ -74,12 +72,12 @@ RUN --mount=type=secret,id=hf_token \
     unset HF_TOKEN
 
 # Copy application code
-COPY model_hf.py .
+COPY --chown=nemotron:nemotron model_hf.py .
 
 # Copy shared utilities from parent directory
 # Note: Build context should be the ai/ directory for this to work
-COPY quantization_config.py /app/
-COPY torch_optimizations.py /app/
+COPY --chown=nemotron:nemotron quantization_config.py /app/
+COPY --chown=nemotron:nemotron torch_optimizations.py /app/
 
 # Environment variables for configuration
 ENV NEMOTRON_MODEL_PATH=/models/nemotron-3-nano-30b

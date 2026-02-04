@@ -938,3 +938,120 @@ async def test_analyze_batch_with_direct_detection_ids_parameter(
         stored_ids = [row[0] for row in result.fetchall()]
 
     assert sorted(stored_ids) == [base_det_id, base_det_id + 1]
+
+
+# Test: NEM-5379 Duplicate batch_id race condition prevention
+
+
+@pytest.mark.asyncio
+async def test_duplicate_batch_id_prevented_by_unique_constraint(
+    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+):
+    """Test that duplicate batch_id events are prevented at the database level.
+
+    NEM-5379: This test verifies that the unique constraint on batch_id prevents
+    duplicate events from being created. When a race condition causes two concurrent
+    requests to attempt event creation with the same batch_id, the second should
+    receive the existing event instead of creating a duplicate.
+    """
+    # Use unique IDs for test isolation
+    batch_id = unique_id("batch")
+    camera_id = unique_id("camera")
+    base_det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
+    detection_ids = [base_det_id, base_det_id + 1]
+
+    # Create detections with matching IDs and camera
+    detections = sample_detections_factory(camera_id, start_id=base_det_id)[:2]
+
+    # Setup Redis mocks
+    async def mock_get(key):
+        if f"batch:{batch_id}:camera_id" in key:
+            return camera_id
+        elif f"batch:{batch_id}:detections" in key:
+            return json.dumps(detection_ids)
+        elif f"batch:{batch_id}:started_at" in key:
+            return "1703341800.0"
+        return None
+
+    mock_redis_client.get.side_effect = mock_get
+
+    # Setup database with camera and detections
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name=f"Front Door {camera_id[-8:]}",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
+        session.add(camera)
+
+        for det in detections:
+            session.add(det)
+
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 65,
+                "risk_level": "high",
+                "summary": "Test event",
+                "reasoning": "Test reasoning",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        # Create first event
+        event1 = await analyzer.analyze_batch(batch_id)
+
+    assert event1 is not None
+    assert event1.batch_id == batch_id
+
+    # Verify only one event exists with this batch_id
+    async with get_session() as session:
+        result = await session.execute(select(Event).where(Event.batch_id == batch_id))
+        events = result.scalars().all()
+        assert len(events) == 1, f"Expected 1 event, found {len(events)}"
+        assert events[0].id == event1.id
+
+    # Attempting to insert another event with the same batch_id directly should fail
+    # This simulates what would happen if the IntegrityError handler wasn't present
+    from sqlalchemy.exc import IntegrityError
+
+    async with get_session() as session:
+        duplicate_event = Event(
+            batch_id=batch_id,  # Same batch_id - should fail
+            camera_id=camera_id,
+            started_at=detections[0].detected_at,
+            ended_at=detections[0].detected_at,
+            risk_score=50,
+            risk_level="medium",
+            summary="Duplicate attempt",
+            reviewed=False,
+        )
+        session.add(duplicate_event)
+
+        # This should raise IntegrityError due to unique constraint
+        with pytest.raises(IntegrityError) as exc_info:
+            await session.flush()
+
+        assert (
+            "batch_id" in str(exc_info.value.orig) or "unique" in str(exc_info.value.orig).lower()
+        )
+
+        # Roll back the failed transaction
+        await session.rollback()
+
+    # Verify still only one event exists
+    async with get_session() as session:
+        result = await session.execute(select(Event).where(Event.batch_id == batch_id))
+        events = result.scalars().all()
+        assert len(events) == 1, f"Expected 1 event after duplicate attempt, found {len(events)}"
