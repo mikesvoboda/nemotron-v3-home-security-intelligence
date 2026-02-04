@@ -1174,7 +1174,7 @@ This pattern provides:
 
 **Relationships:**
 
-- `camera` - Many-to-one with Camera (backref="notification_setting")
+- `camera` - Many-to-one with Camera (back_populates="notification_setting")
 
 **Indexes:**
 

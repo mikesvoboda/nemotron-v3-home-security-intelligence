@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Florence-2 Vision-Language Server (Multi-Stage Build)
 # Uses HuggingFace Transformers for model loading and inference
 # Port: 8092 | Expected VRAM: ~1.2GB

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for backend (dev and production targets)
 # Uses Debian slim for PyTorch/ultralytics compatibility (Alpine's musl libc is incompatible)
 #

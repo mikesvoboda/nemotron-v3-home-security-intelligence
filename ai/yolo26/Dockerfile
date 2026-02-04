@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # YOLO26 Object Detection Server
 # Uses Ultralytics YOLO with TensorRT for optimized inference
 # Port: 8095 | Expected VRAM: ~2GB
@@ -63,13 +64,13 @@ COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 RUN (groupadd -g 1000 yolo26 || true) && \
     (useradd -u 1000 -g 1000 -s /bin/bash -m yolo26 || true)
 
-# Copy application files
-COPY ai/yolo26/model.py .
-COPY ai/yolo26/metrics.py .
-COPY ai/yolo26/security.py .
+# Copy application files with ownership set to non-root user
+COPY --chown=1000:1000 ai/yolo26/model.py .
+COPY --chown=1000:1000 ai/yolo26/metrics.py .
+COPY --chown=1000:1000 ai/yolo26/security.py .
 # Copy shared utilities
-COPY ai/compile_utils.py .
-COPY ai/torch_optimizations.py .
+COPY --chown=1000:1000 ai/compile_utils.py .
+COPY --chown=1000:1000 ai/torch_optimizations.py .
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -79,9 +80,6 @@ ENV YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
 
 # Create model directory (use numeric UID:GID for NVIDIA image compatibility)
 RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
-
-# Set ownership of app directory
-RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8095

@@ -23,6 +23,7 @@ from .enrichment import (
     ThreatDetection,
 )
 from .event_detection import EventDetection
+from .smoke_fire_result import SmokeFireResult
 
 
 class Detection(Base):
@@ -83,28 +84,53 @@ class Detection(Base):
     # Junction table relationship for normalized event associations
     # This provides access to EventDetection records for this detection
     event_records: Mapped[list[EventDetection]] = relationship(
-        "EventDetection", back_populates="detection", cascade="all, delete-orphan"
+        "EventDetection",
+        back_populates="detection",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # Enrichment result relationships (on-demand AI model outputs)
     # See: docs/plans/2026-01-19-model-zoo-prompt-improvements-design.md
     pose_result: Mapped[PoseResult | None] = relationship(
-        "PoseResult", back_populates="detection", uselist=False, cascade="all, delete-orphan"
+        "PoseResult",
+        back_populates="detection",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     threat_detections: Mapped[list[ThreatDetection]] = relationship(
-        "ThreatDetection", back_populates="detection", cascade="all, delete-orphan"
+        "ThreatDetection",
+        back_populates="detection",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     demographics_result: Mapped[DemographicsResult | None] = relationship(
         "DemographicsResult",
         back_populates="detection",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     reid_embedding: Mapped[ReIDEmbedding | None] = relationship(
-        "ReIDEmbedding", back_populates="detection", uselist=False, cascade="all, delete-orphan"
+        "ReIDEmbedding",
+        back_populates="detection",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     action_result: Mapped[ActionResult | None] = relationship(
-        "ActionResult", back_populates="detection", uselist=False, cascade="all, delete-orphan"
+        "ActionResult",
+        back_populates="detection",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    smoke_fire_results: Mapped[list[SmokeFireResult]] = relationship(
+        "SmokeFireResult",
+        back_populates="detection",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     # Indexes for common queries

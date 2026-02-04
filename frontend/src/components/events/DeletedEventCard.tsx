@@ -11,8 +11,9 @@
  */
 
 import { Clock, Eye, RotateCcw, Trash2, AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 
+import { cardPropsComparator } from '../../utils/memoization';
 import { getRiskColor, getRiskLevel } from '../../utils/risk';
 import Button from '../common/Button';
 import RiskBadge from '../common/RiskBadge';
@@ -73,7 +74,7 @@ function formatTimeSinceDeletion(deletedAt: string): string {
 /**
  * DeletedEventCard displays a soft-deleted event with restore and permanent delete actions.
  */
-export default function DeletedEventCard({
+const DeletedEventCard = memo(function DeletedEventCard({
   event,
   onRestore,
   onPermanentDelete,
@@ -91,26 +92,26 @@ export default function DeletedEventCard({
   const riskLevel = getRiskLevel(riskScore);
   const timeSinceDeletion = formatTimeSinceDeletion(event.deleted_at);
 
-  const handleRestore = () => {
+  const handleRestore = useCallback(() => {
     onRestore(event.id);
-  };
+  }, [onRestore, event.id]);
 
-  const handlePermanentDeleteClick = () => {
+  const handlePermanentDeleteClick = useCallback(() => {
     setShowConfirmDialog(true);
-  };
+  }, []);
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = useCallback(() => {
     setShowConfirmDialog(false);
     onPermanentDelete(event.id);
-  };
+  }, [onPermanentDelete, event.id]);
 
-  const handleCancelDelete = () => {
+  const handleCancelDelete = useCallback(() => {
     setShowConfirmDialog(false);
-  };
+  }, []);
 
-  const handleSelectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectionChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onSelectionChange?.(event.id, e.target.checked);
-  };
+  }, [onSelectionChange, event.id]);
 
   return (
     <div
@@ -253,4 +254,6 @@ export default function DeletedEventCard({
       </div>
     </div>
   );
-}
+}, cardPropsComparator);
+
+export default DeletedEventCard;

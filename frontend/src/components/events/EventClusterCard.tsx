@@ -11,8 +11,9 @@
 
 import { format, parseISO } from 'date-fns';
 import { CheckSquare, ChevronDown, ChevronUp, Layers } from 'lucide-react';
-import { useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 
+import { cardPropsComparator } from '../../utils/memoization';
 import { getRiskLevel, type RiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 
@@ -89,7 +90,7 @@ interface RiskLevelCounts {
 /**
  * EventClusterCard displays a cluster of related events
  */
-export default function EventClusterCard({
+const EventClusterCard = memo(function EventClusterCard({
   cluster,
   onEventClick,
   onBulkMarkReviewed,
@@ -338,4 +339,6 @@ export default function EventClusterCard({
       )}
     </div>
   );
-}
+}, cardPropsComparator);
+
+export default EventClusterCard;

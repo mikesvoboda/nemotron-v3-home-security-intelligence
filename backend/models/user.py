@@ -66,6 +66,7 @@ class User(Base):
         "APIKey",
         back_populates="user",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     def __init__(

@@ -11,13 +11,13 @@
 
 /* Toast container base styles */
 [data-sonner-toaster] {
-  --toast-bg: #1a1a1a;
-  --toast-border: #2a2a2a;
-  --toast-text: #e0e0e0;
-  --toast-text-secondary: #9ca3af;
-  --nvidia-green: #76b900;
-  --nvidia-green-hover: #8bd000;
-  --nvidia-green-dark: #5c8f00;
+  --toast-bg: theme('colors.gray.900');
+  --toast-border: theme('colors.gray.800');
+  --toast-text: theme('colors.gray.100');
+  --toast-text-secondary: theme('colors.gray.400');
+  --nvidia-green: theme('colors.primary.500');
+  --nvidia-green-hover: theme('colors.primary.400');
+  --nvidia-green-dark: theme('colors.primary.700');
 }
 
 /* ============================================
@@ -70,8 +70,8 @@
 
 /* Success toast - NVIDIA green accent */
 [data-sonner-toast][data-type='success'] {
-  background: linear-gradient(135deg, #1a2a10 0%, #1a1a1a 100%);
-  border-color: rgba(118, 185, 0, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.primary.900') 30%, theme('colors.gray.900') 70%) 0%, theme('colors.gray.900') 100%);
+  border-color: theme('colors.primary.500 / 30%');
 }
 
 [data-sonner-toast][data-type='success'] [data-icon] svg {
@@ -91,12 +91,12 @@
 
 /* Error toast - Red accent */
 [data-sonner-toast][data-type='error'] {
-  background: linear-gradient(135deg, #2a1a1a 0%, #1a1a1a 100%);
-  border-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.status.error.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%, theme('colors.gray.900') 100%);
+  border-color: theme('colors.status.error.DEFAULT / 30%');
 }
 
 [data-sonner-toast][data-type='error'] [data-icon] svg {
-  color: #ef4444;
+  color: theme('colors.status.error.DEFAULT');
 }
 
 [data-sonner-toast][data-type='error']::before {
@@ -106,18 +106,18 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: #ef4444;
+  background: theme('colors.status.error.DEFAULT');
   border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
 }
 
 /* Warning toast - Amber accent */
 [data-sonner-toast][data-type='warning'] {
-  background: linear-gradient(135deg, #2a2510 0%, #1a1a1a 100%);
-  border-color: rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.status.warning.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%, theme('colors.gray.900') 100%);
+  border-color: theme('colors.status.warning.DEFAULT / 30%');
 }
 
 [data-sonner-toast][data-type='warning'] [data-icon] svg {
-  color: #f59e0b;
+  color: theme('colors.status.warning.DEFAULT');
 }
 
 [data-sonner-toast][data-type='warning']::before {
@@ -127,18 +127,18 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: #f59e0b;
+  background: theme('colors.status.warning.DEFAULT');
   border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
 }
 
 /* Info toast - Blue accent */
 [data-sonner-toast][data-type='info'] {
-  background: linear-gradient(135deg, #1a2030 0%, #1a1a1a 100%);
-  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, theme('colors.link.DEFAULT') 15%, theme('colors.gray.900') 85%) 0%, theme('colors.gray.900') 100%);
+  border-color: theme('colors.link.DEFAULT / 30%');
 }
 
 [data-sonner-toast][data-type='info'] [data-icon] svg {
-  color: #3b82f6;
+  color: theme('colors.link.DEFAULT');
 }
 
 [data-sonner-toast][data-type='info']::before {
@@ -148,14 +148,14 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: #3b82f6;
+  background: theme('colors.link.DEFAULT');
   border-radius: var(--toast-border-radius) 0 0 var(--toast-border-radius);
 }
 
 /* Loading toast - NVIDIA green spinner */
 [data-sonner-toast][data-type='loading'] {
   background: var(--toast-bg);
-  border-color: rgba(118, 185, 0, 0.2);
+  border-color: theme('colors.primary.500 / 20%');
 }
 
 [data-sonner-toast][data-type='loading'] [data-icon] svg {
@@ -178,7 +178,7 @@
 /* Primary action button - NVIDIA green */
 [data-sonner-toast] [data-button]:not([data-cancel]) {
   background: var(--nvidia-green);
-  color: #0a0a0a;
+  color: theme('colors.gray.950');
   border: none;
 }
 
@@ -382,15 +382,15 @@
   }
 
   [data-sonner-toast][data-type='error'] {
-    border-color: #ef4444;
+    border-color: theme('colors.status.error.DEFAULT');
   }
 
   [data-sonner-toast][data-type='warning'] {
-    border-color: #f59e0b;
+    border-color: theme('colors.status.warning.DEFAULT');
   }
 
   [data-sonner-toast][data-type='info'] {
-    border-color: #3b82f6;
+    border-color: theme('colors.link.DEFAULT');
   }
 }
 

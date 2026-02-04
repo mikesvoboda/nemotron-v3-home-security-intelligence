@@ -133,6 +133,7 @@ class Event(Base):
         "Alert",
         back_populates="event",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
     )
     audit: Mapped[EventAudit | None] = relationship(
@@ -140,6 +141,7 @@ class Event(Base):
         back_populates="event",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
     )
     # Junction table relationship for normalized detection associations
@@ -148,6 +150,7 @@ class Event(Base):
         "EventDetection",
         back_populates="event",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
     )
     # User feedback relationship (NEM-1794)
@@ -156,6 +159,7 @@ class Event(Base):
         back_populates="event",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
     )
     # Many-to-many relationship to Detection via junction table
@@ -174,6 +178,7 @@ class Event(Base):
         back_populates="event",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
     )
 

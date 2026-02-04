@@ -278,9 +278,9 @@ export default function HourlyPatternChart({
 
           {/* Y-axis labels */}
           {[0, Math.round(chartData.maxDetections / 2), Math.round(chartData.maxDetections)].map(
-            (value, i) => (
+            (value) => (
               <text
-                key={i}
+                key={`y-axis-${value}`}
                 x={chartPadding.left - 8}
                 y={getY(value)}
                 textAnchor="end"

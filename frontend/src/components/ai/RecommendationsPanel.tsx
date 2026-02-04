@@ -182,11 +182,11 @@ export default function RecommendationsPanel({
                         if (aPriority !== bPriority) return aPriority - bPriority;
                         return b.frequency - a.frequency;
                       })
-                      .map((item, index) => (
+                      .map((item) => (
                         <li
-                          key={index}
+                          key={`${item.category}-${item.suggestion.slice(0, 50)}`}
                           className="flex items-start justify-between gap-4 rounded-lg bg-gray-900/50 p-3"
-                          data-testid={`recommendation-item-${category}-${index}`}
+                          data-testid={`recommendation-item-${item.category}-${item.suggestion.slice(0, 30)}`}
                         >
                           <div className="flex items-start gap-2">
                             <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#76B900]" />
@@ -201,7 +201,7 @@ export default function RecommendationsPanel({
                               <button
                                 onClick={() => onExploreRecommendation(item)}
                                 className="flex items-center gap-1.5 rounded-md bg-[#76B900]/10 px-2 py-1 text-xs font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
-                                data-testid={`explore-recommendation-${category}-${index}`}
+                                data-testid={`explore-recommendation-${item.category}-${item.suggestion.slice(0, 30)}`}
                                 title="Open in Prompt Playground"
                                 aria-label={`Explore ${item.suggestion.substring(0, 50)}${item.suggestion.length > 50 ? '...' : ''} in Prompt Playground`}
                               >

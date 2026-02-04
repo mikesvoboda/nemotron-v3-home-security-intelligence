@@ -113,8 +113,8 @@ function ResultsTable({ results }: { results: ProfileResults }) {
             </tr>
           </thead>
           <tbody>
-            {results.top_functions.map((fn: ProfileFunctionStats, index: number) => (
-              <tr key={index} className="border-b border-gray-800">
+            {results.top_functions.map((fn: ProfileFunctionStats) => (
+              <tr key={fn.function_name} className="border-b border-gray-800">
                 <td className="py-2 pr-4 font-mono text-gray-200">{fn.function_name}</td>
                 <td className="py-2 pr-4 text-right text-gray-300">{fn.call_count}</td>
                 <td className="py-2 pr-4 text-right text-gray-300">{fn.total_time.toFixed(3)}</td>
