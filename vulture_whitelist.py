@@ -101,3 +101,14 @@ _.pid
 # Type annotations used only in TYPE_CHECKING blocks (mypy only, not runtime)
 _.Sentinel
 _.CursorResult
+
+# Reserved parameter for future implementation (time-based filtering)
+_.since_hours
+
+# Test fixtures used via pytest dependency injection (unused in tests but required by signature)
+_.mock_camera_without_calibration
+_.mock_auth_service
+
+# Imports used in placeholder classes (try/except ImportError pattern in TDD tests)
+_.LoginRequest
+_.RegisterRequest

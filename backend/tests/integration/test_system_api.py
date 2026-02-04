@@ -795,6 +795,47 @@ async def test_pipeline_status_batch_aggregator_no_redis(client):
 
 
 @pytest.mark.asyncio
+async def test_pipeline_status_batch_aggregator_redis_error(client):
+    """Test pipeline status gracefully degrades when Redis operations fail."""
+    from unittest.mock import MagicMock
+
+    from redis.exceptions import RedisError
+
+    from backend.core.redis import get_redis_optional
+    from backend.main import app
+
+    # Create a mock Redis client that raises RedisError on scan_iter
+    mock_redis = MagicMock()
+    mock_redis._client = MagicMock()
+
+    # Simulate a RedisError during scan operation
+    async def mock_scan_iter(*args, **kwargs):
+        raise RedisError("Connection lost during scan")
+        yield  # Make it an async generator (unreachable)
+
+    mock_redis._client.scan_iter = mock_scan_iter
+
+    async def mock_redis_with_error():
+        yield mock_redis
+
+    app.dependency_overrides[get_redis_optional] = mock_redis_with_error
+
+    try:
+        response = await client.get("/api/system/pipeline")
+
+        # Should return 200 with batch_aggregator as None (graceful degradation)
+        # NOT 503 (CACHE_UNAVAILABLE error)
+        assert response.status_code == 200
+        data = response.json()
+
+        # Batch aggregator should be null when Redis errors occur
+        assert data["batch_aggregator"] is None
+    finally:
+        # Clean up dependency override
+        app.dependency_overrides.pop(get_redis_optional, None)
+
+
+@pytest.mark.asyncio
 async def test_pipeline_status_timestamp_is_recent(client, mock_redis):
     """Test pipeline status endpoint timestamp is recent."""
     response = await client.get("/api/system/pipeline")

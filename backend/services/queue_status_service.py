@@ -334,16 +334,20 @@ class QueueStatusService:
         Returns:
             Tuple of (worker_count, running_count)
         """
-        # Default worker counts based on queue type
-        # In production, these would come from the PipelineWorkerManager
-        default_workers: dict[str, int] = {
-            DETECTION_QUEUE: 2,  # DetectionQueueWorker instances
-            ANALYSIS_QUEUE: 2,  # AnalysisQueueWorker instances
+        # NEM-5375: Get actual worker counts from settings
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+
+        # Worker counts based on queue type and settings
+        worker_counts: dict[str, int] = {
+            DETECTION_QUEUE: settings.detection_worker_count,
+            ANALYSIS_QUEUE: settings.analysis_worker_count,
             DLQ_DETECTION_QUEUE: 0,  # DLQ doesn't have workers
             DLQ_ANALYSIS_QUEUE: 0,
         }
 
-        workers = default_workers.get(queue_name, 1)
+        workers = worker_counts.get(queue_name, 1)
 
         # Running jobs would be tracked by the workers themselves
         # For now, estimate based on queue activity
