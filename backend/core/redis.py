@@ -32,6 +32,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
+from pydantic import SecretStr
 from redis.asyncio import ConnectionPool, Redis
 from redis.asyncio.client import PubSub
 from redis.asyncio.sentinel import Sentinel
@@ -50,6 +51,9 @@ from backend.core.metrics import (
 logger = get_logger(__name__)
 
 T = TypeVar("T")
+
+# Sentinel value to distinguish "not provided" from "explicitly None"
+_UNSET = object()
 
 
 class PoolType(str, Enum):
@@ -193,7 +197,7 @@ class RedisClient:
     def __init__(
         self,
         redis_url: str | None = None,
-        password: str | None = None,
+        password: str | None = _UNSET,  # type: ignore[assignment]
         ssl_enabled: bool | None = None,
         ssl_cert_reqs: str | None = None,
         ssl_ca_certs: str | None = None,
@@ -208,6 +212,7 @@ class RedisClient:
             redis_url: Redis connection URL. If not provided, uses settings.
             password: Redis password for authentication. If not provided, uses settings.
                 Set to None for no authentication (local development).
+                Set to empty string "" to explicitly disable password.
             ssl_enabled: Enable SSL/TLS encryption. If None, uses settings.
             ssl_cert_reqs: SSL certificate verification mode ('none', 'optional', 'required').
                 If None, uses settings.
@@ -230,9 +235,17 @@ class RedisClient:
         self._max_delay = 30.0  # Maximum delay cap in seconds
         self._jitter_factor = 0.25  # Random jitter 0-25% of delay
 
-        # Password authentication - use provided value or fall back to settings
-        # Note: password=None means "use settings", to explicitly disable, use password=""
-        self._password = password if password is not None else settings.redis_password
+        # Password authentication
+        # - password not provided (default _UNSET): use settings.redis_password
+        # - password=None: explicitly no password (local development)
+        # - password="": explicitly no password (treated same as None)
+        # - password="<string>": use this string  # pragma: allowlist secret
+        if password is _UNSET:
+            self._password = settings.redis_password
+        elif password is None or password == "":
+            self._password = None
+        else:
+            self._password = SecretStr(password)
 
         # SSL/TLS settings - use provided values or fall back to settings
         self._ssl_enabled = ssl_enabled if ssl_enabled is not None else settings.redis_ssl_enabled

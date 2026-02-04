@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 import pytest
 
@@ -184,6 +185,7 @@ class MockEnrichmentResult:
     )
     vehicle_damage: dict[str, MockVehicleDamageResult] = field(default_factory=dict)
     pet_classifications: dict[str, MockPetClassificationResult] = field(default_factory=dict)
+    scene_ocr: Any | None = None
 
 
 @dataclass
