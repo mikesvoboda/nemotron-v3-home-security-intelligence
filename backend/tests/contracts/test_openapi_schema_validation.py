@@ -77,6 +77,9 @@ def create_mock_camera(camera_id: str = "front_door") -> MagicMock:
     camera.status = "online"
     camera.created_at = datetime.now(UTC)
     camera.last_seen_at = datetime.now(UTC)
+    # Property and area relationships (NEM-3597)
+    camera.property_id = None
+    camera.areas = []
     # RTSP/ONVIF streaming fields (NEM-4191)
     camera.ingestion_mode = "ftp"
     camera.rtsp_url = None
