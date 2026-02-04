@@ -118,11 +118,11 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 # Expose port
 EXPOSE 8092
 
+# Create cache directory as root and set ownership before switching user
+RUN mkdir -p /cache/huggingface && chown -R florence:florence /cache
+
 # Switch to non-root user
 USER florence
-
-# Create cache directory for HuggingFace models as non-root user (owns directory automatically)
-RUN mkdir -p /cache/huggingface
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 120s allows time for model loading (Florence-2 is larger)

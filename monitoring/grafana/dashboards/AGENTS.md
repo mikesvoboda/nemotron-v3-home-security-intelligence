@@ -15,6 +15,7 @@ dashboards/
   analytics.json      # Analytics dashboard
   hsi-profiling.json  # Profiling dashboard
   logs.json           # Logs dashboard
+  scene-ocr.json      # Scene OCR text extraction and service provider matching
   tracing.json        # Tracing dashboard
 ```
 
@@ -252,6 +253,58 @@ dashboards/
 **Purpose:** Log aggregation and viewing dashboard.
 
 **Dashboard UID:** `hsi-logs`
+
+### scene-ocr.json
+
+**Purpose:** Scene OCR text extraction and service provider matching dashboard for monitoring PaddleOCR performance and service identification.
+
+**Dashboard UID:** `hsi-scene-ocr`
+
+**Panels by Section:**
+
+| Row                   | Panel                                | Type       | Data Source | Metric                                            |
+| --------------------- | ------------------------------------ | ---------- | ----------- | ------------------------------------------------- |
+| Scene OCR Overview    | Documentation                        | text       | -           | Feature overview and service categories           |
+| Scene OCR Overview    | OCR Request Rate                     | stat       | Prometheus  | scene_ocr_requests_total                          |
+| Scene OCR Overview    | Texts Detected (1h)                  | stat       | Prometheus  | scene_ocr_texts_detected_total                    |
+| Scene OCR Overview    | Service Provider Matches (1h)        | stat       | Prometheus  | scene_ocr_service_providers_matched_total         |
+| Scene OCR Overview    | Processing Latency (P95)             | stat       | Prometheus  | scene_ocr_processing_seconds_bucket               |
+| Request Rate & Volume | OCR Requests by Source               | timeseries | Prometheus  | scene_ocr_requests_total (by source)              |
+| Request Rate & Volume | Texts Detected Over Time             | timeseries | Prometheus  | scene_ocr_texts_detected_total                    |
+| Request Rate & Volume | Service Provider Matches by Category | timeseries | Prometheus  | scene_ocr_service_providers_matched_total         |
+| Performance           | OCR Processing Latency Percentiles   | timeseries | Prometheus  | scene_ocr_processing_seconds_bucket               |
+| Performance           | Processing Time by Source (P95)      | timeseries | Prometheus  | scene_ocr_processing_seconds_bucket               |
+| Quality Metrics       | Confidence Score Distribution        | timeseries | Prometheus  | scene_ocr_confidence_distribution_bucket          |
+| Quality Metrics       | Provider Match Rate                  | gauge      | Prometheus  | scene_ocr_service_providers_matched_total         |
+| Quality Metrics       | Detection by Category (24h)          | piechart   | Prometheus  | scene_ocr_service_providers_matched_total         |
+| Error Tracking        | OCR Error Rate                       | stat       | Prometheus  | scene_ocr_errors_total / scene_ocr_requests_total |
+| Error Tracking        | Total Errors (1h)                    | stat       | Prometheus  | scene_ocr_errors_total                            |
+| Error Tracking        | Error Rate by Type                   | timeseries | Prometheus  | scene_ocr_errors_total                            |
+
+**Dashboard Settings:**
+
+- Auto-refresh: 30 seconds
+- Default time range: Last 1 hour
+- Timezone: Browser
+- Tags: ocr, scene-ocr, service-providers, text-extraction, enrichment
+
+**Key Scene OCR Metrics:**
+
+- `scene_ocr_requests_total` - Counter of OCR requests by source (full_frame, crop)
+- `scene_ocr_texts_detected_total` - Counter of texts detected
+- `scene_ocr_service_providers_matched_total` - Counter of service provider matches by category
+- `scene_ocr_processing_seconds` - Histogram of OCR processing duration by source
+- `scene_ocr_confidence_distribution` - Histogram of OCR confidence scores
+- `scene_ocr_errors_total` - Counter of OCR errors by error_type
+
+**Service Provider Categories:**
+
+- DELIVERY (FedEx, UPS, Amazon, USPS, DHL)
+- UTILITY (PG&E, ComEd)
+- TELECOM (AT&T, Comcast, Verizon)
+- PLUMBING (Roto-Rooter)
+- HVAC, ELECTRICAL, LANDSCAPING, PEST_CONTROL
+- MEDICAL, SECURITY, FOOD_DELIVERY
 
 ### tracing.json
 

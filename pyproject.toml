@@ -81,6 +81,8 @@ dependencies = [
     # Authentication (NEM-5307)
     "argon2-cffi>=23.1.0",
     "python-jose[cryptography]>=3.3.0",
+    # Fuzzy string matching for service provider OCR (Scene OCR feature)
+    "rapidfuzz>=3.10.0",
 ]
 
 [project.optional-dependencies]

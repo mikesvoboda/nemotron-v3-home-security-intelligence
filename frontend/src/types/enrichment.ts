@@ -365,6 +365,58 @@ export interface ImageQualityEnrichment {
 }
 
 // ============================================================================
+// Scene Text (OCR) Enrichment
+// ============================================================================
+
+/**
+ * Text source in scene OCR - either full frame or detection crop.
+ */
+export type SceneTextSource = 'full_frame' | 'crop';
+
+/**
+ * Scene text detection result from PaddleOCR.
+ */
+export interface SceneTextMatch {
+  /** Extracted text value */
+  text: string;
+  /** OCR confidence score (0-1) */
+  confidence: number;
+  /** Bounding box as [x1, y1, x2, y2] in frame coordinates */
+  bbox?: [number, number, number, number];
+  /** Source of OCR result */
+  source: SceneTextSource;
+  /** Associated detection ID (for crop OCR) */
+  detection_id?: string;
+}
+
+/**
+ * Service provider match result from fuzzy matching.
+ */
+export interface ServiceProviderMatch {
+  /** Canonical provider name (e.g., "FedEx") */
+  provider_name: string;
+  /** Service category (e.g., "delivery", "utility") */
+  category: string;
+  /** The text that matched */
+  matched_text: string;
+  /** Match confidence (0-1, 1.0 = exact match) */
+  confidence: number;
+}
+
+/**
+ * Scene OCR enrichment data.
+ * Contains text detected in the scene and service provider matches.
+ */
+export interface SceneTextEnrichment {
+  /** Detected text items */
+  texts: SceneTextMatch[];
+  /** Matched service providers */
+  service_providers: ServiceProviderMatch[];
+  /** Processing time in milliseconds */
+  processing_time_ms: number;
+}
+
+// ============================================================================
 // Complete Enrichment Data
 // ============================================================================
 
@@ -390,6 +442,8 @@ export interface EnrichmentData {
   image_quality?: ImageQualityEnrichment | null;
   /** Pose analysis from ViTPose+ */
   pose?: PoseEnrichment | null;
+  /** Scene text (OCR) detection */
+  scene_text?: SceneTextEnrichment | null;
 }
 
 // ============================================================================
@@ -480,6 +534,19 @@ export function isPoseEnrichment(value: unknown): value is PoseEnrichment {
 }
 
 /**
+ * Type guard for SceneTextEnrichment.
+ */
+export function isSceneTextEnrichment(value: unknown): value is SceneTextEnrichment {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    Array.isArray(obj.texts) &&
+    Array.isArray(obj.service_providers) &&
+    typeof obj.processing_time_ms === 'number'
+  );
+}
+
+/**
  * Type guard for EnrichmentData.
  */
 export function isEnrichmentData(value: unknown): value is EnrichmentData {
@@ -509,6 +576,12 @@ export function isEnrichmentData(value: unknown): value is EnrichmentData {
   )
     return false;
   if (obj.pose !== undefined && obj.pose !== null && !isPoseEnrichment(obj.pose)) return false;
+  if (
+    obj.scene_text !== undefined &&
+    obj.scene_text !== null &&
+    !isSceneTextEnrichment(obj.scene_text)
+  )
+    return false;
 
   return true;
 }
@@ -820,4 +893,20 @@ export function getPoseEnrichmentResult(
     return enrichmentError('Invalid pose enrichment data');
   }
   return enrichmentSuccess(pose);
+}
+
+/**
+ * Safely extract scene text enrichment data from EnrichmentData.
+ * Returns an EnrichmentResult with type guards for safe access.
+ */
+export function getSceneTextEnrichmentResult(
+  data: EnrichmentData | null | undefined
+): EnrichmentResult<SceneTextEnrichment> {
+  if (!data) return enrichmentEmpty();
+  const sceneText = data.scene_text;
+  if (sceneText === null || sceneText === undefined) return enrichmentEmpty();
+  if (!isSceneTextEnrichment(sceneText)) {
+    return enrichmentError('Invalid scene text enrichment data');
+  }
+  return enrichmentSuccess(sceneText);
 }

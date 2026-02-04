@@ -1111,6 +1111,63 @@ ACTIVE_TRACKS_COUNT = Gauge(
     registry=_registry,
 )
 
+# -----------------------------------------------------------------------------
+# Scene OCR Metrics
+# -----------------------------------------------------------------------------
+# Metrics for tracking Scene OCR performance and usage in the enrichment pipeline.
+# Scene OCR extracts text from security camera frames and matches against service providers.
+
+SCENE_OCR_REQUESTS_TOTAL = Counter(
+    "hsi_scene_ocr_requests_total",
+    "Total number of Scene OCR requests by source type",
+    labelnames=["source"],  # source: full_frame, crop
+    registry=_registry,
+)
+
+SCENE_OCR_TEXTS_DETECTED_TOTAL = Counter(
+    "hsi_scene_ocr_texts_detected_total",
+    "Total number of text regions detected by Scene OCR",
+    registry=_registry,
+)
+
+SCENE_OCR_SERVICE_PROVIDERS_MATCHED_TOTAL = Counter(
+    "hsi_scene_ocr_service_providers_matched_total",
+    "Total number of service provider matches from Scene OCR",
+    labelnames=["category"],  # category: DELIVERY, UTILITY, MAINTENANCE, EMERGENCY, etc.
+    registry=_registry,
+)
+
+# Buckets for Scene OCR processing duration (in seconds)
+# Covers fast processing (50ms) to slow processing with multiple crops (5s)
+SCENE_OCR_PROCESSING_BUCKETS = (
+    0.05,  # 50ms - fast single frame
+    0.1,  # 100ms - typical single frame
+    0.25,  # 250ms - frame with few crops
+    0.5,  # 500ms - multiple crops
+    1.0,  # 1s - many crops or slow inference
+    2.0,  # 2s - high latency
+    5.0,  # 5s - timeout threshold
+)
+
+SCENE_OCR_PROCESSING_SECONDS = Histogram(
+    "hsi_scene_ocr_processing_seconds",
+    "Duration of Scene OCR processing in seconds by source type",
+    labelnames=["source"],  # source: full_frame, crop
+    buckets=SCENE_OCR_PROCESSING_BUCKETS,
+    registry=_registry,
+)
+
+# Buckets for Scene OCR confidence scores (0.0 to 1.0)
+# Matches confidence thresholds used in scene_ocr_service.py
+SCENE_OCR_CONFIDENCE_BUCKETS = (0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+
+SCENE_OCR_CONFIDENCE = Histogram(
+    "hsi_scene_ocr_confidence",
+    "Confidence scores for Scene OCR text detections",
+    buckets=SCENE_OCR_CONFIDENCE_BUCKETS,
+    registry=_registry,
+)
+
 # =============================================================================
 # MetricsService Class (NEM-1327)
 # =============================================================================
@@ -1752,6 +1809,52 @@ class MetricsService:
             count: Number of idle workers
         """
         WORKER_IDLE_COUNT.set(count)
+
+    # -------------------------------------------------------------------------
+    # Scene OCR Metrics
+    # -------------------------------------------------------------------------
+
+    def record_scene_ocr_request(self, source: str) -> None:
+        """Record a Scene OCR request by source type.
+
+        Args:
+            source: Source type of the OCR request ("full_frame" or "crop")
+        """
+        SCENE_OCR_REQUESTS_TOTAL.labels(source=source).inc()
+
+    def record_scene_ocr_texts_detected(self, count: int = 1) -> None:
+        """Record the number of text regions detected by Scene OCR.
+
+        Args:
+            count: Number of text regions detected (default 1)
+        """
+        SCENE_OCR_TEXTS_DETECTED_TOTAL.inc(count)
+
+    def record_scene_ocr_provider_match(self, category: str) -> None:
+        """Record a service provider match from Scene OCR.
+
+        Args:
+            category: Service provider category (e.g., "DELIVERY", "UTILITY",
+                "MAINTENANCE", "EMERGENCY", "FOOD_DELIVERY", "RIDESHARE")
+        """
+        SCENE_OCR_SERVICE_PROVIDERS_MATCHED_TOTAL.labels(category=category).inc()
+
+    def observe_scene_ocr_processing(self, source: str, duration_seconds: float) -> None:
+        """Record Scene OCR processing duration by source type.
+
+        Args:
+            source: Source type of the OCR request ("full_frame" or "crop")
+            duration_seconds: Processing duration in seconds
+        """
+        SCENE_OCR_PROCESSING_SECONDS.labels(source=source).observe(duration_seconds)
+
+    def observe_scene_ocr_confidence(self, confidence: float) -> None:
+        """Record a Scene OCR confidence score.
+
+        Args:
+            confidence: OCR confidence score (0.0-1.0)
+        """
+        SCENE_OCR_CONFIDENCE.observe(confidence)
 
     def update_worker_pool_metrics(self, active: int, busy: int, idle: int | None = None) -> None:
         """Update all worker pool metrics at once.
@@ -4078,6 +4181,58 @@ def update_worker_pool_metrics(active: int, busy: int, idle: int | None = None) 
     if idle is None:
         idle = max(0, active - busy)
     set_worker_idle_count(idle)
+
+
+# =============================================================================
+# Scene OCR Metric Helpers
+# =============================================================================
+
+
+def record_scene_ocr_request(source: str) -> None:
+    """Record a Scene OCR request by source type.
+
+    Args:
+        source: Source type of the OCR request ("full_frame" or "crop")
+    """
+    SCENE_OCR_REQUESTS_TOTAL.labels(source=source).inc()
+
+
+def record_scene_ocr_texts_detected(count: int = 1) -> None:
+    """Record the number of text regions detected by Scene OCR.
+
+    Args:
+        count: Number of text regions detected (default 1)
+    """
+    SCENE_OCR_TEXTS_DETECTED_TOTAL.inc(count)
+
+
+def record_scene_ocr_provider_match(category: str) -> None:
+    """Record a service provider match from Scene OCR.
+
+    Args:
+        category: Service provider category (e.g., "DELIVERY", "UTILITY",
+            "MAINTENANCE", "EMERGENCY", "FOOD_DELIVERY", "RIDESHARE")
+    """
+    SCENE_OCR_SERVICE_PROVIDERS_MATCHED_TOTAL.labels(category=category).inc()
+
+
+def observe_scene_ocr_processing(source: str, duration_seconds: float) -> None:
+    """Record Scene OCR processing duration by source type.
+
+    Args:
+        source: Source type of the OCR request ("full_frame" or "crop")
+        duration_seconds: Processing duration in seconds
+    """
+    SCENE_OCR_PROCESSING_SECONDS.labels(source=source).observe(duration_seconds)
+
+
+def observe_scene_ocr_confidence(confidence: float) -> None:
+    """Record a Scene OCR confidence score.
+
+    Args:
+        confidence: OCR confidence score (0.0-1.0)
+    """
+    SCENE_OCR_CONFIDENCE.observe(confidence)
 
 
 # =============================================================================

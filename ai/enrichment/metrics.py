@@ -2,7 +2,7 @@
 
 This module defines Prometheus metrics specific to the enrichment service's
 video analytics capabilities including action recognition, pose estimation,
-threat detection, demographics, and re-identification.
+threat detection, demographics, re-identification, and OCR operations.
 
 These metrics complement the existing metrics in model_manager.py (VRAM metrics)
 and model.py (inference latency metrics) by providing video analytics-specific
@@ -16,6 +16,7 @@ Usage:
         record_action_recognition_inference,
         record_pose_estimation_inference,
         record_reid_embedding_generated,
+        record_ocr_inference,
     )
 
     # Record action recognition inference
@@ -26,6 +27,9 @@ Usage:
 
     # Record re-ID embedding generation
     record_reid_embedding_generated(0.015)
+
+    # Record OCR inference
+    record_ocr_inference(duration_seconds=0.15, texts_detected=2, success=True)
 """
 
 from prometheus_client import Counter, Histogram, generate_latest
@@ -169,6 +173,57 @@ FACE_QUALITY_SCORES = Histogram(
 
 
 # =============================================================================
+# OCR Metrics (PaddleOCR License Plate Text Recognition)
+# =============================================================================
+
+OCR_INFERENCE_SECONDS = Histogram(
+    "enrichment_ocr_inference_seconds",
+    "PaddleOCR inference time in seconds for license plate text recognition",
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+)
+
+OCR_TEXTS_PER_IMAGE = Histogram(
+    "enrichment_ocr_texts_per_image",
+    "Number of text regions detected per image by PaddleOCR",
+    buckets=[0, 1, 2, 3, 5, 10, 20],
+)
+
+OCR_REQUESTS_TOTAL = Counter(
+    "enrichment_ocr_requests_total",
+    "Total number of OCR inference requests",
+    ["status"],  # success, error
+)
+
+OCR_ERRORS_TOTAL = Counter(
+    "enrichment_ocr_errors_total",
+    "Total number of OCR inference failures by error type",
+    ["error_type"],  # model_not_loaded, inference_error, invalid_image, timeout
+)
+
+OCR_CONFIDENCE = Histogram(
+    "enrichment_ocr_confidence",
+    "Aggregate OCR confidence scores for detected text",
+    buckets=[0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99],
+)
+
+OCR_IMAGE_QUALITY = Histogram(
+    "enrichment_ocr_image_quality",
+    "Image quality scores assessed before OCR inference",
+    buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+)
+
+OCR_ENHANCED_IMAGES_TOTAL = Counter(
+    "enrichment_ocr_enhanced_images_total",
+    "Total number of images that required low-light enhancement before OCR",
+)
+
+OCR_BLURRY_IMAGES_TOTAL = Counter(
+    "enrichment_ocr_blurry_images_total",
+    "Total number of images detected as blurry during OCR processing",
+)
+
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 
@@ -293,10 +348,74 @@ def record_face_quality_assessment(quality_score: float) -> None:
     FACE_QUALITY_SCORES.observe(quality_score)
 
 
+def record_ocr_inference(
+    duration_seconds: float,
+    texts_detected: int,
+    success: bool,
+    confidence: float | None = None,
+    image_quality: float | None = None,
+    is_enhanced: bool = False,
+    is_blurry: bool = False,
+) -> None:
+    """Record an OCR inference operation.
+
+    This function records metrics for PaddleOCR license plate text recognition
+    including inference latency, text detection counts, and quality metrics.
+
+    Args:
+        duration_seconds: Time taken for OCR inference in seconds.
+        texts_detected: Number of text regions detected in the image.
+        success: Whether the OCR inference completed successfully.
+        confidence: Aggregate OCR confidence score (0.0 to 1.0), if available.
+        image_quality: Image quality score (0.0 to 1.0) from quality assessment.
+        is_enhanced: Whether the image required low-light enhancement.
+        is_blurry: Whether motion blur was detected in the image.
+    """
+    # Record request status
+    status = "success" if success else "error"
+    OCR_REQUESTS_TOTAL.labels(status=status).inc()
+
+    # Record inference latency
+    OCR_INFERENCE_SECONDS.observe(duration_seconds)
+
+    # Record texts detected (only for successful inferences)
+    if success:
+        OCR_TEXTS_PER_IMAGE.observe(texts_detected)
+
+    # Record confidence if provided
+    if confidence is not None and confidence > 0:
+        OCR_CONFIDENCE.observe(confidence)
+
+    # Record image quality if provided
+    if image_quality is not None:
+        OCR_IMAGE_QUALITY.observe(image_quality)
+
+    # Track enhancement and blur flags
+    if is_enhanced:
+        OCR_ENHANCED_IMAGES_TOTAL.inc()
+
+    if is_blurry:
+        OCR_BLURRY_IMAGES_TOTAL.inc()
+
+
+def record_ocr_error(error_type: str) -> None:
+    """Record an OCR error occurrence.
+
+    Args:
+        error_type: Type of error that occurred. Common types include:
+            - model_not_loaded: OCR model was not loaded when inference was attempted
+            - inference_error: Error during PaddleOCR inference
+            - invalid_image: Image data was invalid or corrupted
+            - timeout: OCR inference timed out
+    """
+    OCR_ERRORS_TOTAL.labels(error_type=error_type).inc()
+
+
 def get_metrics() -> bytes:
     """Generate Prometheus metrics in exposition format.
 
     Returns:
         Prometheus metrics as bytes in exposition format.
     """
-    return generate_latest()
+    result: bytes = generate_latest()
+    return result

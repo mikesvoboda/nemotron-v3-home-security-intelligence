@@ -112,6 +112,10 @@ from backend.services.scene_change_detector import (
     SceneChangeResult,
     get_scene_change_detector,
 )
+from backend.services.scene_ocr_service import (
+    SceneOCRResult,
+    get_scene_ocr_service,
+)
 from backend.services.segformer_loader import (
     ClothingSegmentationResult,
 )
@@ -570,6 +574,8 @@ class EnrichmentResult:
     scene_change: SceneChangeResult | None = None
     violence_detection: ViolenceDetectionResult | None = None
     weather_classification: WeatherResult | None = None
+    # Scene OCR results (text from uniforms, vehicles, signs)
+    scene_ocr: SceneOCRResult | None = None
     clothing_classifications: dict[str, ClothingClassification] = field(default_factory=dict)
     clothing_segmentation: dict[str, ClothingSegmentationResult] = field(default_factory=dict)
     vehicle_classifications: dict[str, VehicleClassificationResult] = field(default_factory=dict)
@@ -1749,6 +1755,7 @@ class EnrichmentPipeline:
         depth_estimation_enabled: bool = True,
         pose_estimation_enabled: bool = True,
         action_recognition_enabled: bool = True,
+        scene_ocr_enabled: bool = True,
         household_matching_enabled: bool = False,
         frame_buffer: FrameBuffer | None = None,
         redis_client: Any | None = None,
@@ -1780,6 +1787,7 @@ class EnrichmentPipeline:
             depth_estimation_enabled: Enable Depth Anything V2 depth estimation for spatial context
             pose_estimation_enabled: Enable ViTPose pose estimation for person detections
             action_recognition_enabled: Enable X-CLIP action recognition from frame sequences
+            scene_ocr_enabled: Enable scene OCR for text extraction (uniforms, vehicles, signs)
             household_matching_enabled: Enable matching persons/vehicles against household database (NEM-3314).
                                        Disabled by default for backward compatibility.
             frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action recognition.
@@ -1820,6 +1828,7 @@ class EnrichmentPipeline:
         self.depth_estimation_enabled = depth_estimation_enabled
         self.pose_estimation_enabled = pose_estimation_enabled
         self.action_recognition_enabled = action_recognition_enabled
+        self.scene_ocr_enabled = scene_ocr_enabled
         self.household_matching_enabled = household_matching_enabled
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
@@ -1836,6 +1845,7 @@ class EnrichmentPipeline:
         # Use provided reid_service (with HybridEntityStorage) or global (Redis-only)
         self._reid_service = reid_service if reid_service is not None else get_reid_service()
         self._scene_detector = get_scene_change_detector()
+        self._scene_ocr_service = get_scene_ocr_service() if scene_ocr_enabled else None
 
         logger.info(
             f"EnrichmentPipeline initialized: "
@@ -2068,6 +2078,11 @@ class EnrichmentPipeline:
                 persons, pil_image
             )
 
+        # Scene OCR - Full Frame (Phase 1, runs in parallel)
+        # Extracts text from signs, house numbers, etc.
+        if self.scene_ocr_enabled:
+            phase1_tasks["scene_ocr_frame"] = self._safe_run_scene_ocr_frame(pil_image)
+
         # Execute Phase 1 tasks in parallel
         if phase1_tasks:
             phase1_keys = list(phase1_tasks.keys())
@@ -2132,6 +2147,31 @@ class EnrichmentPipeline:
                 await self._run_household_matching(high_conf_detections, result)
             except Exception as e:
                 self._handle_enrichment_error("household_matching", e, result)
+
+        # Scene OCR - Crop OCR (Phase 2, needs detections)
+        # Processes person/vehicle/package crops for uniform/vehicle text
+        if self.scene_ocr_enabled and high_conf_detections:
+            try:
+                # Get the frame-only result from Phase 1 (if available)
+                frame_ocr_result = result.scene_ocr
+                # Run crop OCR and merge with frame results
+                result.scene_ocr = await self._safe_run_scene_ocr_crops(
+                    pil_image, high_conf_detections, frame_ocr_result
+                )
+                # Log scene OCR stats
+                if result.scene_ocr:
+                    scene_text_count = len(result.scene_ocr.scene_texts)
+                    detection_ocr_count = len(result.scene_ocr.detection_ocr)
+                    service_match_count = sum(
+                        1 for d in result.scene_ocr.detection_ocr.values() if d.service_match
+                    )
+                    logger.debug(
+                        f"Scene OCR complete: {scene_text_count} scene texts, "
+                        f"{detection_ocr_count} detection OCRs, "
+                        f"{service_match_count} service matches"
+                    )
+            except Exception as e:
+                self._handle_enrichment_error("scene_ocr", e, result)
 
     def _process_phase1_results(
         self,
@@ -2254,6 +2294,15 @@ class EnrichmentPipeline:
             elif seg_result:
                 result.clothing_segmentation = seg_result
 
+        # Scene OCR Frame (Phase 1 partial result - frame-only OCR)
+        if "scene_ocr_frame" in phase1_dict:
+            ocr_frame_result = phase1_dict["scene_ocr_frame"]
+            if isinstance(ocr_frame_result, Exception):
+                self._handle_enrichment_error("scene_ocr_frame", ocr_frame_result, result)
+            elif ocr_frame_result:
+                # Store partial result; Phase 2 will complete with crop OCR
+                result.scene_ocr = ocr_frame_result
+
     # ==========================================================================
     # Safe wrapper methods for Phase 1 parallel execution
     # These methods catch exceptions and return them for asyncio.gather
@@ -2363,6 +2412,86 @@ class EnrichmentPipeline:
     ) -> dict[str, ClothingSegmentationResult]:
         """Safe wrapper for clothing segmentation."""
         return await self._segment_person_clothing(persons, image)
+
+    async def _safe_run_scene_ocr_frame(
+        self,
+        image: Image.Image,
+    ) -> SceneOCRResult | None:
+        """Safe wrapper for full-frame scene OCR.
+
+        Runs in Phase 1 parallel with other enrichment models.
+        Extracts text from the full frame (signs, house numbers, etc.)
+
+        Args:
+            image: Full frame PIL Image
+
+        Returns:
+            SceneOCRResult with frame-level OCR results, or None on error
+        """
+        if self._scene_ocr_service is None:
+            return None
+
+        try:
+            # Run full-frame OCR only (no crops yet - detections not processed)
+            # This extracts scene text like signs, house numbers, etc.
+            result = await self._scene_ocr_service._run_full_frame_ocr(image)
+            # Return a partial SceneOCRResult with just frame results
+            # Crop results will be added in Phase 2
+            from backend.services.scene_ocr_service import SceneOCRResult as OCRResult
+            from backend.services.scene_ocr_service import SceneTextResult, _classify_text_type
+
+            scene_texts = []
+            for ocr in result:
+                # Determine if uncertain (confidence 0.50-0.79)
+                is_uncertain = 0.50 <= ocr.confidence < 0.80
+                scene_texts.append(
+                    SceneTextResult(
+                        value=ocr.text,
+                        confidence=ocr.confidence,
+                        bbox=ocr.bbox,
+                        text_type=_classify_text_type(ocr.text),
+                        is_uncertain=is_uncertain,
+                    )
+                )
+            return OCRResult(scene_texts=scene_texts)
+        except Exception as e:
+            logger.warning(f"Full-frame scene OCR failed: {e}")
+            return None
+
+    async def _safe_run_scene_ocr_crops(
+        self,
+        image: Image.Image,
+        detections: list[DetectionInput],
+        frame_ocr_result: SceneOCRResult | None,
+    ) -> SceneOCRResult | None:
+        """Run crop OCR and merge with frame results.
+
+        Runs in Phase 2 after detections are processed.
+        Extracts text from person, vehicle, and package crops.
+
+        Args:
+            image: Full frame PIL Image
+            detections: List of high-confidence detections
+            frame_ocr_result: Previous frame OCR result from Phase 1
+
+        Returns:
+            Complete SceneOCRResult with merged frame and crop OCR, or None on error
+        """
+        if self._scene_ocr_service is None:
+            return frame_ocr_result
+
+        try:
+            # Run the complete process_frame which does crop OCR and deduplication
+            result = await self._scene_ocr_service.process_frame(image, detections)
+
+            # If we had frame results from Phase 1, the process_frame will have
+            # re-run frame OCR. This is acceptable for now as it ensures consistency.
+            # Future optimization: pass frame results to avoid re-running
+            return result
+        except Exception as e:
+            logger.warning(f"Scene OCR crop processing failed: {e}")
+            # Return the frame-only results if we have them
+            return frame_ocr_result
 
     async def _classify_vehicle_via_service(
         self,
