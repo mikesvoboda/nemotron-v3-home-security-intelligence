@@ -528,6 +528,8 @@ exclude = [
     "backend/tests/unit/core/test_redis_memory.py",  # Empty async generator pattern
     "backend/tests/integration/test_gpu_config_workflow.py",  # Unreachable code in mock function
     "backend/tests/unit/core/test_database_pool.py",  # Unreachable code in failing_connect mock
+    "backend/tests/integration/test_system_api.py",  # Unreachable yield in error-raising async generator mock
+    "backend/tests/unit/routes/test_system_routes.py",  # Unreachable yield in async generator mocks
 ]
 
 # =============================================================================

@@ -1433,6 +1433,8 @@ class PipelineWorkerManager:
         enable_metrics_worker: bool = True,
         worker_stop_timeout: float | None = None,
         websocket_emitter: WebSocketEmitterService | None = None,
+        detection_worker_count: int | None = None,
+        analysis_worker_count: int | None = None,
     ) -> None:
         """Initialize pipeline worker manager.
 
@@ -1450,53 +1452,81 @@ class PipelineWorkerManager:
                 If None, workers use their default timeouts (10-30s).
             websocket_emitter: Optional WebSocketEmitterService for broadcasting worker events
                 (NEM-2461). If None, worker events will not be broadcast.
+            detection_worker_count: Number of detection workers to create. If None, uses settings.
+            analysis_worker_count: Number of analysis workers to create. If None, uses settings.
         """
         self._redis = redis_client
         self._websocket_emitter = websocket_emitter
         self._frame_buffer = frame_buffer
         settings = get_settings()
 
+        # Get worker counts from settings or override (NEM-5375)
+        self._detection_worker_count = (
+            detection_worker_count
+            if detection_worker_count is not None
+            else settings.detection_worker_count
+        )
+        self._analysis_worker_count = (
+            analysis_worker_count
+            if analysis_worker_count is not None
+            else settings.analysis_worker_count
+        )
+
         # Create shared batch aggregator for detection and timeout workers
         self._aggregator = BatchAggregator(redis_client=redis_client)
 
-        # Initialize workers
-        self._detection_worker: DetectionQueueWorker | None = None
-        self._analysis_worker: AnalysisQueueWorker | None = None
+        # Initialize worker lists (NEM-5375: support multiple workers)
+        self._detection_workers: list[DetectionQueueWorker] = []
+        self._analysis_workers: list[AnalysisQueueWorker] = []
         self._timeout_worker: BatchTimeoutWorker | None = None
         self._metrics_worker: QueueMetricsWorker | None = None
 
         # Store stop timeout for workers (None means use default)
         self._worker_stop_timeout = worker_stop_timeout
 
+        # Create multiple detection workers for parallel processing (NEM-5375)
         if enable_detection_worker:
-            if worker_stop_timeout is not None:
-                self._detection_worker = DetectionQueueWorker(
-                    redis_client=redis_client,
-                    detector_client=detector_client,
-                    batch_aggregator=self._aggregator,
-                    frame_buffer=self._frame_buffer,
-                    stop_timeout=worker_stop_timeout,
-                )
-            else:
-                self._detection_worker = DetectionQueueWorker(
-                    redis_client=redis_client,
-                    detector_client=detector_client,
-                    batch_aggregator=self._aggregator,
-                    frame_buffer=self._frame_buffer,
-                )
+            for i in range(self._detection_worker_count):
+                worker_name = f"detection-{i}"
+                detection_worker: DetectionQueueWorker
+                if worker_stop_timeout is not None:
+                    detection_worker = DetectionQueueWorker(
+                        redis_client=redis_client,
+                        detector_client=detector_client,
+                        batch_aggregator=self._aggregator,
+                        frame_buffer=self._frame_buffer,
+                        stop_timeout=worker_stop_timeout,
+                        worker_name=worker_name,
+                    )
+                else:
+                    detection_worker = DetectionQueueWorker(
+                        redis_client=redis_client,
+                        detector_client=detector_client,
+                        batch_aggregator=self._aggregator,
+                        frame_buffer=self._frame_buffer,
+                        worker_name=worker_name,
+                    )
+                self._detection_workers.append(detection_worker)
 
+        # Create multiple analysis workers for parallel processing (NEM-5375)
         if enable_analysis_worker:
-            if worker_stop_timeout is not None:
-                self._analysis_worker = AnalysisQueueWorker(
-                    redis_client=redis_client,
-                    analyzer=analyzer,
-                    stop_timeout=worker_stop_timeout,
-                )
-            else:
-                self._analysis_worker = AnalysisQueueWorker(
-                    redis_client=redis_client,
-                    analyzer=analyzer,
-                )
+            for i in range(self._analysis_worker_count):
+                worker_name = f"analysis-{i}"
+                analysis_worker: AnalysisQueueWorker
+                if worker_stop_timeout is not None:
+                    analysis_worker = AnalysisQueueWorker(
+                        redis_client=redis_client,
+                        analyzer=analyzer,
+                        stop_timeout=worker_stop_timeout,
+                        worker_name=worker_name,
+                    )
+                else:
+                    analysis_worker = AnalysisQueueWorker(
+                        redis_client=redis_client,
+                        analyzer=analyzer,
+                        worker_name=worker_name,
+                    )
+                self._analysis_workers.append(analysis_worker)
 
         if enable_timeout_worker:
             # Use settings for batch check interval (default 5s for reduced latency)
@@ -1673,11 +1703,19 @@ class PipelineWorkerManager:
             "workers": {},
         }
 
-        if self._detection_worker:
-            status["workers"]["detection"] = self._detection_worker.stats.to_dict()
+        # NEM-5375: Report status for all detection workers
+        if self._detection_workers:
+            status["workers"]["detection"] = {
+                "count": len(self._detection_workers),
+                "workers": [worker.stats.to_dict() for worker in self._detection_workers],
+            }
 
-        if self._analysis_worker:
-            status["workers"]["analysis"] = self._analysis_worker.stats.to_dict()
+        # NEM-5375: Report status for all analysis workers
+        if self._analysis_workers:
+            status["workers"]["analysis"] = {
+                "count": len(self._analysis_workers),
+                "workers": [worker.stats.to_dict() for worker in self._analysis_workers],
+            }
 
         if self._timeout_worker:
             status["workers"]["timeout"] = self._timeout_worker.stats.to_dict()
@@ -1701,20 +1739,29 @@ class PipelineWorkerManager:
             logger.warning("PipelineWorkerManager already running")
             return
 
-        logger.info("Starting PipelineWorkerManager")
+        logger.info(
+            "Starting PipelineWorkerManager",
+            extra={
+                "detection_workers": len(self._detection_workers),
+                "analysis_workers": len(self._analysis_workers),
+            },
+        )
         self._running = True
 
         # Install signal handlers (only once)
         if not self._signal_handlers_installed:
             self._install_signal_handlers()
 
-        # Start workers using TaskGroup for structured concurrency
+        # Start workers using TaskGroup for structured concurrency (NEM-5375)
         # If any worker fails to start, all others are cancelled automatically
         async with asyncio.TaskGroup() as tg:
-            if self._detection_worker:
-                tg.create_task(self._detection_worker.start())
-            if self._analysis_worker:
-                tg.create_task(self._analysis_worker.start())
+            # Start all detection workers
+            for detection_worker in self._detection_workers:
+                tg.create_task(detection_worker.start())
+            # Start all analysis workers
+            for analysis_worker in self._analysis_workers:
+                tg.create_task(analysis_worker.start())
+            # Start singleton workers
             if self._timeout_worker:
                 tg.create_task(self._timeout_worker.start())
             if self._metrics_worker:
@@ -1722,19 +1769,19 @@ class PipelineWorkerManager:
 
         logger.info("PipelineWorkerManager started all workers")
 
-        # Broadcast worker started events (NEM-2461)
-        if self._detection_worker:
+        # Broadcast worker started events (NEM-2461, NEM-5375)
+        for i, _detection_worker in enumerate(self._detection_workers):
             await broadcast_worker_event(
                 self._websocket_emitter,
                 "worker.started",
-                "detection_worker",
+                f"detection_worker_{i}",
                 "detection",
             )
-        if self._analysis_worker:
+        for i, _analysis_worker in enumerate(self._analysis_workers):
             await broadcast_worker_event(
                 self._websocket_emitter,
                 "worker.started",
-                "analysis_worker",
+                f"analysis_worker_{i}",
                 "analysis",
             )
         if self._timeout_worker:
@@ -1767,14 +1814,17 @@ class PipelineWorkerManager:
         logger.info("Stopping PipelineWorkerManager")
         self._running = False
 
-        # Stop workers in parallel using TaskGroup for structured concurrency
+        # Stop workers in parallel using TaskGroup for structured concurrency (NEM-5375)
         # Catch ExceptionGroup for best-effort shutdown (equivalent to return_exceptions=True)
         try:
             async with asyncio.TaskGroup() as tg:
-                if self._detection_worker:
-                    tg.create_task(self._detection_worker.stop())
-                if self._analysis_worker:
-                    tg.create_task(self._analysis_worker.stop())
+                # Stop all detection workers
+                for detection_worker in self._detection_workers:
+                    tg.create_task(detection_worker.stop())
+                # Stop all analysis workers
+                for analysis_worker in self._analysis_workers:
+                    tg.create_task(analysis_worker.stop())
+                # Stop singleton workers
                 if self._timeout_worker:
                     tg.create_task(self._timeout_worker.stop())
                 if self._metrics_worker:
@@ -1790,24 +1840,24 @@ class PipelineWorkerManager:
 
         logger.info("PipelineWorkerManager stopped all workers")
 
-        # Broadcast worker stopped events (NEM-2461)
-        if self._detection_worker:
+        # Broadcast worker stopped events (NEM-2461, NEM-5375)
+        for i, detection_worker in enumerate(self._detection_workers):
             await broadcast_worker_event(
                 self._websocket_emitter,
                 "worker.stopped",
-                "detection_worker",
+                f"detection_worker_{i}",
                 "detection",
                 reason="graceful_shutdown",
-                items_processed=self._detection_worker.stats.items_processed,
+                items_processed=detection_worker.stats.items_processed,
             )
-        if self._analysis_worker:
+        for i, analysis_worker in enumerate(self._analysis_workers):
             await broadcast_worker_event(
                 self._websocket_emitter,
                 "worker.stopped",
-                "analysis_worker",
+                f"analysis_worker_{i}",
                 "analysis",
                 reason="graceful_shutdown",
-                items_processed=self._analysis_worker.stats.items_processed,
+                items_processed=analysis_worker.stats.items_processed,
             )
         if self._timeout_worker:
             await broadcast_worker_event(

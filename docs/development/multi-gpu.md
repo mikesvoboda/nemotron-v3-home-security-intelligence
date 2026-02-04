@@ -48,13 +48,20 @@ The system is optimized for configurations like:
 
 ### VRAM Requirements by Service
 
-| Service       | Model                        | VRAM Estimate  |
-| ------------- | ---------------------------- | -------------- |
-| ai-llm        | Nemotron-3-Nano-30B (Q4_K_M) | ~21.7 GB       |
-| ai-yolo26     | YOLO26                       | ~650 MB        |
-| ai-florence   | Florence-2-Large             | ~1.5 GB        |
-| ai-clip       | CLIP ViT-L                   | ~1.2 GB        |
-| ai-enrichment | Model Zoo (9 models)         | ~6.8 GB budget |
+| Service             | Model                        | VRAM Estimate  | Default GPU |
+| ------------------- | ---------------------------- | -------------- | ----------- |
+| ai-llm              | Nemotron-3-Nano-30B (Q4_K_M) | ~14-18 GB      | 0           |
+| ai-yolo26           | YOLO26 TensorRT FP16         | ~5 MB          | 1           |
+| ai-florence         | Florence-2-Large             | ~1.5 GB        | 1           |
+| ai-clip             | CLIP ViT-L TensorRT          | ~0.8 GB        | 1           |
+| ai-enrichment-light | Pose/Threat/Reid/Pet/Depth   | ~1.2 GB        | 1           |
+| ai-enrichment       | Vehicle/Fashion/Demographics | ~4.3 GB budget | 1           |
+
+**Note (NEM-5369):** VRAM estimates for ai-llm depend on context size and flash attention settings:
+
+- 131K context: ~21.7 GB
+- 65K context: ~18 GB
+- 32K context with flash attention: ~14-15 GB (default configuration)
 
 ---
 

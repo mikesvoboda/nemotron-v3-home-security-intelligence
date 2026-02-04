@@ -269,6 +269,69 @@ def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa:
 
 
 # =============================================================================
+# Meta Tensor Utilities (NEM-5371)
+# =============================================================================
+# Helper functions for detecting and materializing meta tensors (lazy-loaded weights).
+# Meta tensors are placeholders without actual data, used during model saving.
+# Calling .to(device) on such tensors raises NotImplementedError.
+#
+# This pattern is used in vehicle_damage_loader.py and should be applied
+# consistently across all model loaders to prevent "Cannot copy out of meta tensor" errors.
+
+
+def _has_meta_tensors(model: Any) -> bool:
+    """Check if a model contains meta tensors (lazy-loaded weights).
+
+    Meta tensors are placeholders without actual data, used for lazy weight loading.
+    Calling .to(device) on such tensors raises NotImplementedError.
+
+    Args:
+        model: PyTorch model to check
+
+    Returns:
+        True if any parameter is on the meta device
+    """
+    try:
+        return any(param.device.type == "meta" for param in model.parameters())
+    except Exception:
+        return False
+
+
+def _materialize_meta_tensors(model: Any, device: str) -> Any:
+    """Materialize meta tensors by using to_empty() + load_state_dict.
+
+    When models are saved with meta tensors (lazy initialization), calling
+    model.to(device) raises:
+        NotImplementedError: Cannot copy out of meta tensor; no data!
+
+    The fix is to use to_empty() to create empty tensors on the target device,
+    then reload the state_dict with assign=True to populate them.
+
+    Args:
+        model: Model with potential meta tensors
+        device: Target device ("cuda" or "cpu")
+
+    Returns:
+        Model with materialized tensors on the target device
+    """
+    logger.info(f"Materializing meta tensors to device: {device}")
+
+    # Get the current state dict before to_empty()
+    # We need the actual weights from the checkpoint
+    state_dict = model.state_dict()
+
+    # Move model structure to device without copying tensor data
+    model = model.to_empty(device=torch.device(device))
+
+    # Reload the state dict with assign=True to populate the empty tensors
+    # assign=True replaces parameter tensors in-place rather than copying
+    model.load_state_dict(state_dict, assign=True)
+
+    logger.info("Meta tensors materialized successfully")
+    return model
+
+
+# =============================================================================
 # Vehicle Segment Classification (ResNet-50)
 # =============================================================================
 
@@ -767,11 +830,28 @@ class ClothingClassifier:
             target_device = "cpu"
             self.device = "cpu"
 
-        # Load model and preprocess using open_clip with device specified
-        # This loads weights directly onto the target device, avoiding the
-        # meta tensor issue that occurs when loading to CPU then moving
-        self.model, self.preprocess = create_model_from_pretrained(hub_path, device=target_device)
+        # Load model and preprocess using open_clip
+        # Note: We load to CPU first to check for meta tensors, then move to target device
+        # This is more robust than relying on the device parameter which may not handle
+        # all meta tensor cases (NEM-5371)
+        self.model, self.preprocess = create_model_from_pretrained(hub_path, device="cpu")
         self.tokenizer = get_tokenizer(hub_path)
+
+        # Check if model has meta tensors and handle them properly (NEM-5371)
+        # This can happen when models are saved with lazy weight initialization
+        if _has_meta_tensors(self.model):
+            logger.warning(
+                "ClothingClassifier contains meta tensors (lazy-loaded weights). "
+                "Materializing tensors to avoid 'Cannot copy out of meta tensor' error."
+            )
+            try:
+                self.model = _materialize_meta_tensors(self.model, target_device)
+            except Exception as e:
+                logger.error(f"Meta tensor materialization failed: {e}")
+                raise RuntimeError(f"Failed to materialize meta tensors: {e}") from e
+        # No meta tensors, safe to move directly
+        elif target_device != "cpu":
+            self.model = self.model.to(target_device)
 
         # Check if tokenizer is a T5Tokenizer (which doesn't support batch_encode_plus in transformers 5.0+)
         # Store a flag to use direct tokenization for T5-based models
