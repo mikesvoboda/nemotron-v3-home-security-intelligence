@@ -14,6 +14,7 @@ Tests coverage for backend/api/routes/system.py focusing on:
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Generator
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -48,6 +49,36 @@ from backend.core.redis import get_redis
 # =============================================================================
 # Test Fixtures
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def reset_system_module_state() -> Generator[None]:
+    """Reset system module global state before each test.
+
+    This fixture ensures test isolation by clearing all caches and
+    module-level state that could leak between tests when running
+    with pytest-xdist (parallel test execution).
+
+    The performance metrics cache has a 5-second TTL, so tests running
+    within that window could get stale cached data from previous tests
+    if not cleared.
+    """
+    import backend.api.routes.system as system_module
+    from backend.api.routes.system import clear_health_cache
+
+    # Clear all endpoint caches
+    clear_health_cache()
+
+    # Reset module-level collector/worker references to ensure each test
+    # can set its own mocks without interference
+    original_collector = system_module._performance_collector
+    system_module._performance_collector = None
+
+    yield
+
+    # Restore original state and clear cache again
+    system_module._performance_collector = original_collector
+    clear_health_cache()
 
 
 @pytest.fixture
