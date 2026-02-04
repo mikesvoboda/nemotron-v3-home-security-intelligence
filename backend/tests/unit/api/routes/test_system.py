@@ -1793,6 +1793,10 @@ class TestPerformanceMetricsEndpoint:
 
         import backend.api.routes.system as system_module
 
+        # Clear cache to ensure mock is called (prevents stale cached results
+        # from other parallel tests)
+        system_module.clear_health_cache()
+
         original_collector = system_module._performance_collector
         try:
             system_module._performance_collector = mock_collector
@@ -1954,6 +1958,10 @@ class TestPerformanceMetricsEndpoint:
         mock_collector.collect_all.return_value = mock_update
 
         import backend.api.routes.system as system_module
+
+        # Clear cache to ensure mock is called (prevents stale cached results
+        # from other parallel tests)
+        system_module.clear_health_cache()
 
         original_collector = system_module._performance_collector
         try:
