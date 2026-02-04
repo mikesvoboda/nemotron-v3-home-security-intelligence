@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Nemotron LLM Service Dockerfile
 # Multi-stage build for llama.cpp with CUDA support
 

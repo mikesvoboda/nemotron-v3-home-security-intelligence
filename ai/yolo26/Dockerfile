@@ -78,11 +78,11 @@ ENV PORT=8095
 ENV YOLO26_CONFIDENCE=0.5
 ENV YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
 
+# Create model directory (use numeric UID:GID for NVIDIA image compatibility)
+RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
+
 # Expose port
 EXPOSE 8095
-
-# Create model directory as root and set ownership
-RUN mkdir -p /models/yolo26/exports && chown -R 1000:1000 /models
 
 # Switch to non-root user (use numeric UID for compatibility)
 USER 1000
