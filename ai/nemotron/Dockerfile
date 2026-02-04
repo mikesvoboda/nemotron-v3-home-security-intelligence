@@ -75,6 +75,9 @@ RUN mkdir -p /models && chown -R llama:llama /models
 # Switch to non-root user
 USER llama
 
+# Create model directory as non-root user (owns directory automatically)
+RUN mkdir -p /models
+
 # Health check with 120s start period for large model loading
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
