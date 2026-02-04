@@ -124,14 +124,14 @@ ENV HF_HUB_CACHE=/cache/huggingface/hub
 ENV TRANSFORMERS_CACHE=/cache/huggingface
 ENV HF_HUB_DISABLE_TELEMETRY=1
 
-# Create cache directory for HuggingFace models
-RUN mkdir -p /cache/huggingface && chown -R enrichment:enrichment /cache/huggingface
-
 # Expose port
 EXPOSE 8094
 
 # Switch to non-root user
 USER enrichment
+
+# Create cache directory for HuggingFace models as non-root user (owns directory automatically)
+RUN mkdir -p /cache/huggingface
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 180s allows time for loading all models (vehicle, pet, clothing, pose, re-id)

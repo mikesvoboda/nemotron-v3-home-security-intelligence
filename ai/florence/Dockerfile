@@ -115,14 +115,14 @@ ENV HF_HUB_CACHE=/cache/huggingface/hub
 ENV TRANSFORMERS_CACHE=/cache/huggingface
 ENV HF_HUB_DISABLE_TELEMETRY=1
 
-# Create cache directory for HuggingFace models
-RUN mkdir -p /cache/huggingface && chown -R florence:florence /cache/huggingface
-
 # Expose port
 EXPOSE 8092
 
 # Switch to non-root user
 USER florence
+
+# Create cache directory for HuggingFace models as non-root user (owns directory automatically)
+RUN mkdir -p /cache/huggingface
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 120s allows time for model loading (Florence-2 is larger)
