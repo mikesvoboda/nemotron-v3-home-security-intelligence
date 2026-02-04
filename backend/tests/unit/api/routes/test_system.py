@@ -1842,6 +1842,8 @@ class TestPerformanceMetricsEndpoint:
 
         original_collector = system_module._performance_collector
         try:
+            # Clear cache to ensure collector is actually called
+            system_module.clear_health_cache()
             system_module._performance_collector = mock_collector
 
             response = await async_client.get("/api/system/performance")
