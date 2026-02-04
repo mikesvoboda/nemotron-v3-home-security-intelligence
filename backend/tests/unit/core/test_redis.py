@@ -1809,7 +1809,9 @@ def test_redis_client_password_from_constructor():
         password="test_password",  # pragma: allowlist secret
     )
 
-    assert client._password == "test_password"  # pragma: allowlist secret
+    # Password is wrapped in SecretStr when passed to constructor
+    assert client._password is not None
+    assert client._password.get_secret_value() == "test_password"  # pragma: allowlist secret
 
 
 def test_redis_client_password_none_by_default():
@@ -1866,7 +1868,11 @@ def test_redis_client_constructor_password_overrides_settings():
 
         client = RedisClient(password="constructor_password")  # pragma: allowlist secret
 
-        assert client._password == "constructor_password"  # pragma: allowlist secret
+        # Password is wrapped in SecretStr when passed to constructor
+        assert client._password is not None
+        assert (
+            client._password.get_secret_value() == "constructor_password"
+        )  # pragma: allowlist secret
 
 
 @pytest.mark.asyncio
