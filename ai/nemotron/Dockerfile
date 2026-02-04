@@ -56,9 +56,6 @@ COPY --from=builder /build/llama.cpp/build/bin/llama-server /usr/local/bin/llama
 COPY --from=builder /build/llama.cpp/build/bin/*.so* /usr/local/lib/
 RUN chmod +x /usr/local/bin/llama-server && ldconfig
 
-# Create model directory
-RUN mkdir -p /models && chown llama:llama /models
-
 # Environment variables for configuration
 ENV MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ENV PORT=8091
@@ -74,6 +71,9 @@ EXPOSE 8091
 
 # Switch to non-root user
 USER llama
+
+# Create model directory as non-root user (owns directory automatically)
+RUN mkdir -p /models
 
 # Health check with 120s start period for large model loading
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
