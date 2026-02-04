@@ -320,6 +320,8 @@ class ContainerManager:
         output.success("Core infrastructure started")
 
         # Start observability services (pyroscope, loki must start before alloy)
+        # NOTE: cadvisor and dcgm-exporter are started separately with sudo podman
+        # because they require privileged access (see start_privileged_monitoring)
         output.step("Starting observability services...")
         observability_services = [
             "pyroscope",
@@ -330,6 +332,8 @@ class ContainerManager:
             "json-exporter",
             "redis-exporter",
             "node-exporter",
+            "jaeger",
+            "alertmanager",
         ]
 
         success = self.runtime.compose_up(
@@ -528,6 +532,123 @@ class ContainerManager:
             raise ContainerError("frontend", "start", "Failed to start container")
 
         output.success("Frontend started")
+
+    async def start_privileged_monitoring(self) -> None:
+        """Start privileged monitoring containers (dcgm-exporter, cadvisor).
+
+        These containers require root access and must be started with sudo podman.
+        They run in rootful mode with host networking.
+        """
+        output.step("Starting privileged monitoring containers...")
+
+        # Stop any existing privileged containers first
+        for name in ["dcgm-exporter", "cadvisor"]:
+            # Stop in rootless namespace
+            self.runtime.process.run(
+                [self.runtime.cmd, "rm", "-f", name],
+                check=False,
+                capture=True,
+            )
+            # Stop in rootful namespace
+            self.runtime.process.run(
+                ["sudo", self.runtime.cmd, "rm", "-f", name],
+                check=False,
+                capture=True,
+            )
+
+        # Start DCGM Exporter (GPU metrics)
+        output.info("Starting dcgm-exporter (privileged)...")
+        dcgm_result = self.runtime.process.run(
+            [
+                "sudo",
+                self.runtime.cmd,
+                "run",
+                "-d",
+                "--name",
+                "dcgm-exporter",
+                "--network",
+                "host",
+                "--privileged",
+                "--device",
+                "nvidia.com/gpu=all",
+                "-v",
+                f"{self.config.project_root}/monitoring/dcgm/custom-counters.csv:"
+                "/etc/dcgm-exporter/default-counters.csv:ro",
+                "-e",
+                f"DCGM_EXPORTER_LISTEN=:{self.config.dcgm_exporter_port}",
+                "-e",
+                "DCGM_EXPORTER_KUBERNETES=false",
+                "--restart",
+                "unless-stopped",
+                "nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04",
+            ],
+            check=False,
+            capture=True,
+        )
+
+        if dcgm_result.success:
+            output.success("dcgm-exporter started")
+        else:
+            output.warn(f"Failed to start dcgm-exporter: {dcgm_result.stderr}")
+
+        # Start cAdvisor (container metrics)
+        output.info("Starting cadvisor (privileged)...")
+        cadvisor_result = self.runtime.process.run(
+            [
+                "sudo",
+                self.runtime.cmd,
+                "run",
+                "-d",
+                "--name",
+                "cadvisor",
+                "--network",
+                "host",
+                "--privileged",
+                "--device",
+                "/dev/kmsg",
+                "-v",
+                "/:/rootfs:ro",
+                "-v",
+                "/var/run:/var/run:ro",
+                "-v",
+                "/sys:/sys:ro",
+                "-v",
+                "/var/lib/containers:/var/lib/containers:ro",
+                "--restart",
+                "unless-stopped",
+                "gcr.io/cadvisor/cadvisor:v0.49.1",
+                f"--port={self.config.cadvisor_port}",
+            ],
+            check=False,
+            capture=True,
+        )
+
+        if cadvisor_result.success:
+            output.success("cadvisor started")
+        else:
+            output.warn(f"Failed to start cadvisor: {cadvisor_result.stderr}")
+
+        output.success("Privileged monitoring containers started")
+
+    async def stop_privileged_monitoring(self) -> None:
+        """Stop privileged monitoring containers."""
+        output.step("Stopping privileged monitoring containers...")
+
+        for name in ["dcgm-exporter", "cadvisor"]:
+            # Stop in rootful namespace
+            self.runtime.process.run(
+                ["sudo", self.runtime.cmd, "stop", name],
+                check=False,
+                capture=True,
+                timeout=10,
+            )
+            self.runtime.process.run(
+                ["sudo", self.runtime.cmd, "rm", "-f", name],
+                check=False,
+                capture=True,
+            )
+
+        output.success("Privileged monitoring containers stopped")
 
     # =========================================================================
     # Status operations

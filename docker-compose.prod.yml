@@ -535,6 +535,9 @@ services:
       - ./backend/data:/app/data:z,U
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
+      # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
+      # Enables backend to manage AI service containers for self-healing
+      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
     environment:
       # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
       # To enable, use python:3.14t-slim-bookworm image and uncomment:
@@ -589,9 +592,9 @@ services:
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-nemotron-backend}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy:4317}
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
-      # Container orchestrator: connect to Podman API via TCP for self-healing
-      # Requires: podman system service --time=0 tcp:0.0.0.0:2375 &
-      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-tcp://host.containers.internal:2375}
+      # Container orchestrator: connect to Podman socket for self-healing
+      # Socket is mounted read-only from host for container management
+      - ORCHESTRATOR_DOCKER_HOST=${ORCHESTRATOR_DOCKER_HOST:-unix:///run/user/1000/podman/podman.sock}
     depends_on:
       postgres:
         condition: service_healthy

@@ -180,6 +180,9 @@ class DeployOrchestrator:
                 timeout=5 if not self.config.dry_run else 0,
             )
 
+        # Stop privileged monitoring containers (run with sudo)
+        await self.containers.stop_privileged_monitoring()
+
         # Stop all containers
         await self.containers.stop_all()
 
@@ -294,6 +297,11 @@ class DeployOrchestrator:
         output.step("Phase 4: Starting frontend...")
         await self.containers.start_frontend()
         started.append("frontend")
+
+        # Phase 5: Privileged monitoring (dcgm-exporter, cadvisor)
+        output.step("Phase 5: Starting privileged monitoring...")
+        await self.containers.start_privileged_monitoring()
+        started.extend(["dcgm-exporter", "cadvisor"])
 
         output.success("All containers started")
         return started
