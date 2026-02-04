@@ -542,12 +542,14 @@ class ContainerManager:
             image=f"localhost/{self.config.project_name}_frontend:latest",
             name="frontend",
             network=network,
-            ports={5173: 8080},  # Map to HTTP port for simplicity
+            ports={
+                self.config.frontend_port: 8443,  # HTTPS
+            },
             volumes=[
                 f"{certs_volume}:/etc/nginx/certs:U",
             ],
             env={
-                "SSL_ENABLED": "false",
+                "SSL_ENABLED": "true",
             },
             restart="unless-stopped",
             extra_args=["--network-alias", "frontend"],
