@@ -57,6 +57,12 @@ def sync_client_for_broadcast(integration_env):
         "connected": True,
         "redis_version": "7.0.0",
     }
+    # Mock _ensure_connected() as a synchronous method (not async) that returns
+    # a mock Redis client with proper async methods for rate limiting
+    mock_raw_redis = MagicMock()
+    mock_raw_redis.script_load = AsyncMock(return_value="mock-script-sha-12345")
+    mock_raw_redis.evalsha = AsyncMock(return_value=[1, 0])  # [allowed=1, count=0]
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_raw_redis)
 
     # Create mock init_db that does nothing (avoids slow real DB init)
     async def mock_init_db():
@@ -185,6 +191,11 @@ def sync_client_for_broadcast(integration_env):
     mock_analysis_worker = AsyncMock()
     mock_timeout_worker = AsyncMock()
     mock_metrics_worker = AsyncMock()
+
+    # Clear rate limit Lua script cache to ensure fresh state with our mock
+    from backend.api.middleware.rate_limit import clear_lua_script_cache
+
+    clear_lua_script_cache()
 
     # Patch all lifespan services for fast startup using ExitStack
     with ExitStack() as stack:
@@ -1094,9 +1105,13 @@ class TestChannelIsolation:
 class TestPingPongKeepalive:
     """Tests for ping/pong keepalive mechanism."""
 
+    # Integration test API key (from conftest.py integration_env fixture)
+    _API_KEY = "test-api-key-12345"  # pragma: allowlist secret
+
     def test_ping_receives_pong_response(self, sync_client_for_broadcast):
         """Test that sending ping receives pong response."""
-        with sync_client_for_broadcast.websocket_connect("/ws/events") as websocket:
+        url = f"/ws/events?api_key={self._API_KEY}"  # pragma: allowlist secret
+        with sync_client_for_broadcast.websocket_connect(url) as websocket:
             # Send legacy ping string
             websocket.send_text("ping")
 
@@ -1107,7 +1122,8 @@ class TestPingPongKeepalive:
 
     def test_json_ping_receives_pong(self, sync_client_for_broadcast):
         """Test that JSON ping message receives pong response."""
-        with sync_client_for_broadcast.websocket_connect("/ws/events") as websocket:
+        url = f"/ws/events?api_key={self._API_KEY}"  # pragma: allowlist secret
+        with sync_client_for_broadcast.websocket_connect(url) as websocket:
             # Send JSON ping
             websocket.send_text('{"type": "ping"}')
 

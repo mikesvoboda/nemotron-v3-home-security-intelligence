@@ -14,7 +14,6 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.core import get_db
@@ -27,6 +26,7 @@ from backend.models.notification_preferences import (
     QuietHoursPeriod,
     RiskLevel,
 )
+from backend.tests.unit.conftest import authenticated_async_client
 
 
 @pytest.fixture
@@ -79,9 +79,7 @@ class TestGetNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/")
 
             assert response.status_code == 200
@@ -116,9 +114,7 @@ class TestGetNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/")
 
             assert response.status_code == 200
@@ -156,9 +152,7 @@ class TestUpdateNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/",
                     json={
@@ -196,9 +190,7 @@ class TestUpdateNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/",
                     json={"enabled": False},  # Only update enabled
@@ -244,9 +236,7 @@ class TestUpdateNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/",
                     json={"sound": "urgent", "risk_filters": ["critical"]},
@@ -271,9 +261,7 @@ class TestUpdateNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/",
                     json={"sound": "invalid_sound"},
@@ -299,9 +287,7 @@ class TestUpdateNotificationPreferences:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/",
                     json={"risk_filters": ["critical", "invalid_level"]},
@@ -328,9 +314,7 @@ class TestUpdateNotificationPreferences:
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
             for sound in valid_sounds:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.put(
                         "/api/notification-preferences/",
                         json={"sound": sound},
@@ -366,9 +350,7 @@ class TestUpdateNotificationPreferences:
                 mock_result.scalar_one_or_none.return_value = mock_prefs
                 mock_db.execute.return_value = mock_result
 
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.put(
                         "/api/notification-preferences/",
                         json={"risk_filters": levels},
@@ -397,9 +379,7 @@ class TestGetAllCameraSettings:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/cameras")
 
             assert response.status_code == 200
@@ -431,9 +411,7 @@ class TestGetAllCameraSettings:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/cameras")
 
             assert response.status_code == 200
@@ -464,9 +442,7 @@ class TestGetCameraSetting:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/cameras/front_door")
 
             assert response.status_code == 200
@@ -486,9 +462,7 @@ class TestGetCameraSetting:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/cameras/nonexistent")
 
             assert response.status_code == 404
@@ -527,9 +501,7 @@ class TestUpdateCameraSetting:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/cameras/front_door",
                     json={"enabled": False, "risk_threshold": 75},
@@ -572,9 +544,7 @@ class TestUpdateCameraSetting:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/cameras/front_door",
                     json={"enabled": True, "risk_threshold": 80},
@@ -595,9 +565,7 @@ class TestUpdateCameraSetting:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/cameras/nonexistent",
                     json={"enabled": True},
@@ -636,9 +604,7 @@ class TestUpdateCameraSetting:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.put(
                     "/api/notification-preferences/cameras/front_door",
                     json={"risk_threshold": 90},  # Only update threshold
@@ -670,9 +636,7 @@ class TestGetQuietHours:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/quiet-hours")
 
             assert response.status_code == 200
@@ -705,9 +669,7 @@ class TestGetQuietHours:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification-preferences/quiet-hours")
 
             assert response.status_code == 200
@@ -735,9 +697,7 @@ class TestCreateQuietHoursPeriod:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.post(
                     "/api/notification-preferences/quiet-hours",
                     json={
@@ -766,9 +726,7 @@ class TestCreateQuietHoursPeriod:
         """Test error when start_time >= end_time."""
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.post(
                     "/api/notification-preferences/quiet-hours",
                     json={
@@ -799,9 +757,7 @@ class TestCreateQuietHoursPeriod:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.post(
                     "/api/notification-preferences/quiet-hours",
                     json={
@@ -830,9 +786,7 @@ class TestCreateQuietHoursPeriod:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.post(
                     "/api/notification-preferences/quiet-hours",
                     json={
@@ -864,9 +818,7 @@ class TestCreateQuietHoursPeriod:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.post(
                     "/api/notification-preferences/quiet-hours",
                     json={
@@ -901,9 +853,7 @@ class TestDeleteQuietHoursPeriod:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.delete(
                     f"/api/notification-preferences/quiet-hours/{period_id}"
                 )
@@ -925,9 +875,7 @@ class TestDeleteQuietHoursPeriod:
 
         app.dependency_overrides[get_db] = create_mock_db_dependency(mock_db)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.delete(
                     f"/api/notification-preferences/quiet-hours/{period_id}"
                 )

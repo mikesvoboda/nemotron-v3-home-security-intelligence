@@ -8,7 +8,7 @@ This module provides comprehensive tests for:
 
 import hashlib
 import os
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, WebSocket, status
@@ -629,7 +629,11 @@ class TestAuthMiddlewareExtended:
 
     @pytest.mark.asyncio
     async def test_dispatch_auth_disabled_path(self):
-        """Test dispatch when auth is disabled passes through."""
+        """Test dispatch when api_key_enabled is false uses session auth.
+
+        When api_key_enabled=False, the middleware falls back to session
+        cookie authentication. This test mocks session validation to pass.
+        """
         os.environ["API_KEY_ENABLED"] = "false"
         get_settings.cache_clear()
 
@@ -640,8 +644,10 @@ class TestAuthMiddlewareExtended:
         async def test_endpoint():
             return {"message": "success"}
 
-        client = TestClient(app)
-        response = client.get("/api/test")
+        # Mock session validation to return True (valid session)
+        with patch.object(AuthMiddleware, "_validate_session", return_value=True):
+            client = TestClient(app, cookies={"session_id": "test-session"})
+            response = client.get("/api/test")
 
         assert response.status_code == 200
         assert response.json() == {"message": "success"}

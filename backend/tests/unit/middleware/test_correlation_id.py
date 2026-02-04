@@ -57,6 +57,7 @@ class TestCorrelationIdMiddleware:
         from unittest.mock import patch
 
         from backend.core.config import Settings
+        from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
         # This is tested implicitly by the middleware setting request_id
         # We can verify by checking the debug endpoint response
@@ -66,7 +67,9 @@ class TestCorrelationIdMiddleware:
         mock_settings = Settings(debug=True, database_url="postgresql+asyncpg://test")
         with patch("backend.api.routes.debug.get_settings", return_value=mock_settings):
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers={"X-API-Key": UNIT_TEST_API_KEY},
             ) as client:
                 response = await client.get(
                     "/api/debug/pipeline-state",

@@ -214,11 +214,10 @@ class TestDetectionsAPIEnrichmentData:
         self, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/detections/{id} returns enrichment_data."""
-        from httpx import ASGITransport, AsyncClient
-
         from backend.core.database import get_db, get_read_db
         from backend.main import app
         from backend.models.detection import Detection
+        from backend.tests.unit.conftest import authenticated_async_client
 
         detection_id = 12345
         camera_id = sample_camera_data["id"]
@@ -259,9 +258,7 @@ class TestDetectionsAPIEnrichmentData:
         app.dependency_overrides[get_db] = override_get_db
         app.dependency_overrides[get_read_db] = override_get_db
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get(f"/api/detections/{detection_id}")
         finally:
             app.dependency_overrides.clear()
@@ -276,11 +273,10 @@ class TestDetectionsAPIEnrichmentData:
         self, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/detections returns enrichment_data for each detection."""
-        from httpx import ASGITransport, AsyncClient
-
         from backend.core.database import get_db, get_read_db
         from backend.main import app
         from backend.models.detection import Detection
+        from backend.tests.unit.conftest import authenticated_async_client
 
         camera_id = sample_camera_data["id"]
 
@@ -324,9 +320,7 @@ class TestDetectionsAPIEnrichmentData:
         app.dependency_overrides[get_db] = override_get_db
         app.dependency_overrides[get_read_db] = override_get_db
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get(f"/api/detections?camera_id={camera_id}")
         finally:
             app.dependency_overrides.clear()
@@ -347,12 +341,11 @@ class TestEventDetectionsEnrichmentData:
         self, sample_camera_data, sample_enrichment_data
     ):
         """Test that GET /api/events/{id}/detections returns enrichment_data."""
-        from httpx import ASGITransport, AsyncClient
-
         from backend.core.database import get_db, get_read_db
         from backend.main import app
         from backend.models.detection import Detection
         from backend.models.event import Event
+        from backend.tests.unit.conftest import authenticated_async_client
 
         event_id = 99999
         detection_id = 12345
@@ -422,9 +415,7 @@ class TestEventDetectionsEnrichmentData:
         app.dependency_overrides[get_db] = override_get_db
         app.dependency_overrides[get_read_db] = override_get_db
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get(f"/api/events/{event_id}/detections")
         finally:
             app.dependency_overrides.clear()

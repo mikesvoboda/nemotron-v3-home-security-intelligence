@@ -42,7 +42,7 @@ def mock_redis() -> MagicMock:
 
 @pytest.fixture
 def client(mock_redis: MagicMock) -> TestClient:
-    """Create a test client with mocked dependencies."""
+    """Create a test client with mocked dependencies and auth disabled."""
     from fastapi import FastAPI
 
     from backend.api.routes.dlq import router
@@ -60,8 +60,16 @@ def client(mock_redis: MagicMock) -> TestClient:
 
     app.dependency_overrides[get_redis] = override_get_redis
 
-    with TestClient(app) as test_client:
-        yield test_client
+    # Mock settings to disable API key auth for these tests
+    with patch("backend.api.routes.dlq.get_settings") as mock_settings:
+        settings = MagicMock()
+        settings.api_key_enabled = False
+        settings.api_keys = []
+        settings.max_requeue_iterations = 1000
+        mock_settings.return_value = settings
+
+        with TestClient(app) as test_client:
+            yield test_client
 
     # Cleanup
     reset_retry_handler()
@@ -306,10 +314,8 @@ class TestRequeueAllEndpoint:
         self, client: TestClient, mock_redis: MagicMock
     ) -> None:
         """Test that requeue-all stops at max_requeue_iterations from settings."""
-        from backend.core.config import get_settings
-
-        settings = get_settings()
-        max_iterations = settings.max_requeue_iterations
+        # The client fixture mocks settings with max_requeue_iterations=1000
+        max_iterations = 1000
 
         # Simulate a queue that always returns a job (never depletes)
         job_data = {

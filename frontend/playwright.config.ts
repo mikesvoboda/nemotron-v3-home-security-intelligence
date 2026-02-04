@@ -104,7 +104,8 @@ export default defineConfig({
   // Shared settings for all the projects below
   use: {
     // Base URL to use in actions like `await page.goto('/')`
-    baseURL: 'http://localhost:5173',
+    // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
+    baseURL: 'http://localhost:8444',
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -124,6 +125,9 @@ export default defineConfig({
     // Use storage state from global setup to have product tour disabled
     // This prevents Joyride overlay from blocking pointer events in tests
     storageState: 'tests/e2e/.auth/storage-state.json',
+
+    // Ignore HTTPS errors for self-signed certificates in tests
+    ignoreHTTPSErrors: true,
 
     // NOTE: launchOptions with --disable-gpu moved to Chromium-specific projects
     // WebKit doesn't support these Chromium-specific flags
@@ -236,7 +240,8 @@ export default defineConfig({
   // trying to forward them to localhost:8000 (causing ECONNREFUSED in CI)
   webServer: {
     command: 'npm run dev:e2e',
-    url: 'http://localhost:5173',
+    // Uses HTTP for E2E tests to avoid TLS handshake issues with self-signed certs
+    url: 'http://localhost:8444',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
     stdout: 'pipe',

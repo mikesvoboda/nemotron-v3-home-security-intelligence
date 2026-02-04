@@ -19,10 +19,15 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 8444,
     strictPort: true,
+    // Use HTTP for E2E tests - HTTPS is not required since:
+    // 1. API requests are intercepted by Playwright's page.route()
+    // 2. No real TLS termination is needed for test environment
+    // 3. Avoids TLS handshake issues with auto-generated certificates
+    https: false,
     // No proxy configuration - API requests will be intercepted by Playwright
-    // The frontend will make requests to localhost:5173/api/* which Vite will
+    // The frontend will make requests to localhost:8444/api/* which Vite will
     // return a 404 for, but Playwright's route() will intercept before that happens
   },
 });

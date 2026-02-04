@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
@@ -192,18 +193,24 @@ def test_metrics_endpoint_bypasses_auth(app_with_auth):
 
 
 def test_disabled_auth_allows_all_requests(app_without_auth):
-    """Test that disabled authentication allows all requests."""
-    client = TestClient(app_without_auth)
+    """Test that disabled authentication uses session auth instead.
 
-    # Test without API key
-    response = client.get("/api/protected")
-    assert response.status_code == 200
-    assert response.json() == {"message": "protected"}
+    When api_key_enabled=False, the middleware falls back to session
+    cookie authentication. This test mocks session validation to pass.
+    """
+    # Mock session validation to return True (valid session)
+    with patch.object(AuthMiddleware, "_validate_session", return_value=True):
+        client = TestClient(app_without_auth, cookies={"session_id": "test-session"})
 
-    # Test with invalid API key (should still work)
-    response = client.get("/api/protected", headers={"X-API-Key": "anything"})
-    assert response.status_code == 200
-    assert response.json() == {"message": "protected"}
+        # Test without API key but with valid session
+        response = client.get("/api/protected")
+        assert response.status_code == 200
+        assert response.json() == {"message": "protected"}
+
+        # Test with invalid API key but valid session (should still work)
+        response = client.get("/api/protected", headers={"X-API-Key": "anything"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "protected"}
 
 
 def test_docs_endpoints_bypass_auth(app_with_auth):

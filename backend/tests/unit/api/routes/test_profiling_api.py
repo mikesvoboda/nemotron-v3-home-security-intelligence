@@ -9,9 +9,8 @@ TDD: These tests are written FIRST, before implementation.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from backend.main import app
+from backend.tests.unit.conftest import authenticated_async_client
 
 
 @pytest.fixture(autouse=True)
@@ -37,7 +36,7 @@ class TestProfileStartEndpoint:
     @pytest.mark.asyncio
     async def test_start_profiling_returns_200(self) -> None:
         """Verify starting profiling returns success."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             response = await client.post("/api/debug/profile/start")
 
         assert response.status_code == 200
@@ -48,7 +47,7 @@ class TestProfileStartEndpoint:
     @pytest.mark.asyncio
     async def test_start_profiling_includes_timestamp(self) -> None:
         """Verify start response includes timestamp."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             response = await client.post("/api/debug/profile/start")
 
         assert response.status_code == 200
@@ -58,7 +57,7 @@ class TestProfileStartEndpoint:
     @pytest.mark.asyncio
     async def test_start_profiling_already_running_returns_409(self) -> None:
         """Verify starting profiling when already running returns conflict."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             # Start profiling
             await client.post("/api/debug/profile/start")
             # Try to start again
@@ -74,7 +73,7 @@ class TestProfileStopEndpoint:
     @pytest.mark.asyncio
     async def test_stop_profiling_returns_200(self) -> None:
         """Verify stopping profiling returns success."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             # Start profiling first
             await client.post("/api/debug/profile/start")
             # Stop profiling
@@ -88,7 +87,7 @@ class TestProfileStopEndpoint:
     @pytest.mark.asyncio
     async def test_stop_profiling_returns_profile_path(self) -> None:
         """Verify stop response includes path to profile file."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             await client.post("/api/debug/profile/start")
             response = await client.post("/api/debug/profile/stop")
 
@@ -100,7 +99,7 @@ class TestProfileStopEndpoint:
     async def test_stop_profiling_not_running_returns_400(self) -> None:
         """Verify stopping when not profiling returns error."""
         # Reset profiling state first
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             # Ensure profiling is stopped
             await client.post("/api/debug/profile/stop")
             # Try to stop again
@@ -116,7 +115,7 @@ class TestProfileStatsEndpoint:
     @pytest.mark.asyncio
     async def test_get_stats_returns_200(self) -> None:
         """Verify getting stats returns success."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             # Start and stop profiling to have stats
             await client.post("/api/debug/profile/start")
             await client.post("/api/debug/profile/stop")
@@ -128,7 +127,7 @@ class TestProfileStatsEndpoint:
     @pytest.mark.asyncio
     async def test_get_stats_includes_is_profiling(self) -> None:
         """Verify stats response includes profiling status."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             response = await client.get("/api/debug/profile/stats")
 
         assert response.status_code == 200
@@ -139,7 +138,7 @@ class TestProfileStatsEndpoint:
     @pytest.mark.asyncio
     async def test_get_stats_includes_profile_text(self) -> None:
         """Verify stats response includes profile text when available."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             # Start and stop profiling to have stats
             await client.post("/api/debug/profile/start")
             await client.post("/api/debug/profile/stop")
@@ -159,7 +158,7 @@ class TestProfileStatsEndpoint:
 
         reset_profiling_manager()
 
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             response = await client.get("/api/debug/profile/stats")
 
         assert response.status_code == 200
@@ -173,7 +172,7 @@ class TestProfilingEndpointSchemas:
     @pytest.mark.asyncio
     async def test_start_response_schema(self) -> None:
         """Verify start response matches expected schema."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             response = await client.post("/api/debug/profile/start")
 
         assert response.status_code == 200
@@ -187,7 +186,7 @@ class TestProfilingEndpointSchemas:
     @pytest.mark.asyncio
     async def test_stop_response_schema(self) -> None:
         """Verify stop response matches expected schema."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             await client.post("/api/debug/profile/start")
             response = await client.post("/api/debug/profile/stop")
 
@@ -203,7 +202,7 @@ class TestProfilingEndpointSchemas:
     @pytest.mark.asyncio
     async def test_stats_response_schema(self) -> None:
         """Verify stats response matches expected schema."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with authenticated_async_client() as client:
             response = await client.get("/api/debug/profile/stats")
 
         assert response.status_code == 200

@@ -1,4 +1,12 @@
-"""API key authentication middleware."""
+"""API key and session authentication middleware.
+
+Supports two authentication modes:
+1. API key authentication (when api_key_enabled=True)
+2. Session cookie authentication (when api_key_enabled=False)
+
+Session authentication validates cookies against Redis-stored sessions,
+providing browser-based authentication for the web UI.
+"""
 
 import hashlib
 import hmac
@@ -17,6 +25,9 @@ from backend.core import get_settings
 from backend.core.logging import get_logger, mask_ip
 
 logger = get_logger(__name__)
+
+# Session cookie name - must match auth.py
+SESSION_COOKIE_NAME = "session_id"
 
 
 def _hash_key(key: str) -> str:
@@ -343,10 +354,48 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Pattern: /api/cameras/{id}/snapshot
         return path.startswith("/api/cameras/") and path.endswith("/snapshot")
 
+    async def _validate_session(self, session_id: str) -> bool:
+        """Validate session cookie against Redis.
+
+        Args:
+            session_id: Session ID from cookie.
+
+        Returns:
+            True if session is valid, False otherwise.
+        """
+        try:
+            from backend.api.dependencies import get_redis_optional
+            from backend.services.session_service import SessionExpiredError, SessionService
+
+            redis_client = await get_redis_optional()
+            if not redis_client:
+                # Redis unavailable - cannot validate session
+                logger.warning("Session validation failed: Redis unavailable")
+                return False
+
+            session_service = SessionService(redis_client)
+            try:
+                session_data = await session_service.get_session(session_id)
+                # Session is valid if we got data and it has a user_id
+                return session_data.get("user_id") is not None
+            except SessionExpiredError:
+                return False
+
+        except Exception as e:
+            logger.warning(
+                f"Session validation error: {e}",
+                extra={"error_type": type(e).__name__},
+            )
+            return False
+
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        """Process request and validate API key if authentication is enabled.
+        """Process request and validate authentication.
+
+        Authentication modes:
+        1. If api_key_enabled=True: Require API key
+        2. If api_key_enabled=False: Require valid session cookie
 
         Args:
             request: Incoming HTTP request
@@ -357,14 +406,80 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """
         settings = get_settings()
 
-        # Skip authentication if disabled
-        if not settings.api_key_enabled:
-            return await call_next(request)
-
         # Skip authentication for exempt paths
         if self._is_exempt_path(request.url.path):
             return await call_next(request)
 
+        # Mode 1: API key authentication
+        if settings.api_key_enabled:
+            return await self._authenticate_with_api_key(request, call_next)
+
+        # Mode 2: Session cookie authentication
+        return await self._authenticate_with_session(request, call_next)
+
+    async def _authenticate_with_session(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Authenticate request using session cookie.
+
+        Args:
+            request: Incoming HTTP request
+            call_next: Next middleware or endpoint
+
+        Returns:
+            HTTP response
+        """
+        # Extract session cookie
+        session_id = request.cookies.get(SESSION_COOKIE_NAME)
+
+        if not session_id:
+            logger.warning(
+                "Authentication attempt without session cookie",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
+                    "security_event": True,
+                    "event_type": "auth_missing_session",
+                },
+            )
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Not authenticated"},
+            )
+
+        # Validate session
+        if not await self._validate_session(session_id):
+            logger.warning(
+                "Authentication attempt with invalid session",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
+                    "security_event": True,
+                    "event_type": "auth_invalid_session",
+                },
+            )
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Session expired or invalid"},
+            )
+
+        # Session is valid, proceed with request
+        return await call_next(request)
+
+    async def _authenticate_with_api_key(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """Authenticate request using API key.
+
+        Args:
+            request: Incoming HTTP request
+            call_next: Next middleware or endpoint
+
+        Returns:
+            HTTP response
+        """
         # Extract API key from header or query parameter
         api_key = request.headers.get("X-API-Key")
         if not api_key:

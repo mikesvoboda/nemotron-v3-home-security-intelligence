@@ -721,12 +721,18 @@ def integration_env(
 
     This fixture sets environment variables pointing to the worker's isolated
     PostgreSQL database and Redis database for parallel test execution.
+
+    Also configures API key authentication for integration tests:
+    - API_KEY_ENABLED=true enables API key auth mode
+    - API_KEYS=["test-api-key-12345"] provides valid test API key
     """
     from backend.core.config import get_settings
 
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
+    original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
+    original_api_keys = os.environ.get("API_KEYS")
 
     # Create temporary directory for runtime env
     tmpdir = tempfile.mkdtemp()
@@ -736,6 +742,11 @@ def integration_env(
     os.environ["DATABASE_URL"] = worker_db_url
     os.environ["REDIS_URL"] = worker_redis_url
     os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
+
+    # Enable API key authentication for integration tests
+    # This bypasses session-based auth which requires Redis session validation
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = '["test-api-key-12345"]'  # pragma: allowlist secret
 
     # Configure pool sizes for integration tests to prevent "too many clients" errors.
     # In CI environments, we use larger pools for better parallelism.
@@ -774,6 +785,17 @@ def integration_env(
             os.environ["HSI_RUNTIME_ENV_PATH"] = original_runtime_env_path
         else:
             os.environ.pop("HSI_RUNTIME_ENV_PATH", None)
+
+        # Restore API key authentication settings
+        if original_api_key_enabled is not None:
+            os.environ["API_KEY_ENABLED"] = original_api_key_enabled
+        else:
+            os.environ.pop("API_KEY_ENABLED", None)
+
+        if original_api_keys is not None:
+            os.environ["API_KEYS"] = original_api_keys
+        else:
+            os.environ.pop("API_KEYS", None)
 
         get_settings.cache_clear()
 
@@ -1312,6 +1334,11 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
 _cleanup_test_cameras = _cleanup_test_data
 
 
+# Test API key used for integration test authentication
+# Must match the value set in API_KEYS environment variable in integration_env fixture
+TEST_API_KEY = "test-api-key-12345"  # pragma: allowlist secret
+
+
 @pytest.fixture
 async def client(integration_db: str, mock_redis: AsyncMock):
     """Async HTTP client bound to the FastAPI app (no network, no server startup).
@@ -1323,6 +1350,7 @@ async def client(integration_db: str, mock_redis: AsyncMock):
     - All background services are mocked to avoid slow startup and cleanup issues.
     - Test data is cleaned up BEFORE and AFTER each test to ensure isolation
       and prevent data leakage between tests.
+    - Includes X-API-Key header for API key authentication (see integration_env fixture).
 
     Use this fixture for testing API endpoints.
 
@@ -1392,6 +1420,12 @@ async def client(integration_db: str, mock_redis: AsyncMock):
     mock_service_health_monitor.start = AsyncMock()
     mock_service_health_monitor.stop = AsyncMock()
 
+    # Mock SetupGuardMiddleware to bypass setup check in integration tests
+    # NEM-5312: The SetupGuardMiddleware blocks all non-whitelisted endpoints with 503
+    # when no users exist. In integration tests, we want to test endpoints without
+    # requiring user creation, so we mock the setup check to always return True.
+    mock_setup_guard = AsyncMock(return_value=True)
+
     with (
         patch("backend.main.init_db", AsyncMock(return_value=None)),
         patch("backend.main.close_db", AsyncMock(return_value=None)),
@@ -1408,9 +1442,18 @@ async def client(integration_db: str, mock_redis: AsyncMock):
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         patch("backend.api.routes.system._file_watcher", mock_file_watcher_for_routes),
         patch("backend.api.routes.system._cleanup_service", mock_cleanup_service),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            mock_setup_guard,
+        ),
     ):
         try:
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            # Include X-API-Key header for API key authentication
+            # The API key is configured in integration_env fixture via API_KEYS env var
+            headers = {"X-API-Key": TEST_API_KEY}
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test", headers=headers
+            ) as ac:
                 yield ac
         finally:
             # Clean up test data AFTER the test (even on failure)

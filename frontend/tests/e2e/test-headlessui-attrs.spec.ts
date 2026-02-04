@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('inspect HeadlessUI tab attributes', async ({ page }) => {
-  await page.goto('http://localhost:5173/settings');
+  await page.goto('/settings');
 
   // Wait for page to load
   await page.waitForTimeout(2000);

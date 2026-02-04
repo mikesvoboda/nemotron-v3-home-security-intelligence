@@ -423,6 +423,7 @@ class DeployConfig(BaseSettings):
         "ai-florence",
         "ai-clip",
         "ai-enrichment",
+        "ai-enrichment-light",
     ]
 
     STANDALONE_CONTAINERS: ClassVar[list[str]] = [
@@ -431,6 +432,7 @@ class DeployConfig(BaseSettings):
         "ai-florence",
         "ai-clip",
         "ai-enrichment",
+        "ai-enrichment-light",
         "backend",
         "frontend",
     ]
@@ -447,4 +449,6 @@ class DeployConfig(BaseSettings):
         "frontend",
         "postgres",
         "redis",
+        "go2rtc",
+        "elasticsearch",
     ]

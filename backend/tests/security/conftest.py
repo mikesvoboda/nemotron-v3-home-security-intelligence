@@ -7,7 +7,7 @@ including test clients with and without authentication.
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,6 +15,72 @@ from fastapi.testclient import TestClient
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+
+# API key used for security tests - allows tests to bypass auth and test actual security behaviors
+SECURITY_TEST_API_KEY = "test-security-key-12345"  # pragma: allowlist secret
+
+
+class AuthenticatedTestClient:
+    """Wrapper around TestClient that automatically adds API key authentication.
+
+    This wrapper ensures all requests include the X-API-Key header,
+    allowing security tests to reach endpoints and test behaviors like
+    input validation, path traversal protection, and HTTP method restrictions.
+    """
+
+    def __init__(self, client: TestClient, api_key: str):
+        self._client = client
+        self._api_key = api_key
+        self._auth_header = {"X-API-Key": api_key}
+
+    def _merge_headers(self, headers: dict[str, str] | None) -> dict[str, str]:
+        """Merge provided headers with authentication header."""
+        if headers is None:
+            return self._auth_header.copy()
+        merged = self._auth_header.copy()
+        merged.update(headers)
+        return merged
+
+    def get(self, url: str, **kwargs: Any) -> Any:
+        """Make GET request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.get(url, **kwargs)
+
+    def post(self, url: str, **kwargs: Any) -> Any:
+        """Make POST request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.post(url, **kwargs)
+
+    def put(self, url: str, **kwargs: Any) -> Any:
+        """Make PUT request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.put(url, **kwargs)
+
+    def patch(self, url: str, **kwargs: Any) -> Any:
+        """Make PATCH request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.patch(url, **kwargs)
+
+    def delete(self, url: str, **kwargs: Any) -> Any:
+        """Make DELETE request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.delete(url, **kwargs)
+
+    def options(self, url: str, **kwargs: Any) -> Any:
+        """Make OPTIONS request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.options(url, **kwargs)
+
+    def head(self, url: str, **kwargs: Any) -> Any:
+        """Make HEAD request with authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.head(url, **kwargs)
+
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
+        """Make request with specified method and authentication."""
+        kwargs["headers"] = self._merge_headers(kwargs.get("headers"))
+        return self._client.request(method, url, **kwargs)
 
 
 def _create_mock_services() -> dict:
@@ -62,12 +128,19 @@ def _create_mock_services() -> dict:
 
 
 @pytest.fixture(scope="module")
-def security_client() -> Generator[TestClient]:
+def security_client() -> Generator[AuthenticatedTestClient]:
     """Create a test client for security testing.
 
     This fixture provides a synchronous test client with all background
     services mocked, suitable for security testing that doesn't require
     database access.
+
+    Authentication is enabled via API key so that tests can reach
+    the endpoints to test security behaviors like path traversal,
+    input validation, and HTTP method restrictions.
+
+    Returns an AuthenticatedTestClient that automatically adds the
+    X-API-Key header to all requests.
     """
     mocks = _create_mock_services()
 
@@ -75,10 +148,21 @@ def security_client() -> Generator[TestClient]:
     original_db_url = os.environ.get("DATABASE_URL")
     original_log_db_enabled = os.environ.get("LOG_DB_ENABLED")
     original_environment = os.environ.get("ENVIRONMENT")
+    original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
+    original_api_keys = os.environ.get("API_KEYS")
+    original_cors_origins = os.environ.get("CORS_ORIGINS")
 
     # Use development environment to bypass password validation for security tests
     # The tests themselves mock the settings to test specific behaviors
     os.environ["ENVIRONMENT"] = "development"
+
+    # Enable API key authentication for security tests
+    # This allows tests to reach endpoints and test actual security behaviors
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = f'["{SECURITY_TEST_API_KEY}"]'  # pragma: allowlist secret
+
+    # Configure CORS to include test origin for CORS-related security tests
+    os.environ["CORS_ORIGINS"] = '["http://localhost:3000", "https://localhost:8444"]'
 
     # Ensure DATABASE_URL is set
     if not original_db_url:
@@ -131,7 +215,8 @@ def security_client() -> Generator[TestClient]:
         patch("backend.main.ServiceHealthMonitor", return_value=mocks["service_health_monitor"]),
         TestClient(app, raise_server_exceptions=False) as client,
     ):
-        yield client
+        # Wrap client with AuthenticatedTestClient to auto-add API key header
+        yield AuthenticatedTestClient(client, SECURITY_TEST_API_KEY)
 
     # Restore original environment
     if original_db_url:
@@ -146,5 +231,20 @@ def security_client() -> Generator[TestClient]:
         os.environ["ENVIRONMENT"] = original_environment
     else:
         os.environ.pop("ENVIRONMENT", None)
+
+    if original_api_key_enabled is not None:
+        os.environ["API_KEY_ENABLED"] = original_api_key_enabled
+    else:
+        os.environ.pop("API_KEY_ENABLED", None)
+
+    if original_api_keys is not None:
+        os.environ["API_KEYS"] = original_api_keys
+    else:
+        os.environ.pop("API_KEYS", None)
+
+    if original_cors_origins is not None:
+        os.environ["CORS_ORIGINS"] = original_cors_origins
+    else:
+        os.environ.pop("CORS_ORIGINS", None)
 
     get_settings.cache_clear()

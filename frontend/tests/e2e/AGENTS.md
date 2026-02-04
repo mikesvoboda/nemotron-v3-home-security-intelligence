@@ -169,7 +169,7 @@ From `frontend/playwright.config.ts`:
 | Setting             | Value                                      |
 | ------------------- | ------------------------------------------ |
 | `testDir`           | `./tests/e2e`                              |
-| `baseURL`           | `http://localhost:5173`                    |
+| `baseURL`           | `https://localhost:8444`                   |
 | `browsers`          | Chromium, Firefox, WebKit + visual-chromium|
 | `timeout`           | 15 seconds                                 |
 | `expect.timeout`    | 3 seconds                                  |
