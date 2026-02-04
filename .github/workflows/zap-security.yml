@@ -91,10 +91,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Initialize database
-        run: |
-          cd backend && PYTHONPATH=.. uv run alembic upgrade head
-
+      # Note: No separate db initialization needed - init_db() is called automatically
+      # during backend startup (see backend/main.py lifespan context)
       - name: Start backend server
         run: |
           uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
