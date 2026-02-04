@@ -14,7 +14,6 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from backend.api.routes.notification import (
     _create_error_response,
@@ -29,7 +28,7 @@ from backend.api.schemas.notification import (
 from backend.core import get_db
 from backend.main import app
 from backend.services.notification import NotificationDelivery, NotificationService
-from backend.tests.unit.conftest import get_auth_headers
+from backend.tests.unit.conftest import authenticated_async_client
 
 # =============================================================================
 # Test Fixtures
@@ -129,9 +128,7 @@ class TestGetNotificationConfig:
                 return_value=mock_notification_service,
             ),
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification/config")
 
             assert response.status_code == 200
@@ -179,9 +176,7 @@ class TestGetNotificationConfig:
                 return_value=mock_notification_service,
             ),
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification/config")
 
             assert response.status_code == 200
@@ -220,9 +215,7 @@ class TestGetNotificationConfig:
                 return_value=mock_notification_service,
             ),
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification/config")
 
             assert response.status_code == 200
@@ -262,9 +255,7 @@ class TestGetNotificationConfig:
                 return_value=mock_notification_service,
             ),
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/notification/config")
 
             assert response.status_code == 200
@@ -308,11 +299,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -357,11 +344,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -402,11 +385,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -446,11 +425,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -488,11 +463,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -524,11 +495,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -567,11 +534,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -611,11 +574,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -650,11 +609,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -698,11 +653,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -746,11 +697,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -793,11 +740,7 @@ class TestTestNotification:
                     return_value=mock_notification_service,
                 ),
             ):
-                async with AsyncClient(
-                    transport=ASGITransport(app=app),
-                    base_url="http://test",
-                    headers=get_auth_headers(),
-                ) as client:
+                async with authenticated_async_client() as client:
                     response = await client.post(
                         "/api/notification/test",
                         json={
@@ -1026,9 +969,7 @@ class TestUpdateNotificationConfig:
         """Test enabling/disabling SMTP notifications."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={"smtp_enabled": True},
@@ -1045,9 +986,7 @@ class TestUpdateNotificationConfig:
         """Test updating SMTP host, port, and from address."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={
@@ -1070,9 +1009,7 @@ class TestUpdateNotificationConfig:
         """Test enabling/disabling webhook notifications."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={"webhook_enabled": True},
@@ -1089,9 +1026,7 @@ class TestUpdateNotificationConfig:
         """Test updating default webhook URL."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={"default_webhook_url": "https://hooks.newsite.com/notify"},
@@ -1108,9 +1043,7 @@ class TestUpdateNotificationConfig:
         """Test that SMTP port validation rejects invalid values."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={"smtp_port": 99999},  # Invalid port
@@ -1125,9 +1058,7 @@ class TestUpdateNotificationConfig:
         """Test that from address validation rejects invalid email."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={"smtp_from_address": "not-an-email"},
@@ -1142,9 +1073,7 @@ class TestUpdateNotificationConfig:
         """Test that webhook URL validation blocks private IPs."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={"default_webhook_url": "http://192.168.1.1/webhook"},
@@ -1169,9 +1098,7 @@ class TestUpdateNotificationConfig:
         }
         app.dependency_overrides[get_db] = create_mock_db_for_config(existing)
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 # Update only smtp_enabled, other fields should remain unchanged
                 response = await client.patch(
                     "/api/notification/config",
@@ -1206,9 +1133,7 @@ class TestUpdateNotificationConfig:
 
         app.dependency_overrides[get_db] = _tracking_mock_db
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 await client.patch(
                     "/api/notification/config",
                     json={"smtp_enabled": True},
@@ -1225,9 +1150,7 @@ class TestUpdateNotificationConfig:
         """Test that empty update body returns current configuration."""
         app.dependency_overrides[get_db] = create_mock_db_for_config()
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test", headers=get_auth_headers()
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.patch(
                     "/api/notification/config",
                     json={},
