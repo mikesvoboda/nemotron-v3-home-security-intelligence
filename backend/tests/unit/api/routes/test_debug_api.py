@@ -10,22 +10,20 @@ These tests patch get_settings to enable debug mode.
 
 import logging
 import os
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
 from backend.core.config import Settings
 from backend.core.redis import get_redis_optional
 from backend.main import app
-from backend.tests.unit.conftest import (
-    UNIT_TEST_API_KEY,
-)
-from backend.tests.unit.conftest import (
-    authenticated_async_client as authenticated_client,
-)
+from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
-# Test API key for authentication - use the same key as unit test conftest
+# Use the same API key that's configured in the unit test conftest
 TEST_API_KEY = UNIT_TEST_API_KEY
 
 
@@ -53,6 +51,17 @@ def debug_settings() -> Settings:
         api_key_enabled=True,
         api_keys=[SecretStr(TEST_API_KEY)],
     )
+
+
+@asynccontextmanager
+async def authenticated_client() -> AsyncGenerator[AsyncClient]:
+    """Create an AsyncClient with authentication headers."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"X-API-Key": TEST_API_KEY},
+    ) as client:
+        yield client
 
 
 async def _mock_redis_none():

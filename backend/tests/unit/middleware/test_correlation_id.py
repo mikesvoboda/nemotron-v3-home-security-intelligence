@@ -73,7 +73,10 @@ class TestCorrelationIdMiddleware:
             ) as client:
                 response = await client.get(
                     "/api/debug/pipeline-state",
-                    headers={"X-Correlation-ID": test_correlation_id},
+                    headers={
+                        "X-Correlation-ID": test_correlation_id,
+                        "X-API-Key": UNIT_TEST_API_KEY,
+                    },
                 )
 
         assert response.status_code == 200

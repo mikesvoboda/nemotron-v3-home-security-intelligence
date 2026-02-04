@@ -312,6 +312,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/system/health",  # Detailed health check (includes AI services)
             "/api/system/health/ready",  # Detailed readiness probe
             "/api/metrics",  # Prometheus scraping endpoint
+            "/api/rum",  # Real User Monitoring endpoint (frontend telemetry)
             "/docs",
             "/redoc",
             "/openapi.json",
