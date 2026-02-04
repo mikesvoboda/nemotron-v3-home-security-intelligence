@@ -44,7 +44,8 @@ def build_service_configs(
     """Build service configurations using ports from OrchestratorSettings.
 
     Creates ServiceConfig objects for all managed container services. When settings
-    is provided, uses configured port values; otherwise uses default ports.
+    is provided, uses configured port values from .env (source of truth);
+    otherwise uses default ports.
 
     Args:
         settings: Optional OrchestratorSettings with port configuration.
@@ -55,21 +56,31 @@ def build_service_configs(
     Returns:
         Dictionary mapping service names to ServiceConfig objects.
     """
-    # Default ports (used when settings is None)
+    # Ports from settings (.env is source of truth) or defaults
     postgres_port = settings.postgres_port if settings else 5432
     redis_port = settings.redis_port if settings else 6379
+    backend_port = settings.backend_port if settings else 8000
+    go2rtc_port = settings.go2rtc_port if settings else 1984
     yolo26_port = settings.yolo26_port if settings else 8095
     nemotron_port = settings.nemotron_port if settings else 8091
     florence_port = settings.florence_port if settings else 8092
     clip_port = settings.clip_port if settings else 8093
     enrichment_port = settings.enrichment_port if settings else 8094
+    enrichment_light_port = settings.enrichment_light_port if settings else 8096
     prometheus_port = settings.prometheus_port if settings else 9090
-    grafana_port = settings.grafana_port if settings else 3000
+    grafana_port = settings.grafana_port if settings else 3002
     redis_exporter_port = settings.redis_exporter_port if settings else 9121
     json_exporter_port = settings.json_exporter_port if settings else 7979
     alertmanager_port = settings.alertmanager_port if settings else 9093
     blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115
     jaeger_port = settings.jaeger_port if settings else 16686
+    loki_port = settings.loki_port if settings else 3100
+    pyroscope_port = settings.pyroscope_port if settings else 4040
+    alloy_port = settings.alloy_port if settings else 12345
+    node_exporter_port = settings.node_exporter_port if settings else 9100
+    cadvisor_port = settings.cadvisor_port if settings else 8082
+    dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9400
+    elasticsearch_port = settings.elasticsearch_port if settings else 9200
     frontend_port = settings.frontend_port if settings else 8080
 
     infrastructure_configs: dict[str, ServiceConfig] = {
@@ -89,6 +100,36 @@ def build_service_configs(
             port=redis_port,
             health_cmd="redis-cli ping",
             startup_grace_period=10,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
+        "backend": ServiceConfig(
+            display_name="Backend API",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=backend_port,
+            health_endpoint="/api/system/health/ready",
+            startup_grace_period=30,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
+        "go2rtc": ServiceConfig(
+            display_name="go2rtc",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=go2rtc_port,
+            health_endpoint="/api",
+            startup_grace_period=15,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
+        "frontend": ServiceConfig(
+            display_name="Frontend",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=frontend_port,
+            health_endpoint="/health",
+            startup_grace_period=30,
             max_failures=10,
             restart_backoff_base=2.0,
             restart_backoff_max=60.0,
@@ -131,6 +172,13 @@ def build_service_configs(
             health_endpoint="/health",
             startup_grace_period=180,
         ),
+        "ai-enrichment-light": ServiceConfig(
+            display_name="Enrichment Light",
+            category=ServiceCategory.AI,
+            port=enrichment_light_port,
+            health_endpoint="/health",
+            startup_grace_period=120,
+        ),
     }
 
     # Monitoring configs use CATEGORY_DEFAULTS values:
@@ -166,6 +214,56 @@ def build_service_configs(
             restart_backoff_base=10.0,
             restart_backoff_max=120.0,
         ),
+        "loki": ServiceConfig(
+            display_name="Loki",
+            category=ServiceCategory.MONITORING,
+            port=loki_port,
+            health_endpoint="/ready",
+            startup_grace_period=30,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "pyroscope": ServiceConfig(
+            display_name="Pyroscope",
+            category=ServiceCategory.MONITORING,
+            port=pyroscope_port,
+            health_endpoint="/ready",
+            startup_grace_period=30,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "alloy": ServiceConfig(
+            display_name="Grafana Alloy",
+            category=ServiceCategory.MONITORING,
+            port=alloy_port,
+            health_endpoint="/-/ready",
+            startup_grace_period=30,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "elasticsearch": ServiceConfig(
+            display_name="Elasticsearch",
+            category=ServiceCategory.MONITORING,
+            port=elasticsearch_port,
+            health_endpoint="/_cluster/health",
+            startup_grace_period=60,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "jaeger": ServiceConfig(
+            display_name="Jaeger",
+            category=ServiceCategory.MONITORING,
+            port=jaeger_port,
+            health_endpoint="/",
+            startup_grace_period=15,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
         "redis-exporter": ServiceConfig(
             display_name="Redis Exporter",
             category=ServiceCategory.MONITORING,
@@ -196,25 +294,35 @@ def build_service_configs(
             restart_backoff_base=10.0,
             restart_backoff_max=120.0,
         ),
-        "jaeger": ServiceConfig(
-            display_name="Jaeger",
+        "node-exporter": ServiceConfig(
+            display_name="Node Exporter",
             category=ServiceCategory.MONITORING,
-            port=jaeger_port,
-            health_endpoint="/",
+            port=node_exporter_port,
+            health_endpoint="/metrics",
             startup_grace_period=15,
             max_failures=5,
             restart_backoff_base=10.0,
             restart_backoff_max=120.0,
         ),
-        "frontend": ServiceConfig(
-            display_name="Frontend",
-            category=ServiceCategory.INFRASTRUCTURE,
-            port=frontend_port,
-            health_endpoint="/health",
+        "cadvisor": ServiceConfig(
+            display_name="cAdvisor",
+            category=ServiceCategory.MONITORING,
+            port=cadvisor_port,
+            health_endpoint="/healthz",
+            startup_grace_period=15,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "dcgm-exporter": ServiceConfig(
+            display_name="DCGM Exporter",
+            category=ServiceCategory.MONITORING,
+            port=dcgm_exporter_port,
+            health_endpoint="/metrics",
             startup_grace_period=30,
-            max_failures=10,
-            restart_backoff_base=2.0,
-            restart_backoff_max=60.0,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
         ),
     }
 
@@ -229,7 +337,7 @@ def build_service_configs(
     return configs
 
 
-# Default configs for backward compatibility (uses default port values)
+# Default configs for backward compatibility (uses default port values from .env.example)
 # Note: Prefer using build_service_configs(settings) for configurable ports
 INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
     "postgres": ServiceConfig(
@@ -252,6 +360,26 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
         restart_backoff_base=2.0,
         restart_backoff_max=60.0,
     ),
+    "backend": ServiceConfig(
+        display_name="Backend API",
+        category=ServiceCategory.INFRASTRUCTURE,
+        port=8000,
+        health_endpoint="/api/system/health/ready",
+        startup_grace_period=30,
+        max_failures=10,
+        restart_backoff_base=2.0,
+        restart_backoff_max=60.0,
+    ),
+    "go2rtc": ServiceConfig(
+        display_name="go2rtc",
+        category=ServiceCategory.INFRASTRUCTURE,
+        port=1984,
+        health_endpoint="/api",
+        startup_grace_period=15,
+        max_failures=10,
+        restart_backoff_base=2.0,
+        restart_backoff_max=60.0,
+    ),
     "frontend": ServiceConfig(
         display_name="Frontend",
         category=ServiceCategory.INFRASTRUCTURE,
@@ -268,7 +396,7 @@ AI_CONFIGS: dict[str, ServiceConfig] = {
     "ai-yolo26": ServiceConfig(
         display_name="YOLO26",
         category=ServiceCategory.AI,
-        port=8090,
+        port=8095,
         health_endpoint="/health",
         startup_grace_period=60,
     ),
@@ -300,6 +428,13 @@ AI_CONFIGS: dict[str, ServiceConfig] = {
         health_endpoint="/health",
         startup_grace_period=180,
     ),
+    "ai-enrichment-light": ServiceConfig(
+        display_name="Enrichment Light",
+        category=ServiceCategory.AI,
+        port=8096,
+        health_endpoint="/health",
+        startup_grace_period=120,
+    ),
 }
 
 # Monitoring configs with CATEGORY_DEFAULTS values:
@@ -318,7 +453,7 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
     "grafana": ServiceConfig(
         display_name="Grafana",
         category=ServiceCategory.MONITORING,
-        port=3000,
+        port=3002,
         health_endpoint="/api/health",
         startup_grace_period=30,
         max_failures=5,
@@ -330,6 +465,56 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         category=ServiceCategory.MONITORING,
         port=9093,
         health_endpoint="/-/healthy",
+        startup_grace_period=15,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "loki": ServiceConfig(
+        display_name="Loki",
+        category=ServiceCategory.MONITORING,
+        port=3100,
+        health_endpoint="/ready",
+        startup_grace_period=30,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "pyroscope": ServiceConfig(
+        display_name="Pyroscope",
+        category=ServiceCategory.MONITORING,
+        port=4040,
+        health_endpoint="/ready",
+        startup_grace_period=30,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "alloy": ServiceConfig(
+        display_name="Grafana Alloy",
+        category=ServiceCategory.MONITORING,
+        port=12345,
+        health_endpoint="/-/ready",
+        startup_grace_period=30,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "elasticsearch": ServiceConfig(
+        display_name="Elasticsearch",
+        category=ServiceCategory.MONITORING,
+        port=9200,
+        health_endpoint="/_cluster/health",
+        startup_grace_period=60,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "jaeger": ServiceConfig(
+        display_name="Jaeger",
+        category=ServiceCategory.MONITORING,
+        port=16686,
+        health_endpoint="/",
         startup_grace_period=15,
         max_failures=5,
         restart_backoff_base=10.0,
@@ -365,12 +550,32 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         restart_backoff_base=10.0,
         restart_backoff_max=120.0,
     ),
-    "jaeger": ServiceConfig(
-        display_name="Jaeger",
+    "node-exporter": ServiceConfig(
+        display_name="Node Exporter",
         category=ServiceCategory.MONITORING,
-        port=16686,
-        health_endpoint="/",
+        port=9100,
+        health_endpoint="/metrics",
         startup_grace_period=15,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "cadvisor": ServiceConfig(
+        display_name="cAdvisor",
+        category=ServiceCategory.MONITORING,
+        port=8082,
+        health_endpoint="/healthz",
+        startup_grace_period=15,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "dcgm-exporter": ServiceConfig(
+        display_name="DCGM Exporter",
+        category=ServiceCategory.MONITORING,
+        port=9400,
+        health_endpoint="/metrics",
+        startup_grace_period=30,
         max_failures=5,
         restart_backoff_base=10.0,
         restart_backoff_max=120.0,

@@ -22,7 +22,7 @@ async function globalSetup() {
     cookies: [],
     origins: [
       {
-        origin: 'http://localhost:5173',
+        origin: 'https://localhost:8444',
         localStorage: [
           {
             name: 'nemotron-tour-completed',

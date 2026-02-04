@@ -4,6 +4,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { lazy, Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
+import { ProtectedRoute } from './components/auth';
 import {
   AmbientStatusProvider,
   ChunkLoadErrorBoundary,
@@ -240,16 +241,17 @@ export default function App() {
                       </Suspense>
                     }
                   />
-                  {/* Main app routes with layout */}
+                  {/* Main app routes with layout - protected by auth (NEM-5322) */}
                   <Route
                     path="/*"
                     element={
-                      <AmbientStatusProvider>
-                        <Layout>
-                          <ChunkLoadErrorBoundary>
-                            <Suspense fallback={<RouteLoadingFallback />}>
-                              <PageTransition>
-                                <Routes>
+                      <ProtectedRoute>
+                        <AmbientStatusProvider>
+                          <Layout>
+                            <ChunkLoadErrorBoundary>
+                              <Suspense fallback={<RouteLoadingFallback />}>
+                                <PageTransition>
+                                  <Routes>
                                   <Route path="/" element={<DashboardPage />} />
                                   <Route path="/timeline" element={<EventTimeline />} />
                                   <Route path="/analytics" element={<AnalyticsPage />} />
@@ -301,11 +303,12 @@ export default function App() {
                                   {/* Catch-all route for 404 Not Found (NEM-4925) */}
                                   <Route path="*" element={<NotFoundPage />} />
                                 </Routes>
-                              </PageTransition>
-                            </Suspense>
-                          </ChunkLoadErrorBoundary>
-                        </Layout>
-                      </AmbientStatusProvider>
+                                </PageTransition>
+                              </Suspense>
+                            </ChunkLoadErrorBoundary>
+                          </Layout>
+                        </AmbientStatusProvider>
+                      </ProtectedRoute>
                     }
                   />
                 </Routes>

@@ -137,15 +137,24 @@ class HealthChecker:
         url = f"http://localhost:{self.config.enrichment_port}/health"
         return await self._check_http(url, "ai-enrichment")
 
+    async def check_enrichment_light(self) -> HealthStatus:
+        """Check Enrichment Light health.
+
+        Returns:
+            HealthStatus for ai-enrichment-light
+        """
+        url = f"http://localhost:{self.config.enrichment_light_port}/health"
+        return await self._check_http(url, "ai-enrichment-light")
+
     async def check_frontend(self) -> HealthStatus:
         """Check frontend health.
 
         Returns:
             HealthStatus for frontend
         """
-        # Frontend on HTTP port 5173 (mapped from 8080)
-        url = "http://localhost:5173"
-        return await self._check_http(url, "frontend")
+        # Frontend on HTTPS port 8444 (mapped from 8443)
+        url = "https://localhost:8444"
+        return await self._check_https(url, "frontend")
 
     async def _check_http(self, url: str, service: str) -> HealthStatus:
         """Check health via HTTP endpoint.
@@ -201,6 +210,62 @@ class HealthChecker:
                 message=str(e),
             )
 
+    async def _check_https(self, url: str, service: str) -> HealthStatus:
+        """Check health via HTTPS endpoint (skips SSL verification for self-signed certs).
+
+        Args:
+            url: Health check URL (https://)
+            service: Service name
+
+        Returns:
+            HealthStatus
+        """
+        try:
+            # Create a client that skips SSL verification for self-signed certs
+            # Security: This is intentional for local deployment with self-signed certificates
+            async with httpx.AsyncClient(timeout=10.0, verify=False) as client:  # noqa: S501
+                response = await client.get(url)
+
+                if response.status_code == 200:
+                    # Try to parse JSON response for details (ignore parse errors)
+                    details = None
+                    try:
+                        details = response.json()
+                    except (ValueError, TypeError):
+                        details = None  # Non-JSON response is OK
+
+                    return HealthStatus(
+                        service=service,
+                        status=ContainerStatus.HEALTHY,
+                        message="OK",
+                        details=details,
+                    )
+                else:
+                    return HealthStatus(
+                        service=service,
+                        status=ContainerStatus.UNHEALTHY,
+                        message=f"HTTP {response.status_code}",
+                    )
+
+        except httpx.ConnectError:
+            return HealthStatus(
+                service=service,
+                status=ContainerStatus.STOPPED,
+                message="Connection refused",
+            )
+        except httpx.TimeoutException:
+            return HealthStatus(
+                service=service,
+                status=ContainerStatus.UNHEALTHY,
+                message="Timeout",
+            )
+        except Exception as e:
+            return HealthStatus(
+                service=service,
+                status=ContainerStatus.UNHEALTHY,
+                message=str(e),
+            )
+
     # =========================================================================
     # Batch operations
     # =========================================================================
@@ -218,6 +283,7 @@ class HealthChecker:
             self.check_florence(),
             self.check_clip(),
             self.check_enrichment(),
+            self.check_enrichment_light(),
             self.check_frontend(),
         ]
 
@@ -230,6 +296,7 @@ class HealthChecker:
             "ai-florence",
             "ai-clip",
             "ai-enrichment",
+            "ai-enrichment-light",
             "frontend",
         ]
 
@@ -258,11 +325,19 @@ class HealthChecker:
             self.check_florence(),
             self.check_clip(),
             self.check_enrichment(),
+            self.check_enrichment_light(),
         ]
 
         results = await asyncio.gather(*checks, return_exceptions=True)
 
-        services = ["ai-yolo26", "ai-llm", "ai-florence", "ai-clip", "ai-enrichment"]
+        services = [
+            "ai-yolo26",
+            "ai-llm",
+            "ai-florence",
+            "ai-clip",
+            "ai-enrichment",
+            "ai-enrichment-light",
+        ]
 
         statuses: dict[str, HealthStatus] = {}
         for service, result in zip(services, results, strict=False):
@@ -313,6 +388,7 @@ class HealthChecker:
             "ai-florence": self.check_florence,
             "ai-clip": self.check_clip,
             "ai-enrichment": self.check_enrichment,
+            "ai-enrichment-light": self.check_enrichment_light,
             "frontend": self.check_frontend,
         }
 
@@ -396,6 +472,7 @@ class HealthChecker:
             "ai-florence",
             "ai-clip",
             "ai-enrichment",
+            "ai-enrichment-light",
         ]
         return await self.wait_healthy(ai_services, timeout=timeout)
 

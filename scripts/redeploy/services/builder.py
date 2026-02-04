@@ -23,6 +23,7 @@ class ImageBuilder:
         "ai-florence",
         "ai-clip",
         "ai-enrichment",
+        "ai-enrichment-light",
     ]
 
     # Mapping of AI service to Dockerfile location
@@ -32,6 +33,7 @@ class ImageBuilder:
         "ai-florence": "ai/florence/Dockerfile",
         "ai-clip": "ai/clip/Dockerfile",
         "ai-enrichment": "ai/enrichment/Dockerfile",
+        "ai-enrichment-light": "ai/enrichment-light/Dockerfile",
     }
 
     def __init__(self, runtime: ContainerRuntime, config: DeployConfig):

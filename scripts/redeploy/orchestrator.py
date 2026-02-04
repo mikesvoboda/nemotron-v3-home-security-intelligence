@@ -354,7 +354,7 @@ class DeployOrchestrator:
         output.success(f"Total time: {duration:.1f}s")
 
         # Print access URLs
-        output.info("Frontend: http://localhost:5173")
+        output.info("Frontend: https://localhost:8444")
         output.info(f"Backend:  http://localhost:{self.config.api_port}")
         output.info(f"API Docs: http://localhost:{self.config.api_port}/docs")
 
