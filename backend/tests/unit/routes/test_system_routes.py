@@ -7,6 +7,8 @@ but are important for correctness (and to satisfy the backend coverage gate).
 from __future__ import annotations
 
 import asyncio
+import os
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -33,8 +35,26 @@ from backend.api.schemas.system import (
     TelemetryResponse,
     WorkerStatus,
 )
+from backend.core.config import get_settings
 from backend.core.redis import RedisClient
-from backend.tests.unit.conftest import get_auth_headers
+from backend.tests.unit.conftest import UNIT_TEST_API_KEY, get_auth_headers
+
+
+@pytest.fixture(autouse=True)
+def ensure_api_key_auth_enabled() -> Generator[None]:
+    """Ensure API key authentication is enabled for each test.
+
+    This fixture ensures test isolation by setting up the API key auth
+    environment variables and clearing the settings cache. This prevents
+    tests from failing with 401 errors when running with pytest-xdist
+    (parallel test execution) where session-scoped fixtures may not
+    properly propagate settings to all workers.
+    """
+    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)
