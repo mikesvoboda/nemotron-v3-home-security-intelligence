@@ -140,7 +140,7 @@ Key environment variables to configure:
 
 ```bash
 # Database (PostgreSQL required)
-# IMPORTANT: Run ./setup.sh to generate .env with a secure password, or set manually:
+# IMPORTANT: Run python setup.py to generate .env with a secure password, or set manually:
 # Generate password: openssl rand -base64 32
 DATABASE_URL=postgresql+asyncpg://security:<your-password>@localhost:5432/security
 

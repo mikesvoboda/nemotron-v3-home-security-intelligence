@@ -264,7 +264,7 @@ With all services running on RTX A5500 (24GB):
 
 ```bash
 # 1. Run setup (generates .env)
-./setup.sh
+python setup.py
 
 # 2. Download AI models
 ./ai/download_models.sh
@@ -291,7 +291,7 @@ Useful when iterating on AI services, or when GPU passthrough is inconvenient.
 
 ```bash
 # 1. Run setup
-./setup.sh
+python setup.py
 
 # 2. Download AI models
 ./ai/download_models.sh

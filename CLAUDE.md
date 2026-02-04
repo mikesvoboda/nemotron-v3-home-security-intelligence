@@ -14,7 +14,7 @@ This project is an AI-powered home security monitoring dashboard. See `AGENTS.md
 ## Setup
 
 ```bash
-./setup.sh              # First-time setup (creates .env, installs deps)
+python setup.py              # First-time setup (creates .env, installs deps)
 uv sync --extra dev     # Sync Python dependencies
 cd frontend && bun install  # Sync frontend dependencies
 pre-commit install      # Install git hooks
