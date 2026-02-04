@@ -343,7 +343,7 @@ DESCRIPTION:
     LOCAL MODE (default):
       Builds all 9 services locally from source:
       - Core: postgres, redis, backend, frontend
-      - AI: ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
+      - AI: ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment, ai-enrichment-light
 
     HYBRID MODE (--hybrid flag):
       Pulls backend/frontend from GHCR, builds AI services locally.
@@ -409,7 +409,7 @@ stop_standalone_containers() {
     # and use generic names that aren't project-scoped
     local -a standalone_containers=(
         # AI services
-        "ai-yolo26" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment"
+        "ai-yolo26" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment" "ai-enrichment-light"
         # Core services (started via podman run in local/hybrid modes)
         "backend" "frontend"
     )
@@ -496,6 +496,7 @@ stop_all_project_containers() {
         "ai-florence"
         "ai-clip"
         "ai-enrichment"
+        "ai-enrichment-light"
         "backend"
         "frontend"
         "postgres"
@@ -665,6 +666,7 @@ build_ai_images_podman() {
         "ai-florence:ai/florence/Dockerfile:."
         "ai-clip:ai/clip/Dockerfile:."
         "ai-enrichment:ai/enrichment/Dockerfile:."
+        "ai-enrichment-light:ai/enrichment-light/Dockerfile:."
     )
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -1585,7 +1587,7 @@ build_images() {
         else
             # Docker: Use compose normally
             print_step "Building AI service images (this may take a few minutes)..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment ai-enrichment-light; then
                 print_success "AI images built"
             else
                 print_fail "Failed to build AI images"
@@ -1724,9 +1726,9 @@ start_containers() {
 
     if [ "$DEPLOY_MODE" = "local" ]; then
         # Start services in phases to handle dependencies properly
-        # Phase 1: Infrastructure (postgres, redis)
+        # Phase 1: Infrastructure (postgres, redis, go2rtc)
         print_step "Phase 1: Starting infrastructure services..."
-        if run_cmd timeout 60 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d postgres redis; then
+        if run_cmd timeout 60 $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d postgres redis go2rtc; then
             print_success "Infrastructure services started"
         else
             print_fail "Failed to start infrastructure services"
@@ -1832,7 +1834,7 @@ start_containers() {
         else
             # Docker: Use compose normally
             print_step "Starting AI containers from prod compose..."
-            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d --no-build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d --no-build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment ai-enrichment-light; then
                 print_success "AI containers started"
             else
                 local exit_code=$?
