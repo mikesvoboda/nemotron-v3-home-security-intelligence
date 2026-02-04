@@ -1392,6 +1392,12 @@ async def client(integration_db: str, mock_redis: AsyncMock):
     mock_service_health_monitor.start = AsyncMock()
     mock_service_health_monitor.stop = AsyncMock()
 
+    # Mock SetupGuardMiddleware to bypass setup check in integration tests
+    # NEM-5312: The SetupGuardMiddleware blocks all non-whitelisted endpoints with 503
+    # when no users exist. In integration tests, we want to test endpoints without
+    # requiring user creation, so we mock the setup check to always return True.
+    mock_setup_guard = AsyncMock(return_value=True)
+
     with (
         patch("backend.main.init_db", AsyncMock(return_value=None)),
         patch("backend.main.close_db", AsyncMock(return_value=None)),
@@ -1408,6 +1414,10 @@ async def client(integration_db: str, mock_redis: AsyncMock):
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         patch("backend.api.routes.system._file_watcher", mock_file_watcher_for_routes),
         patch("backend.api.routes.system._cleanup_service", mock_cleanup_service),
+        patch(
+            "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+            mock_setup_guard,
+        ),
     ):
         try:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

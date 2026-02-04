@@ -450,7 +450,8 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # X-CLIP for temporal action recognition in video sequences
         # Analyzes multiple frames to classify security-relevant actions:
         # loitering, approaching door, running away, suspicious behavior, etc.
-        # Based on microsoft/xclip-base-patch32 - extends CLIP for video understanding
+        # Based on microsoft/xclip-base-patch16-16-frames (NEM-3908 upgrade for +4% accuracy)
+        # Requires 16 frames for optimal performance
         "xclip-base": ModelConfig(
             name="xclip-base",
             path=f"{base_path}/xclip-base",
