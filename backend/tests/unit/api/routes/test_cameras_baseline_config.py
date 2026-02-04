@@ -45,6 +45,12 @@ class TestUpdateBaselineConfig:
                     "threshold_stdev": 3.0,
                     "min_samples": 15,
                     "override_global_config": True,
+                    "global_config": {
+                        "threshold_stdev": 2.0,
+                        "min_samples": 10,
+                        "decay_factor": 0.1,
+                        "window_days": 30,
+                    },
                 }
             )
 
@@ -54,9 +60,9 @@ class TestUpdateBaselineConfig:
                 db=mock_db,
             )
 
-            assert result["threshold_stdev"] == 3.0
-            assert result["min_samples"] == 15
-            assert result["override_global_config"] is True
+            assert result.threshold_stdev == 3.0
+            assert result.min_samples == 15
+            assert result.override_global_config is True
             mock_service.set_camera_config.assert_called_once()
 
     @pytest.mark.asyncio
@@ -141,6 +147,12 @@ class TestUpdateBaselineConfig:
                     "threshold_stdev": 3.5,
                     "min_samples": 10,  # Unchanged from default
                     "override_global_config": True,
+                    "global_config": {
+                        "threshold_stdev": 2.0,
+                        "min_samples": 10,
+                        "decay_factor": 0.1,
+                        "window_days": 30,
+                    },
                 }
             )
 
@@ -150,8 +162,8 @@ class TestUpdateBaselineConfig:
                 db=mock_db,
             )
 
-            assert result["threshold_stdev"] == 3.5
-            assert result["min_samples"] == 10
+            assert result.threshold_stdev == 3.5
+            assert result.min_samples == 10
 
     @pytest.mark.asyncio
     async def test_update_baseline_config_toggle_override(self) -> None:
@@ -175,6 +187,12 @@ class TestUpdateBaselineConfig:
                     "threshold_stdev": 2.0,  # Global default
                     "min_samples": 10,  # Global default
                     "override_global_config": False,
+                    "global_config": {
+                        "threshold_stdev": 2.0,
+                        "min_samples": 10,
+                        "decay_factor": 0.1,
+                        "window_days": 30,
+                    },
                 }
             )
 
@@ -184,7 +202,7 @@ class TestUpdateBaselineConfig:
                 db=mock_db,
             )
 
-            assert result["override_global_config"] is False
+            assert result.override_global_config is False
 
 
 class TestResetBaseline:
@@ -212,8 +230,8 @@ class TestResetBaseline:
 
             result = await reset_baseline(camera_id="front_door", db=mock_db)
 
-            assert result["activity_baselines_deleted"] == 168
-            assert result["class_baselines_deleted"] == 42
+            assert result.activity_baselines_deleted == 168
+            assert result.class_baselines_deleted == 42
             mock_service.reset_camera_baseline.assert_called_once_with(
                 camera_id="front_door", session=mock_db
             )
@@ -256,8 +274,8 @@ class TestResetBaseline:
 
             result = await reset_baseline(camera_id="new_camera", db=mock_db)
 
-            assert result["activity_baselines_deleted"] == 0
-            assert result["class_baselines_deleted"] == 0
+            assert result.activity_baselines_deleted == 0
+            assert result.class_baselines_deleted == 0
 
     @pytest.mark.asyncio
     async def test_reset_baseline_deletes_activity(self) -> None:
@@ -285,8 +303,8 @@ class TestResetBaseline:
 
             result = await reset_baseline(camera_id="front_door", db=mock_db)
 
-            assert result["activity_baselines_deleted"] == 168
-            assert result["activity_baselines_deleted"] > 0
+            assert result.activity_baselines_deleted == 168
+            assert result.activity_baselines_deleted > 0
 
     @pytest.mark.asyncio
     async def test_reset_baseline_deletes_class(self) -> None:
@@ -310,8 +328,8 @@ class TestResetBaseline:
 
             result = await reset_baseline(camera_id="front_door", db=mock_db)
 
-            assert result["class_baselines_deleted"] == 42
-            assert result["class_baselines_deleted"] > 0
+            assert result.class_baselines_deleted == 42
+            assert result.class_baselines_deleted > 0
 
 
 class TestGetBaselineConfig:
@@ -346,10 +364,10 @@ class TestGetBaselineConfig:
 
             result = await get_baseline_config(camera_id="front_door", db=mock_db)
 
-            assert result["threshold_stdev"] == 2.0
-            assert result["min_samples"] == 10
-            assert result["override_global_config"] is False
-            assert "global_config" in result
+            assert result.threshold_stdev == 2.0
+            assert result.min_samples == 10
+            assert result.override_global_config is False
+            assert result.global_config is not None
 
     @pytest.mark.asyncio
     async def test_get_baseline_config_override(self) -> None:
@@ -380,9 +398,9 @@ class TestGetBaselineConfig:
 
             result = await get_baseline_config(camera_id="front_door", db=mock_db)
 
-            assert result["threshold_stdev"] == 3.5
-            assert result["min_samples"] == 20
-            assert result["override_global_config"] is True
+            assert result.threshold_stdev == 3.5
+            assert result.min_samples == 20
+            assert result.override_global_config is True
 
     @pytest.mark.asyncio
     async def test_get_baseline_config_camera_not_found(self) -> None:

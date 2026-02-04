@@ -9,7 +9,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.api.schemas.pagination import PaginationMeta
 
@@ -39,16 +39,17 @@ class JobProgressDetail(BaseModel):
     items_processed: int | None = Field(None, ge=0, description="Number of items processed so far")
     items_total: int | None = Field(None, ge=0, description="Total number of items to process")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "percent": 45,
                 "current_step": "Processing events",
                 "items_processed": 450,
                 "items_total": 1000,
             }
-        }
-    }
+        },
+    )
 
 
 class JobTiming(BaseModel):
@@ -67,8 +68,9 @@ class JobTiming(BaseModel):
         None, ge=0, description="Estimated time remaining (if running)"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "created_at": "2024-01-15T10:30:00Z",
                 "started_at": "2024-01-15T10:30:01Z",
@@ -76,8 +78,8 @@ class JobTiming(BaseModel):
                 "duration_seconds": 45.5,
                 "estimated_remaining_seconds": 55.0,
             }
-        }
-    }
+        },
+    )
 
 
 class JobRetryInfo(BaseModel):
@@ -95,16 +97,17 @@ class JobRetryInfo(BaseModel):
         default_factory=list, description="List of error messages from previous attempts"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "attempt_number": 2,
                 "max_attempts": 3,
                 "next_retry_at": "2024-01-15T10:35:00Z",
                 "previous_errors": ["Connection timeout"],
             }
-        }
-    }
+        },
+    )
 
 
 class JobMetadata(BaseModel):
@@ -118,14 +121,15 @@ class JobMetadata(BaseModel):
     )
     worker_id: str | None = Field(None, description="ID of the worker executing the job")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "input_params": {"format": "csv", "camera_id": "cam-1"},
                 "worker_id": "worker-abc-123",
             }
-        }
-    }
+        },
+    )
 
 
 class JobDetailResponse(BaseModel):
@@ -149,8 +153,9 @@ class JobDetailResponse(BaseModel):
     error: str | None = Field(None, description="Error message (if failed)")
     metadata: JobMetadata = Field(description="Job execution metadata")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "job_type": "ai_analysis",
@@ -183,8 +188,8 @@ class JobDetailResponse(BaseModel):
                     "worker_id": "worker-001",
                 },
             }
-        }
-    }
+        },
+    )
 
 
 class JobResponse(BaseModel):
@@ -201,8 +206,9 @@ class JobResponse(BaseModel):
     result: Any | None = Field(None, description="Job result data (if completed)")
     error: str | None = Field(None, description="Error message (if failed)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "job_type": "export",
@@ -215,8 +221,8 @@ class JobResponse(BaseModel):
                 "result": None,
                 "error": None,
             }
-        }
-    }
+        },
+    )
 
 
 class ExportJobResult(BaseModel):
@@ -227,16 +233,17 @@ class ExportJobResult(BaseModel):
     event_count: int = Field(ge=0, description="Number of events exported")
     format: str = Field(description="Export format (csv, json, zip)")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "file_path": "/api/exports/events_export_20240115_103000.csv",
                 "file_size": 125432,
                 "event_count": 1000,
                 "format": "csv",
             }
-        }
-    }
+        },
+    )
 
 
 class ExportFormat(StrEnum):
@@ -282,8 +289,9 @@ class JobListResponse(BaseModel):
     items: list[JobResponse] = Field(description="List of jobs")
     pagination: PaginationMeta = Field(description="Pagination metadata")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "items": [
                     {
@@ -308,8 +316,8 @@ class JobListResponse(BaseModel):
                     "has_more": True,
                 },
             }
-        }
-    }
+        },
+    )
 
 
 class JobTypeInfo(BaseModel):
@@ -318,14 +326,15 @@ class JobTypeInfo(BaseModel):
     name: str = Field(description="Job type name (e.g., 'export', 'cleanup')")
     description: str = Field(description="Human-readable description of the job type")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "name": "export",
                 "description": "Export events to CSV, JSON, or ZIP format",
             }
-        }
-    }
+        },
+    )
 
 
 class JobTypesResponse(BaseModel):
@@ -333,8 +342,9 @@ class JobTypesResponse(BaseModel):
 
     job_types: list[JobTypeInfo] = Field(description="List of available job types")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_types": [
                     {
@@ -347,8 +357,8 @@ class JobTypesResponse(BaseModel):
                     },
                 ]
             }
-        }
-    }
+        },
+    )
 
 
 class JobCancelResponse(BaseModel):
@@ -358,15 +368,16 @@ class JobCancelResponse(BaseModel):
     status: JobStatusEnum = Field(description="New job status after cancellation")
     message: str = Field(description="Cancellation status message")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "status": "failed",
                 "message": "Job cancellation requested",
             }
-        }
-    }
+        },
+    )
 
 
 class JobStatusCount(BaseModel):
@@ -375,14 +386,15 @@ class JobStatusCount(BaseModel):
     status: JobStatusEnum = Field(description="Job status")
     count: int = Field(ge=0, description="Number of jobs with this status")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "status": "completed",
                 "count": 42,
             }
-        }
-    }
+        },
+    )
 
 
 class JobTypeCount(BaseModel):
@@ -391,14 +403,15 @@ class JobTypeCount(BaseModel):
     job_type: str = Field(description="Job type name")
     count: int = Field(ge=0, description="Number of jobs of this type")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_type": "export",
                 "count": 25,
             }
-        }
-    }
+        },
+    )
 
 
 class JobAbortResponse(BaseModel):
@@ -408,15 +421,16 @@ class JobAbortResponse(BaseModel):
     status: JobStatusEnum = Field(description="New job status (aborting/failed)")
     message: str = Field(description="Abort status message")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "status": "failed",
                 "message": "Job abort requested - worker notified",
             }
-        }
-    }
+        },
+    )
 
 
 class BulkCancelRequest(BaseModel):
@@ -446,14 +460,15 @@ class BulkCancelError(BaseModel):
     job_id: str = Field(description="Job ID that failed to cancel")
     error: str = Field(description="Error message")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "error": "Job not found",
             }
-        }
-    }
+        },
+    )
 
 
 class BulkCancelResponse(BaseModel):
@@ -466,8 +481,9 @@ class BulkCancelResponse(BaseModel):
         description="Details of cancellation failures",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "cancelled": 5,
                 "failed": 1,
@@ -478,8 +494,8 @@ class BulkCancelResponse(BaseModel):
                     }
                 ],
             }
-        }
-    }
+        },
+    )
 
 
 class JobStatsResponse(BaseModel):
@@ -499,8 +515,9 @@ class JobStatsResponse(BaseModel):
         None, description="Age of the oldest pending job in seconds"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "total_jobs": 100,
                 "by_status": [
@@ -517,8 +534,8 @@ class JobStatsResponse(BaseModel):
                 "average_duration_seconds": 45.5,
                 "oldest_pending_job_age_seconds": 120.0,
             }
-        }
-    }
+        },
+    )
 
 
 # =============================================================================
@@ -538,8 +555,9 @@ class JobSearchAggregations(BaseModel):
         description="Count of matching jobs by job type",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "by_status": {
                     "pending": 10,
@@ -553,8 +571,8 @@ class JobSearchAggregations(BaseModel):
                     "cleanup": 10,
                 },
             }
-        }
-    }
+        },
+    )
 
 
 class JobSearchResponse(BaseModel):
@@ -571,8 +589,9 @@ class JobSearchResponse(BaseModel):
         description="Aggregation counts for faceted filtering"
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "data": [
                     {
@@ -610,8 +629,8 @@ class JobSearchResponse(BaseModel):
                     },
                 },
             }
-        }
-    }
+        },
+    )
 
 
 # =============================================================================
@@ -632,9 +651,10 @@ class JobTransitionResponse(BaseModel):
     )
     details: dict[str, Any] | None = Field(None, description="Additional transition details")
 
-    model_config = {
-        "populate_by_name": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
             "example": {
                 "from": None,
                 "to": "queued",
@@ -643,7 +663,7 @@ class JobTransitionResponse(BaseModel):
                 "details": {"user": "system"},
             }
         },
-    }
+    )
 
 
 class JobAttemptResponse(BaseModel):
@@ -662,8 +682,9 @@ class JobAttemptResponse(BaseModel):
     )
     result: dict[str, Any] | None = Field(None, description="Result data if successful")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "attempt_number": 1,
                 "started_at": "2024-01-15T10:30:01Z",
@@ -674,8 +695,8 @@ class JobAttemptResponse(BaseModel):
                 "duration_seconds": 89.0,
                 "result": {"processed": 1000},
             }
-        }
-    }
+        },
+    )
 
 
 class JobHistoryResponse(BaseModel):
@@ -699,8 +720,9 @@ class JobHistoryResponse(BaseModel):
         description="Execution attempts in order",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "job_type": "export",
@@ -744,8 +766,8 @@ class JobHistoryResponse(BaseModel):
                     }
                 ],
             }
-        }
-    }
+        },
+    )
 
 
 class JobLogEntryResponse(BaseModel):
@@ -757,8 +779,9 @@ class JobLogEntryResponse(BaseModel):
     context: dict[str, Any] | None = Field(None, description="Additional context data")
     attempt_number: int = Field(default=1, ge=1, description="Which attempt generated this log")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "timestamp": "2024-01-15T10:30:05Z",
                 "level": "INFO",
@@ -766,8 +789,8 @@ class JobLogEntryResponse(BaseModel):
                 "context": {"event_count": 1000},
                 "attempt_number": 1,
             }
-        }
-    }
+        },
+    )
 
 
 class JobLogsResponse(BaseModel):
@@ -784,8 +807,9 @@ class JobLogsResponse(BaseModel):
     total: int = Field(ge=0, description="Total number of log entries returned")
     has_more: bool = Field(default=False, description="Whether more logs exist beyond the limit")
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "logs": [
@@ -814,5 +838,5 @@ class JobLogsResponse(BaseModel):
                 "total": 3,
                 "has_more": False,
             }
-        }
-    }
+        },
+    )

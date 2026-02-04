@@ -17,13 +17,24 @@ Endpoints:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, status
 
 from backend.api.dependencies import DbSession, OnvifServiceDep, get_camera_or_404
-from backend.api.schemas.onvif import PTZCommand
+from backend.api.schemas.onvif import (
+    OnvifCapabilitiesResponse,
+    OnvifDiscoveryResponse,
+    PTZCommand,
+    PTZCommandResponse,
+    PTZGotoPresetResponse,
+    PTZPresetsResponse,
+    PTZStopResponse,
+)
 from backend.core.logging import get_logger
+
+if TYPE_CHECKING:
+    from backend.services.onvif_service import OnvifService
 
 logger = get_logger(__name__)
 
@@ -85,9 +96,9 @@ def _handle_onvif_error(e: Exception, camera_id: str, operation: str) -> HTTPExc
 
 async def discover_onvif_devices(
     subnet: str,
-    onvif_service: Any,
+    onvif_service: OnvifService,
     timeout: int = 10,
-) -> dict[str, Any]:
+) -> OnvifDiscoveryResponse:
     """Discover ONVIF devices on the network.
 
     Args:
@@ -96,14 +107,14 @@ async def discover_onvif_devices(
         timeout: Discovery timeout in seconds (default: 10).
 
     Returns:
-        Dictionary with discovered devices and count.
+        OnvifDiscoveryResponse with discovered devices and count.
 
     Raises:
         HTTPException: 500 if discovery fails.
     """
     try:
         devices = await onvif_service.discover_devices(subnet=subnet, timeout=timeout)
-        return {"devices": devices, "count": len(devices)}
+        return OnvifDiscoveryResponse(devices=devices, count=len(devices))
     except Exception as e:
         logger.error(
             "ONVIF device discovery failed",
@@ -118,9 +129,9 @@ async def discover_onvif_devices(
 
 async def get_device_capabilities(
     camera_id: str,
-    onvif_service: Any,
+    onvif_service: OnvifService,
     camera_service: Any,
-) -> dict[str, Any]:
+) -> OnvifCapabilitiesResponse:
     """Get ONVIF device capabilities for a camera.
 
     Args:
@@ -129,7 +140,7 @@ async def get_device_capabilities(
         camera_service: Camera service instance (injected).
 
     Returns:
-        Dictionary with device capabilities.
+        OnvifCapabilitiesResponse with device capabilities.
 
     Raises:
         HTTPException: 404 if camera not found, 409 if not ONVIF, 503 if unreachable.
@@ -138,7 +149,7 @@ async def get_device_capabilities(
 
     try:
         capabilities = await onvif_service.get_capabilities(camera_id=camera_id)
-        return dict(capabilities)  # type: ignore[arg-type]
+        return OnvifCapabilitiesResponse.model_validate(dict(capabilities))
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -150,9 +161,9 @@ async def execute_ptz_command(
     command: str,
     value: float,
     speed: float,
-    onvif_service: Any,
+    onvif_service: OnvifService,
     camera_service: Any,
-) -> dict[str, Any]:
+) -> PTZCommandResponse:
     """Execute a PTZ command on the camera.
 
     Args:
@@ -164,7 +175,7 @@ async def execute_ptz_command(
         camera_service: Camera service instance (injected).
 
     Returns:
-        Dictionary with success status and command info.
+        PTZCommandResponse with success status and command info.
 
     Raises:
         HTTPException: 400 if invalid, 404 if not found, 409 if not ONVIF, 503 if unreachable.
@@ -175,7 +186,7 @@ async def execute_ptz_command(
         result = await onvif_service.execute_ptz_command(
             camera_id=camera_id, command=command, value=value, speed=speed
         )
-        return {"success": result, "command": command, "value": value, "speed": speed}
+        return PTZCommandResponse(success=result, command=command, value=value, speed=speed)
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -184,9 +195,9 @@ async def execute_ptz_command(
 
 async def get_ptz_presets(
     camera_id: str,
-    onvif_service: Any,
+    onvif_service: OnvifService,
     camera_service: Any,
-) -> dict[str, Any]:
+) -> PTZPresetsResponse:
     """Get available PTZ presets for a camera.
 
     Args:
@@ -195,7 +206,7 @@ async def get_ptz_presets(
         camera_service: Camera service instance (injected).
 
     Returns:
-        Dictionary with presets list and count.
+        PTZPresetsResponse with presets list and count.
 
     Raises:
         HTTPException: 404 if not found, 409 if not ONVIF, 503 if unreachable.
@@ -204,7 +215,7 @@ async def get_ptz_presets(
 
     try:
         presets = await onvif_service.get_presets(camera_id=camera_id)
-        return {"presets": presets, "count": len(presets)}
+        return PTZPresetsResponse(presets=presets, count=len(presets))
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -214,9 +225,9 @@ async def get_ptz_presets(
 async def goto_ptz_preset(
     camera_id: str,
     preset_token: str,
-    onvif_service: Any,
+    onvif_service: OnvifService,
     camera_service: Any,
-) -> dict[str, Any]:
+) -> PTZGotoPresetResponse:
     """Navigate camera to a PTZ preset position.
 
     Args:
@@ -226,7 +237,7 @@ async def goto_ptz_preset(
         camera_service: Camera service instance (injected).
 
     Returns:
-        Dictionary with success status and preset info.
+        PTZGotoPresetResponse with success status and preset info.
 
     Raises:
         HTTPException: 400 if invalid, 404 if not found, 409 if not ONVIF, 503 if unreachable.
@@ -235,7 +246,7 @@ async def goto_ptz_preset(
 
     try:
         result = await onvif_service.goto_preset(camera_id=camera_id, preset_token=preset_token)
-        return {"success": result, "preset_token": preset_token}
+        return PTZGotoPresetResponse(success=result, preset_token=preset_token)
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -253,6 +264,7 @@ async def goto_ptz_preset(
 @router.post(
     "/{camera_id}/onvif/ptz",
     summary="Execute PTZ command",
+    response_model=PTZCommandResponse,
     responses={
         200: {"description": "PTZ command executed successfully"},
         400: {"description": "Invalid PTZ command or value"},
@@ -266,7 +278,7 @@ async def ptz_command_endpoint(
     command: PTZCommand,
     db: DbSession,
     onvif_service: OnvifServiceDep,
-) -> dict[str, Any]:
+) -> PTZCommandResponse:
     """Execute a PTZ command (pan, tilt, zoom, stop) on a camera.
 
     This endpoint controls PTZ cameras via ONVIF protocol. The frontend uses
@@ -279,11 +291,7 @@ async def ptz_command_endpoint(
         onvif_service: ONVIF service for PTZ control
 
     Returns:
-        Dictionary with success status and executed command details:
-        - success: True if command executed
-        - command: The command type executed
-        - value: The movement value used
-        - speed: The speed used
+        PTZCommandResponse with success status and executed command details
 
     Raises:
         HTTPException: 400 if invalid command/value, 404 if camera not found,
@@ -299,12 +307,12 @@ async def ptz_command_endpoint(
             value=command.value,
             speed=command.speed,
         )
-        return {
-            "success": result,
-            "command": command.command,
-            "value": command.value,
-            "speed": command.speed,
-        }
+        return PTZCommandResponse(
+            success=result,
+            command=command.command,
+            value=command.value,
+            speed=command.speed,
+        )
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -314,6 +322,7 @@ async def ptz_command_endpoint(
 @router.post(
     "/{camera_id}/onvif/ptz/stop",
     summary="Stop PTZ movement",
+    response_model=PTZStopResponse,
     responses={
         200: {"description": "PTZ movement stopped"},
         404: {"description": "Camera not found"},
@@ -325,7 +334,7 @@ async def ptz_stop_endpoint(
     camera_id: str,
     db: DbSession,
     onvif_service: OnvifServiceDep,
-) -> dict[str, Any]:
+) -> PTZStopResponse:
     """Stop all PTZ movement on a camera.
 
     Convenience endpoint that sends a stop command without requiring
@@ -338,7 +347,7 @@ async def ptz_stop_endpoint(
         onvif_service: ONVIF service for PTZ control
 
     Returns:
-        Dictionary with success status
+        PTZStopResponse with success status
 
     Raises:
         HTTPException: 404 if camera not found, 409 if not ONVIF device,
@@ -353,7 +362,7 @@ async def ptz_stop_endpoint(
             value=0.0,
             speed=0.0,
         )
-        return {"success": result, "command": "stop"}
+        return PTZStopResponse(success=result)
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -363,6 +372,7 @@ async def ptz_stop_endpoint(
 @router.get(
     "/{camera_id}/onvif/presets",
     summary="Get PTZ presets",
+    response_model=PTZPresetsResponse,
     responses={
         200: {"description": "List of PTZ presets"},
         404: {"description": "Camera not found"},
@@ -374,7 +384,7 @@ async def get_presets_endpoint(
     camera_id: str,
     db: DbSession,
     onvif_service: OnvifServiceDep,
-) -> dict[str, Any]:
+) -> PTZPresetsResponse:
     """Get available PTZ presets for a camera.
 
     Retrieves the list of saved PTZ positions (presets) configured on
@@ -386,9 +396,7 @@ async def get_presets_endpoint(
         onvif_service: ONVIF service for preset retrieval
 
     Returns:
-        Dictionary with:
-        - presets: List of preset objects with token and name
-        - count: Number of presets available
+        PTZPresetsResponse with presets list and count
 
     Raises:
         HTTPException: 404 if camera not found, 409 if not ONVIF device,
@@ -398,7 +406,7 @@ async def get_presets_endpoint(
 
     try:
         presets = await onvif_service.get_presets(camera_id=camera_id)
-        return {"presets": presets, "count": len(presets)}
+        return PTZPresetsResponse(presets=presets, count=len(presets))
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -408,6 +416,7 @@ async def get_presets_endpoint(
 @router.post(
     "/{camera_id}/onvif/presets/{preset_token}",
     summary="Go to PTZ preset",
+    response_model=PTZGotoPresetResponse,
     responses={
         200: {"description": "Camera moving to preset position"},
         400: {"description": "Invalid preset token"},
@@ -421,7 +430,7 @@ async def goto_preset_endpoint(
     preset_token: str,
     db: DbSession,
     onvif_service: OnvifServiceDep,
-) -> dict[str, Any]:
+) -> PTZGotoPresetResponse:
     """Navigate camera to a saved PTZ preset position.
 
     Moves the camera to a previously saved preset position. The preset_token
@@ -434,9 +443,7 @@ async def goto_preset_endpoint(
         onvif_service: ONVIF service for PTZ control
 
     Returns:
-        Dictionary with:
-        - success: True if navigation started
-        - preset_token: The preset token that was used
+        PTZGotoPresetResponse with success status and preset token
 
     Raises:
         HTTPException: 400 if invalid preset token, 404 if camera not found,
@@ -449,7 +456,7 @@ async def goto_preset_endpoint(
             camera_id=camera_id,
             preset_token=preset_token,
         )
-        return {"success": result, "preset_token": preset_token}
+        return PTZGotoPresetResponse(success=result, preset_token=preset_token)
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:
@@ -459,6 +466,7 @@ async def goto_preset_endpoint(
 @router.get(
     "/{camera_id}/onvif/capabilities",
     summary="Get ONVIF device capabilities",
+    response_model=OnvifCapabilitiesResponse,
     responses={
         200: {"description": "Device capabilities"},
         404: {"description": "Camera not found"},
@@ -470,7 +478,7 @@ async def get_capabilities_endpoint(
     camera_id: str,
     db: DbSession,
     onvif_service: OnvifServiceDep,
-) -> dict[str, Any]:
+) -> OnvifCapabilitiesResponse:
     """Get ONVIF device capabilities for a camera.
 
     Retrieves device information and capability flags including:
@@ -485,7 +493,7 @@ async def get_capabilities_endpoint(
         onvif_service: ONVIF service for capability retrieval
 
     Returns:
-        Dictionary with device info and capability flags
+        OnvifCapabilitiesResponse with device info and capability flags
 
     Raises:
         HTTPException: 404 if camera not found, 409 if not ONVIF device,
@@ -495,7 +503,7 @@ async def get_capabilities_endpoint(
 
     try:
         capabilities = await onvif_service.get_capabilities(camera_id=camera_id)
-        return dict(capabilities)  # type: ignore[arg-type]
+        return OnvifCapabilitiesResponse.model_validate(dict(capabilities))
     except ValueError as e:
         raise _handle_onvif_value_error(e) from e
     except Exception as e:

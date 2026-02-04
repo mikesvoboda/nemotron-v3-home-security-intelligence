@@ -35,6 +35,7 @@ class ZoneComparisonData(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "zone_id": 1,
@@ -44,7 +45,7 @@ class ZoneComparisonData(BaseModel):
                 "value": 42.5,
                 "trend_percent": 12.3,
             }
-        }
+        },
     )
 
     zone_id: int = Field(..., description="Unique zone identifier")
@@ -66,6 +67,7 @@ class ZoneComparisonResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "metric": "crossings",
@@ -91,7 +93,7 @@ class ZoneComparisonResponse(BaseModel):
                 "end_time": "2026-01-31T12:00:00Z",
                 "comparison_period": "day",
             }
-        }
+        },
     )
 
     metric: ComparisonMetric = Field(..., description="The metric being compared")

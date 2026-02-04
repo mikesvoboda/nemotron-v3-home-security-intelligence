@@ -23,7 +23,7 @@ import { PieChart } from 'lucide-react';
 import { useMemo, useCallback } from 'react';
 
 import { RISK_HEX_COLORS } from '../../constants/chartColors';
-import { Skeleton } from '../common';
+import { ChartLoadingState } from '../common/ChartLoadingState';
 
 import type { RiskLevel } from '../../utils/risk';
 
@@ -207,12 +207,10 @@ export default function RiskDistributionChart({
         data-testid="risk-distribution-loading"
       >
         <div className="mb-3 flex items-center gap-2">
-          <Skeleton variant="circular" width={20} height={20} />
-          <Skeleton variant="text" width={120} height={20} />
+          <PieChart className="h-5 w-5 text-gray-500" />
+          <Text className="font-medium text-gray-300">Risk Distribution</Text>
         </div>
-        <div className="flex items-center justify-center py-4">
-          <Skeleton variant="circular" width={120} height={120} />
-        </div>
+        <ChartLoadingState height="h-40" data-testid="risk-distribution-loading-spinner" />
       </Card>
     );
   }

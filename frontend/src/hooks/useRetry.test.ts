@@ -153,7 +153,7 @@ describe('useRetry', () => {
   describe('useRetryStore', () => {
     it('starts with empty retries', () => {
       const { retries } = useRetryStore.getState();
-      expect(retries.size).toBe(0);
+      expect(Object.keys(retries).length).toBe(0);
     });
 
     it('can set and get a retry', () => {
@@ -172,7 +172,7 @@ describe('useRetry', () => {
       });
 
       const { retries } = useRetryStore.getState();
-      expect(retries.get('test-1')).toEqual(retryState);
+      expect(retries['test-1']).toEqual(retryState);
     });
 
     it('can remove a retry', () => {
@@ -192,7 +192,7 @@ describe('useRetry', () => {
       });
 
       const { retries } = useRetryStore.getState();
-      expect(retries.get('test-1')).toBeUndefined();
+      expect(retries['test-1']).toBeUndefined();
     });
 
     it('can cancel a retry', () => {
@@ -212,7 +212,7 @@ describe('useRetry', () => {
       });
 
       const { retries } = useRetryStore.getState();
-      expect(retries.get('test-1')?.cancelled).toBe(true);
+      expect(retries['test-1']?.cancelled).toBe(true);
     });
 
     it('can update countdown', () => {
@@ -232,7 +232,7 @@ describe('useRetry', () => {
       });
 
       const { retries } = useRetryStore.getState();
-      expect(retries.get('test-1')?.secondsRemaining).toBe(5);
+      expect(retries['test-1']?.secondsRemaining).toBe(5);
     });
 
     it('can clear all retries', () => {
@@ -259,7 +259,30 @@ describe('useRetry', () => {
       });
 
       const { retries } = useRetryStore.getState();
-      expect(retries.size).toBe(0);
+      expect(Object.keys(retries).length).toBe(0);
+    });
+
+    it('is JSON-serializable', () => {
+      const retryState = {
+        id: 'test-1',
+        attempt: 1,
+        maxAttempts: 3,
+        secondsRemaining: 10,
+        cancelled: false,
+        url: '/api/test',
+        retryAt: Date.now() + 10000,
+      };
+
+      act(() => {
+        useRetryStore.getState().setRetry('test-1', retryState);
+      });
+
+      const { retries } = useRetryStore.getState();
+
+      // Verify it can be serialized and deserialized
+      const serialized = JSON.stringify(retries);
+      const deserialized = JSON.parse(serialized);
+      expect(deserialized['test-1']).toEqual(retryState);
     });
   });
 

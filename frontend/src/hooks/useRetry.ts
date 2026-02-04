@@ -90,7 +90,7 @@ export interface PendingRetry<T = unknown> {
  */
 export interface RetryStoreState {
   /** Active retry operations keyed by ID */
-  retries: Map<string, RetryState>;
+  retries: Record<string, RetryState>;
   /** Add or update a retry operation */
   setRetry: (id: string, state: RetryState) => void;
   /** Remove a retry operation */
@@ -110,45 +110,45 @@ export interface RetryStoreState {
 /**
  * Global store for tracking retry operations across the application.
  * This enables the RetryIndicator component to display retry status.
+ * Uses Record<string, RetryState> instead of Map for JSON serialization support.
  */
 export const useRetryStore = create<RetryStoreState>((set) => ({
-  retries: new Map(),
+  retries: {},
 
   setRetry: (id, state) =>
-    set((prev) => {
-      const newRetries = new Map(prev.retries);
-      newRetries.set(id, state);
-      return { retries: newRetries };
-    }),
+    set((prev) => ({
+      retries: { ...prev.retries, [id]: state },
+    })),
 
   removeRetry: (id) =>
     set((prev) => {
-      const newRetries = new Map(prev.retries);
-      newRetries.delete(id);
-      return { retries: newRetries };
+      const { [id]: _, ...rest } = prev.retries;
+      return { retries: rest };
     }),
 
   cancelRetry: (id) =>
     set((prev) => {
-      const newRetries = new Map(prev.retries);
-      const existing = newRetries.get(id);
+      const existing = prev.retries[id];
       if (existing) {
-        newRetries.set(id, { ...existing, cancelled: true });
+        return {
+          retries: { ...prev.retries, [id]: { ...existing, cancelled: true } },
+        };
       }
-      return { retries: newRetries };
+      return prev;
     }),
 
   updateCountdown: (id, seconds) =>
     set((prev) => {
-      const newRetries = new Map(prev.retries);
-      const existing = newRetries.get(id);
+      const existing = prev.retries[id];
       if (existing) {
-        newRetries.set(id, { ...existing, secondsRemaining: seconds });
+        return {
+          retries: { ...prev.retries, [id]: { ...existing, secondsRemaining: seconds } },
+        };
       }
-      return { retries: newRetries };
+      return prev;
     }),
 
-  clearAll: () => set({ retries: new Map() }),
+  clearAll: () => set({ retries: {} }),
 }));
 
 // ============================================================================
@@ -309,7 +309,7 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
 
   // Get active retries from store
   const retries = useRetryStore((state) => state.retries);
-  const activeRetries = Array.from(retries.values()).filter((r) => !r.cancelled);
+  const activeRetries = Object.values(retries).filter((r) => !r.cancelled);
 
   /**
    * Start a countdown timer for a retry operation.
@@ -548,7 +548,7 @@ export function useRetry(config: Partial<RetryConfig> = {}): UseRetryReturn {
  */
 export function useActiveRetries(): RetryState[] {
   const retries = useRetryStore((state) => state.retries);
-  return Array.from(retries.values()).filter((r) => !r.cancelled);
+  return Object.values(retries).filter((r) => !r.cancelled);
 }
 
 /**
@@ -556,5 +556,5 @@ export function useActiveRetries(): RetryState[] {
  */
 export function useHasActiveRetries(): boolean {
   const retries = useRetryStore((state) => state.retries);
-  return Array.from(retries.values()).some((r) => !r.cancelled);
+  return Object.values(retries).some((r) => !r.cancelled);
 }

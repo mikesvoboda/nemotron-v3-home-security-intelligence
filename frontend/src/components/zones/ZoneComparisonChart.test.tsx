@@ -10,6 +10,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import { ZoneComparisonChart } from './ZoneComparisonChart';
+import { CHART_ANIMATION_THRESHOLD } from '../../utils/chartAnimation';
 
 import type { ZoneComparisonData } from '../../hooks/useZoneComparison';
 
@@ -18,8 +19,8 @@ vi.mock('@tremor/react', async () => {
   const actual = await vi.importActual('@tremor/react');
   return {
     ...actual,
-    BarChart: vi.fn(({ data, 'data-testid': testId }) => (
-      <div data-testid={testId || 'mock-bar-chart'}>
+    BarChart: vi.fn(({ data, showAnimation, 'data-testid': testId }) => (
+      <div data-testid={testId || 'mock-bar-chart'} data-show-animation={showAnimation}>
         BarChart with {data?.length ?? 0} items
       </div>
     )),
@@ -160,6 +161,41 @@ describe('ZoneComparisonChart', () => {
       render(<ZoneComparisonChart zones={zones} metric="occupancy" />);
 
       expect(screen.getByText(/Zone Comparison - Occupancy/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Animation Control (NEM-5045)', () => {
+    it('should enable animation for small datasets', () => {
+      const zones = Array.from({ length: 10 }, (_, i) =>
+        createMockZone({ zone_id: i, zone_name: `Zone ${i}`, value: i * 10 })
+      );
+
+      render(<ZoneComparisonChart zones={zones} metric="crossings" />);
+
+      const chart = screen.getByTestId('comparison-bar-chart');
+      expect(chart).toHaveAttribute('data-show-animation', 'true');
+    });
+
+    it('should enable animation for datasets at threshold', () => {
+      const zones = Array.from({ length: CHART_ANIMATION_THRESHOLD }, (_, i) =>
+        createMockZone({ zone_id: i, zone_name: `Zone ${i}`, value: i * 10 })
+      );
+
+      render(<ZoneComparisonChart zones={zones} metric="crossings" />);
+
+      const chart = screen.getByTestId('comparison-bar-chart');
+      expect(chart).toHaveAttribute('data-show-animation', 'true');
+    });
+
+    it('should disable animation for large datasets exceeding threshold', () => {
+      const zones = Array.from({ length: CHART_ANIMATION_THRESHOLD + 1 }, (_, i) =>
+        createMockZone({ zone_id: i, zone_name: `Zone ${i}`, value: i * 10 })
+      );
+
+      render(<ZoneComparisonChart zones={zones} metric="crossings" />);
+
+      const chart = screen.getByTestId('comparison-bar-chart');
+      expect(chart).toHaveAttribute('data-show-animation', 'false');
     });
   });
 });

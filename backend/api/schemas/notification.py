@@ -26,6 +26,7 @@ class NotificationDeliveryResponse(BaseModel):
     """Schema for a single notification delivery result."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "channel": "email",
@@ -34,7 +35,7 @@ class NotificationDeliveryResponse(BaseModel):
                 "delivered_at": "2025-12-28T12:00:30Z",
                 "recipient": "user@example.com",
             }
-        }
+        },
     )
 
     channel: NotificationChannel = Field(..., description="Notification channel used")
@@ -48,6 +49,7 @@ class DeliveryResultResponse(BaseModel):
     """Schema for complete delivery result across multiple channels."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "alert_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -71,7 +73,7 @@ class DeliveryResultResponse(BaseModel):
                 "successful_count": 2,
                 "failed_count": 0,
             }
-        }
+        },
     )
 
     alert_id: str = Field(..., description="Alert ID that was delivered")
@@ -199,6 +201,7 @@ class TestNotificationResponse(BaseModel):
     """Schema for test notification result."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "channel": "email",
@@ -206,7 +209,7 @@ class TestNotificationResponse(BaseModel):
                 "error": None,
                 "message": "Test email sent successfully to test@example.com",
             }
-        }
+        },
     )
 
     channel: NotificationChannel = Field(..., description="Channel that was tested")
@@ -224,6 +227,7 @@ class NotificationConfigResponse(BaseModel):
     """Schema for notification configuration status."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "notification_enabled": True,
@@ -239,7 +243,7 @@ class NotificationConfigResponse(BaseModel):
                 "webhook_timeout_seconds": 30,
                 "default_email_recipients": ["user@example.com"],
             }
-        }
+        },
     )
 
     notification_enabled: bool = Field(..., description="Whether notifications are enabled")
@@ -355,6 +359,7 @@ class NotificationConfigUpdateResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "smtp_enabled": True,
@@ -365,7 +370,7 @@ class NotificationConfigUpdateResponse(BaseModel):
                 "default_webhook_url": "https://hooks.example.com/webhook",
                 "message": "Configuration updated successfully",
             }
-        }
+        },
     )
 
     smtp_enabled: bool = Field(..., description="Whether SMTP notifications are enabled")
@@ -386,6 +391,7 @@ class NotificationHistoryEntry(BaseModel):
     """Schema for a notification history entry."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440002",
@@ -397,7 +403,7 @@ class NotificationHistoryEntry(BaseModel):
                 "delivered_at": "2025-12-28T12:00:30Z",
                 "created_at": "2025-12-28T12:00:29Z",
             }
-        }
+        },
     )
 
     id: str = Field(..., description="Notification delivery ID")
@@ -414,6 +420,7 @@ class NotificationHistoryResponse(BaseModel):
     """Schema for notification history list response."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "entries": [
@@ -432,7 +439,7 @@ class NotificationHistoryResponse(BaseModel):
                 "limit": 50,
                 "offset": 0,
             }
-        }
+        },
     )
 
     entries: list[NotificationHistoryEntry] = Field(..., description="Notification history entries")

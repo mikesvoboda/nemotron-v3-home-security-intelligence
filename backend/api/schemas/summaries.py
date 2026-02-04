@@ -21,13 +21,14 @@ class BulletPointSchema(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "icon": "camera",
                 "text": "Activity at Beach Front Left: person detected",
                 "severity": "high",
             }
-        }
+        },
     )
 
     icon: str = Field(..., description="Icon identifier (e.g., 'camera', 'alert-triangle')")
@@ -45,6 +46,7 @@ class StructuredSummarySchema(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "bullet_points": [
@@ -64,7 +66,7 @@ class StructuredSummarySchema(BaseModel):
                 "max_risk_score": 85,
                 "weather_conditions": ["nighttime"],
             }
-        }
+        },
     )
 
     bullet_points: list[BulletPointSchema] = Field(
@@ -107,6 +109,7 @@ class InsightSchema(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "type": "entity",
@@ -115,7 +118,7 @@ class InsightSchema(BaseModel):
                 "description": "2 unknown persons detected at Front Door, Driveway",
                 "action_url": "/timeline?entity_type=person&recognized=false",
             }
-        }
+        },
     )
 
     type: Literal["camera", "entity", "trend"] = Field(
@@ -137,6 +140,7 @@ class SummaryResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": 1,
@@ -180,7 +184,7 @@ class SummaryResponse(BaseModel):
                     },
                 ],
             }
-        }
+        },
     )
 
     id: int = Field(..., description="Summary ID")
@@ -208,6 +212,7 @@ class LatestSummariesResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "hourly": {
@@ -234,7 +239,7 @@ class LatestSummariesResponse(BaseModel):
                     "generated_at": "2026-01-18T14:55:00Z",
                 },
             }
-        }
+        },
     )
 
     hourly: SummaryResponse | None = Field(
@@ -253,6 +258,7 @@ class TimelineEventSchema(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "event_id": 101,
@@ -263,7 +269,7 @@ class TimelineEventSchema(BaseModel):
                 "risk_level": "high",
                 "event_url": "/events/101",
             }
-        }
+        },
     )
 
     event_id: int = Field(..., description="Event ID")
@@ -285,6 +291,7 @@ class SummaryDetailResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": 1,
@@ -318,7 +325,7 @@ class SummaryDetailResponse(BaseModel):
                 ],
                 "export_formats": ["json", "csv", "pdf"],
             }
-        }
+        },
     )
 
     id: int = Field(..., description="Summary ID")

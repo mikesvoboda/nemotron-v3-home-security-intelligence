@@ -238,3 +238,210 @@ class PTZPreset(BaseModel):
         if not stripped:
             raise ValueError("Value cannot be empty or whitespace-only")
         return stripped
+
+
+# =============================================================================
+# Response Schemas (NEM-5000, NEM-5001)
+# =============================================================================
+
+
+class OnvifDiscoveryResponse(BaseModel):
+    """Response schema for ONVIF device discovery.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "devices": [
+                    {
+                        "device_url": "http://192.168.1.100/onvif/device_service",
+                        "manufacturer": "Hikvision",
+                        "model": "DS-2CD2032-I",
+                    }
+                ],
+                "count": 1,
+            }
+        }
+    )
+
+    devices: list[OnvifDiscoveryResult] = Field(
+        default_factory=list,
+        description="List of discovered ONVIF devices",
+    )
+    count: int = Field(
+        ...,
+        ge=0,
+        description="Number of devices discovered",
+    )
+
+
+class PTZCommandResponse(BaseModel):
+    """Response schema for PTZ command execution.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "command": "pan",
+                "value": 0.5,
+                "speed": 1.0,
+            }
+        }
+    )
+
+    success: bool = Field(
+        ...,
+        description="Whether the command was executed successfully",
+    )
+    command: str = Field(
+        ...,
+        description="The command type that was executed",
+    )
+    value: float = Field(
+        default=0.0,
+        description="The movement value used (-1.0 to 1.0)",
+    )
+    speed: float = Field(
+        default=0.0,
+        description="The speed used (0.0 to 1.0)",
+    )
+
+
+class PTZStopResponse(BaseModel):
+    """Response schema for PTZ stop command.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "command": "stop",
+            }
+        }
+    )
+
+    success: bool = Field(
+        ...,
+        description="Whether the stop command was executed successfully",
+    )
+    command: Literal["stop"] = Field(
+        default="stop",
+        description="The command type (always 'stop')",
+    )
+
+
+class PTZPresetsResponse(BaseModel):
+    """Response schema for listing PTZ presets.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "presets": [
+                    {"token": "preset_1", "name": "Front Door View"},
+                    {"token": "preset_2", "name": "Backyard"},
+                ],
+                "count": 2,
+            }
+        }
+    )
+
+    presets: list[PTZPreset] = Field(
+        default_factory=list,
+        description="List of available PTZ presets",
+    )
+    count: int = Field(
+        ...,
+        ge=0,
+        description="Number of presets available",
+    )
+
+
+class PTZGotoPresetResponse(BaseModel):
+    """Response schema for navigating to a PTZ preset.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": True,
+                "preset_token": "preset_1",
+            }
+        }
+    )
+
+    success: bool = Field(
+        ...,
+        description="Whether navigation to the preset started successfully",
+    )
+    preset_token: str = Field(
+        ...,
+        description="The preset token that was used",
+    )
+
+
+class OnvifCapabilitiesResponse(BaseModel):
+    """Response schema for ONVIF device capabilities.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    Contains device info and capability flags from ONVIF GetCapabilities.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",  # Allow additional fields from ONVIF capabilities
+        json_schema_extra={
+            "example": {
+                "manufacturer": "Hikvision",
+                "model": "DS-2CD2032-I",
+                "firmware_version": "5.4.5",
+                "serial_number": "SN001234567890",
+                "ptz_supported": True,
+                "media_supported": True,
+                "analytics_supported": False,
+            }
+        },
+    )
+
+    manufacturer: str | None = Field(
+        default=None,
+        description="Device manufacturer name",
+    )
+    model: str | None = Field(
+        default=None,
+        description="Device model name",
+    )
+    firmware_version: str | None = Field(
+        default=None,
+        description="Device firmware version",
+    )
+    serial_number: str | None = Field(
+        default=None,
+        description="Device serial number",
+    )
+    hardware_id: str | None = Field(
+        default=None,
+        description="Device hardware ID",
+    )
+    ptz_supported: bool = Field(
+        default=False,
+        description="Whether PTZ control is supported",
+    )
+    media_supported: bool = Field(
+        default=False,
+        description="Whether media streaming is supported",
+    )
+    analytics_supported: bool = Field(
+        default=False,
+        description="Whether video analytics is supported",
+    )

@@ -16,6 +16,9 @@ import { clsx } from 'clsx';
 import { TrendingUp } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
+import { shouldAnimateChart } from '../../utils/chartAnimation';
+import { ChartLoadingState } from '../common/ChartLoadingState';
+
 import type { CrossingTrendsResponse } from '../../types/zoneAnalytics';
 
 // ============================================================================
@@ -37,17 +40,6 @@ export interface CrossingTrendsChartProps {
 // ============================================================================
 // Subcomponents
 // ============================================================================
-
-/**
- * Loading skeleton for the chart.
- */
-function ChartSkeleton() {
-  return (
-    <div className="flex h-64 items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#76B900] border-t-transparent" />
-    </div>
-  );
-}
 
 /**
  * Empty state when no data is available.
@@ -102,7 +94,7 @@ function CrossingTrendsChartComponent({
           <TrendingUp className="h-5 w-5 text-[#76B900]" aria-hidden="true" />
           Crossing Trends
         </Title>
-        <ChartSkeleton />
+        <ChartLoadingState height="h-64" />
       </Card>
     );
   }
@@ -157,7 +149,7 @@ function CrossingTrendsChartComponent({
         index="time"
         categories={['In', 'Out']}
         colors={['green', 'red']}
-        showAnimation
+        showAnimation={shouldAnimateChart(chartData.length)}
         showLegend
         showGridLines={false}
         data-testid="crossing-area-chart"

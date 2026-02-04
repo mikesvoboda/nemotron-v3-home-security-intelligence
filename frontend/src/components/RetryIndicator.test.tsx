@@ -31,7 +31,7 @@ describe('RetryIndicator', () => {
     vi.mocked(useRetryStore).mockImplementation((selector) => {
       if (typeof selector === 'function') {
         return selector({
-          retries: new Map(),
+          retries: {},
           setRetry: vi.fn(),
           removeRetry: vi.fn(),
           cancelRetry: mockCancelRetry,
@@ -40,7 +40,7 @@ describe('RetryIndicator', () => {
         });
       }
       return {
-        retries: new Map(),
+        retries: {},
         setRetry: vi.fn(),
         removeRetry: vi.fn(),
         cancelRetry: mockCancelRetry,
