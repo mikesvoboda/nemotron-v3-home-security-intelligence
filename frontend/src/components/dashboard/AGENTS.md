@@ -8,6 +8,8 @@ Contains all components for the main security dashboard page, including risk vis
 
 | File                                    | Purpose                                                  |
 | --------------------------------------- | -------------------------------------------------------- |
+| `TopEventsCarousel.tsx`                 | Horizontal carousel of highest-risk events (NEM-5412)    |
+| `TopEventsCarousel.test.tsx`            | Test suite for TopEventsCarousel                         |
 | `ActivityFeed.tsx`                      | Scrolling feed of recent events                          |
 | `ActivityFeed.test.tsx`                 | Test suite for ActivityFeed                              |
 | `CameraGrid.tsx`                        | Responsive grid of camera thumbnails                     |
@@ -486,3 +488,65 @@ DashboardPage
 **Then explore:** `StatsRow.tsx` - Key metrics with integrated SVG sparkline
 **Also see:** `ActivityFeed.tsx` - Real-time feed patterns
 **Monitoring:** `GpuStats.tsx` - GPU metrics and history display
+**Top Events:** `TopEventsCarousel.tsx` - Horizontal carousel of highest-risk events
+
+---
+
+### TopEventsCarousel.tsx
+
+**Purpose:** Horizontal scrollable carousel displaying the highest-risk events (NEM-5412/5413/5414/5415)
+
+**Props Interface:**
+
+```typescript
+interface TopEventsCarouselProps {
+  count?: number; // Number of thumbnails (default: 5)
+  expandedCount?: number; // Thumbnails when expanded (default: 10)
+  onEventClick?: (eventId: number) => void; // Click handler
+  title?: string; // Header title (default: 'Top Events')
+  className?: string;
+}
+```
+
+**Key Features:**
+
+- Fetches and displays events sorted by risk_score (highest first)
+- Horizontal scrolling with left/right navigation arrows
+- Framer Motion animations with prefers-reduced-motion support
+- Expand/collapse to show more events
+- Lazy-loaded thumbnails with placeholder for missing images
+- Risk score badge overlay on each thumbnail
+- Camera name overlay at top of thumbnail
+- Full keyboard navigation support (Enter/Space to select)
+- Accessible with proper ARIA labels and roles
+
+**Visual Layout:**
+
+```
++--------------------------------------------------------+
+| Top Events                               [Show more]    |
++--------------------------------------------------------+
+| [<] | [Thumb1] [Thumb2] [Thumb3] [Thumb4] [Thumb5] | [>] |
+|     | Front   Back    Garage  Drive   Side     |     |
+|     | (95)    (87)    (75)    (65)    (52)     |     |
++--------------------------------------------------------+
+```
+
+**Animation Variants:**
+
+- Container: Staggered children reveal (0.05s delay)
+- Items: Scale + fade in (0.2s duration)
+- Respects prefers-reduced-motion preference
+
+**Dependencies:**
+
+- `framer-motion` - AnimatePresence, motion, useReducedMotion
+- `@tanstack/react-query` - useQuery for data fetching
+- `../../services/api` - fetchEvents
+- `../../utils/risk` - getRiskLevel
+- `../common/RiskBadge` - Risk score badge component
+- `lucide-react` - ChevronLeft, ChevronRight, AlertTriangle, ImageOff
+
+**Related Hook:**
+
+- `useTopEventsQuery` (`../../hooks/useTopEventsQuery`) - Fetches and sorts events by risk score

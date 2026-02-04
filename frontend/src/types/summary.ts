@@ -199,3 +199,95 @@ export function isSummaryUpdateMessage(msg: unknown): msg is SummaryUpdateMessag
     'data' in msg
   );
 }
+
+// ============================================================================
+// Detail Panel Types (NEM-5425, NEM-5426, NEM-5427)
+// ============================================================================
+
+/**
+ * An event in the summary timeline.
+ */
+export interface TimelineEvent {
+  /** Event ID */
+  eventId: number;
+
+  /** When the event occurred (ISO 8601 string) */
+  timestamp: string;
+
+  /** Name of the camera that captured the event */
+  cameraName: string;
+
+  /** Brief summary of the event */
+  summary: string;
+
+  /** Risk score (0-100) */
+  riskScore?: number;
+
+  /** Risk level (low, medium, high, critical) */
+  riskLevel?: string;
+
+  /** URL to view full event details */
+  eventUrl?: string;
+}
+
+/**
+ * Detailed summary data for the expandable detail panel.
+ */
+export interface SummaryDetail {
+  /** Unique identifier */
+  id: number;
+
+  /** Type of summary (hourly or daily) */
+  summaryType: 'hourly' | 'daily';
+
+  /** Full LLM-generated narrative content */
+  content: string;
+
+  /** Number of high/critical events included in this summary */
+  eventCount: number;
+
+  /** Start of the time window (ISO 8601 string) */
+  windowStart: string;
+
+  /** End of the time window (ISO 8601 string) */
+  windowEnd: string;
+
+  /** When this summary was generated (ISO 8601 string) */
+  generatedAt: string;
+
+  /** Timeline of events included in this summary */
+  timeline: TimelineEvent[];
+
+  /** Available export formats */
+  exportFormats: string[];
+
+  /** Focus areas identified in this summary (e.g., camera names) */
+  focusAreas?: string[];
+
+  /** Maximum risk score among events in this summary (0-100, optional) */
+  maxRiskScore?: number;
+
+  /** Dominant patterns detected (e.g., "person", "vehicle") */
+  dominantPatterns?: string[];
+}
+
+/**
+ * Export format for summary data.
+ */
+export type ExportFormat = 'json' | 'csv' | 'pdf';
+
+/**
+ * Type guard for SummaryDetail objects.
+ */
+export function isSummaryDetail(obj: unknown): obj is SummaryDetail {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'summaryType' in obj &&
+    'content' in obj &&
+    'eventCount' in obj &&
+    'timeline' in obj &&
+    'exportFormats' in obj
+  );
+}

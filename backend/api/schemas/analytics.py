@@ -292,3 +292,80 @@ class RiskScoreTrendsResponse(BaseModel):
     )
     start_date: Date = Field(..., description="Start date of the date range")
     end_date: Date = Field(..., description="End date of the date range")
+
+
+# ============================================================================
+# Camera Activity Heatmap Types (NEM-5388/5389/5390/5391)
+# ============================================================================
+
+
+class CameraActivityDataPoint(BaseModel):
+    """Schema for camera activity data point.
+
+    Represents aggregated event data for a single camera including
+    the highest-risk detection thumbnail for visual representation.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "camera_id": "front_door",
+                "camera_name": "Front Door",
+                "event_count": 45,
+                "max_risk_score": 87,
+                "risk_level": "high",
+                "thumbnail_path": "/data/thumbnails/2026/01/front_door_high.jpg",
+            }
+        }
+    )
+
+    camera_id: str = Field(..., description="Normalized camera ID")
+    camera_name: str = Field(..., description="Human-readable camera name")
+    event_count: int = Field(..., description="Total events in date range", ge=0)
+    max_risk_score: int | None = Field(None, description="Highest risk score in date range (0-100)")
+    risk_level: str | None = Field(
+        None,
+        description="Risk level derived from max_risk_score (low, medium, high, critical)",
+    )
+    thumbnail_path: str | None = Field(None, description="Path to highest-risk detection thumbnail")
+
+
+class CameraActivityResponse(BaseModel):
+    """Schema for camera activity heatmap response.
+
+    Returns aggregated event data per camera for building an activity
+    heatmap visualization with color intensity based on activity level.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "cameras": [
+                    {
+                        "camera_id": "front_door",
+                        "camera_name": "Front Door",
+                        "event_count": 45,
+                        "max_risk_score": 87,
+                        "risk_level": "high",
+                        "thumbnail_path": "/data/thumbnails/2026/01/front_door.jpg",
+                    },
+                    {
+                        "camera_id": "back_door",
+                        "camera_name": "Back Door",
+                        "event_count": 12,
+                        "max_risk_score": 45,
+                        "risk_level": "medium",
+                        "thumbnail_path": "/data/thumbnails/2026/01/back_door.jpg",
+                    },
+                ],
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-07",
+            }
+        }
+    )
+
+    cameras: list[CameraActivityDataPoint] = Field(
+        ..., description="Activity data per camera, sorted by event_count descending"
+    )
+    start_date: Date = Field(..., description="Start date of the date range")
+    end_date: Date = Field(..., description="End date of the date range")

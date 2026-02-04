@@ -220,6 +220,13 @@ export type {
   UseRecentEventsQueryReturn,
 } from './useRecentEventsQuery';
 
+// Top events by risk score (NEM-5412)
+export { useTopEventsQuery, topEventsQueryKeys } from './useTopEventsQuery';
+export type {
+  UseTopEventsQueryOptions,
+  UseTopEventsQueryReturn,
+} from './useTopEventsQuery';
+
 export { useDetectionsInfiniteQuery, detectionsQueryKeys } from './useDetectionsQuery';
 export type {
   UseDetectionsInfiniteQueryOptions,

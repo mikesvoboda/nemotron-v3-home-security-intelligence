@@ -103,7 +103,10 @@ class TestGetLatestSummaries:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = MockRepo.return_value
 
             # Create mock summaries
@@ -111,6 +114,7 @@ class TestGetLatestSummaries:
             mock_hourly.id = 1
             mock_hourly.content = "Hourly summary content"
             mock_hourly.event_count = 2
+            mock_hourly.event_ids = []
             mock_hourly.window_start = datetime(2026, 1, 21, 14, 0, tzinfo=UTC)
             mock_hourly.window_end = datetime(2026, 1, 21, 15, 0, tzinfo=UTC)
             mock_hourly.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
@@ -119,6 +123,7 @@ class TestGetLatestSummaries:
             mock_daily.id = 2
             mock_daily.content = "Daily summary content"
             mock_daily.event_count = 5
+            mock_daily.event_ids = []
             mock_daily.window_start = datetime(2026, 1, 21, 0, 0, tzinfo=UTC)
             mock_daily.window_end = datetime(2026, 1, 21, 15, 0, tzinfo=UTC)
             mock_daily.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
@@ -129,6 +134,10 @@ class TestGetLatestSummaries:
                     "daily": mock_daily,
                 }
             )
+
+            # Mock EventRepository
+            mock_event_repo = MockEventRepo.return_value
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
             with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
@@ -198,13 +207,17 @@ class TestGetLatestSummaries:
         mock_cache.get.return_value = None
 
         # Mock database response with only hourly
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = MockRepo.return_value
 
             mock_hourly = MagicMock(spec=Summary)
             mock_hourly.id = 1
             mock_hourly.content = "Hourly summary content"
             mock_hourly.event_count = 2
+            mock_hourly.event_ids = []
             mock_hourly.window_start = datetime(2026, 1, 21, 14, 0, tzinfo=UTC)
             mock_hourly.window_end = datetime(2026, 1, 21, 15, 0, tzinfo=UTC)
             mock_hourly.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
@@ -215,6 +228,10 @@ class TestGetLatestSummaries:
                     "daily": None,
                 }
             )
+
+            # Mock EventRepository
+            mock_event_repo = MockEventRepo.return_value
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
             with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
@@ -246,13 +263,17 @@ class TestGetLatestSummaries:
         mock_cache.get.return_value = None
 
         # Mock database response with only daily
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = MockRepo.return_value
 
             mock_daily = MagicMock(spec=Summary)
             mock_daily.id = 2
             mock_daily.content = "Daily summary content"
             mock_daily.event_count = 5
+            mock_daily.event_ids = []
             mock_daily.window_start = datetime(2026, 1, 21, 0, 0, tzinfo=UTC)
             mock_daily.window_end = datetime(2026, 1, 21, 15, 0, tzinfo=UTC)
             mock_daily.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
@@ -263,6 +284,10 @@ class TestGetLatestSummaries:
                     "daily": mock_daily,
                 }
             )
+
+            # Mock EventRepository
+            mock_event_repo = MockEventRepo.return_value
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
             with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
@@ -405,18 +430,26 @@ class TestGetHourlySummary:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
             mock_summary.id = 1
             mock_summary.content = "Hourly summary content"
             mock_summary.event_count = 2
+            mock_summary.event_ids = []
             mock_summary.window_start = datetime(2026, 1, 21, 14, 0, tzinfo=UTC)
             mock_summary.window_end = datetime(2026, 1, 21, 15, 0, tzinfo=UTC)
             mock_summary.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
 
             mock_repo.get_latest_by_type = AsyncMock(return_value=mock_summary)
+
+            # Mock EventRepository
+            mock_event_repo = MockEventRepo.return_value
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
             with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:
@@ -582,18 +615,26 @@ class TestGetDailySummary:
         mock_cache.get.return_value = None
 
         # Mock database response
-        with patch("backend.api.routes.summaries.SummaryRepository") as MockRepo:
+        with (
+            patch("backend.api.routes.summaries.SummaryRepository") as MockRepo,
+            patch("backend.api.routes.summaries.EventRepository") as MockEventRepo,
+        ):
             mock_repo = MockRepo.return_value
 
             mock_summary = MagicMock(spec=Summary)
             mock_summary.id = 2
             mock_summary.content = "Daily summary content"
             mock_summary.event_count = 5
+            mock_summary.event_ids = []
             mock_summary.window_start = datetime(2026, 1, 21, 0, 0, tzinfo=UTC)
             mock_summary.window_end = datetime(2026, 1, 21, 15, 0, tzinfo=UTC)
             mock_summary.generated_at = datetime(2026, 1, 21, 14, 55, tzinfo=UTC)
 
             mock_repo.get_latest_by_type = AsyncMock(return_value=mock_summary)
+
+            # Mock EventRepository
+            mock_event_repo = MockEventRepo.return_value
+            mock_event_repo.get_by_ids = AsyncMock(return_value=[])
 
             # Mock summary parser
             with patch("backend.api.routes.summaries.parse_summary_content") as mock_parse:

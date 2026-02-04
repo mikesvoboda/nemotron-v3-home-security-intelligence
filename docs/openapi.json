@@ -6351,6 +6351,132 @@
         "title": "CalibrationResetResponse",
         "type": "object"
       },
+      "CameraActivityDataPoint": {
+        "description": "Schema for camera activity data point.\n\nRepresents aggregated event data for a single camera including\nthe highest-risk detection thumbnail for visual representation.",
+        "example": {
+          "camera_id": "front_door",
+          "camera_name": "Front Door",
+          "event_count": 45,
+          "max_risk_score": 87,
+          "risk_level": "high",
+          "thumbnail_path": "/data/thumbnails/2026/01/front_door_high.jpg"
+        },
+        "properties": {
+          "camera_id": {
+            "description": "Normalized camera ID",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "camera_name": {
+            "description": "Human-readable camera name",
+            "title": "Camera Name",
+            "type": "string"
+          },
+          "event_count": {
+            "description": "Total events in date range",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "max_risk_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Highest risk score in date range (0-100)",
+            "title": "Max Risk Score"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk level derived from max_risk_score (low, medium, high, critical)",
+            "title": "Risk Level"
+          },
+          "thumbnail_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Path to highest-risk detection thumbnail",
+            "title": "Thumbnail Path"
+          }
+        },
+        "required": [
+          "camera_id",
+          "camera_name",
+          "event_count"
+        ],
+        "title": "CameraActivityDataPoint",
+        "type": "object"
+      },
+      "CameraActivityResponse": {
+        "description": "Schema for camera activity heatmap response.\n\nReturns aggregated event data per camera for building an activity\nheatmap visualization with color intensity based on activity level.",
+        "example": {
+          "cameras": [
+            {
+              "camera_id": "front_door",
+              "camera_name": "Front Door",
+              "event_count": 45,
+              "max_risk_score": 87,
+              "risk_level": "high",
+              "thumbnail_path": "/data/thumbnails/2026/01/front_door.jpg"
+            },
+            {
+              "camera_id": "back_door",
+              "camera_name": "Back Door",
+              "event_count": 12,
+              "max_risk_score": 45,
+              "risk_level": "medium",
+              "thumbnail_path": "/data/thumbnails/2026/01/back_door.jpg"
+            }
+          ],
+          "end_date": "2026-01-07",
+          "start_date": "2026-01-01"
+        },
+        "properties": {
+          "cameras": {
+            "description": "Activity data per camera, sorted by event_count descending",
+            "items": {
+              "$ref": "#/components/schemas/CameraActivityDataPoint"
+            },
+            "title": "Cameras",
+            "type": "array"
+          },
+          "end_date": {
+            "description": "End date of the date range",
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "description": "Start date of the date range",
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cameras",
+          "start_date",
+          "end_date"
+        ],
+        "title": "CameraActivityResponse",
+        "type": "object"
+      },
       "CameraApproachVectorsResponse": {
         "description": "Response containing approach vectors for all zones on a camera.\n\nAggregates approach vector data across all zones for a single camera,\nenabling efficient visualization of approaching entities.",
         "example": {
@@ -21479,6 +21605,65 @@
           "message"
         ],
         "title": "InfrastructureHealthStatus",
+        "type": "object"
+      },
+      "InsightSchema": {
+        "description": "Schema for an actionable insight.\n\nRepresents a prioritized recommendation based on event analysis.\nInsights help users understand what needs attention and provide\ndirect links to relevant data.\n\nTypes:\n    - camera: Activity on specific cameras that need attention\n    - entity: Unknown persons or notable entities detected\n    - trend: Activity patterns compared to baseline\n\nPriority levels (1-10, higher = more urgent):\n    - 10: Unknown persons detected (highest)\n    - 8-9: Unusual activity trends\n    - 6-7: High camera activity\n    - 4-5: Known entities\n    - 1-3: Informational (lowest)",
+        "example": {
+          "action_url": "/timeline?entity_type=person&recognized=false",
+          "description": "2 unknown persons detected at Front Door, Driveway",
+          "priority": 10,
+          "title": "Unknown Persons Detected",
+          "type": "entity"
+        },
+        "properties": {
+          "action_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional URL to view related events/data",
+            "title": "Action Url"
+          },
+          "description": {
+            "description": "Detailed description with actionable information",
+            "title": "Description",
+            "type": "string"
+          },
+          "priority": {
+            "description": "Urgency level 1-10 (10 = highest priority)",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Priority",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Short title for the insight",
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "description": "Insight category (camera, entity, or trend)",
+            "enum": [
+              "camera",
+              "entity",
+              "trend"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "priority",
+          "title",
+          "description"
+        ],
+        "title": "InsightSchema",
         "type": "object"
       },
       "IntegrationType": {
@@ -36902,6 +37087,126 @@
         "title": "StructuredSummarySchema",
         "type": "object"
       },
+      "SummaryDetailResponse": {
+        "description": "Schema for detailed summary response with timeline and export options.\n\nUsed by the expandable detail panel to display full summary information,\nincluding a timeline of events and export functionality.\n\nRelated Linear issues: NEM-5425, NEM-5426, NEM-5427",
+        "example": {
+          "content": "Multiple security events were detected in the past hour. A high-risk event occurred at the Front Door when an unrecognized person approached. Vehicle activity was also observed in the Driveway.",
+          "event_count": 3,
+          "export_formats": [
+            "json",
+            "csv",
+            "pdf"
+          ],
+          "generated_at": "2026-01-21T14:55:00Z",
+          "id": 1,
+          "structured": {
+            "bullet_points": [],
+            "dominant_patterns": [
+              "person",
+              "vehicle"
+            ],
+            "focus_areas": [
+              "Front Door",
+              "Driveway"
+            ],
+            "max_risk_score": 75,
+            "weather_conditions": []
+          },
+          "summary_type": "hourly",
+          "timeline": [
+            {
+              "camera_name": "Front Door",
+              "event_id": 101,
+              "event_url": "/events/101",
+              "risk_level": "high",
+              "risk_score": 75,
+              "summary": "Person detected approaching the front door",
+              "timestamp": "2026-01-21T14:10:00Z"
+            }
+          ],
+          "window_end": "2026-01-21T15:00:00Z",
+          "window_start": "2026-01-21T14:00:00Z"
+        },
+        "properties": {
+          "content": {
+            "description": "Full LLM-generated narrative text",
+            "title": "Content",
+            "type": "string"
+          },
+          "event_count": {
+            "description": "Number of high/critical events included in this summary",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "export_formats": {
+            "description": "Available export formats for this summary",
+            "items": {
+              "type": "string"
+            },
+            "title": "Export Formats",
+            "type": "array"
+          },
+          "generated_at": {
+            "description": "When the LLM produced this summary",
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Summary ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "structured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredSummarySchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Structured data extracted from the summary content"
+          },
+          "summary_type": {
+            "description": "Type of summary (hourly or daily)",
+            "title": "Summary Type",
+            "type": "string"
+          },
+          "timeline": {
+            "description": "Timeline of events included in this summary, sorted chronologically",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEventSchema"
+            },
+            "title": "Timeline",
+            "type": "array"
+          },
+          "window_end": {
+            "description": "End of the time window covered",
+            "format": "date-time",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "description": "Start of the time window covered",
+            "format": "date-time",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "summary_type",
+          "content",
+          "event_count",
+          "window_start",
+          "window_end",
+          "generated_at"
+        ],
+        "title": "SummaryDetailResponse",
+        "type": "object"
+      },
       "SummaryResponse": {
         "description": "Schema for a single summary (hourly or daily).\n\nRepresents an LLM-generated narrative summary of security events within\na specific time window, with both raw content and structured data.",
         "example": {
@@ -36909,6 +37214,22 @@
           "event_count": 1,
           "generated_at": "2026-01-18T14:55:00Z",
           "id": 1,
+          "insights": [
+            {
+              "action_url": "/timeline?entity_type=person&recognized=false",
+              "description": "1 unknown person detected at Front Door",
+              "priority": 10,
+              "title": "Unknown Persons Detected",
+              "type": "entity"
+            },
+            {
+              "action_url": "/timeline?camera_id=front_door",
+              "description": "Review 1 event from Front Door (1 high/critical)",
+              "priority": 6,
+              "title": "Camera Activity",
+              "type": "camera"
+            }
+          ],
           "structured": {
             "bullet_points": [
               {
@@ -36949,6 +37270,14 @@
             "description": "Summary ID",
             "title": "Id",
             "type": "integer"
+          },
+          "insights": {
+            "description": "Actionable insights prioritized by urgency (top 3-5 shown)",
+            "items": {
+              "$ref": "#/components/schemas/InsightSchema"
+            },
+            "title": "Insights",
+            "type": "array"
           },
           "structured": {
             "anyOf": [
@@ -37665,6 +37994,87 @@
         "title": "TimelineBucketResponse",
         "type": "object"
       },
+      "TimelineEventSchema": {
+        "description": "Schema for an event in the summary timeline.\n\nRepresents a single event in the timeline view of the expandable detail panel.\nProvides key information for quick scanning and links to full event details.",
+        "example": {
+          "camera_name": "Front Door",
+          "event_id": 101,
+          "event_url": "/events/101",
+          "risk_level": "high",
+          "risk_score": 75,
+          "summary": "Person detected approaching the front door",
+          "timestamp": "2026-01-21T14:10:00Z"
+        },
+        "properties": {
+          "camera_name": {
+            "description": "Name of the camera that captured the event",
+            "title": "Camera Name",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "Event ID",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "event_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to view full event details",
+            "title": "Event Url"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk level (low, medium, high, critical)",
+            "title": "Risk Level"
+          },
+          "risk_score": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk score (0-100)",
+            "title": "Risk Score"
+          },
+          "summary": {
+            "description": "Brief summary of the event",
+            "title": "Summary",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the event occurred",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "timestamp",
+          "camera_name",
+          "summary"
+        ],
+        "title": "TimelineEventSchema",
+        "type": "object"
+      },
       "TimelineSummaryResponse": {
         "description": "Schema for timeline summary response (NEM-2932).\n\nReturns bucketed event data for timeline visualization.\nSupports different zoom levels with varying bucket sizes.",
         "example": {
@@ -38090,6 +38500,135 @@
           "timestamp"
         ],
         "title": "TrajectoryPoint",
+        "type": "object"
+      },
+      "TrendMetric": {
+        "description": "Schema for a single trend metric with baseline comparison.\n\nContains time-bucketed values for sparkline display, plus a baseline\n(rolling 24-hour average) and deviation percentage for comparison.\n\nExample:\n    {\n        \"values\": [5, 8, 3, 6, 10, 4, 7, 9, 2, 5, 6, 8],\n        \"baseline\": 6.0,\n        \"deviation_pct\": 33.3\n    }",
+        "example": {
+          "baseline": 6.0,
+          "deviation_pct": 33.3,
+          "values": [
+            5,
+            8,
+            3,
+            6,
+            10,
+            4,
+            7,
+            9,
+            2,
+            5,
+            6,
+            8
+          ]
+        },
+        "properties": {
+          "baseline": {
+            "description": "Rolling 24-hour average baseline for comparison",
+            "minimum": 0.0,
+            "title": "Baseline",
+            "type": "number"
+          },
+          "deviation_pct": {
+            "description": "Percentage deviation from baseline (positive = above, negative = below)",
+            "title": "Deviation Pct",
+            "type": "number"
+          },
+          "values": {
+            "description": "Array of metric values for each time bucket (for sparkline display)",
+            "items": {
+              "type": "number"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "values",
+          "baseline",
+          "deviation_pct"
+        ],
+        "title": "TrendMetric",
+        "type": "object"
+      },
+      "TrendsResponse": {
+        "description": "Schema for the trends API response.\n\nContains three metrics for dashboard sparkline visualization:\n- event_count: Number of events per time bucket\n- avg_risk: Average risk score per time bucket\n- high_risk_count: Number of high-risk events (risk_score >= 70) per time bucket\n\nEach metric includes values array, baseline, and deviation percentage.",
+        "example": {
+          "avg_risk": {
+            "baseline": 50.0,
+            "deviation_pct": 16.0,
+            "values": [
+              45,
+              52,
+              38,
+              60,
+              72,
+              40,
+              55,
+              65,
+              35,
+              48,
+              50,
+              58
+            ]
+          },
+          "event_count": {
+            "baseline": 6.0,
+            "deviation_pct": 33.3,
+            "values": [
+              5,
+              8,
+              3,
+              6,
+              10,
+              4,
+              7,
+              9,
+              2,
+              5,
+              6,
+              8
+            ]
+          },
+          "high_risk_count": {
+            "baseline": 1.3,
+            "deviation_pct": 53.8,
+            "values": [
+              1,
+              2,
+              0,
+              1,
+              3,
+              1,
+              2,
+              2,
+              0,
+              1,
+              1,
+              2
+            ]
+          }
+        },
+        "properties": {
+          "avg_risk": {
+            "$ref": "#/components/schemas/TrendMetric",
+            "description": "Average risk score per time bucket with baseline comparison"
+          },
+          "event_count": {
+            "$ref": "#/components/schemas/TrendMetric",
+            "description": "Event count per time bucket with baseline comparison"
+          },
+          "high_risk_count": {
+            "$ref": "#/components/schemas/TrendMetric",
+            "description": "High-risk event count (>= 70) per time bucket with baseline comparison"
+          }
+        },
+        "required": [
+          "event_count",
+          "avg_risk",
+          "high_risk_count"
+        ],
+        "title": "TrendsResponse",
         "type": "object"
       },
       "TruncationInfo": {
@@ -45801,6 +46340,63 @@
         "summary": "Toggle the active status of a polygon zone",
         "tags": [
           "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics/camera-activity": {
+      "get": {
+        "description": "Get aggregated event activity per camera for heatmap visualization.\n\nReturns event counts, max risk score, and thumbnail path for each camera\nin the specified date range. Results are sorted by event count (highest first).\n\nThe thumbnail_path corresponds to the detection with the highest risk score,\nenabling visual representation of the most significant event per camera.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    CameraActivityResponse with per-camera activity data\n\nRaises:\n    HTTPException: 400 if start_date is after end_date or range exceeds limit",
+        "operationId": "analytics_get_camera_activity",
+        "parameters": [
+          {
+            "description": "Start date for analytics (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "description": "Start date for analytics (ISO format)",
+              "format": "date",
+              "title": "Start Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End date for analytics (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": true,
+            "schema": {
+              "description": "End date for analytics (ISO format)",
+              "format": "date",
+              "title": "End Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraActivityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Camera Activity",
+        "tags": [
+          "analytics"
         ]
       }
     },
@@ -60591,6 +61187,46 @@
         ]
       }
     },
+    "/api/summaries/entities": {
+      "get": {
+        "description": "Get entity recognition statistics for the dashboard summary.\n\nReturns aggregated counts of known vs unknown persons and vehicles\ndetected within the past hour. This data is displayed in the\nEntityRecognitionSummary component on the dashboard.\n\nPersons are classified based on face recognition:\n- **known**: Faces that matched a registered KnownPerson\n- **unknown**: Faces that did not match any known person\n\nVehicles are classified based on license plate matching:\n- **known**: Plates that matched a registered household vehicle\n- **unknown**: Plates that did not match any registered vehicle\n\nResponse is cached in Redis with a 5-minute TTL to match the summary\ngeneration frequency. Cache is automatically invalidated when TTL expires.\n\nReturns:\n    Dictionary with persons stats, vehicles stats, and time window",
+        "operationId": "summaries_get_entity_recognition_stats",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "persons": {
+                    "breakdown": "3 known, 2 unknown",
+                    "known": 3,
+                    "total": 5,
+                    "unknown": 2
+                  },
+                  "vehicles": {
+                    "breakdown": "1 known, 4 unknown",
+                    "known": 1,
+                    "total": 5,
+                    "unknown": 4
+                  },
+                  "window_end": "2026-02-03T11:00:00+00:00",
+                  "window_start": "2026-02-03T10:00:00+00:00"
+                },
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Summaries Get Entity Recognition Stats",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Entity recognition statistics for the past hour"
+          }
+        },
+        "summary": "Get Entity Recognition Stats",
+        "tags": [
+          "summaries"
+        ]
+      }
+    },
     "/api/summaries/hourly": {
       "get": {
         "description": "Get the latest hourly summary.\n\nReturns the most recent hourly summary, which covers high/critical events\nfrom the past 60 minutes. Returns null if no hourly summary exists.\n\nThis endpoint is useful when you only need the hourly summary without\nthe overhead of fetching the daily summary as well.\n\nReturns:\n    SummaryResponse with hourly summary, or null if none exists",
@@ -60664,6 +61300,249 @@
           }
         },
         "summary": "Get Latest Summaries",
+        "tags": [
+          "summaries"
+        ]
+      }
+    },
+    "/api/summaries/trends": {
+      "get": {
+        "description": "Get trend data for sparkline visualization.\n\nReturns time-bucketed event metrics with rolling 24-hour baseline comparisons.\n\n**Hourly view** (`type=hourly`, default):\n- 12 x 5-minute buckets (last 60 minutes)\n- Ideal for real-time monitoring\n\n**Daily view** (`type=daily`):\n- 24 x 1-hour buckets (last 24 hours)\n- Ideal for daily patterns\n\n**Metrics included:**\n- `event_count`: Number of events per bucket\n- `avg_risk`: Average risk score per bucket\n- `high_risk_count`: Events with risk_score >= 70\n\n**Deviation indicators:**\n- Positive `deviation_pct`: Above baseline (e.g., \"40% above baseline\")\n- Negative `deviation_pct`: Below baseline (e.g., \"-20% below baseline\")\n\nResponse is cached for 2 minutes for performance while maintaining responsiveness.\n\nArgs:\n    trend_type: Type of trend ('hourly' or 'daily')\n    db: Database session\n    cache: Cache service\n\nReturns:\n    TrendsResponse with event_count, avg_risk, and high_risk_count metrics",
+        "operationId": "summaries_get_trends",
+        "parameters": [
+          {
+            "description": "Type of trend: 'hourly' (5-min buckets) or 'daily' (1-hour buckets)",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "default": "hourly",
+              "description": "Type of trend: 'hourly' (5-min buckets) or 'daily' (1-hour buckets)",
+              "enum": [
+                "hourly",
+                "daily"
+              ],
+              "title": "Type",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "avg_risk": {
+                    "baseline": 50.0,
+                    "deviation_pct": 16.0,
+                    "values": [
+                      45,
+                      52,
+                      38,
+                      60,
+                      72,
+                      40,
+                      55,
+                      65,
+                      35,
+                      48,
+                      50,
+                      58
+                    ]
+                  },
+                  "event_count": {
+                    "baseline": 6.0,
+                    "deviation_pct": 33.3,
+                    "values": [
+                      5,
+                      8,
+                      3,
+                      6,
+                      10,
+                      4,
+                      7,
+                      9,
+                      2,
+                      5,
+                      6,
+                      8
+                    ]
+                  },
+                  "high_risk_count": {
+                    "baseline": 1.3,
+                    "deviation_pct": 53.8,
+                    "values": [
+                      1,
+                      2,
+                      0,
+                      1,
+                      3,
+                      1,
+                      2,
+                      2,
+                      0,
+                      1,
+                      1,
+                      2
+                    ]
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TrendsResponse"
+                }
+              }
+            },
+            "description": "Trend data for sparkline visualization"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trends",
+        "tags": [
+          "summaries"
+        ]
+      }
+    },
+    "/api/summaries/{summary_id}/detail": {
+      "get": {
+        "description": "Get detailed summary data for the expandable detail panel.\n\nReturns full summary content with timeline of events and export options.\nThe timeline includes all events that were included in the summary,\nsorted chronologically.\n\nArgs:\n    summary_id: ID of the summary to retrieve\n    db: Database session\n    cache: Cache service\n\nReturns:\n    SummaryDetailResponse with full detail data\n\nRaises:\n    HTTPException: 404 if summary not found",
+        "operationId": "summaries_get_summary_detail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "summary_id",
+            "required": true,
+            "schema": {
+              "title": "Summary Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "content": "Multiple security events detected...",
+                  "event_count": 3,
+                  "export_formats": [
+                    "json",
+                    "csv",
+                    "pdf"
+                  ],
+                  "generated_at": "2026-01-21T14:55:00Z",
+                  "id": 1,
+                  "summary_type": "hourly",
+                  "timeline": [
+                    {
+                      "camera_name": "Front Door",
+                      "event_id": 101,
+                      "event_url": "/events/101",
+                      "risk_level": "high",
+                      "risk_score": 75,
+                      "summary": "Person detected",
+                      "timestamp": "2026-01-21T14:10:00Z"
+                    }
+                  ],
+                  "window_end": "2026-01-21T15:00:00Z",
+                  "window_start": "2026-01-21T14:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryDetailResponse"
+                }
+              }
+            },
+            "description": "Detailed summary with timeline and export options"
+          },
+          "404": {
+            "description": "Summary not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Summary Detail",
+        "tags": [
+          "summaries"
+        ]
+      }
+    },
+    "/api/summaries/{summary_id}/export": {
+      "get": {
+        "description": "Export summary data in various formats.\n\nExports the summary and its related events in JSON, CSV, or PDF format.\nUseful for downloading and sharing summary reports.\n\nArgs:\n    summary_id: ID of the summary to export\n    format: Export format (json, csv, pdf)\n    db: Database session\n    cache: Cache service\n\nReturns:\n    Export data in requested format\n\nRaises:\n    HTTPException: 404 if summary not found\n    HTTPException: 400 if invalid format",
+        "operationId": "summaries_export_summary",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "summary_id",
+            "required": true,
+            "schema": {
+              "title": "Summary Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Export format: json, csv, or pdf",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "description": "Export format: json, csv, or pdf",
+              "enum": [
+                "json",
+                "csv",
+                "pdf"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "application/pdf": {},
+              "text/csv": {}
+            },
+            "description": "Export data in requested format"
+          },
+          "400": {
+            "description": "Invalid export format"
+          },
+          "404": {
+            "description": "Summary not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Summary",
         "tags": [
           "summaries"
         ]

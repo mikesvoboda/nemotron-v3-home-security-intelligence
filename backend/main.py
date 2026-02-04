@@ -59,6 +59,7 @@ from backend.api.routes import (
     detector,
     dlq,
     entities,
+    entity_recognition,
     events,
     exports,
     face_recognition,
@@ -94,6 +95,7 @@ from backend.api.routes import (
     system,
     system_settings,
     tracks,
+    trends,
     webhooks,
     websocket,
     zone_anomalies,
@@ -1255,6 +1257,7 @@ app.include_router(detector.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
 app.include_router(entities.router)
+app.include_router(entity_recognition.router)
 app.include_router(events.router)
 app.include_router(exports.router)
 app.include_router(face_recognition.router)
@@ -1292,6 +1295,7 @@ app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(system_settings.router)
 app.include_router(tracks.router)
+app.include_router(trends.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)
 app.include_router(zone_anomalies.router)

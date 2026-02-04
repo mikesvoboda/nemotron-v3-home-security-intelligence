@@ -11,6 +11,7 @@ from .backup import router as backup_router
 from .calibration import router as calibration_router
 from .detector import router as detector_router
 from .entities import router as entities_router
+from .entity_recognition import router as entity_recognition_router
 from .exports import router as exports_router
 from .face_recognition import router as face_recognition_router
 from .feedback import router as feedback_router
@@ -54,6 +55,7 @@ __all__ = [
     "calibration_router",
     "detector_router",
     "entities_router",
+    "entity_recognition_router",
     "exports_router",
     "face_recognition_router",
     "feedback_router",

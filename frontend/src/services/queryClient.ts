@@ -623,6 +623,9 @@ export const queryKeys = {
     /** Camera uptime data */
     cameraUptime: (params: { startDate: string; endDate: string }) =>
       [...queryKeys.analytics.all, 'cameraUptime', params] as const,
+    /** Camera activity heatmap data (NEM-5388) */
+    cameraActivity: (params: { startDate: string; endDate: string }) =>
+      [...queryKeys.analytics.all, 'cameraActivity', params] as const,
     /** Detection trends */
     detectionTrends: (params: { startDate: string; endDate: string }) =>
       [...queryKeys.analytics.all, 'detectionTrends', params] as const,
