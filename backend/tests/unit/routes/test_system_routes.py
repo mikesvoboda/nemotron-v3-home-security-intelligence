@@ -4294,10 +4294,11 @@ class TestPipelineLatencyHistoryParameterValidation:
 
     @pytest.fixture
     def client(self) -> TestClient:
-        """Create a test client."""
+        """Create an authenticated test client."""
         from backend.main import app
+        from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
-        return TestClient(app)
+        return TestClient(app, headers={"X-API-Key": UNIT_TEST_API_KEY})
 
     # === since parameter validation ===
 
