@@ -14,31 +14,11 @@ This file retains tests for:
 3. Some legacy tests that should be migrated or removed
 """
 
-import os
-from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
-from backend.main import app
-from backend.tests.unit.conftest import UNIT_TEST_API_KEY, get_auth_headers
-
-
-@pytest.fixture(autouse=True)
-def ensure_api_key_auth_enabled() -> Generator[None]:
-    """Ensure API key authentication is enabled for each test.
-
-    This fixture is needed because pytest-xdist workers may have stale
-    settings cache that doesn't reflect the session-scoped fixture's changes.
-    """
-    from backend.core.config import get_settings
-
-    os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
-    os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
+from backend.tests.unit.conftest import authenticated_async_client
 
 
 @pytest.fixture(autouse=False)
@@ -100,11 +80,7 @@ class TestGetModelsEndpoint:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -145,11 +121,7 @@ class TestGetModelsEndpoint:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -209,11 +181,7 @@ class TestGetModelsEndpoint:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -258,11 +226,7 @@ class TestGetModelsEndpoint:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -298,11 +262,7 @@ class TestGetModelByNameEndpoint:
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models/threat-detection-yolov8n/status")
 
         assert response.status_code == 200
@@ -327,11 +287,7 @@ class TestGetModelByNameEndpoint:
             mock_client = AsyncMock()
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models/nonexistent-model/status")
 
         assert response.status_code == 404
@@ -364,11 +320,7 @@ class TestGetModelByNameEndpoint:
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models/threat-detection-yolov8n/status")
 
         assert response.status_code == 200
@@ -396,11 +348,7 @@ class TestGetModelByNameEndpoint:
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 # vehicle-segment-classification is a heavy model
                 response = await client.get(
                     "/api/system/models/vehicle-segment-classification/status"
@@ -439,11 +387,7 @@ class TestModelStatusSchema:
             mock_client.get = AsyncMock(return_value=mock_service_response)
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models/fashion-clip/status")
 
         assert response.status_code == 200
@@ -497,11 +441,7 @@ class TestModelStatusSchema:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models")
 
         assert response.status_code == 200
@@ -550,11 +490,7 @@ class TestVRAMStats:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models/vram-summary")
 
         assert response.status_code == 200
@@ -593,11 +529,7 @@ class TestVRAMStats:
             mock_client.get = AsyncMock(side_effect=[mock_heavy_response, mock_light_response])
             mock_client_factory.return_value = mock_client
 
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/models/vram-summary")
 
         assert response.status_code == 200
@@ -624,11 +556,7 @@ class TestModelZooStatusEndpoint:
         mock_manager._load_counts = {}
 
         with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
         assert response.status_code == 200
@@ -657,11 +585,7 @@ class TestModelZooStatusEndpoint:
         mock_manager._load_counts = {}
 
         with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
         assert response.status_code == 200
@@ -694,11 +618,7 @@ class TestModelZooStatusEndpoint:
             "backend.api.routes.system.get_model_manager",
             return_value=mock_manager,
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
         assert response.status_code == 200
@@ -725,11 +645,7 @@ class TestModelZooStatusEndpoint:
         mock_manager._load_counts = {}
 
         with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
         assert response.status_code == 200
@@ -757,11 +673,7 @@ class TestModelZooStatusEndpoint:
         mock_manager._load_counts = {}
 
         with patch("backend.api.routes.system.get_model_manager", return_value=mock_manager):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get("/api/system/model-zoo/status")
 
         assert response.status_code == 200
@@ -786,11 +698,7 @@ class TestModelZooLatencyHistoryEndpoint:
 
         NOTE: This endpoint is in the OLD system.py router.
         """
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers=get_auth_headers(),
-        ) as client:
+        async with authenticated_async_client() as client:
             response = await client.get("/api/system/model-zoo/latency/history")
 
         assert response.status_code == 422  # Validation error
@@ -798,11 +706,7 @@ class TestModelZooLatencyHistoryEndpoint:
     @pytest.mark.asyncio
     async def test_get_latency_history_for_valid_model(self) -> None:
         """Test that valid model returns latency history."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers=get_auth_headers(),
-        ) as client:
+        async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
                 params={"model": "threat-detection-yolov8n"},
@@ -823,11 +727,7 @@ class TestModelZooLatencyHistoryEndpoint:
     @pytest.mark.asyncio
     async def test_get_latency_history_not_found_for_invalid_model(self) -> None:
         """Test that invalid model returns 404."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers=get_auth_headers(),
-        ) as client:
+        async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
                 params={"model": "nonexistent-model"},
@@ -842,11 +742,7 @@ class TestModelZooLatencyHistoryEndpoint:
     @pytest.mark.asyncio
     async def test_get_latency_history_respects_since_param(self) -> None:
         """Test that since parameter controls window size."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers=get_auth_headers(),
-        ) as client:
+        async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
                 params={"model": "threat-detection-yolov8n", "since": 30},
@@ -859,11 +755,7 @@ class TestModelZooLatencyHistoryEndpoint:
     @pytest.mark.asyncio
     async def test_get_latency_history_respects_bucket_seconds_param(self) -> None:
         """Test that bucket_seconds parameter controls bucket size."""
-        async with AsyncClient(
-            transport=ASGITransport(app=app),
-            base_url="http://test",
-            headers=get_auth_headers(),
-        ) as client:
+        async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
                 params={"model": "threat-detection-yolov8n", "bucket_seconds": 120},
@@ -888,11 +780,7 @@ class TestModelZooLatencyHistoryEndpoint:
             "backend.core.metrics.get_model_latency_tracker",
             return_value=mock_tracker,
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get(
                     "/api/system/model-zoo/latency/history",
                     params={"model": "threat-detection-yolov8n"},
@@ -930,11 +818,7 @@ class TestModelZooLatencyHistoryEndpoint:
             "backend.core.metrics.get_model_latency_tracker",
             return_value=mock_tracker,
         ):
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-                headers=get_auth_headers(),
-            ) as client:
+            async with authenticated_async_client() as client:
                 response = await client.get(
                     "/api/system/model-zoo/latency/history",
                     params={"model": "threat-detection-yolov8n"},

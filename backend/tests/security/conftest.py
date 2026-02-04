@@ -150,6 +150,7 @@ def security_client() -> Generator[AuthenticatedTestClient]:
     original_environment = os.environ.get("ENVIRONMENT")
     original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
     original_api_keys = os.environ.get("API_KEYS")
+    original_cors_origins = os.environ.get("CORS_ORIGINS")
 
     # Use development environment to bypass password validation for security tests
     # The tests themselves mock the settings to test specific behaviors
@@ -159,6 +160,9 @@ def security_client() -> Generator[AuthenticatedTestClient]:
     # This allows tests to reach endpoints and test actual security behaviors
     os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
     os.environ["API_KEYS"] = f'["{SECURITY_TEST_API_KEY}"]'  # pragma: allowlist secret
+
+    # Configure CORS to include test origin for CORS-related security tests
+    os.environ["CORS_ORIGINS"] = '["http://localhost:3000", "https://localhost:8444"]'
 
     # Ensure DATABASE_URL is set
     if not original_db_url:
@@ -237,5 +241,10 @@ def security_client() -> Generator[AuthenticatedTestClient]:
         os.environ["API_KEYS"] = original_api_keys
     else:
         os.environ.pop("API_KEYS", None)
+
+    if original_cors_origins is not None:
+        os.environ["CORS_ORIGINS"] = original_cors_origins
+    else:
+        os.environ.pop("CORS_ORIGINS", None)
 
     get_settings.cache_clear()
