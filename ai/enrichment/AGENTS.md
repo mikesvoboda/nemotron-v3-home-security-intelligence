@@ -29,6 +29,7 @@ Combined enrichment service providing on-demand model loading for comprehensive 
 | Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.)         |
 | Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification                  |
 | Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings                  |
+| Plate OCR              | ~500 MB | MEDIUM   | License plate text recognition          |
 | Depth Anything V2      | ~150 MB | LOW      | Distance estimation                     |
 | Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition         |
 | YOLO26 Detector        | ~100 MB | LOW      | Secondary object detection (opt.)       |
@@ -51,6 +52,7 @@ ai/enrichment/
 │   ├── threat_detector.py # Weapon detection
 │   ├── demographics.py    # Age/gender estimation
 │   ├── person_reid.py     # OSNet re-ID embeddings
+│   ├── plate_ocr.py       # PaddleOCR license plate text (NEM-5372)
 │   ├── action_recognizer.py # X-CLIP action recognition
 │   └── yolo26_detector.py # YOLO26 secondary detector
 ├── utils/                 # Utility modules (NEM-3719)
@@ -65,6 +67,7 @@ ai/enrichment/
 │   ├── test_pose_estimator.py    # Pose estimation tests
 │   ├── test_demographics.py      # Demographics tests
 │   ├── test_action_recognizer.py # Action recognition tests
+│   ├── test_plate_ocr.py         # Plate OCR tests (NEM-5372)
 │   ├── test_video_processing.py  # Video processing utilities tests
 │   └── test_yolo26_detector.py   # YOLO26 detector tests
 └── test_model.py          # Integration tests
@@ -264,6 +267,42 @@ SUSPICIOUS_ACTIONS = {
     "looking around suspiciously"
 }
 ```
+
+#### `models/plate_ocr.py` (PaddleOCR License Plate Text - NEM-5372)
+
+License plate text recognition using PaddleOCR with specialized preprocessing for plate images.
+
+**Features:**
+
+- Automatic angle correction for tilted plates
+- CLAHE-based enhancement for low-light conditions
+- Motion blur detection and image quality assessment
+- Alphanumeric character filtering
+- Confidence-weighted text extraction
+- GPU acceleration support (via paddlepaddle-gpu)
+
+**Output Format:**
+
+```python
+PlateOCRResult(
+    plate_text="ABC123",         # Filtered alphanumeric text
+    raw_text="ABC 123",          # Original OCR output
+    ocr_confidence=0.95,         # Aggregate confidence (0-1)
+    char_confidences=[...],      # Per-character confidence
+    image_quality_score=0.85,    # Quality assessment (0-1)
+    is_enhanced=False,           # Whether CLAHE was applied
+    is_blurry=False              # Motion blur detected
+)
+```
+
+**Environment Variables:**
+
+| Variable            | Default | Description                           |
+| ------------------- | ------- | ------------------------------------- |
+| `PLATE_OCR_USE_GPU` | auto    | Enable GPU acceleration (auto-detect) |
+| `PLATE_OCR_LANG`    | `en`    | OCR language (en, ch, etc.)           |
+
+**Dependencies:** Requires `paddleocr` and `paddlepaddle-gpu` packages (see requirements.txt).
 
 #### `models/yolo26_detector.py` (YOLO26 Object Detection)
 
@@ -536,10 +575,11 @@ curl -X POST http://localhost:8094/enrich \
 5. **Threat detection**: `models/threat_detector.py:ThreatDetector` - Weapon detection
 6. **Demographics**: `models/demographics.py:DemographicsEstimator` - Age/gender estimation
 7. **Re-ID**: `models/person_reid.py:PersonReID` - OSNet embedding extraction
-8. **Action recognition**: `models/action_recognizer.py:ActionRecognizer` - X-CLIP video analysis
-9. **YOLO26 detection**: `models/yolo26_detector.py:YOLO26Detector` - Secondary object detection
-10. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
-11. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration
+8. **Plate OCR**: `models/plate_ocr.py:PlateOCR` - PaddleOCR license plate text (NEM-5372)
+9. **Action recognition**: `models/action_recognizer.py:ActionRecognizer` - X-CLIP video analysis
+10. **YOLO26 detection**: `models/yolo26_detector.py:YOLO26Detector` - Secondary object detection
+11. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
+12. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration
 
 ## Related Documentation
 
@@ -561,5 +601,6 @@ This enrichment service powers the following video analytics capabilities:
 | **Face Detection**      | Demographics + backend `face_detector.py`  | [Face Recognition](../../docs/guides/face-recognition.md)                          |
 | **Person Re-ID**        | `PersonReID` model                         | [Face Recognition](../../docs/guides/face-recognition.md#person-re-identification) |
 | **Vehicle Analysis**    | Vehicle classifier + plate detector        | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
+| **License Plate OCR**   | `PlateOCR` model with PaddleOCR            | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
 | **Threat Detection**    | `ThreatDetector` model (CRITICAL priority) | [Video Analytics](../../docs/guides/video-analytics.md#threat-detection)           |
 | **Action Recognition**  | `ActionRecognizer` with X-CLIP             | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |

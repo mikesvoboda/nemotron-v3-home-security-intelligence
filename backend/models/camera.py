@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from .detection import Detection
     from .dwell_time import DwellTimeRecord
     from .event import Event
+    from .notification_preferences import CameraNotificationSetting
     from .plate_read import PlateRead
     from .property import Property
     from .scene_change import SceneChange
@@ -176,13 +177,13 @@ class Camera(Base):
 
     # Relationships
     detections: Mapped[list[Detection]] = relationship(
-        "Detection", back_populates="camera", cascade="all, delete-orphan"
+        "Detection", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     events: Mapped[list[Event]] = relationship(
-        "Event", back_populates="camera", cascade="all, delete-orphan"
+        "Event", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     camera_zones: Mapped[list[CameraZone]] = relationship(
-        "CameraZone", back_populates="camera", cascade="all, delete-orphan"
+        "CameraZone", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     activity_baselines: Mapped[list[ActivityBaseline]] = relationship(
         "ActivityBaseline",
@@ -207,22 +208,28 @@ class Camera(Base):
         back_populates="cameras",
     )
     tracks: Mapped[list[Track]] = relationship(
-        "Track", back_populates="camera", cascade="all, delete-orphan"
+        "Track", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     line_zones: Mapped[list[LineZone]] = relationship(
-        "LineZone", back_populates="camera", cascade="all, delete-orphan"
+        "LineZone", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     polygon_zones: Mapped[list[PolygonZone]] = relationship(
-        "PolygonZone", back_populates="camera", cascade="all, delete-orphan"
+        "PolygonZone", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     dwell_time_records: Mapped[list[DwellTimeRecord]] = relationship(
-        "DwellTimeRecord", back_populates="camera", cascade="all, delete-orphan"
+        "DwellTimeRecord",
+        back_populates="camera",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     action_events: Mapped[list[ActionEvent]] = relationship(
-        "ActionEvent", back_populates="camera", cascade="all, delete-orphan"
+        "ActionEvent", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
     plate_reads: Mapped[list[PlateRead]] = relationship(
-        "PlateRead", back_populates="camera", cascade="all, delete-orphan"
+        "PlateRead", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
+    )
+    notification_setting: Mapped[CameraNotificationSetting | None] = relationship(
+        "CameraNotificationSetting", back_populates="camera", uselist=False
     )
 
     @property

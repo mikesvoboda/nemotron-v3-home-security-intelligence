@@ -64,7 +64,7 @@ class Track(Base):
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="tracks")
     action_events: Mapped[list[ActionEvent]] = relationship(
-        "ActionEvent", back_populates="track", cascade="all, delete-orphan"
+        "ActionEvent", back_populates="track", cascade="all, delete-orphan", passive_deletes=True
     )
 
     # Indexes for efficient querying

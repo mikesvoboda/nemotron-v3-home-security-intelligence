@@ -1,5 +1,7 @@
 import { Camera, Clock, Eye, Star, Tag } from 'lucide-react';
+import { memo, useCallback } from 'react';
 
+import { cardPropsComparator } from '../../utils/memoization';
 import RiskBadge from '../common/RiskBadge';
 
 import type { SearchResult } from '../../services/api';
@@ -73,24 +75,26 @@ function formatTime(dateString: string): string {
  * - Object types display
  * - Click to view details
  */
-export default function SearchResultCard({
+const SearchResultCard = memo(function SearchResultCard({
   result,
   onClick,
   isSelected = false,
   className = '',
 }: SearchResultCardProps) {
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (onClick) {
       onClick(result.id);
     }
-  };
+  }, [onClick, result.id]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      handleClick();
+      if (onClick) {
+        onClick(result.id);
+      }
     }
-  };
+  }, [onClick, result.id]);
 
   // Parse object types
   const objectTypes =
@@ -207,4 +211,6 @@ export default function SearchResultCard({
       </div>
     </div>
   );
-}
+}, cardPropsComparator);
+
+export default SearchResultCard;

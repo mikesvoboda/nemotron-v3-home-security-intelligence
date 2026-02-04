@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # YOLO26 GPU Benchmark Container with TensorRT Support
 # Provides Python 3.12 + CUDA + TensorRT for optimal inference benchmarking
 #

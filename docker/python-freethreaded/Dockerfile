@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Python 3.14 Free-Threaded (GIL-disabled) Docker Image
 #
 # Based on the official python:3.14-slim-bookworm Dockerfile with --disable-gil added.

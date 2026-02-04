@@ -145,7 +145,7 @@ class CameraNotificationSetting(Base):
             self.risk_threshold = 0
 
     # Relationships
-    camera: Mapped[Camera] = relationship("Camera", backref="notification_setting")
+    camera: Mapped[Camera] = relationship("Camera", back_populates="notification_setting")
 
     def __repr__(self) -> str:
         return (

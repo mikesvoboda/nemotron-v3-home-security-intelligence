@@ -157,7 +157,7 @@ class PolygonZone(Base):
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="polygon_zones")
     dwell_time_records: Mapped[list[DwellTimeRecord]] = relationship(
-        "DwellTimeRecord", back_populates="zone", cascade="all, delete-orphan"
+        "DwellTimeRecord", back_populates="zone", cascade="all, delete-orphan", passive_deletes=True
     )
 
     __table_args__ = (

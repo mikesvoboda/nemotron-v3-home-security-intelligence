@@ -356,9 +356,9 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
       {/* Filter metadata */}
       {filters.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {filters.map((filter, index) => (
+          {filters.map((filter) => (
             <span
-              key={index}
+              key={filter}
               className="inline-flex items-center rounded-full border border-gray-600 bg-gray-700/50 px-2 py-0.5 text-xs text-gray-300"
             >
               {filter}

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # CLIP Embedding Server
 # Uses HuggingFace Transformers for model loading with optional TensorRT inference
 # Port: 8093 | Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
@@ -47,10 +48,10 @@ COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 RUN (groupadd -g 1000 clip || true) && \
     (useradd -u 1000 -g 1000 -s /bin/bash -m clip || true)
 
-# Copy application files
-COPY ai/clip/model.py .
-COPY ai/clip/tensorrt_inference.py .
-COPY ai/clip/export_onnx.py .
+# Copy application files with ownership set to non-root user
+COPY --chown=1000:1000 ai/clip/model.py .
+COPY --chown=1000:1000 ai/clip/tensorrt_inference.py .
+COPY --chown=1000:1000 ai/clip/export_onnx.py .
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -72,9 +73,6 @@ ENV CLIP_USE_TENSORRT=false
 # Use numeric UID:GID for NVIDIA image compatibility
 RUN mkdir -p /cache/huggingface /cache/tensorrt && \
     chown -R 1000:1000 /cache/huggingface /cache/tensorrt
-
-# Set ownership of app directory
-RUN chown -R 1000:1000 /app
 
 # Expose port
 EXPOSE 8093

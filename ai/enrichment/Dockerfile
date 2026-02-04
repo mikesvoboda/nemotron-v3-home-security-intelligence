@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Combined Enrichment Service (Multi-Stage Build)
 # Hosts Vehicle Classification, Pet Classification, FashionSigLIP, YOLOv8 Pose, OSNet Re-ID,
 # and video analytics with Supervision (ByteTrack tracking, annotators, heatmaps)

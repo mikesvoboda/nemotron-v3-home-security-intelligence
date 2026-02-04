@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Pyroscope with wget for health checks
 # The official grafana/pyroscope image is a scratch/distroless image without
 # standard utilities like wget or curl, which are needed for health checks.

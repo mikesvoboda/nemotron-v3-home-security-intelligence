@@ -14,7 +14,6 @@ import {
   useUpdatePromptMutation,
   useImportPromptsMutation,
   useExportPromptsMutation,
-  aiAuditQueryKeys,
 } from './useAIAuditQueries';
 import * as auditApi from '../services/auditApi';
 import * as promptApi from '../services/promptManagementApi';
@@ -227,15 +226,14 @@ const mockExportResponse: PromptsExportResponse = {
 };
 
 // ============================================================================
-// Query Key Tests
+// Query Key Tests (using centralized queryKeys from queryClient)
 // ============================================================================
 
-describe('aiAuditQueryKeys', () => {
+describe('queryKeys.ai (centralized query keys)', () => {
   it('creates correct stats query keys', () => {
-    expect(aiAuditQueryKeys.all).toEqual(['ai', 'audit']);
-    expect(aiAuditQueryKeys.stats()).toEqual(['ai', 'audit', 'stats']);
-    expect(aiAuditQueryKeys.stats({ days: 7 })).toEqual(['ai', 'audit', 'stats', { days: 7 }]);
-    expect(aiAuditQueryKeys.stats({ days: 7, camera_id: 'cam-1' })).toEqual([
+    expect(queryKeys.ai.audit.stats()).toEqual(['ai', 'audit', 'stats']);
+    expect(queryKeys.ai.audit.stats({ days: 7 })).toEqual(['ai', 'audit', 'stats', { days: 7 }]);
+    expect(queryKeys.ai.audit.stats({ days: 7, camera_id: 'cam-1' })).toEqual([
       'ai',
       'audit',
       'stats',
@@ -244,8 +242,8 @@ describe('aiAuditQueryKeys', () => {
   });
 
   it('creates correct leaderboard query keys', () => {
-    expect(aiAuditQueryKeys.leaderboard()).toEqual(['ai', 'audit', 'leaderboard']);
-    expect(aiAuditQueryKeys.leaderboard({ days: 30 })).toEqual([
+    expect(queryKeys.ai.audit.leaderboard()).toEqual(['ai', 'audit', 'leaderboard']);
+    expect(queryKeys.ai.audit.leaderboard({ days: 30 })).toEqual([
       'ai',
       'audit',
       'leaderboard',
@@ -254,8 +252,8 @@ describe('aiAuditQueryKeys', () => {
   });
 
   it('creates correct recommendations query keys', () => {
-    expect(aiAuditQueryKeys.recommendations()).toEqual(['ai', 'audit', 'recommendations']);
-    expect(aiAuditQueryKeys.recommendations({ days: 14 })).toEqual([
+    expect(queryKeys.ai.audit.recommendations()).toEqual(['ai', 'audit', 'recommendations']);
+    expect(queryKeys.ai.audit.recommendations({ days: 14 })).toEqual([
       'ai',
       'audit',
       'recommendations',
@@ -264,13 +262,13 @@ describe('aiAuditQueryKeys', () => {
   });
 
   it('creates correct event query keys', () => {
-    expect(aiAuditQueryKeys.event(123)).toEqual(['ai', 'audit', 'event', 123]);
+    expect(queryKeys.ai.audit.event(123)).toEqual(['ai', 'audit', 'event', 123]);
   });
 
   it('creates correct prompts query keys', () => {
-    expect(aiAuditQueryKeys.prompts.all).toEqual(['ai', 'prompts']);
-    expect(aiAuditQueryKeys.prompts.history()).toEqual(['ai', 'prompts', 'history']);
-    expect(aiAuditQueryKeys.prompts.history(AIModelEnum.NEMOTRON)).toEqual([
+    expect(queryKeys.ai.prompts.all).toEqual(['ai', 'prompts']);
+    expect(queryKeys.ai.prompts.history()).toEqual(['ai', 'prompts', 'history']);
+    expect(queryKeys.ai.prompts.history(AIModelEnum.NEMOTRON)).toEqual([
       'ai',
       'prompts',
       'history',
@@ -804,8 +802,15 @@ describe('useBatchAuditMutation', () => {
       await result.current.triggerBatch({});
     });
 
+    // Should invalidate all audit-related query keys
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: aiAuditQueryKeys.all,
+      queryKey: queryKeys.ai.audit.stats(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.ai.audit.leaderboard(),
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: queryKeys.ai.audit.recommendations(),
     });
   });
 });

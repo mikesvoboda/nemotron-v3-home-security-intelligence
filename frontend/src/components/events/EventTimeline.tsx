@@ -368,22 +368,22 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   }, []);
 
   // Handle filter changes
-  const handleFilterChange = (key: keyof EventFilters, value: string | boolean) => {
+  const handleFilterChange = useCallback((key: keyof EventFilters, value: string | boolean) => {
     setEventFilters((prev) => ({
       ...prev,
       [key]: value === '' ? undefined : value,
     }));
     // Clear selections when filters change
     setSelectedEventIds(new Set());
-  };
+  }, []);
 
   // Clear all filters
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setEventFilters({});
     setConfidenceFilter('');
     setSortOption('newest');
     setSelectedEventIds(new Set());
-  };
+  }, []);
 
   // Handle full-text search
   const handleFullTextSearch = useCallback(
@@ -495,7 +495,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   }, []);
 
   // Handle selection toggle for individual event
-  const handleToggleSelection = (eventId: number) => {
+  const handleToggleSelection = useCallback((eventId: number) => {
     setSelectedEventIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(eventId)) {
@@ -505,21 +505,30 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       }
       return newSet;
     });
-  };
+  }, []);
 
-  // Handle select all toggle
-  const handleToggleSelectAll = () => {
-    if (selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0) {
-      // If all are selected, deselect all
-      setSelectedEventIds(new Set());
-    } else {
-      // Select all loaded events
-      setSelectedEventIds(new Set(filteredEvents.map((event) => event.id)));
-    }
-  };
+  // Apply sorting using functional pipeline pattern
+  // Note: Confidence filtering would ideally be done server-side with detection data.
+  // The filter UI still provides value as it indicates user intent and could be passed to backend.
+  const filteredEvents = pipe(getSortTransform<Event>(sortOption))(events);
+
+  // Handle select all toggle - needs filteredEvents so defined after
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectedEventIds((prev) => {
+      // Note: We access filteredEvents via closure, but the callback identity
+      // is stable. The actual filteredEvents value is always current at call time.
+      if (prev.size === filteredEvents.length && filteredEvents.length > 0) {
+        // If all are selected, deselect all
+        return new Set();
+      } else {
+        // Select all loaded events
+        return new Set(filteredEvents.map((event) => event.id));
+      }
+    });
+  }, [filteredEvents]);
 
   // Handle bulk mark as reviewed
-  const handleBulkMarkAsReviewed = async () => {
+  const handleBulkMarkAsReviewed = useCallback(async () => {
     if (selectedEventIds.size === 0) return;
 
     setBulkActionLoading(true);
@@ -544,10 +553,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     } finally {
       setBulkActionLoading(false);
     }
-  };
+  }, [selectedEventIds, refetch]);
 
   // Handle bulk mark as not reviewed
-  const handleBulkMarkAsNotReviewed = async () => {
+  const handleBulkMarkAsNotReviewed = useCallback(async () => {
     if (selectedEventIds.size === 0) return;
 
     setBulkActionLoading(true);
@@ -572,12 +581,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     } finally {
       setBulkActionLoading(false);
     }
-  };
-
-  // Apply sorting using functional pipeline pattern
-  // Note: Confidence filtering would ideally be done server-side with detection data.
-  // The filter UI still provides value as it indicates user intent and could be passed to backend.
-  const filteredEvents = pipe(getSortTransform<Event>(sortOption))(events);
+  }, [selectedEventIds, refetch]);
 
   // Apply list view sorting when in list view mode
   const listViewEvents = useMemo(() => {
@@ -711,8 +715,18 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     confidenceFilter ||
     sortOption !== 'newest';
 
+  // Stable click handler for event cards
+  const handleEventCardClick = useCallback((eventId: string) => {
+    setSelectedEventForModal(parseInt(eventId, 10));
+  }, []);
+
+  // Stable generate clip handler wrapper
+  const handleGenerateClipWrapper = useCallback((eventId: string) => {
+    void handleGenerateClip(eventId);
+  }, [handleGenerateClip]);
+
   // Convert Event to EventCard props
-  const getEventCardProps = (event: Event) => {
+  const getEventCardProps = useCallback((event: Event) => {
     // Use memoized camera name map for efficient lookup
     const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
@@ -731,25 +745,25 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       started_at: event.started_at,
       ended_at: event.ended_at,
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
-      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+      onClick: handleEventCardClick,
       // Snooze functionality (NEM-3592)
       onSnooze: handleSnooze,
       snoozedUntil: event.snooze_until || undefined,
       // Clip generation functionality (NEM-3870)
-      onGenerateClip: (eventId: string) => void handleGenerateClip(eventId),
+      onGenerateClip: handleGenerateClipWrapper,
       onDownloadClip: handleDownloadClip,
       isGeneratingClip: clipGeneratingIds.has(event.id),
       clipUrl: clipUrls.get(event.id) ?? undefined,
     };
-  };
+  }, [cameraNameMap, onViewEventDetails, handleEventCardClick, handleSnooze, handleGenerateClipWrapper, handleDownloadClip, clipGeneratingIds, clipUrls]);
 
   // Handle modal close
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setSelectedEventForModal(null);
-  };
+  }, []);
 
   // Handle mark as reviewed from modal with optimistic locking (NEM-3625)
-  const handleMarkReviewed = async (eventId: string) => {
+  const handleMarkReviewed = useCallback(async (eventId: string) => {
     const id = parseInt(eventId, 10);
     const event = filteredEvents.find((e) => e.id === id);
     try {
@@ -770,10 +784,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         console.error('Failed to mark event as reviewed:', err);
       }
     }
-  };
+  }, [filteredEvents, refetch]);
 
   // Handle mark as reviewed from list view (takes number instead of string) with optimistic locking
-  const handleListMarkReviewed = async (eventId: number) => {
+  const handleListMarkReviewed = useCallback(async (eventId: number) => {
     const event = filteredEvents.find((e) => e.id === eventId);
     try {
       // Include version for optimistic locking if available
@@ -794,10 +808,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         console.error('Failed to mark event as reviewed:', err);
       }
     }
-  };
+  }, [filteredEvents, refetch]);
 
   // Handle flag event from modal (NEM-3839)
-  const handleFlagEvent = async (eventId: string, flagged: boolean) => {
+  const handleFlagEvent = useCallback(async (eventId: string, flagged: boolean) => {
     const id = parseInt(eventId, 10);
     const event = filteredEvents.find((e) => e.id === id);
     try {
@@ -820,10 +834,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       }
       throw err; // Re-throw to update modal loading state
     }
-  };
+  }, [filteredEvents, refetch, toastSuccess, toastError]);
 
   // Handle download media from modal (NEM-3839)
-  const handleDownloadMedia = async (eventId: string) => {
+  const handleDownloadMedia = useCallback(async (eventId: string) => {
     const id = parseInt(eventId, 10);
     try {
       await downloadEventMedia(id);
@@ -833,10 +847,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       toastError(err instanceof Error ? err.message : 'Failed to download media');
       throw err; // Re-throw to update modal loading state
     }
-  };
+  }, [toastSuccess, toastError]);
 
   // Handle save notes from modal (NEM-3839)
-  const handleSaveNotes = async (eventId: string, notes: string) => {
+  const handleSaveNotes = useCallback(async (eventId: string, notes: string) => {
     const id = parseInt(eventId, 10);
     const event = filteredEvents.find((e) => e.id === id);
     try {
@@ -857,10 +871,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       }
       throw err;
     }
-  };
+  }, [filteredEvents, refetch, toastSuccess, toastError]);
 
   // Handle list view column sort
-  const handleListSort = (field: SortField) => {
+  const handleListSort = useCallback((field: SortField) => {
     if (field === listSortField) {
       // Toggle direction if same field
       setListSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -869,10 +883,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       setListSortField(field);
       setListSortDirection('desc');
     }
-  };
+  }, [listSortField]);
 
   // Handle navigation between events in modal
-  const handleNavigate = (direction: 'prev' | 'next') => {
+  const handleNavigate = useCallback((direction: 'prev' | 'next') => {
     if (selectedEventForModal === null) return;
 
     const currentIndex = filteredEvents.findIndex((e) => e.id === selectedEventForModal);
@@ -882,7 +896,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     if (newIndex >= 0 && newIndex < filteredEvents.length) {
       setSelectedEventForModal(filteredEvents[newIndex].id);
     }
-  };
+  }, [selectedEventForModal, filteredEvents]);
 
   // Handle pull-to-refresh (NEM-2970)
   // Note: refetch returns void, so we wrap it in a Promise for PullToRefresh
@@ -919,8 +933,18 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     [refetch]
   );
 
+  // Stable swipe left handler wrapper
+  const handleSwipeLeftWrapper = useCallback((id: string) => {
+    void handleSwipeLeft(id);
+  }, [handleSwipeLeft]);
+
+  // Stable swipe right handler wrapper
+  const handleSwipeRightWrapper = useCallback((id: string) => {
+    void handleSwipeRight(id);
+  }, [handleSwipeRight]);
+
   // Convert API Event to MobileEventCard props (NEM-3070)
-  const getMobileEventCardProps = (event: Event) => {
+  const getMobileEventCardProps = useCallback((event: Event) => {
     const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
     return {
@@ -934,14 +958,14 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       detections: [], // Detections not available in list view
       started_at: event.started_at,
       ended_at: event.ended_at,
-      onSwipeLeft: (id: string) => void handleSwipeLeft(id),
-      onSwipeRight: (id: string) => void handleSwipeRight(id),
-      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+      onSwipeLeft: handleSwipeLeftWrapper,
+      onSwipeRight: handleSwipeRightWrapper,
+      onClick: handleEventCardClick,
     };
-  };
+  }, [cameraNameMap, handleSwipeLeftWrapper, handleSwipeRightWrapper, handleEventCardClick]);
 
   // Convert API Event to ModalEvent format
-  const getModalEvent = (): ModalEvent | null => {
+  const getModalEvent = useCallback((): ModalEvent | null => {
     if (selectedEventForModal === null) return null;
 
     const event = filteredEvents.find((e) => e.id === selectedEventForModal);
@@ -965,7 +989,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       flagged: event.flagged, // Include flagged state (NEM-3839)
       version: event.version, // Include version for optimistic locking (NEM-3625)
     };
-  };
+  }, [selectedEventForModal, filteredEvents, cameraNameMap]);
 
   return (
     <div className={`flex flex-col ${className}`} data-testid="timeline-page">

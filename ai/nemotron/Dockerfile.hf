@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1
 # Nemotron LLM Service Dockerfile (HuggingFace Transformers with BitsAndBytes)
 # Alternative to the llama.cpp-based Dockerfile
 #
