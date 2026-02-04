@@ -34,6 +34,7 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core.redis import RedisClient
+from backend.tests.unit.conftest import get_auth_headers
 
 
 @pytest.fixture(autouse=True)
@@ -4294,11 +4295,10 @@ class TestPipelineLatencyHistoryParameterValidation:
 
     @pytest.fixture
     def client(self) -> TestClient:
-        """Create an authenticated test client."""
+        """Create a test client."""
         from backend.main import app
-        from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
-        return TestClient(app, headers={"X-API-Key": UNIT_TEST_API_KEY})
+        return TestClient(app, headers=get_auth_headers())
 
     # === since parameter validation ===
 
@@ -4395,3 +4395,114 @@ class TestPipelineLatencyHistoryParameterValidation:
         """Test that invalid since with valid bucket_seconds returns 422."""
         response = client.get("/api/system/pipeline-latency/history?since=0&bucket_seconds=60")
         assert response.status_code == 422  # Validation error
+
+
+# =============================================================================
+# Batch Aggregator Status Tests (NEM-5370)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_batch_aggregator_status_redis_none() -> None:
+    """Test _get_batch_aggregator_status returns None when Redis is None."""
+    from backend.api.routes.system import _get_batch_aggregator_status
+
+    result = await _get_batch_aggregator_status(redis=None)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_batch_aggregator_status_redis_client_none() -> None:
+    """Test _get_batch_aggregator_status returns None when Redis._client is None."""
+    from backend.api.routes.system import _get_batch_aggregator_status
+
+    mock_redis = MagicMock()
+    mock_redis._client = None
+
+    result = await _get_batch_aggregator_status(redis=mock_redis)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_batch_aggregator_status_redis_scan_error() -> None:
+    """Test _get_batch_aggregator_status returns None on RedisError during scan.
+
+    This tests that Redis errors during scan operations are caught and result
+    in graceful degradation (returning None) instead of bubbling up and causing
+    a 503 CACHE_UNAVAILABLE error response.
+    """
+    from redis.exceptions import RedisError
+
+    from backend.api.routes.system import _get_batch_aggregator_status
+
+    mock_redis = MagicMock()
+    mock_redis._client = MagicMock()
+
+    # Mock scan_iter to raise RedisError
+    async def mock_scan_iter(*args, **kwargs):
+        raise RedisError("Connection lost during scan")
+        yield  # Make it an async generator (unreachable)
+
+    mock_redis._client.scan_iter = mock_scan_iter
+
+    result = await _get_batch_aggregator_status(redis=mock_redis)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_batch_aggregator_status_redis_pipeline_error() -> None:
+    """Test _get_batch_aggregator_status returns None on RedisError during pipeline.
+
+    Tests that Redis errors during pipeline operations (execute) are caught
+    and result in graceful degradation.
+    """
+    from redis.exceptions import RedisError
+
+    from backend.api.routes.system import _get_batch_aggregator_status
+
+    mock_redis = MagicMock()
+    mock_redis._client = MagicMock()
+
+    # Mock scan_iter to return some keys
+    async def mock_scan_iter(*args, **kwargs):
+        yield "batch:cam123:current"
+
+    mock_redis._client.scan_iter = mock_scan_iter
+
+    # Mock pipeline to raise error on execute
+    mock_pipe = MagicMock()
+    mock_pipe.get = MagicMock()
+
+    async def mock_execute():
+        raise RedisError("Connection lost during pipeline execute")
+
+    mock_pipe.execute = mock_execute
+    mock_redis._client.pipeline = MagicMock(return_value=mock_pipe)
+
+    result = await _get_batch_aggregator_status(redis=mock_redis)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_batch_aggregator_status_empty_batch_keys() -> None:
+    """Test _get_batch_aggregator_status returns empty response when no batches."""
+    from backend.api.routes.system import _get_batch_aggregator_status
+
+    mock_redis = MagicMock()
+    mock_redis._client = MagicMock()
+
+    # Mock scan_iter to return no keys
+    async def mock_scan_iter(*args, **kwargs):
+        # Empty generator
+        return
+        yield  # Unreachable
+
+    mock_redis._client.scan_iter = mock_scan_iter
+
+    result = await _get_batch_aggregator_status(redis=mock_redis)
+
+    assert result is not None
+    assert result.active_batches == 0
+    assert result.batches == []
+    assert result.batch_window_seconds > 0  # Should use settings values
+    assert result.idle_timeout_seconds > 0

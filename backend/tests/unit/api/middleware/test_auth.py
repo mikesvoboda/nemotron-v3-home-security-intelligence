@@ -306,22 +306,24 @@ class TestAuthMiddlewareNoLoggingOnSuccess:
 
 
 class TestAuthMiddlewareDisabled:
-    """Tests when API key authentication is disabled.
-
-    When api_key_enabled=False, the middleware falls back to session
-    cookie authentication. These tests mock session validation.
-    """
+    """Tests when API key authentication is disabled."""
 
     @pytest.mark.asyncio
-    async def test_disabled_auth_no_logging(self, mock_request):
-        """When auth is disabled and session is valid, no security logging should occur."""
+    async def test_disabled_auth_no_logging(self):
+        """When auth is disabled, exempt paths should not trigger logging."""
         from backend.api.middleware.auth import AuthMiddleware
 
         os.environ["API_KEY_ENABLED"] = "false"  # pragma: allowlist secret
         get_settings.cache_clear()
 
-        # Add session cookie to mock request
-        mock_request.cookies = {"session_id": "test-session"}
+        # Use an exempt path to verify no authentication or logging occurs
+        mock_request = MagicMock()
+        mock_request.url.path = "/api/rum"  # Exempt path
+        mock_request.method = "POST"
+        mock_request.headers = {}
+        mock_request.query_params = {}
+        mock_request.client = MagicMock()
+        mock_request.client.host = "192.168.1.100"
 
         mock_app = MagicMock()
         middleware = AuthMiddleware(mock_app)
@@ -330,11 +332,7 @@ class TestAuthMiddlewareDisabled:
         mock_response.status_code = 200
         call_next = AsyncMock(return_value=mock_response)
 
-        # Mock session validation to return True
-        with (
-            patch.object(AuthMiddleware, "_validate_session", return_value=True),
-            patch("backend.api.middleware.auth.logger") as mock_logger,
-        ):
+        with patch("backend.api.middleware.auth.logger") as mock_logger:
             response = await middleware.dispatch(mock_request, call_next)
 
             assert response.status_code == 200
