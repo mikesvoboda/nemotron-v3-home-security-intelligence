@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -528,8 +529,6 @@ def format_delta_with_indicator(delta: float, lower_is_better: bool) -> str:
         return "0.0% \u2014"
 
     # Round to 1 decimal place using half-away-from-zero rounding
-    from decimal import ROUND_HALF_UP, Decimal
-
     rounded_delta = float(Decimal(str(delta)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
 
     # Format the percentage with sign

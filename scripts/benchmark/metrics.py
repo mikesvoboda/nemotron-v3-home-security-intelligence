@@ -77,13 +77,9 @@ class ThroughputMetrics:
 class ServiceUnavailableError(Exception):
     """Raised when the LLM service is not reachable."""
 
-    pass
-
 
 class GPUNotAvailableError(Exception):
     """Raised when GPU/nvidia-smi is not available."""
-
-    pass
 
 
 class MetricsCollector:
