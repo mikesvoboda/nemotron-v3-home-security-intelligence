@@ -131,4 +131,5 @@ config/gpu-assignments.yml
 .gitconfig
 .gitmodules
 .ripgreprc
-.claude
+.claude/*
+!.claude/skills/
