@@ -51,6 +51,39 @@ pre-commit install && pre-commit install --hook-type pre-push
 - **Retention:** 30 days
 - **Deployment:** Containerized with GPU passthrough
 
+## ⚠️ CRITICAL: Network Ports - .env is Single Source of Truth
+
+**ALL network ports MUST be defined in `.env` and referenced via environment variables in `docker-compose.prod.yml`.**
+
+```yaml
+# CORRECT - Port from .env
+ports:
+  - '127.0.0.1:${VLLM_PORT:-8097}:8000'
+
+# WRONG - Hardcoded port
+ports:
+  - '127.0.0.1:8097:8000'
+```
+
+**Port variables defined in `.env.example`:**
+
+| Variable                | Default | Service              |
+| ----------------------- | ------- | -------------------- |
+| `POSTGRES_PORT`         | 5432    | PostgreSQL           |
+| `REDIS_PORT`            | 6379    | Redis                |
+| `API_PORT`              | 8000    | Backend API          |
+| `YOLO26_PORT`           | 8095    | YOLO26 Detection     |
+| `LLM_PORT`              | 8091    | Nemotron (llama.cpp) |
+| `FLORENCE_PORT`         | 8092    | Florence-2           |
+| `CLIP_PORT`             | 8093    | CLIP                 |
+| `ENRICHMENT_PORT`       | 8094    | Enrichment (heavy)   |
+| `ENRICHMENT_LIGHT_PORT` | 8096    | Enrichment (light)   |
+| `VLLM_PORT`             | 8097    | vLLM (optional)      |
+| `GO2RTC_API_PORT`       | 1984    | go2rtc API           |
+| `GO2RTC_WEBRTC_PORT`    | 8555    | go2rtc WebRTC        |
+
+**When adding new services:** Add port variable to `.env.example` first, then reference it in docker-compose.
+
 ## File Structure
 
 ```

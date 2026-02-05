@@ -258,8 +258,9 @@ services:
       - ALL
     image: vllm/vllm-openai:latest
     # NEM-4486: Bind to localhost only - AI services are internal
+    # Port from .env (single source of truth for all network ports)
     ports:
-      - '127.0.0.1:8097:8000'
+      - '127.0.0.1:${VLLM_PORT:-8097}:8000'
     volumes:
       # HuggingFace cache for model downloads
       - hf_cache:/root/.cache/huggingface:U

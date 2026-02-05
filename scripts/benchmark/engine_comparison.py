@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -62,21 +63,25 @@ class EngineMetrics:
 
 
 # Default engine configurations
+# Ports read from environment variables (.env is single source of truth)
+_LLM_PORT = os.environ.get("LLM_PORT", "8091")
+_VLLM_PORT = os.environ.get("VLLM_PORT", "8097")
+
 ENGINE_CONFIGS: dict[EngineType, EngineConfig] = {
     EngineType.LLAMA_CPP: EngineConfig(
         engine_type=EngineType.LLAMA_CPP,
-        service_url="http://localhost:8091",
+        service_url=f"http://localhost:{_LLM_PORT}",
         model_path="/models/nemotron",
         api_format="llama.cpp",
     ),
     EngineType.VLLM: EngineConfig(
         engine_type=EngineType.VLLM,
-        service_url="http://localhost:8097",
-        model_path="nvidia/Nemotron-Mini-4B-Instruct",
+        service_url=f"http://localhost:{_VLLM_PORT}",
+        model_path=os.environ.get("VLLM_MODEL", "nvidia/Nemotron-Mini-4B-Instruct"),
         api_format="openai",
-        gpu_memory_utilization=0.9,
+        gpu_memory_utilization=float(os.environ.get("VLLM_GPU_MEMORY_UTILIZATION", "0.9")),
         tensor_parallel_size=1,
-        max_model_len=32768,
+        max_model_len=int(os.environ.get("VLLM_MAX_MODEL_LEN", "32768")),
     ),
 }
 
