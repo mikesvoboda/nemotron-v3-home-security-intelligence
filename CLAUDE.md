@@ -24,6 +24,39 @@ pre-commit install      # Install git hooks
 
 **Always use `--no-cache` when rebuilding containers** - cached layers may contain stale code. See [Container Rebuild Guide](docs/development/container-rebuilds.md) for details.
 
+## Infrastructure Verification
+
+**Always complete the verification loop after infrastructure changes.** Don't mark tasks complete until ALL checks pass.
+
+### Post-Change Verification Checklist
+
+After modifying Docker Compose, Prometheus configs, or any infrastructure:
+
+```bash
+# 1. Validate compose configuration
+docker compose -f docker-compose.prod.yml config -q
+
+# 2. Check all services are running
+docker compose -f docker-compose.prod.yml ps
+
+# 3. Verify Prometheus targets (if applicable)
+curl -s localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health: .health}'
+
+# 4. Check API health
+curl -s localhost:8000/api/health | jq
+```
+
+### Completion Criteria
+
+A task involving infrastructure is **only complete** when:
+
+- [ ] All Docker Compose services show `Up` and `healthy`
+- [ ] All Prometheus targets show `health: "up"`
+- [ ] API health endpoint returns success
+- [ ] No error logs in `docker compose logs --tail=50`
+
+**Use `/platform-healthcheck` skill** for standardized health verification.
+
 ## Testing
 
 This project follows **Test-Driven Development (TDD)**. See [Testing Guide](docs/development/testing.md) for full documentation.
