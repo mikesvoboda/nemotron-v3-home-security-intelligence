@@ -411,7 +411,7 @@ def select_recommended_format(
         return None
 
     # Filter acceptable formats
-    acceptable = []
+    acceptable: list[dict[str, Any]] = []
     for fmt in comparison["formats"]:
         quality = fmt.get("quality_score")
         if quality is None:
@@ -661,7 +661,7 @@ class QuantizationBenchmarker:
             elapsed_ms = (time.perf_counter() - start_time) * 1000
 
             response.raise_for_status()
-            data = response.json()
+            data: dict[str, Any] = response.json()
 
             if "total_time_ms" not in data:
                 data["total_time_ms"] = elapsed_ms
