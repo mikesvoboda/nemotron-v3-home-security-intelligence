@@ -218,7 +218,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      # NEM-5512: 31B parameter model requires ~5 minutes to load tensors to GPU
+      start_period: 300s
     restart: unless-stopped
     networks:
       - security-net
