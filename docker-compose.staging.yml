@@ -461,7 +461,7 @@ services:
   grafana:
     image: grafana/grafana:10.2.3
     ports:
-      - '3002:3000'
+      - '${GRAFANA_PORT:-3002}:3000'
     volumes:
       - grafana_staging_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro

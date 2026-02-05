@@ -16,6 +16,10 @@ Whitelist (endpoints allowed during setup):
 - GET /redoc - API documentation
 - GET /openapi.json - OpenAPI schema
 - GET /api/system/health/* - System health endpoints (websocket, ready, etc.)
+- GET /api/system/gpu - GPU metrics for Prometheus
+- GET /api/system/stats - System stats for Prometheus
+- GET /api/system/telemetry - Pipeline telemetry for Prometheus
+- GET /api/metrics - Native Prometheus metrics endpoint
 """
 
 from collections.abc import Awaitable, Callable
@@ -36,6 +40,7 @@ logger = get_logger(__name__)
 # 2. Performing initial registration
 # 3. Health probes (for container orchestration)
 # 4. API documentation (for developers)
+# 5. Prometheus metrics scraping
 SETUP_WHITELIST_EXACT = frozenset(
     {
         "/",
@@ -46,6 +51,11 @@ SETUP_WHITELIST_EXACT = frozenset(
         "/openapi.json",
         "/api/auth/setup-status",
         "/api/auth/register",
+        # Prometheus metrics endpoints (must be accessible for monitoring)
+        "/api/system/gpu",
+        "/api/system/stats",
+        "/api/system/telemetry",
+        "/api/metrics",
     }
 )
 
