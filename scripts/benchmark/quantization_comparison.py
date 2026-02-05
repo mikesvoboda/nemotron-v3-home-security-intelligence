@@ -25,13 +25,24 @@ import httpx
 import numpy as np
 
 # Supported quantization formats for Nemotron-3-Nano-30B-A3B
-QUANTIZATION_FORMATS = ["Q4_K_M", "Q4_K_S", "Q3_K_M", "Q3_K_S", "Q2_K_L"]
+QUANTIZATION_FORMATS = ["Q8_0", "Q4_K_M", "Q4_K_S", "Q3_K_M", "Q3_K_S", "Q2_K_L"]
 
-# Default baseline format (highest quality)
+# Default baseline format (highest quality in production use)
 BASELINE_FORMAT = "Q4_K_M"
 
 # Default model base path
-DEFAULT_MODEL_BASE_PATH = Path("/models/nemotron")
+DEFAULT_MODEL_BASE_PATH = Path("/export/ai_models/nemotron")
+
+# Mapping of quantization formats to their actual file paths
+# Paths are relative to DEFAULT_MODEL_BASE_PATH
+QUANTIZATION_PATHS: dict[str, str] = {
+    "Q8_0": "nemotron-3-nano-30b-a3b/Nemotron-3-Nano-30B-A3B-Q8_0.gguf",
+    "Q4_K_M": "nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
+    "Q4_K_S": "quantization-benchmarks/Nemotron-3-Nano-30B-A3B-Q4_K_S.gguf",
+    "Q3_K_M": "quantization-benchmarks/Nemotron-3-Nano-30B-A3B-Q3_K_M.gguf",
+    "Q3_K_S": "quantization-benchmarks/Nemotron-3-Nano-30B-A3B-Q3_K_S.gguf",
+    "Q2_K_L": "quantization-benchmarks/Nemotron-3-Nano-30B-A3B-Q2_K_L.gguf",
+}
 
 # Common English words for gibberish detection
 COMMON_WORDS = {
@@ -140,11 +151,12 @@ COMMON_WORDS = {
 }
 
 
-def get_model_path(quantization_format: str) -> Path:
+def get_model_path(quantization_format: str, base_path: Path | None = None) -> Path:
     """Get the model file path for a quantization format.
 
     Args:
         quantization_format: The quantization format (e.g., "Q4_K_M")
+        base_path: Optional base path override (defaults to DEFAULT_MODEL_BASE_PATH)
 
     Returns:
         Path to the model file
@@ -155,7 +167,11 @@ def get_model_path(quantization_format: str) -> Path:
     if quantization_format not in QUANTIZATION_FORMATS:
         raise ValueError(f"Unknown quantization format: {quantization_format}")
 
-    return DEFAULT_MODEL_BASE_PATH / f"nemotron-nano-{quantization_format.lower()}.gguf"
+    if quantization_format not in QUANTIZATION_PATHS:
+        raise ValueError(f"No path mapping for format: {quantization_format}")
+
+    base = base_path or DEFAULT_MODEL_BASE_PATH
+    return base / QUANTIZATION_PATHS[quantization_format]
 
 
 async def run_nvidia_smi() -> float:

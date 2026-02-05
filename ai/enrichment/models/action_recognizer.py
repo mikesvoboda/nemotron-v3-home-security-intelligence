@@ -206,24 +206,39 @@ class ActionRecognizer:
             ImportError: If transformers library is not available.
             OSError: If model files cannot be loaded.
         """
+        from pathlib import Path
+
         from transformers import XCLIPModel, XCLIPProcessor
 
         logger.info("Loading X-CLIP model...")
 
-        self.processor = XCLIPProcessor.from_pretrained(self.model_path)
+        # Resolve to absolute path for local model directories
+        # HuggingFace's from_pretrained validates repo_id format before checking if it's
+        # a local path. Using Path.resolve() ensures the path is properly normalized and
+        # the transformers library recognizes it as a local directory rather than a repo_id.
+        model_dir = Path(self.model_path)
+        if model_dir.exists():
+            local_path = str(model_dir.resolve())
+            logger.info(f"Loading X-CLIP from local path: {local_path}")
+        else:
+            # Fall back to model_path as-is (might be a HuggingFace repo_id)
+            local_path = self.model_path
+            logger.info(f"Loading X-CLIP from: {local_path}")
+
+        self.processor = XCLIPProcessor.from_pretrained(local_path)
 
         # Try to load with SDPA (Scaled Dot-Product Attention) for 15-40% faster inference
         # SDPA requires PyTorch 2.0+ and compatible hardware
         try:
             self.model = XCLIPModel.from_pretrained(
-                self.model_path,
+                local_path,
                 attn_implementation="sdpa",
             )
             logger.info("X-CLIP loaded with SDPA attention (optimized)")
         except (ValueError, ImportError) as e:
             # Fall back to default attention if SDPA is not supported
             logger.warning(f"SDPA not available, falling back to default attention: {e}")
-            self.model = XCLIPModel.from_pretrained(self.model_path)
+            self.model = XCLIPModel.from_pretrained(local_path)
 
         # Determine target device
         if "cuda" in self.device and torch.cuda.is_available():

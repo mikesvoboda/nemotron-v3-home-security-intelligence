@@ -248,7 +248,8 @@ services:
   # Note: Cannot run simultaneously with ai-llm on same GPU - stop ai-llm first.
   #
   # vLLM requires HuggingFace format models (not GGUF). Model options:
-  #   - nvidia/Nemotron-3-Nano-30B-A3B (default, requires HF download)
+  #   - /models/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4 (default, 4-bit quantized)
+  #   - nvidia/Nemotron-Mini-4B-Instruct (smaller model for testing)
   #   - Any HF model compatible with vLLM
   ai-llm-vllm:
     profiles:
@@ -276,9 +277,14 @@ services:
       # vLLM server configuration
       - VLLM_NO_USAGE_STATS=1
     # vLLM command-line arguments
+    # NOTE: Nemotron-3-Nano-30B quantizations have compatibility issues:
+    # - NVFP4: Requires H100/A100 datacenter GPUs, not supported on RTX A5500
+    # - AWQ (compressed-tensors): vLLM bug with Mamba architecture in nightly builds
+    # - FP8: 30GB, exceeds 24GB VRAM on RTX A5500
+    # Recommend using llama.cpp with GGUF quantizations until vLLM adds proper support
     command:
       - --model
-      - ${VLLM_MODEL:-nvidia/Nemotron-Mini-4B-Instruct}
+      - ${VLLM_MODEL:-/models/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4}
       - --host
       - '0.0.0.0'
       - --port

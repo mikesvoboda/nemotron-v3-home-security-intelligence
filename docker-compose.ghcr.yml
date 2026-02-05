@@ -202,14 +202,17 @@ services:
     ports:
       - '127.0.0.1:8091:8091'
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+      # Using Q2_K_L (20.9GB VRAM) for single-GPU deployment
+      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/quantization-benchmarks:/models:ro
     environment:
       - SERVICE_NAME=ai-llm
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
-      - GPU_LAYERS=${GPU_LAYERS:-45}
-      - CTX_SIZE=${CTX_SIZE:-65536}
+      # Q2_K_L quantization for single-GPU deployment (20.9GB VRAM)
+      - MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q2_K_L.gguf
+      - GPU_LAYERS=${GPU_LAYERS:-999}
+      - CTX_SIZE=${CTX_SIZE:-4096}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -238,7 +241,8 @@ services:
     ports:
       - '127.0.0.1:8092:8092'
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
+      # Using Florence-2-Base (450MB VRAM) instead of Large (2.2GB) for single-GPU deployment
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-base:/models/florence-2-base:ro
       - hf_cache:/cache/huggingface:U
       - pytorch-profiles:/tmp/profiles
     environment:
@@ -246,7 +250,9 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
-      - MODEL_PATH=/models/florence-2-large
+      # Florence-2-Base for single-GPU deployment
+      - MODEL_PATH=/models/florence-2-base
+      - FLORENCE_MODEL_PATH=/models/florence-2-base
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
@@ -281,7 +287,8 @@ services:
     ports:
       - '127.0.0.1:8093:8093'
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Using CLIP ViT-B/32 (350MB VRAM) instead of ViT-L (930MB) for single-GPU deployment
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-b-32:/models/clip-vit-b-32:ro
       - clip-tensorrt-cache:/cache/tensorrt
       - pytorch-profiles:/tmp/profiles
     environment:
@@ -289,7 +296,7 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
-      - CLIP_MODEL_PATH=/models/clip-vit-l
+      - CLIP_MODEL_PATH=/models/clip-vit-b-32
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
       - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
@@ -333,6 +340,7 @@ services:
     environment:
       - SERVICE_NAME=ai-enrichment-light
       - GPU_TIER=light
+      - PORT=8096
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}

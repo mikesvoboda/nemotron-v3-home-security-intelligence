@@ -167,6 +167,8 @@ class DemographicsEstimator:
         Raises:
             Exception: If model loading fails
         """
+        from pathlib import Path
+
         from transformers import AutoImageProcessor, ViTForImageClassification
 
         logger.info("Loading demographics models...")
@@ -179,22 +181,34 @@ class DemographicsEstimator:
             self.device = "cpu"
             logger.info("CUDA not available, using CPU")
 
+        # Resolve to absolute path for local model directories
+        # HuggingFace's from_pretrained validates repo_id format before checking if it's
+        # a local path. Using Path.resolve() ensures the path is properly normalized and
+        # the transformers library recognizes it as a local directory rather than a repo_id.
+        age_model_dir = Path(self.age_model_path)
+        if age_model_dir.exists():
+            age_local_path = str(age_model_dir.resolve())
+            logger.info(f"Loading age model from local path: {age_local_path}")
+        else:
+            # Fall back to model_path as-is (might be a HuggingFace repo_id)
+            age_local_path = self.age_model_path
+            logger.info(f"Loading age model from: {age_local_path}")
+
         # Load age model
-        logger.info(f"Loading age model from {self.age_model_path}")
-        self.age_processor = AutoImageProcessor.from_pretrained(self.age_model_path)
+        self.age_processor = AutoImageProcessor.from_pretrained(age_local_path)
 
         # Try to load with SDPA (Scaled Dot-Product Attention) for 15-40% faster inference
         # SDPA requires PyTorch 2.0+ and compatible hardware
         try:
             self.age_model = ViTForImageClassification.from_pretrained(
-                self.age_model_path,
+                age_local_path,
                 attn_implementation="sdpa",
             )
             logger.info("Age model loaded with SDPA attention (optimized)")
         except (ValueError, ImportError) as e:
             # Fall back to default attention if SDPA is not supported
             logger.warning(f"SDPA not available for age model, falling back to default: {e}")
-            self.age_model = ViTForImageClassification.from_pretrained(self.age_model_path)
+            self.age_model = ViTForImageClassification.from_pretrained(age_local_path)
 
         self.age_model.to(target_device)
         self.age_model.eval()
@@ -214,22 +228,28 @@ class DemographicsEstimator:
 
         # Load gender model if specified
         if self.gender_model_path:
-            logger.info(f"Loading gender model from {self.gender_model_path}")
-            self.gender_processor = AutoImageProcessor.from_pretrained(self.gender_model_path)
+            # Resolve gender model path similarly
+            gender_model_dir = Path(self.gender_model_path)
+            if gender_model_dir.exists():
+                gender_local_path = str(gender_model_dir.resolve())
+                logger.info(f"Loading gender model from local path: {gender_local_path}")
+            else:
+                gender_local_path = self.gender_model_path
+                logger.info(f"Loading gender model from: {gender_local_path}")
+
+            self.gender_processor = AutoImageProcessor.from_pretrained(gender_local_path)
 
             # Try to load with SDPA for gender model as well
             try:
                 self.gender_model = ViTForImageClassification.from_pretrained(
-                    self.gender_model_path,
+                    gender_local_path,
                     attn_implementation="sdpa",
                 )
                 logger.info("Gender model loaded with SDPA attention (optimized)")
             except (ValueError, ImportError) as e:
                 # Fall back to default attention if SDPA is not supported
                 logger.warning(f"SDPA not available for gender model, falling back to default: {e}")
-                self.gender_model = ViTForImageClassification.from_pretrained(
-                    self.gender_model_path
-                )
+                self.gender_model = ViTForImageClassification.from_pretrained(gender_local_path)
 
             self.gender_model.to(target_device)
             self.gender_model.eval()
