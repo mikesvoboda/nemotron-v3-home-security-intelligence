@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_088",
+  "prompt": "Analyze security event: Person taking photos of house. Camera: front_door. Time: 08:11. Detected: suspicious.",
+  "expected_response": {
+    "risk_score": 40,
+    "risk_level": "medium",
+    "summary": "Person taking photos of house",
+    "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at sidewalk. Some behavioral indicators suggest monitoring. Recommend continued observation."
+  },
+  "context": {
+    "camera": "front_door",
+    "timestamp": "2026-02-02T08:11:00",
+    "detection_type": "suspicious",
+    "location": "sidewalk"
+  }
+}

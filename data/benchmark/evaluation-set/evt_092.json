@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_092",
+  "prompt": "Analyze security event: Person climbing over fence. Camera: garage. Time: 17:43. Detected: trespassing.",
+  "expected_response": {
+    "risk_score": 55,
+    "risk_level": "high",
+    "summary": "Person climbing over fence",
+    "reasoning": "Detection at evening hours raises concern. Suspicious behavior observed at fence. Multiple concerning indicators present. Immediate attention recommended."
+  },
+  "context": {
+    "camera": "garage",
+    "timestamp": "2026-01-07T17:43:00",
+    "detection_type": "trespassing",
+    "location": "fence"
+  }
+}

@@ -1,0 +1,1602 @@
+[
+  {
+    "event_id": "evt_045",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: patio. Time: 11:27. Detected: mail.",
+    "expected_response": {
+      "risk_score": 8,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-23T11:27:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_026",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: driveway. Time: 09:27. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 25,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-02-02T09:27:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_071",
+    "prompt": "Analyze security event: Person taking photos of house. Camera: driveway. Time: 19:13. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 34,
+      "risk_level": "medium",
+      "summary": "Person taking photos of house",
+      "reasoning": "Detection at evening hours warrants attention. Unfamiliar activity detected at sidewalk. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-27T19:13:00",
+      "detection_type": "suspicious",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_041",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: front_door. Time: 10:04. Detected: family.",
+    "expected_response": {
+      "risk_score": 7,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-09T10:04:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_040",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: front_door. Time: 20:03. Detected: family.",
+    "expected_response": {
+      "risk_score": 5,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-14T20:03:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_066",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: driveway. Time: 11:56. Detected: family.",
+    "expected_response": {
+      "risk_score": 21,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-02-01T11:56:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_091",
+    "prompt": "Analyze security event: Person climbing over fence. Camera: backyard. Time: 01:45. Detected: trespassing.",
+    "expected_response": {
+      "risk_score": 73,
+      "risk_level": "high",
+      "summary": "Person climbing over fence",
+      "reasoning": "Detection at nighttime hours raises concern. Suspicious behavior observed at fence. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-28T01:45:00",
+      "detection_type": "trespassing",
+      "location": "fence"
+    }
+  },
+  {
+    "event_id": "evt_095",
+    "prompt": "Analyze security event: Vehicle with no plates slowing down. Camera: driveway. Time: 13:20. Detected: suspicious_vehicle.",
+    "expected_response": {
+      "risk_score": 71,
+      "risk_level": "high",
+      "summary": "Vehicle with no plates slowing down",
+      "reasoning": "Detection at afternoon hours raises concern. Suspicious behavior observed at street. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-15T13:20:00",
+      "detection_type": "suspicious_vehicle",
+      "location": "street"
+    }
+  },
+  {
+    "event_id": "evt_072",
+    "prompt": "Analyze security event: Person looking through fence. Camera: patio. Time: 08:32. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 36,
+      "risk_level": "medium",
+      "summary": "Person looking through fence",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at perimeter. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-16T08:32:00",
+      "detection_type": "suspicious",
+      "location": "perimeter"
+    }
+  },
+  {
+    "event_id": "evt_088",
+    "prompt": "Analyze security event: Person taking photos of house. Camera: front_door. Time: 08:11. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 40,
+      "risk_level": "medium",
+      "summary": "Person taking photos of house",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at sidewalk. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-02-02T08:11:00",
+      "detection_type": "suspicious",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_050",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: garage. Time: 01:41. Detected: mail.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-02T01:41:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_006",
+    "prompt": "Analyze security event: Neighbor walking dog past property. Camera: driveway. Time: 02:24. Detected: pedestrian.",
+    "expected_response": {
+      "risk_score": 11,
+      "risk_level": "low",
+      "summary": "Neighbor walking dog past property",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-02-02T02:24:00",
+      "detection_type": "pedestrian",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_001",
+    "prompt": "Analyze security event: Neighbor walking dog past property. Camera: patio. Time: 17:05. Detected: pedestrian.",
+    "expected_response": {
+      "risk_score": 8,
+      "risk_level": "low",
+      "summary": "Neighbor walking dog past property",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-13T17:05:00",
+      "detection_type": "pedestrian",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_057",
+    "prompt": "Analyze security event: Child playing in front yard. Camera: front_door. Time: 15:32. Detected: family.",
+    "expected_response": {
+      "risk_score": 6,
+      "risk_level": "low",
+      "summary": "Child playing in front yard",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-18T15:32:00",
+      "detection_type": "family",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_062",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: garage. Time: 08:13. Detected: mail.",
+    "expected_response": {
+      "risk_score": 23,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-26T08:13:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_067",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: driveway. Time: 05:28. Detected: mail.",
+    "expected_response": {
+      "risk_score": 12,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-27T05:28:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_012",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: patio. Time: 11:10. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-10T11:10:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_082",
+    "prompt": "Analyze security event: Door-to-door salesperson. Camera: backyard. Time: 10:50. Detected: solicitor.",
+    "expected_response": {
+      "risk_score": 30,
+      "risk_level": "medium",
+      "summary": "Door-to-door salesperson",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-13T10:50:00",
+      "detection_type": "solicitor",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_019",
+    "prompt": "Analyze security event: Bird at bird feeder. Camera: driveway. Time: 07:47. Detected: animal.",
+    "expected_response": {
+      "risk_score": 9,
+      "risk_level": "low",
+      "summary": "Bird at bird feeder",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-02-01T07:47:00",
+      "detection_type": "animal",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_004",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: backyard. Time: 18:17. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 18,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-22T18:17:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_092",
+    "prompt": "Analyze security event: Person climbing over fence. Camera: garage. Time: 17:43. Detected: trespassing.",
+    "expected_response": {
+      "risk_score": 55,
+      "risk_level": "high",
+      "summary": "Person climbing over fence",
+      "reasoning": "Detection at evening hours raises concern. Suspicious behavior observed at fence. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-07T17:43:00",
+      "detection_type": "trespassing",
+      "location": "fence"
+    }
+  },
+  {
+    "event_id": "evt_048",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: backyard. Time: 17:28. Detected: mail.",
+    "expected_response": {
+      "risk_score": 12,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-30T17:28:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_023",
+    "prompt": "Analyze security event: Neighbor walking dog past property. Camera: garage. Time: 12:24. Detected: pedestrian.",
+    "expected_response": {
+      "risk_score": 18,
+      "risk_level": "low",
+      "summary": "Neighbor walking dog past property",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-03T12:24:00",
+      "detection_type": "pedestrian",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_046",
+    "prompt": "Analyze security event: Squirrel running across lawn. Camera: patio. Time: 21:41. Detected: animal.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Squirrel running across lawn",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-02-04T21:41:00",
+      "detection_type": "animal",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_037",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: patio. Time: 11:28. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 17,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-16T11:28:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_074",
+    "prompt": "Analyze security event: Person looking through fence. Camera: front_door. Time: 04:40. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 31,
+      "risk_level": "medium",
+      "summary": "Person looking through fence",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at perimeter. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-26T04:40:00",
+      "detection_type": "suspicious",
+      "location": "perimeter"
+    }
+  },
+  {
+    "event_id": "evt_076",
+    "prompt": "Analyze security event: Door-to-door salesperson. Camera: front_door. Time: 02:56. Detected: solicitor.",
+    "expected_response": {
+      "risk_score": 47,
+      "risk_level": "medium",
+      "summary": "Door-to-door salesperson",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-02-02T02:56:00",
+      "detection_type": "solicitor",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_022",
+    "prompt": "Analyze security event: Bird at bird feeder. Camera: front_door. Time: 03:09. Detected: animal.",
+    "expected_response": {
+      "risk_score": 7,
+      "risk_level": "low",
+      "summary": "Bird at bird feeder",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-09T03:09:00",
+      "detection_type": "animal",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_002",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: front_door. Time: 02:13. Detected: mail.",
+    "expected_response": {
+      "risk_score": 18,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-02-05T02:13:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_014",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: patio. Time: 17:46. Detected: mail.",
+    "expected_response": {
+      "risk_score": 24,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-31T17:46:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_061",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: front_door. Time: 02:26. Detected: mail.",
+    "expected_response": {
+      "risk_score": 24,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-17T02:26:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_034",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: backyard. Time: 21:30. Detected: mail.",
+    "expected_response": {
+      "risk_score": 22,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-02-01T21:30:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_068",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: garage. Time: 20:33. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 14,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-11T20:33:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_017",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: side_gate. Time: 02:13. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 15,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-28T02:13:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_055",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: backyard. Time: 09:13. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 20,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-30T09:13:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_016",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: patio. Time: 01:14. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 12,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-26T01:14:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_043",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: patio. Time: 18:36. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 9,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-07T18:36:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_085",
+    "prompt": "Analyze security event: Door-to-door salesperson. Camera: driveway. Time: 07:14. Detected: solicitor.",
+    "expected_response": {
+      "risk_score": 41,
+      "risk_level": "medium",
+      "summary": "Door-to-door salesperson",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-10T07:14:00",
+      "detection_type": "solicitor",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_093",
+    "prompt": "Analyze security event: Person in hoodie circling property. Camera: side_gate. Time: 21:58. Detected: casing.",
+    "expected_response": {
+      "risk_score": 66,
+      "risk_level": "high",
+      "summary": "Person in hoodie circling property",
+      "reasoning": "Detection at nighttime hours raises concern. Suspicious behavior observed at perimeter. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-02-03T21:58:00",
+      "detection_type": "casing",
+      "location": "perimeter"
+    }
+  },
+  {
+    "event_id": "evt_077",
+    "prompt": "Analyze security event: Unfamiliar vehicle parked on street. Camera: front_door. Time: 11:37. Detected: unknown_vehicle.",
+    "expected_response": {
+      "risk_score": 47,
+      "risk_level": "medium",
+      "summary": "Unfamiliar vehicle parked on street",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at street. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-10T11:37:00",
+      "detection_type": "unknown_vehicle",
+      "location": "street"
+    }
+  },
+  {
+    "event_id": "evt_047",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: side_gate. Time: 10:51. Detected: mail.",
+    "expected_response": {
+      "risk_score": 6,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-13T10:51:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_099",
+    "prompt": "Analyze security event: Window being forced open. Camera: side_gate. Time: 14:43. Detected: break_in.",
+    "expected_response": {
+      "risk_score": 90,
+      "risk_level": "critical",
+      "summary": "Window being forced open",
+      "reasoning": "Critical threat detected at window. Immediate security concern identified. Multiple severe risk indicators present. Emergency response may be required."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-22T14:43:00",
+      "detection_type": "break_in",
+      "location": "window"
+    }
+  },
+  {
+    "event_id": "evt_032",
+    "prompt": "Analyze security event: Child playing in front yard. Camera: backyard. Time: 07:56. Detected: family.",
+    "expected_response": {
+      "risk_score": 14,
+      "risk_level": "low",
+      "summary": "Child playing in front yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-02-04T07:56:00",
+      "detection_type": "family",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_090",
+    "prompt": "Analyze security event: Vehicle with no plates slowing down. Camera: side_gate. Time: 16:07. Detected: suspicious_vehicle.",
+    "expected_response": {
+      "risk_score": 65,
+      "risk_level": "high",
+      "summary": "Vehicle with no plates slowing down",
+      "reasoning": "Detection at afternoon hours raises concern. Suspicious behavior observed at street. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-17T16:07:00",
+      "detection_type": "suspicious_vehicle",
+      "location": "street"
+    }
+  },
+  {
+    "event_id": "evt_070",
+    "prompt": "Analyze security event: Unfamiliar vehicle parked on street. Camera: front_door. Time: 03:47. Detected: unknown_vehicle.",
+    "expected_response": {
+      "risk_score": 38,
+      "risk_level": "medium",
+      "summary": "Unfamiliar vehicle parked on street",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at street. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-08T03:47:00",
+      "detection_type": "unknown_vehicle",
+      "location": "street"
+    }
+  },
+  {
+    "event_id": "evt_020",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: driveway. Time: 18:27. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 22,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-13T18:27:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_038",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: front_door. Time: 07:04. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-29T07:04:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_056",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: patio. Time: 01:47. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 23,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-19T01:47:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_059",
+    "prompt": "Analyze security event: Neighbor walking dog past property. Camera: garage. Time: 21:55. Detected: pedestrian.",
+    "expected_response": {
+      "risk_score": 7,
+      "risk_level": "low",
+      "summary": "Neighbor walking dog past property",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-03T21:55:00",
+      "detection_type": "pedestrian",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_087",
+    "prompt": "Analyze security event: Unknown person at door during evening. Camera: driveway. Time: 16:25. Detected: unknown_person.",
+    "expected_response": {
+      "risk_score": 38,
+      "risk_level": "medium",
+      "summary": "Unknown person at door during evening",
+      "reasoning": "Detection at afternoon hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-16T16:25:00",
+      "detection_type": "unknown_person",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_052",
+    "prompt": "Analyze security event: Squirrel running across lawn. Camera: side_gate. Time: 12:57. Detected: animal.",
+    "expected_response": {
+      "risk_score": 20,
+      "risk_level": "low",
+      "summary": "Squirrel running across lawn",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-30T12:57:00",
+      "detection_type": "animal",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_008",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: garage. Time: 12:05. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-02T12:05:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_075",
+    "prompt": "Analyze security event: Person looking through fence. Camera: patio. Time: 17:45. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 35,
+      "risk_level": "medium",
+      "summary": "Person looking through fence",
+      "reasoning": "Detection at evening hours warrants attention. Unfamiliar activity detected at perimeter. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-22T17:45:00",
+      "detection_type": "suspicious",
+      "location": "perimeter"
+    }
+  },
+  {
+    "event_id": "evt_007",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: driveway. Time: 08:51. Detected: mail.",
+    "expected_response": {
+      "risk_score": 16,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-17T08:51:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_064",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: driveway. Time: 02:00. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-07T02:00:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_015",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: side_gate. Time: 08:59. Detected: family.",
+    "expected_response": {
+      "risk_score": 10,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-24T08:59:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_035",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: driveway. Time: 19:27. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 10,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-20T19:27:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_080",
+    "prompt": "Analyze security event: Unknown person at door during evening. Camera: garage. Time: 13:39. Detected: unknown_person.",
+    "expected_response": {
+      "risk_score": 41,
+      "risk_level": "medium",
+      "summary": "Unknown person at door during evening",
+      "reasoning": "Detection at afternoon hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-08T13:39:00",
+      "detection_type": "unknown_person",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_029",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: garage. Time: 06:09. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 25,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-17T06:09:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_033",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: front_door. Time: 15:52. Detected: mail.",
+    "expected_response": {
+      "risk_score": 7,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-13T15:52:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_044",
+    "prompt": "Analyze security event: Bird at bird feeder. Camera: side_gate. Time: 13:12. Detected: animal.",
+    "expected_response": {
+      "risk_score": 12,
+      "risk_level": "low",
+      "summary": "Bird at bird feeder",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-11T13:12:00",
+      "detection_type": "animal",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_069",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: driveway. Time: 21:06. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 22,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-07T21:06:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_086",
+    "prompt": "Analyze security event: Unknown person at door during evening. Camera: side_gate. Time: 08:55. Detected: unknown_person.",
+    "expected_response": {
+      "risk_score": 36,
+      "risk_level": "medium",
+      "summary": "Unknown person at door during evening",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-26T08:55:00",
+      "detection_type": "unknown_person",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_083",
+    "prompt": "Analyze security event: Door-to-door salesperson. Camera: driveway. Time: 22:06. Detected: solicitor.",
+    "expected_response": {
+      "risk_score": 37,
+      "risk_level": "medium",
+      "summary": "Door-to-door salesperson",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-31T22:06:00",
+      "detection_type": "solicitor",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_054",
+    "prompt": "Analyze security event: Bird at bird feeder. Camera: side_gate. Time: 23:50. Detected: animal.",
+    "expected_response": {
+      "risk_score": 14,
+      "risk_level": "low",
+      "summary": "Bird at bird feeder",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-14T23:50:00",
+      "detection_type": "animal",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_013",
+    "prompt": "Analyze security event: Child playing in front yard. Camera: backyard. Time: 08:44. Detected: family.",
+    "expected_response": {
+      "risk_score": 16,
+      "risk_level": "low",
+      "summary": "Child playing in front yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-15T08:44:00",
+      "detection_type": "family",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_000",
+    "prompt": "Analyze security event: Mail carrier placing package on porch. Camera: patio. Time: 07:14. Detected: mail.",
+    "expected_response": {
+      "risk_score": 5,
+      "risk_level": "low",
+      "summary": "Mail carrier placing package on porch",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_porch) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-28T07:14:00",
+      "detection_type": "mail",
+      "location": "front_porch"
+    }
+  },
+  {
+    "event_id": "evt_089",
+    "prompt": "Analyze security event: Person taking photos of house. Camera: front_door. Time: 19:27. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 38,
+      "risk_level": "medium",
+      "summary": "Person taking photos of house",
+      "reasoning": "Detection at evening hours warrants attention. Unfamiliar activity detected at sidewalk. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-02-02T19:27:00",
+      "detection_type": "suspicious",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_078",
+    "prompt": "Analyze security event: Person taking photos of house. Camera: side_gate. Time: 01:19. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 34,
+      "risk_level": "medium",
+      "summary": "Person taking photos of house",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at sidewalk. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-02-01T01:19:00",
+      "detection_type": "suspicious",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_051",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: front_door. Time: 07:10. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 5,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-07T07:10:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_063",
+    "prompt": "Analyze security event: Child playing in front yard. Camera: driveway. Time: 04:42. Detected: family.",
+    "expected_response": {
+      "risk_score": 12,
+      "risk_level": "low",
+      "summary": "Child playing in front yard",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-24T04:42:00",
+      "detection_type": "family",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_049",
+    "prompt": "Analyze security event: Neighbor walking dog past property. Camera: backyard. Time: 14:15. Detected: pedestrian.",
+    "expected_response": {
+      "risk_score": 18,
+      "risk_level": "low",
+      "summary": "Neighbor walking dog past property",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-28T14:15:00",
+      "detection_type": "pedestrian",
+      "location": "sidewalk"
+    }
+  },
+  {
+    "event_id": "evt_024",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: garage. Time: 17:55. Detected: mail.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-28T17:55:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_073",
+    "prompt": "Analyze security event: Door-to-door salesperson. Camera: front_door. Time: 20:27. Detected: solicitor.",
+    "expected_response": {
+      "risk_score": 38,
+      "risk_level": "medium",
+      "summary": "Door-to-door salesperson",
+      "reasoning": "Detection at evening hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-02-03T20:27:00",
+      "detection_type": "solicitor",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_053",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: side_gate. Time: 12:16. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 10,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-02-05T12:16:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_058",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: front_door. Time: 16:05. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 10,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-06T16:05:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_009",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: patio. Time: 11:36. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 14,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-17T11:36:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_097",
+    "prompt": "Analyze security event: Person climbing over fence. Camera: garage. Time: 09:25. Detected: trespassing.",
+    "expected_response": {
+      "risk_score": 60,
+      "risk_level": "high",
+      "summary": "Person climbing over fence",
+      "reasoning": "Detection at morning hours raises concern. Suspicious behavior observed at fence. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-18T09:25:00",
+      "detection_type": "trespassing",
+      "location": "fence"
+    }
+  },
+  {
+    "event_id": "evt_031",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: driveway. Time: 00:07. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 24,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-21T00:07:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_005",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: patio. Time: 10:17. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 10,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-23T10:17:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_003",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: garage. Time: 17:12. Detected: family.",
+    "expected_response": {
+      "risk_score": 21,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-05T17:12:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_018",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: backyard. Time: 15:25. Detected: mail.",
+    "expected_response": {
+      "risk_score": 15,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-16T15:25:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_025",
+    "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: patio. Time: 17:48. Detected: delivery.",
+    "expected_response": {
+      "risk_score": 8,
+      "risk_level": "low",
+      "summary": "Delivery person at front door during daytime",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-08T17:48:00",
+      "detection_type": "delivery",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_028",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: backyard. Time: 03:55. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 21,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-20T03:55:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_039",
+    "prompt": "Analyze security event: Child playing in front yard. Camera: garage. Time: 07:37. Detected: family.",
+    "expected_response": {
+      "risk_score": 5,
+      "risk_level": "low",
+      "summary": "Child playing in front yard",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-19T07:37:00",
+      "detection_type": "family",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_030",
+    "prompt": "Analyze security event: Child playing in front yard. Camera: garage. Time: 16:58. Detected: family.",
+    "expected_response": {
+      "risk_score": 10,
+      "risk_level": "low",
+      "summary": "Child playing in front yard",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-01-06T16:58:00",
+      "detection_type": "family",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_011",
+    "prompt": "Analyze security event: Regular gardener working in yard. Camera: backyard. Time: 03:24. Detected: maintenance.",
+    "expected_response": {
+      "risk_score": 7,
+      "risk_level": "low",
+      "summary": "Regular gardener working in yard",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-09T03:24:00",
+      "detection_type": "maintenance",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_042",
+    "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: driveway. Time: 15:13. Detected: vehicle.",
+    "expected_response": {
+      "risk_score": 12,
+      "risk_level": "low",
+      "summary": "Familiar vehicle pulling into driveway",
+      "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-15T15:13:00",
+      "detection_type": "vehicle",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_079",
+    "prompt": "Analyze security event: Person looking through fence. Camera: driveway. Time: 21:15. Detected: suspicious.",
+    "expected_response": {
+      "risk_score": 31,
+      "risk_level": "medium",
+      "summary": "Person looking through fence",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at perimeter. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-30T21:15:00",
+      "detection_type": "suspicious",
+      "location": "perimeter"
+    }
+  },
+  {
+    "event_id": "evt_081",
+    "prompt": "Analyze security event: Unfamiliar vehicle parked on street. Camera: backyard. Time: 05:56. Detected: unknown_vehicle.",
+    "expected_response": {
+      "risk_score": 37,
+      "risk_level": "medium",
+      "summary": "Unfamiliar vehicle parked on street",
+      "reasoning": "Detection at nighttime hours warrants attention. Unfamiliar activity detected at street. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "backyard",
+      "timestamp": "2026-01-11T05:56:00",
+      "detection_type": "unknown_vehicle",
+      "location": "street"
+    }
+  },
+  {
+    "event_id": "evt_096",
+    "prompt": "Analyze security event: Person climbing over fence. Camera: garage. Time: 06:26. Detected: trespassing.",
+    "expected_response": {
+      "risk_score": 64,
+      "risk_level": "high",
+      "summary": "Person climbing over fence",
+      "reasoning": "Detection at morning hours raises concern. Suspicious behavior observed at fence. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-01T06:26:00",
+      "detection_type": "trespassing",
+      "location": "fence"
+    }
+  },
+  {
+    "event_id": "evt_098",
+    "prompt": "Analyze security event: Person with weapon visible approaching. Camera: driveway. Time: 06:27. Detected: armed_threat.",
+    "expected_response": {
+      "risk_score": 80,
+      "risk_level": "critical",
+      "summary": "Person with weapon visible approaching",
+      "reasoning": "Critical threat detected at front_yard. Immediate security concern identified. Multiple severe risk indicators present. Emergency response may be required."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-27T06:27:00",
+      "detection_type": "armed_threat",
+      "location": "front_yard"
+    }
+  },
+  {
+    "event_id": "evt_036",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: patio. Time: 06:45. Detected: family.",
+    "expected_response": {
+      "risk_score": 22,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "patio",
+      "timestamp": "2026-01-14T06:45:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_010",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: front_door. Time: 07:49. Detected: family.",
+    "expected_response": {
+      "risk_score": 7,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-15T07:49:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_084",
+    "prompt": "Analyze security event: Door-to-door salesperson. Camera: side_gate. Time: 06:52. Detected: solicitor.",
+    "expected_response": {
+      "risk_score": 31,
+      "risk_level": "medium",
+      "summary": "Door-to-door salesperson",
+      "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+    },
+    "context": {
+      "camera": "side_gate",
+      "timestamp": "2026-01-29T06:52:00",
+      "detection_type": "solicitor",
+      "location": "front_door"
+    }
+  },
+  {
+    "event_id": "evt_021",
+    "prompt": "Analyze security event: Postal worker checking mailbox. Camera: driveway. Time: 04:32. Detected: mail.",
+    "expected_response": {
+      "risk_score": 17,
+      "risk_level": "low",
+      "summary": "Postal worker checking mailbox",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-29T04:32:00",
+      "detection_type": "mail",
+      "location": "mailbox"
+    }
+  },
+  {
+    "event_id": "evt_094",
+    "prompt": "Analyze security event: Vehicle with no plates slowing down. Camera: driveway. Time: 03:46. Detected: suspicious_vehicle.",
+    "expected_response": {
+      "risk_score": 74,
+      "risk_level": "high",
+      "summary": "Vehicle with no plates slowing down",
+      "reasoning": "Detection at nighttime hours raises concern. Suspicious behavior observed at street. Multiple concerning indicators present. Immediate attention recommended."
+    },
+    "context": {
+      "camera": "driveway",
+      "timestamp": "2026-01-15T03:46:00",
+      "detection_type": "suspicious_vehicle",
+      "location": "street"
+    }
+  },
+  {
+    "event_id": "evt_060",
+    "prompt": "Analyze security event: Family member arriving home from work. Camera: front_door. Time: 18:15. Detected: family.",
+    "expected_response": {
+      "risk_score": 17,
+      "risk_level": "low",
+      "summary": "Family member arriving home from work",
+      "reasoning": "Detection occurred during evening hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-06T18:15:00",
+      "detection_type": "family",
+      "location": "driveway"
+    }
+  },
+  {
+    "event_id": "evt_065",
+    "prompt": "Analyze security event: Bird at bird feeder. Camera: garage. Time: 02:34. Detected: animal.",
+    "expected_response": {
+      "risk_score": 24,
+      "risk_level": "low",
+      "summary": "Bird at bird feeder",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (backyard) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "garage",
+      "timestamp": "2026-02-02T02:34:00",
+      "detection_type": "animal",
+      "location": "backyard"
+    }
+  },
+  {
+    "event_id": "evt_027",
+    "prompt": "Analyze security event: Neighbor walking dog past property. Camera: front_door. Time: 23:56. Detected: pedestrian.",
+    "expected_response": {
+      "risk_score": 19,
+      "risk_level": "low",
+      "summary": "Neighbor walking dog past property",
+      "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+    },
+    "context": {
+      "camera": "front_door",
+      "timestamp": "2026-01-06T23:56:00",
+      "detection_type": "pedestrian",
+      "location": "sidewalk"
+    }
+  }
+]

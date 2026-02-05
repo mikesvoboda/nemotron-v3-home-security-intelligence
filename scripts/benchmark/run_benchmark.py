@@ -19,9 +19,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
+import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from scripts.benchmark.metrics import MetricsCollector
 
@@ -54,7 +59,17 @@ class BenchmarkConfig:
 
     def __post_init__(self):
         """Validate configuration after initialization."""
-        raise NotImplementedError("BenchmarkConfig.__post_init__ not implemented")
+        # Validate llm_endpoint is a valid URL
+        if not self.llm_endpoint.startswith(("http://", "https://")):
+            raise ValueError(
+                f"Invalid endpoint URL: {self.llm_endpoint}. Must start with http:// or https://"
+            )
+
+        # Validate evaluation_set_path exists
+        if not self.evaluation_set_path.exists():
+            raise FileNotFoundError(
+                f"Evaluation set path does not exist: {self.evaluation_set_path}"
+            )
 
 
 @dataclass
@@ -83,22 +98,53 @@ class QualityScorer:
 
     def __init__(self):
         """Initialize quality scorer."""
-        raise NotImplementedError("QualityScorer.__init__ not implemented")
+        self._scores: list[dict[str, float]] = []
 
     def score_response(
-        self, response: str, expected: str, context: dict[str, Any]
+        self, response: str, expected: str, _context: dict[str, Any]
     ) -> dict[str, float]:
         """Score a single LLM response.
 
         Args:
             response: The LLM's response
             expected: The expected response
-            context: Additional context for scoring
+            _context: Additional context for scoring (unused)
 
         Returns:
             Dictionary with accuracy, relevance, coherence, and overall scores
         """
-        raise NotImplementedError("QualityScorer.score_response not implemented")
+        # Simple scoring based on string similarity
+        # In production, this would use more sophisticated metrics
+        response_lower = response.lower()
+        expected_lower = expected.lower()
+
+        # Calculate basic similarity scores
+        if response_lower == expected_lower:
+            accuracy = 1.0
+        elif expected_lower in response_lower or response_lower in expected_lower:
+            accuracy = 0.8
+        else:
+            # Basic word overlap
+            response_words = set(response_lower.split())
+            expected_words = set(expected_lower.split())
+            if expected_words:
+                overlap = len(response_words & expected_words) / len(expected_words)
+                accuracy = max(0.3, min(0.9, overlap))
+            else:
+                accuracy = 0.5
+
+        relevance = min(1.0, accuracy + 0.1)
+        coherence = 0.85 if len(response) > 10 else 0.5
+        overall = (accuracy + relevance + coherence) / 3
+
+        scores = {
+            "accuracy": round(accuracy, 2),
+            "relevance": round(relevance, 2),
+            "coherence": round(coherence, 2),
+            "overall": round(overall, 2),
+        }
+        self._scores.append(scores)
+        return scores
 
     def aggregate_scores(self, scores: list[dict[str, float]]) -> dict[str, float]:
         """Aggregate multiple quality scores.
@@ -109,7 +155,25 @@ class QualityScorer:
         Returns:
             Dictionary with mean scores and overall quality
         """
-        raise NotImplementedError("QualityScorer.aggregate_scores not implemented")
+        if not scores:
+            return {
+                "mean_accuracy": 0.0,
+                "mean_relevance": 0.0,
+                "mean_coherence": 0.0,
+                "overall_quality": 0.0,
+            }
+
+        mean_accuracy = sum(s["accuracy"] for s in scores) / len(scores)
+        mean_relevance = sum(s["relevance"] for s in scores) / len(scores)
+        mean_coherence = sum(s["coherence"] for s in scores) / len(scores)
+        overall_quality = (mean_accuracy + mean_relevance + mean_coherence) / 3
+
+        return {
+            "mean_accuracy": round(mean_accuracy, 2),
+            "mean_relevance": round(mean_relevance, 2),
+            "mean_coherence": round(mean_coherence, 2),
+            "overall_quality": round(overall_quality, 2),
+        }
 
 
 class BenchmarkRunner:
@@ -136,7 +200,10 @@ class BenchmarkRunner:
             metrics_collector: Metrics collector instance
             quality_scorer: Quality scorer instance
         """
-        raise NotImplementedError("BenchmarkRunner.__init__ not implemented")
+        self.config = config
+        self.metrics_collector = metrics_collector
+        self.quality_scorer = quality_scorer
+        self.events: list[dict[str, Any]] = []
 
     async def load_evaluation_set(self) -> list[dict[str, Any]]:
         """Load the 100-event evaluation set from disk.
@@ -148,7 +215,24 @@ class BenchmarkRunner:
             ValueError: If no events found or directory is empty
             FileNotFoundError: If evaluation set path does not exist
         """
-        raise NotImplementedError("BenchmarkRunner.load_evaluation_set not implemented")
+        eval_path = self.config.evaluation_set_path
+
+        if not eval_path.exists():
+            raise FileNotFoundError(f"Evaluation set path does not exist: {eval_path}")
+
+        # Load all JSON files from the evaluation set directory
+        events = []
+        json_files = sorted(eval_path.glob("*.json"))
+
+        for json_file in json_files:
+            event_data = json.loads(json_file.read_text())
+            events.append(event_data)
+
+        if not events:
+            raise ValueError(f"No events found in evaluation set: {eval_path}")
+
+        self.events = events
+        return events
 
     async def run_single_request_scenario(self) -> dict[str, Any]:
         """Run single request latency scenario.
@@ -159,7 +243,38 @@ class BenchmarkRunner:
         Returns:
             Dictionary with scenario results including latency metrics and quality scores
         """
-        raise NotImplementedError("BenchmarkRunner.run_single_request_scenario not implemented")
+        # Load events if not already loaded
+        if not self.events:
+            await self.load_evaluation_set()
+
+        # Use the first event
+        first_event = self.events[0]
+        prompt = first_event.get("prompt", "")
+        expected = first_event.get("expected_response", "")
+        context = first_event.get("context", {})
+
+        # Record the request
+        response = await self.metrics_collector.record_request(prompt)
+
+        # Get latency metrics
+        latency_metrics = self.metrics_collector.get_latency_metrics()
+
+        # Score response quality
+        quality_scores = self.quality_scorer.score_response(
+            response.get("response", ""), expected, context
+        )
+
+        return {
+            "scenario": "single_request",
+            "latency_metrics": {
+                "p50": latency_metrics.p50,
+                "p95": latency_metrics.p95,
+                "p99": latency_metrics.p99,
+                "time_to_first_token": latency_metrics.time_to_first_token,
+                "mean": latency_metrics.mean,
+            },
+            "quality_scores": quality_scores,
+        }
 
     async def run_sustained_load_scenario(self) -> dict[str, Any]:
         """Run sustained load scenario.
@@ -170,7 +285,29 @@ class BenchmarkRunner:
         Returns:
             Dictionary with scenario results including throughput metrics
         """
-        raise NotImplementedError("BenchmarkRunner.run_sustained_load_scenario not implemented")
+        # Load events if not already loaded
+        if not self.events:
+            await self.load_evaluation_set()
+
+        # Extract prompts from all events
+        prompts = [event.get("prompt", "") for event in self.events]
+
+        # Run sustained load test
+        throughput_metrics = await self.metrics_collector.run_sustained_load(
+            prompts=prompts,
+            duration_sec=self.config.sustained_duration_sec,
+        )
+
+        return {
+            "scenario": "sustained_load",
+            "throughput_metrics": {
+                "requests_per_min": throughput_metrics.requests_per_min,
+                "tokens_per_sec": throughput_metrics.tokens_per_sec,
+                "total_requests": throughput_metrics.total_requests,
+                "total_tokens": throughput_metrics.total_tokens,
+                "duration_sec": throughput_metrics.duration_sec,
+            },
+        }
 
     async def run_burst_scenario(self) -> dict[str, Any]:
         """Run burst handling scenario.
@@ -181,7 +318,43 @@ class BenchmarkRunner:
         Returns:
             Dictionary with scenario results including latency under burst and failure count
         """
-        raise NotImplementedError("BenchmarkRunner.run_burst_scenario not implemented")
+        # Load events if not already loaded
+        if not self.events:
+            await self.load_evaluation_set()
+
+        burst_size = self.config.burst_size
+        failures = 0
+
+        # Create tasks for concurrent requests
+        tasks = []
+        for i in range(burst_size):
+            event = self.events[i % len(self.events)]
+            prompt = event.get("prompt", "")
+            tasks.append(self.metrics_collector.record_request(prompt))
+
+        # Run all requests concurrently
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Count failures
+        for result in results:
+            if isinstance(result, Exception):
+                failures += 1
+
+        # Get latency metrics
+        latency_metrics = self.metrics_collector.get_latency_metrics()
+
+        return {
+            "scenario": "burst_handling",
+            "burst_size": burst_size,
+            "latency_metrics": {
+                "p50": latency_metrics.p50,
+                "p95": latency_metrics.p95,
+                "p99": latency_metrics.p99,
+                "time_to_first_token": latency_metrics.time_to_first_token,
+                "mean": latency_metrics.mean,
+            },
+            "failures": failures,
+        }
 
     async def run_cold_start_scenario(self) -> dict[str, Any]:
         """Run cold start timing scenario.
@@ -192,7 +365,44 @@ class BenchmarkRunner:
         Returns:
             Dictionary with scenario results including cold start time and time to first inference
         """
-        raise NotImplementedError("BenchmarkRunner.run_cold_start_scenario not implemented")
+        # Load events if not already loaded
+        if not self.events:
+            await self.load_evaluation_set()
+
+        attempts = self.config.cold_start_attempts
+        health_endpoint = f"{self.config.llm_endpoint}/health"
+
+        start_time = time.monotonic()
+        ready = False
+
+        # Poll health endpoint until ready
+        async with httpx.AsyncClient() as client:
+            for _attempt in range(attempts):
+                try:
+                    response = await client.get(health_endpoint)
+                    if response.status_code == 200:
+                        ready = True
+                        break
+                except httpx.RequestError:
+                    pass
+                await asyncio.sleep(0.1)  # Small delay between attempts
+
+        cold_start_time = time.monotonic() - start_time
+
+        # Run first inference to measure time to first inference
+        inference_start = time.monotonic()
+        first_event = self.events[0]
+        prompt = first_event.get("prompt", "")
+        await self.metrics_collector.record_request(prompt)
+        time_to_first_inference = time.monotonic() - inference_start
+
+        return {
+            "scenario": "cold_start",
+            "cold_start_time": cold_start_time,
+            "time_to_first_inference": time_to_first_inference,
+            "attempts": attempts,
+            "service_ready": ready,
+        }
 
     async def run_all_scenarios(self) -> dict[str, Any]:
         """Run all configured scenarios.
@@ -200,7 +410,36 @@ class BenchmarkRunner:
         Returns:
             Dictionary with results from all scenarios plus metadata
         """
-        raise NotImplementedError("BenchmarkRunner.run_all_scenarios not implemented")
+        # Load events if not already loaded
+        if not self.events:
+            await self.load_evaluation_set()
+
+        scenario_results = []
+
+        # Map scenario names to methods
+        scenario_map = {
+            "single": self.run_single_request_scenario,
+            "sustained": self.run_sustained_load_scenario,
+            "burst": self.run_burst_scenario,
+            "cold_start": self.run_cold_start_scenario,
+        }
+
+        for scenario_name in self.config.scenarios:
+            if scenario_name in scenario_map:
+                result = await scenario_map[scenario_name]()
+                scenario_results.append(result)
+
+        # Build metadata
+        metadata = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "llm_endpoint": self.config.llm_endpoint,
+            "evaluation_set_size": len(self.events),
+        }
+
+        return {
+            "metadata": metadata,
+            "scenarios": scenario_results,
+        }
 
     async def save_results(self, results: BenchmarkResults) -> Path:
         """Save benchmark results to JSON file.
@@ -214,7 +453,26 @@ class BenchmarkRunner:
         Returns:
             Path to the saved JSON file
         """
-        raise NotImplementedError("BenchmarkRunner.save_results not implemented")
+        # Create output directory if needed
+        output_dir = self.config.output_path
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate timestamped filename
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        filename = f"benchmark_{timestamp}.json"
+        output_file = output_dir / filename
+
+        # Convert results to dict
+        results_dict = {
+            "metadata": results.metadata,
+            "scenarios": results.scenarios,
+            "summary": results.summary,
+        }
+
+        # Write JSON file
+        output_file.write_text(json.dumps(results_dict, indent=2))
+
+        return output_file
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:

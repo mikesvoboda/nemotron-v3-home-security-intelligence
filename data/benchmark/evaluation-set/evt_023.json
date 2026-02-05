@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_023",
+  "prompt": "Analyze security event: Neighbor walking dog past property. Camera: garage. Time: 12:24. Detected: pedestrian.",
+  "expected_response": {
+    "risk_score": 18,
+    "risk_level": "low",
+    "summary": "Neighbor walking dog past property",
+    "reasoning": "Detection occurred during afternoon hours. Activity matches expected patterns for this time. Location (sidewalk) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "garage",
+    "timestamp": "2026-02-03T12:24:00",
+    "detection_type": "pedestrian",
+    "location": "sidewalk"
+  }
+}

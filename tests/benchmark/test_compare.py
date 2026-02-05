@@ -218,7 +218,8 @@ class TestMarkdownTableGeneration:
         assert "|--------|-------------------|---------------|-------|" in table
 
         # Verify P50 row with improvement indicator
-        assert "| P50 Latency | 39.6s | 32.1s | -19.0% ↓ |" in table
+        # (32100 - 39600) / 39600 * 100 = -18.94% rounds to -18.9%
+        assert "| P50 Latency | 39.6s | 32.1s | -18.9% ↓ |" in table
 
         # Verify P95 row
         assert "| P95 Latency | 42.1s | 34.5s | -18.1% ↓ |" in table

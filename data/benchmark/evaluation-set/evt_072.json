@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_072",
+  "prompt": "Analyze security event: Person looking through fence. Camera: patio. Time: 08:32. Detected: suspicious.",
+  "expected_response": {
+    "risk_score": 36,
+    "risk_level": "medium",
+    "summary": "Person looking through fence",
+    "reasoning": "Detection at morning hours warrants attention. Unfamiliar activity detected at perimeter. Some behavioral indicators suggest monitoring. Recommend continued observation."
+  },
+  "context": {
+    "camera": "patio",
+    "timestamp": "2026-01-16T08:32:00",
+    "detection_type": "suspicious",
+    "location": "perimeter"
+  }
+}
