@@ -91,6 +91,60 @@ async def check_http_health(
             return False
 
 
+async def check_network_isolation(
+    service_name: str,
+    port: int,
+    endpoint: str,
+    timeout: float = 5.0,
+) -> bool:
+    """Detect if a service is running but isolated from the compose network.
+
+    This detects the condition where a container is running and healthy via
+    localhost/127.0.0.1, but NOT reachable via its hostname (e.g., 'ai-llm').
+    This happens when a container is started outside docker-compose.
+
+    Args:
+        service_name: Service hostname (e.g., 'ai-llm', 'ai-yolo26')
+        port: Port number (e.g., 8091)
+        endpoint: Health endpoint path (e.g., '/health')
+        timeout: Request timeout in seconds
+
+    Returns:
+        True if service is network-isolated (reachable via localhost but not hostname),
+        False if service is either fully reachable or fully unreachable.
+    """
+    # Check if reachable via localhost (direct port mapping)
+    localhost_reachable = await check_http_health(
+        host="127.0.0.1",
+        port=port,
+        endpoint=endpoint,
+        timeout=timeout,
+    )
+
+    if not localhost_reachable:
+        # Service is down, not a network isolation issue
+        return False
+
+    # Check if reachable via hostname (compose network)
+    hostname_reachable = await check_http_health(
+        host=service_name,
+        port=port,
+        endpoint=endpoint,
+        timeout=timeout,
+    )
+
+    if hostname_reachable:
+        # Service is fully reachable, no network issue
+        return False
+
+    # Service responds on localhost but not hostname = network isolated
+    logger.warning(
+        f"Network isolation detected for {service_name}: "
+        f"reachable on 127.0.0.1:{port} but not via hostname"
+    )
+    return True
+
+
 async def check_cmd_health(
     docker_client: DockerClient,
     container_id: str,
@@ -150,6 +204,7 @@ class HealthMonitor:
         docker_client: DockerClient,
         settings: OrchestratorSettings,
         on_health_change: Callable[[ManagedService, bool], Awaitable[None]] | None = None,
+        on_network_isolation: Callable[[ManagedService], Awaitable[None]] | None = None,
         max_events: int = 100,
     ) -> None:
         """Initialize the health monitor.
@@ -160,12 +215,16 @@ class HealthMonitor:
             settings: OrchestratorSettings with health check configuration
             on_health_change: Optional callback invoked when health status changes.
                               Called with (service, is_healthy).
+            on_network_isolation: Optional callback invoked when network isolation is
+                                  detected (container reachable via localhost but not
+                                  via hostname). Used to trigger compose-based restart.
             max_events: Maximum number of health events to track (default: 100)
         """
         self._registry = registry
         self._docker_client = docker_client
         self._settings = settings
         self._on_health_change = on_health_change
+        self._on_network_isolation = on_network_isolation
         self._running = False
         self._task: asyncio.Task[None] | None = None
         self._health_events: deque[HealthEvent] = deque(maxlen=max_events)
@@ -373,9 +432,34 @@ class HealthMonitor:
     async def _handle_unhealthy(self, service: ManagedService) -> None:
         """Handle case when service fails health check.
 
+        Checks for network isolation (container reachable via localhost but not
+        via hostname) and triggers compose-based restart if detected.
+
         Args:
             service: ManagedService that failed health check
         """
+        # Check for network isolation if service has HTTP health endpoint
+        if service.health_endpoint and self._on_network_isolation:
+            is_isolated = await check_network_isolation(
+                service_name=service.name,
+                port=service.port,
+                endpoint=service.health_endpoint,
+                timeout=float(self._settings.health_check_timeout),
+            )
+            if is_isolated:
+                logger.warning(
+                    f"Network isolation detected for {service.name}, "
+                    "triggering compose-based restart"
+                )
+                self._registry.update_status(service.name, ContainerServiceStatus.UNHEALTHY)
+                self._record_event(
+                    service.name,
+                    "network_isolation",
+                    "Network isolated - reachable via localhost but not hostname",
+                )
+                await self._on_network_isolation(service)
+                return
+
         logger.warning(f"Health check failed for {service.name}")
         self._registry.update_status(service.name, ContainerServiceStatus.UNHEALTHY)
         self._registry.increment_failures(service.name)
