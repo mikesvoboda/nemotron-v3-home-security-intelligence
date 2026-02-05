@@ -62,7 +62,7 @@ services:
       - /var/run/postgresql
     # NEM-4496: Bind to localhost only to prevent external network access
     ports:
-      - '127.0.0.1:5432:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -137,7 +137,7 @@ services:
       dockerfile: ai/yolo26/Dockerfile
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
-      - '127.0.0.1:8095:8095'
+      - '127.0.0.1:${YOLO26_PORT:-8095}:8095'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro
       # PyTorch GPU profiling traces (NEM-4130)
@@ -198,7 +198,7 @@ services:
       dockerfile: Dockerfile
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
-      - '127.0.0.1:8091:8091'
+      - '127.0.0.1:${LLM_PORT:-8091}:8091'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
@@ -207,7 +207,9 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
-      - GPU_LAYERS=${GPU_LAYERS:-45}
+      # NEM-5369: Reduced from 45 to 40 layers to leave ~2GB headroom for compute buffers
+      # With other AI services using ~3.5GB, 45 layers (20GB) + compute (1.1GB) exceeds 20.9GB free
+      - GPU_LAYERS=${GPU_LAYERS:-40}
       # NEM-5369: Reduced context for home security analysis (was 65536, saves ~4GB VRAM)
       # 32768 tokens is sufficient for security event analysis prompts
       - CTX_SIZE=${CTX_SIZE:-32768}
@@ -236,6 +238,78 @@ services:
               device_ids: ['${GPU_LLM}']
               capabilities: [gpu]
 
+  # =============================================================================
+  # vLLM Engine (Optional - for benchmarking against llama.cpp)
+  # =============================================================================
+  # Alternative LLM inference engine using vLLM with OpenAI-compatible API.
+  # Used for performance comparison benchmarks (NEM-5441 Phase 4).
+  #
+  # To enable: docker compose -f docker-compose.prod.yml --profile vllm up -d
+  # Note: Cannot run simultaneously with ai-llm on same GPU - stop ai-llm first.
+  #
+  # vLLM requires HuggingFace format models (not GGUF). Model options:
+  #   - nvidia/Nemotron-3-Nano-30B-A3B (default, requires HF download)
+  #   - Any HF model compatible with vLLM
+  ai-llm-vllm:
+    profiles:
+      - vllm
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    image: vllm/vllm-openai:latest
+    # NEM-4486: Bind to localhost only - AI services are internal
+    # Port from .env (single source of truth for all network ports)
+    ports:
+      - '127.0.0.1:${VLLM_PORT:-8097}:8000'
+    volumes:
+      # HuggingFace cache for model downloads
+      - hf_cache:/root/.cache/huggingface:U
+      # Optional: Mount pre-downloaded HF models
+      - ${AI_MODELS_PATH:-/export/ai_models}/huggingface:/models:ro
+    environment:
+      # HuggingFace configuration
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_TOKEN=${HF_TOKEN:-}
+      # vLLM server configuration
+      - VLLM_NO_USAGE_STATS=1
+    # vLLM command-line arguments
+    command:
+      - --model
+      - ${VLLM_MODEL:-nvidia/Nemotron-Mini-4B-Instruct}
+      - --host
+      - '0.0.0.0'
+      - --port
+      - '8000'
+      - --gpu-memory-utilization
+      - '${VLLM_GPU_MEMORY_UTILIZATION:-0.9}'
+      - --max-model-len
+      - '${VLLM_MAX_MODEL_LEN:-32768}'
+      - --trust-remote-code
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 24G
+        reservations:
+          memory: 16G
+          devices:
+            # GPU assignment from .env (shares with ai-llm - run one at a time)
+            - driver: nvidia
+              device_ids: ['${GPU_LLM}']
+              capabilities: [gpu]
+
   # Florence-2 vision-language model for dense captioning and visual understanding
   ai-florence:
     # Security hardening: Drop all capabilities, prevent privilege escalation
@@ -254,7 +328,7 @@ services:
       dockerfile: ai/florence/Dockerfile
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
-      - '127.0.0.1:8092:8092'
+      - '127.0.0.1:${FLORENCE_PORT:-8092}:8092'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
       # Persistent HuggingFace cache volume (NEM-3812)
@@ -316,7 +390,7 @@ services:
       dockerfile: ai/clip/Dockerfile
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
-      - '127.0.0.1:8093:8093'
+      - '127.0.0.1:${CLIP_PORT:-8093}:8093'
     volumes:
       # Read-only model mount (HuggingFace CLIP weights)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
@@ -378,7 +452,7 @@ services:
       dockerfile: ai/enrichment-light/Dockerfile
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
-      - '127.0.0.1:8096:8096'
+      - '127.0.0.1:${ENRICHMENT_LIGHT_PORT:-8096}:8096'
     volumes:
       # Light models for GPU 1
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
@@ -461,7 +535,7 @@ services:
       dockerfile: ai/enrichment/Dockerfile
     # NEM-4486: Bind to localhost only - AI services are internal
     ports:
-      - '127.0.0.1:8094:8094'
+      - '127.0.0.1:${ENRICHMENT_PORT:-8094}:8094'
     volumes:
       # Heavy models only (light models moved to ai-enrichment-light)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
@@ -532,7 +606,7 @@ services:
       target: prod
     # NEM-4486: Bind to localhost only - backend accessed via frontend nginx proxy
     ports:
-      - '127.0.0.1:8000:8000'
+      - '127.0.0.1:${API_PORT:-8000}:8000'
     volumes:
       # :U tells Podman to recursively chown the volume to match container user (appuser)
       # Docker ignores the :U flag, making this backward compatible
@@ -678,7 +752,7 @@ services:
     image: docker.io/library/redis:7.4-alpine3.21
     # NEM-4496: Bind to localhost only to prevent external network access
     ports:
-      - '127.0.0.1:6379:6379'
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     # SECURITY: Password authentication via REDIS_PASSWORD environment variable
@@ -849,8 +923,8 @@ services:
     restart: unless-stopped
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:1984:1984' # API
-      - '127.0.0.1:8555:8555' # WebRTC
+      - '127.0.0.1:${GO2RTC_API_PORT:-1984}:1984' # API
+      - '127.0.0.1:${GO2RTC_WEBRTC_PORT:-8555}:8555' # WebRTC
     environment:
       - GO2RTC_API_ORIGIN=*
     volumes:
@@ -916,7 +990,16 @@ services:
         condition: service_healthy
     healthcheck:
       # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
+      # FRONTEND_INTERNAL_PORT configures the internal nginx port (default: 8080)
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:${FRONTEND_INTERNAL_PORT:-8080}/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1005,9 +1088,9 @@ services:
     image: docker.io/jaegertracing/all-in-one:1.54
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:16686:16686' # Jaeger UI
-      - '127.0.0.1:4317:4317' # OTLP gRPC receiver
-      - '127.0.0.1:4318:4318' # OTLP HTTP receiver
+      - '127.0.0.1:${JAEGER_UI_PORT:-16686}:16686' # Jaeger UI
+      - '127.0.0.1:${JAEGER_OTLP_GRPC_PORT:-4317}:4317' # OTLP gRPC receiver
+      - '127.0.0.1:${JAEGER_OTLP_HTTP_PORT:-4318}:4318' # OTLP HTTP receiver
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       # Elasticsearch storage backend (NEM-3053)
@@ -1048,7 +1131,7 @@ services:
     image: docker.io/prom/prometheus:v2.48.0
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:9090:9090'
+      - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090'
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
       - ./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro,z
@@ -1158,7 +1241,7 @@ services:
     image: docker.io/oliver006/redis_exporter:v1.55.0
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:9121:9121'
+      - '127.0.0.1:${REDIS_EXPORTER_PORT:-9121}:9121'
     environment:
       - REDIS_ADDR=redis://redis:6379
       # SECURITY: Redis password for exporter authentication (must match redis service)
@@ -1188,7 +1271,7 @@ services:
     image: docker.io/prometheuscommunity/json-exporter:v0.6.0
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:7979:7979'
+      - '127.0.0.1:${JSON_EXPORTER_PORT:-7979}:7979'
     volumes:
       - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro,z
     command:
@@ -1212,7 +1295,7 @@ services:
     image: docker.io/prom/alertmanager:v0.27.0
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:9093:9093'
+      - '127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093'
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro,z
       - alertmanager_data:/alertmanager
@@ -1253,7 +1336,7 @@ services:
     image: docker.io/prom/blackbox-exporter:v0.24.0
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:9115:9115'
+      - '127.0.0.1:${BLACKBOX_EXPORTER_PORT:-9115}:9115'
     volumes:
       - ./monitoring/blackbox-exporter.yml:/etc/blackbox_exporter/config.yml:ro,z
     command:
@@ -1290,7 +1373,7 @@ services:
     command: -config.file=/etc/loki/config.yml
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:3100:3100'
+      - '127.0.0.1:${LOKI_PORT:-3100}:3100'
     healthcheck:
       test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/ready']
       interval: 10s
@@ -1326,7 +1409,7 @@ services:
     command: -config.file=/etc/pyroscope/config.yml
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:4040:4040'
+      - '127.0.0.1:${PYROSCOPE_PORT:-4040}:4040'
     networks:
       - security-net
     healthcheck:
@@ -1370,7 +1453,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /var/lib/containers/:/var/lib/containers:ro
     ports:
-      - '127.0.0.1:8088:8080'
+      - '127.0.0.1:${CADVISOR_PORT:-8088}:8080'
     healthcheck:
       test:
         ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/healthz']
@@ -1405,7 +1488,7 @@ services:
       - /:/host:ro,rslave
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:9100:9100'
+      - '127.0.0.1:${NODE_EXPORTER_PORT:-9100}:9100'
     pid: host
     healthcheck:
       test:
@@ -1449,7 +1532,7 @@ services:
       - DCGM_EXPORTER_KUBERNETES=false
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:9400:9400'
+      - '127.0.0.1:${DCGM_EXPORTER_PORT:-9400}:9400'
     cap_add:
       - SYS_ADMIN
     networks:
@@ -1499,7 +1582,7 @@ services:
       - /etc/alloy/config.alloy
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     ports:
-      - '127.0.0.1:12345:12345' # Alloy UI
+      - '127.0.0.1:${ALLOY_UI_PORT:-12345}:12345' # Alloy UI
       - '4317' # OTLP gRPC (internal only)
       - '4318' # OTLP HTTP (internal only)
     depends_on:

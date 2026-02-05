@@ -1,7 +1,9 @@
 """Container lifecycle management."""
 
 import asyncio
+import os
 import re
+from pathlib import Path
 from typing import ClassVar
 
 from scripts.redeploy.core import output
@@ -120,7 +122,7 @@ class ContainerManager:
                 self.runtime.stop(name, timeout=10)
                 self.runtime.rm(name, force=True)
 
-    async def stop_compose(self, compose_file: Path) -> None:  # noqa: F821
+    async def stop_compose(self, compose_file: Path) -> None:
         """Stop containers from a compose file.
 
         Args:
@@ -364,6 +366,129 @@ class ContainerManager:
             output.success("Alloy started")
 
         output.success("Infrastructure services started")
+
+    def process_monitoring_templates(self) -> None:
+        """Process .template files in monitoring directory with envsubst.
+
+        Finds all *.template files in the monitoring directory and runs envsubst
+        to replace ${VAR} placeholders with actual environment variable values.
+        The output is written to the corresponding file without the .template extension.
+
+        Environment variables substituted include:
+        - CADVISOR_PORT
+        - DCGM_EXPORTER_PORT
+        - GRAFANA_PORT
+        - PROMETHEUS_PORT
+        - ALERTMANAGER_PORT
+        - LOKI_PORT
+        - And any other variables defined in .env
+        """
+        monitoring_dir = self.config.project_root / "monitoring"
+        if not monitoring_dir.exists():
+            output.info("Monitoring directory not found, skipping template processing")
+            return
+
+        # Find all .template files recursively
+        template_files = list(monitoring_dir.glob("**/*.template"))
+        if not template_files:
+            output.info("No template files found in monitoring directory")
+            return
+
+        output.step(f"Processing {len(template_files)} monitoring template(s)...")
+
+        # Build environment dict from config for envsubst
+        # Include all monitoring-related ports and other useful variables
+        env_vars = {
+            # Monitoring ports
+            "CADVISOR_PORT": str(self.config.cadvisor_port),
+            "DCGM_EXPORTER_PORT": str(self.config.dcgm_exporter_port),
+            "GRAFANA_PORT": str(self.config.grafana_port),
+            "PROMETHEUS_PORT": str(self.config.prometheus_port),
+            "ALERTMANAGER_PORT": str(self.config.alertmanager_port),
+            "LOKI_PORT": str(self.config.loki_port),
+            "JAEGER_UI_PORT": str(self.config.jaeger_ui_port),
+            "JAEGER_OTLP_GRPC_PORT": str(self.config.jaeger_otlp_grpc_port),
+            "JAEGER_OTLP_HTTP_PORT": str(self.config.jaeger_otlp_http_port),
+            "PYROSCOPE_PORT": str(self.config.pyroscope_port),
+            "ALLOY_UI_PORT": str(self.config.alloy_ui_port),
+            "NODE_EXPORTER_PORT": str(self.config.node_exporter_port),
+            "REDIS_EXPORTER_PORT": str(self.config.redis_exporter_port),
+            "JSON_EXPORTER_PORT": str(self.config.json_exporter_port),
+            "BLACKBOX_EXPORTER_PORT": str(self.config.blackbox_exporter_port),
+            "ELASTICSEARCH_PORT": str(self.config.elasticsearch_port),
+            # Core service ports
+            "API_PORT": str(self.config.api_port),
+            "POSTGRES_PORT": str(self.config.postgres_port),
+            "REDIS_PORT": str(self.config.redis_port),
+            "FRONTEND_HTTPS_PORT": str(self.config.frontend_port),
+            # AI service ports
+            "YOLO26_PORT": str(self.config.yolo26_port),
+            "LLM_PORT": str(self.config.llm_port),
+            "FLORENCE_PORT": str(self.config.florence_port),
+            "CLIP_PORT": str(self.config.clip_port),
+            "ENRICHMENT_PORT": str(self.config.enrichment_port),
+            "ENRICHMENT_LIGHT_PORT": str(self.config.enrichment_light_port),
+        }
+
+        # Merge with current environment (allows .env values to take precedence)
+        full_env = {**os.environ, **env_vars}
+
+        processed = 0
+        errors = 0
+
+        for template_path in template_files:
+            # Output file is the same path without .template extension
+            output_path = template_path.with_suffix("")
+
+            # Security: Validate path is within monitoring directory (prevent path traversal)
+            resolved_template = template_path.resolve()
+            resolved_monitoring = monitoring_dir.resolve()
+            if not str(resolved_template).startswith(str(resolved_monitoring)):
+                output.warn(f"Skipping {template_path}: path outside monitoring directory")
+                continue
+
+            try:
+                # envsubst reads from stdin, so we need to pipe the file content
+                # Use subprocess directly for stdin handling
+                import subprocess
+
+                # Build list of variables to substitute (prevents replacing unrelated $vars)
+                # This is critical for prometheus_rules.yml which uses Go template syntax
+                # like {{ $value | printf }} that would otherwise be corrupted
+                var_list = " ".join(f"${{{k}}}" for k in env_vars)
+
+                # Read template content using Path (after validation above)
+                template_content = resolved_template.read_text()
+                proc_result = subprocess.run(
+                    ["envsubst", var_list],
+                    input=template_content,
+                    capture_output=True,
+                    text=True,
+                    env=full_env,
+                    check=False,
+                )
+
+                if proc_result.returncode != 0:
+                    output.warn(f"Failed to process {template_path.name}: {proc_result.stderr}")
+                    errors += 1
+                    continue
+
+                # Write the processed output
+                output_path.write_text(proc_result.stdout)
+                output.info(f"Processed: {template_path.name} -> {output_path.name}")
+                processed += 1
+
+            except FileNotFoundError:
+                output.warn("envsubst not found. Install gettext package to process templates.")
+                return
+            except OSError as e:
+                output.warn(f"Error processing {template_path.name}: {e}")
+                errors += 1
+
+        if processed > 0:
+            output.success(f"Processed {processed} monitoring template(s)")
+        if errors > 0:
+            output.warn(f"Failed to process {errors} template(s)")
 
     async def start_ai_services(self) -> None:
         """Start all AI services with GPU assignments."""
@@ -619,6 +744,7 @@ class ContainerManager:
             output.warn(f"Failed to start dcgm-exporter: {dcgm_result.stderr}")
 
         # Start cAdvisor (container metrics)
+        # NOTE: Must override healthcheck to use configured port (default checks :8080)
         output.info("Starting cadvisor (privileged)...")
         cadvisor_result = self.runtime.process.run(
             [
@@ -643,6 +769,17 @@ class ContainerManager:
                 "/var/lib/containers:/var/lib/containers:ro",
                 "--restart",
                 "unless-stopped",
+                # Override healthcheck to use configured port (image default uses 8080)
+                "--health-cmd",
+                f"wget --quiet --tries=1 --spider http://localhost:{self.config.cadvisor_port}/healthz || exit 1",
+                "--health-interval",
+                "30s",
+                "--health-timeout",
+                "10s",
+                "--health-retries",
+                "3",
+                "--health-start-period",
+                "30s",
                 "gcr.io/cadvisor/cadvisor:v0.49.1",
                 f"--port={self.config.cadvisor_port}",
             ],

@@ -312,6 +312,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/system/health",  # Detailed health check (includes AI services)
             "/api/system/health/ready",  # Detailed readiness probe
             "/api/metrics",  # Prometheus scraping endpoint
+            # Additional Prometheus JSON exporter endpoints
+            # These are scraped by json-exporter and must be unauthenticated
+            "/api/system/gpu",
+            "/api/system/stats",
+            "/api/system/telemetry",
             "/docs",
             "/redoc",
             "/openapi.json",

@@ -220,6 +220,8 @@ class DeployOrchestrator:
         async def start_infra_early() -> None:
             """Start infrastructure services early."""
             try:
+                # Process monitoring templates before starting infrastructure
+                self.containers.process_monitoring_templates()
                 await self.containers.start_infrastructure()
                 output.success("Infrastructure started (parallel with AI builds)")
             except Exception as e:
@@ -276,6 +278,8 @@ class DeployOrchestrator:
         # May already be running from parallel start during build phase
         infra_running = self._check_infrastructure_running()
         if not infra_running:
+            # Process monitoring templates before starting infrastructure
+            self.containers.process_monitoring_templates()
             output.step("Phase 1: Starting infrastructure services...")
             await self.containers.start_infrastructure()
         else:

@@ -533,7 +533,16 @@ services:
     networks:
       - security-net
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:1984/api']
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '-O',
+          '/dev/null',
+          'http://localhost:1984/api/streams',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -564,7 +573,17 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
+      # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
+      # FRONTEND_INTERNAL_PORT configures the internal nginx port (default: 8080)
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:${FRONTEND_INTERNAL_PORT:-8080}/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

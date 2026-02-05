@@ -4,8 +4,8 @@
 # Environment variables with defaults are substituted before Prometheus loads this config.
 #
 # Variable substitution:
-#   - 8082: Port for cAdvisor metrics (default: 8082)
-#   - 9400: Port for DCGM GPU metrics (default: 9400)
+#   - ${CADVISOR_PORT}: Port for cAdvisor metrics (default: 8082)
+#   - ${DCGM_EXPORTER_PORT}: Port for DCGM GPU metrics (default: 9400)
 #
 # PORT CONFIGURATION NOTE:
 # Internal Docker service names (e.g., backend:8000, alertmanager:9093) use FIXED
@@ -461,7 +461,7 @@ scrape_configs:
       # while prometheus runs in rootless podman - separate network namespaces
       # Port is configurable via CADVISOR_PORT environment variable
       - targets:
-          - 'host.containers.internal:8082'
+          - 'host.containers.internal:${CADVISOR_PORT}'
     # Filter to only include containers from this compose project
     # and add helpful labels
     relabel_configs:
@@ -521,6 +521,6 @@ scrape_configs:
       # Use host.containers.internal because dcgm-exporter runs in rootful podman (sudo)
       # while prometheus runs in rootless podman - separate network namespaces
       # Port is configurable via DCGM_EXPORTER_PORT environment variable
-      - targets: ['host.containers.internal:9400']
+      - targets: ['host.containers.internal:${DCGM_EXPORTER_PORT}']
     scrape_interval: 15s
     scrape_timeout: 10s
