@@ -442,10 +442,10 @@ scrape_configs:
     scrape_interval: 15s
     scrape_timeout: 10s
     static_configs:
-      # Use host.containers.internal because cadvisor runs in rootful podman (sudo)
-      # while prometheus runs in rootless podman - separate network namespaces
+      # cAdvisor is in the same compose network (security-net)
+      # Use internal container port 8080 (not host-mapped 8088)
       - targets:
-          - 'host.containers.internal:8088'
+          - 'cadvisor:8080'
     # Filter to only include containers from this compose project
     # and add helpful labels
     relabel_configs:

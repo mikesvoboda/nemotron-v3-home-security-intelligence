@@ -555,9 +555,22 @@ def _get_worker_statuses() -> list[WorkerStatus]:
         workers_dict = manager_status.get("workers", {})
 
         # Detection worker (critical)
+        # NEM-5375: Multi-worker support - detection status has "count" and "workers" list
         if "detection" in workers_dict:
-            detection_state = workers_dict["detection"].get("state", "stopped")
-            is_running = detection_state == "running"
+            detection_info = workers_dict["detection"]
+            # Handle multi-worker structure: {"count": N, "workers": [{stats}, ...]}
+            if detection_info.get("workers"):
+                # Aggregate state from all workers - "running" if any are running
+                worker_states = [w.get("state", "stopped") for w in detection_info["workers"]]
+                # Consider running if at least one worker is in running or error state
+                is_running = any(s in ("running", "error") for s in worker_states)
+                detection_state = (
+                    "running" if is_running else worker_states[0] if worker_states else "stopped"
+                )
+            else:
+                # Legacy single-worker structure fallback
+                detection_state = detection_info.get("state", "stopped")
+                is_running = detection_state == "running"
             statuses.append(
                 WorkerStatus(
                     name="detection_worker",
@@ -567,9 +580,22 @@ def _get_worker_statuses() -> list[WorkerStatus]:
             )
 
         # Analysis worker (critical)
+        # NEM-5375: Multi-worker support - analysis status has "count" and "workers" list
         if "analysis" in workers_dict:
-            analysis_state = workers_dict["analysis"].get("state", "stopped")
-            is_running = analysis_state == "running"
+            analysis_info = workers_dict["analysis"]
+            # Handle multi-worker structure: {"count": N, "workers": [{stats}, ...]}
+            if analysis_info.get("workers"):
+                # Aggregate state from all workers - "running" if any are running
+                worker_states = [w.get("state", "stopped") for w in analysis_info["workers"]]
+                # Consider running if at least one worker is in running or error state
+                is_running = any(s in ("running", "error") for s in worker_states)
+                analysis_state = (
+                    "running" if is_running else worker_states[0] if worker_states else "stopped"
+                )
+            else:
+                # Legacy single-worker structure fallback
+                analysis_state = analysis_info.get("state", "stopped")
+                is_running = analysis_state == "running"
             statuses.append(
                 WorkerStatus(
                     name="analysis_worker",
@@ -616,6 +642,27 @@ def _get_worker_statuses() -> list[WorkerStatus]:
     return statuses
 
 
+def _is_worker_group_operational(worker_info: dict[str, Any], operational_states: set[str]) -> bool:
+    """Check if a worker group has at least one operational worker.
+
+    NEM-5375: Handles both multi-worker structure {"count": N, "workers": [{stats}, ...]}
+    and legacy single-worker structure {"state": "running", ...}.
+
+    Args:
+        worker_info: Worker status dict from pipeline manager
+        operational_states: Set of states considered operational
+
+    Returns:
+        True if at least one worker is in an operational state
+    """
+    if worker_info.get("workers"):
+        # Multi-worker structure
+        worker_states = [w.get("state", "stopped") for w in worker_info["workers"]]
+        return any(s in operational_states for s in worker_states)
+    # Legacy single-worker structure fallback
+    return worker_info.get("state", "stopped") in operational_states
+
+
 def _are_critical_pipeline_workers_healthy() -> bool:
     """Check if critical pipeline workers (detection and analysis) are operational.
 
@@ -636,7 +683,7 @@ def _are_critical_pipeline_workers_healthy() -> bool:
     # Operational states: workers that are actively processing or will resume shortly
     # "running" - normal operation
     # "error" - transient error state, worker auto-recovers within 1 second (NEM-3901)
-    OPERATIONAL_STATES = {"running", "error"}
+    operational_states = {"running", "error"}
 
     if _pipeline_manager is None:
         # Pipeline manager not registered - system cannot process detections
@@ -651,16 +698,14 @@ def _are_critical_pipeline_workers_healthy() -> bool:
 
     workers_dict = manager_status.get("workers", {})
 
-    # Check detection worker (critical)
+    # Check detection worker (critical) - NEM-5375: Multi-worker support
     if "detection" in workers_dict:
-        detection_state = workers_dict["detection"].get("state", "stopped")
-        if detection_state not in OPERATIONAL_STATES:
+        if not _is_worker_group_operational(workers_dict["detection"], operational_states):
             return False
 
-    # Check analysis worker (critical)
+    # Check analysis worker (critical) - NEM-5375: Multi-worker support
     if "analysis" in workers_dict:
-        analysis_state = workers_dict["analysis"].get("state", "stopped")
-        if analysis_state not in OPERATIONAL_STATES:
+        if not _is_worker_group_operational(workers_dict["analysis"], operational_states):
             return False
 
     return True

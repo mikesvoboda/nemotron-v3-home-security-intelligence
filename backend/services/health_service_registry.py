@@ -448,9 +448,25 @@ class HealthServiceRegistry:
             workers_dict = manager_status.get("workers", {})
 
             # Detection worker (critical)
+            # NEM-5375: Multi-worker support - detection status has "count" and "workers" list
             if "detection" in workers_dict:
-                detection_state = workers_dict["detection"].get("state", "stopped")
-                is_running = detection_state == "running"
+                detection_info = workers_dict["detection"]
+                # Handle multi-worker structure: {"count": N, "workers": [{stats}, ...]}
+                if detection_info.get("workers"):
+                    # Aggregate state from all workers - "running" if any are running
+                    worker_states = [w.get("state", "stopped") for w in detection_info["workers"]]
+                    is_running = any(s in ("running", "error") for s in worker_states)
+                    detection_state = (
+                        "running"
+                        if is_running
+                        else worker_states[0]
+                        if worker_states
+                        else "stopped"
+                    )
+                else:
+                    # Legacy single-worker structure fallback
+                    detection_state = detection_info.get("state", "stopped")
+                    is_running = detection_state == "running"
                 statuses.append(
                     WorkerStatus(
                         name="detection_worker",
@@ -460,9 +476,25 @@ class HealthServiceRegistry:
                 )
 
             # Analysis worker (critical)
+            # NEM-5375: Multi-worker support - analysis status has "count" and "workers" list
             if "analysis" in workers_dict:
-                analysis_state = workers_dict["analysis"].get("state", "stopped")
-                is_running = analysis_state == "running"
+                analysis_info = workers_dict["analysis"]
+                # Handle multi-worker structure: {"count": N, "workers": [{stats}, ...]}
+                if analysis_info.get("workers"):
+                    # Aggregate state from all workers - "running" if any are running
+                    worker_states = [w.get("state", "stopped") for w in analysis_info["workers"]]
+                    is_running = any(s in ("running", "error") for s in worker_states)
+                    analysis_state = (
+                        "running"
+                        if is_running
+                        else worker_states[0]
+                        if worker_states
+                        else "stopped"
+                    )
+                else:
+                    # Legacy single-worker structure fallback
+                    analysis_state = analysis_info.get("state", "stopped")
+                    is_running = analysis_state == "running"
                 statuses.append(
                     WorkerStatus(
                         name="analysis_worker",
@@ -471,15 +503,15 @@ class HealthServiceRegistry:
                     )
                 )
 
-            # Batch timeout worker (non-critical)
-            if "batch_timeout" in workers_dict:
-                batch_state = workers_dict["batch_timeout"].get("state", "stopped")
-                is_running = batch_state == "running"
+            # Batch timeout worker (non-critical) - uses direct stats structure
+            if "timeout" in workers_dict:
+                timeout_state = workers_dict["timeout"].get("state", "stopped")
+                is_running = timeout_state == "running"
                 statuses.append(
                     WorkerStatus(
                         name="batch_timeout_worker",
                         running=is_running,
-                        message=None if is_running else f"State: {batch_state}",
+                        message=None if is_running else f"State: {timeout_state}",
                     )
                 )
 
@@ -487,6 +519,9 @@ class HealthServiceRegistry:
 
     def are_critical_pipeline_workers_healthy(self) -> bool:
         """Check if critical pipeline workers are running.
+
+        NEM-5375: Multi-worker support - detection and analysis workers now return
+        {"count": N, "workers": [{stats}, ...]} structure.
 
         Returns:
             True if detection and analysis workers are running, False otherwise
@@ -497,8 +532,32 @@ class HealthServiceRegistry:
         manager_status = self._pipeline_manager.get_status()
         workers_dict = manager_status.get("workers", {})
 
-        detection_running: bool = workers_dict.get("detection", {}).get("state") == "running"
-        analysis_running: bool = workers_dict.get("analysis", {}).get("state") == "running"
+        # Operational states: workers that are actively processing or will resume shortly
+        OPERATIONAL_STATES = {"running", "error"}
+
+        # Check detection workers
+        detection_running = False
+        if "detection" in workers_dict:
+            detection_info = workers_dict["detection"]
+            if detection_info.get("workers"):
+                # Multi-worker: at least one must be operational
+                worker_states = [w.get("state", "stopped") for w in detection_info["workers"]]
+                detection_running = any(s in OPERATIONAL_STATES for s in worker_states)
+            else:
+                # Legacy single-worker fallback
+                detection_running = detection_info.get("state") in OPERATIONAL_STATES
+
+        # Check analysis workers
+        analysis_running = False
+        if "analysis" in workers_dict:
+            analysis_info = workers_dict["analysis"]
+            if analysis_info.get("workers"):
+                # Multi-worker: at least one must be operational
+                worker_states = [w.get("state", "stopped") for w in analysis_info["workers"]]
+                analysis_running = any(s in OPERATIONAL_STATES for s in worker_states)
+            else:
+                # Legacy single-worker fallback
+                analysis_running = analysis_info.get("state") in OPERATIONAL_STATES
 
         return detection_running and analysis_running
 

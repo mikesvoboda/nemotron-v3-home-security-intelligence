@@ -543,8 +543,10 @@ class TestSendHeartbeat:
         # Start heartbeat
         task = asyncio.create_task(send_heartbeat(mock_websocket, interval, stop_event))
 
-        # Wait for error to occur
-        await asyncio.sleep(0.2)
+        # Wait for error to occur - use longer wait for CI tolerance
+        # The heartbeat needs at least one interval (0.1s) before first send,
+        # then error occurs. Add buffer for CI scheduling delays.
+        await asyncio.sleep(0.5)
 
         # Should have stopped without raising
         assert task.done()

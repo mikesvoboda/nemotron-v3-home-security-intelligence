@@ -318,6 +318,41 @@ class DockerClient:
             )
             return False
 
+    async def remove_container(self, container_id: str, force: bool = False) -> bool:
+        """Remove a container.
+
+        Args:
+            container_id: Container ID to remove.
+            force: If True, force removal of running container.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        if self._client is None:
+            logger.debug("Docker client not initialized")
+            return False
+
+        try:
+            container = await asyncio.to_thread(self._client.containers.get, container_id)
+            await asyncio.to_thread(container.remove, force=force)
+            logger.info(
+                f"Removed container {container_id}",
+                extra={"container_id": container_id, "force": force},
+            )
+            return True
+        except NotFound:
+            logger.warning(
+                f"Cannot remove container - not found: {container_id}",
+                extra={"container_id": container_id},
+            )
+            return False
+        except DockerException as e:
+            logger.error(
+                f"Failed to remove container {container_id}: {e}",
+                extra={"container_id": container_id, "force": force, "error": str(e)},
+            )
+            return False
+
     async def exec_run(self, container_id: str, cmd: str, timeout: int = 5) -> int:  # noqa: ARG002
         """Execute command in container and return exit code.
 

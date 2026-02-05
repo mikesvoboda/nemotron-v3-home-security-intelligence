@@ -26,7 +26,7 @@ scripts/
   # Service Management
   dev.sh                             # Development server management
   restart-all.sh                     # Full stack restart (all containers)
-  redeploy.sh                        # Stop, destroy volumes, redeploy fresh
+  redeploy.py                        # Stop, destroy volumes, redeploy fresh (python redeploy.py --help)
   quick-rebuild.sh                   # Quick rebuild and restart containers
   setup-container-api.sh             # Setup container API access
 
@@ -278,21 +278,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 - AI: ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 - Monitoring: prometheus, grafana, redis-exporter, json-exporter
 
-#### redeploy.sh
+#### redeploy.py
 
 **Purpose:** Stop all containers, destroy volumes, and redeploy fresh.
 
+**Usage:** `python redeploy.py [OPTIONS]`
+
 **Options:**
 
-| Option            | Description                              |
-| ----------------- | ---------------------------------------- |
-| `--help`          | Show help message                        |
-| `--dry-run`       | Show what would be done                  |
-| `--keep-volumes`  | Preserve volumes (default destroys them) |
-| `--ghcr`          | Use pre-built GHCR images                |
-| `--tag TAG`       | Image tag for GHCR mode                  |
-| `--skip-ci-check` | Skip CI build status check               |
-| `--no-seed`       | Skip database seeding                    |
+| Option           | Description                              |
+| ---------------- | ---------------------------------------- |
+| `--help`         | Show help message                        |
+| `--dry-run`      | Show what would be done                  |
+| `--keep-volumes` | Preserve volumes (default destroys them) |
+| `--no-git-pull`  | Skip git pull                            |
 
 ### Testing Scripts
 

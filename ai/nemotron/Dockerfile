@@ -86,7 +86,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
 # Model is expected to be mounted at /models/
 # NEM-5369: Conditionally enable flash attention for VRAM savings
 CMD ["sh", "-c", "FLASH_ARGS=''; \
-    if [ \"${FLASH_ATTENTION}\" = 'true' ]; then FLASH_ARGS='--flash-attn'; fi; \
+    if [ \"${FLASH_ATTENTION}\" = 'true' ]; then FLASH_ARGS='--flash-attn on'; fi; \
     llama-server \
     --model ${MODEL_PATH} \
     --host 0.0.0.0 \

@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_055",
+  "prompt": "Analyze security event: Familiar vehicle pulling into driveway. Camera: backyard. Time: 09:13. Detected: vehicle.",
+  "expected_response": {
+    "risk_score": 20,
+    "risk_level": "low",
+    "summary": "Familiar vehicle pulling into driveway",
+    "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (driveway) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "backyard",
+    "timestamp": "2026-01-30T09:13:00",
+    "detection_type": "vehicle",
+    "location": "driveway"
+  }
+}

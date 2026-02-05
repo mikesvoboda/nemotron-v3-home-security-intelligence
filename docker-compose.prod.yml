@@ -218,7 +218,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      # NEM-5512: 31B parameter model requires ~5 minutes to load tensors to GPU
+      start_period: 300s
     restart: unless-stopped
     networks:
       - security-net
@@ -541,6 +542,8 @@ services:
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Enables backend to manage AI service containers for self-healing
       - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      # Docker compose file for dynamic service discovery by orchestrator
+      - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
       # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
       # To enable, use python:3.14t-slim-bookworm image and uncomment:
@@ -855,7 +858,16 @@ services:
     networks:
       - security-net
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:1984/api/']
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '-O',
+          '/dev/null',
+          'http://localhost:1984/api/streams',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1079,7 +1091,7 @@ services:
     # NEM-4486: Bind to localhost only to prevent unauthorized external access
     # Access Grafana via the frontend nginx proxy at /grafana/ for production use
     ports:
-      - '127.0.0.1:3002:3000'
+      - '127.0.0.1:${GRAFANA_PORT:-3002}:3000'
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro,z

@@ -207,6 +207,90 @@ class TestSetupGuardWhitelist:
 
         assert response.status_code == 200
 
+    @pytest.mark.asyncio
+    async def test_system_gpu_allowed_when_no_users(
+        self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that /api/system/gpu (Prometheus metrics) is accessible during setup."""
+        from httpx import ASGITransport, AsyncClient
+
+        mock_db_session._user_count = 0
+
+        # Add the endpoint to the test app if not present
+        @app_with_middleware.get("/api/system/gpu")
+        async def system_gpu():
+            return {"utilization": 0}
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/system/gpu")
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_system_stats_allowed_when_no_users(
+        self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that /api/system/stats (Prometheus metrics) is accessible during setup."""
+        from httpx import ASGITransport, AsyncClient
+
+        mock_db_session._user_count = 0
+
+        # Add the endpoint to the test app if not present
+        @app_with_middleware.get("/api/system/stats")
+        async def system_stats():
+            return {"total_cameras": 0}
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/system/stats")
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_system_telemetry_allowed_when_no_users(
+        self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that /api/system/telemetry (Prometheus metrics) is accessible during setup."""
+        from httpx import ASGITransport, AsyncClient
+
+        mock_db_session._user_count = 0
+
+        # Add the endpoint to the test app if not present
+        @app_with_middleware.get("/api/system/telemetry")
+        async def system_telemetry():
+            return {"queues": {}}
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/system/telemetry")
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_api_metrics_allowed_when_no_users(
+        self, app_with_middleware: FastAPI, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that /api/metrics (native Prometheus endpoint) is accessible during setup."""
+        from httpx import ASGITransport, AsyncClient
+
+        mock_db_session._user_count = 0
+
+        # Add the endpoint to the test app if not present
+        @app_with_middleware.get("/api/metrics")
+        async def api_metrics():
+            return "# Prometheus metrics"
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app_with_middleware), base_url="http://test"
+        ) as client:
+            response = await client.get("/api/metrics")
+
+        assert response.status_code == 200
+
 
 # =============================================================================
 # Blocking Non-Whitelisted Endpoints Tests

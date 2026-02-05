@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_017",
+  "prompt": "Analyze security event: Delivery person at front door during daytime. Camera: side_gate. Time: 02:13. Detected: delivery.",
+  "expected_response": {
+    "risk_score": 15,
+    "risk_level": "low",
+    "summary": "Delivery person at front door during daytime",
+    "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (front_door) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "side_gate",
+    "timestamp": "2026-01-28T02:13:00",
+    "detection_type": "delivery",
+    "location": "front_door"
+  }
+}
