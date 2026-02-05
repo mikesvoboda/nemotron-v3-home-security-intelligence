@@ -1,7 +1,8 @@
 # LLM Inference Performance Optimization Epic
 
 **Created:** 2025-02-04
-**Status:** Draft
+**Status:** Active
+**Updated:** 2025-02-04 - Removed model comparison phase, focusing on quantization
 **Approach:** Benchmark-First Exploration
 
 ## Objective
@@ -88,82 +89,31 @@ Pull from `data/synthetic/` to create a fixed evaluation set:
 
 ---
 
-## Phase 2: Model Exploration
+## Phase 2: Quantization Exploration
 
-**Goal:** Determine if smaller models can match 30B quality.
-
-### Models to Test
-
-| Model                              | Parameters | Expected VRAM     | Why Test                  |
-| ---------------------------------- | ---------- | ----------------- | ------------------------- |
-| **Nemotron-3-Nano-30B** (baseline) | 30B        | ~14.7 GB (Q4_K_M) | Current production        |
-| **Nemotron-Nano-9B-V2**            | 9B         | ~5-6 GB (Q4_K_M)  | Latest nano, good balance |
-| **Nemotron-Nano-8B-V1**            | 8B         | ~4-5 GB (Q4_K_M)  | Smaller alternative       |
-| **Nemotron-Nano-4B-V1.1**          | 4B         | ~2.5 GB (Q4_K_M)  | Minimum viable            |
-
-### Test Matrix
-
-Each model tested with:
-
-- Same 100-event synthetic dataset
-- Same prompt templates (all 5 tiers)
-- Same generation parameters (temp=0.7, top_p=0.95)
-
-### Quality Evaluation Criteria
-
-For each response, score:
-
-1. **Risk score accuracy** - Delta from ground truth (±5 acceptable, ±10 marginal)
-2. **Risk level match** - Exact match on low/medium/high/critical
-3. **JSON validity** - Parseable, schema-compliant
-4. **Reasoning quality** - Manual spot-check of 10 samples per model
-
-### Decision Framework
-
-```
-If 9B quality ≥ 95% of 30B quality:
-  → Consider 9B (saves ~9GB VRAM)
-
-If 8B quality ≥ 90% of 30B quality:
-  → Consider 8B for "easy" cases (quality-adaptive routing)
-
-If 4B quality ≥ 85% of 30B quality:
-  → Consider speculative decoding (4B draft + 30B verify)
-```
-
-### Deliverables
-
-| Deliverable       | Location                           |
-| ----------------- | ---------------------------------- |
-| Downloaded models | `/export/ai_models/nemotron/`      |
-| Benchmark results | `results/benchmarks/model-*.json`  |
-| Comparison report | `docs/reports/model-comparison.md` |
-
-### Exit Criteria
-
-- All models benchmarked
-- Quality comparison documented with data
-- Model recommendation made
-
----
-
-## Phase 3: Quantization Exploration
-
-**Goal:** Find optimal VRAM/quality tradeoff through quantization.
+**Goal:** Find optimal VRAM/quality tradeoff through quantization of the Nemotron-3-Nano-30B-A3B model.
 
 ### Quantization Formats to Test
 
-For the 30B model (and winning smaller model):
+All quantizations use the same Nemotron-3-Nano-30B-A3B architecture:
 
-| Format                | Bits            | Expected VRAM | Quality Impact   |
-| --------------------- | --------------- | ------------- | ---------------- |
-| **Q4_K_M** (baseline) | 4-bit           | ~14.7 GB      | Baseline         |
-| **Q4_K_S**            | 4-bit (small)   | ~13.5 GB      | Minimal          |
-| **Q3_K_M**            | 3-bit           | ~11 GB        | Moderate         |
-| **Q3_K_S**            | 3-bit (small)   | ~10 GB        | Noticeable       |
-| **Q2_K**              | 2-bit           | ~8 GB         | Significant      |
-| **IQ3_M**             | 3-bit (i-quant) | ~10.5 GB      | Better than Q3_K |
-| **IQ2_M**             | 2-bit (i-quant) | ~7.5 GB       | Better than Q2_K |
+| Format                | Bits          | File Size | Expected VRAM | Quality Impact |
+| --------------------- | ------------- | --------- | ------------- | -------------- |
+| **Q4_K_M** (baseline) | 4-bit         | ~23 GB    | ~14.7 GB      | Baseline       |
+| **Q4_K_S**            | 4-bit (small) | ~22 GB    | ~13.5 GB      | Minimal        |
+| **Q3_K_M**            | 3-bit         | ~20 GB    | ~11 GB        | Moderate       |
+| **Q3_K_S**            | 3-bit (small) | ~18 GB    | ~10 GB        | Noticeable     |
+| **Q2_K_L**            | 2-bit (large) | ~18 GB    | ~9 GB         | Significant    |
+
+### Model Locations
+
+| Quantization | Path                                                       |
+| ------------ | ---------------------------------------------------------- |
+| Q4_K_M       | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` |
+| Q4_K_S       | `/export/ai_models/nemotron/quantization-benchmarks/`      |
+| Q3_K_M       | `/export/ai_models/nemotron/quantization-benchmarks/`      |
+| Q3_K_S       | `/export/ai_models/nemotron/quantization-benchmarks/`      |
+| Q2_K_L       | `/export/ai_models/nemotron/quantization-benchmarks/`      |
 
 ### Quality vs VRAM Tradeoff Analysis
 
@@ -173,6 +123,7 @@ For each quantization level, measure:
 2. **Risk level accuracy** (% exact match)
 3. **Reasoning coherence** (manual review of edge cases)
 4. **VRAM saved** (GB freed for other models)
+5. **Inference latency** (any performance degradation?)
 
 ### Key Question
 
@@ -183,10 +134,21 @@ Can we find a quantization that:
   - Doesn't increase latency significantly
 ```
 
-### Combining with Smaller Models
+### Decision Framework
 
-- If 9B @ Q4_K_M ≈ 30B @ Q3_K_M quality → Prefer 9B
-- If 30B @ Q3_K_M > 9B @ Q4_K_M quality → Keep 30B with tighter quantization
+```
+If Q4_K_S quality ≥ 98% AND saves ~1GB:
+  → Use Q4_K_S (minimal quality loss)
+
+If Q3_K_M quality ≥ 95% AND saves ~4GB:
+  → Use Q3_K_M (fit full stack on A5500)
+
+If Q3_K_S quality ≥ 90% AND saves ~5GB:
+  → Use Q3_K_S (aggressive but acceptable)
+
+If Q2_K_L quality < 85%:
+  → Q2_K too aggressive, stop at Q3_K_S
+```
 
 ### Deliverables
 
@@ -198,13 +160,13 @@ Can we find a quantization that:
 
 ### Exit Criteria
 
-- All quantization levels benchmarked
+- All 5 quantization levels benchmarked
 - Quality/VRAM tradeoff curve documented
-- Quantization selection made
+- Optimal quantization selected based on 95% quality threshold
 
 ---
 
-## Phase 4: Engine Exploration
+## Phase 3: Engine Exploration
 
 **Goal:** Evaluate inference backends for throughput and latency.
 
@@ -260,7 +222,7 @@ If llama.cpp + tuning gets close enough:
 
 ---
 
-## Phase 5: Batching and Scheduling Optimizations
+## Phase 4: Batching and Scheduling Optimizations
 
 **Goal:** Maximize throughput through request handling improvements.
 
@@ -317,7 +279,7 @@ When multiple detections arrive in same batch window:
 
 ---
 
-## Phase 6: Integration and Validation
+## Phase 5: Integration and Validation
 
 **Goal:** Combine winning optimizations and validate end-to-end.
 
@@ -363,11 +325,10 @@ Achieve measurable improvement in **at least 3 of 4 dimensions**:
 | Phase       | Exit Condition                                                 |
 | ----------- | -------------------------------------------------------------- |
 | **Phase 1** | Benchmark suite runs, baseline captured, comparison tool works |
-| **Phase 2** | All models benchmarked, recommendation documented with data    |
-| **Phase 3** | Quantization/quality tradeoff curve documented, selection made |
-| **Phase 4** | Engine comparison complete, migration path documented          |
-| **Phase 5** | Batching optimizations tested, throughput gains measured       |
-| **Phase 6** | Final config deployed, all targets validated, docs updated     |
+| **Phase 2** | Quantization/quality tradeoff curve documented, selection made |
+| **Phase 3** | Engine comparison complete, migration path documented          |
+| **Phase 4** | Batching optimizations tested, throughput gains measured       |
+| **Phase 5** | Final config deployed, all targets validated, docs updated     |
 
 ---
 
