@@ -71,8 +71,8 @@ ENGINE_CONFIGS: dict[EngineType, EngineConfig] = {
     ),
     EngineType.VLLM: EngineConfig(
         engine_type=EngineType.VLLM,
-        service_url="http://localhost:8092",
-        model_path="nvidia/Nemotron-3-Nano-30B-A3B",
+        service_url="http://localhost:8097",
+        model_path="nvidia/Nemotron-Mini-4B-Instruct",
         api_format="openai",
         gpu_memory_utilization=0.9,
         tensor_parallel_size=1,
