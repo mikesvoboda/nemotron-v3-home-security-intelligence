@@ -187,7 +187,7 @@ class TestHealthServiceRegistry:
             "workers": {
                 "detection": {"state": "running"},
                 "analysis": {"state": "stopped"},
-                "batch_timeout": {"state": "running"},
+                "timeout": {"state": "running"},  # Key is "timeout" not "batch_timeout"
             }
         }
 
