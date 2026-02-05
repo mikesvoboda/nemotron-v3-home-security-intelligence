@@ -270,7 +270,7 @@ def check_reasoning_quality(response: dict[str, Any]) -> tuple[bool, float]:
 class QualityScorer:
     """Main class for scoring LLM response quality against ground truth."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize QualityScorer."""
         pass
 
@@ -329,9 +329,7 @@ class QualityScorer:
         # Parse LLM response if string
         json_valid, parsed_or_error = validate_json_response(llm_response)
 
-        if json_valid:
-            parsed_response = parsed_or_error
-        else:
+        if not json_valid:
             # Return metrics with failure indicators for invalid JSON
             return RiskScoreMetrics(
                 mae=100.0,  # Maximum error
@@ -339,6 +337,9 @@ class QualityScorer:
                 json_valid=False,
                 reasoning_score=0.0,
             )
+
+        # At this point, parsed_or_error is guaranteed to be a dict
+        parsed_response: dict[str, Any] = parsed_or_error  # type: ignore[assignment]
 
         # Calculate MAE for single pair
         gt_score = ground_truth.get("risk_score", 0)

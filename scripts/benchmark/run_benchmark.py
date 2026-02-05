@@ -57,7 +57,7 @@ class BenchmarkConfig:
     burst_size: int = 10
     cold_start_attempts: int = 3
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         # Validate llm_endpoint is a valid URL
         if not self.llm_endpoint.startswith(("http://", "https://")):
@@ -96,7 +96,7 @@ class QualityScorer:
     - Compare against baseline metrics
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize quality scorer."""
         self._scores: list[dict[str, float]] = []
 

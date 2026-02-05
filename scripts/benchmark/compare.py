@@ -50,7 +50,7 @@ class BenchmarkComparer:
 
         try:
             content = file_path.read_text()
-            data = json.loads(content)
+            data: dict[str, Any] = json.loads(content)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON: {e}") from e
 
