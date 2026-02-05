@@ -200,6 +200,7 @@ class TestQuantizationBenchmarker:
         benchmarker = QuantizationBenchmarker(service_url="http://localhost:8091")
 
         with (
+            patch.object(benchmarker, "_load_model", new_callable=AsyncMock),
             patch.object(
                 benchmarker,
                 "_run_inference_benchmark",
@@ -207,7 +208,6 @@ class TestQuantizationBenchmarker:
                 return_value={
                     "latency_p50_ms": 1200.0,
                     "tokens_per_sec": 25.0,
-                    "quality_score": 0.92,
                 },
             ),
             patch.object(
@@ -215,6 +215,12 @@ class TestQuantizationBenchmarker:
                 "_capture_vram",
                 new_callable=AsyncMock,
                 return_value={"peak_mb": 10000.0, "steady_state_mb": 9500.0},
+            ),
+            patch.object(
+                benchmarker,
+                "_measure_quality",
+                new_callable=AsyncMock,
+                return_value=0.92,
             ),
         ):
             result = await benchmarker.benchmark_format("Q4_K_M")
