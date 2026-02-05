@@ -716,7 +716,7 @@ services:
       - ALL
     image: docker.io/grafana/grafana:10.2.3
     ports:
-      - '127.0.0.1:3002:3000'
+      - '127.0.0.1:${GRAFANA_PORT:-3002}:3000'
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro,z
