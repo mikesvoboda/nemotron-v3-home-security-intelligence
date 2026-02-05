@@ -1,7 +1,7 @@
 #!/bin/bash
 # quick-rebuild.sh - Quick rebuild for a single service from worktree
 #
-# Unlike the full redeploy.sh (which does full stack + volumes), this script:
+# Unlike the full redeploy.py (which does full stack + volumes), this script:
 # - Copies changes from worktree to main repo
 # - Rebuilds only the specified service (no cache)
 # - Restarts only that service
