@@ -619,6 +619,7 @@ class ContainerManager:
             output.warn(f"Failed to start dcgm-exporter: {dcgm_result.stderr}")
 
         # Start cAdvisor (container metrics)
+        # NOTE: Must override healthcheck to use configured port (default checks :8080)
         output.info("Starting cadvisor (privileged)...")
         cadvisor_result = self.runtime.process.run(
             [
@@ -643,6 +644,17 @@ class ContainerManager:
                 "/var/lib/containers:/var/lib/containers:ro",
                 "--restart",
                 "unless-stopped",
+                # Override healthcheck to use configured port (image default uses 8080)
+                "--health-cmd",
+                f"wget --quiet --tries=1 --spider http://localhost:{self.config.cadvisor_port}/healthz || exit 1",
+                "--health-interval",
+                "30s",
+                "--health-timeout",
+                "10s",
+                "--health-retries",
+                "3",
+                "--health-start-period",
+                "30s",
                 "gcr.io/cadvisor/cadvisor:v0.49.1",
                 f"--port={self.config.cadvisor_port}",
             ],
