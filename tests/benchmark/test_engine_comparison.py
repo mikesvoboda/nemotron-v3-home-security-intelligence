@@ -64,7 +64,7 @@ class TestEngineConfig:
         """Test creating vLLM engine config."""
         config = EngineConfig(
             engine_type=EngineType.VLLM,
-            service_url="http://localhost:8092",
+            service_url="http://localhost:8097",
             model_path="nvidia/Nemotron-3-Nano-30B-A3B",
             api_format="openai",
         )
@@ -75,7 +75,7 @@ class TestEngineConfig:
         """Test EngineConfig with optional fields."""
         config = EngineConfig(
             engine_type=EngineType.VLLM,
-            service_url="http://localhost:8092",
+            service_url="http://localhost:8097",
             model_path="nvidia/Nemotron-3-Nano-30B-A3B",
             api_format="openai",
             gpu_memory_utilization=0.9,
@@ -160,7 +160,7 @@ class TestEngineConfigs:
     def test_vllm_default_config(self) -> None:
         """Verify vLLM default configuration."""
         config = ENGINE_CONFIGS[EngineType.VLLM]
-        assert config.service_url == "http://localhost:8092"
+        assert config.service_url == "http://localhost:8097"
         assert config.api_format == "openai"
 
 

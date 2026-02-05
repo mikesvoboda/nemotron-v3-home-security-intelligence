@@ -238,6 +238,78 @@ services:
               device_ids: ['${GPU_LLM}']
               capabilities: [gpu]
 
+  # =============================================================================
+  # vLLM Engine (Optional - for benchmarking against llama.cpp)
+  # =============================================================================
+  # Alternative LLM inference engine using vLLM with OpenAI-compatible API.
+  # Used for performance comparison benchmarks (NEM-5441 Phase 4).
+  #
+  # To enable: docker compose -f docker-compose.prod.yml --profile vllm up -d
+  # Note: Cannot run simultaneously with ai-llm on same GPU - stop ai-llm first.
+  #
+  # vLLM requires HuggingFace format models (not GGUF). Model options:
+  #   - nvidia/Nemotron-3-Nano-30B-A3B (default, requires HF download)
+  #   - Any HF model compatible with vLLM
+  ai-llm-vllm:
+    profiles:
+      - vllm
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    image: vllm/vllm-openai:latest
+    # NEM-4486: Bind to localhost only - AI services are internal
+    # Port from .env (single source of truth for all network ports)
+    ports:
+      - '127.0.0.1:${VLLM_PORT:-8097}:8000'
+    volumes:
+      # HuggingFace cache for model downloads
+      - hf_cache:/root/.cache/huggingface:U
+      # Optional: Mount pre-downloaded HF models
+      - ${AI_MODELS_PATH:-/export/ai_models}/huggingface:/models:ro
+    environment:
+      # HuggingFace configuration
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_TOKEN=${HF_TOKEN:-}
+      # vLLM server configuration
+      - VLLM_NO_USAGE_STATS=1
+    # vLLM command-line arguments
+    command:
+      - --model
+      - ${VLLM_MODEL:-nvidia/Nemotron-Mini-4B-Instruct}
+      - --host
+      - '0.0.0.0'
+      - --port
+      - '8000'
+      - --gpu-memory-utilization
+      - '${VLLM_GPU_MEMORY_UTILIZATION:-0.9}'
+      - --max-model-len
+      - '${VLLM_MAX_MODEL_LEN:-32768}'
+      - --trust-remote-code
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 24G
+        reservations:
+          memory: 16G
+          devices:
+            # GPU assignment from .env (shares with ai-llm - run one at a time)
+            - driver: nvidia
+              device_ids: ['${GPU_LLM}']
+              capabilities: [gpu]
+
   # Florence-2 vision-language model for dense captioning and visual understanding
   ai-florence:
     # Security hardening: Drop all capabilities, prevent privilege escalation
