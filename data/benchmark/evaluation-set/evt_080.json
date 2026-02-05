@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_080",
+  "prompt": "Analyze security event: Unknown person at door during evening. Camera: garage. Time: 13:39. Detected: unknown_person.",
+  "expected_response": {
+    "risk_score": 41,
+    "risk_level": "medium",
+    "summary": "Unknown person at door during evening",
+    "reasoning": "Detection at afternoon hours warrants attention. Unfamiliar activity detected at front_door. Some behavioral indicators suggest monitoring. Recommend continued observation."
+  },
+  "context": {
+    "camera": "garage",
+    "timestamp": "2026-01-08T13:39:00",
+    "detection_type": "unknown_person",
+    "location": "front_door"
+  }
+}

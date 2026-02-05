@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_099",
+  "prompt": "Analyze security event: Window being forced open. Camera: side_gate. Time: 14:43. Detected: break_in.",
+  "expected_response": {
+    "risk_score": 90,
+    "risk_level": "critical",
+    "summary": "Window being forced open",
+    "reasoning": "Critical threat detected at window. Immediate security concern identified. Multiple severe risk indicators present. Emergency response may be required."
+  },
+  "context": {
+    "camera": "side_gate",
+    "timestamp": "2026-01-22T14:43:00",
+    "detection_type": "break_in",
+    "location": "window"
+  }
+}

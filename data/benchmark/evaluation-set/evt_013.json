@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_013",
+  "prompt": "Analyze security event: Child playing in front yard. Camera: backyard. Time: 08:44. Detected: family.",
+  "expected_response": {
+    "risk_score": 16,
+    "risk_level": "low",
+    "summary": "Child playing in front yard",
+    "reasoning": "Detection occurred during morning hours. Activity matches expected patterns for this time. Location (front_yard) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "backyard",
+    "timestamp": "2026-01-15T08:44:00",
+    "detection_type": "family",
+    "location": "front_yard"
+  }
+}

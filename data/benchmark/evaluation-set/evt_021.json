@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_021",
+  "prompt": "Analyze security event: Postal worker checking mailbox. Camera: driveway. Time: 04:32. Detected: mail.",
+  "expected_response": {
+    "risk_score": 17,
+    "risk_level": "low",
+    "summary": "Postal worker checking mailbox",
+    "reasoning": "Detection occurred during nighttime hours. Activity matches expected patterns for this time. Location (mailbox) is commonly accessed. No concerning behavioral indicators observed."
+  },
+  "context": {
+    "camera": "driveway",
+    "timestamp": "2026-01-29T04:32:00",
+    "detection_type": "mail",
+    "location": "mailbox"
+  }
+}

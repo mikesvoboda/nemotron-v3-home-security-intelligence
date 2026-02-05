@@ -1,0 +1,16 @@
+{
+  "event_id": "evt_094",
+  "prompt": "Analyze security event: Vehicle with no plates slowing down. Camera: driveway. Time: 03:46. Detected: suspicious_vehicle.",
+  "expected_response": {
+    "risk_score": 74,
+    "risk_level": "high",
+    "summary": "Vehicle with no plates slowing down",
+    "reasoning": "Detection at nighttime hours raises concern. Suspicious behavior observed at street. Multiple concerning indicators present. Immediate attention recommended."
+  },
+  "context": {
+    "camera": "driveway",
+    "timestamp": "2026-01-15T03:46:00",
+    "detection_type": "suspicious_vehicle",
+    "location": "street"
+  }
+}
