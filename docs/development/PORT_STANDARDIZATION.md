@@ -350,6 +350,70 @@ If you see "Connection refused":
 env | grep -E "DATABASE_URL|REDIS_URL|YOLO26_URL"
 ```
 
+## Monitoring Configuration Files
+
+The monitoring stack configuration files (`monitoring/`) use Docker service names for all service-to-service communication, which means **no templating is required** even though they contain hardcoded port numbers.
+
+### Why No Templating Is Needed
+
+The `.env` port variables (e.g., `PROMETHEUS_PORT=9090`, `GRAFANA_PORT=3002`) only control **host port bindings** in docker-compose files. They define which port on the host machine maps to the container's internal port.
+
+Inside the Docker network, all services communicate using:
+
+- **Service names** (e.g., `prometheus`, `backend`, `alertmanager`)
+- **Internal container ports** (fixed, not configurable)
+
+For example, in `docker-compose.prod.yml`:
+
+```yaml
+prometheus:
+  ports:
+    - '127.0.0.1:${PROMETHEUS_PORT:-9090}:9090' # Host binding from .env
+```
+
+The `${PROMETHEUS_PORT}` only affects external access (`localhost:9090`). Internal services always connect to `prometheus:9090` regardless of what `PROMETHEUS_PORT` is set to.
+
+### Files That Use Service Names (No Templating Needed)
+
+| File                                                         | Example References                                         | Notes                                |
+| ------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------ |
+| `monitoring/prometheus.yml`                                  | `alertmanager:9093`, `backend:8000`, `ai-llm:8091`         | All scrape targets use service names |
+| `monitoring/alertmanager.yml`                                | `http://backend:8000/api/webhooks/alerts`                  | Webhook receivers use service names  |
+| `monitoring/grafana/provisioning/datasources/prometheus.yml` | `http://prometheus:9090`, `http://loki:3100`               | Datasource URLs use service names    |
+| `monitoring/alloy/config.alloy`                              | `http://loki:3100`, `http://pyroscope:4040`, `jaeger:4317` | All endpoints use service names      |
+
+### Internal vs External Ports
+
+| Service       | Internal Port (Fixed) | External Port (Configurable via .env)  |
+| ------------- | --------------------- | -------------------------------------- |
+| Prometheus    | 9090                  | `PROMETHEUS_PORT`                      |
+| Alertmanager  | 9093                  | `ALERTMANAGER_PORT`                    |
+| Grafana       | 3000                  | `GRAFANA_PORT`                         |
+| Loki          | 3100                  | `LOKI_PORT`                            |
+| Jaeger UI     | 16686                 | `JAEGER_UI_PORT`                       |
+| Pyroscope     | 4040                  | `PYROSCOPE_PORT`                       |
+| Node Exporter | 9100                  | `NODE_EXPORTER_PORT`                   |
+| cAdvisor      | 8080                  | `CADVISOR_PORT` (maps to 8088 on host) |
+
+### Special Case: DCGM Exporter
+
+The `dcgm-exporter` job in `prometheus.yml` uses `host.containers.internal:9400` because:
+
+- DCGM exporter runs in rootful Podman (requires elevated privileges)
+- Prometheus runs in rootless Podman
+- They are in separate network namespaces, so service-name DNS doesn't work
+
+This is the only service that references a host-accessible endpoint, and `9400` is the standard DCGM exporter port.
+
+### When Would Templating Be Needed?
+
+Templating would only be necessary if:
+
+1. A monitoring config file needed to reference a **host-accessible** endpoint (not service-name based)
+2. That endpoint's port was configurable in `.env`
+
+Currently, no monitoring configuration files have this requirement.
+
 ## Benefits
 
 1. **Simplified Configuration**: No special port handling per environment

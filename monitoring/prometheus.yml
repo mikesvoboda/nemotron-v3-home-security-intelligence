@@ -1,6 +1,14 @@
 # Prometheus configuration for Home Security Intelligence
 # Scrapes native Prometheus metrics from backend /api/metrics endpoint
 # Also scrapes JSON endpoints via JSON exporter for health/telemetry/stats
+#
+# PORT CONFIGURATION NOTE:
+# All targets use Docker service names (e.g., backend:8000, alertmanager:9093) which
+# use internal container ports that are FIXED and independent of .env port variables.
+# The .env port variables (PROMETHEUS_PORT, GRAFANA_PORT, etc.) only affect host-side
+# port bindings for external access - they do NOT affect service-to-service communication.
+# Therefore, no envsubst templating is needed for this file.
+# See docs/development/PORT_STANDARDIZATION.md for details.
 
 global:
   scrape_interval: 15s

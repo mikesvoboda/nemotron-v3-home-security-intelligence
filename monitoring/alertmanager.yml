@@ -1,5 +1,11 @@
 # Alertmanager Configuration for Home Security Intelligence
 # Routes alerts to appropriate receivers based on severity and component
+#
+# PORT CONFIGURATION NOTE:
+# All webhook URLs use Docker service names (e.g., backend:8000) which use internal
+# container ports that are FIXED and independent of .env port variables.
+# No envsubst templating is needed for this file.
+# See docs/development/PORT_STANDARDIZATION.md for details.
 
 global:
   # Default settings

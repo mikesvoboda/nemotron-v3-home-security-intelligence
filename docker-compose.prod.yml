@@ -918,7 +918,16 @@ services:
         condition: service_healthy
     healthcheck:
       # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
+      # FRONTEND_INTERNAL_PORT configures the internal nginx port (default: 8080)
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:${FRONTEND_INTERNAL_PORT:-8080}/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

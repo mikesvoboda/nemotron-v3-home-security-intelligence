@@ -152,8 +152,7 @@ class HealthChecker:
         Returns:
             HealthStatus for frontend
         """
-        # Frontend on HTTPS port 8444 (mapped from 8443)
-        url = "https://localhost:8444"
+        url = f"https://localhost:{self.config.frontend_port}"
         return await self._check_https(url, "frontend")
 
     async def _check_http(self, url: str, service: str) -> HealthStatus:

@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -67,7 +68,7 @@ def _get_pandas() -> Any:
 # Default Nemotron endpoint
 # Security: Use HTTPS by default to prevent MITM attacks (NEM-4506)
 # For local development, override via --nemotron-url flag or environment variable
-DEFAULT_NEMOTRON_URL = "https://localhost:8091/v1/completions"
+DEFAULT_NEMOTRON_URL = os.getenv("NEMOTRON_URL", "https://localhost:8091/v1/completions")
 
 # Timeout configuration
 NEMOTRON_CONNECT_TIMEOUT = 10.0
