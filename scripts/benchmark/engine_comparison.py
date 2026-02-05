@@ -383,34 +383,6 @@ class EngineComparator:
             "steady_mb": float(np.median(vram_samples)),
         }
 
-    async def _collect_latencies(self, engine_type: EngineType, prompts: list[str]) -> list[float]:
-        """Collect latency measurements for prompts.
-
-        Args:
-            engine_type: The engine type.
-            prompts: List of prompts.
-
-        Returns:
-            List of latency values in milliseconds.
-        """
-        config = self.configs[engine_type]
-        latencies: list[float] = []
-
-        async with httpx.AsyncClient() as client:
-            for prompt in prompts:
-                request_data = self._format_request(engine_type, prompt)
-
-                if config.api_format == "openai":
-                    endpoint = f"{config.service_url}/v1/chat/completions"
-                else:
-                    endpoint = f"{config.service_url}/completion"
-
-                start = time.perf_counter()
-                await client.post(endpoint, json=request_data, timeout=60.0)
-                latencies.append((time.perf_counter() - start) * 1000)
-
-        return latencies
-
 
 def generate_comparison_report(
     results: dict[EngineType, EngineMetrics],
@@ -517,7 +489,13 @@ async def compare_engines(
     Returns:
         Dictionary mapping engine types to their metrics.
     """
-    comparator = EngineComparator()
+    # Filter configs if specific engines requested
+    configs = ENGINE_CONFIGS
+    if engines:
+        engine_set = set(engines)
+        configs = {k: v for k, v in ENGINE_CONFIGS.items() if k.value in engine_set}
+
+    comparator = EngineComparator(configs)
     results = await comparator.compare_all_engines(prompts, skip_unavailable=True)
 
     if output_path:
