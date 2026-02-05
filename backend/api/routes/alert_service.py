@@ -16,8 +16,6 @@ Endpoints:
     POST   /api/alert-service/alerts/{alert_id}/dismiss     - Dismiss alert
 """
 
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,31 +34,14 @@ from backend.api.schemas.alerts import AlertStatus as SchemaStatus
 from backend.api.schemas.pagination import PaginationMeta
 from backend.core.database import get_db
 from backend.core.logging import get_logger
-from backend.models import Alert, AlertSeverity, AlertStatus
+from backend.models import Alert
+from backend.models.alert import AlertSeverityEnum as AlertSeverity
+from backend.models.alert import AlertStatusEnum as AlertStatus
 from backend.services.alert_service import AlertService
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/alert-service", tags=["alert-service"])
-
-
-def _alert_to_response(alert: Alert) -> dict[str, Any]:
-    """Convert an Alert model to response dict."""
-    return {
-        "id": alert.id,
-        "event_id": alert.event_id,
-        "rule_id": alert.rule_id,
-        "severity": alert.severity.value
-        if isinstance(alert.severity, AlertSeverity)
-        else alert.severity,
-        "status": alert.status.value if isinstance(alert.status, AlertStatus) else alert.status,
-        "dedup_key": alert.dedup_key,
-        "channels": alert.channels or [],
-        "alert_metadata": alert.alert_metadata,
-        "created_at": alert.created_at,
-        "updated_at": alert.updated_at,
-        "delivered_at": alert.delivered_at,
-    }
 
 
 @router.get(
@@ -127,7 +108,7 @@ async def list_alerts(
     alerts = result.scalars().all()
 
     return AlertServiceListResponse(
-        items=[AlertServiceResponse(**_alert_to_response(alert)) for alert in alerts],
+        items=[AlertServiceResponse.model_validate(alert) for alert in alerts],
         pagination=PaginationMeta(
             total=total_count,
             limit=limit,
@@ -170,7 +151,7 @@ async def get_alert(
             detail=f"Alert with id {alert_id} not found",
         )
 
-    return AlertServiceResponse(**_alert_to_response(alert))
+    return AlertServiceResponse.model_validate(alert)
 
 
 @router.post(
@@ -221,7 +202,7 @@ async def create_alert(
         alert.event_id,
     )
 
-    return AlertServiceResponse(**_alert_to_response(alert))
+    return AlertServiceResponse.model_validate(alert)
 
 
 @router.put(
@@ -279,7 +260,7 @@ async def update_alert(
 
     logger.info("Updated alert %s via Alert Service", alert_id)
 
-    return AlertServiceResponse(**_alert_to_response(alert))
+    return AlertServiceResponse.model_validate(alert)
 
 
 @router.delete(
@@ -371,7 +352,7 @@ async def acknowledge_alert(
 
     logger.info("Acknowledged alert %s via Alert Service", alert_id)
 
-    return AlertServiceResponse(**_alert_to_response(alert))
+    return AlertServiceResponse.model_validate(alert)
 
 
 @router.post(
@@ -418,4 +399,4 @@ async def dismiss_alert(
 
     logger.info("Dismissed alert %s via Alert Service (reason: %s)", alert_id, reason)
 
-    return AlertServiceResponse(**_alert_to_response(alert))
+    return AlertServiceResponse.model_validate(alert)

@@ -166,10 +166,17 @@ def mock_redis() -> AsyncMock:
 
 @pytest.fixture
 async def client(mock_session: MagicMock, mock_redis: AsyncMock) -> AsyncGenerator[AsyncClient]:
-    """Create async HTTP client with mocked dependencies."""
+    """Create async HTTP client with mocked dependencies and authentication."""
+    from backend.core.config import get_settings
     from backend.core.database import get_db, get_read_db
     from backend.core.redis import get_redis, get_redis_optional
     from backend.main import app
+
+    # Import test API key from conftest
+    from backend.tests.contracts.conftest import CONTRACT_TEST_API_KEY
+
+    # Clear settings cache to pick up API key env vars
+    get_settings.cache_clear()
 
     # Create mock database dependency
     async def mock_get_db():
@@ -202,7 +209,10 @@ async def client(mock_session: MagicMock, mock_redis: AsyncMock) -> AsyncGenerat
 
     try:
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        headers = {"X-API-Key": CONTRACT_TEST_API_KEY}
+        async with AsyncClient(
+            transport=transport, base_url="http://testserver", headers=headers
+        ) as client:
             yield client
     finally:
         app.router.lifespan_context = original_lifespan

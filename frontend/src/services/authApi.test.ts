@@ -34,7 +34,7 @@ import { server } from '../mocks/server';
 const mockUser: User = {
   id: 1,
   email: 'test@example.com',
-  full_name: 'Test User',
+  username: 'testuser',
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -124,7 +124,7 @@ describe('authApi', () => {
       const data: RegisterRequest = {
         email: 'new@example.com',
         password: 'password123',
-        full_name: 'New User',
+        username: 'newuser',
       };
 
       await register(data);
@@ -143,7 +143,7 @@ describe('authApi', () => {
       const result = await register({
         email: 'new@example.com',
         password: 'password123',
-        full_name: 'New User',
+        username: 'newuser',
       });
 
       expect(result).toEqual(mockUser);
@@ -160,7 +160,7 @@ describe('authApi', () => {
         register({
           email: 'existing@example.com',
           password: 'password123',
-          full_name: 'Test User',
+          username: 'testuser',
         })
       ).rejects.toThrow();
     });
@@ -176,7 +176,7 @@ describe('authApi', () => {
         register({
           email: 'test@example.com',
           password: 'password123',
-          full_name: 'Test User',
+          username: 'testuser',
         })
       ).rejects.toThrow();
     });
@@ -194,12 +194,12 @@ describe('authApi', () => {
       await register({
         email: 'test@example.com',
         password: 'password123',
-        full_name: 'Test User',
+        username: 'testuser',
       });
 
       expect(requestBody).toHaveProperty('email');
       expect(requestBody).toHaveProperty('password');
-      expect(requestBody).toHaveProperty('full_name');
+      expect(requestBody).toHaveProperty('username');
     });
   });
 
@@ -217,7 +217,7 @@ describe('authApi', () => {
       );
 
       const credentials: LoginRequest = {
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       };
 
@@ -235,7 +235,7 @@ describe('authApi', () => {
       );
 
       const result = await login({
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       });
 
@@ -251,7 +251,7 @@ describe('authApi', () => {
 
       await expect(
         login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'wrong',
         })
       ).rejects.toThrow();
@@ -266,7 +266,7 @@ describe('authApi', () => {
 
       await expect(
         login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         })
       ).rejects.toThrow();
@@ -283,11 +283,11 @@ describe('authApi', () => {
       );
 
       await login({
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       });
 
-      expect(requestBody).toHaveProperty('email', 'test@example.com');
+      expect(requestBody).toHaveProperty('username', 'testuser');
       expect(requestBody).toHaveProperty('password', 'password123');
     });
   });
@@ -410,7 +410,7 @@ describe('authApi', () => {
 
       await expect(
         login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         })
       ).rejects.toThrow();
@@ -458,7 +458,7 @@ describe('authApi', () => {
       );
 
       await login({
-        email: 'test@example.com',
+        username: 'testuser',
         password: 'password123',
       });
 

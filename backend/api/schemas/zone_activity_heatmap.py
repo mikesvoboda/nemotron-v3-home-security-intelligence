@@ -32,13 +32,14 @@ class HeatmapDataPoint(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "hour": 14,
                 "day_of_week": 1,
                 "value": 12,
             }
-        }
+        },
     )
 
     hour: int = Field(..., ge=0, le=23, description="Hour of day (0-23)")
@@ -55,12 +56,13 @@ class HourlyActivity(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "hour": 9,
                 "count": 15,
             }
-        }
+        },
     )
 
     hour: int = Field(..., ge=0, le=23, description="Hour of day (0-23)")
@@ -85,6 +87,7 @@ class ZoneActivityHeatmapResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "zone_id": 1,
@@ -104,7 +107,7 @@ class ZoneActivityHeatmapResponse(BaseModel):
                 "start_time": "2026-01-25T00:00:00Z",
                 "end_time": "2026-02-01T00:00:00Z",
             }
-        }
+        },
     )
 
     zone_id: int = Field(..., description="ID of the polygon zone")

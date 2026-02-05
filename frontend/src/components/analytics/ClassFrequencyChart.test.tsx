@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';
 
 import ClassFrequencyChart from './ClassFrequencyChart';
+import { CHART_ANIMATION_THRESHOLD } from '../../utils/chartAnimation';
 
 import type { ClassBaselineEntry } from '../../services/api';
 
@@ -165,6 +166,78 @@ describe('ClassFrequencyChart', () => {
         expect(tooltip).toHaveTextContent('Share:');
         expect(tooltip).toHaveTextContent('100.0%'); // Person has the max, so 100%
       });
+    });
+  });
+
+  describe('Animation Control (NEM-5045)', () => {
+    it('should enable CSS transitions for small datasets', () => {
+      const mockEntries: ClassBaselineEntry[] = [
+        { object_class: 'person', hour: 8, frequency: 3.5, sample_count: 45 },
+        { object_class: 'vehicle', hour: 8, frequency: 2.0, sample_count: 20 },
+      ];
+
+      render(
+        <ClassFrequencyChart
+          entries={mockEntries}
+          uniqueClasses={['person', 'vehicle']}
+          mostCommonClass="person"
+        />
+      );
+
+      const personBar = screen.getByTestId('class-bar-person');
+      // The bar fill is the inner div inside .cursor-pointer with h-full
+      const barFill = personBar.querySelector('.h-full');
+      expect(barFill).toHaveClass('transition-all');
+    });
+
+    it('should disable CSS transitions for large datasets exceeding threshold', () => {
+      // Generate more than CHART_ANIMATION_THRESHOLD entries
+      const largeEntries: ClassBaselineEntry[] = Array.from(
+        { length: CHART_ANIMATION_THRESHOLD + 10 },
+        (_, i) => ({
+          object_class: `class_${i % 5}`,
+          hour: i % 24,
+          frequency: Math.random() * 10,
+          sample_count: Math.floor(Math.random() * 100),
+        })
+      );
+
+      render(
+        <ClassFrequencyChart
+          entries={largeEntries}
+          uniqueClasses={['class_0', 'class_1', 'class_2', 'class_3', 'class_4']}
+          mostCommonClass="class_0"
+        />
+      );
+
+      const firstBar = screen.getByTestId('class-bar-class_0');
+      const barFill = firstBar.querySelector('.h-full');
+      expect(barFill).not.toHaveClass('transition-all');
+    });
+
+    it('should enable CSS transitions for datasets at threshold', () => {
+      // Generate exactly CHART_ANIMATION_THRESHOLD entries
+      const thresholdEntries: ClassBaselineEntry[] = Array.from(
+        { length: CHART_ANIMATION_THRESHOLD },
+        (_, i) => ({
+          object_class: `class_${i % 3}`,
+          hour: i % 24,
+          frequency: Math.random() * 10,
+          sample_count: Math.floor(Math.random() * 100),
+        })
+      );
+
+      render(
+        <ClassFrequencyChart
+          entries={thresholdEntries}
+          uniqueClasses={['class_0', 'class_1', 'class_2']}
+          mostCommonClass="class_0"
+        />
+      );
+
+      const firstBar = screen.getByTestId('class-bar-class_0');
+      const barFill = firstBar.querySelector('.h-full');
+      expect(barFill).toHaveClass('transition-all');
     });
   });
 });

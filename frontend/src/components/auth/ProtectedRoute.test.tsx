@@ -29,8 +29,8 @@ import type { User } from '../../services/authApi';
 
 const mockUser: User = {
   id: 1,
+  username: 'testuser',
   email: 'test@example.com',
-  full_name: 'Test User',
   created_at: '2024-01-01T00:00:00Z',
 };
 

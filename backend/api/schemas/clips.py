@@ -18,6 +18,7 @@ class ClipInfoResponse(BaseModel):
     """Schema for clip info response (GET /api/events/{event_id}/clip)."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "event_id": 123,
@@ -27,7 +28,7 @@ class ClipInfoResponse(BaseModel):
                 "generated_at": "2026-01-03T10:30:00Z",
                 "file_size_bytes": 5242880,
             }
-        }
+        },
     )
 
     event_id: int = Field(..., description="Event ID")
@@ -98,6 +99,7 @@ class ClipGenerateResponse(BaseModel):
     """Schema for clip generation response."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "event_id": 123,
@@ -106,7 +108,7 @@ class ClipGenerateResponse(BaseModel):
                 "generated_at": "2026-01-03T10:30:00Z",
                 "message": "Clip generated successfully",
             }
-        }
+        },
     )
 
     event_id: int = Field(..., description="Event ID")

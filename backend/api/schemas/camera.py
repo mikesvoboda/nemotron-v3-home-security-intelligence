@@ -27,6 +27,7 @@ __all__ = [
     "DeletedCamerasListResponse",
     "PreviewStartRequest",
     "PreviewStartResponse",
+    "PreviewStopResponse",
     "RTSPCapabilitiesResponse",
     "RTSPTestRequest",
     "RTSPTestResponse",
@@ -820,4 +821,34 @@ class SnapshotRefreshResponse(BaseModel):
     timestamp: datetime = Field(
         ...,
         description="Timestamp when the snapshot was refreshed",
+    )
+
+
+# =============================================================================
+# Preview Stop Response (NEM-5000, NEM-5001)
+# =============================================================================
+
+
+class PreviewStopResponse(BaseModel):
+    """Response schema for stopping a preview stream.
+
+    NEM-5000: Typed response replacing dict return type.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "status": "ok",
+                "message": "Preview stopped for camera front_door",
+            }
+        }
+    )
+
+    status: Literal["ok"] = Field(
+        default="ok",
+        description="Operation status (always 'ok' on success)",
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable status message",
     )

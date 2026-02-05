@@ -48,6 +48,7 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from backend.api.middleware.correlation import get_correlation_headers
 from backend.api.schemas.llm_response import (
@@ -1309,6 +1310,22 @@ class NemotronAnalyzer:
             result = await session.execute(select(Event).where(Event.id == event_id))
             return result.scalar_one_or_none()
 
+    async def _get_event_by_batch_id(self, batch_id: str) -> Event | None:
+        """Fetch an existing Event by batch_id from the database.
+
+        NEM-5379: Used to retrieve the existing event when a race condition
+        causes an IntegrityError due to duplicate batch_id.
+
+        Args:
+            batch_id: Batch identifier to look up
+
+        Returns:
+            Event object if found, None otherwise
+        """
+        async with get_session() as session:
+            result = await session.execute(select(Event).where(Event.batch_id == batch_id))
+            return result.scalar_one_or_none()
+
     async def _get_enriched_context(
         self,
         batch_id: str,
@@ -2210,162 +2227,191 @@ class NemotronAnalyzer:
         # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
         # This is a new, short-lived session for writing results to the database.
         # =========================================================================
-        async with get_session() as session:
-            # Create Event record with advanced risk analysis fields (NEM-3601)
-            event = Event(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                started_at=start_time,
-                ended_at=end_time,
-                risk_score=risk_data.get("risk_score", 50),
-                risk_level=risk_data.get("risk_level", "medium"),
-                summary=risk_data.get("summary", "No summary available"),
-                reasoning=risk_data.get("reasoning", "No reasoning available"),
-                llm_prompt=risk_data.get("llm_prompt"),
-                reviewed=False,
-                # Advanced risk analysis fields (NEM-3601)
-                entities=risk_data.get("entities"),
-                flags=risk_data.get("flags"),
-                confidence_factors=risk_data.get("confidence_factors"),
-                recommended_action=risk_data.get("recommended_action"),
-            )
-
-            # NEM-2574: Batch database commits to reduce transaction overhead
-            # Use flush() to persist objects and get IDs without committing.
-            # A single commit happens at the end via get_session() context manager.
-            # On any error, the context manager automatically rolls back the transaction.
-            session.add(event)
-            await session.flush()  # Persist event and get ID without committing
-
-            # Populate event_detections junction table (NEM-1592, NEM-1998, NEM-3350)
-            # Uses bulk INSERT with ON CONFLICT DO NOTHING to prevent race conditions
-            # and improve performance by reducing round-trips to the database.
-            # This is safe because the composite primary key (event_id, detection_id)
-            # enforces uniqueness at the database level.
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            from backend.models.event_detection import event_detections
-
-            if int_detection_ids:
-                values = [
-                    {"event_id": event.id, "detection_id": det_id} for det_id in int_detection_ids
-                ]
-                stmt = (
-                    pg_insert(event_detections)
-                    .values(values)
-                    .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
-                )
-                await session.execute(stmt)
-
-            # Persist enrichment data to detections (bulk update)
-            if enrichment_data_map:
-                from sqlalchemy import update as sql_update
-
-                for det_id, enrichment_data in enrichment_data_map.items():
-                    update_stmt = (
-                        sql_update(Detection)
-                        .where(Detection.id == det_id)
-                        .values(enrichment_data=enrichment_data)
-                    )
-                    await session.execute(update_stmt)
-
-            # Store idempotency key (NEM-1725) to prevent duplicates on retry
-            # Note: This is stored in Redis, not the database transaction
-            await self._set_idempotency(batch_id, event.id)
-
-            # Create partial audit record for model contribution tracking
-            try:
-                from backend.services.pipeline_quality_audit_service import get_audit_service
-
-                audit_service = get_audit_service()
-                audit = audit_service.create_partial_audit(
-                    event_id=event.id,
+        try:
+            async with get_session() as session:
+                # Create Event record with advanced risk analysis fields (NEM-3601)
+                event = Event(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    started_at=start_time,
+                    ended_at=end_time,
+                    risk_score=risk_data.get("risk_score", 50),
+                    risk_level=risk_data.get("risk_level", "medium"),
+                    summary=risk_data.get("summary", "No summary available"),
+                    reasoning=risk_data.get("reasoning", "No reasoning available"),
                     llm_prompt=risk_data.get("llm_prompt"),
-                    enriched_context=enriched_context,
-                    enrichment_result=enrichment_result,
+                    reviewed=False,
+                    # Advanced risk analysis fields (NEM-3601)
+                    entities=risk_data.get("entities"),
+                    flags=risk_data.get("flags"),
+                    confidence_factors=risk_data.get("confidence_factors"),
+                    recommended_action=risk_data.get("recommended_action"),
                 )
-                session.add(audit)
-                await session.flush()  # Persist audit and get ID without committing
-                logger.debug(f"Created audit {audit.id} for event {event.id}")
 
-                # Auto-enqueue for background evaluation (higher risk = higher priority)
-                # This enables full AI audit evaluation when GPU is idle
-                await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+                # NEM-2574: Batch database commits to reduce transaction overhead
+                # Use flush() to persist objects and get IDs without committing.
+                # A single commit happens at the end via get_session() context manager.
+                # On any error, the context manager automatically rolls back the transaction.
+                session.add(event)
+                await session.flush()  # Persist event and get ID without committing
 
-            except Exception as e:
-                # NEM-2574: Audit failures should not roll back the Event creation
-                # The audit is optional - we log a warning but continue
+                # Populate event_detections junction table (NEM-1592, NEM-1998, NEM-3350)
+                # Uses bulk INSERT with ON CONFLICT DO NOTHING to prevent race conditions
+                # and improve performance by reducing round-trips to the database.
+                # This is safe because the composite primary key (event_id, detection_id)
+                # enforces uniqueness at the database level.
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+                from backend.models.event_detection import event_detections
+
+                if int_detection_ids:
+                    values = [
+                        {"event_id": event.id, "detection_id": det_id}
+                        for det_id in int_detection_ids
+                    ]
+                    stmt = (
+                        pg_insert(event_detections)
+                        .values(values)
+                        .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+                    )
+                    await session.execute(stmt)
+
+                # Persist enrichment data to detections (bulk update)
+                if enrichment_data_map:
+                    from sqlalchemy import update as sql_update
+
+                    for det_id, enrichment_data in enrichment_data_map.items():
+                        update_stmt = (
+                            sql_update(Detection)
+                            .where(Detection.id == det_id)
+                            .values(enrichment_data=enrichment_data)
+                        )
+                        await session.execute(update_stmt)
+
+                # Store idempotency key (NEM-1725) to prevent duplicates on retry
+                # Note: This is stored in Redis, not the database transaction
+                await self._set_idempotency(batch_id, event.id)
+
+                # Create partial audit record for model contribution tracking
+                try:
+                    from backend.services.pipeline_quality_audit_service import get_audit_service
+
+                    audit_service = get_audit_service()
+                    audit = audit_service.create_partial_audit(
+                        event_id=event.id,
+                        llm_prompt=risk_data.get("llm_prompt"),
+                        enriched_context=enriched_context,
+                        enrichment_result=enrichment_result,
+                    )
+                    session.add(audit)
+                    await session.flush()  # Persist audit and get ID without committing
+                    logger.debug(f"Created audit {audit.id} for event {event.id}")
+
+                    # Auto-enqueue for background evaluation (higher risk = higher priority)
+                    # This enables full AI audit evaluation when GPU is idle
+                    await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+
+                except Exception as e:
+                    # NEM-2574: Audit failures should not roll back the Event creation
+                    # The audit is optional - we log a warning but continue
+                    logger.warning(
+                        "Audit log write failed",
+                        extra={
+                            "action": "create_partial_audit",
+                            "resource_id": str(event.id),
+                            "resource_type": "event_audit",
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                        },
+                    )
+
+                # Create LLMInteraction record for AI pipeline observability (NEM-4234)
+                # This captures what Nemotron received and responded for debugging accuracy issues
+                try:
+                    # Build enrichment snapshot - frozen copy of what was passed to LLM
+                    enrichment_snapshot = self._build_enrichment_snapshot(
+                        detection_ids=int_detection_ids,
+                        enrichment_result=enrichment_result,
+                        enriched_context=enriched_context,
+                    )
+
+                    # Build context sources - which enrichment fields were populated
+                    context_sources = self._build_context_sources(
+                        enrichment_result=enrichment_result,
+                        enriched_context=enriched_context,
+                    )
+
+                    # Get household matches if available
+                    household_matches: dict[str, Any] | None = None
+                    if enrichment_result is not None:
+                        person_matches = enrichment_result.person_household_matches
+                        vehicle_matches = enrichment_result.vehicle_household_matches
+                        if person_matches or vehicle_matches:
+                            household_matches = {
+                                "persons": [
+                                    m.model_dump() if hasattr(m, "model_dump") else m
+                                    for m in (person_matches or [])
+                                ],
+                                "vehicles": [
+                                    m.model_dump() if hasattr(m, "model_dump") else m
+                                    for m in (vehicle_matches or [])
+                                ],
+                            }
+
+                    llm_interaction = LLMInteraction(
+                        event_id=event.id,
+                        raw_response=risk_data.get("raw_response", ""),
+                        enrichment_snapshot=enrichment_snapshot,
+                        household_matches=household_matches,
+                        context_sources=context_sources,
+                    )
+                    session.add(llm_interaction)
+                    await session.flush()
+                    logger.debug(
+                        f"Created LLMInteraction {llm_interaction.id} for event {event.id}"
+                    )
+
+                except Exception as e:
+                    # NEM-4234: LLMInteraction failures should not roll back Event creation
+                    # Observability is optional - we log a warning but continue
+                    logger.warning(
+                        "LLMInteraction creation failed",
+                        extra={
+                            "action": "create_llm_interaction",
+                            "resource_id": str(event.id),
+                            "resource_type": "llm_interaction",
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                        },
+                    )
+
+                # NEM-2574: Single commit at end via get_session() context manager
+                # The context manager handles: commit on success, rollback on any error
+
+        except IntegrityError as e:
+            # NEM-5379: Handle race condition where concurrent requests create duplicate batch_id
+            # The unique constraint on batch_id prevents duplicates at the database level.
+            # When this happens, we retrieve and return the existing event.
+            if "batch_id" in str(e.orig) or "uq_events_batch_id" in str(e.orig):
                 logger.warning(
-                    "Audit log write failed",
+                    "Duplicate batch_id detected (race condition), returning existing event",
                     extra={
-                        "action": "create_partial_audit",
-                        "resource_id": str(event.id),
-                        "resource_type": "event_audit",
-                        "error_type": type(e).__name__,
-                        "error_message": str(e),
+                        "batch_id": batch_id,
+                        "camera_id": camera_id,
+                        "error_type": "IntegrityError",
                     },
                 )
-
-            # Create LLMInteraction record for AI pipeline observability (NEM-4234)
-            # This captures what Nemotron received and responded for debugging accuracy issues
-            try:
-                # Build enrichment snapshot - frozen copy of what was passed to LLM
-                enrichment_snapshot = self._build_enrichment_snapshot(
-                    detection_ids=int_detection_ids,
-                    enrichment_result=enrichment_result,
-                    enriched_context=enriched_context,
+                existing_event = await self._get_event_by_batch_id(batch_id)
+                if existing_event:
+                    # Set idempotency key so future retries are fast
+                    await self._set_idempotency(batch_id, existing_event.id)
+                    return existing_event
+                # If event not found (very rare race), re-raise the error
+                logger.error(
+                    "IntegrityError but existing event not found",
+                    extra={"batch_id": batch_id},
                 )
-
-                # Build context sources - which enrichment fields were populated
-                context_sources = self._build_context_sources(
-                    enrichment_result=enrichment_result,
-                    enriched_context=enriched_context,
-                )
-
-                # Get household matches if available
-                household_matches: dict[str, Any] | None = None
-                if enrichment_result is not None:
-                    person_matches = enrichment_result.person_household_matches
-                    vehicle_matches = enrichment_result.vehicle_household_matches
-                    if person_matches or vehicle_matches:
-                        household_matches = {
-                            "persons": [
-                                m.model_dump() if hasattr(m, "model_dump") else m
-                                for m in (person_matches or [])
-                            ],
-                            "vehicles": [
-                                m.model_dump() if hasattr(m, "model_dump") else m
-                                for m in (vehicle_matches or [])
-                            ],
-                        }
-
-                llm_interaction = LLMInteraction(
-                    event_id=event.id,
-                    raw_response=risk_data.get("raw_response", ""),
-                    enrichment_snapshot=enrichment_snapshot,
-                    household_matches=household_matches,
-                    context_sources=context_sources,
-                )
-                session.add(llm_interaction)
-                await session.flush()
-                logger.debug(f"Created LLMInteraction {llm_interaction.id} for event {event.id}")
-
-            except Exception as e:
-                # NEM-4234: LLMInteraction failures should not roll back Event creation
-                # Observability is optional - we log a warning but continue
-                logger.warning(
-                    "LLMInteraction creation failed",
-                    extra={
-                        "action": "create_llm_interaction",
-                        "resource_id": str(event.id),
-                        "resource_type": "llm_interaction",
-                        "error_type": type(e).__name__,
-                        "error_message": str(e),
-                    },
-                )
-
-            # NEM-2574: Single commit at end via get_session() context manager
-            # The context manager handles: commit on success, rollback on any error
+            raise
 
         # Session 2 is now closed - connection returned to pool
         # =========================================================================
@@ -2646,157 +2692,186 @@ class NemotronAnalyzer:
         # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
         # This is a new, short-lived session for writing results to the database.
         # =========================================================================
-        async with get_session() as session:
-            # Create Event record with is_fast_path=True and advanced risk fields (NEM-3601)
-            event = Event(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                started_at=detection_time,
-                ended_at=detection_time,
-                risk_score=risk_data.get("risk_score", 50),
-                risk_level=risk_data.get("risk_level", "medium"),
-                summary=risk_data.get("summary", "No summary available"),
-                reasoning=risk_data.get("reasoning", "No reasoning available"),
-                llm_prompt=risk_data.get("llm_prompt"),
-                reviewed=False,
-                is_fast_path=True,
-                # Advanced risk analysis fields (NEM-3601)
-                entities=risk_data.get("entities"),
-                flags=risk_data.get("flags"),
-                confidence_factors=risk_data.get("confidence_factors"),
-                recommended_action=risk_data.get("recommended_action"),
-            )
-
-            # NEM-2574: Batch database commits to reduce transaction overhead
-            # Use flush() to persist objects and get IDs without committing.
-            # A single commit happens at the end via get_session() context manager.
-            # On any error, the context manager automatically rolls back the transaction.
-            session.add(event)
-            await session.flush()  # Persist event and get ID without committing
-
-            # Populate event_detections junction table (NEM-1592, NEM-1998)
-            # Fast path has only one detection. Uses ON CONFLICT DO NOTHING
-            # to prevent race conditions when concurrent requests try to create
-            # the same junction records.
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-            from backend.models.event_detection import event_detections
-
-            stmt = (
-                pg_insert(event_detections)
-                .values(event_id=event.id, detection_id=detection_id_int)
-                .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
-            )
-            await session.execute(stmt)
-
-            # Persist enrichment data to detection (bulk update)
-            if enrichment_data_to_persist:
-                from sqlalchemy import update as sql_update
-
-                update_stmt = (
-                    sql_update(Detection)
-                    .where(Detection.id == detection_id_int)
-                    .values(enrichment_data=enrichment_data_to_persist)
-                )
-                await session.execute(update_stmt)
-
-            # Store idempotency key (NEM-1725) to prevent duplicates on retry
-            # Note: This is stored in Redis, not the database transaction
-            await self._set_idempotency(batch_id, event.id)
-
-            # Create partial audit record for model contribution tracking
-            try:
-                from backend.services.pipeline_quality_audit_service import get_audit_service
-
-                audit_service = get_audit_service()
-                audit = audit_service.create_partial_audit(
-                    event_id=event.id,
+        try:
+            async with get_session() as session:
+                # Create Event record with is_fast_path=True and advanced risk fields (NEM-3601)
+                event = Event(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    started_at=detection_time,
+                    ended_at=detection_time,
+                    risk_score=risk_data.get("risk_score", 50),
+                    risk_level=risk_data.get("risk_level", "medium"),
+                    summary=risk_data.get("summary", "No summary available"),
+                    reasoning=risk_data.get("reasoning", "No reasoning available"),
                     llm_prompt=risk_data.get("llm_prompt"),
-                    enriched_context=enriched_context,
-                    enrichment_result=enrichment_result,
+                    reviewed=False,
+                    is_fast_path=True,
+                    # Advanced risk analysis fields (NEM-3601)
+                    entities=risk_data.get("entities"),
+                    flags=risk_data.get("flags"),
+                    confidence_factors=risk_data.get("confidence_factors"),
+                    recommended_action=risk_data.get("recommended_action"),
                 )
-                session.add(audit)
-                await session.flush()  # Persist audit and get ID without committing
-                logger.debug(f"Created audit {audit.id} for event {event.id}")
 
-                # Auto-enqueue for background evaluation (higher risk = higher priority)
-                # This enables full AI audit evaluation when GPU is idle
-                await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+                # NEM-2574: Batch database commits to reduce transaction overhead
+                # Use flush() to persist objects and get IDs without committing.
+                # A single commit happens at the end via get_session() context manager.
+                # On any error, the context manager automatically rolls back the transaction.
+                session.add(event)
+                await session.flush()  # Persist event and get ID without committing
 
-            except Exception as e:
-                # NEM-2574: Audit failures should not roll back the Event creation
-                # The audit is optional - we log a warning but continue
+                # Populate event_detections junction table (NEM-1592, NEM-1998)
+                # Fast path has only one detection. Uses ON CONFLICT DO NOTHING
+                # to prevent race conditions when concurrent requests try to create
+                # the same junction records.
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+                from backend.models.event_detection import event_detections
+
+                stmt = (
+                    pg_insert(event_detections)
+                    .values(event_id=event.id, detection_id=detection_id_int)
+                    .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
+                )
+                await session.execute(stmt)
+
+                # Persist enrichment data to detection (bulk update)
+                if enrichment_data_to_persist:
+                    from sqlalchemy import update as sql_update
+
+                    update_stmt = (
+                        sql_update(Detection)
+                        .where(Detection.id == detection_id_int)
+                        .values(enrichment_data=enrichment_data_to_persist)
+                    )
+                    await session.execute(update_stmt)
+
+                # Store idempotency key (NEM-1725) to prevent duplicates on retry
+                # Note: This is stored in Redis, not the database transaction
+                await self._set_idempotency(batch_id, event.id)
+
+                # Create partial audit record for model contribution tracking
+                try:
+                    from backend.services.pipeline_quality_audit_service import get_audit_service
+
+                    audit_service = get_audit_service()
+                    audit = audit_service.create_partial_audit(
+                        event_id=event.id,
+                        llm_prompt=risk_data.get("llm_prompt"),
+                        enriched_context=enriched_context,
+                        enrichment_result=enrichment_result,
+                    )
+                    session.add(audit)
+                    await session.flush()  # Persist audit and get ID without committing
+                    logger.debug(f"Created audit {audit.id} for event {event.id}")
+
+                    # Auto-enqueue for background evaluation (higher risk = higher priority)
+                    # This enables full AI audit evaluation when GPU is idle
+                    await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+
+                except Exception as e:
+                    # NEM-2574: Audit failures should not roll back the Event creation
+                    # The audit is optional - we log a warning but continue
+                    logger.warning(
+                        "Audit log write failed",
+                        extra={
+                            "action": "create_partial_audit",
+                            "resource_id": str(event.id),
+                            "resource_type": "event_audit",
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                        },
+                    )
+
+                # Create LLMInteraction record for AI pipeline observability (NEM-4234)
+                # This captures what Nemotron received and responded for debugging accuracy issues
+                try:
+                    # Build enrichment snapshot - frozen copy of what was passed to LLM
+                    enrichment_snapshot = self._build_enrichment_snapshot(
+                        detection_ids=[detection_id_int],
+                        enrichment_result=enrichment_result,
+                        enriched_context=enriched_context,
+                    )
+
+                    # Build context sources - which enrichment fields were populated
+                    context_sources = self._build_context_sources(
+                        enrichment_result=enrichment_result,
+                        enriched_context=enriched_context,
+                    )
+
+                    # Get household matches if available
+                    household_matches: dict[str, Any] | None = None
+                    if enrichment_result is not None:
+                        person_matches = enrichment_result.person_household_matches
+                        vehicle_matches = enrichment_result.vehicle_household_matches
+                        if person_matches or vehicle_matches:
+                            household_matches = {
+                                "persons": [
+                                    m.model_dump() if hasattr(m, "model_dump") else m
+                                    for m in (person_matches or [])
+                                ],
+                                "vehicles": [
+                                    m.model_dump() if hasattr(m, "model_dump") else m
+                                    for m in (vehicle_matches or [])
+                                ],
+                            }
+
+                    llm_interaction = LLMInteraction(
+                        event_id=event.id,
+                        raw_response=risk_data.get("raw_response", ""),
+                        enrichment_snapshot=enrichment_snapshot,
+                        household_matches=household_matches,
+                        context_sources=context_sources,
+                    )
+                    session.add(llm_interaction)
+                    await session.flush()
+                    logger.debug(
+                        f"Created LLMInteraction {llm_interaction.id} for event {event.id}"
+                    )
+
+                except Exception as e:
+                    # NEM-4234: LLMInteraction failures should not roll back Event creation
+                    # Observability is optional - we log a warning but continue
+                    logger.warning(
+                        "LLMInteraction creation failed",
+                        extra={
+                            "action": "create_llm_interaction",
+                            "resource_id": str(event.id),
+                            "resource_type": "llm_interaction",
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                        },
+                    )
+
+                # NEM-2574: Single commit at end via get_session() context manager
+                # The context manager handles: commit on success, rollback on any error
+
+        except IntegrityError as e:
+            # NEM-5379: Handle race condition where concurrent requests create duplicate batch_id
+            # The unique constraint on batch_id prevents duplicates at the database level.
+            # When this happens, we retrieve and return the existing event.
+            if "batch_id" in str(e.orig) or "uq_events_batch_id" in str(e.orig):
                 logger.warning(
-                    "Audit log write failed",
+                    "Duplicate batch_id detected in fast path (race condition), returning existing event",
                     extra={
-                        "action": "create_partial_audit",
-                        "resource_id": str(event.id),
-                        "resource_type": "event_audit",
-                        "error_type": type(e).__name__,
-                        "error_message": str(e),
+                        "batch_id": batch_id,
+                        "camera_id": camera_id,
+                        "detection_id": detection_id_int,
+                        "error_type": "IntegrityError",
                     },
                 )
-
-            # Create LLMInteraction record for AI pipeline observability (NEM-4234)
-            # This captures what Nemotron received and responded for debugging accuracy issues
-            try:
-                # Build enrichment snapshot - frozen copy of what was passed to LLM
-                enrichment_snapshot = self._build_enrichment_snapshot(
-                    detection_ids=[detection_id_int],
-                    enrichment_result=enrichment_result,
-                    enriched_context=enriched_context,
+                existing_event = await self._get_event_by_batch_id(batch_id)
+                if existing_event:
+                    # Set idempotency key so future retries are fast
+                    await self._set_idempotency(batch_id, existing_event.id)
+                    return existing_event
+                # If event not found (very rare race), re-raise the error
+                logger.error(
+                    "IntegrityError but existing event not found",
+                    extra={"batch_id": batch_id},
                 )
-
-                # Build context sources - which enrichment fields were populated
-                context_sources = self._build_context_sources(
-                    enrichment_result=enrichment_result,
-                    enriched_context=enriched_context,
-                )
-
-                # Get household matches if available
-                household_matches: dict[str, Any] | None = None
-                if enrichment_result is not None:
-                    person_matches = enrichment_result.person_household_matches
-                    vehicle_matches = enrichment_result.vehicle_household_matches
-                    if person_matches or vehicle_matches:
-                        household_matches = {
-                            "persons": [
-                                m.model_dump() if hasattr(m, "model_dump") else m
-                                for m in (person_matches or [])
-                            ],
-                            "vehicles": [
-                                m.model_dump() if hasattr(m, "model_dump") else m
-                                for m in (vehicle_matches or [])
-                            ],
-                        }
-
-                llm_interaction = LLMInteraction(
-                    event_id=event.id,
-                    raw_response=risk_data.get("raw_response", ""),
-                    enrichment_snapshot=enrichment_snapshot,
-                    household_matches=household_matches,
-                    context_sources=context_sources,
-                )
-                session.add(llm_interaction)
-                await session.flush()
-                logger.debug(f"Created LLMInteraction {llm_interaction.id} for event {event.id}")
-
-            except Exception as e:
-                # NEM-4234: LLMInteraction failures should not roll back Event creation
-                # Observability is optional - we log a warning but continue
-                logger.warning(
-                    "LLMInteraction creation failed",
-                    extra={
-                        "action": "create_llm_interaction",
-                        "resource_id": str(event.id),
-                        "resource_type": "llm_interaction",
-                        "error_type": type(e).__name__,
-                        "error_message": str(e),
-                    },
-                )
-
-            # NEM-2574: Single commit at end via get_session() context manager
-            # The context manager handles: commit on success, rollback on any error
+            raise
 
         # Session 2 is now closed - connection returned to pool
         # =========================================================================

@@ -655,9 +655,9 @@ class TestGetCalibrationDefaults:
 class TestHelperFunctions:
     """Tests for internal helper functions."""
 
-    def test_calibration_to_response_conversion(self) -> None:
-        """Test _calibration_to_response converts model correctly."""
-        from backend.api.routes.calibration import _calibration_to_response
+    def test_calibration_model_validate_conversion(self) -> None:
+        """Test CalibrationResponse.model_validate converts ORM model correctly."""
+        from backend.api.schemas.calibration import CalibrationResponse
 
         mock_cal = MagicMock()
         mock_cal.id = 1
@@ -671,18 +671,18 @@ class TestHelperFunctions:
         mock_cal.created_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
         mock_cal.updated_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
 
-        result = _calibration_to_response(mock_cal)
+        result = CalibrationResponse.model_validate(mock_cal)
 
-        assert result["id"] == 1
-        assert result["user_id"] == "default"
-        assert result["low_threshold"] == 30
-        assert result["medium_threshold"] == 60
-        assert result["high_threshold"] == 85
-        assert result["decay_factor"] == 0.1
-        assert result["false_positive_count"] == 5
-        assert result["missed_threat_count"] == 3
-        assert result["created_at"] == datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
-        assert result["updated_at"] == datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+        assert result.id == 1
+        assert result.user_id == "default"
+        assert result.low_threshold == 30
+        assert result.medium_threshold == 60
+        assert result.high_threshold == 85
+        assert result.decay_factor == 0.1
+        assert result.false_positive_count == 5
+        assert result.missed_threat_count == 3
+        assert result.created_at == datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+        assert result.updated_at == datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
 
     def test_validate_threshold_ordering_valid(self) -> None:
         """Test _validate_threshold_ordering with valid ordering."""

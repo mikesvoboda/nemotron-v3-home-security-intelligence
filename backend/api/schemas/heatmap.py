@@ -34,6 +34,7 @@ class HeatmapMetadata(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": 1,
@@ -46,7 +47,7 @@ class HeatmapMetadata(BaseModel):
                 "created_at": "2026-01-26T11:00:00Z",
                 "updated_at": "2026-01-26T11:00:00Z",
             }
-        }
+        },
     )
 
     id: int = Field(..., description="Unique identifier of the heatmap record")
@@ -82,6 +83,7 @@ class HeatmapResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "camera_id": "front_door",
@@ -93,7 +95,7 @@ class HeatmapResponse(BaseModel):
                 "total_detections": 150,
                 "colormap": "jet",
             }
-        }
+        },
     )
 
     camera_id: str = Field(..., description="ID of the camera this heatmap belongs to")
@@ -121,6 +123,7 @@ class HeatmapListResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "heatmaps": [
@@ -138,7 +141,7 @@ class HeatmapListResponse(BaseModel):
                 ],
                 "total": 1,
             }
-        }
+        },
     )
 
     heatmaps: list[HeatmapMetadata] = Field(..., description="List of heatmap metadata records")
@@ -177,6 +180,7 @@ class HeatmapSnapshotResponse(BaseModel):
     """
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "success": True,
@@ -184,7 +188,7 @@ class HeatmapSnapshotResponse(BaseModel):
                 "heatmap_id": 42,
                 "total_detections": 150,
             }
-        }
+        },
     )
 
     success: bool = Field(..., description="Whether the snapshot was saved successfully")

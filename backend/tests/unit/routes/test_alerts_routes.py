@@ -21,12 +21,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.routes.alerts import _apply_rule_updates, _rule_to_response, router
+from backend.api.routes.alerts import _apply_rule_updates, router
 
 if TYPE_CHECKING:
     from backend.models import Alert
 from backend.api.schemas.alerts import (
     AlertRuleConditions,
+    AlertRuleResponse,
     AlertRuleSchedule,
     AlertRuleUpdate,
     AlertSeverity,
@@ -109,6 +110,7 @@ def sample_rule() -> AlertRule:
         dedup_key_template="default:{camera_id}",  # Required field
         cooldown_seconds=300,
         channels=["email"],
+        dwell_time_enabled=False,
         created_at=datetime(2025, 12, 23, 10, 0, 0),
         updated_at=datetime(2025, 12, 23, 10, 0, 0),
     )
@@ -534,58 +536,51 @@ class TestTestRule:
 # =============================================================================
 
 
-class TestRuleToResponse:
-    """Tests for _rule_to_response helper function."""
+class TestAlertRuleResponseValidation:
+    """Tests for AlertRuleResponse.model_validate with from_attributes."""
 
-    def test_rule_to_response_with_enum_severity(self, sample_rule: AlertRule) -> None:
-        """Test conversion with enum severity."""
-        result = _rule_to_response(sample_rule)
+    def test_model_validate_with_enum_severity(self, sample_rule: AlertRule) -> None:
+        """Test conversion with enum severity using model_validate."""
+        result = AlertRuleResponse.model_validate(sample_rule)
 
-        assert result["id"] == sample_rule.id
-        assert result["name"] == sample_rule.name
-        assert result["severity"] == "high"
+        assert result.id == sample_rule.id
+        assert result.name == sample_rule.name
+        assert result.severity == AlertSeverity.HIGH
 
-    def test_rule_to_response_with_string_severity(self) -> None:
-        """Test conversion with string severity."""
+    def test_model_validate_with_string_severity(self) -> None:
+        """Test conversion with string severity using model_validate."""
         rule = AlertRule(
             id=str(uuid.uuid4()),
             name="Test Rule",
             severity="low",  # String instead of enum
             enabled=True,
             dedup_key_template="default",
+            cooldown_seconds=300,
+            channels=["email"],
+            dwell_time_enabled=False,
             created_at=datetime(2025, 12, 23, 10, 0, 0),
             updated_at=datetime(2025, 12, 23, 10, 0, 0),
         )
 
-        result = _rule_to_response(rule)
+        result = AlertRuleResponse.model_validate(rule)
 
-        assert result["severity"] == "low"
+        assert result.severity == AlertSeverity.LOW
 
-    def test_rule_to_response_includes_all_fields(self, sample_rule: AlertRule) -> None:
-        """Test that all required fields are included."""
-        result = _rule_to_response(sample_rule)
+    def test_model_validate_includes_all_fields(self, sample_rule: AlertRule) -> None:
+        """Test that all required fields are included via model_validate."""
+        result = AlertRuleResponse.model_validate(sample_rule)
 
-        required_fields = [
-            "id",
-            "name",
-            "description",
-            "enabled",
-            "severity",
-            "risk_threshold",
-            "object_types",
-            "camera_ids",
-            "zone_ids",
-            "min_confidence",
-            "schedule",
-            "conditions",
-            "dedup_key_template",
-            "cooldown_seconds",
-            "channels",
-            "created_at",
-            "updated_at",
-        ]
-        for field in required_fields:
-            assert field in result
+        # Verify all required fields are present as attributes
+        assert result.id is not None
+        assert result.name is not None
+        assert result.enabled is not None
+        assert result.severity is not None
+        assert result.dedup_key_template is not None
+        assert result.cooldown_seconds is not None
+        assert result.channels is not None
+        assert result.dwell_time_enabled is not None
+        assert result.created_at is not None
+        assert result.updated_at is not None
 
 
 class TestApplyRuleUpdates:

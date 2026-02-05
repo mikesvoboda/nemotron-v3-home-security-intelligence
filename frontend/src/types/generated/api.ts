@@ -2958,9 +2958,7 @@ export interface paths {
          *         request: Discovery request with subnet and timeout
          *
          *     Returns:
-         *         Dictionary with discovered devices and count:
-         *         - devices: List of discovered device information
-         *         - count: Total number of devices found
+         *         OnvifDiscoveryResponse with discovered devices and count
          *
          *     Raises:
          *         HTTPException: 500 if discovery fails
@@ -3320,11 +3318,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Dictionary containing:
-         *         - threshold_stdev: Active threshold value
-         *         - min_samples: Active minimum samples value
-         *         - override_global_config: Whether per-camera overrides are active
-         *         - global_config: Dictionary of global defaults
+         *         BaselineConfigResponse with active configuration values
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
@@ -3343,7 +3337,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Dictionary with updated configuration values
+         *         BaselineConfigResponse with updated configuration values
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
@@ -3378,9 +3372,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Dictionary with counts of deleted records:
-         *         - activity_baselines_deleted: Number of ActivityBaseline records deleted
-         *         - class_baselines_deleted: Number of ClassBaseline records deleted
+         *         BaselineResetResponse with counts of deleted records
          *
          *     Raises:
          *         HTTPException: 404 if camera not found
@@ -3415,7 +3407,7 @@ export interface paths {
          *         onvif_service: ONVIF service for capability retrieval
          *
          *     Returns:
-         *         Dictionary with device info and capability flags
+         *         OnvifCapabilitiesResponse with device info and capability flags
          *
          *     Raises:
          *         HTTPException: 404 if camera not found, 409 if not ONVIF device,
@@ -3450,9 +3442,7 @@ export interface paths {
          *         onvif_service: ONVIF service for preset retrieval
          *
          *     Returns:
-         *         Dictionary with:
-         *         - presets: List of preset objects with token and name
-         *         - count: Number of presets available
+         *         PTZPresetsResponse with presets list and count
          *
          *     Raises:
          *         HTTPException: 404 if camera not found, 409 if not ONVIF device,
@@ -3490,9 +3480,7 @@ export interface paths {
          *         onvif_service: ONVIF service for PTZ control
          *
          *     Returns:
-         *         Dictionary with:
-         *         - success: True if navigation started
-         *         - preset_token: The preset token that was used
+         *         PTZGotoPresetResponse with success status and preset token
          *
          *     Raises:
          *         HTTPException: 400 if invalid preset token, 404 if camera not found,
@@ -3528,11 +3516,7 @@ export interface paths {
          *         onvif_service: ONVIF service for PTZ control
          *
          *     Returns:
-         *         Dictionary with success status and executed command details:
-         *         - success: True if command executed
-         *         - command: The command type executed
-         *         - value: The movement value used
-         *         - speed: The speed used
+         *         PTZCommandResponse with success status and executed command details
          *
          *     Raises:
          *         HTTPException: 400 if invalid command/value, 404 if camera not found,
@@ -3568,7 +3552,7 @@ export interface paths {
          *         onvif_service: ONVIF service for PTZ control
          *
          *     Returns:
-         *         Dictionary with success status
+         *         PTZStopResponse with success status
          *
          *     Raises:
          *         HTTPException: 404 if camera not found, 409 if not ONVIF device,
@@ -3638,7 +3622,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Success message
+         *         PreviewStopResponse with success status
          */
         delete: operations["cameras_stop_camera_preview"];
         options?: never;
@@ -4120,7 +4104,7 @@ export interface paths {
          *     objects collected. Useful for testing if memory can be reclaimed.
          *
          *     Returns:
-         *         GC collection statistics
+         *         GCTriggerResponse with collection statistics
          */
         post: operations["debug_trigger_gc"];
         delete?: never;
@@ -4149,7 +4133,7 @@ export interface paths {
          *         nframes: Number of stack frames to capture (default: 25)
          *
          *     Returns:
-         *         Status of tracemalloc
+         *         TraceMallocStartResponse with status
          */
         post: operations["debug_start_tracemalloc"];
         delete?: never;
@@ -4174,7 +4158,7 @@ export interface paths {
          *     Stops memory allocation tracking and clears the trace data.
          *
          *     Returns:
-         *         Final memory statistics before stopping
+         *         TraceMallocStopResponse with final memory statistics
          */
         post: operations["debug_stop_tracemalloc"];
         delete?: never;
@@ -4379,7 +4363,7 @@ export interface paths {
          *         recording_id: ID of the recording to retrieve
          *
          *     Returns:
-         *         Full recording data
+         *         RecordingDetailResponse with full recording data
          *
          *     Raises:
          *         HTTPException: 404 if recording not found
@@ -14072,7 +14056,7 @@ export interface components {
             is_admin: boolean;
             /**
              * Password
-             * @description Password (minimum 12 characters)
+             * @description Password (minimum 8 characters)
              */
             password: string;
             /**
@@ -16476,6 +16460,40 @@ export interface components {
             similarity_threshold: number;
         };
         /**
+         * BaselineConfigResponse
+         * @description Response schema for baseline configuration.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         * @example {
+         *       "global_config": {
+         *         "min_samples": 10,
+         *         "threshold_stdev": 2
+         *       },
+         *       "min_samples": 10,
+         *       "override_global_config": false,
+         *       "threshold_stdev": 2
+         *     }
+         */
+        BaselineConfigResponse: {
+            /** @description Global default configuration values */
+            global_config: components["schemas"]["GlobalBaselineConfig"];
+            /**
+             * Min Samples
+             * @description Active minimum samples value (from camera or global config)
+             */
+            min_samples: number;
+            /**
+             * Override Global Config
+             * @description Whether per-camera overrides are active
+             */
+            override_global_config: boolean;
+            /**
+             * Threshold Stdev
+             * @description Active threshold value (from camera or global config)
+             */
+            threshold_stdev: number;
+        };
+        /**
          * BaselineConfigUpdate
          * @description Request schema for updating per-camera baseline configuration.
          *
@@ -16503,6 +16521,28 @@ export interface components {
              * @description Anomaly detection threshold in standard deviations (minimum 0.5)
              */
             threshold_stdev?: number | null;
+        };
+        /**
+         * BaselineResetResponse
+         * @description Response schema for baseline reset operation.
+         *
+         *     NEM-5000: Typed response replacing dict[str, int] return type.
+         * @example {
+         *       "activity_baselines_deleted": 168,
+         *       "class_baselines_deleted": 72
+         *     }
+         */
+        BaselineResetResponse: {
+            /**
+             * Activity Baselines Deleted
+             * @description Number of ActivityBaseline records deleted
+             */
+            activity_baselines_deleted: number;
+            /**
+             * Class Baselines Deleted
+             * @description Number of ClassBaseline records deleted
+             */
+            class_baselines_deleted: number;
         };
         /**
          * BaselineSummaryResponse
@@ -25928,6 +25968,80 @@ export interface components {
             workers: components["schemas"]["WorkerHealthStatus"][];
         };
         /**
+         * GCCollectedStats
+         * @description GC collection stats per generation.
+         */
+        GCCollectedStats: {
+            /**
+             * Gen0
+             * @description Objects collected from generation 0
+             */
+            gen0: number;
+            /**
+             * Gen1
+             * @description Objects collected from generation 1
+             */
+            gen1: number;
+            /**
+             * Gen2
+             * @description Objects collected from generation 2
+             */
+            gen2: number;
+            /**
+             * Total
+             * @description Total objects collected across all generations
+             */
+            total: number;
+        };
+        /**
+         * GCMemoryStats
+         * @description Memory stats before and after GC.
+         */
+        GCMemoryStats: {
+            /**
+             * Freed Bytes
+             * @description Memory freed by GC in bytes
+             */
+            freed_bytes: number;
+            /**
+             * Freed Human
+             * @description Human-readable memory freed
+             */
+            freed_human: string;
+            /**
+             * Rss After Bytes
+             * @description RSS memory after GC in bytes
+             */
+            rss_after_bytes: number;
+            /**
+             * Rss Before Bytes
+             * @description RSS memory before GC in bytes
+             */
+            rss_before_bytes: number;
+        };
+        /**
+         * GCTriggerResponse
+         * @description Response for garbage collection trigger.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         */
+        GCTriggerResponse: {
+            /** @description Collection statistics per generation */
+            collected: components["schemas"]["GCCollectedStats"];
+            /** @description Memory statistics before and after GC */
+            memory: components["schemas"]["GCMemoryStats"];
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+            /**
+             * Uncollectable
+             * @description Number of uncollectable objects
+             */
+            uncollectable: number;
+        };
+        /**
          * GPUStatsHistoryResponse
          * @description Response schema for GPU stats history endpoint.
          *
@@ -26268,6 +26382,32 @@ export interface components {
              * @description GPU utilization percentage (0-100)
              */
             utilization?: number | null;
+        };
+        /**
+         * GlobalBaselineConfig
+         * @description Global baseline configuration defaults.
+         */
+        GlobalBaselineConfig: {
+            /**
+             * Decay Factor
+             * @description Exponential decay factor for EWMA
+             */
+            decay_factor?: number | null;
+            /**
+             * Min Samples
+             * @description Default minimum samples
+             */
+            min_samples: number;
+            /**
+             * Threshold Stdev
+             * @description Default threshold standard deviation
+             */
+            threshold_stdev: number;
+            /**
+             * Window Days
+             * @description Rolling window size in days
+             */
+            window_days?: number | null;
         };
         /**
          * GpuApplyResponse
@@ -32927,6 +33067,69 @@ export interface components {
             wait_seconds: number;
         };
         /**
+         * OnvifCapabilitiesResponse
+         * @description Response schema for ONVIF device capabilities.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         *     Contains device info and capability flags from ONVIF GetCapabilities.
+         * @example {
+         *       "analytics_supported": false,
+         *       "firmware_version": "5.4.5",
+         *       "manufacturer": "Hikvision",
+         *       "media_supported": true,
+         *       "model": "DS-2CD2032-I",
+         *       "ptz_supported": true,
+         *       "serial_number": "SN001234567890"
+         *     }
+         */
+        OnvifCapabilitiesResponse: {
+            /**
+             * Analytics Supported
+             * @description Whether video analytics is supported
+             * @default false
+             */
+            analytics_supported: boolean;
+            /**
+             * Firmware Version
+             * @description Device firmware version
+             */
+            firmware_version?: string | null;
+            /**
+             * Hardware Id
+             * @description Device hardware ID
+             */
+            hardware_id?: string | null;
+            /**
+             * Manufacturer
+             * @description Device manufacturer name
+             */
+            manufacturer?: string | null;
+            /**
+             * Media Supported
+             * @description Whether media streaming is supported
+             * @default false
+             */
+            media_supported: boolean;
+            /**
+             * Model
+             * @description Device model name
+             */
+            model?: string | null;
+            /**
+             * Ptz Supported
+             * @description Whether PTZ control is supported
+             * @default false
+             */
+            ptz_supported: boolean;
+            /**
+             * Serial Number
+             * @description Device serial number
+             */
+            serial_number?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * OnvifDiscoveryRequest
          * @description Request schema for ONVIF device discovery.
          *
@@ -32948,6 +33151,80 @@ export interface components {
              * @default 10
              */
             timeout: number;
+        };
+        /**
+         * OnvifDiscoveryResponse
+         * @description Response schema for ONVIF device discovery.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         * @example {
+         *       "count": 1,
+         *       "devices": [
+         *         {
+         *           "device_url": "http://192.168.1.100/onvif/device_service",
+         *           "manufacturer": "Hikvision",
+         *           "model": "DS-2CD2032-I"
+         *         }
+         *       ]
+         *     }
+         */
+        OnvifDiscoveryResponse: {
+            /**
+             * Count
+             * @description Number of devices discovered
+             */
+            count: number;
+            /**
+             * Devices
+             * @description List of discovered ONVIF devices
+             */
+            devices?: components["schemas"]["OnvifDiscoveryResult"][];
+        };
+        /**
+         * OnvifDiscoveryResult
+         * @description Response schema for a discovered ONVIF device.
+         *
+         *     NEM-4207: Contains device information from WS-Discovery response.
+         * @example {
+         *       "device_url": "http://192.168.1.100/onvif/device_service",
+         *       "firmware_version": "5.4.5",
+         *       "hardware_id": "HW-001",
+         *       "manufacturer": "Hikvision",
+         *       "model": "DS-2CD2032-I",
+         *       "serial_number": "SN001234567890"
+         *     }
+         */
+        OnvifDiscoveryResult: {
+            /**
+             * Device Url
+             * @description ONVIF device service URL
+             */
+            device_url: string;
+            /**
+             * Firmware Version
+             * @description Device firmware version
+             */
+            firmware_version?: string | null;
+            /**
+             * Hardware Id
+             * @description Device hardware ID
+             */
+            hardware_id?: string | null;
+            /**
+             * Manufacturer
+             * @description Device manufacturer name
+             */
+            manufacturer: string;
+            /**
+             * Model
+             * @description Device model name
+             */
+            model: string;
+            /**
+             * Serial Number
+             * @description Device serial number
+             */
+            serial_number?: string | null;
         };
         /**
          * OrphanCleanupRequest
@@ -33087,6 +33364,141 @@ export interface components {
              * @description Movement value (-1.0 to 1.0)
              */
             value: number;
+        };
+        /**
+         * PTZCommandResponse
+         * @description Response schema for PTZ command execution.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         * @example {
+         *       "command": "pan",
+         *       "speed": 1,
+         *       "success": true,
+         *       "value": 0.5
+         *     }
+         */
+        PTZCommandResponse: {
+            /**
+             * Command
+             * @description The command type that was executed
+             */
+            command: string;
+            /**
+             * Speed
+             * @description The speed used (0.0 to 1.0)
+             * @default 0
+             */
+            speed: number;
+            /**
+             * Success
+             * @description Whether the command was executed successfully
+             */
+            success: boolean;
+            /**
+             * Value
+             * @description The movement value used (-1.0 to 1.0)
+             * @default 0
+             */
+            value: number;
+        };
+        /**
+         * PTZGotoPresetResponse
+         * @description Response schema for navigating to a PTZ preset.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         * @example {
+         *       "preset_token": "preset_1",
+         *       "success": true
+         *     }
+         */
+        PTZGotoPresetResponse: {
+            /**
+             * Preset Token
+             * @description The preset token that was used
+             */
+            preset_token: string;
+            /**
+             * Success
+             * @description Whether navigation to the preset started successfully
+             */
+            success: boolean;
+        };
+        /**
+         * PTZPreset
+         * @description PTZ preset position schema.
+         *
+         *     NEM-4207: Represents a saved PTZ preset position.
+         * @example {
+         *       "name": "Front Door View",
+         *       "token": "preset_1"
+         *     }
+         */
+        PTZPreset: {
+            /**
+             * Name
+             * @description Preset name
+             */
+            name: string;
+            /**
+             * Token
+             * @description Unique preset token
+             */
+            token: string;
+        };
+        /**
+         * PTZPresetsResponse
+         * @description Response schema for listing PTZ presets.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         * @example {
+         *       "count": 2,
+         *       "presets": [
+         *         {
+         *           "name": "Front Door View",
+         *           "token": "preset_1"
+         *         },
+         *         {
+         *           "name": "Backyard",
+         *           "token": "preset_2"
+         *         }
+         *       ]
+         *     }
+         */
+        PTZPresetsResponse: {
+            /**
+             * Count
+             * @description Number of presets available
+             */
+            count: number;
+            /**
+             * Presets
+             * @description List of available PTZ presets
+             */
+            presets?: components["schemas"]["PTZPreset"][];
+        };
+        /**
+         * PTZStopResponse
+         * @description Response schema for PTZ stop command.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         * @example {
+         *       "command": "stop",
+         *       "success": true
+         *     }
+         */
+        PTZStopResponse: {
+            /**
+             * Command
+             * @description The command type (always 'stop')
+             * @default stop
+             * @constant
+             */
+            command: "stop";
+            /**
+             * Success
+             * @description Whether the stop command was executed successfully
+             */
+            success: boolean;
         };
         /**
          * PaginationInfo
@@ -34688,6 +35100,30 @@ export interface components {
              * @description WebRTC WebSocket URL for connecting to go2rtc
              */
             webrtc_url: string;
+        };
+        /**
+         * PreviewStopResponse
+         * @description Response schema for stopping a preview stream.
+         *
+         *     NEM-5000: Typed response replacing dict return type.
+         * @example {
+         *       "message": "Preview stopped for camera front_door",
+         *       "status": "ok"
+         *     }
+         */
+        PreviewStopResponse: {
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Status
+             * @description Operation status (always 'ok' on success)
+             * @default ok
+             * @constant
+             */
+            status: "ok";
         };
         /**
          * PricingConfig
@@ -36323,6 +36759,79 @@ export interface components {
             recommendations: components["schemas"]["RecommendationItem"][];
             /** Total Events Analyzed */
             total_events_analyzed: number;
+        };
+        /**
+         * RecordingDetailResponse
+         * @description Response for a single recording with full details.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         */
+        RecordingDetailResponse: {
+            /**
+             * Body
+             * @description Request body
+             */
+            body?: unknown | null;
+            /**
+             * Body Truncated
+             * @description Whether body was truncated
+             * @default false
+             */
+            body_truncated: boolean;
+            /**
+             * Duration Ms
+             * @description Request duration in milliseconds
+             */
+            duration_ms: number;
+            /**
+             * Headers
+             * @description Request headers
+             */
+            headers?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Method
+             * @description HTTP method
+             */
+            method: string;
+            /**
+             * Path
+             * @description Request path
+             */
+            path: string;
+            /**
+             * Query Params
+             * @description Query parameters
+             */
+            query_params?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Recording Id
+             * @description Unique recording ID
+             */
+            recording_id: string;
+            /**
+             * Response
+             * @description Response data
+             */
+            response?: unknown | null;
+            /**
+             * Retrieved At
+             * @description ISO timestamp when retrieved
+             */
+            retrieved_at: string;
+            /**
+             * Status Code
+             * @description HTTP response status code
+             */
+            status_code: number;
+            /**
+             * Timestamp
+             * @description ISO timestamp when recorded
+             */
+            timestamp: string;
         };
         /**
          * RecordingResponse
@@ -40064,6 +40573,60 @@ export interface components {
             total_tokens: number;
         };
         /**
+         * TraceMallocFinalStats
+         * @description Final memory statistics from tracemalloc.
+         */
+        TraceMallocFinalStats: {
+            /**
+             * Current Bytes
+             * @description Current traced memory in bytes
+             */
+            current_bytes: number;
+            /**
+             * Current Human
+             * @description Human-readable current memory
+             */
+            current_human: string;
+            /**
+             * Peak Bytes
+             * @description Peak traced memory in bytes
+             */
+            peak_bytes: number;
+            /**
+             * Peak Human
+             * @description Human-readable peak memory
+             */
+            peak_human: string;
+        };
+        /**
+         * TraceMallocStartResponse
+         * @description Response for starting tracemalloc.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         */
+        TraceMallocStartResponse: {
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Nframes
+             * @description Number of frames configured
+             */
+            nframes?: number | null;
+            /**
+             * Status
+             * @description Status of tracemalloc ('started' or 'already_running')
+             */
+            status: string;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
          * TraceMallocStats
          * @description Tracemalloc statistics if enabled.
          */
@@ -40092,6 +40655,31 @@ export interface components {
             top_allocations?: {
                 [key: string]: unknown;
             }[];
+        };
+        /**
+         * TraceMallocStopResponse
+         * @description Response for stopping tracemalloc.
+         *
+         *     NEM-5000: Typed response replacing dict[str, Any] return type.
+         */
+        TraceMallocStopResponse: {
+            /** @description Final memory statistics if tracemalloc was running */
+            final_stats?: components["schemas"]["TraceMallocFinalStats"] | null;
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message?: string | null;
+            /**
+             * Status
+             * @description Status of tracemalloc ('stopped' or 'not_running')
+             */
+            status: string;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
         };
         /**
          * TrackHistoryResponse
@@ -40911,7 +41499,7 @@ export interface components {
             email: string;
             /**
              * Password
-             * @description Password (minimum 12 characters)
+             * @description Password (minimum 8 characters)
              */
             password: string;
             /**
@@ -47343,9 +47931,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["OnvifDiscoveryResponse"];
                 };
             };
             /** @description Invalid request parameters */
@@ -47735,9 +48321,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["BaselineConfigResponse"];
                 };
             };
             /** @description Validation Error */
@@ -47772,9 +48356,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["BaselineConfigResponse"];
                 };
             };
             /** @description Validation Error */
@@ -47805,9 +48387,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: number;
-                    };
+                    "application/json": components["schemas"]["BaselineResetResponse"];
                 };
             };
             /** @description Validation Error */
@@ -47838,9 +48418,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["OnvifCapabilitiesResponse"];
                 };
             };
             /** @description Camera not found */
@@ -47892,9 +48470,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PTZPresetsResponse"];
                 };
             };
             /** @description Camera not found */
@@ -47947,9 +48523,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PTZGotoPresetResponse"];
                 };
             };
             /** @description Invalid preset token */
@@ -48012,9 +48586,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PTZCommandResponse"];
                 };
             };
             /** @description Invalid PTZ command or value */
@@ -48073,9 +48645,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PTZStopResponse"];
                 };
             };
             /** @description Camera not found */
@@ -48179,9 +48749,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["PreviewStopResponse"];
                 };
             };
             /** @description Camera not found */
@@ -48881,9 +49449,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GCTriggerResponse"];
                 };
             };
             /** @description Not found - Debug mode disabled */
@@ -48919,9 +49485,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TraceMallocStartResponse"];
                 };
             };
             /** @description Not found - Debug mode disabled */
@@ -48964,9 +49528,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["TraceMallocStopResponse"];
                 };
             };
             /** @description Not found - Debug mode disabled */
@@ -49227,9 +49789,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RecordingDetailResponse"];
                 };
             };
             /** @description Validation Error */

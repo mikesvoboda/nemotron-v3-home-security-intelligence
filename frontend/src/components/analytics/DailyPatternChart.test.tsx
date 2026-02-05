@@ -381,4 +381,22 @@ describe('DailyPatternChart', () => {
       expect(mondayBar).not.toHaveClass(/weekend/);
     });
   });
+
+  describe('Animation Control (NEM-5045)', () => {
+    it('should enable CSS transitions for small datasets (7 days)', () => {
+      render(<DailyPatternChart patterns={mockFullWeekPatterns} />);
+
+      // DailyPatternChart always has at most 7 days, well under threshold
+      const mondayBar = screen.getByTestId('daily-bar-monday');
+      expect(mondayBar).toHaveClass('transition-transform');
+    });
+
+    it('should enable CSS transitions for partial week data', () => {
+      render(<DailyPatternChart patterns={mockPartialWeekPatterns} />);
+
+      // Even partial week (3 days) should have animations enabled
+      const mondayBar = screen.getByTestId('daily-bar-monday');
+      expect(mondayBar).toHaveClass('transition-transform');
+    });
+  });
 });

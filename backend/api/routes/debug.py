@@ -1001,6 +1001,96 @@ class MemoryStatsResponse(BaseModel):
     timestamp: str = Field(description="ISO timestamp of response")
 
 
+# =============================================================================
+# NEM-5000, NEM-5001: Typed Response Schemas for dict[str, Any] endpoints
+# =============================================================================
+
+
+class GCCollectedStats(BaseModel):
+    """GC collection stats per generation."""
+
+    gen0: int = Field(description="Objects collected from generation 0")
+    gen1: int = Field(description="Objects collected from generation 1")
+    gen2: int = Field(description="Objects collected from generation 2")
+    total: int = Field(description="Total objects collected across all generations")
+
+
+class GCMemoryStats(BaseModel):
+    """Memory stats before and after GC."""
+
+    rss_before_bytes: int = Field(description="RSS memory before GC in bytes")
+    rss_after_bytes: int = Field(description="RSS memory after GC in bytes")
+    freed_bytes: int = Field(description="Memory freed by GC in bytes")
+    freed_human: str = Field(description="Human-readable memory freed")
+
+
+class GCTriggerResponse(BaseModel):
+    """Response for garbage collection trigger.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    collected: GCCollectedStats = Field(description="Collection statistics per generation")
+    memory: GCMemoryStats = Field(description="Memory statistics before and after GC")
+    uncollectable: int = Field(description="Number of uncollectable objects")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+class TraceMallocStartResponse(BaseModel):
+    """Response for starting tracemalloc.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    status: str = Field(description="Status of tracemalloc ('started' or 'already_running')")
+    nframes: int | None = Field(default=None, description="Number of frames configured")
+    message: str = Field(description="Human-readable status message")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+class TraceMallocFinalStats(BaseModel):
+    """Final memory statistics from tracemalloc."""
+
+    current_bytes: int = Field(description="Current traced memory in bytes")
+    current_human: str = Field(description="Human-readable current memory")
+    peak_bytes: int = Field(description="Peak traced memory in bytes")
+    peak_human: str = Field(description="Human-readable peak memory")
+
+
+class TraceMallocStopResponse(BaseModel):
+    """Response for stopping tracemalloc.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    status: str = Field(description="Status of tracemalloc ('stopped' or 'not_running')")
+    final_stats: TraceMallocFinalStats | None = Field(
+        default=None, description="Final memory statistics if tracemalloc was running"
+    )
+    message: str | None = Field(default=None, description="Human-readable status message")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+class RecordingDetailResponse(BaseModel):
+    """Response for a single recording with full details.
+
+    NEM-5000: Typed response replacing dict[str, Any] return type.
+    """
+
+    recording_id: str = Field(description="Unique recording ID")
+    timestamp: str = Field(description="ISO timestamp when recorded")
+    method: str = Field(description="HTTP method")
+    path: str = Field(description="Request path")
+    status_code: int = Field(description="HTTP response status code")
+    duration_ms: float = Field(description="Request duration in milliseconds")
+    headers: dict[str, Any] = Field(default_factory=dict, description="Request headers")
+    body: Any | None = Field(default=None, description="Request body")
+    query_params: dict[str, Any] = Field(default_factory=dict, description="Query parameters")
+    response: Any | None = Field(default=None, description="Response data")
+    body_truncated: bool = Field(default=False, description="Whether body was truncated")
+    retrieved_at: str = Field(description="ISO timestamp when retrieved")
+
+
 def _format_bytes(size_bytes: int) -> str:
     """Format bytes as human-readable string."""
     for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -1115,6 +1205,7 @@ async def get_memory_stats(
 
 @router.post(
     "/memory/gc",
+    response_model=GCTriggerResponse,
     responses={
         404: {"description": "Not found - Debug mode disabled"},
         500: {"description": "Internal server error"},
@@ -1122,14 +1213,14 @@ async def get_memory_stats(
 )
 async def trigger_gc(
     _debug: None = Depends(require_debug_mode),
-) -> dict[str, Any]:
+) -> GCTriggerResponse:
     """Trigger garbage collection and return stats.
 
     Forces a full garbage collection cycle and returns the number of
     objects collected. Useful for testing if memory can be reclaimed.
 
     Returns:
-        GC collection statistics
+        GCTriggerResponse with collection statistics
     """
     import gc
 
@@ -1145,26 +1236,27 @@ async def trigger_gc(
 
     rss_after = process.memory_info().rss
 
-    return {
-        "collected": {
-            "gen0": collected_gen0,
-            "gen1": collected_gen1,
-            "gen2": collected_gen2,
-            "total": collected_gen0 + collected_gen1 + collected_gen2,
-        },
-        "memory": {
-            "rss_before_bytes": rss_before,
-            "rss_after_bytes": rss_after,
-            "freed_bytes": rss_before - rss_after,
-            "freed_human": _format_bytes(rss_before - rss_after),
-        },
-        "uncollectable": len(gc.garbage),
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
+    return GCTriggerResponse(
+        collected=GCCollectedStats(
+            gen0=collected_gen0,
+            gen1=collected_gen1,
+            gen2=collected_gen2,
+            total=collected_gen0 + collected_gen1 + collected_gen2,
+        ),
+        memory=GCMemoryStats(
+            rss_before_bytes=rss_before,
+            rss_after_bytes=rss_after,
+            freed_bytes=rss_before - rss_after,
+            freed_human=_format_bytes(rss_before - rss_after),
+        ),
+        uncollectable=len(gc.garbage),
+        timestamp=datetime.now(UTC).isoformat(),
+    )
 
 
 @router.post(
     "/memory/tracemalloc/start",
+    response_model=TraceMallocStartResponse,
     responses={
         404: {"description": "Not found - Debug mode disabled"},
         500: {"description": "Internal server error"},
@@ -1173,7 +1265,7 @@ async def trigger_gc(
 async def start_tracemalloc(
     nframes: int = 25,
     _debug: None = Depends(require_debug_mode),
-) -> dict[str, Any]:
+) -> TraceMallocStartResponse:
     """Start tracemalloc memory tracing.
 
     Enables detailed memory allocation tracking. This adds some overhead
@@ -1183,29 +1275,30 @@ async def start_tracemalloc(
         nframes: Number of stack frames to capture (default: 25)
 
     Returns:
-        Status of tracemalloc
+        TraceMallocStartResponse with status
     """
     import tracemalloc
 
     if tracemalloc.is_tracing():
-        return {
-            "status": "already_running",
-            "message": "tracemalloc is already running",
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
+        return TraceMallocStartResponse(
+            status="already_running",
+            message="tracemalloc is already running",
+            timestamp=datetime.now(UTC).isoformat(),
+        )
 
     tracemalloc.start(nframes)
 
-    return {
-        "status": "started",
-        "nframes": nframes,
-        "message": f"tracemalloc started with {nframes} frames",
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
+    return TraceMallocStartResponse(
+        status="started",
+        nframes=nframes,
+        message=f"tracemalloc started with {nframes} frames",
+        timestamp=datetime.now(UTC).isoformat(),
+    )
 
 
 @router.post(
     "/memory/tracemalloc/stop",
+    response_model=TraceMallocStopResponse,
     responses={
         404: {"description": "Not found - Debug mode disabled"},
         500: {"description": "Internal server error"},
@@ -1213,36 +1306,36 @@ async def start_tracemalloc(
 )
 async def stop_tracemalloc(
     _debug: None = Depends(require_debug_mode),
-) -> dict[str, Any]:
+) -> TraceMallocStopResponse:
     """Stop tracemalloc memory tracing.
 
     Stops memory allocation tracking and clears the trace data.
 
     Returns:
-        Final memory statistics before stopping
+        TraceMallocStopResponse with final memory statistics
     """
     import tracemalloc
 
     if not tracemalloc.is_tracing():
-        return {
-            "status": "not_running",
-            "message": "tracemalloc was not running",
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
+        return TraceMallocStopResponse(
+            status="not_running",
+            message="tracemalloc was not running",
+            timestamp=datetime.now(UTC).isoformat(),
+        )
 
     current, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
-    return {
-        "status": "stopped",
-        "final_stats": {
-            "current_bytes": current,
-            "current_human": _format_bytes(current),
-            "peak_bytes": peak,
-            "peak_human": _format_bytes(peak),
-        },
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
+    return TraceMallocStopResponse(
+        status="stopped",
+        final_stats=TraceMallocFinalStats(
+            current_bytes=current,
+            current_human=_format_bytes(current),
+            peak_bytes=peak,
+            peak_human=_format_bytes(peak),
+        ),
+        timestamp=datetime.now(UTC).isoformat(),
+    )
 
 
 # =============================================================================
@@ -1369,11 +1462,11 @@ async def list_recordings(
     )
 
 
-@router.get("/recordings/{recording_id}")
+@router.get("/recordings/{recording_id}", response_model=RecordingDetailResponse)
 async def get_recording(
     recording_id: str,
     _debug: None = Depends(require_debug_mode),
-) -> dict[str, Any]:
+) -> RecordingDetailResponse:
     """Get details of a specific recording.
 
     Returns the full recording data including headers, body, and response.
@@ -1384,7 +1477,7 @@ async def get_recording(
         recording_id: ID of the recording to retrieve
 
     Returns:
-        Full recording data
+        RecordingDetailResponse with full recording data
 
     Raises:
         HTTPException: 404 if recording not found
@@ -1404,10 +1497,20 @@ async def get_recording(
         with recording_path.open() as f:
             data = json.load(f)
 
-        return {
-            **data,
-            "retrieved_at": datetime.now(UTC).isoformat(),
-        }
+        return RecordingDetailResponse(
+            recording_id=data.get("recording_id", recording_id),
+            timestamp=data.get("timestamp", ""),
+            method=data.get("method", ""),
+            path=data.get("path", ""),
+            status_code=data.get("status_code", 0),
+            duration_ms=data.get("duration_ms", 0.0),
+            headers=data.get("headers", {}),
+            body=data.get("body"),
+            query_params=data.get("query_params", {}),
+            response=data.get("response"),
+            body_truncated=data.get("body_truncated", False),
+            retrieved_at=datetime.now(UTC).isoformat(),
+        )
     except Exception as e:
         logger.error(f"Failed to read recording {recording_id}: {e}")
         raise HTTPException(

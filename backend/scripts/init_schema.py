@@ -79,8 +79,8 @@ async def init_schema(force: bool = False) -> None:
         print("  1. Run with --force flag: python -m backend.scripts.init_schema --force")
         print("  2. Set ENVIRONMENT=development in your environment")
         print("")
-        print("For production database migrations, use Alembic instead:")
-        print("  alembic upgrade head")
+        print("For production deployments, let the backend initialize the schema:")
+        print("  init_db() is called automatically during backend startup")
         sys.exit(1)
 
     print("Connecting to database...")
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Initialize database schema from SQLAlchemy models",
-        epilog="WARNING: This script drops all tables! Use Alembic for production migrations.",
+        epilog="WARNING: This script drops all tables! Schema is auto-initialized during backend startup.",
     )
     parser.add_argument(
         "--force",

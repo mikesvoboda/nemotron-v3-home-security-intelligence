@@ -16,6 +16,9 @@ import { clsx } from 'clsx';
 import { BarChart3 } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
+import { shouldAnimateChart } from '../../utils/chartAnimation';
+import { ChartLoadingState } from '../common/ChartLoadingState';
+
 import type { ComparisonMetric, ZoneComparisonData } from '../../hooks/useZoneComparison';
 
 // ============================================================================
@@ -61,17 +64,6 @@ function getMetricLabel(metric: ComparisonMetric): string {
 // ============================================================================
 // Subcomponents
 // ============================================================================
-
-/**
- * Loading skeleton for the chart.
- */
-function ChartSkeleton() {
-  return (
-    <div className="flex h-64 items-center justify-center" data-testid="chart-skeleton">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#76B900] border-t-transparent" />
-    </div>
-  );
-}
 
 /**
  * Empty state when no data is available.
@@ -128,7 +120,7 @@ function ZoneComparisonChartComponent({
           <BarChart3 className="h-5 w-5 text-[#76B900]" aria-hidden="true" />
           Zone Comparison
         </Title>
-        <ChartSkeleton />
+        <ChartLoadingState height="h-64" data-testid="chart-skeleton" />
       </Card>
     );
   }
@@ -198,7 +190,7 @@ function ZoneComparisonChartComponent({
         index="name"
         categories={chartCategories}
         colors={['emerald']}
-        showAnimation
+        showAnimation={shouldAnimateChart(chartData.length)}
         showLegend={false}
         showGridLines={false}
         layout="vertical"

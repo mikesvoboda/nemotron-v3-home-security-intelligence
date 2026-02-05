@@ -1396,9 +1396,9 @@
             "type": "boolean"
           },
           "password": {
-            "description": "Password (minimum 12 characters)",
+            "description": "Password (minimum 8 characters)",
             "maxLength": 128,
-            "minLength": 12,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },
@@ -5113,6 +5113,47 @@
         "title": "AutoEnrollmentSettingsResponse",
         "type": "object"
       },
+      "BaselineConfigResponse": {
+        "description": "Response schema for baseline configuration.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "example": {
+          "global_config": {
+            "min_samples": 10,
+            "threshold_stdev": 2.0
+          },
+          "min_samples": 10,
+          "override_global_config": false,
+          "threshold_stdev": 2.0
+        },
+        "properties": {
+          "global_config": {
+            "$ref": "#/components/schemas/GlobalBaselineConfig",
+            "description": "Global default configuration values"
+          },
+          "min_samples": {
+            "description": "Active minimum samples value (from camera or global config)",
+            "title": "Min Samples",
+            "type": "integer"
+          },
+          "override_global_config": {
+            "description": "Whether per-camera overrides are active",
+            "title": "Override Global Config",
+            "type": "boolean"
+          },
+          "threshold_stdev": {
+            "description": "Active threshold value (from camera or global config)",
+            "title": "Threshold Stdev",
+            "type": "number"
+          }
+        },
+        "required": [
+          "threshold_stdev",
+          "min_samples",
+          "override_global_config",
+          "global_config"
+        ],
+        "title": "BaselineConfigResponse",
+        "type": "object"
+      },
       "BaselineConfigUpdate": {
         "description": "Request schema for updating per-camera baseline configuration.\n\nNEM-4921: Schema for PUT /api/cameras/{camera_id}/baseline/config endpoint.\nAll fields are optional; only provided fields are updated.",
         "example": {
@@ -5159,6 +5200,33 @@
           }
         },
         "title": "BaselineConfigUpdate",
+        "type": "object"
+      },
+      "BaselineResetResponse": {
+        "description": "Response schema for baseline reset operation.\n\nNEM-5000: Typed response replacing dict[str, int] return type.",
+        "example": {
+          "activity_baselines_deleted": 168,
+          "class_baselines_deleted": 72
+        },
+        "properties": {
+          "activity_baselines_deleted": {
+            "description": "Number of ActivityBaseline records deleted",
+            "minimum": 0.0,
+            "title": "Activity Baselines Deleted",
+            "type": "integer"
+          },
+          "class_baselines_deleted": {
+            "description": "Number of ClassBaseline records deleted",
+            "minimum": 0.0,
+            "title": "Class Baselines Deleted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "activity_baselines_deleted",
+          "class_baselines_deleted"
+        ],
+        "title": "BaselineResetResponse",
         "type": "object"
       },
       "BaselineSummaryResponse": {
@@ -18077,6 +18145,103 @@
         "title": "FullHealthResponse",
         "type": "object"
       },
+      "GCCollectedStats": {
+        "description": "GC collection stats per generation.",
+        "properties": {
+          "gen0": {
+            "description": "Objects collected from generation 0",
+            "title": "Gen0",
+            "type": "integer"
+          },
+          "gen1": {
+            "description": "Objects collected from generation 1",
+            "title": "Gen1",
+            "type": "integer"
+          },
+          "gen2": {
+            "description": "Objects collected from generation 2",
+            "title": "Gen2",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total objects collected across all generations",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "gen0",
+          "gen1",
+          "gen2",
+          "total"
+        ],
+        "title": "GCCollectedStats",
+        "type": "object"
+      },
+      "GCMemoryStats": {
+        "description": "Memory stats before and after GC.",
+        "properties": {
+          "freed_bytes": {
+            "description": "Memory freed by GC in bytes",
+            "title": "Freed Bytes",
+            "type": "integer"
+          },
+          "freed_human": {
+            "description": "Human-readable memory freed",
+            "title": "Freed Human",
+            "type": "string"
+          },
+          "rss_after_bytes": {
+            "description": "RSS memory after GC in bytes",
+            "title": "Rss After Bytes",
+            "type": "integer"
+          },
+          "rss_before_bytes": {
+            "description": "RSS memory before GC in bytes",
+            "title": "Rss Before Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rss_before_bytes",
+          "rss_after_bytes",
+          "freed_bytes",
+          "freed_human"
+        ],
+        "title": "GCMemoryStats",
+        "type": "object"
+      },
+      "GCTriggerResponse": {
+        "description": "Response for garbage collection trigger.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "properties": {
+          "collected": {
+            "$ref": "#/components/schemas/GCCollectedStats",
+            "description": "Collection statistics per generation"
+          },
+          "memory": {
+            "$ref": "#/components/schemas/GCMemoryStats",
+            "description": "Memory statistics before and after GC"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "uncollectable": {
+            "description": "Number of uncollectable objects",
+            "title": "Uncollectable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "collected",
+          "memory",
+          "uncollectable",
+          "timestamp"
+        ],
+        "title": "GCTriggerResponse",
+        "type": "object"
+      },
       "GPUStatsHistoryResponse": {
         "description": "Response schema for GPU stats history endpoint.\n\nUses standard pagination envelope format (NEM-2178):\n- items: GPU stats samples (renamed from 'samples')\n- pagination: Standard pagination metadata",
         "example": {
@@ -18852,6 +19017,51 @@
           "recorded_at"
         ],
         "title": "GPUStatsSample",
+        "type": "object"
+      },
+      "GlobalBaselineConfig": {
+        "description": "Global baseline configuration defaults.",
+        "properties": {
+          "decay_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exponential decay factor for EWMA",
+            "title": "Decay Factor"
+          },
+          "min_samples": {
+            "description": "Default minimum samples",
+            "title": "Min Samples",
+            "type": "integer"
+          },
+          "threshold_stdev": {
+            "description": "Default threshold standard deviation",
+            "title": "Threshold Stdev",
+            "type": "number"
+          },
+          "window_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rolling window size in days",
+            "title": "Window Days"
+          }
+        },
+        "required": [
+          "threshold_stdev",
+          "min_samples"
+        ],
+        "title": "GlobalBaselineConfig",
         "type": "object"
       },
       "GpuApplyResponse": {
@@ -28060,6 +28270,101 @@
         "title": "OldestJobInfo",
         "type": "object"
       },
+      "OnvifCapabilitiesResponse": {
+        "additionalProperties": true,
+        "description": "Response schema for ONVIF device capabilities.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.\nContains device info and capability flags from ONVIF GetCapabilities.",
+        "example": {
+          "analytics_supported": false,
+          "firmware_version": "5.4.5",
+          "manufacturer": "Hikvision",
+          "media_supported": true,
+          "model": "DS-2CD2032-I",
+          "ptz_supported": true,
+          "serial_number": "SN001234567890"
+        },
+        "properties": {
+          "analytics_supported": {
+            "default": false,
+            "description": "Whether video analytics is supported",
+            "title": "Analytics Supported",
+            "type": "boolean"
+          },
+          "firmware_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device firmware version",
+            "title": "Firmware Version"
+          },
+          "hardware_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device hardware ID",
+            "title": "Hardware Id"
+          },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device manufacturer name",
+            "title": "Manufacturer"
+          },
+          "media_supported": {
+            "default": false,
+            "description": "Whether media streaming is supported",
+            "title": "Media Supported",
+            "type": "boolean"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device model name",
+            "title": "Model"
+          },
+          "ptz_supported": {
+            "default": false,
+            "description": "Whether PTZ control is supported",
+            "title": "Ptz Supported",
+            "type": "boolean"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device serial number",
+            "title": "Serial Number"
+          }
+        },
+        "title": "OnvifCapabilitiesResponse",
+        "type": "object"
+      },
       "OnvifDiscoveryRequest": {
         "description": "Request schema for ONVIF device discovery.\n\nNEM-4207: Defines the network subnet to scan and timeout for WS-Discovery.",
         "example": {
@@ -28086,6 +28391,111 @@
           "subnet"
         ],
         "title": "OnvifDiscoveryRequest",
+        "type": "object"
+      },
+      "OnvifDiscoveryResponse": {
+        "description": "Response schema for ONVIF device discovery.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "example": {
+          "count": 1,
+          "devices": [
+            {
+              "device_url": "http://192.168.1.100/onvif/device_service",
+              "manufacturer": "Hikvision",
+              "model": "DS-2CD2032-I"
+            }
+          ]
+        },
+        "properties": {
+          "count": {
+            "description": "Number of devices discovered",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "devices": {
+            "description": "List of discovered ONVIF devices",
+            "items": {
+              "$ref": "#/components/schemas/OnvifDiscoveryResult"
+            },
+            "title": "Devices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "OnvifDiscoveryResponse",
+        "type": "object"
+      },
+      "OnvifDiscoveryResult": {
+        "description": "Response schema for a discovered ONVIF device.\n\nNEM-4207: Contains device information from WS-Discovery response.",
+        "example": {
+          "device_url": "http://192.168.1.100/onvif/device_service",
+          "firmware_version": "5.4.5",
+          "hardware_id": "HW-001",
+          "manufacturer": "Hikvision",
+          "model": "DS-2CD2032-I",
+          "serial_number": "SN001234567890"
+        },
+        "properties": {
+          "device_url": {
+            "description": "ONVIF device service URL",
+            "title": "Device Url",
+            "type": "string"
+          },
+          "firmware_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device firmware version",
+            "title": "Firmware Version"
+          },
+          "hardware_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device hardware ID",
+            "title": "Hardware Id"
+          },
+          "manufacturer": {
+            "description": "Device manufacturer name",
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "model": {
+            "description": "Device model name",
+            "title": "Model",
+            "type": "string"
+          },
+          "serial_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Device serial number",
+            "title": "Serial Number"
+          }
+        },
+        "required": [
+          "device_url",
+          "manufacturer",
+          "model"
+        ],
+        "title": "OnvifDiscoveryResult",
         "type": "object"
       },
       "OrphanCleanupRequest": {
@@ -28298,6 +28708,160 @@
           "value"
         ],
         "title": "PTZCommand",
+        "type": "object"
+      },
+      "PTZCommandResponse": {
+        "description": "Response schema for PTZ command execution.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "example": {
+          "command": "pan",
+          "speed": 1.0,
+          "success": true,
+          "value": 0.5
+        },
+        "properties": {
+          "command": {
+            "description": "The command type that was executed",
+            "title": "Command",
+            "type": "string"
+          },
+          "speed": {
+            "default": 0.0,
+            "description": "The speed used (0.0 to 1.0)",
+            "title": "Speed",
+            "type": "number"
+          },
+          "success": {
+            "description": "Whether the command was executed successfully",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "value": {
+            "default": 0.0,
+            "description": "The movement value used (-1.0 to 1.0)",
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "success",
+          "command"
+        ],
+        "title": "PTZCommandResponse",
+        "type": "object"
+      },
+      "PTZGotoPresetResponse": {
+        "description": "Response schema for navigating to a PTZ preset.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "example": {
+          "preset_token": "preset_1",
+          "success": true
+        },
+        "properties": {
+          "preset_token": {
+            "description": "The preset token that was used",
+            "title": "Preset Token",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether navigation to the preset started successfully",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "preset_token"
+        ],
+        "title": "PTZGotoPresetResponse",
+        "type": "object"
+      },
+      "PTZPreset": {
+        "description": "PTZ preset position schema.\n\nNEM-4207: Represents a saved PTZ preset position.",
+        "example": {
+          "name": "Front Door View",
+          "token": "preset_1"
+        },
+        "properties": {
+          "name": {
+            "description": "Preset name",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "token": {
+            "description": "Unique preset token",
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name"
+        ],
+        "title": "PTZPreset",
+        "type": "object"
+      },
+      "PTZPresetsResponse": {
+        "description": "Response schema for listing PTZ presets.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "example": {
+          "count": 2,
+          "presets": [
+            {
+              "name": "Front Door View",
+              "token": "preset_1"
+            },
+            {
+              "name": "Backyard",
+              "token": "preset_2"
+            }
+          ]
+        },
+        "properties": {
+          "count": {
+            "description": "Number of presets available",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "presets": {
+            "description": "List of available PTZ presets",
+            "items": {
+              "$ref": "#/components/schemas/PTZPreset"
+            },
+            "title": "Presets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "PTZPresetsResponse",
+        "type": "object"
+      },
+      "PTZStopResponse": {
+        "description": "Response schema for PTZ stop command.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "example": {
+          "command": "stop",
+          "success": true
+        },
+        "properties": {
+          "command": {
+            "const": "stop",
+            "default": "stop",
+            "description": "The command type (always 'stop')",
+            "title": "Command",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the stop command was executed successfully",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "PTZStopResponse",
         "type": "object"
       },
       "PaginationInfo": {
@@ -30647,6 +31211,32 @@
           "expires_in"
         ],
         "title": "PreviewStartResponse",
+        "type": "object"
+      },
+      "PreviewStopResponse": {
+        "description": "Response schema for stopping a preview stream.\n\nNEM-5000: Typed response replacing dict return type.",
+        "example": {
+          "message": "Preview stopped for camera front_door",
+          "status": "ok"
+        },
+        "properties": {
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "description": "Operation status (always 'ok' on success)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "PreviewStopResponse",
         "type": "object"
       },
       "PricingConfig": {
@@ -33004,6 +33594,95 @@
           "total_events_analyzed"
         ],
         "title": "RecommendationsResponse",
+        "type": "object"
+      },
+      "RecordingDetailResponse": {
+        "description": "Response for a single recording with full details.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "properties": {
+          "body": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Request body",
+            "title": "Body"
+          },
+          "body_truncated": {
+            "default": false,
+            "description": "Whether body was truncated",
+            "title": "Body Truncated",
+            "type": "boolean"
+          },
+          "duration_ms": {
+            "description": "Request duration in milliseconds",
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "headers": {
+            "additionalProperties": true,
+            "description": "Request headers",
+            "title": "Headers",
+            "type": "object"
+          },
+          "method": {
+            "description": "HTTP method",
+            "title": "Method",
+            "type": "string"
+          },
+          "path": {
+            "description": "Request path",
+            "title": "Path",
+            "type": "string"
+          },
+          "query_params": {
+            "additionalProperties": true,
+            "description": "Query parameters",
+            "title": "Query Params",
+            "type": "object"
+          },
+          "recording_id": {
+            "description": "Unique recording ID",
+            "title": "Recording Id",
+            "type": "string"
+          },
+          "response": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Response data",
+            "title": "Response"
+          },
+          "retrieved_at": {
+            "description": "ISO timestamp when retrieved",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "status_code": {
+            "description": "HTTP response status code",
+            "title": "Status Code",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "ISO timestamp when recorded",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recording_id",
+          "timestamp",
+          "method",
+          "path",
+          "status_code",
+          "duration_ms",
+          "retrieved_at"
+        ],
+        "title": "RecordingDetailResponse",
         "type": "object"
       },
       "RecordingResponse": {
@@ -38179,6 +38858,78 @@
         "title": "TokenUsageMetrics",
         "type": "object"
       },
+      "TraceMallocFinalStats": {
+        "description": "Final memory statistics from tracemalloc.",
+        "properties": {
+          "current_bytes": {
+            "description": "Current traced memory in bytes",
+            "title": "Current Bytes",
+            "type": "integer"
+          },
+          "current_human": {
+            "description": "Human-readable current memory",
+            "title": "Current Human",
+            "type": "string"
+          },
+          "peak_bytes": {
+            "description": "Peak traced memory in bytes",
+            "title": "Peak Bytes",
+            "type": "integer"
+          },
+          "peak_human": {
+            "description": "Human-readable peak memory",
+            "title": "Peak Human",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_bytes",
+          "current_human",
+          "peak_bytes",
+          "peak_human"
+        ],
+        "title": "TraceMallocFinalStats",
+        "type": "object"
+      },
+      "TraceMallocStartResponse": {
+        "description": "Response for starting tracemalloc.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "properties": {
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "nframes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of frames configured",
+            "title": "Nframes"
+          },
+          "status": {
+            "description": "Status of tracemalloc ('started' or 'already_running')",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message",
+          "timestamp"
+        ],
+        "title": "TraceMallocStartResponse",
+        "type": "object"
+      },
       "TraceMallocStats": {
         "description": "Tracemalloc statistics if enabled.",
         "properties": {
@@ -38213,6 +38964,50 @@
           "enabled"
         ],
         "title": "TraceMallocStats",
+        "type": "object"
+      },
+      "TraceMallocStopResponse": {
+        "description": "Response for stopping tracemalloc.\n\nNEM-5000: Typed response replacing dict[str, Any] return type.",
+        "properties": {
+          "final_stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceMallocFinalStats"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Final memory statistics if tracemalloc was running"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable status message",
+            "title": "Message"
+          },
+          "status": {
+            "description": "Status of tracemalloc ('stopped' or 'not_running')",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "timestamp"
+        ],
+        "title": "TraceMallocStopResponse",
         "type": "object"
       },
       "TrackHistoryResponse": {
@@ -39226,9 +40021,9 @@
             "type": "string"
           },
           "password": {
-            "description": "Password (minimum 12 characters)",
+            "description": "Password (minimum 8 characters)",
             "maxLength": 128,
-            "minLength": 12,
+            "minLength": 8,
             "title": "Password",
             "type": "string"
           },
@@ -47866,7 +48661,7 @@
     },
     "/api/cameras/onvif/discover": {
       "post": {
-        "description": "Discover ONVIF devices on the network using WS-Discovery.\n\nScans the specified subnet for ONVIF-compatible cameras and returns\ndevice information including IP, manufacturer, model, and RTSP URLs.\n\nArgs:\n    request: Discovery request with subnet and timeout\n\nReturns:\n    Dictionary with discovered devices and count:\n    - devices: List of discovered device information\n    - count: Total number of devices found\n\nRaises:\n    HTTPException: 500 if discovery fails",
+        "description": "Discover ONVIF devices on the network using WS-Discovery.\n\nScans the specified subnet for ONVIF-compatible cameras and returns\ndevice information including IP, manufacturer, model, and RTSP URLs.\n\nArgs:\n    request: Discovery request with subnet and timeout\n\nReturns:\n    OnvifDiscoveryResponse with discovered devices and count\n\nRaises:\n    HTTPException: 500 if discovery fails",
         "operationId": "cameras_discover_onvif_devices",
         "requestBody": {
           "content": {
@@ -47883,9 +48678,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Cameras Discover Onvif Devices",
-                  "type": "object"
+                  "$ref": "#/components/schemas/OnvifDiscoveryResponse"
                 }
               }
             },
@@ -48357,7 +49150,7 @@
     },
     "/api/cameras/{camera_id}/baseline/config": {
       "get": {
-        "description": "Get baseline configuration for a camera.\n\nReturns the active configuration for the camera, which may be either\nper-camera overrides or global defaults based on override_global_config.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    Dictionary containing:\n    - threshold_stdev: Active threshold value\n    - min_samples: Active minimum samples value\n    - override_global_config: Whether per-camera overrides are active\n    - global_config: Dictionary of global defaults\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Get baseline configuration for a camera.\n\nReturns the active configuration for the camera, which may be either\nper-camera overrides or global defaults based on override_global_config.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    BaselineConfigResponse with active configuration values\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "cameras_get_baseline_config",
         "parameters": [
           {
@@ -48375,9 +49168,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Cameras Get Baseline Config",
-                  "type": "object"
+                  "$ref": "#/components/schemas/BaselineConfigResponse"
                 }
               }
             },
@@ -48400,7 +49191,7 @@
         ]
       },
       "put": {
-        "description": "Update per-camera baseline configuration.\n\nAllows tuning anomaly detection parameters for individual cameras.\nOnly provided fields are updated; omitted fields retain their current values.\n\nArgs:\n    camera_id: ID of the camera\n    config: Configuration update parameters\n    db: Database session\n\nReturns:\n    Dictionary with updated configuration values\n\nRaises:\n    HTTPException: 404 if camera not found\n    ValueError: If threshold_stdev < 0.5 or min_samples < 1",
+        "description": "Update per-camera baseline configuration.\n\nAllows tuning anomaly detection parameters for individual cameras.\nOnly provided fields are updated; omitted fields retain their current values.\n\nArgs:\n    camera_id: ID of the camera\n    config: Configuration update parameters\n    db: Database session\n\nReturns:\n    BaselineConfigResponse with updated configuration values\n\nRaises:\n    HTTPException: 404 if camera not found\n    ValueError: If threshold_stdev < 0.5 or min_samples < 1",
         "operationId": "cameras_update_baseline_config",
         "parameters": [
           {
@@ -48428,9 +49219,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Cameras Update Baseline Config",
-                  "type": "object"
+                  "$ref": "#/components/schemas/BaselineConfigResponse"
                 }
               }
             },
@@ -48455,7 +49244,7 @@
     },
     "/api/cameras/{camera_id}/baseline/reset": {
       "post": {
-        "description": "Reset all baseline data for a camera.\n\nDeletes all ActivityBaseline and ClassBaseline records for the camera,\nforcing the baseline to be re-learned from new detections.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    Dictionary with counts of deleted records:\n    - activity_baselines_deleted: Number of ActivityBaseline records deleted\n    - class_baselines_deleted: Number of ClassBaseline records deleted\n\nRaises:\n    HTTPException: 404 if camera not found",
+        "description": "Reset all baseline data for a camera.\n\nDeletes all ActivityBaseline and ClassBaseline records for the camera,\nforcing the baseline to be re-learned from new detections.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n\nReturns:\n    BaselineResetResponse with counts of deleted records\n\nRaises:\n    HTTPException: 404 if camera not found",
         "operationId": "cameras_reset_baseline",
         "parameters": [
           {
@@ -48473,11 +49262,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "integer"
-                  },
-                  "title": "Response Cameras Reset Baseline",
-                  "type": "object"
+                  "$ref": "#/components/schemas/BaselineResetResponse"
                 }
               }
             },
@@ -48502,7 +49287,7 @@
     },
     "/api/cameras/{camera_id}/onvif/capabilities": {
       "get": {
-        "description": "Get ONVIF device capabilities for a camera.\n\nRetrieves device information and capability flags including:\n- Manufacturer, model, firmware version\n- PTZ support\n- Media support\n- Analytics support\n\nArgs:\n    camera_id: ID of the camera to get capabilities for\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for capability retrieval\n\nReturns:\n    Dictionary with device info and capability flags\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
+        "description": "Get ONVIF device capabilities for a camera.\n\nRetrieves device information and capability flags including:\n- Manufacturer, model, firmware version\n- PTZ support\n- Media support\n- Analytics support\n\nArgs:\n    camera_id: ID of the camera to get capabilities for\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for capability retrieval\n\nReturns:\n    OnvifCapabilitiesResponse with device info and capability flags\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
         "operationId": "onvif_get_capabilities_endpoint",
         "parameters": [
           {
@@ -48520,9 +49305,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Onvif Get Capabilities Endpoint",
-                  "type": "object"
+                  "$ref": "#/components/schemas/OnvifCapabilitiesResponse"
                 }
               }
             },
@@ -48556,7 +49339,7 @@
     },
     "/api/cameras/{camera_id}/onvif/presets": {
       "get": {
-        "description": "Get available PTZ presets for a camera.\n\nRetrieves the list of saved PTZ positions (presets) configured on\nthe camera. Each preset has a token and optional name.\n\nArgs:\n    camera_id: ID of the camera to get presets for\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for preset retrieval\n\nReturns:\n    Dictionary with:\n    - presets: List of preset objects with token and name\n    - count: Number of presets available\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
+        "description": "Get available PTZ presets for a camera.\n\nRetrieves the list of saved PTZ positions (presets) configured on\nthe camera. Each preset has a token and optional name.\n\nArgs:\n    camera_id: ID of the camera to get presets for\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for preset retrieval\n\nReturns:\n    PTZPresetsResponse with presets list and count\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
         "operationId": "onvif_get_presets_endpoint",
         "parameters": [
           {
@@ -48574,9 +49357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Onvif Get Presets Endpoint",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PTZPresetsResponse"
                 }
               }
             },
@@ -48610,7 +49391,7 @@
     },
     "/api/cameras/{camera_id}/onvif/presets/{preset_token}": {
       "post": {
-        "description": "Navigate camera to a saved PTZ preset position.\n\nMoves the camera to a previously saved preset position. The preset_token\nis obtained from the GET /presets endpoint.\n\nArgs:\n    camera_id: ID of the camera to control\n    preset_token: Token identifying the preset position\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    Dictionary with:\n    - success: True if navigation started\n    - preset_token: The preset token that was used\n\nRaises:\n    HTTPException: 400 if invalid preset token, 404 if camera not found,\n                  409 if not ONVIF device, 503 if device unreachable",
+        "description": "Navigate camera to a saved PTZ preset position.\n\nMoves the camera to a previously saved preset position. The preset_token\nis obtained from the GET /presets endpoint.\n\nArgs:\n    camera_id: ID of the camera to control\n    preset_token: Token identifying the preset position\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    PTZGotoPresetResponse with success status and preset token\n\nRaises:\n    HTTPException: 400 if invalid preset token, 404 if camera not found,\n                  409 if not ONVIF device, 503 if device unreachable",
         "operationId": "onvif_goto_preset_endpoint",
         "parameters": [
           {
@@ -48637,9 +49418,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Onvif Goto Preset Endpoint",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PTZGotoPresetResponse"
                 }
               }
             },
@@ -48676,7 +49455,7 @@
     },
     "/api/cameras/{camera_id}/onvif/ptz": {
       "post": {
-        "description": "Execute a PTZ command (pan, tilt, zoom, stop) on a camera.\n\nThis endpoint controls PTZ cameras via ONVIF protocol. The frontend uses\nthis for the PTZ control D-pad and zoom buttons.\n\nArgs:\n    camera_id: ID of the camera to control\n    command: PTZ command with type, value, and speed\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    Dictionary with success status and executed command details:\n    - success: True if command executed\n    - command: The command type executed\n    - value: The movement value used\n    - speed: The speed used\n\nRaises:\n    HTTPException: 400 if invalid command/value, 404 if camera not found,\n                  409 if not ONVIF device, 503 if device unreachable",
+        "description": "Execute a PTZ command (pan, tilt, zoom, stop) on a camera.\n\nThis endpoint controls PTZ cameras via ONVIF protocol. The frontend uses\nthis for the PTZ control D-pad and zoom buttons.\n\nArgs:\n    camera_id: ID of the camera to control\n    command: PTZ command with type, value, and speed\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    PTZCommandResponse with success status and executed command details\n\nRaises:\n    HTTPException: 400 if invalid command/value, 404 if camera not found,\n                  409 if not ONVIF device, 503 if device unreachable",
         "operationId": "onvif_ptz_command_endpoint",
         "parameters": [
           {
@@ -48704,9 +49483,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Onvif Ptz Command Endpoint",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PTZCommandResponse"
                 }
               }
             },
@@ -48743,7 +49520,7 @@
     },
     "/api/cameras/{camera_id}/onvif/ptz/stop": {
       "post": {
-        "description": "Stop all PTZ movement on a camera.\n\nConvenience endpoint that sends a stop command without requiring\na request body. The frontend calls this when the user releases\nthe PTZ controls.\n\nArgs:\n    camera_id: ID of the camera to stop\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    Dictionary with success status\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
+        "description": "Stop all PTZ movement on a camera.\n\nConvenience endpoint that sends a stop command without requiring\na request body. The frontend calls this when the user releases\nthe PTZ controls.\n\nArgs:\n    camera_id: ID of the camera to stop\n    db: Database session for camera lookup\n    onvif_service: ONVIF service for PTZ control\n\nReturns:\n    PTZStopResponse with success status\n\nRaises:\n    HTTPException: 404 if camera not found, 409 if not ONVIF device,\n                  503 if device unreachable",
         "operationId": "onvif_ptz_stop_endpoint",
         "parameters": [
           {
@@ -48761,9 +49538,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Onvif Ptz Stop Endpoint",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PTZStopResponse"
                 }
               }
             },
@@ -48849,7 +49624,7 @@
     },
     "/api/cameras/{camera_id}/preview/stop": {
       "delete": {
-        "description": "Stop an RTSP preview stream for a specific camera.\n\nThis endpoint is idempotent - calling it for a camera without active preview is OK.\n404 responses from go2rtc are treated as success.\n\nArgs:\n    camera_id: The camera ID to stop preview for\n    db: Database session\n\nReturns:\n    Success message",
+        "description": "Stop an RTSP preview stream for a specific camera.\n\nThis endpoint is idempotent - calling it for a camera without active preview is OK.\n404 responses from go2rtc are treated as success.\n\nArgs:\n    camera_id: The camera ID to stop preview for\n    db: Database session\n\nReturns:\n    PreviewStopResponse with success status",
         "operationId": "cameras_stop_camera_preview",
         "parameters": [
           {
@@ -48867,9 +49642,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Cameras Stop Camera Preview",
-                  "type": "object"
+                  "$ref": "#/components/schemas/PreviewStopResponse"
                 }
               }
             },
@@ -49789,16 +50562,14 @@
     },
     "/api/debug/memory/gc": {
       "post": {
-        "description": "Trigger garbage collection and return stats.\n\nForces a full garbage collection cycle and returns the number of\nobjects collected. Useful for testing if memory can be reclaimed.\n\nReturns:\n    GC collection statistics",
+        "description": "Trigger garbage collection and return stats.\n\nForces a full garbage collection cycle and returns the number of\nobjects collected. Useful for testing if memory can be reclaimed.\n\nReturns:\n    GCTriggerResponse with collection statistics",
         "operationId": "debug_trigger_gc",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Debug Trigger Gc",
-                  "type": "object"
+                  "$ref": "#/components/schemas/GCTriggerResponse"
                 }
               }
             },
@@ -49819,7 +50590,7 @@
     },
     "/api/debug/memory/tracemalloc/start": {
       "post": {
-        "description": "Start tracemalloc memory tracing.\n\nEnables detailed memory allocation tracking. This adds some overhead\nbut allows tracking where memory is being allocated.\n\nArgs:\n    nframes: Number of stack frames to capture (default: 25)\n\nReturns:\n    Status of tracemalloc",
+        "description": "Start tracemalloc memory tracing.\n\nEnables detailed memory allocation tracking. This adds some overhead\nbut allows tracking where memory is being allocated.\n\nArgs:\n    nframes: Number of stack frames to capture (default: 25)\n\nReturns:\n    TraceMallocStartResponse with status",
         "operationId": "debug_start_tracemalloc",
         "parameters": [
           {
@@ -49838,9 +50609,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Debug Start Tracemalloc",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TraceMallocStartResponse"
                 }
               }
             },
@@ -49871,16 +50640,14 @@
     },
     "/api/debug/memory/tracemalloc/stop": {
       "post": {
-        "description": "Stop tracemalloc memory tracing.\n\nStops memory allocation tracking and clears the trace data.\n\nReturns:\n    Final memory statistics before stopping",
+        "description": "Stop tracemalloc memory tracing.\n\nStops memory allocation tracking and clears the trace data.\n\nReturns:\n    TraceMallocStopResponse with final memory statistics",
         "operationId": "debug_stop_tracemalloc",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Debug Stop Tracemalloc",
-                  "type": "object"
+                  "$ref": "#/components/schemas/TraceMallocStopResponse"
                 }
               }
             },
@@ -50206,7 +50973,7 @@
         ]
       },
       "get": {
-        "description": "Get details of a specific recording.\n\nReturns the full recording data including headers, body, and response.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to retrieve\n\nReturns:\n    Full recording data\n\nRaises:\n    HTTPException: 404 if recording not found",
+        "description": "Get details of a specific recording.\n\nReturns the full recording data including headers, body, and response.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to retrieve\n\nReturns:\n    RecordingDetailResponse with full recording data\n\nRaises:\n    HTTPException: 404 if recording not found",
         "operationId": "debug_get_recording",
         "parameters": [
           {
@@ -50224,9 +50991,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Debug Get Recording",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RecordingDetailResponse"
                 }
               }
             },

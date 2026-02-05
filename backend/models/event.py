@@ -45,7 +45,11 @@ class Event(Base):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    batch_id: Mapped[str] = mapped_column(String, nullable=False)
+    # NEM-5379: unique=True prevents duplicate events from race conditions
+    # When concurrent requests create events for the same batch_id, the database
+    # constraint will reject the duplicate and IntegrityError is caught in
+    # nemotron_analyzer.py to return the existing event gracefully.
+    batch_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     camera_id: Mapped[str] = mapped_column(
         String, ForeignKey("cameras.id", ondelete="CASCADE"), nullable=False
     )

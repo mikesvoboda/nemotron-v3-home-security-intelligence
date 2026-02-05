@@ -36,7 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
  * Form data for the login form.
  */
 interface LoginFormData {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -44,7 +44,7 @@ interface LoginFormData {
  * Validation errors for each form field.
  */
 interface FormErrors {
-  email?: string;
+  username?: string;
   password?: string;
 }
 
@@ -60,21 +60,14 @@ interface LocationState {
 // ============================================================================
 
 /**
- * Email validation regex pattern.
- */
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
  * Validates the form data and returns any errors.
  */
 function validateForm(data: LoginFormData): FormErrors {
   const errors: FormErrors = {};
 
-  // Email validation
-  if (!data.email.trim()) {
-    errors.email = 'Email is required';
-  } else if (!EMAIL_REGEX.test(data.email)) {
-    errors.email = 'Invalid email format';
+  // Username validation
+  if (!data.username.trim()) {
+    errors.username = 'Username is required';
   }
 
   // Password validation
@@ -104,7 +97,7 @@ export default function LoginPage() {
 
   // Form state
   const [formData, setFormData] = useState<LoginFormData>({
-    email: '',
+    username: '',
     password: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -163,7 +156,7 @@ export default function LoginPage() {
 
       try {
         await login({
-          email: formData.email,
+          username: formData.username,
           password: formData.password,
         });
         // Navigate to intended destination on success
@@ -228,33 +221,33 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Email Field */}
+          {/* Username Field */}
           <div>
             <label
-              htmlFor={`${formId}-email`}
+              htmlFor={`${formId}-username`}
               className="block text-sm font-medium text-white"
             >
-              Email
+              Username
             </label>
             <input
-              type="email"
-              id={`${formId}-email`}
-              value={formData.email}
-              onChange={handleChange('email')}
+              type="text"
+              id={`${formId}-username`}
+              value={formData.username}
+              onChange={handleChange('username')}
               disabled={isSubmitting}
-              autoComplete="email"
-              aria-describedby={errors.email ? `${formId}-email-error` : undefined}
+              autoComplete="username"
+              aria-describedby={errors.username ? `${formId}-username-error` : undefined}
               className={clsx(
                 'mt-1 block w-full rounded-lg border bg-[#1E1E1E] px-3 py-2 text-white focus:outline-none focus:ring-2',
-                errors.email
+                errors.username
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                   : 'border-gray-700 focus:border-[#76B900] focus:ring-[#76B900]'
               )}
-              placeholder="you@example.com"
+              placeholder="Enter your username"
             />
-            {errors.email && (
-              <p id={`${formId}-email-error`} className="mt-1 text-sm text-red-500">
-                {errors.email}
+            {errors.username && (
+              <p id={`${formId}-username-error`} className="mt-1 text-sm text-red-500">
+                {errors.username}
               </p>
             )}
           </div>

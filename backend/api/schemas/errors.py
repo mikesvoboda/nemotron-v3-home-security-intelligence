@@ -36,7 +36,7 @@ from datetime import datetime
 from typing import Any, NoReturn
 
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ErrorCode:
@@ -240,16 +240,17 @@ class FlatErrorResponse(BaseModel):
         examples=["req-123-456"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "error_code": "CAMERA_NOT_FOUND",
                 "message": "Camera 'front_door' not found in database",
                 "details": {"camera_id": "front_door"},
                 "request_id": "req-123-456",
             }
-        }
-    }
+        },
+    )
 
 
 class ErrorDetail(BaseModel):
@@ -291,16 +292,17 @@ class ErrorDetail(BaseModel):
         description="When the error occurred (ISO 8601 format)",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "code": "CAMERA_NOT_FOUND",
                 "message": "Camera with id 'front_door' not found",
                 "details": {"camera_id": "front_door"},
                 "request_id": "550e8400-e29b-41d4-a716-446655440000",
             }
-        }
-    }
+        },
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -318,8 +320,9 @@ class ErrorResponse(BaseModel):
         description="Error details",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "error": {
                     "code": "CAMERA_NOT_FOUND",
@@ -328,8 +331,8 @@ class ErrorResponse(BaseModel):
                     "request_id": "550e8400-e29b-41d4-a716-446655440000",
                 }
             }
-        }
-    }
+        },
+    )
 
 
 class ValidationErrorDetail(BaseModel):
@@ -379,8 +382,9 @@ class ValidationErrorResponse(BaseModel):
 
     error: ValidationErrorInfo
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "error": {
                     "code": "VALIDATION_ERROR",
@@ -400,8 +404,8 @@ class ValidationErrorResponse(BaseModel):
                     "request_id": "550e8400-e29b-41d4-a716-446655440000",
                 }
             }
-        }
-    }
+        },
+    )
 
 
 class RateLimitErrorResponse(BaseModel):
@@ -434,8 +438,9 @@ class RateLimitErrorResponse(BaseModel):
 
     error: RateLimitErrorInfo
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "error": {
                     "code": "RATE_LIMIT_EXCEEDED",
@@ -446,8 +451,8 @@ class RateLimitErrorResponse(BaseModel):
                     "request_id": "550e8400-e29b-41d4-a716-446655440000",
                 }
             }
-        }
-    }
+        },
+    )
 
 
 class ServiceUnavailableResponse(BaseModel):
@@ -476,8 +481,9 @@ class ServiceUnavailableResponse(BaseModel):
 
     error: ServiceErrorInfo
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "error": {
                     "code": "AI_SERVICE_UNAVAILABLE",
@@ -487,8 +493,8 @@ class ServiceUnavailableResponse(BaseModel):
                     "request_id": "550e8400-e29b-41d4-a716-446655440000",
                 }
             }
-        }
-    }
+        },
+    )
 
 
 # Common error responses for OpenAPI documentation

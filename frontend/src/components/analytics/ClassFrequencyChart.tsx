@@ -1,5 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
 
+import { shouldAnimateChart } from '../../utils/chartAnimation';
+import { ChartLoadingState } from '../common/ChartLoadingState';
+
 import type { ClassBaselineEntry } from '../../services/api';
 
 interface ClassFrequencyChartProps {
@@ -9,6 +12,8 @@ interface ClassFrequencyChartProps {
   uniqueClasses: string[];
   /** Most common class */
   mostCommonClass: string | null;
+  /** Whether data is loading */
+  isLoading?: boolean;
 }
 
 // Color palette for different object classes
@@ -50,6 +55,7 @@ export default function ClassFrequencyChart({
   entries,
   uniqueClasses,
   mostCommonClass,
+  isLoading = false,
 }: ClassFrequencyChartProps) {
   // Tooltip state
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -128,6 +134,18 @@ export default function ClassFrequencyChart({
     setTooltip((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4" data-testid="class-frequency-loading">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">Object Class Distribution</h3>
+        </div>
+        <ChartLoadingState height="h-48" />
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -150,6 +168,7 @@ export default function ClassFrequencyChart({
           {classStats.map((stat) => {
             const percentage = (stat.totalFrequency / maxFrequency) * 100;
             const color = getClassColor(stat.objectClass);
+            const enableAnimation = shouldAnimateChart(entries.length);
 
             return (
               <div
@@ -179,7 +198,7 @@ export default function ClassFrequencyChart({
                   onMouseLeave={handleBarLeave}
                 >
                   <div
-                    className="h-full rounded transition-all duration-300 group-hover:brightness-110"
+                    className={`h-full rounded group-hover:brightness-110 ${enableAnimation ? 'transition-all duration-300' : ''}`}
                     style={{
                       width: `${percentage}%`,
                       backgroundColor: color,

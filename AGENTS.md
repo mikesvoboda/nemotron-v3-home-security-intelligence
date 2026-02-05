@@ -60,7 +60,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `.python-version`   | Python version (3.14)                         |
 | `package.json`      | Root-level Node.js configuration (minimal)    |
 | `package-lock.json` | Node.js lockfile                              |
-| `setup.sh`          | Interactive environment setup wrapper         |
 | `setup.bat`         | Environment setup launcher (Windows)          |
 | `setup.py`          | Python setup script with interactive prompts  |
 
@@ -195,7 +194,7 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 
 ```bash
 # Run interactive setup (creates .env, installs dependencies, hooks)
-./setup.sh
+python setup.py
 
 # Or install just the pre-commit hooks
 ./scripts/setup-hooks.sh

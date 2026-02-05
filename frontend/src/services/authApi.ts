@@ -22,12 +22,18 @@
 export interface User {
   /** Unique user identifier */
   id: number;
+  /** Username for login */
+  username: string;
   /** User email address */
   email: string;
-  /** User's full name */
-  full_name: string;
+  /** Whether the user account is active */
+  is_active?: boolean;
+  /** Whether the user has admin privileges */
+  is_admin?: boolean;
   /** ISO 8601 timestamp of account creation */
   created_at: string;
+  /** ISO 8601 timestamp of last login */
+  last_login_at?: string | null;
 }
 
 /**
@@ -42,20 +48,20 @@ export interface SetupStatusResponse {
  * Request payload for user registration.
  */
 export interface RegisterRequest {
+  /** Username for login (alphanumeric, underscores, hyphens only) */
+  username: string;
   /** User email address */
   email: string;
-  /** User password */
+  /** User password (minimum 12 characters) */
   password: string;
-  /** User's full name */
-  full_name: string;
 }
 
 /**
  * Request payload for user login.
  */
 export interface LoginRequest {
-  /** User email address */
-  email: string;
+  /** Username for login */
+  username: string;
   /** User password */
   password: string;
 }

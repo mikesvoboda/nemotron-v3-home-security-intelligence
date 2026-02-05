@@ -1,10 +1,15 @@
 import { useMemo, useState, useCallback } from 'react';
 
+import { shouldAnimateChart } from '../../utils/chartAnimation';
+import { ChartLoadingState } from '../common/ChartLoadingState';
+
 import type { DailyPattern } from '../../services/api';
 
 interface DailyPatternChartProps {
   /** Daily pattern data keyed by day name (monday, tuesday, etc.) */
   patterns: Record<string, DailyPattern>;
+  /** Whether data is loading */
+  isLoading?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -90,6 +95,7 @@ function getActivityColorClass(
  */
 export default function DailyPatternChart({
   patterns,
+  isLoading = false,
   className = '',
 }: DailyPatternChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -171,6 +177,19 @@ export default function DailyPatternChart({
     setTooltip((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div
+        className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 ${className}`}
+        data-testid="daily-pattern-loading"
+      >
+        <h3 className="mb-4 text-lg font-semibold text-white">Weekly Activity Pattern</h3>
+        <ChartLoadingState height="h-48" />
+      </div>
+    );
+  }
+
   // Empty state
   if (!chartData.hasAnyData) {
     return (
@@ -229,6 +248,10 @@ export default function DailyPatternChart({
           const colorClass = hasData
             ? getActivityColorClass(pattern.avg_detections, chartData.maxDetections)
             : { bg: '', opacity: '' };
+          // DailyPatternChart has at most 7 data points, but we include animation
+          // control for consistency with other charts
+          const dataPointCount = Object.keys(patterns).length;
+          const enableAnimation = shouldAnimateChart(dataPointCount);
 
           return (
             <div
@@ -237,7 +260,7 @@ export default function DailyPatternChart({
             >
               {/* Bar container */}
               <div
-                className={`relative w-full flex flex-col justify-end h-40 rounded-t cursor-pointer transition-transform hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-[#76B900] ${
+                className={`relative w-full flex flex-col justify-end h-40 rounded-t cursor-pointer hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-[#76B900] ${enableAnimation ? 'transition-transform' : ''} ${
                   hasData ? colorClass.opacity : 'no-data'
                 } ${isWeekend ? 'weekend' : ''} ${hasData ? colorClass.bg : ''}`}
                 data-testid={`daily-bar-${day}`}
@@ -256,7 +279,7 @@ export default function DailyPatternChart({
               >
                 {/* Bar fill */}
                 <div
-                  className={`w-full rounded-t transition-all ${
+                  className={`w-full rounded-t ${enableAnimation ? 'transition-all' : ''} ${
                     hasData
                       ? `${colorClass.bg} ${isWeekend ? 'bg-opacity-80' : ''}`
                       : 'bg-gray-700/30 border border-dashed border-gray-600'

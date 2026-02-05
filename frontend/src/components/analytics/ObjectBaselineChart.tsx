@@ -1,5 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 
+import { ChartLoadingState } from '../common/ChartLoadingState';
+
 import type { ObjectBaseline } from '../../services/api';
 
 interface ObjectBaselineChartProps {
@@ -7,6 +9,8 @@ interface ObjectBaselineChartProps {
   baselines: Record<string, ObjectBaseline>;
   /** Whether sorting controls should be shown */
   sortable?: boolean;
+  /** Whether data is loading */
+  isLoading?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -109,6 +113,7 @@ function getColorClass(objectClass: string): string {
 export default function ObjectBaselineChart({
   baselines,
   sortable = false,
+  isLoading = false,
   className = '',
 }: ObjectBaselineChartProps) {
   const [sortBy, setSortBy] = useState<SortOption>('alphabetical');
@@ -197,6 +202,19 @@ export default function ObjectBaselineChart({
   const handleBarLeave = useCallback(() => {
     setTooltip(null);
   }, []);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div
+        className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 ${className}`}
+        data-testid="object-baseline-loading"
+      >
+        <h3 className="mb-4 text-lg font-semibold text-white">Detection by Object Type</h3>
+        <ChartLoadingState height="h-64" />
+      </div>
+    );
+  }
 
   // Empty state
   if (!chartData.hasAnyData) {

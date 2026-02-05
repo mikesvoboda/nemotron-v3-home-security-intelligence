@@ -28,8 +28,8 @@ import type { User } from '../services/authApi';
 // Mock data
 const mockUser: User = {
   id: 1,
+  username: 'testuser',
   email: 'test@example.com',
-  full_name: 'Test User',
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -245,7 +245,7 @@ describe('AuthContext', () => {
 
       await act(async () => {
         await result.current.login({
-          email: 'test@example.com',
+          username: 'testuser',
           password: 'password123',
         });
       });
@@ -281,7 +281,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.login({
-            email: 'test@example.com',
+            username: 'testuser',
             password: 'wrong',
           });
         })
@@ -381,9 +381,9 @@ describe('AuthContext', () => {
 
       await act(async () => {
         await result.current.register({
+          username: 'newuser',
           email: 'new@example.com',
           password: 'password123',
-          full_name: 'New User',
         });
       });
 
@@ -415,9 +415,9 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register({
+            username: 'testuser',
             email: 'existing@example.com',
             password: 'password123',
-            full_name: 'Test User',
           });
         })
       ).rejects.toThrow();
