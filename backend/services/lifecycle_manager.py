@@ -216,6 +216,83 @@ class LifecycleManager:
             logger.error(f"Error restarting {service.name}: {e}")
             return False
 
+    async def restart_via_compose(
+        self,
+        service: ManagedService,
+        compose_file: str = "docker-compose.prod.yml",
+    ) -> bool:
+        """Restart a container via docker-compose to fix network isolation.
+
+        This method removes the existing container and uses docker-compose to
+        recreate it, ensuring it's properly attached to the compose network.
+        Use this when a container is running but network-isolated.
+
+        Args:
+            service: The ManagedService to restart.
+            compose_file: Docker compose file to use (default: docker-compose.prod.yml)
+
+        Returns:
+            True if compose restart succeeded, False otherwise.
+        """
+        import asyncio
+        import os
+
+        if not service.container_id:
+            logger.error(f"Cannot compose-restart {service.name}: no container_id")
+            return False
+
+        try:
+            logger.info(f"Restarting {service.name} via compose to fix network isolation")
+
+            # Stop and remove the existing container
+            await self.docker_client.stop_container(service.container_id, timeout=10)
+            await self.docker_client.remove_container(service.container_id)
+
+            # Use compose to recreate the container on the correct network
+            # Find the project root (where docker-compose.prod.yml is)
+            project_root = os.environ.get("PROJECT_ROOT", "/app")
+
+            # Run podman-compose up -d for this specific service
+            # Map service names to compose service names if different
+            compose_service = service.name.replace("_", "-")
+
+            proc = await asyncio.create_subprocess_exec(
+                "podman-compose",
+                "-f",
+                compose_file,
+                "up",
+                "-d",
+                compose_service,
+                cwd=project_root,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+
+            if proc.returncode == 0:
+                # Update tracking
+                self.registry.record_restart(service.name)
+                self.registry.update_status(service.name, ContainerServiceStatus.STARTING)
+                # Clear the old container_id - discovery will find the new one
+                service.container_id = None
+                await self.registry.persist_state(service.name)
+
+                if self.on_restart:
+                    await self.on_restart(service)
+
+                logger.info(f"Compose-restarted service {service.name} successfully")
+                return True
+            else:
+                logger.error(
+                    f"Compose restart failed for {service.name}: "
+                    f"exit={proc.returncode}, stderr={stderr.decode()}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"Error compose-restarting {service.name}: {e}")
+            return False
+
     async def start_service(self, service: ManagedService) -> bool:
         """Start a stopped container.
 

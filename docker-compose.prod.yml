@@ -218,7 +218,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      # NEM-5512: 31B parameter model requires ~5 minutes to load tensors to GPU
+      start_period: 300s
     restart: unless-stopped
     networks:
       - security-net
@@ -541,6 +542,8 @@ services:
       # Podman socket for container orchestrator auto-recovery (NEM-4xxx)
       # Enables backend to manage AI service containers for self-healing
       - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      # Docker compose file for dynamic service discovery by orchestrator
+      - ./docker-compose.prod.yml:/app/docker-compose.prod.yml:ro
     environment:
       # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
       # To enable, use python:3.14t-slim-bookworm image and uncomment:

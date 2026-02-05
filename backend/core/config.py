@@ -144,6 +144,14 @@ class OrchestratorSettings(BaseSettings):
         "'tcp://localhost:2375', 'unix:///run/user/1000/podman/podman.sock' (rootless Podman).",
     )
 
+    # Service discovery
+    compose_file: str | None = Field(
+        "docker-compose.prod.yml",
+        description="Path to docker-compose file for dynamic service discovery. "
+        "When set, service configurations are parsed from the compose file instead of "
+        "using hardcoded configs. Set to None to use hardcoded configs only.",
+    )
+
     # Health monitoring
     health_check_interval: int = Field(
         30,

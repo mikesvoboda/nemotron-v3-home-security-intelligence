@@ -25,6 +25,7 @@ Usage:
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.core.logging import get_logger
@@ -35,6 +36,52 @@ if TYPE_CHECKING:
     from backend.core.docker_client import DockerClient
 
 logger = get_logger(__name__)
+
+
+def build_configs_from_compose(
+    compose_file: str | Path,
+    settings: OrchestratorSettings | None = None,
+    include_monitoring: bool = True,
+) -> dict[str, ServiceConfig]:
+    """Build service configurations by parsing a docker-compose file.
+
+    Dynamically extracts service configurations from docker-compose.yml,
+    including health checks, ports, and orchestrator labels.
+
+    Args:
+        compose_file: Path to docker-compose.yml file.
+        settings: Optional OrchestratorSettings (for monitoring_enabled check).
+        include_monitoring: If True, include monitoring services.
+
+    Returns:
+        Dictionary mapping service names to ServiceConfig objects.
+    """
+    from backend.services.compose_parser import ComposeParser
+
+    parser = ComposeParser()
+    try:
+        configs = parser.parse_file(compose_file)
+
+        # Filter out monitoring if disabled
+        if not include_monitoring:
+            configs = {
+                name: cfg
+                for name, cfg in configs.items()
+                if cfg.category != ServiceCategory.MONITORING
+            }
+
+        logger.info(
+            f"Loaded {len(configs)} service configs from {compose_file}",
+            extra={"compose_file": str(compose_file), "count": len(configs)},
+        )
+        return configs
+
+    except FileNotFoundError:
+        logger.warning(f"Compose file not found: {compose_file}, falling back to hardcoded configs")
+        return build_service_configs(settings, include_monitoring)
+    except Exception as e:
+        logger.warning(f"Failed to parse compose file: {e}, falling back to hardcoded configs")
+        return build_service_configs(settings, include_monitoring)
 
 
 def build_service_configs(
@@ -625,6 +672,7 @@ class ContainerDiscoveryService:
         self,
         docker_client: DockerClient,
         settings: OrchestratorSettings | None = None,
+        compose_file: str | Path | None = None,
     ) -> None:
         """Initialize the discovery service.
 
@@ -633,13 +681,21 @@ class ContainerDiscoveryService:
             settings: Optional OrchestratorSettings with port configuration.
                       If None, uses default port values for backward compatibility.
                       When provided, respects monitoring_enabled setting.
+            compose_file: Optional path to docker-compose.yml for dynamic discovery.
+                         If provided, parses the compose file to build configs.
+                         Falls back to hardcoded configs if parsing fails.
         """
         self._docker_client = docker_client
-        # Use configurable ports when settings provided, otherwise use defaults
-        if settings:
-            include_monitoring = settings.monitoring_enabled
+        include_monitoring = settings.monitoring_enabled if settings else True
+
+        # Use compose-based discovery if compose_file provided
+        if compose_file:
+            self._configs = build_configs_from_compose(compose_file, settings, include_monitoring)
+        elif settings:
+            # Use configurable ports when settings provided
             self._configs = build_service_configs(settings, include_monitoring)
         else:
+            # Fallback to static configs
             self._configs = ALL_CONFIGS
 
     async def discover_all(self) -> list[ManagedService]:

@@ -163,8 +163,12 @@ class ContainerOrchestrator:
         # All modules now use the same shared ManagedService and ServiceRegistry types
         # from backend.services.orchestrator, so we use a single registry
         self._registry = ServiceRegistry(redis_client)
-        # Pass settings to discovery service for configurable port values
-        self._discovery_service = ContainerDiscoveryService(docker_client, settings)
+        # Pass settings and compose_file to discovery service for dynamic config
+        self._discovery_service = ContainerDiscoveryService(
+            docker_client,
+            settings,
+            compose_file=settings.compose_file if settings else None,
+        )
 
         # These are created during start() after discovery
         self._health_monitor: HealthMonitor | None = None
@@ -272,6 +276,32 @@ class ContainerOrchestrator:
             service: The service that was disabled
         """
         await self._broadcast_status(service, "Service disabled - max failures reached")
+
+    async def _on_network_isolation(self, service: ManagedService) -> None:
+        """Callback when network isolation is detected for a service.
+
+        Called by HealthMonitor when a service is reachable via localhost
+        but not via its hostname (indicating it's not on the compose network).
+        Triggers a compose-based restart to fix the network isolation.
+
+        Args:
+            service: The service with network isolation
+        """
+        logger.warning(
+            f"Network isolation detected for {service.name}, attempting compose-based restart"
+        )
+        await self._broadcast_status(service, "Network isolation detected - restarting via compose")
+
+        if self._lifecycle_manager:
+            success = await self._lifecycle_manager.restart_via_compose(service)
+            if success:
+                await self._broadcast_status(
+                    service, "Compose restart completed - network isolation fixed"
+                )
+            else:
+                await self._broadcast_status(
+                    service, "Compose restart failed - manual intervention needed"
+                )
 
     async def _on_service_discovered(self, service: ManagedService) -> None:
         """Callback when a service is discovered during startup.
@@ -512,6 +542,7 @@ class ContainerOrchestrator:
             docker_client=self._docker_client,
             settings=self._settings,
             on_health_change=self._on_health_change,
+            on_network_isolation=self._on_network_isolation,
         )
 
         # 8. Start health monitor
