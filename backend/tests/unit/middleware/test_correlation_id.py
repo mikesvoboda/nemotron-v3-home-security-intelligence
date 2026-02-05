@@ -54,18 +54,34 @@ class TestCorrelationIdMiddleware:
     @pytest.mark.timeout(30)  # This test is slow due to FastAPI app startup
     async def test_correlation_id_available_in_context(self) -> None:
         """Verify correlation ID is available via get_request_id() during request."""
-        from unittest.mock import patch
+        import os
+        from unittest.mock import AsyncMock, patch
 
-        from backend.core.config import Settings
+        from backend.core.config import Settings, get_settings
         from backend.tests.unit.conftest import UNIT_TEST_API_KEY
 
         # This is tested implicitly by the middleware setting request_id
         # We can verify by checking the debug endpoint response
         test_correlation_id = "context-test-456"
 
+        # Ensure API key auth is enabled and settings cache is cleared
+        os.environ["API_KEY_ENABLED"] = "true"  # pragma: allowlist secret
+        os.environ["API_KEYS"] = f'["{UNIT_TEST_API_KEY}"]'  # pragma: allowlist secret
+        get_settings.cache_clear()
+
         # Enable debug mode for this test (required for debug endpoints)
         mock_settings = Settings(debug=True, database_url="postgresql+asyncpg://test")
-        with patch("backend.api.routes.debug.get_settings", return_value=mock_settings):
+
+        # Mock setup guard to return True (setup complete)
+        mock_check_setup = AsyncMock(return_value=True)
+
+        with (
+            patch("backend.api.routes.debug.get_settings", return_value=mock_settings),
+            patch(
+                "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+                mock_check_setup,
+            ),
+        ):
             async with AsyncClient(
                 transport=ASGITransport(app=app),
                 base_url="http://test",
