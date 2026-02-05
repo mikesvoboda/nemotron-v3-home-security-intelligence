@@ -1,0 +1,55 @@
+{
+  "comparison": {
+    "llama.cpp": {
+      "latency_p50_ms": 2414.24,
+      "latency_p95_ms": 2706.1,
+      "latency_p99_ms": 4213.8,
+      "throughput_tokens_per_sec": 38.91,
+      "vram_peak_mb": 22935.0,
+      "vram_steady_mb": 12026.0,
+      "time_to_first_token_ms": 652.83,
+      "requests_per_minute": 27.57
+    },
+    "vllm": {
+      "latency_p50_ms": 1190.57,
+      "latency_p95_ms": 1194.26,
+      "latency_p99_ms": 1194.81,
+      "throughput_tokens_per_sec": 84.17,
+      "vram_peak_mb": 23226.0,
+      "vram_steady_mb": 12171.5,
+      "time_to_first_token_ms": 356.42,
+      "requests_per_minute": 50.5
+    }
+  },
+  "deltas": {
+    "latency_p50_improvement_pct": 50.69,
+    "latency_p95_improvement_pct": 55.87,
+    "throughput_improvement_pct": 116.32,
+    "ttft_improvement_pct": 45.39,
+    "requests_per_min_improvement_pct": 83.17
+  },
+  "summary": {
+    "engines_compared": 2,
+    "engine_names": ["llama.cpp", "vllm"],
+    "baseline_engine": "llama.cpp",
+    "comparison_date": "2026-02-05",
+    "model": "nvidia/Nemotron-Mini-4B-Instruct",
+    "evaluation_prompts": 100
+  },
+  "recommendations": {
+    "winner": "vllm",
+    "lowest_latency": "vllm",
+    "highest_throughput": "vllm",
+    "lowest_vram": "llama.cpp",
+    "best_ttft": "vllm",
+    "notes": [
+      "vLLM provides 2x faster P50 latency (1.2s vs 2.4s)",
+      "vLLM provides 2.2x higher throughput (84 vs 39 tokens/sec)",
+      "vLLM provides 1.8x faster time-to-first-token (356ms vs 653ms)",
+      "VRAM usage is comparable (~23GB peak for both)",
+      "Recommendation: Migrate to vLLM for significant performance gains",
+      "vLLM image: docker.io/vllm/vllm-openai:cu130-nightly",
+      "Requires CUDA 13.0 compatible driver (tested with 580.119.02)"
+    ]
+  }
+}

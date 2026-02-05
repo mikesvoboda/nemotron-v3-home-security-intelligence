@@ -258,7 +258,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/vllm/vllm-openai:latest
+    image: docker.io/vllm/vllm-openai:cu130-nightly
     # NEM-4486: Bind to localhost only - AI services are internal
     # Port from .env (single source of truth for all network ports)
     ports:
@@ -284,7 +284,7 @@ services:
       - --port
       - '8000'
       - --gpu-memory-utilization
-      - '${VLLM_GPU_MEMORY_UTILIZATION:-0.9}'
+      - '${VLLM_GPU_MEMORY_UTILIZATION:-0.8}'
       - --max-model-len
       - '${VLLM_MAX_MODEL_LEN:-4096}'
       - --trust-remote-code
