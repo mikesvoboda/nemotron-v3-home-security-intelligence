@@ -6721,3 +6721,152 @@ class TestEnrichmentResultWeatherIntegration:
         # Should have a weather-related flag for reduced visibility
         weather_flags = [f for f in flags if "weather" in f.get("type", "").lower()]
         assert len(weather_flags) >= 1
+
+
+# =============================================================================
+# CLIP Embedding Caching Tests (NEM-5517/5518/5519)
+# =============================================================================
+
+
+class TestEnrichmentResultCLIPEmbeddingCaching:
+    """Tests for CLIP embedding caching in EnrichmentResult.
+
+    These tests verify that CLIP embeddings generated during re-identification
+    are properly cached in enrichment_data for reuse by downstream services.
+
+    Related to NEM-5517/5518/5519: Embedding Caching.
+    """
+
+    def test_clip_embeddings_field_exists(self) -> None:
+        """Test that EnrichmentResult has a clip_embeddings field."""
+        result = EnrichmentResult()
+        assert hasattr(result, "clip_embeddings")
+        assert isinstance(result.clip_embeddings, dict)
+
+    def test_clip_embeddings_can_store_embeddings(self) -> None:
+        """Test that clip_embeddings can store embedding vectors."""
+        result = EnrichmentResult()
+        test_embedding = [0.1 * i for i in range(768)]
+
+        result.clip_embeddings["1"] = test_embedding
+
+        assert "1" in result.clip_embeddings
+        assert len(result.clip_embeddings["1"]) == 768
+        assert result.clip_embeddings["1"][0] == 0.0
+        assert result.clip_embeddings["1"][1] == pytest.approx(0.1)
+
+    def test_has_clip_embeddings_property(self) -> None:
+        """Test has_clip_embeddings property for presence detection."""
+        # Without embeddings
+        result_empty = EnrichmentResult()
+        assert result_empty.has_clip_embeddings is False
+
+        # With embeddings
+        result_with = EnrichmentResult()
+        result_with.clip_embeddings["1"] = [0.5] * 768
+        assert result_with.has_clip_embeddings is True
+
+    def test_to_storage_dict_includes_vehicle_clip_embedding(self) -> None:
+        """Test that to_storage_dict includes vehicle CLIP embeddings.
+
+        When a vehicle has CLIP embeddings and vehicle_reid_matches,
+        the embedding should be stored as vehicle_visual.
+        """
+        result = EnrichmentResult()
+        test_embedding = [0.5] * 768
+
+        # Add CLIP embedding and vehicle re-id matches
+        result.clip_embeddings["1"] = test_embedding
+        result.vehicle_reid_matches["1"] = []  # Empty list indicates processed as vehicle
+
+        # Get enrichment data for detection 1
+        enrichment = result.to_storage_dict(1)
+
+        assert enrichment is not None
+        assert "embeddings" in enrichment
+        assert "vehicle_visual" in enrichment["embeddings"]
+        assert len(enrichment["embeddings"]["vehicle_visual"]) == 768
+
+    def test_to_storage_dict_includes_person_clip_embedding(self) -> None:
+        """Test that to_storage_dict includes person CLIP embeddings.
+
+        When a person has CLIP embeddings and person_reid_matches,
+        the embedding should be stored as face_clip.
+        """
+        result = EnrichmentResult()
+        test_embedding = [0.3] * 768
+
+        # Add CLIP embedding and person re-id matches
+        result.clip_embeddings["2"] = test_embedding
+        result.person_reid_matches["2"] = []  # Empty list indicates processed as person
+
+        # Get enrichment data for detection 2
+        enrichment = result.to_storage_dict(2)
+
+        assert enrichment is not None
+        assert "embeddings" in enrichment
+        assert "face_clip" in enrichment["embeddings"]
+        assert len(enrichment["embeddings"]["face_clip"]) == 768
+
+    def test_to_storage_dict_combines_osnet_and_clip_embeddings(self) -> None:
+        """Test that both OSNet and CLIP embeddings are stored for persons.
+
+        When a person has both OSNet (person_embeddings) and CLIP embeddings,
+        both should be stored: person_reid (OSNet) and face_clip (CLIP).
+        """
+        result = EnrichmentResult()
+        clip_embedding = [0.2] * 768
+        osnet_embedding = np.array([0.1] * 512, dtype=np.float32)
+
+        # Create mock OSNet embedding result
+        class MockEmbeddingResult:
+            def __init__(self, embedding):
+                self.embedding = embedding
+
+        # Add both types of embeddings
+        result.clip_embeddings["3"] = clip_embedding
+        result.person_embeddings["3"] = MockEmbeddingResult(osnet_embedding)
+        result.person_reid_matches["3"] = []  # Mark as person
+
+        # Get enrichment data
+        enrichment = result.to_storage_dict(3)
+
+        assert enrichment is not None
+        assert "embeddings" in enrichment
+        # Should have both embeddings
+        assert "face_clip" in enrichment["embeddings"]
+        assert "person_reid" in enrichment["embeddings"]
+        assert len(enrichment["embeddings"]["face_clip"]) == 768
+        assert len(enrichment["embeddings"]["person_reid"]) == 512
+
+    def test_clip_embedding_for_unmatched_detection(self) -> None:
+        """Test CLIP embedding handling for detections without re-id matches.
+
+        When a detection has a CLIP embedding but no re-id matches,
+        we use context from person_embeddings to determine the type.
+        """
+        result = EnrichmentResult()
+        test_embedding = [0.4] * 768
+
+        # Add CLIP embedding but no re-id matches
+        result.clip_embeddings["4"] = test_embedding
+        # No person_reid_matches or vehicle_reid_matches for this detection
+
+        # Get enrichment data
+        enrichment = result.to_storage_dict(4)
+
+        assert enrichment is not None
+        assert "embeddings" in enrichment
+        # Default to vehicle_visual for unmatched detections
+        assert "vehicle_visual" in enrichment["embeddings"]
+
+    def test_no_embeddings_key_when_empty(self) -> None:
+        """Test that embeddings key is not added when no embeddings exist."""
+        result = EnrichmentResult()
+        # No embeddings added
+
+        # Get enrichment data for non-existent detection
+        enrichment = result.to_storage_dict(99)
+
+        # Should be empty or minimal
+        assert enrichment is None or "embeddings" not in enrichment

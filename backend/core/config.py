@@ -1597,6 +1597,26 @@ class Settings(BaseSettings):
         le=1.0,
     )
 
+    # Violence detection threshold settings (NEM-5483)
+    # Three-tier confidence system for violence classification:
+    # - definitive: violent_score >= threshold -> is_violent=True, immediate action
+    # - suspected: violent_score between suspected and definitive -> flagged for review
+    # - marginal: violent_score < suspected threshold -> excluded from prompts
+    violence_definitive_threshold: float = Field(
+        default=0.70,
+        ge=0.0,
+        le=1.0,
+        description="Violence detection definitive threshold (>=70% = definitive). "
+        "Scores at or above this threshold are classified as definitively violent.",
+    )
+    violence_suspected_threshold: float = Field(
+        default=0.55,
+        ge=0.0,
+        le=1.0,
+        description="Violence detection suspected threshold (55-70% = suspected). "
+        "Scores between this and definitive threshold are flagged for human review.",
+    )
+
     # Fast path settings
     fast_path_confidence_threshold: float = Field(
         default=0.90,
@@ -2800,6 +2820,28 @@ class Settings(BaseSettings):
                 "Both redis_ssl_certfile and redis_ssl_keyfile must be provided together "
                 "for mutual TLS. Provide both, or neither (CA certs alone are allowed for "
                 "server certificate verification without client authentication)."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_violence_thresholds(self) -> Settings:
+        """Validate violence detection threshold consistency (NEM-5483).
+
+        The definitive threshold must be greater than the suspected threshold
+        to ensure the tier boundaries are logically consistent:
+        - definitive (>=70%) > suspected (55-70%) > marginal (<55%)
+
+        Returns:
+            self: The validated Settings instance
+
+        Raises:
+            ValueError: If definitive threshold is not greater than suspected threshold
+        """
+        if self.violence_definitive_threshold <= self.violence_suspected_threshold:
+            raise ValueError(
+                f"violence_definitive_threshold ({self.violence_definitive_threshold}) must be "
+                f"greater than violence_suspected_threshold ({self.violence_suspected_threshold}). "
+                "The tier boundaries must be: definitive > suspected > marginal."
             )
         return self
 

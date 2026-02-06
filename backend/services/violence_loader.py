@@ -33,12 +33,17 @@ class ViolenceDetectionResult:
         confidence: Confidence score for the prediction (0-1)
         violent_score: Raw score for the "violent" class (0-1)
         non_violent_score: Raw score for the "non-violent" class (0-1)
+        confidence_tier: Confidence tier ('definitive', 'suspected', or 'marginal')
+            - definitive: violent_score >= 70% -> is_violent=True
+            - suspected: violent_score 55-70% -> is_violent=False (flagged for review)
+            - marginal: violent_score < 55% -> is_violent=False (excluded from prompts)
     """
 
     is_violent: bool
     confidence: float
     violent_score: float
     non_violent_score: float
+    confidence_tier: str = "marginal"  # 'definitive', 'suspected', or 'marginal'
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -47,6 +52,7 @@ class ViolenceDetectionResult:
             "confidence": self.confidence,
             "violent_score": self.violent_score,
             "non_violent_score": self.non_violent_score,
+            "confidence_tier": self.confidence_tier,
         }
 
 
@@ -185,8 +191,22 @@ async def classify_violence(
                 violent_score = probs_list[0]
                 non_violent_score = 1.0 - violent_score
 
-            # Determine prediction
-            is_violent = violent_score > non_violent_score
+            # Determine tier and is_violent based on absolute thresholds
+            # Tier definitions (NEM-5483):
+            # - definitive: violent_score >= 70% -> is_violent=True
+            # - suspected: violent_score 55-70% -> is_violent=False (flagged for review)
+            # - marginal: violent_score < 55% -> is_violent=False (excluded from prompts)
+            if violent_score >= 0.70:
+                confidence_tier = "definitive"
+                is_violent = True
+            elif violent_score >= 0.55:
+                confidence_tier = "suspected"
+                is_violent = False  # NOT marked as violent at suspected tier
+            else:
+                confidence_tier = "marginal"
+                is_violent = False
+
+            # Confidence reflects the winning score
             confidence = violent_score if is_violent else non_violent_score
 
             return ViolenceDetectionResult(
@@ -194,6 +214,7 @@ async def classify_violence(
                 confidence=confidence,
                 violent_score=violent_score,
                 non_violent_score=non_violent_score,
+                confidence_tier=confidence_tier,
             )
 
         return await loop.run_in_executor(None, _classify)

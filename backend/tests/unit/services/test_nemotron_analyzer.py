@@ -4485,6 +4485,137 @@ async def test_call_llm_vehicle_only_household_context(analyzer):
 
 
 # =============================================================================
+# Detection-Attributed Household Context Tests (NEM-5512/5513/5514)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_household_context_detection_attributed_format(analyzer):
+    """Test _get_household_context uses detection-attributed format (NEM-5512).
+
+    Verifies that household matches are attributed to specific detections
+    to prevent context bleeding across detections in the same batch.
+    """
+    from datetime import UTC, datetime
+
+    from backend.services.enrichment_pipeline import EnrichmentResult
+    from backend.services.household_matcher import HouseholdMatch
+
+    # Create detection data with detected_at timestamps
+    detections_data = [
+        {
+            "id": 1,
+            "object_type": "person",
+            "detected_at": datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+        },
+        {
+            "id": 2,
+            "object_type": "person",
+            "detected_at": datetime(2026, 1, 29, 14, 32, 8, tzinfo=UTC),
+        },
+        {
+            "id": 3,
+            "object_type": "car",
+            "detected_at": datetime(2026, 1, 29, 14, 32, 10, tzinfo=UTC),
+        },
+    ]
+
+    # Create enrichment result with per-detection matches (dicts with int keys)
+    enrichment_result = EnrichmentResult()
+    enrichment_result.person_household_matches = {
+        1: HouseholdMatch(
+            member_id=1,
+            member_name="Mike",
+            similarity=0.92,
+            match_type="person",
+            member_role="resident",
+        )
+        # Detection 2 has no match - should show "NO MATCH"
+    }
+    enrichment_result.vehicle_household_matches = {
+        3: HouseholdMatch(
+            vehicle_id=1,
+            vehicle_description="Honda Civic",
+            similarity=1.0,
+            match_type="license_plate",
+        )
+    }
+
+    # Call _get_household_context
+    result = await analyzer._get_household_context(detections_data, enrichment_result)
+
+    # Verify detection-attributed format
+    assert "HOUSEHOLD MATCHES BY DETECTION" in result
+    assert "Detection #1" in result
+    assert "Detection #2" in result
+    assert "Detection #3" in result
+
+    # Verify Mike is attributed to detection #1 only
+    assert 'KNOWN PERSON "Mike"' in result
+    assert "NO MATCH" in result  # Detection #2 should show NO MATCH
+
+    # Verify vehicle match is attributed to detection #3
+    assert 'REGISTERED VEHICLE "Honda Civic"' in result
+
+    # Verify detection #2 line shows NO MATCH (critical isolation test)
+    lines = result.split("\n")
+    detection_2_line = next(line for line in lines if "Detection #2" in line)
+    assert "NO MATCH" in detection_2_line
+    assert "Mike" not in detection_2_line
+
+
+@pytest.mark.asyncio
+async def test_get_household_context_empty_detections(analyzer):
+    """Test _get_household_context returns empty string when no detections."""
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    result = await analyzer._get_household_context([], EnrichmentResult())
+
+    assert result == ""
+
+
+@pytest.mark.asyncio
+async def test_get_household_context_no_enrichment_result(analyzer):
+    """Test _get_household_context handles None enrichment result."""
+    from datetime import UTC, datetime
+
+    detections_data = [
+        {
+            "id": 1,
+            "object_type": "person",
+            "detected_at": datetime(2026, 1, 29, 14, 32, 5, tzinfo=UTC),
+        },
+    ]
+
+    # No enrichment result - should still format detections as NO MATCH
+    result = await analyzer._get_household_context(detections_data, None)
+
+    assert "HOUSEHOLD MATCHES BY DETECTION" in result
+    assert "Detection #1" in result
+    assert "NO MATCH" in result
+
+
+@pytest.mark.asyncio
+async def test_get_household_context_missing_detected_at(analyzer):
+    """Test _get_household_context handles missing detected_at gracefully."""
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    # Detection without detected_at
+    detections_data = [
+        {
+            "id": 1,
+            "object_type": "person",
+            # No detected_at - should use current time
+        },
+    ]
+
+    result = await analyzer._get_household_context(detections_data, EnrichmentResult())
+
+    assert "HOUSEHOLD MATCHES BY DETECTION" in result
+    assert "Detection #1" in result
+
+
+# =============================================================================
 # Additional Coverage Tests for Uncovered Sections
 # =============================================================================
 

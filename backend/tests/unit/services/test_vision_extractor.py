@@ -1394,7 +1394,7 @@ class TestVisionExtractorExtraction:
         # Track calls to identify context
         call_count = {"vehicle": 0, "person": 0}
 
-        async def mock_extract_vehicle(image):
+        async def mock_extract_vehicle(image, yolo_class=None, yolo_confidence=None):
             """Mock _extract_vehicle_internal - uses HTTP client."""
             call_count["vehicle"] += 1
             return VehicleAttributes(
@@ -1403,6 +1403,9 @@ class TestVisionExtractorExtraction:
                 is_commercial=False,
                 commercial_text=None,
                 caption="White sedan",
+                validation_note=None,
+                yolo_class=yolo_class,
+                yolo_confidence=yolo_confidence,
             )
 
         async def mock_extract_person(image):
@@ -2098,3 +2101,1046 @@ class TestVisionExtractorWithVQAValidation:
         assert vehicle_attrs is not None
         assert vehicle_attrs.color == "white"
         assert vehicle_attrs.vehicle_type == "sedan"
+
+
+# =============================================================================
+# Florence-2 YOLO Cross-Validation Tests (NEM-5478)
+# =============================================================================
+# These tests are for TDD - they should FAIL until the cross-validation
+# feature is implemented. The feature validates Florence-2 VQA responses
+# against YOLO detections to prevent misclassification (e.g., bus -> police car).
+
+
+class TestYOLOFlorenceSemanticEquivalence:
+    """Tests for semantic equivalence mapping between YOLO classes and Florence descriptions.
+
+    YOLO detects object classes (car, bus, truck, motorcycle, person) while Florence-2
+    provides detailed descriptions (sedan, police car, pickup truck). These tests verify
+    that the semantic equivalence mapping correctly identifies whether Florence's
+    description matches the YOLO detection class.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_semantic_equivalence_car_sedan(self) -> None:
+        """Test YOLO 'car' matches Florence 'sedan' (same semantic class).
+
+        A sedan is a type of car, so Florence saying 'sedan' when YOLO detects 'car'
+        should be considered semantically equivalent.
+        """
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "sedan") is True
+
+    def test_semantic_equivalence_car_coupe(self) -> None:
+        """Test YOLO 'car' matches Florence 'coupe'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "coupe") is True
+
+    def test_semantic_equivalence_car_hatchback(self) -> None:
+        """Test YOLO 'car' matches Florence 'hatchback'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "hatchback") is True
+
+    def test_semantic_equivalence_car_suv(self) -> None:
+        """Test YOLO 'car' matches Florence 'SUV'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "SUV") is True
+
+    def test_semantic_equivalence_car_crossover(self) -> None:
+        """Test YOLO 'car' matches Florence 'crossover'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "crossover") is True
+
+    def test_semantic_equivalence_bus_police_car_mismatch(self) -> None:
+        """Test YOLO 'bus' does NOT match Florence 'police car'.
+
+        This is a critical regression test. A bus should never be described as a
+        police car. Florence may hallucinate vehicle types, and the cross-validation
+        should catch this mismatch.
+        """
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("bus", "police car") is False
+
+    def test_semantic_equivalence_bus_minibus(self) -> None:
+        """Test YOLO 'bus' matches Florence 'minibus'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("bus", "minibus") is True
+
+    def test_semantic_equivalence_bus_shuttle(self) -> None:
+        """Test YOLO 'bus' matches Florence 'shuttle'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("bus", "shuttle") is True
+
+    def test_semantic_equivalence_bus_coach(self) -> None:
+        """Test YOLO 'bus' matches Florence 'coach'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("bus", "coach") is True
+
+    def test_semantic_equivalence_bus_transit(self) -> None:
+        """Test YOLO 'bus' matches Florence 'transit bus'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("bus", "transit") is True
+
+    def test_semantic_equivalence_truck_pickup(self) -> None:
+        """Test YOLO 'truck' matches Florence 'pickup'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("truck", "pickup") is True
+
+    def test_semantic_equivalence_truck_dump_truck(self) -> None:
+        """Test YOLO 'truck' matches Florence 'dump truck'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("truck", "dump truck") is True
+
+    def test_semantic_equivalence_truck_semi(self) -> None:
+        """Test YOLO 'truck' matches Florence 'semi-truck'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("truck", "semi-truck") is True
+
+    def test_semantic_equivalence_truck_lorry(self) -> None:
+        """Test YOLO 'truck' matches Florence 'lorry'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("truck", "lorry") is True
+
+    def test_semantic_equivalence_motorcycle_scooter(self) -> None:
+        """Test YOLO 'motorcycle' matches Florence 'scooter'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("motorcycle", "scooter") is True
+
+    def test_semantic_equivalence_motorcycle_moped(self) -> None:
+        """Test YOLO 'motorcycle' matches Florence 'moped'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("motorcycle", "moped") is True
+
+    def test_semantic_equivalence_motorcycle_bike(self) -> None:
+        """Test YOLO 'motorcycle' matches Florence 'motorbike'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("motorcycle", "motorbike") is True
+
+    def test_semantic_equivalence_car_bus_mismatch(self) -> None:
+        """Test YOLO 'car' does NOT match Florence 'bus'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "bus") is False
+
+    def test_semantic_equivalence_truck_car_mismatch(self) -> None:
+        """Test YOLO 'truck' does NOT match Florence 'car'."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("truck", "car") is False
+
+    def test_semantic_equivalence_case_insensitive(self) -> None:
+        """Test semantic equivalence is case-insensitive."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("CAR", "SEDAN") is True
+        assert is_semantically_equivalent("Car", "Sedan") is True
+        assert is_semantically_equivalent("car", "SEDAN") is True
+
+    def test_semantic_equivalence_partial_match(self) -> None:
+        """Test semantic equivalence handles partial word matches.
+
+        Florence may say 'white sedan' or 'blue pickup truck' - the equivalence
+        check should find the vehicle type within the description.
+        """
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        assert is_semantically_equivalent("car", "white sedan") is True
+        assert is_semantically_equivalent("truck", "blue pickup truck") is True
+        assert is_semantically_equivalent("bus", "yellow school bus") is True
+
+    def test_semantic_equivalence_unknown_yolo_class(self) -> None:
+        """Test semantic equivalence returns False for unknown YOLO class."""
+        from backend.services.vision_extractor import is_semantically_equivalent
+
+        # Unknown YOLO class should not match anything
+        assert is_semantically_equivalent("spaceship", "sedan") is False
+
+
+class TestYOLOFlorenceConfidenceOverride:
+    """Tests for confidence-based override logic in YOLO-Florence cross-validation.
+
+    When YOLO has high confidence in its detection, it should override conflicting
+    Florence descriptions. When YOLO has low confidence, Florence's description
+    should be trusted more.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_high_confidence_yolo_override(self) -> None:
+        """Test high confidence YOLO overrides conflicting Florence description.
+
+        When YOLO detects 'bus' with 0.91 confidence and Florence says 'car',
+        the system should trust YOLO and use 'bus' as the vehicle type.
+        """
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        result = resolve_vehicle_type_conflict(
+            yolo_class="bus",
+            yolo_confidence=0.91,
+            florence_type="car",
+        )
+
+        assert result.resolved_type == "bus"
+        assert result.source == "yolo"
+        assert result.conflict_detected is True
+
+    def test_low_confidence_yolo_fallback(self) -> None:
+        """Test low confidence YOLO defers to Florence description.
+
+        When YOLO detects 'car' with 0.55 confidence and Florence says 'sedan',
+        the system should trust Florence's more specific description.
+        """
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        result = resolve_vehicle_type_conflict(
+            yolo_class="car",
+            yolo_confidence=0.55,
+            florence_type="sedan",
+        )
+
+        assert result.resolved_type == "sedan"
+        assert result.source == "florence"
+        assert result.conflict_detected is False  # No conflict, Florence provides detail
+
+    def test_medium_confidence_semantic_match(self) -> None:
+        """Test medium confidence with semantic match uses Florence for detail.
+
+        When YOLO detects 'car' with 0.75 confidence and Florence says 'sedan',
+        they semantically match, so use Florence's more specific description.
+        """
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        result = resolve_vehicle_type_conflict(
+            yolo_class="car",
+            yolo_confidence=0.75,
+            florence_type="sedan",
+        )
+
+        assert result.resolved_type == "sedan"
+        assert result.source == "florence"
+        assert result.conflict_detected is False
+
+    def test_medium_confidence_semantic_mismatch(self) -> None:
+        """Test medium confidence with semantic mismatch uses YOLO.
+
+        When YOLO detects 'bus' with 0.75 confidence and Florence says 'police car',
+        they don't match semantically, so prefer YOLO.
+        """
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        result = resolve_vehicle_type_conflict(
+            yolo_class="bus",
+            yolo_confidence=0.75,
+            florence_type="police car",
+        )
+
+        assert result.resolved_type == "bus"
+        assert result.source == "yolo"
+        assert result.conflict_detected is True
+
+    def test_very_high_confidence_yolo_always_wins(self) -> None:
+        """Test very high confidence YOLO always wins even with semantic match.
+
+        When YOLO has 0.95+ confidence, it should be trusted absolutely.
+        """
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        result = resolve_vehicle_type_conflict(
+            yolo_class="truck",
+            yolo_confidence=0.95,
+            florence_type="sedan",  # Wrong type
+        )
+
+        assert result.resolved_type == "truck"
+        assert result.source == "yolo"
+        assert result.conflict_detected is True
+
+    def test_very_low_confidence_yolo_always_defers(self) -> None:
+        """Test very low confidence YOLO always defers to Florence.
+
+        When YOLO has < 0.5 confidence, Florence should be trusted more.
+        """
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        result = resolve_vehicle_type_conflict(
+            yolo_class="car",
+            yolo_confidence=0.45,
+            florence_type="motorcycle",  # Very different
+        )
+
+        assert result.resolved_type == "motorcycle"
+        assert result.source == "florence"
+        # Low confidence YOLO shouldn't assert conflict strongly
+        assert result.conflict_detected is False or result.confidence_note is not None
+
+    def test_confidence_threshold_boundary(self) -> None:
+        """Test behavior at the confidence threshold boundary (0.70)."""
+        from backend.services.vision_extractor import resolve_vehicle_type_conflict
+
+        # Just above threshold - YOLO should win on conflict
+        result_above = resolve_vehicle_type_conflict(
+            yolo_class="bus",
+            yolo_confidence=0.71,
+            florence_type="car",
+        )
+        assert result_above.resolved_type == "bus"
+
+        # Just below threshold - Florence should win
+        result_below = resolve_vehicle_type_conflict(
+            yolo_class="bus",
+            yolo_confidence=0.69,
+            florence_type="car",
+        )
+        assert result_below.resolved_type == "car"
+
+
+class TestYOLOFlorenceValidationNotes:
+    """Tests for validation note generation in YOLO-Florence cross-validation.
+
+    The system should generate validation notes explaining the cross-validation
+    result, which are included in the Nemotron prompt for context.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_validation_note_semantic_match(self) -> None:
+        """Test validation note for semantic match scenario."""
+        from backend.services.vision_extractor import generate_validation_note
+
+        note = generate_validation_note(
+            yolo_class="car",
+            yolo_confidence=0.85,
+            florence_type="sedan",
+            resolved_type="sedan",
+            conflict_detected=False,
+        )
+
+        assert "YOLO" in note or "yolo" in note.lower()
+        assert "car" in note.lower()
+        assert "sedan" in note.lower()
+        assert "match" in note.lower() or "confirmed" in note.lower()
+
+    def test_validation_note_conflict_yolo_override(self) -> None:
+        """Test validation note when YOLO overrides Florence due to conflict."""
+        from backend.services.vision_extractor import generate_validation_note
+
+        note = generate_validation_note(
+            yolo_class="bus",
+            yolo_confidence=0.91,
+            florence_type="police car",
+            resolved_type="bus",
+            conflict_detected=True,
+        )
+
+        assert "conflict" in note.lower() or "mismatch" in note.lower()
+        assert "bus" in note.lower()
+        assert "police car" in note.lower() or "florence" in note.lower()
+        # Should indicate YOLO was trusted
+        assert "91%" in note or "0.91" in note or "high confidence" in note.lower()
+
+    def test_validation_note_florence_trusted(self) -> None:
+        """Test validation note when Florence is trusted over low-confidence YOLO."""
+        from backend.services.vision_extractor import generate_validation_note
+
+        note = generate_validation_note(
+            yolo_class="car",
+            yolo_confidence=0.55,
+            florence_type="sedan",
+            resolved_type="sedan",
+            conflict_detected=False,
+        )
+
+        # Should indicate Florence provided detail
+        assert "sedan" in note.lower()
+        # Should mention lower YOLO confidence
+        assert "55%" in note or "0.55" in note or "low" in note.lower()
+
+    def test_validation_note_person_vehicle_mismatch(self) -> None:
+        """Test validation note for person-vehicle mismatch error."""
+        from backend.services.vision_extractor import generate_validation_note
+
+        note = generate_validation_note(
+            yolo_class="person",
+            yolo_confidence=0.90,
+            florence_type="truck",
+            resolved_type="person",  # YOLO wins for person detection
+            conflict_detected=True,
+        )
+
+        assert "error" in note.lower() or "mismatch" in note.lower()
+        assert "person" in note.lower()
+        # Should flag this as a serious discrepancy
+        assert "truck" in note.lower() or "vehicle" in note.lower()
+
+
+class TestVehicleQueryIncludesYOLOContext:
+    """Tests verifying VQA queries include YOLO detection context.
+
+    When querying Florence for vehicle type, the query should mention what YOLO
+    detected to help Florence provide a consistent response.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_vehicle_query_includes_yolo_context(self) -> None:
+        """Test vehicle type VQA query includes YOLO class context."""
+        from backend.services.vision_extractor import build_vehicle_type_query
+
+        query = build_vehicle_type_query(yolo_class="car")
+
+        # Query should mention what YOLO detected
+        assert "car" in query.lower()
+        # Should ask for specific type
+        assert "type" in query.lower() or "kind" in query.lower()
+
+    def test_vehicle_query_for_bus_detection(self) -> None:
+        """Test vehicle type VQA query for bus detection."""
+        from backend.services.vision_extractor import build_vehicle_type_query
+
+        query = build_vehicle_type_query(yolo_class="bus")
+
+        # Query should ask to confirm/refine the bus detection
+        assert "bus" in query.lower()
+
+    def test_vehicle_query_for_truck_detection(self) -> None:
+        """Test vehicle type VQA query for truck detection."""
+        from backend.services.vision_extractor import build_vehicle_type_query
+
+        query = build_vehicle_type_query(yolo_class="truck")
+
+        assert "truck" in query.lower()
+
+    def test_vehicle_query_for_motorcycle_detection(self) -> None:
+        """Test vehicle type VQA query for motorcycle detection."""
+        from backend.services.vision_extractor import build_vehicle_type_query
+
+        query = build_vehicle_type_query(yolo_class="motorcycle")
+
+        assert "motorcycle" in query.lower()
+
+
+class TestPersonVehicleMismatchError:
+    """Tests for person-vehicle mismatch detection.
+
+    YOLO detecting 'person' but Florence describing a 'truck' indicates a
+    serious error that should be flagged.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_person_vehicle_mismatch_error_flag(self) -> None:
+        """Test YOLO 'person' + Florence 'truck' generates error flag."""
+        from backend.services.vision_extractor import detect_cross_validation_error
+
+        error = detect_cross_validation_error(
+            yolo_class="person",
+            yolo_confidence=0.88,
+            florence_description="A white truck parked in the driveway",
+        )
+
+        assert error is not None
+        assert error.is_critical is True
+        assert "person" in error.message.lower()
+        assert "truck" in error.message.lower() or "vehicle" in error.message.lower()
+
+    def test_person_vehicle_mismatch_car(self) -> None:
+        """Test YOLO 'person' + Florence 'car' generates error."""
+        from backend.services.vision_extractor import detect_cross_validation_error
+
+        error = detect_cross_validation_error(
+            yolo_class="person",
+            yolo_confidence=0.85,
+            florence_description="A blue sedan parked near the house",
+        )
+
+        assert error is not None
+        assert error.is_critical is True
+
+    def test_vehicle_person_mismatch_error_flag(self) -> None:
+        """Test YOLO 'car' + Florence 'person' generates error."""
+        from backend.services.vision_extractor import detect_cross_validation_error
+
+        error = detect_cross_validation_error(
+            yolo_class="car",
+            yolo_confidence=0.90,
+            florence_description="A person walking in dark clothing",
+        )
+
+        assert error is not None
+        assert error.is_critical is True
+
+    def test_no_error_on_valid_match(self) -> None:
+        """Test no error when YOLO and Florence match."""
+        from backend.services.vision_extractor import detect_cross_validation_error
+
+        error = detect_cross_validation_error(
+            yolo_class="car",
+            yolo_confidence=0.85,
+            florence_description="A white sedan in the parking lot",
+        )
+
+        assert error is None
+
+    def test_no_error_on_person_person_match(self) -> None:
+        """Test no error when both YOLO and Florence agree on person."""
+        from backend.services.vision_extractor import detect_cross_validation_error
+
+        error = detect_cross_validation_error(
+            yolo_class="person",
+            yolo_confidence=0.92,
+            florence_description="A person wearing a blue jacket walking",
+        )
+
+        assert error is None
+
+
+class TestExtractBatchAttributesWithCrossValidation:
+    """Tests for extract_batch_attributes with YOLO cross-validation.
+
+    These tests verify that the batch extraction method properly uses YOLO
+    class information for cross-validation with Florence descriptions.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def setup_method(self) -> None:
+        """Reset service before each test."""
+        reset_vision_extractor()
+
+    def teardown_method(self) -> None:
+        """Reset service after each test."""
+        reset_vision_extractor()
+
+    @pytest.mark.asyncio
+    async def test_extract_batch_uses_yolo_class_for_validation(self) -> None:
+        """Test extract_batch_attributes uses YOLO class for cross-validation."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        # Track what queries were made
+        queries_made = []
+
+        async def mock_query(image, task, text_input=""):
+            queries_made.append({"task": task, "text_input": text_input})
+            if task == "<CAPTION>":
+                return "A white sedan in the driveway"
+            elif "type" in text_input.lower():
+                return "sedan"
+            elif "color" in text_input.lower():
+                return "white"
+            elif "commercial" in text_input.lower():
+                return "no"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        detections = [
+            {
+                "class_name": "car",  # YOLO detected car
+                "bbox": [10, 10, 100, 100],
+                "detection_id": "v1",
+                "confidence": 0.85,  # YOLO confidence
+            }
+        ]
+
+        result = await extractor.extract_batch_attributes(img, detections)
+
+        # Verify YOLO class was used in validation
+        vehicle_attrs = result.vehicle_attributes.get("v1")
+        assert vehicle_attrs is not None
+        # Should have validation_note indicating cross-validation was performed
+        assert hasattr(vehicle_attrs, "validation_note") or result.vehicle_attributes.get(
+            "v1_validation"
+        )
+
+    @pytest.mark.asyncio
+    async def test_extract_batch_detects_bus_police_car_conflict(self) -> None:
+        """Test extract_batch_attributes detects bus/police car misclassification.
+
+        This is the key regression test - when YOLO detects a bus but Florence
+        says 'police car', the system should flag this conflict.
+        """
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A police car with flashing lights"  # Florence hallucination
+            elif "type" in text_input.lower():
+                return "police car"  # Incorrect
+            elif "color" in text_input.lower():
+                return "white"
+            elif "commercial" in text_input.lower():
+                return "no"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        detections = [
+            {
+                "class_name": "bus",  # YOLO detected BUS
+                "bbox": [10, 10, 200, 150],
+                "detection_id": "v1",
+                "confidence": 0.88,
+            }
+        ]
+
+        result = await extractor.extract_batch_attributes(img, detections)
+
+        vehicle_attrs = result.vehicle_attributes.get("v1")
+        assert vehicle_attrs is not None
+
+        # The resolved type should be 'bus' (YOLO override)
+        assert vehicle_attrs.vehicle_type == "bus", (
+            f"Expected 'bus', got '{vehicle_attrs.vehicle_type}'. "
+            "Florence said 'police car' but YOLO detected 'bus' with 0.88 confidence."
+        )
+
+        # Should have validation note about the conflict
+        assert vehicle_attrs.validation_note is not None
+        assert (
+            "conflict" in vehicle_attrs.validation_note.lower()
+            or "mismatch" in vehicle_attrs.validation_note.lower()
+        )
+
+    @pytest.mark.asyncio
+    async def test_extract_batch_low_confidence_uses_florence(self) -> None:
+        """Test extract_batch_attributes uses Florence when YOLO confidence is low."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A white sedan parked"
+            elif "type" in text_input.lower():
+                return "sedan"
+            elif "color" in text_input.lower():
+                return "white"
+            elif "commercial" in text_input.lower():
+                return "no"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        detections = [
+            {
+                "class_name": "car",
+                "bbox": [10, 10, 100, 100],
+                "detection_id": "v1",
+                "confidence": 0.55,  # Low YOLO confidence
+            }
+        ]
+
+        result = await extractor.extract_batch_attributes(img, detections)
+
+        vehicle_attrs = result.vehicle_attributes.get("v1")
+        assert vehicle_attrs is not None
+
+        # With low YOLO confidence, Florence's 'sedan' should be used
+        assert vehicle_attrs.vehicle_type == "sedan"
+
+    @pytest.mark.asyncio
+    async def test_extract_batch_includes_yolo_class_in_result(self) -> None:
+        """Test that extraction result includes original YOLO class for reference."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A pickup truck"
+            elif "type" in text_input.lower():
+                return "pickup"
+            elif "color" in text_input.lower():
+                return "red"
+            elif "commercial" in text_input.lower():
+                return "no"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        detections = [
+            {
+                "class_name": "truck",  # YOLO class
+                "bbox": [10, 10, 150, 100],
+                "detection_id": "v1",
+                "confidence": 0.82,
+            }
+        ]
+
+        result = await extractor.extract_batch_attributes(img, detections)
+
+        vehicle_attrs = result.vehicle_attributes.get("v1")
+        assert vehicle_attrs is not None
+
+        # Result should include original YOLO class for downstream context
+        assert hasattr(vehicle_attrs, "yolo_class") and vehicle_attrs.yolo_class == "truck"
+
+
+class TestVehicleAttributesWithValidation:
+    """Tests for VehicleAttributes dataclass with validation fields.
+
+    The VehicleAttributes dataclass should be extended to include validation
+    information from YOLO cross-validation.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_vehicle_attributes_with_validation_note(self) -> None:
+        """Test VehicleAttributes includes validation_note field."""
+        # This will fail until VehicleAttributes is updated
+        from backend.services.vision_extractor import VehicleAttributes
+
+        attrs = VehicleAttributes(
+            color="white",
+            vehicle_type="bus",
+            is_commercial=False,
+            commercial_text=None,
+            caption="A white bus",
+            validation_note="YOLO detected 'bus' (88% conf), Florence said 'police car'. Using YOLO.",
+            yolo_class="bus",
+            yolo_confidence=0.88,
+        )
+
+        assert attrs.validation_note is not None
+        assert "bus" in attrs.validation_note.lower()
+        assert attrs.yolo_class == "bus"
+        assert attrs.yolo_confidence == 0.88
+
+    def test_vehicle_attributes_to_dict_includes_validation(self) -> None:
+        """Test VehicleAttributes.to_dict() includes validation fields."""
+        from backend.services.vision_extractor import VehicleAttributes
+
+        attrs = VehicleAttributes(
+            color="red",
+            vehicle_type="truck",
+            is_commercial=False,
+            commercial_text=None,
+            caption="A red truck",
+            validation_note="Semantic match: YOLO 'truck' matches Florence 'pickup'",
+            yolo_class="truck",
+            yolo_confidence=0.85,
+        )
+
+        result = attrs.to_dict()
+
+        assert "validation_note" in result
+        assert "yolo_class" in result
+        assert "yolo_confidence" in result
+        assert result["yolo_class"] == "truck"
+        assert result["yolo_confidence"] == 0.85
+
+
+class TestConflictResolutionResult:
+    """Tests for ConflictResolutionResult dataclass.
+
+    The resolve_vehicle_type_conflict function should return a structured
+    result with all relevant information.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_conflict_resolution_result_structure(self) -> None:
+        """Test ConflictResolutionResult has required fields."""
+        from backend.services.vision_extractor import ConflictResolutionResult
+
+        result = ConflictResolutionResult(
+            resolved_type="bus",
+            source="yolo",
+            conflict_detected=True,
+            yolo_class="bus",
+            yolo_confidence=0.91,
+            florence_type="police car",
+            confidence_note="High confidence YOLO detection overrides Florence",
+        )
+
+        assert result.resolved_type == "bus"
+        assert result.source == "yolo"
+        assert result.conflict_detected is True
+        assert result.yolo_class == "bus"
+        assert result.yolo_confidence == 0.91
+        assert result.florence_type == "police car"
+        assert result.confidence_note is not None
+
+    def test_conflict_resolution_result_no_conflict(self) -> None:
+        """Test ConflictResolutionResult for non-conflict case."""
+        from backend.services.vision_extractor import ConflictResolutionResult
+
+        result = ConflictResolutionResult(
+            resolved_type="sedan",
+            source="florence",
+            conflict_detected=False,
+            yolo_class="car",
+            yolo_confidence=0.85,
+            florence_type="sedan",
+            confidence_note=None,
+        )
+
+        assert result.resolved_type == "sedan"
+        assert result.source == "florence"
+        assert result.conflict_detected is False
+
+
+class TestCrossValidationError:
+    """Tests for CrossValidationError dataclass.
+
+    The detect_cross_validation_error function should return a structured
+    error result when critical mismatches are detected.
+
+    NEM-5478: Florence-2 YOLO Cross-Validation feature.
+    """
+
+    def test_cross_validation_error_structure(self) -> None:
+        """Test CrossValidationError has required fields."""
+        from backend.services.vision_extractor import CrossValidationError
+
+        error = CrossValidationError(
+            is_critical=True,
+            message="Person-vehicle mismatch: YOLO detected 'person' but Florence described 'truck'",
+            yolo_class="person",
+            yolo_confidence=0.90,
+            florence_description="A white truck parked",
+        )
+
+        assert error.is_critical is True
+        assert "person" in error.message.lower()
+        assert error.yolo_class == "person"
+        assert error.yolo_confidence == 0.90
+        assert "truck" in error.florence_description.lower()
+
+    def test_cross_validation_error_to_dict(self) -> None:
+        """Test CrossValidationError.to_dict() method."""
+        from backend.services.vision_extractor import CrossValidationError
+
+        error = CrossValidationError(
+            is_critical=True,
+            message="Critical mismatch detected",
+            yolo_class="person",
+            yolo_confidence=0.88,
+            florence_description="A car in the parking lot",
+        )
+
+        result = error.to_dict()
+
+        assert result["is_critical"] is True
+        assert "message" in result
+        assert result["yolo_class"] == "person"
+
+
+class TestGetSceneCaptionDetailLevel:
+    """Tests for get_scene_caption() with detail_level parameter.
+
+    NEM-5507/5508/5509: Florence Caption Upgrade to DETAILED_CAPTION.
+    The get_scene_caption() method should support different detail levels
+    that map to Florence-2 caption tasks.
+    """
+
+    def setup_method(self) -> None:
+        """Reset service before each test."""
+        reset_vision_extractor()
+
+    def teardown_method(self) -> None:
+        """Reset service after each test."""
+        reset_vision_extractor()
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_default_is_detailed(self) -> None:
+        """Test get_scene_caption defaults to 'detailed' level."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        received_tasks = []
+
+        async def mock_query(image, task, text_input=""):
+            received_tasks.append(task)
+            if task == "<DETAILED_CAPTION>":
+                return "A detailed description with 50-100 words providing rich context"
+            return "Basic caption"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.get_scene_caption(img)
+
+        # Default should use DETAILED_CAPTION
+        assert "<DETAILED_CAPTION>" in received_tasks
+        assert "detailed description" in result
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_basic_level(self) -> None:
+        """Test get_scene_caption with detail_level='basic'."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        received_tasks = []
+
+        async def mock_query(image, task, text_input=""):
+            received_tasks.append(task)
+            if task == "<CAPTION>":
+                return "A short basic caption"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.get_scene_caption(img, detail_level="basic")
+
+        assert "<CAPTION>" in received_tasks
+        assert "basic caption" in result
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_detailed_level(self) -> None:
+        """Test get_scene_caption with detail_level='detailed'."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        received_tasks = []
+
+        async def mock_query(image, task, text_input=""):
+            received_tasks.append(task)
+            if task == "<DETAILED_CAPTION>":
+                return "A detailed scene description with more context"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.get_scene_caption(img, detail_level="detailed")
+
+        assert "<DETAILED_CAPTION>" in received_tasks
+        assert "detailed" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_more_detailed_level(self) -> None:
+        """Test get_scene_caption with detail_level='more_detailed'."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        received_tasks = []
+
+        async def mock_query(image, task, text_input=""):
+            received_tasks.append(task)
+            if task == "<MORE_DETAILED_CAPTION>":
+                return "An extremely detailed scene description with extensive context about every element visible"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.get_scene_caption(img, detail_level="more_detailed")
+
+        assert "<MORE_DETAILED_CAPTION>" in received_tasks
+        assert "extremely detailed" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_strips_whitespace(self) -> None:
+        """Test get_scene_caption strips leading/trailing whitespace."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            return "  Caption with whitespace  \n"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.get_scene_caption(img)
+
+        assert result == "Caption with whitespace"
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_empty_response(self) -> None:
+        """Test get_scene_caption handles empty response."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        result = await extractor.get_scene_caption(img)
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_get_scene_caption_invalid_level_falls_back_to_detailed(self) -> None:
+        """Test get_scene_caption with invalid level uses detailed."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        received_tasks = []
+
+        async def mock_query(image, task, text_input=""):
+            received_tasks.append(task)
+            if task == "<DETAILED_CAPTION>":
+                return "Detailed fallback caption"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (640, 480), color="black")
+        # Invalid level should fall back to detailed
+        result = await extractor.get_scene_caption(img, detail_level="invalid_level")
+
+        assert "<DETAILED_CAPTION>" in received_tasks
+
+
+class TestDetailLevelMapping:
+    """Tests for DETAIL_LEVEL_TO_TASK mapping constant."""
+
+    def test_detail_level_mapping_exists(self) -> None:
+        """Test that DETAIL_LEVEL_TO_TASK mapping is defined."""
+        from backend.services.vision_extractor import DETAIL_LEVEL_TO_TASK
+
+        assert isinstance(DETAIL_LEVEL_TO_TASK, dict)
+
+    def test_detail_level_mapping_contains_all_levels(self) -> None:
+        """Test mapping contains basic, detailed, and more_detailed."""
+        from backend.services.vision_extractor import DETAIL_LEVEL_TO_TASK
+
+        assert "basic" in DETAIL_LEVEL_TO_TASK
+        assert "detailed" in DETAIL_LEVEL_TO_TASK
+        assert "more_detailed" in DETAIL_LEVEL_TO_TASK
+
+    def test_detail_level_mapping_to_correct_tasks(self) -> None:
+        """Test mapping points to correct Florence tasks."""
+        from backend.services.vision_extractor import (
+            CAPTION_TASK,
+            DETAIL_LEVEL_TO_TASK,
+            DETAILED_CAPTION_TASK,
+            MORE_DETAILED_CAPTION_TASK,
+        )
+
+        assert DETAIL_LEVEL_TO_TASK["basic"] == CAPTION_TASK
+        assert DETAIL_LEVEL_TO_TASK["detailed"] == DETAILED_CAPTION_TASK
+        assert DETAIL_LEVEL_TO_TASK["more_detailed"] == MORE_DETAILED_CAPTION_TASK
