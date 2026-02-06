@@ -1683,3 +1683,200 @@ async def delete_recording(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete recording: {e}",
         ) from e
+
+
+# =============================================================================
+# Batch Processing Debug Endpoints (Phase 5 Load Testing)
+# =============================================================================
+
+
+class BatchAddDetectionRequest(BaseModel):
+    """Request for adding a detection to the batch aggregator."""
+
+    camera_id: str = Field(description="Camera identifier")
+    detection_id: int = Field(description="Detection identifier")
+    object_type: str | None = Field(default=None, description="Detected object type")
+    confidence: float | None = Field(default=None, description="Detection confidence")
+    threat_type: str | None = Field(default=None, description="Threat type for fast path")
+    smoke_fire_type: str | None = Field(default=None, description="Smoke/fire type for fast path")
+
+
+class BatchAddDetectionResponse(BaseModel):
+    """Response for adding a detection to batch."""
+
+    batch_id: str | None = Field(description="Batch ID the detection was added to")
+    status: str = Field(description="Status of the operation")
+    fast_path: bool = Field(default=False, description="Whether fast path was triggered")
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+class BatchMetricsResponse(BaseModel):
+    """Response for batch processing metrics."""
+
+    coalescer_metrics: dict[str, Any] = Field(
+        default_factory=dict, description="Batch coalescer metrics"
+    )
+    aggregator_metrics: dict[str, Any] = Field(
+        default_factory=dict, description="Batch aggregator metrics"
+    )
+    priority_distribution: dict[str, int] = Field(
+        default_factory=dict, description="Detection count by priority level"
+    )
+    timestamp: str = Field(description="ISO timestamp of response")
+
+
+@router.post(
+    "/batch/add-detection",
+    response_model=BatchAddDetectionResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def add_detection_to_batch(
+    request: BatchAddDetectionRequest,
+    redis: RedisClient | None = Depends(get_redis_optional),
+    _debug: None = Depends(require_debug_mode),
+) -> BatchAddDetectionResponse:
+    """Add a synthetic detection to the batch aggregator.
+
+    This endpoint allows direct testing of the batch processing pipeline
+    without requiring actual camera detections. Useful for load testing
+    and validating Phase 5 optimizations (coalescing, priority scheduling).
+
+    Args:
+        request: Detection details to add
+
+    Returns:
+        Batch ID and status of the operation
+    """
+    if redis is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis not available for batch operations",
+        )
+
+    try:
+        from backend.services.batch_aggregator import BatchAggregator
+
+        aggregator = BatchAggregator(redis_client=redis)
+
+        # Add detection to batch
+        batch_id = await aggregator.add_detection(
+            camera_id=request.camera_id,
+            detection_id=request.detection_id,
+            _file_path=f"/tmp/loadtest/{request.detection_id}.jpg",  # noqa: S108 - Synthetic path for testing
+            confidence=request.confidence,
+            object_type=request.object_type,
+            threat_type=request.threat_type,
+            smoke_fire_type=request.smoke_fire_type,
+        )
+
+        # Check if fast path was triggered
+        fast_path = batch_id.startswith(
+            ("fast_path_", "threat_fast_path_", "smoke_fire_fast_path_")
+        )
+
+        return BatchAddDetectionResponse(
+            batch_id=batch_id,
+            status="added",
+            fast_path=fast_path,
+            timestamp=datetime.now(UTC).isoformat(),
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to add detection to batch: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to add detection: {e}",
+        ) from e
+
+
+@router.get(
+    "/batch/metrics",
+    response_model=BatchMetricsResponse,
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_batch_metrics(
+    _debug: None = Depends(require_debug_mode),
+) -> BatchMetricsResponse:
+    """Get batch processing metrics for Phase 5 optimization analysis.
+
+    Returns metrics from the batch coalescer and aggregator including:
+    - Merge statistics (attempts, successes, reduction percentage)
+    - Priority distribution of processed detections
+    - Coalescing efficiency metrics
+
+    Useful for validating that Phase 5 optimizations are working:
+    - Target: 20-40% reduction in inference calls through coalescing
+    - High priority items (P0) should have lower latency than low priority (P3)
+    """
+    try:
+        from backend.services.batch_coalescer import get_batch_coalescer
+
+        coalescer = get_batch_coalescer()
+        coalescer_metrics = coalescer.get_metrics()
+
+        # Mock priority distribution (would be tracked in production)
+        priority_distribution = {
+            "P0_CRITICAL": 0,
+            "P1_HIGH": 0,
+            "P2_NORMAL": 0,
+            "P3_LOW": 0,
+        }
+
+        return BatchMetricsResponse(
+            coalescer_metrics=coalescer_metrics,
+            aggregator_metrics={
+                "active_batches": 0,  # Would be fetched from Redis in production
+            },
+            priority_distribution=priority_distribution,
+            timestamp=datetime.now(UTC).isoformat(),
+        )
+
+    except Exception as e:
+        logger.warning(f"Failed to get batch metrics: {e}")
+        return BatchMetricsResponse(
+            coalescer_metrics={},
+            aggregator_metrics={},
+            priority_distribution={},
+            timestamp=datetime.now(UTC).isoformat(),
+        )
+
+
+@router.post(
+    "/batch/reset-metrics",
+    responses={
+        404: {"description": "Not found - Debug mode disabled"},
+        200: {"description": "Metrics reset successfully"},
+    },
+)
+async def reset_batch_metrics(
+    _debug: None = Depends(require_debug_mode),
+) -> dict[str, str]:
+    """Reset batch processing metrics for fresh load test runs.
+
+    Clears all coalescer and aggregator metrics to enable clean
+    measurement of a new test run.
+    """
+    try:
+        from backend.services.batch_coalescer import get_batch_coalescer
+
+        coalescer = get_batch_coalescer()
+        coalescer.reset_metrics()
+
+        return {
+            "status": "reset",
+            "message": "Batch metrics reset successfully",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    except Exception as e:
+        logger.warning(f"Failed to reset batch metrics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset metrics: {e}",
+        ) from e

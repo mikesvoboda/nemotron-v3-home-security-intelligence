@@ -565,13 +565,15 @@ class NemotronAnalyzer:
         """Get the batch coalescer instance.
 
         Returns the injected coalescer if available, otherwise uses the global singleton.
+        Passes Redis client to ensure coalescing can persist candidates.
 
         Returns:
             BatchCoalescer instance for merging similar batches
         """
         if self._batch_coalescer is not None:
             return self._batch_coalescer
-        return get_batch_coalescer()
+        # Pass Redis client to singleton on first access
+        return get_batch_coalescer(redis_client=self._redis)
 
     def calculate_batch_priority(
         self,

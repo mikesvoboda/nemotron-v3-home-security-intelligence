@@ -597,15 +597,19 @@ class BatchCoalescer:
 _batch_coalescer: BatchCoalescer | None = None
 
 
-def get_batch_coalescer() -> BatchCoalescer:
+def get_batch_coalescer(redis_client: RedisClient | None = None) -> BatchCoalescer:
     """Get or create the global BatchCoalescer instance.
+
+    Args:
+        redis_client: Optional Redis client to use. If provided on first call,
+            it will be used for the singleton. Subsequent calls ignore this param.
 
     Returns:
         Singleton BatchCoalescer instance
     """
     global _batch_coalescer  # noqa: PLW0603
     if _batch_coalescer is None:
-        _batch_coalescer = BatchCoalescer()
+        _batch_coalescer = BatchCoalescer(redis_client=redis_client)
     return _batch_coalescer
 
 
