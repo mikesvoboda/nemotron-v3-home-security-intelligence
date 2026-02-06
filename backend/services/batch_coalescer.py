@@ -33,6 +33,7 @@ from typing import Any
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.redis import get_redis_client_sync
 
 logger = get_logger(__name__)
 
@@ -263,6 +264,9 @@ class BatchCoalescer:
         # Metrics tracking
         self._metrics = CoalescerMetrics()
 
+        # Flag to track if we've tried lazy Redis init
+        self._redis_init_attempted = redis_client is not None
+
         logger.debug(
             "BatchCoalescer initialized",
             extra={
@@ -271,6 +275,22 @@ class BatchCoalescer:
                 "confidence_tolerance": self.confidence_tolerance,
             },
         )
+
+    def _get_redis(self) -> RedisClient | None:
+        """Get Redis client, lazily initializing from global if needed.
+
+        Returns:
+            Redis client or None if unavailable
+        """
+        if self._redis is None and not self._redis_init_attempted:
+            self._redis_init_attempted = True
+            try:
+                self._redis = get_redis_client_sync()
+                if self._redis:
+                    logger.debug("BatchCoalescer lazily acquired Redis client")
+            except Exception as e:
+                logger.warning(f"Failed to get Redis client: {e}")
+        return self._redis
 
     def is_compatible(self, batch1: CoalesceCandidate, batch2: CoalesceCandidate) -> bool:
         """Check if two batches can be coalesced.
@@ -364,7 +384,8 @@ class BatchCoalescer:
         Args:
             candidate: The batch candidate to register
         """
-        if self._redis is None:
+        redis = self._get_redis()
+        if redis is None:
             logger.warning("No Redis client, skipping candidate registration")
             return
 
@@ -375,20 +396,20 @@ class BatchCoalescer:
         timestamp = candidate.created_at.timestamp()
 
         # Store the serialized candidate
-        await self._redis.set(
+        await redis.set(
             candidate_key,
             candidate.to_json(),
             ex=self.CANDIDATE_TTL_SECONDS,
         )
 
         # Add to sorted set by timestamp
-        await self._redis.zadd(
+        await redis.zadd(
             candidates_key,
             {candidate.batch_id: timestamp},
         )
 
         # Set TTL on sorted set
-        await self._redis.expire(candidates_key, self.CANDIDATE_TTL_SECONDS)
+        await redis.expire(candidates_key, self.CANDIDATE_TTL_SECONDS)
 
         logger.debug(
             "Registered coalesce candidate",
@@ -413,7 +434,8 @@ class BatchCoalescer:
         Returns:
             List of compatible candidates (may be empty)
         """
-        if self._redis is None:
+        redis = self._get_redis()
+        if redis is None:
             return []
 
         candidates_key = f"{self.CANDIDATES_KEY_PREFIX}:{candidate.camera_id}"
@@ -423,7 +445,7 @@ class BatchCoalescer:
         max_time = candidate.created_at.timestamp() + self.coalesce_window_seconds
 
         # Get batch IDs from sorted set
-        batch_ids = await self._redis.zrangebyscore(
+        batch_ids = await redis.zrangebyscore(
             candidates_key,
             min=min_time,
             max=max_time,
@@ -447,7 +469,7 @@ class BatchCoalescer:
 
             # Get candidate data
             candidate_key = f"{self.CANDIDATE_DATA_PREFIX}:{batch_id_str}"
-            data = await self._redis.get(candidate_key)
+            data = await redis.get(candidate_key)
 
             if data is None:
                 continue
@@ -472,13 +494,14 @@ class BatchCoalescer:
         Args:
             batch_ids: List of batch IDs to remove
         """
-        if self._redis is None:
+        redis = self._get_redis()
+        if redis is None:
             return
 
         for batch_id in batch_ids:
             # Delete candidate data
             candidate_key = f"{self.CANDIDATE_DATA_PREFIX}:{batch_id}"
-            await self._redis.delete(candidate_key)
+            await redis.delete(candidate_key)
 
             # Note: We can't easily remove from sorted sets without knowing camera_id
             # The TTL will handle cleanup, but for immediate removal we'd need
@@ -486,7 +509,7 @@ class BatchCoalescer:
 
         # For sorted sets, we use zrem with the batch_ids
         # This requires knowing which camera's set to modify
-        await self._redis.zrem("coalesce:candidates:*", *batch_ids)
+        await redis.zrem("coalesce:candidates:*", *batch_ids)
 
         logger.debug(
             "Removed coalesce candidates",
