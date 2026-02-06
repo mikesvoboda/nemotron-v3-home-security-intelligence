@@ -82,6 +82,13 @@ def mock_settings():
     # Guided JSON settings (NEM-3726)
     mock.nemotron_use_guided_json = False  # Disabled by default for existing tests
     mock.nemotron_guided_json_fallback = True
+    # Batch coalescing and priority queue settings (NEM-5464 Phase 5)
+    mock.batch_coalescing_enabled = False  # Disabled by default for existing tests
+    mock.batch_coalescing_max_size = 10
+    mock.batch_coalescing_time_window = 5.0
+    mock.priority_queue_enabled = False  # Disabled by default for existing tests
+    mock.priority_high_labels = ["weapon", "intruder", "fire"]
+    mock.priority_medium_labels = ["person", "unknown"]
     return mock
 
 
@@ -2541,6 +2548,13 @@ class TestNemotronAnalyzerImprovedPatterns:
         # Guided JSON settings (NEM-3726)
         mock.nemotron_use_guided_json = False
         mock.nemotron_guided_json_fallback = True
+        # Batch coalescing and priority queue settings (NEM-5464 Phase 5)
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 5.0
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["weapon", "intruder", "fire"]
+        mock.priority_medium_labels = ["person", "unknown"]
         return mock
 
     @pytest.fixture
@@ -2732,6 +2746,13 @@ class TestIdempotencyHandling:
         # Guided JSON settings (NEM-3726)
         mock.nemotron_use_guided_json = False
         mock.nemotron_guided_json_fallback = True
+        # Batch coalescing and priority queue settings (NEM-5464 Phase 5)
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 5.0
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["weapon", "intruder", "fire"]
+        mock.priority_medium_labels = ["person", "unknown"]
         return mock
 
     @pytest.fixture
@@ -3285,6 +3306,13 @@ class TestLLMTokenMetrics:
         # Guided JSON settings (NEM-3726)
         mock.nemotron_use_guided_json = False
         mock.nemotron_guided_json_fallback = True
+        # Batch coalescing and priority queue settings (NEM-5464 Phase 5)
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 5.0
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["weapon", "intruder", "fire"]
+        mock.priority_medium_labels = ["person", "unknown"]
         return mock
 
     @pytest.fixture
@@ -3482,6 +3510,13 @@ class TestTokenCountingIntegration:
         # Guided JSON settings (NEM-3726)
         mock.nemotron_use_guided_json = False
         mock.nemotron_guided_json_fallback = True
+        # Batch coalescing and priority queue settings (NEM-5464 Phase 5)
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 5.0
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["weapon", "intruder", "fire"]
+        mock.priority_medium_labels = ["person", "unknown"]
         return mock
 
     @pytest.fixture

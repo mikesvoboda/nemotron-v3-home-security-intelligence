@@ -115,11 +115,11 @@ class MetricsCollector:
             TimeoutError: If the request times out
         """
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 start_time = time.perf_counter()
                 response = await client.post(
                     self.service_url,
-                    json={"prompt": prompt},
+                    json={"prompt": prompt, "max_tokens": 500},
                 )
                 elapsed_ms = (time.perf_counter() - start_time) * 1000
 
@@ -284,7 +284,11 @@ class MetricsCollector:
 
                 result = await self.record_request(prompt)
                 worker_requests += 1
-                worker_tokens += result.get("tokens", 0)
+                # LLM returns tokens_predicted (int), fallback to len(tokens) if list
+                tokens = result.get("tokens_predicted", 0)
+                if isinstance(tokens, list):
+                    tokens = len(tokens)
+                worker_tokens += tokens
 
             return worker_requests, worker_tokens
 

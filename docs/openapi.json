@@ -5344,6 +5344,115 @@
         "title": "BaselineSummaryResponse",
         "type": "object"
       },
+      "BatchAddDetectionRequest": {
+        "description": "Request for adding a detection to the batch aggregator.",
+        "properties": {
+          "camera_id": {
+            "description": "Camera identifier",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detection confidence",
+            "title": "Confidence"
+          },
+          "detection_id": {
+            "description": "Detection identifier",
+            "title": "Detection Id",
+            "type": "integer"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detected object type",
+            "title": "Object Type"
+          },
+          "smoke_fire_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Smoke/fire type for fast path",
+            "title": "Smoke Fire Type"
+          },
+          "threat_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Threat type for fast path",
+            "title": "Threat Type"
+          }
+        },
+        "required": [
+          "camera_id",
+          "detection_id"
+        ],
+        "title": "BatchAddDetectionRequest",
+        "type": "object"
+      },
+      "BatchAddDetectionResponse": {
+        "description": "Response for adding a detection to batch.",
+        "properties": {
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Batch ID the detection was added to",
+            "title": "Batch Id"
+          },
+          "fast_path": {
+            "default": false,
+            "description": "Whether fast path was triggered",
+            "title": "Fast Path",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Status of the operation",
+            "title": "Status",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_id",
+          "status",
+          "timestamp"
+        ],
+        "title": "BatchAddDetectionResponse",
+        "type": "object"
+      },
       "BatchAggregatorStatusResponse": {
         "description": "Status information for the BatchAggregator service.",
         "example": {
@@ -5764,6 +5873,41 @@
           "total_matches"
         ],
         "title": "BatchMatchResponse",
+        "type": "object"
+      },
+      "BatchMetricsResponse": {
+        "description": "Response for batch processing metrics.",
+        "properties": {
+          "aggregator_metrics": {
+            "additionalProperties": true,
+            "description": "Batch aggregator metrics",
+            "title": "Aggregator Metrics",
+            "type": "object"
+          },
+          "coalescer_metrics": {
+            "additionalProperties": true,
+            "description": "Batch coalescer metrics",
+            "title": "Coalescer Metrics",
+            "type": "object"
+          },
+          "priority_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Detection count by priority level",
+            "title": "Priority Distribution",
+            "type": "object"
+          },
+          "timestamp": {
+            "description": "ISO timestamp of response",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timestamp"
+        ],
+        "title": "BatchMetricsResponse",
         "type": "object"
       },
       "BatchSettings": {
@@ -50371,6 +50515,111 @@
         "summary": "Update Zone",
         "tags": [
           "zones"
+        ]
+      }
+    },
+    "/api/debug/batch/add-detection": {
+      "post": {
+        "description": "Add a synthetic detection to the batch aggregator.\n\nThis endpoint allows direct testing of the batch processing pipeline\nwithout requiring actual camera detections. Useful for load testing\nand validating Phase 5 optimizations (coalescing, priority scheduling).\n\nArgs:\n    request: Detection details to add\n\nReturns:\n    Batch ID and status of the operation",
+        "operationId": "debug_add_detection_to_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchAddDetectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchAddDetectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Add Detection To Batch",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/debug/batch/metrics": {
+      "get": {
+        "description": "Get batch processing metrics for Phase 5 optimization analysis.\n\nReturns metrics from the batch coalescer and aggregator including:\n- Merge statistics (attempts, successes, reduction percentage)\n- Priority distribution of processed detections\n- Coalescing efficiency metrics\n\nUseful for validating that Phase 5 optimizations are working:\n- Target: 20-40% reduction in inference calls through coalescing\n- High priority items (P0) should have lower latency than low priority (P3)",
+        "operationId": "debug_get_batch_metrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchMetricsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Batch Metrics",
+        "tags": [
+          "debug"
+        ]
+      }
+    },
+    "/api/debug/batch/reset-metrics": {
+      "post": {
+        "description": "Reset batch processing metrics for fresh load test runs.\n\nClears all coalescer and aggregator metrics to enable clean\nmeasurement of a new test run.",
+        "operationId": "debug_reset_batch_metrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Debug Reset Batch Metrics",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Metrics reset successfully"
+          },
+          "404": {
+            "description": "Not found - Debug mode disabled"
+          }
+        },
+        "summary": "Reset Batch Metrics",
+        "tags": [
+          "debug"
         ]
       }
     },
