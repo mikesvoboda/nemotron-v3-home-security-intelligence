@@ -248,7 +248,8 @@ services:
   # Note: Cannot run simultaneously with ai-llm on same GPU - stop ai-llm first.
   #
   # vLLM requires HuggingFace format models (not GGUF). Model options:
-  #   - nvidia/Nemotron-3-Nano-30B-A3B (default, requires HF download)
+  #   - /models/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4 (default, 4-bit quantized)
+  #   - nvidia/Nemotron-Mini-4B-Instruct (smaller model for testing)
   #   - Any HF model compatible with vLLM
   ai-llm-vllm:
     profiles:
@@ -258,7 +259,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: vllm/vllm-openai:latest
+    image: docker.io/vllm/vllm-openai:cu130-nightly
     # NEM-4486: Bind to localhost only - AI services are internal
     # Port from .env (single source of truth for all network ports)
     ports:
@@ -276,17 +277,22 @@ services:
       # vLLM server configuration
       - VLLM_NO_USAGE_STATS=1
     # vLLM command-line arguments
+    # NOTE: Nemotron-3-Nano-30B quantizations have compatibility issues:
+    # - NVFP4: Requires H100/A100 datacenter GPUs, not supported on RTX A5500
+    # - AWQ (compressed-tensors): vLLM bug with Mamba architecture in nightly builds
+    # - FP8: 30GB, exceeds 24GB VRAM on RTX A5500
+    # Recommend using llama.cpp with GGUF quantizations until vLLM adds proper support
     command:
       - --model
-      - ${VLLM_MODEL:-nvidia/Nemotron-Mini-4B-Instruct}
+      - ${VLLM_MODEL:-/models/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4}
       - --host
       - '0.0.0.0'
       - --port
       - '8000'
       - --gpu-memory-utilization
-      - '${VLLM_GPU_MEMORY_UTILIZATION:-0.9}'
+      - '${VLLM_GPU_MEMORY_UTILIZATION:-0.8}'
       - --max-model-len
-      - '${VLLM_MAX_MODEL_LEN:-32768}'
+      - '${VLLM_MAX_MODEL_LEN:-4096}'
       - --trust-remote-code
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']

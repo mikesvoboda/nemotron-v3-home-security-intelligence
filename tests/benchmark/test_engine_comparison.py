@@ -758,18 +758,16 @@ class TestMetricsCollection:
         """Test latency percentile calculation."""
         comparator = EngineComparator()
 
-        # Mock response times
         response_times = [100, 110, 120, 130, 140, 150, 200, 250, 300, 500]
 
-        with patch.object(comparator, "_collect_latencies", return_value=response_times):
-            metrics = comparator._calculate_latency_percentiles(response_times)
+        metrics = comparator._calculate_latency_percentiles(response_times)
 
-            # P50 should be around 145 (median of 10 values)
-            assert 130 <= metrics["p50"] <= 160
-            # P95 should be high
-            assert metrics["p95"] >= 250
-            # P99 should be highest
-            assert metrics["p99"] >= 300
+        # P50 should be around 145 (median of 10 values)
+        assert 130 <= metrics["p50"] <= 160
+        # P95 should be high
+        assert metrics["p95"] >= 250
+        # P99 should be highest
+        assert metrics["p99"] >= 300
 
     @pytest.mark.asyncio
     async def test_throughput_calculation(self) -> None:

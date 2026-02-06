@@ -554,9 +554,22 @@ class PetClassifier:
 
         logger.info("Loading Pet Classifier model...")
 
-        self.processor = AutoImageProcessor.from_pretrained(self.model_path, local_files_only=True)
+        # Resolve to absolute path for local model directories
+        # HuggingFace's from_pretrained validates repo_id format before checking if it's
+        # a local path. Using Path.resolve() ensures the path is properly normalized and
+        # the transformers library recognizes it as a local directory rather than a repo_id.
+        model_dir = Path(self.model_path)
+        if model_dir.exists():
+            local_path = str(model_dir.resolve())
+            logger.info(f"Loading PetClassifier from local path: {local_path}")
+        else:
+            # Fall back to model_path as-is (might be a HuggingFace repo_id)
+            local_path = self.model_path
+            logger.info(f"Loading PetClassifier from: {local_path}")
+
+        self.processor = AutoImageProcessor.from_pretrained(local_path, local_files_only=True)
         self.model = AutoModelForImageClassification.from_pretrained(
-            self.model_path, local_files_only=True
+            local_path, local_files_only=True
         )
 
         # Move to device
@@ -1183,10 +1196,21 @@ class DepthEstimator:
 
         logger.info("Loading Depth Anything V2 model...")
 
-        self.processor = AutoImageProcessor.from_pretrained(self.model_path, local_files_only=True)
-        self.model = AutoModelForDepthEstimation.from_pretrained(
-            self.model_path, local_files_only=True
-        )
+        # Resolve to absolute path for local model directories
+        # HuggingFace's from_pretrained validates repo_id format before checking if it's
+        # a local path. Using Path.resolve() ensures the path is properly normalized and
+        # the transformers library recognizes it as a local directory rather than a repo_id.
+        model_dir = Path(self.model_path)
+        if model_dir.exists():
+            local_path = str(model_dir.resolve())
+            logger.info(f"Loading DepthEstimator from local path: {local_path}")
+        else:
+            # Fall back to model_path as-is (might be a HuggingFace repo_id)
+            local_path = self.model_path
+            logger.info(f"Loading DepthEstimator from: {local_path}")
+
+        self.processor = AutoImageProcessor.from_pretrained(local_path, local_files_only=True)
+        self.model = AutoModelForDepthEstimation.from_pretrained(local_path, local_files_only=True)
 
         # Move to device
         if "cuda" in self.device and torch.cuda.is_available():

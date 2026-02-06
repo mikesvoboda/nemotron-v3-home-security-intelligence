@@ -29,8 +29,13 @@ import pytest
 if TYPE_CHECKING:
     from httpx import AsyncClient
 
-# Mark as integration tests
-pytestmark = pytest.mark.integration
+# Mark as integration tests that must run in isolation (not parallel)
+# These tests modify shared database state (user registration, setup status)
+# and must run sequentially in a single worker to avoid race conditions
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.xdist_group("api_protection"),  # All tests run in same worker
+]
 
 
 # =============================================================================
@@ -172,7 +177,7 @@ class TestSetupFlow:
         assert user_data["is_admin"] is True
 
         # Step 4: Wait for cache to refresh
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Step 5: Verify setup complete
         status_after = await client.get("/api/auth/setup-status")
@@ -251,7 +256,7 @@ class TestPostSetupAuthentication:
             },
         )
 
-        await asyncio.sleep(1.5)  # Wait for cache
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Try to access endpoints without auth
         endpoints = [
@@ -291,7 +296,7 @@ class TestPostSetupAuthentication:
         )
         token = login_response.json()["access_token"]
 
-        await asyncio.sleep(1.5)  # Wait for cache
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Access endpoint with JWT
         response = await client.get("/api/cameras", headers={"Authorization": f"Bearer {token}"})
@@ -312,7 +317,7 @@ class TestPostSetupAuthentication:
             },
         )
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Try with invalid token
         response = await client.get(
@@ -352,7 +357,7 @@ class TestApiKeyAuthentication:
         )
         token = login_response.json()["access_token"]
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Create API key
         api_key_response = await client.post(
@@ -381,7 +386,7 @@ class TestApiKeyAuthentication:
             },
         )
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Try with invalid API key
         response = await client.get("/api/cameras", headers={"X-API-Key": "invalid_key"})
@@ -420,7 +425,7 @@ class TestSessionCookieAuthentication:
         )
         assert "set-cookie" in login_response.headers
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Subsequent requests should work with cookies
         # (AsyncClient automatically handles cookies)
@@ -453,7 +458,7 @@ class TestSessionCookieAuthentication:
         )
         token = login_response.json()["access_token"]
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Logout
         logout_response = await client.post(
@@ -500,7 +505,7 @@ class TestMultiUserFlow:
         )
         admin_token = login_response.json()["access_token"]
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         # Create second user as admin
         create_user_response = await client.post(
@@ -543,7 +548,7 @@ class TestMultiUserFlow:
         )
         admin_token = login_response.json()["access_token"]
 
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1.5)  # intentional - cache refresh delay for integration test
 
         await client.post(
             "/api/admin/users",

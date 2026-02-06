@@ -199,6 +199,8 @@ def load_demographics(
         Requires transformers package with vision support.
         _gender_model_path is reserved for future use when separate models are needed.
     """
+    from pathlib import Path
+
     try:
         from transformers import AutoImageProcessor, AutoModelForImageClassification
     except ImportError as e:
@@ -208,9 +210,21 @@ def load_demographics(
             "Install with: pip install transformers"
         ) from e
 
+    # Resolve to absolute path for local model directories
+    # HuggingFace's from_pretrained validates repo_id format before checking if it's
+    # a local path. Using Path.resolve() ensures the path is properly normalized and
+    # the transformers library recognizes it as a local directory rather than a repo_id.
+    model_dir = Path(age_model_path)
+    if model_dir.exists():
+        local_path = str(model_dir.resolve())
+        logger.info(f"Loading demographics model from local path: {local_path}")
+    else:
+        local_path = age_model_path
+        logger.info(f"Loading demographics model from: {local_path}")
+
     # Load age model
-    processor = AutoImageProcessor.from_pretrained(age_model_path)
-    model = AutoModelForImageClassification.from_pretrained(age_model_path)
+    processor = AutoImageProcessor.from_pretrained(local_path)
+    model = AutoModelForImageClassification.from_pretrained(local_path)
 
     if "cuda" in device and torch.cuda.is_available():
         model = model.to(device)
@@ -292,6 +306,8 @@ def load_action_recognizer(model_path: str, device: str = "cuda:0") -> tuple[Any
         Memory-intensive (~2GB VRAM for patch16-16-frames model).
         Uses 16 frames for ~4% improved accuracy (NEM-3908).
     """
+    from pathlib import Path
+
     try:
         from transformers import XCLIPModel, XCLIPProcessor
     except ImportError as e:
@@ -301,8 +317,20 @@ def load_action_recognizer(model_path: str, device: str = "cuda:0") -> tuple[Any
             "Install with: pip install transformers[video]"
         ) from e
 
-    processor = XCLIPProcessor.from_pretrained(model_path)
-    model = XCLIPModel.from_pretrained(model_path)
+    # Resolve to absolute path for local model directories
+    # HuggingFace's from_pretrained validates repo_id format before checking if it's
+    # a local path. Using Path.resolve() ensures the path is properly normalized and
+    # the transformers library recognizes it as a local directory rather than a repo_id.
+    model_dir = Path(model_path)
+    if model_dir.exists():
+        local_path = str(model_dir.resolve())
+        logger.info(f"Loading action recognizer from local path: {local_path}")
+    else:
+        local_path = model_path
+        logger.info(f"Loading action recognizer from: {local_path}")
+
+    processor = XCLIPProcessor.from_pretrained(local_path)
+    model = XCLIPModel.from_pretrained(local_path)
 
     if "cuda" in device and torch.cuda.is_available():
         model = model.to(device)
