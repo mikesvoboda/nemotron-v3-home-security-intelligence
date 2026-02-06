@@ -101,22 +101,31 @@ class QualityScorer:
         self._scores: list[dict[str, float]] = []
 
     def score_response(
-        self, response: str, expected: str, _context: dict[str, Any]
+        self, response: str, expected: str | dict[str, Any], _context: dict[str, Any]
     ) -> dict[str, float]:
         """Score a single LLM response.
 
         Args:
             response: The LLM's response
-            expected: The expected response
+            expected: The expected response (string or dict with summary/reasoning)
             _context: Additional context for scoring (unused)
 
         Returns:
             Dictionary with accuracy, relevance, coherence, and overall scores
         """
+        # Handle dict expected responses (extract summary + reasoning)
+        if isinstance(expected, dict):
+            expected_parts = []
+            if "summary" in expected:
+                expected_parts.append(str(expected["summary"]))
+            if "reasoning" in expected:
+                expected_parts.append(str(expected["reasoning"]))
+            expected = " ".join(expected_parts) if expected_parts else str(expected)
+
         # Simple scoring based on string similarity
         # In production, this would use more sophisticated metrics
-        response_lower = response.lower()
-        expected_lower = expected.lower()
+        response_lower = str(response).lower()
+        expected_lower = str(expected).lower()
 
         # Calculate basic similarity scores
         if response_lower == expected_lower:
@@ -220,9 +229,9 @@ class BenchmarkRunner:
         if not eval_path.exists():
             raise FileNotFoundError(f"Evaluation set path does not exist: {eval_path}")
 
-        # Load all JSON files from the evaluation set directory
+        # Load individual event files (evt_*.json), skip combined events.json
         events = []
-        json_files = sorted(eval_path.glob("*.json"))
+        json_files = sorted(eval_path.glob("evt_*.json"))
 
         for json_file in json_files:
             event_data = json.loads(json_file.read_text())
@@ -259,10 +268,9 @@ class BenchmarkRunner:
         # Get latency metrics
         latency_metrics = self.metrics_collector.get_latency_metrics()
 
-        # Score response quality
-        quality_scores = self.quality_scorer.score_response(
-            response.get("response", ""), expected, context
-        )
+        # Score response quality (LLM returns 'content', fallback to 'response')
+        response_text = response.get("content", response.get("response", ""))
+        quality_scores = self.quality_scorer.score_response(response_text, expected, context)
 
         return {
             "scenario": "single_request",
