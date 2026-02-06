@@ -131,7 +131,7 @@ from backend.services.prompts import (
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
-    format_household_context_by_detection,
+    format_household_context,
     format_image_quality_context,
     format_pet_classification_context,
     format_pose_analysis_context,
@@ -565,15 +565,13 @@ class NemotronAnalyzer:
         """Get the batch coalescer instance.
 
         Returns the injected coalescer if available, otherwise uses the global singleton.
-        Passes Redis client to ensure coalescing can persist candidates.
 
         Returns:
             BatchCoalescer instance for merging similar batches
         """
         if self._batch_coalescer is not None:
             return self._batch_coalescer
-        # Pass Redis client to singleton on first access
-        return get_batch_coalescer(redis_client=self._redis)
+        return get_batch_coalescer()
 
     def calculate_batch_priority(
         self,
@@ -1785,80 +1783,49 @@ class NemotronAnalyzer:
 
     async def _get_household_context(
         self,
-        detections_data: list[dict[str, Any]],
+        detections_data: list[dict[str, Any]],  # noqa: ARG002 - Reserved for future expansion
         enrichment_result: EnrichmentResult | None,
     ) -> str:
-        """Format household matching results for prompt injection with detection attribution.
-
-        NEM-5512/5513/5514: Implements detection-attributed household context to prevent
-        household member matches for one detection from bleeding into the risk assessment
-        of other detections in the same batch.
+        """Format household matching results for prompt injection (NEM-3024, NEM-3314).
 
         This method retrieves pre-computed household matches from the enrichment
-        pipeline and formats them into detection-attributed context for the Nemotron
-        prompt. Matching is performed during enrichment (NEM-3314).
+        pipeline and formats them into context for the Nemotron prompt. Matching
+        is now performed during enrichment (NEM-3314) rather than here to avoid
+        duplicate database queries and to ensure matches are available earlier
+        in the pipeline.
 
         Matching is performed in EnrichmentPipeline._run_household_matching():
         - Persons: Matched via embeddings from person_embeddings against HouseholdMember
         - Vehicles: Matched via license plate text against registered vehicles
 
-        Output format (NEM-5512):
-            HOUSEHOLD MATCHES BY DETECTION:
-            - Detection #1 (person, front_door, 14:32:05): KNOWN PERSON "Mike" (resident, 92%)
-            - Detection #2 (person, backyard, 14:32:08): NO MATCH
-            - Detection #3 (vehicle, driveway, 14:32:10): REGISTERED VEHICLE "Honda Civic"
-
         Args:
-            detections_data: List of detection data dictionaries with keys:
-                - id: Detection ID
-                - object_type: Detected object type
-                - detected_at: Detection timestamp (datetime)
+            detections_data: List of detection data dictionaries (reserved for future use)
             enrichment_result: Results from enrichment pipeline (contains household matches)
 
         Returns:
-            Formatted household context string with detection attribution,
-            or empty string if no detections.
+            Formatted household context string, or empty string if no matches.
         """
         from datetime import UTC, datetime
 
-        # Early exit if no detections or no enrichment result
-        if not detections_data:
+        # Early exit if no enrichment result
+        if enrichment_result is None:
             return ""
 
-        if enrichment_result is None:
-            # Still format detections as "NO MATCH" for visibility
-            pass
-
         # Get household matches from enrichment result (NEM-3314)
-        # These are dicts keyed by detection_id for isolation
-        person_matches: dict[int, Any] = {}
-        vehicle_matches: dict[int, Any] = {}
-        if enrichment_result:
-            person_matches = enrichment_result.person_household_matches
-            vehicle_matches = enrichment_result.vehicle_household_matches
+        # Matching is now performed during enrichment to avoid duplicate DB queries
+        person_matches = enrichment_result.person_household_matches
+        vehicle_matches = enrichment_result.vehicle_household_matches
 
-        # Create detection-like objects for format_household_context_by_detection
-        # Using SimpleNamespace to satisfy DetectionLike protocol
-        from types import SimpleNamespace
-
-        detections = []
-        for det_data in detections_data:
-            detection = SimpleNamespace(
-                id=int(det_data["id"]),
-                object_type=det_data.get("object_type", "unknown"),
-                detected_at=det_data.get("detected_at") or datetime.now(UTC),
-                zone_name=None,  # Zone context not tracked per-detection currently
+        # Format the household context if any matches were found
+        if person_matches or vehicle_matches:
+            current_time = datetime.now(UTC)
+            return format_household_context(
+                person_matches=person_matches,
+                vehicle_matches=vehicle_matches,
+                current_time=current_time,
             )
-            detections.append(detection)
 
-        # Use detection-attributed format (NEM-5512/5513/5514)
-        current_time = datetime.now(UTC)
-        return format_household_context_by_detection(
-            detections=detections,
-            person_matches=person_matches,
-            vehicle_matches=vehicle_matches,
-            current_time=current_time,
-        )
+        return ""
 
     async def _get_enrichment_result(
         self,
@@ -2361,8 +2328,6 @@ class NemotronAnalyzer:
                     else None,
                     "video_width": d.video_width,
                     "video_height": d.video_height,
-                    # NEM-5512/5513/5514: Add detected_at for household context isolation
-                    "detected_at": d.detected_at,
                 }
                 for d in detections
             ]
