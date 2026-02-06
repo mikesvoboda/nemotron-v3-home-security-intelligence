@@ -10,6 +10,7 @@ Configuration via environment variables (NEM-2520):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -29,6 +30,18 @@ class SceneChangeResult:
     change_detected: bool
     similarity_score: float
     is_first_frame: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary containing all SceneChangeResult fields for storage.
+        """
+        return {
+            "change_detected": self.change_detected,
+            "similarity_score": self.similarity_score,
+            "is_first_frame": self.is_first_frame,
+        }
 
 
 class SceneChangeDetector:

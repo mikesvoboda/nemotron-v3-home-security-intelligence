@@ -563,6 +563,77 @@ def format_florence_attributes(
     return "\n".join(lines)
 
 
+# =============================================================================
+# Scene Context Formatting (NEM-5507/5508/5509)
+# =============================================================================
+# Functions for formatting Florence-2 scene captions for prompt inclusion.
+
+# Default maximum length for scene context (prevents overly long prompts)
+DEFAULT_SCENE_CONTEXT_MAX_LENGTH = 500
+
+
+def format_scene_context(
+    caption: str | None,
+    max_length: int = DEFAULT_SCENE_CONTEXT_MAX_LENGTH,
+) -> str:
+    """Format scene caption for prompt inclusion with length protection.
+
+    NEM-5507/5508/5509: Florence Caption Upgrade to DETAILED_CAPTION.
+
+    This function formats Florence-2 detailed scene captions for inclusion
+    in Nemotron prompts, with length protection to prevent overly long
+    prompts that could affect LLM performance.
+
+    When the caption exceeds max_length, it is truncated at a word boundary
+    and suffixed with "..." to indicate truncation.
+
+    Args:
+        caption: Scene caption from Florence-2 (may be None or empty)
+        max_length: Maximum length for the formatted output (default: 500)
+
+    Returns:
+        Formatted scene context string, or empty string if no caption.
+
+    Examples:
+        >>> format_scene_context("A residential driveway at night.")
+        'A residential driveway at night.'
+        >>> format_scene_context("A " + "very detailed " * 100)
+        'A very detailed very detailed...'  # Truncated at word boundary
+        >>> format_scene_context(None)
+        ''
+        >>> format_scene_context("")
+        ''
+    """
+    # Handle None or empty input
+    if not caption:
+        return ""
+
+    # Strip whitespace
+    caption = caption.strip()
+    if not caption:
+        return ""
+
+    # If within max_length, return as-is
+    if len(caption) <= max_length:
+        return caption
+
+    # Truncate at word boundary
+    # Reserve 3 chars for "..."
+    truncate_at = max_length - 3
+
+    # Find the last space before truncate_at to avoid cutting mid-word
+    last_space = caption.rfind(" ", 0, truncate_at)
+
+    if last_space > 0:
+        # Truncate at word boundary
+        truncated = caption[:last_space]
+    else:
+        # No space found - hard truncate (rare case, single very long word)
+        truncated = caption[:truncate_at]
+
+    return truncated + "..."
+
+
 if TYPE_CHECKING:
     from backend.services.age_classifier_loader import AgeClassificationResult
     from backend.services.depth_anything_loader import DepthAnalysisResult
@@ -1169,31 +1240,53 @@ Output JSON with comprehensive analysis:
 
 def format_violence_context(
     violence_result: ViolenceDetectionResult | None,
-) -> str:
-    """Format violence detection result for prompt context.
+) -> str | None:
+    """Format violence detection result with tier-based output.
+
+    Uses the confidence_tier attribute to determine formatting:
+    - definitive (>=70%): Shows **VIOLENCE DETECTED** with ACTION REQUIRED
+    - suspected (55-70%): Shows "Possible violence detected" with review note
+    - marginal (<55%): Returns None to exclude from LLM prompt
 
     Args:
         violence_result: ViolenceDetectionResult from violence_loader, or None
 
     Returns:
-        Formatted string for prompt inclusion
+        Formatted string for prompt inclusion, or None for marginal tier
     """
     if violence_result is None:
         return "Violence analysis: Not performed"
 
-    if violence_result.is_violent:
+    # Get confidence tier, defaulting to determining from violent_score for backward compatibility
+    tier = getattr(violence_result, "confidence_tier", None)
+
+    # If no tier attribute, calculate tier from violent_score thresholds
+    if tier is None:
+        violent_score = getattr(violence_result, "violent_score", 0.0)
+        if violent_score >= 0.70:
+            tier = "definitive"
+        elif violent_score >= 0.55:
+            tier = "suspected"
+        else:
+            tier = "marginal"
+
+    if tier == "definitive":
         return (
             f"**VIOLENCE DETECTED** (confidence: {violence_result.confidence:.0%})\n"
             f"  Violent score: {violence_result.violent_score:.0%}\n"
             f"  Non-violent score: {violence_result.non_violent_score:.0%}\n"
+            f"  Tier: definitive (confirmed)\n"
             f"  ACTION REQUIRED: Immediate review recommended"
         )
-    else:
+    elif tier == "suspected":
         return (
-            f"No violence detected (confidence: {violence_result.confidence:.0%})\n"
+            f"Possible violence detected (confidence: {violence_result.violent_score:.0%})\n"
             f"  Violent score: {violence_result.violent_score:.0%}\n"
-            f"  Non-violent score: {violence_result.non_violent_score:.0%}"
+            f"  Non-violent score: {violence_result.non_violent_score:.0%}\n"
+            f"  Note: Moderate confidence - consider with other context for review"
         )
+    else:  # marginal tier - exclude from prompt
+        return None
 
 
 def format_weather_context(
@@ -3755,3 +3848,104 @@ def format_scene_ocr_context(scene_ocr: SceneOCRResult | None) -> str:
     }
 
     return json.dumps(output, indent=2)
+
+
+# =============================================================================
+# Detection Confidence Quality Indicators (NEM-5502, NEM-5503, NEM-5504)
+# =============================================================================
+# These functions format YOLO detections with quality indicators to help
+# Nemotron distinguish between high-confidence and marginal detections.
+
+
+def format_detections_with_quality(
+    detections: list[dict[str, Any]],
+    frame_width: int,
+    frame_height: int,
+) -> str:
+    """Format detections with confidence quality indicators for LLM prompts.
+
+    Enhances raw YOLO detections with quality tiers, spatial context, and
+    warning flags to help the LLM make better risk assessments.
+
+    Args:
+        detections: List of detection dicts with class, confidence, bbox.
+        frame_width: Width of the frame/image in pixels.
+        frame_height: Height of the frame/image in pixels.
+
+    Returns:
+        Formatted string with detection quality indicators suitable for
+        inclusion in Nemotron prompts.
+
+    Example output:
+        ## DETECTIONS WITH QUALITY INDICATORS
+
+        - PERSON: Good confidence (82%) - solid detection
+          Position: medium object in center of frame
+        - CAR: MARGINAL confidence (55%) - treat with caution, may be false positive
+          Position: small object in bottom-right of frame (at frame edge)
+          WARNING: Low confidence detection - verify before acting
+          NOTE: Object at frame boundary - may be partially visible
+
+    Security:
+        Class names are sanitized to prevent prompt injection. See NEM-1722.
+    """
+    # Import here to avoid circular dependency
+    from ai.yolo26.model import (
+        ConfidenceQuality,
+        EnhancedDetection,
+        enhance_detections,
+    )
+
+    if not detections:
+        return "No detections in this frame."
+
+    enhanced = enhance_detections(detections, frame_width, frame_height)
+
+    if not enhanced:
+        return "No detections in this frame."
+
+    lines = ["## DETECTIONS WITH QUALITY INDICATORS", ""]
+
+    # Track quality distribution for summary
+    quality_counts: dict[ConfidenceQuality, int] = {
+        ConfidenceQuality.EXCELLENT: 0,
+        ConfidenceQuality.GOOD: 0,
+        ConfidenceQuality.MODERATE: 0,
+        ConfidenceQuality.MARGINAL: 0,
+    }
+    marginal_detections: list[EnhancedDetection] = []
+    boundary_detections: list[EnhancedDetection] = []
+
+    for det in enhanced:
+        # Sanitize class name (NEM-1722)
+        safe_class = sanitize_object_type(det.class_name)
+        det.class_name = safe_class
+
+        lines.append(det.to_prompt_context())
+        quality_counts[det.confidence_quality] += 1
+
+        if det.confidence_quality == ConfidenceQuality.MARGINAL:
+            marginal_detections.append(det)
+        if det.is_at_boundary:
+            boundary_detections.append(det)
+
+    # Add quality summary if there are notable issues
+    if marginal_detections or boundary_detections:
+        lines.append("")
+        lines.append("## DETECTION QUALITY SUMMARY")
+
+        if marginal_detections:
+            marginal_classes = [d.class_name for d in marginal_detections]
+            lines.append(
+                f"- {len(marginal_detections)} MARGINAL confidence detection(s): "
+                f"{', '.join(marginal_classes)} - verify before acting"
+            )
+
+        if boundary_detections:
+            boundary_classes = [d.class_name for d in boundary_detections]
+            lines.append(
+                f"- {len(boundary_detections)} detection(s) at frame boundary: "
+                f"{', '.join(boundary_classes)} - may be partially visible"
+            )
+
+    return "\n".join(lines)

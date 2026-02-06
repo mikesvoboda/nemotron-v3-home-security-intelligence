@@ -1,176 +1,230 @@
 {
-  "generated_at": "2026-01-28T04:41:50.041655+00:00",
-  "total_scenarios": 13,
-  "likely_valid": 2,
-  "likely_misaligned": 11,
-  "unknown": 0,
-  "summary": "Audited 13 scenarios. Likely valid for AI generation: 2. Likely misaligned (need stock footage): 11. Unknown: 0.",
-  "scenarios": [
-    {
-      "scenario_id": "break_in_attempt",
-      "category": "threats",
-      "name": "Break-In Attempt",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["face_concealment", "crime", "violence", "weapons"],
-      "problematic_elements": [
-        "pry_bar",
-        "aggressive",
-        "attack",
-        "violence",
-        "breaking",
-        "forcing",
-        "kicking",
-        "break_in",
-        "burglary",
-        "intruder",
-        "mask",
-        "face_covering"
-      ],
-      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person') | Use staged test footage with actors | Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
-      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies | Aggressive/violent poses will be sanitized by AI image generators | Criminal activity depiction may be softened or refused"
+  "generated_at": "2026-02-06T05:02:23.216799+00:00",
+  "summary": {
+    "total_scenarios": 30,
+    "passed": 10,
+    "failed": 20,
+    "pass_rate": "33.3%"
+  },
+  "by_category": {
+    "normal": {
+      "total": 10,
+      "passed": 0,
+      "failed": 10
     },
+    "suspicious": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    "threats": {
+      "total": 10,
+      "passed": 0,
+      "failed": 10
+    }
+  },
+  "risk_calibration": [
     {
-      "scenario_id": "casing",
+      "scenario": "C01",
       "category": "suspicious",
-      "name": "Property Casing",
-      "alignment_status": "likely_valid",
-      "confidence": "high",
-      "content_policy_risks": [],
-      "problematic_elements": [],
-      "recommendation": "AI-generated images should work well for this scenario.",
-      "notes": ""
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
     },
     {
-      "scenario_id": "delivery_driver",
-      "category": "normal",
-      "name": "Package Delivery",
-      "alignment_status": "likely_misaligned",
-      "confidence": "medium",
-      "content_policy_risks": ["crime"],
-      "problematic_elements": ["stealing"],
-      "recommendation": "Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content",
-      "notes": "Criminal activity depiction may be softened or refused"
-    },
-    {
-      "scenario_id": "loitering",
+      "scenario": "C02",
       "category": "suspicious",
-      "name": "Loitering Person",
-      "alignment_status": "likely_misaligned",
-      "confidence": "medium",
-      "content_policy_risks": ["face_concealment"],
-      "problematic_elements": ["hood_up"],
-      "recommendation": "Stock footage of people in winter clothing can work as proxy",
-      "notes": ""
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
     },
     {
-      "scenario_id": "package_theft",
-      "category": "threats",
-      "name": "Package Theft",
-      "alignment_status": "likely_misaligned",
-      "confidence": "medium",
-      "content_policy_risks": ["face_concealment", "crime"],
-      "problematic_elements": ["theft", "stealing", "hood_up"],
-      "recommendation": "Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
-      "notes": "Criminal activity depiction may be softened or refused"
-    },
-    {
-      "scenario_id": "pet_activity",
-      "category": "normal",
-      "name": "Pet Activity",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["violence"],
-      "problematic_elements": ["threatening"],
-      "recommendation": "Use staged test footage with actors",
-      "notes": "Aggressive/violent poses will be sanitized by AI image generators"
-    },
-    {
-      "scenario_id": "prowling",
+      "scenario": "C03",
       "category": "suspicious",
-      "name": "Prowling Person",
-      "alignment_status": "likely_misaligned",
-      "confidence": "medium",
-      "content_policy_risks": ["face_concealment", "crime"],
-      "problematic_elements": ["burglary", "mask", "face_covering", "balaclava"],
-      "recommendation": "Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
-      "notes": "Criminal activity depiction may be softened or refused"
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
     },
     {
-      "scenario_id": "resident_arrival",
-      "category": "normal",
-      "name": "Resident Arrival",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["weapons"],
-      "problematic_elements": ["weapon"],
-      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person')",
-      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies"
-    },
-    {
-      "scenario_id": "tailgating",
+      "scenario": "C04",
       "category": "suspicious",
-      "name": "Tailgating Through Gate",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["face_concealment", "violence"],
-      "problematic_elements": ["aggressive", "hood_up"],
-      "recommendation": "Use staged test footage with actors | Stock footage of people in winter clothing can work as proxy",
-      "notes": "Aggressive/violent poses will be sanitized by AI image generators"
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
     },
     {
-      "scenario_id": "vandalism",
-      "category": "threats",
-      "name": "Property Vandalism",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["face_concealment", "crime", "violence", "weapons"],
-      "problematic_elements": ["weapon", "bat", "breaking", "break_in", "mask", "hood_up"],
-      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person') | Use staged test footage with actors | Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content | Stock footage of people in winter clothing can work as proxy",
-      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies | Aggressive/violent poses will be sanitized by AI image generators | Criminal activity depiction may be softened or refused"
+      "scenario": "C05",
+      "category": "suspicious",
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
     },
     {
-      "scenario_id": "vehicle_parking",
+      "scenario": "C06",
+      "category": "suspicious",
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C07",
+      "category": "suspicious",
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C08",
+      "category": "suspicious",
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C09",
+      "category": "suspicious",
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    },
+    {
+      "scenario": "C10",
+      "category": "suspicious",
+      "actual": 50,
+      "expected_min": 26,
+      "expected_max": 60,
+      "in_range": true
+    }
+  ],
+  "failures": [
+    {
+      "scenario": "E01",
+      "name": "Amazon Delivery",
       "category": "normal",
-      "name": "Vehicle Parking",
-      "alignment_status": "likely_valid",
-      "confidence": "high",
-      "content_policy_risks": [],
-      "problematic_elements": [],
-      "recommendation": "AI-generated images should work well for this scenario.",
-      "notes": ""
+      "errors": ["No matching event found for E01"]
     },
     {
-      "scenario_id": "weapon_visible",
-      "category": "threats",
-      "name": "Weapon Visible",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["violence", "weapons"],
-      "problematic_elements": [
-        "handgun",
-        "firearm",
-        "knife",
-        "weapon",
-        "bat",
-        "aggressive",
-        "threatening",
-        "brandishing",
-        "violence"
-      ],
-      "recommendation": "Use stock footage from Pexels (search: 'security camera suspicious person') | Use staged test footage with actors",
-      "notes": "Weapons will NOT be visible in AI-generated images due to safety policies | Aggressive/violent poses will be sanitized by AI image generators"
-    },
-    {
-      "scenario_id": "yard_maintenance",
+      "scenario": "E02",
+      "name": "UPS Delivery",
       "category": "normal",
-      "name": "Yard Maintenance",
-      "alignment_status": "likely_misaligned",
-      "confidence": "high",
-      "content_policy_risks": ["violence", "crime"],
-      "problematic_elements": ["breaking", "stealing"],
-      "recommendation": "Use staged test footage with actors | Consider using --source=stock for Pexels/Pixabay footage, or update expected_labels.json to match actual generated content",
-      "notes": "Aggressive/violent poses will be sanitized by AI image generators | Criminal activity depiction may be softened or refused"
+      "errors": ["No matching event found for E02"]
+    },
+    {
+      "scenario": "E03",
+      "name": "FedEx Delivery",
+      "category": "normal",
+      "errors": ["No matching event found for E03"]
+    },
+    {
+      "scenario": "E04",
+      "name": "UPS Delivery V2",
+      "category": "normal",
+      "errors": ["No matching event found for E04"]
+    },
+    {
+      "scenario": "E05",
+      "name": "Doordash Delivery",
+      "category": "normal",
+      "errors": ["No matching event found for E05"]
+    },
+    {
+      "scenario": "E06",
+      "name": "Instacart Delivery",
+      "category": "normal",
+      "errors": ["No matching event found for E06"]
+    },
+    {
+      "scenario": "E07",
+      "name": "Drone Delivery",
+      "category": "normal",
+      "errors": ["No matching event found for E07"]
+    },
+    {
+      "scenario": "E08",
+      "name": "Landscaper",
+      "category": "normal",
+      "errors": ["No matching event found for E08"]
+    },
+    {
+      "scenario": "E09",
+      "name": "Pool Cleaner",
+      "category": "normal",
+      "errors": ["No matching event found for E09"]
+    },
+    {
+      "scenario": "E10",
+      "name": "House Cleaner",
+      "category": "normal",
+      "errors": ["No matching event found for E10"]
+    },
+    {
+      "scenario": "P07",
+      "name": "Crouching",
+      "category": "threats",
+      "errors": ["No matching event found for P07"]
+    },
+    {
+      "scenario": "P08",
+      "name": "Tool Visible",
+      "category": "threats",
+      "errors": ["No matching event found for P08"]
+    },
+    {
+      "scenario": "P09",
+      "name": "Forced Entry",
+      "category": "threats",
+      "errors": ["No matching event found for P09"]
+    },
+    {
+      "scenario": "P11",
+      "name": "Multiple Checks",
+      "category": "threats",
+      "errors": ["No matching event found for P11"]
+    },
+    {
+      "scenario": "R01",
+      "name": "Package Grab",
+      "category": "threats",
+      "errors": ["No matching event found for R01"]
+    },
+    {
+      "scenario": "R02",
+      "name": "Distraction Theft",
+      "category": "threats",
+      "errors": ["No matching event found for R02"]
+    },
+    {
+      "scenario": "R03",
+      "name": "Follow Delivery",
+      "category": "threats",
+      "errors": ["No matching event found for R03"]
+    },
+    {
+      "scenario": "R04",
+      "name": "Vehicle Break-in",
+      "category": "threats",
+      "errors": ["No matching event found for R04"]
+    },
+    {
+      "scenario": "R05",
+      "name": "Car Handle Check",
+      "category": "threats",
+      "errors": ["No matching event found for R05"]
+    },
+    {
+      "scenario": "R06",
+      "name": "Vehicle Theft",
+      "category": "threats",
+      "errors": ["No matching event found for R06"]
     }
   ]
 }

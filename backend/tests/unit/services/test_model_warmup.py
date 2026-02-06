@@ -53,6 +53,13 @@ class TestNemotronAnalyzerWarmup:
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0  # 5 minutes
         mock.nemotron_warmup_prompt = "Hello, please respond with 'ready'."
+        # Phase 5 batch coalescing settings
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 0.5
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["person", "weapon"]
+        mock.priority_medium_labels = ["vehicle", "animal"]
         return mock
 
     @pytest.fixture

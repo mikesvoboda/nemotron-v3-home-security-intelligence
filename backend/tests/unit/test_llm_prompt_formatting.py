@@ -94,9 +94,10 @@ def realistic_enrichment_result():
         ),
         violence_detection=ViolenceDetectionResult(
             is_violent=False,
-            confidence=0.95,
-            violent_score=0.05,
-            non_violent_score=0.95,
+            confidence=0.62,
+            violent_score=0.62,
+            non_violent_score=0.38,
+            confidence_tier="suspected",  # Must be suspected+ to get string output
         ),
         weather_classification=WeatherResult(
             condition="clear/sunny",

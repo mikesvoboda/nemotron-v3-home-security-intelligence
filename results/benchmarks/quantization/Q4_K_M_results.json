@@ -1,0 +1,15 @@
+{
+  "format": "Q4_K_M",
+  "model_path": "nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
+  "gpu_layers": 45,
+  "vram_mb": 3088,
+  "tests_run": 5,
+  "coherent_responses": 5,
+  "format_compliant": 4,
+  "valid_risk_scores": 3,
+  "coherence_rate": 1.0,
+  "format_rate": 0.8,
+  "score_rate": 0.6,
+  "quality_score": 0.8,
+  "timestamp": "2026-02-05T16:41:18-05:00"
+}

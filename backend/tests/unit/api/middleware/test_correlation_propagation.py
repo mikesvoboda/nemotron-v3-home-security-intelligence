@@ -259,6 +259,13 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         # Guided JSON settings (NEM-3726)
         mock.nemotron_use_guided_json = False
         mock.nemotron_guided_json_fallback = True
+        # Phase 5 batch coalescing settings
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 0.5
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["person", "weapon"]
+        mock.priority_medium_labels = ["vehicle", "animal"]
         return mock
 
     @pytest.fixture
@@ -377,6 +384,13 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         # Guided JSON settings (NEM-3726)
         mock_settings.nemotron_use_guided_json = False
         mock_settings.nemotron_guided_json_fallback = True
+        # Phase 5 batch coalescing settings
+        mock_settings.batch_coalescing_enabled = False
+        mock_settings.batch_coalescing_max_size = 10
+        mock_settings.batch_coalescing_time_window = 0.5
+        mock_settings.priority_queue_enabled = False
+        mock_settings.priority_high_labels = ["person", "weapon"]
+        mock_settings.priority_medium_labels = ["vehicle", "animal"]
 
         with (
             patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),

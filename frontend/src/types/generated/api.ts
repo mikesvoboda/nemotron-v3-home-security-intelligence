@@ -3966,6 +3966,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/debug/batch/add-detection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Detection To Batch
+         * @description Add a synthetic detection to the batch aggregator.
+         *
+         *     This endpoint allows direct testing of the batch processing pipeline
+         *     without requiring actual camera detections. Useful for load testing
+         *     and validating Phase 5 optimizations (coalescing, priority scheduling).
+         *
+         *     Args:
+         *         request: Detection details to add
+         *
+         *     Returns:
+         *         Batch ID and status of the operation
+         */
+        post: operations["debug_add_detection_to_batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/batch/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Batch Metrics
+         * @description Get batch processing metrics for Phase 5 optimization analysis.
+         *
+         *     Returns metrics from the batch coalescer and aggregator including:
+         *     - Merge statistics (attempts, successes, reduction percentage)
+         *     - Priority distribution of processed detections
+         *     - Coalescing efficiency metrics
+         *
+         *     Useful for validating that Phase 5 optimizations are working:
+         *     - Target: 20-40% reduction in inference calls through coalescing
+         *     - High priority items (P0) should have lower latency than low priority (P3)
+         */
+        get: operations["debug_get_batch_metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/debug/batch/reset-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Batch Metrics
+         * @description Reset batch processing metrics for fresh load test runs.
+         *
+         *     Clears all coalescer and aggregator metrics to enable clean
+         *     measurement of a new test run.
+         */
+        post: operations["debug_reset_batch_metrics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/debug/circuit-breakers": {
         parameters: {
             query?: never;
@@ -16639,6 +16721,69 @@ export interface components {
             };
         };
         /**
+         * BatchAddDetectionRequest
+         * @description Request for adding a detection to the batch aggregator.
+         */
+        BatchAddDetectionRequest: {
+            /**
+             * Camera Id
+             * @description Camera identifier
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Detection confidence
+             */
+            confidence?: number | null;
+            /**
+             * Detection Id
+             * @description Detection identifier
+             */
+            detection_id: number;
+            /**
+             * Object Type
+             * @description Detected object type
+             */
+            object_type?: string | null;
+            /**
+             * Smoke Fire Type
+             * @description Smoke/fire type for fast path
+             */
+            smoke_fire_type?: string | null;
+            /**
+             * Threat Type
+             * @description Threat type for fast path
+             */
+            threat_type?: string | null;
+        };
+        /**
+         * BatchAddDetectionResponse
+         * @description Response for adding a detection to batch.
+         */
+        BatchAddDetectionResponse: {
+            /**
+             * Batch Id
+             * @description Batch ID the detection was added to
+             */
+            batch_id: string | null;
+            /**
+             * Fast Path
+             * @description Whether fast path was triggered
+             * @default false
+             */
+            fast_path: boolean;
+            /**
+             * Status
+             * @description Status of the operation
+             */
+            status: string;
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
+        };
+        /**
          * BatchAggregatorStatusResponse
          * @description Status information for the BatchAggregator service.
          * @example {
@@ -16966,6 +17111,38 @@ export interface components {
             vehicle_matches?: {
                 [key: string]: components["schemas"]["HouseholdMatchResponse"];
             };
+        };
+        /**
+         * BatchMetricsResponse
+         * @description Response for batch processing metrics.
+         */
+        BatchMetricsResponse: {
+            /**
+             * Aggregator Metrics
+             * @description Batch aggregator metrics
+             */
+            aggregator_metrics?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Coalescer Metrics
+             * @description Batch coalescer metrics
+             */
+            coalescer_metrics?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Priority Distribution
+             * @description Detection count by priority level
+             */
+            priority_distribution?: {
+                [key: string]: number;
+            };
+            /**
+             * Timestamp
+             * @description ISO timestamp of response
+             */
+            timestamp: string;
         };
         /**
          * BatchSettings
@@ -49231,6 +49408,116 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    debug_add_detection_to_batch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchAddDetectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchAddDetectionResponse"];
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    debug_get_batch_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchMetricsResponse"];
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    debug_reset_batch_metrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Metrics reset successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Not found - Debug mode disabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

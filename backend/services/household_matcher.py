@@ -66,6 +66,23 @@ class HouseholdMatch:
     member_role: str | None = None
     schedule_status: bool | None = None
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary containing all HouseholdMatch fields for storage.
+        """
+        return {
+            "member_id": self.member_id,
+            "member_name": self.member_name,
+            "vehicle_id": self.vehicle_id,
+            "vehicle_description": self.vehicle_description,
+            "similarity": self.similarity,
+            "match_type": self.match_type,
+            "member_role": self.member_role,
+            "schedule_status": self.schedule_status,
+        }
+
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Compute cosine similarity between two vectors.

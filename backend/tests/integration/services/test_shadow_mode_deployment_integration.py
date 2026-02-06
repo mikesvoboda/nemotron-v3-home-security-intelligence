@@ -73,6 +73,13 @@ def mock_settings():
     mock.prompt_shadow_mode_enabled = True
     mock.nemotron_use_guided_json = False
     mock.nemotron_guided_json_fallback = True
+    # Phase 5 batch coalescing settings
+    mock.batch_coalescing_enabled = False
+    mock.batch_coalescing_max_size = 10
+    mock.batch_coalescing_time_window = 0.5
+    mock.priority_queue_enabled = False
+    mock.priority_high_labels = ["person", "weapon"]
+    mock.priority_medium_labels = ["vehicle", "animal"]
     return mock
 
 
