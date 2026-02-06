@@ -45,6 +45,8 @@ from backend.services.prompts import (
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
+    # Detection quality indicators (NEM-5502, NEM-5503, NEM-5504)
+    format_detections_with_quality,
     # VQA validation functions (NEM-3304)
     format_florence_attributes,
     format_household_context,
@@ -633,20 +635,28 @@ class TestFormatViolenceContext:
         assert "Non-violent score: 2%" in result
 
     def test_violent_detection_low_confidence(self) -> None:
-        """Test formatting for violent detection with lower confidence."""
+        """Test formatting for violent detection at definitive tier boundary.
+
+        With the new tier-based system (NEM-5483), definitive tier requires
+        violent_score >= 70%. This test uses exactly 70% to verify boundary.
+        """
         violence_result = MockViolenceDetectionResult(
             is_violent=True,
-            confidence=0.55,
-            violent_score=0.55,
-            non_violent_score=0.45,
+            confidence=0.70,
+            violent_score=0.70,
+            non_violent_score=0.30,
         )
         result = format_violence_context(violence_result)
 
         assert "**VIOLENCE DETECTED**" in result
-        assert "55%" in result
+        assert "70%" in result
 
     def test_non_violent_detection(self) -> None:
-        """Test formatting when no violence is detected."""
+        """Test formatting when no violence is detected (marginal tier).
+
+        With the new tier-based system (NEM-5483), marginal tier (violent_score < 55%)
+        returns None to exclude from LLM prompts.
+        """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
             confidence=0.92,
@@ -655,12 +665,14 @@ class TestFormatViolenceContext:
         )
         result = format_violence_context(violence_result)
 
-        assert "No violence detected" in result
-        assert "92%" in result
-        assert "**VIOLENCE DETECTED**" not in result
+        # Marginal tier (violent_score < 55%) returns None to exclude from prompts
+        assert result is None
 
     def test_edge_case_exactly_zero_confidence(self) -> None:
-        """Test edge case with zero confidence."""
+        """Test edge case with zero confidence (marginal tier).
+
+        With the new tier-based system (NEM-5483), marginal tier returns None.
+        """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
             confidence=0.0,
@@ -668,8 +680,178 @@ class TestFormatViolenceContext:
             non_violent_score=0.0,
         )
         result = format_violence_context(violence_result)
-        assert "No violence detected" in result
-        assert "0%" in result
+        # Marginal tier (violent_score < 55%) returns None to exclude from prompts
+        assert result is None
+
+
+# =============================================================================
+# TDD Tests for Violence Context Tier-Based Formatting (NEM-5483)
+# =============================================================================
+# These tests define the NEW tier-based formatting behavior for
+# format_violence_context(). They SHOULD FAIL against the current codebase.
+#
+# Tier formatting requirements:
+# - definitive (>=70%): "**VIOLENCE DETECTED**" + "ACTION REQUIRED"
+# - suspected (55-70%): "Possible violence" + "review recommended"
+# - marginal (<55%):    Returns None (excluded from LLM prompt)
+# =============================================================================
+
+
+@dataclass
+class MockViolenceDetectionResultWithTier:
+    """Mock ViolenceDetectionResult with confidence_tier for TDD tests.
+
+    This mock includes the NEW confidence_tier field that will be added
+    to the real ViolenceDetectionResult dataclass.
+    """
+
+    is_violent: bool
+    confidence: float
+    violent_score: float
+    non_violent_score: float
+    confidence_tier: str  # NEW FIELD: "definitive", "suspected", or "marginal"
+
+
+class TestFormatViolenceContextTierBased:
+    """TDD tests for tier-based violence context formatting.
+
+    These tests define the expected behavior for format_violence_context()
+    when processing ViolenceDetectionResult with confidence tiers.
+    They will FAIL until the implementation is complete.
+    """
+
+    def test_format_violence_definitive_tier(self) -> None:
+        """Definitive tier should show 'VIOLENCE DETECTED' and 'ACTION REQUIRED'.
+
+        High-confidence violence (>=70%) should generate urgent, actionable
+        formatting to ensure immediate human review.
+        """
+        violence_result = MockViolenceDetectionResultWithTier(
+            is_violent=True,
+            confidence=0.85,
+            violent_score=0.85,
+            non_violent_score=0.15,
+            confidence_tier="definitive",
+        )
+
+        result = format_violence_context(violence_result)
+
+        # Definitive tier formatting requirements
+        assert "**VIOLENCE DETECTED**" in result
+        assert "ACTION REQUIRED" in result
+        assert "85%" in result
+        # Should indicate definitive/high confidence
+        assert "definitive" in result.lower() or "confirmed" in result.lower()
+
+    def test_format_violence_suspected_tier(self) -> None:
+        """Suspected tier should show 'Possible violence' with review note.
+
+        Medium-confidence violence (55-70%) should be flagged for review
+        but NOT treated as confirmed violence. This is a KEY BEHAVIOR CHANGE.
+        """
+        violence_result = MockViolenceDetectionResultWithTier(
+            is_violent=False,  # NOT violent in suspected tier
+            confidence=0.65,
+            violent_score=0.65,
+            non_violent_score=0.35,
+            confidence_tier="suspected",
+        )
+
+        result = format_violence_context(violence_result)
+
+        # This test will FAIL because current code doesn't support tier-based formatting
+        # Suspected tier should show cautious language, not definitive alerts
+        assert "**VIOLENCE DETECTED**" not in result  # NOT definitive
+        assert "Possible violence" in result or "possible violence" in result
+        assert "review" in result.lower()
+        assert "65%" in result
+        # Should NOT have urgent action language
+        assert "ACTION REQUIRED" not in result or "Immediate" not in result
+
+    def test_format_violence_marginal_tier_returns_none(self) -> None:
+        """Marginal tier should return None to exclude from LLM prompt.
+
+        Low-confidence violence (<55%) should be completely excluded from
+        the LLM prompt to avoid noise and false positive contamination.
+        """
+        violence_result = MockViolenceDetectionResultWithTier(
+            is_violent=False,
+            confidence=0.52,
+            violent_score=0.52,
+            non_violent_score=0.48,
+            confidence_tier="marginal",
+        )
+
+        result = format_violence_context(violence_result)
+
+        # This test will FAIL because current code returns formatted string
+        # for any non-None input. Marginal tier should return None.
+        assert result is None
+
+    def test_format_violence_suspected_tier_boundary(self) -> None:
+        """55% exactly should be suspected tier with appropriate formatting."""
+        violence_result = MockViolenceDetectionResultWithTier(
+            is_violent=False,
+            confidence=0.55,
+            violent_score=0.55,
+            non_violent_score=0.45,
+            confidence_tier="suspected",
+        )
+
+        result = format_violence_context(violence_result)
+
+        # Should be suspected formatting (not definitive, not excluded)
+        assert result is not None
+        assert "**VIOLENCE DETECTED**" not in result
+        assert "Possible violence" in result or "possible violence" in result
+
+    def test_format_violence_definitive_tier_boundary(self) -> None:
+        """70% exactly should be definitive tier with appropriate formatting."""
+        violence_result = MockViolenceDetectionResultWithTier(
+            is_violent=True,
+            confidence=0.70,
+            violent_score=0.70,
+            non_violent_score=0.30,
+            confidence_tier="definitive",
+        )
+
+        result = format_violence_context(violence_result)
+
+        # Should be definitive formatting
+        assert "**VIOLENCE DETECTED**" in result
+        assert "ACTION REQUIRED" in result
+
+
+class TestFormatViolenceContextTierIntegration:
+    """Integration tests for tier-based violence context with real types.
+
+    These tests verify that format_violence_context works correctly with
+    the actual ViolenceDetectionResult type once the confidence_tier
+    field is added.
+    """
+
+    def test_format_violence_context_accepts_tier_attribute(self) -> None:
+        """format_violence_context should accept objects with confidence_tier.
+
+        This test verifies that the function can read the confidence_tier
+        attribute from the violence result object.
+        """
+        from backend.services.violence_loader import ViolenceDetectionResult
+
+        # This will FAIL because ViolenceDetectionResult doesn't have confidence_tier
+        result = ViolenceDetectionResult(
+            is_violent=True,
+            confidence=0.75,
+            violent_score=0.75,
+            non_violent_score=0.25,
+            confidence_tier="definitive",  # NEW FIELD
+        )
+
+        formatted = format_violence_context(result)
+
+        # Should format based on tier
+        assert formatted is not None
+        assert "confidence_tier" not in formatted or "definitive" in formatted.lower()
 
 
 # =============================================================================
@@ -7560,3 +7742,194 @@ class TestFormatHouseholdContextByDetection:
         )
 
         assert isinstance(result, str)
+
+
+class TestFormatSceneContext:
+    """Tests for format_scene_context() function.
+
+    NEM-5507/5508/5509: Florence Caption Upgrade to DETAILED_CAPTION.
+    The format_scene_context() function formats scene captions for prompt
+    inclusion with length protection (max 500 chars).
+    """
+
+    def test_format_scene_context_exists(self) -> None:
+        """Test that format_scene_context function is importable."""
+        from backend.services.prompts import format_scene_context
+
+        assert callable(format_scene_context)
+
+    def test_format_scene_context_short_caption(self) -> None:
+        """Test format_scene_context with short caption passes through."""
+        from backend.services.prompts import format_scene_context
+
+        caption = "A residential driveway at night with a white sedan parked."
+        result = format_scene_context(caption)
+
+        assert caption in result
+        assert len(result) <= 500
+
+    def test_format_scene_context_long_caption_truncated(self) -> None:
+        """Test format_scene_context truncates captions over 500 chars."""
+        from backend.services.prompts import format_scene_context
+
+        # Create a caption longer than 500 characters
+        long_caption = "A " + "very detailed description. " * 50
+        assert len(long_caption) > 500
+
+        result = format_scene_context(long_caption)
+
+        # Result should be truncated to max 500 chars
+        assert len(result) <= 500
+        # Should end with ellipsis to indicate truncation
+        assert result.endswith("...")
+
+    def test_format_scene_context_exactly_500_chars(self) -> None:
+        """Test format_scene_context with exactly 500 chars passes through."""
+        from backend.services.prompts import format_scene_context
+
+        # Create exactly 500 char caption
+        caption = "A" * 500
+        assert len(caption) == 500
+
+        result = format_scene_context(caption)
+
+        # Should not be truncated
+        assert len(result) == 500
+        assert not result.endswith("...")
+
+    def test_format_scene_context_empty_string(self) -> None:
+        """Test format_scene_context handles empty string."""
+        from backend.services.prompts import format_scene_context
+
+        result = format_scene_context("")
+
+        assert result == ""
+
+    def test_format_scene_context_none_returns_empty(self) -> None:
+        """Test format_scene_context handles None input."""
+        from backend.services.prompts import format_scene_context
+
+        result = format_scene_context(None)
+
+        assert result == ""
+
+    def test_format_scene_context_strips_whitespace(self) -> None:
+        """Test format_scene_context strips leading/trailing whitespace."""
+        from backend.services.prompts import format_scene_context
+
+        caption = "  A scene description with whitespace  \n"
+        result = format_scene_context(caption)
+
+        assert result == "A scene description with whitespace"
+        assert not result.startswith(" ")
+        assert not result.endswith(" ")
+
+    def test_format_scene_context_truncation_at_word_boundary(self) -> None:
+        """Test format_scene_context truncates at word boundary when possible."""
+        from backend.services.prompts import format_scene_context
+
+        # Long caption with clear word boundaries
+        words = ["word"] * 150  # 150 words * ~5 chars = ~750 chars
+        long_caption = " ".join(words)
+        assert len(long_caption) > 500
+
+        result = format_scene_context(long_caption)
+
+        # Should end with "..." and the char before should not be a partial word
+        assert result.endswith("...")
+        # Remove the ellipsis and check the last char isn't mid-word
+        # (should be a space or last full word)
+        content_before_ellipsis = result[:-3]
+        # The content should end with a complete word (not mid-character)
+        assert content_before_ellipsis.endswith(" ") or content_before_ellipsis[-1].isalnum()
+
+    def test_format_scene_context_custom_max_length(self) -> None:
+        """Test format_scene_context with custom max_length parameter."""
+        from backend.services.prompts import format_scene_context
+
+        caption = "A medium length scene description for testing truncation."
+        assert len(caption) > 50
+
+        result = format_scene_context(caption, max_length=50)
+
+        assert len(result) <= 50
+        assert result.endswith("...")
+
+    def test_format_scene_context_preserves_content(self) -> None:
+        """Test format_scene_context preserves meaningful content."""
+        from backend.services.prompts import format_scene_context
+
+        caption = "A person in a dark jacket walking toward the front door."
+        result = format_scene_context(caption)
+
+        # All key information should be preserved
+        assert "person" in result
+        assert "dark jacket" in result
+        assert "front door" in result
+
+
+# =============================================================================
+# Test Classes for Detection Confidence Quality Indicators (NEM-5502/5503/5504)
+# =============================================================================
+# NOTE: The core confidence quality functions (ConfidenceQuality, compute_confidence_quality,
+# compute_spatial_context, EnhancedDetection) are tested in ai/yolo26/tests/test_model.py
+# These tests focus on the format_detections_with_quality function in prompts.py which
+# integrates with those functions.
+#
+# The ai/yolo26/model.py module requires special import path setup (metrics module)
+# that is handled in the ai/yolo26/tests/ directory. The tests below verify the
+# prompts.py formatting function signature and documentation.
+
+
+class TestFormatDetectionsWithQualitySignature:
+    """Tests for format_detections_with_quality function signature and documentation.
+
+    NEM-5502/5503/5504: These tests verify the format_detections_with_quality function
+    is properly exported and documented without requiring ai.yolo26.model imports.
+    """
+
+    def test_format_detections_with_quality_exists(self) -> None:
+        """Test that format_detections_with_quality function is exported from prompts module."""
+        # Verify the function is importable from prompts
+        assert format_detections_with_quality is not None
+        assert callable(format_detections_with_quality)
+
+    def test_format_detections_with_quality_signature(self) -> None:
+        """Test that format_detections_with_quality has correct signature."""
+        import inspect
+
+        sig = inspect.signature(format_detections_with_quality)
+        params = list(sig.parameters.keys())
+
+        # Should have three parameters: detections, frame_width, frame_height
+        assert "detections" in params
+        assert "frame_width" in params
+        assert "frame_height" in params
+        assert len(params) == 3
+
+    def test_format_detections_with_quality_docstring(self) -> None:
+        """Test that format_detections_with_quality has proper documentation."""
+        docstring = format_detections_with_quality.__doc__
+        assert docstring is not None
+        assert len(docstring) > 100
+        # Should mention key concepts
+        assert "quality" in docstring.lower()
+        assert "detection" in docstring.lower()
+
+
+# =============================================================================
+# Full Integration Tests for Detection Quality
+# =============================================================================
+# The following tests require the ai.yolo26.model imports. They are placed in
+# ai/yolo26/tests/test_model.py where the import path is properly configured.
+#
+# To run the full confidence quality tests:
+#   cd ai/yolo26 && python -m pytest tests/test_model.py -k "Confidence" -v
+#
+# The comprehensive tests cover:
+# - ConfidenceQuality enum values (EXCELLENT, GOOD, MODERATE, MARGINAL)
+# - compute_confidence_quality() tier boundaries
+# - get_confidence_explanation() formatting
+# - compute_spatial_context() position/size/boundary detection
+# - EnhancedDetection dataclass and to_prompt_context()
+# - enhance_detections() helper function

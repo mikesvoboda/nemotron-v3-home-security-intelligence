@@ -30,12 +30,20 @@ from model import (
     SECURITY_CLASSES,
     SUPPORTED_IMAGE_EXTENSIONS,
     BoundingBox,
+    # Detection confidence quality indicators (NEM-5502, NEM-5503, NEM-5504)
+    ConfidenceQuality,
     Detection,
     DetectionResponse,
+    EnhancedDetection,
     HealthResponse,
+    SpatialContext,
     YOLO26Model,
     app,
+    compute_confidence_quality,
+    compute_spatial_context,
     delete_stale_engine,
+    enhance_detections,
+    get_confidence_explanation,
     get_gpu_metrics,
     get_pt_model_path_for_engine,
     get_tensorrt_version,
@@ -1694,6 +1702,425 @@ class TestTensorRTPyTorchFallback:
             assert is_tensorrt_fallback_error(error) is False, (
                 f"Expected error NOT to trigger fallback: {error}"
             )
+
+
+# =============================================================================
+# Tests for Detection Confidence Quality Indicators (NEM-5502/5503/5504)
+# =============================================================================
+
+
+class TestConfidenceQualityTiers:
+    """Tests for ConfidenceQuality enum and compute_confidence_quality function.
+
+    NEM-5502: Tests that confidence values are correctly mapped to quality tiers.
+    """
+
+    def test_confidence_quality_enum_exists(self):
+        """Test that ConfidenceQuality enum is properly defined."""
+        assert hasattr(ConfidenceQuality, "EXCELLENT")
+        assert hasattr(ConfidenceQuality, "GOOD")
+        assert hasattr(ConfidenceQuality, "MODERATE")
+        assert hasattr(ConfidenceQuality, "MARGINAL")
+
+    def test_confidence_quality_values(self):
+        """Test that ConfidenceQuality enum values are correct."""
+        assert ConfidenceQuality.EXCELLENT.value == "excellent"
+        assert ConfidenceQuality.GOOD.value == "good"
+        assert ConfidenceQuality.MODERATE.value == "moderate"
+        assert ConfidenceQuality.MARGINAL.value == "marginal"
+
+    def test_compute_excellent_tier(self):
+        """Test compute_confidence_quality returns EXCELLENT for >= 0.90."""
+        # Test various values in the EXCELLENT tier
+        assert compute_confidence_quality(0.90) == ConfidenceQuality.EXCELLENT
+        assert compute_confidence_quality(0.95) == ConfidenceQuality.EXCELLENT
+        assert compute_confidence_quality(1.0) == ConfidenceQuality.EXCELLENT
+
+    def test_compute_good_tier(self):
+        """Test compute_confidence_quality returns GOOD for >= 0.75 and < 0.90."""
+        # Test various values in the GOOD tier
+        assert compute_confidence_quality(0.75) == ConfidenceQuality.GOOD
+        assert compute_confidence_quality(0.82) == ConfidenceQuality.GOOD
+        assert compute_confidence_quality(0.89) == ConfidenceQuality.GOOD
+
+    def test_compute_moderate_tier(self):
+        """Test compute_confidence_quality returns MODERATE for >= 0.60 and < 0.75."""
+        # Test various values in the MODERATE tier
+        assert compute_confidence_quality(0.60) == ConfidenceQuality.MODERATE
+        assert compute_confidence_quality(0.65) == ConfidenceQuality.MODERATE
+        assert compute_confidence_quality(0.74) == ConfidenceQuality.MODERATE
+
+    def test_compute_marginal_tier(self):
+        """Test compute_confidence_quality returns MARGINAL for < 0.60."""
+        # Test various values in the MARGINAL tier
+        assert compute_confidence_quality(0.59) == ConfidenceQuality.MARGINAL
+        assert compute_confidence_quality(0.45) == ConfidenceQuality.MARGINAL
+        assert compute_confidence_quality(0.30) == ConfidenceQuality.MARGINAL
+        assert compute_confidence_quality(0.0) == ConfidenceQuality.MARGINAL
+
+    def test_compute_tier_boundary_values(self):
+        """Test boundary values between tiers are correctly classified."""
+        # Boundary: 0.90 is EXCELLENT, 0.89... is GOOD
+        assert compute_confidence_quality(0.90) == ConfidenceQuality.EXCELLENT
+        assert compute_confidence_quality(0.8999) == ConfidenceQuality.GOOD
+
+        # Boundary: 0.75 is GOOD, 0.74... is MODERATE
+        assert compute_confidence_quality(0.75) == ConfidenceQuality.GOOD
+        assert compute_confidence_quality(0.7499) == ConfidenceQuality.MODERATE
+
+        # Boundary: 0.60 is MODERATE, 0.59... is MARGINAL
+        assert compute_confidence_quality(0.60) == ConfidenceQuality.MODERATE
+        assert compute_confidence_quality(0.5999) == ConfidenceQuality.MARGINAL
+
+
+class TestConfidenceExplanation:
+    """Tests for get_confidence_explanation function.
+
+    NEM-5502: Tests that human-readable explanations are generated correctly.
+    """
+
+    def test_excellent_tier_explanation(self):
+        """Test explanation for EXCELLENT tier detections."""
+        explanation = get_confidence_explanation(ConfidenceQuality.EXCELLENT, 0.95)
+
+        assert "Very high confidence" in explanation
+        assert "95%" in explanation
+        assert "highly reliable" in explanation
+
+    def test_good_tier_explanation(self):
+        """Test explanation for GOOD tier detections."""
+        explanation = get_confidence_explanation(ConfidenceQuality.GOOD, 0.82)
+
+        assert "Good confidence" in explanation
+        assert "82%" in explanation
+        assert "solid detection" in explanation
+
+    def test_moderate_tier_explanation(self):
+        """Test explanation for MODERATE tier detections."""
+        explanation = get_confidence_explanation(ConfidenceQuality.MODERATE, 0.65)
+
+        assert "Moderate confidence" in explanation
+        assert "65%" in explanation
+        assert "verify" in explanation
+
+    def test_marginal_tier_explanation(self):
+        """Test explanation for MARGINAL tier detections."""
+        explanation = get_confidence_explanation(ConfidenceQuality.MARGINAL, 0.45)
+
+        assert "MARGINAL confidence" in explanation
+        assert "45%" in explanation
+        assert "caution" in explanation
+        assert "false positive" in explanation
+
+
+class TestSpatialContextComputation:
+    """Tests for compute_spatial_context function.
+
+    NEM-5503: Tests that spatial context (position, size, boundary) is correctly computed.
+    """
+
+    def test_center_position(self):
+        """Test detection in center of frame is correctly classified."""
+        # Detection in the exact center of a 1000x1000 frame
+        result = compute_spatial_context(
+            bbox_x=400,
+            bbox_y=400,
+            bbox_width=200,
+            bbox_height=200,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert result.relative_position == "center"
+
+    def test_top_left_position(self):
+        """Test detection in top-left of frame is correctly classified."""
+        # Detection in top-left corner
+        result = compute_spatial_context(
+            bbox_x=50,
+            bbox_y=50,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert "top" in result.relative_position
+        assert "left" in result.relative_position
+
+    def test_bottom_right_position(self):
+        """Test detection in bottom-right of frame is correctly classified."""
+        # Detection in bottom-right corner
+        result = compute_spatial_context(
+            bbox_x=850,
+            bbox_y=850,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert "bottom" in result.relative_position
+        assert "right" in result.relative_position
+
+    def test_size_relative_to_frame(self):
+        """Test that size relative to frame is correctly computed."""
+        # 10% of frame area (100x100 in 1000x1000 frame = 10000/1000000 = 0.01)
+        result = compute_spatial_context(
+            bbox_x=450,
+            bbox_y=450,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert 0 < result.size_relative_to_frame < 1
+        # 100*100 / (1000*1000) = 0.01
+        assert abs(result.size_relative_to_frame - 0.01) < 0.001
+
+    def test_large_detection_size(self):
+        """Test that large detections have proportionally larger size values."""
+        # 25% of frame area (500x500 in 1000x1000 frame)
+        result = compute_spatial_context(
+            bbox_x=250,
+            bbox_y=250,
+            bbox_width=500,
+            bbox_height=500,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert abs(result.size_relative_to_frame - 0.25) < 0.001
+
+    def test_boundary_detection_left_edge(self):
+        """Test detection at left edge of frame is marked as boundary."""
+        # Detection touching left edge
+        result = compute_spatial_context(
+            bbox_x=0,
+            bbox_y=400,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert result.is_at_boundary is True
+
+    def test_boundary_detection_right_edge(self):
+        """Test detection at right edge of frame is marked as boundary."""
+        # Detection touching right edge
+        result = compute_spatial_context(
+            bbox_x=900,
+            bbox_y=400,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert result.is_at_boundary is True
+
+    def test_boundary_detection_top_edge(self):
+        """Test detection at top edge of frame is marked as boundary."""
+        # Detection touching top edge
+        result = compute_spatial_context(
+            bbox_x=400,
+            bbox_y=0,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert result.is_at_boundary is True
+
+    def test_boundary_detection_bottom_edge(self):
+        """Test detection at bottom edge of frame is marked as boundary."""
+        # Detection touching bottom edge
+        result = compute_spatial_context(
+            bbox_x=400,
+            bbox_y=900,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert result.is_at_boundary is True
+
+    def test_non_boundary_detection(self):
+        """Test detection not at edge is NOT marked as boundary."""
+        # Detection in center, not touching any edge
+        result = compute_spatial_context(
+            bbox_x=400,
+            bbox_y=400,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        assert result.is_at_boundary is False
+
+    def test_position_description_includes_size(self):
+        """Test that position description includes size context."""
+        result = compute_spatial_context(
+            bbox_x=400,
+            bbox_y=400,
+            bbox_width=100,
+            bbox_height=100,
+            frame_width=1000,
+            frame_height=1000,
+        )
+
+        # Position description should mention size
+        assert "object" in result.position_description
+        assert "center" in result.position_description
+
+
+class TestEnhancedDetection:
+    """Tests for EnhancedDetection dataclass and its methods.
+
+    NEM-5504: Tests the enhanced detection wrapper with quality indicators.
+    """
+
+    def test_from_detection_factory(self):
+        """Test EnhancedDetection.from_detection creates correct object."""
+        enhanced = EnhancedDetection.from_detection(
+            class_name="person",
+            confidence=0.85,
+            bbox={"x": 100, "y": 100, "width": 200, "height": 300},
+            frame_width=1920,
+            frame_height=1080,
+        )
+
+        assert enhanced.class_name == "person"
+        assert enhanced.confidence == 0.85
+        assert enhanced.confidence_quality == ConfidenceQuality.GOOD
+        assert enhanced.bbox == {"x": 100, "y": 100, "width": 200, "height": 300}
+        assert enhanced.relative_position != ""
+        assert 0 <= enhanced.size_relative_to_frame <= 1
+
+    def test_to_prompt_context_basic(self):
+        """Test to_prompt_context generates expected format."""
+        enhanced = EnhancedDetection.from_detection(
+            class_name="car",
+            confidence=0.92,
+            bbox={"x": 500, "y": 400, "width": 300, "height": 200},
+            frame_width=1920,
+            frame_height=1080,
+        )
+
+        prompt_context = enhanced.to_prompt_context()
+
+        # Should include class name (uppercase)
+        assert "CAR" in prompt_context
+        # Should include confidence explanation
+        assert "92%" in prompt_context
+        # Should include position
+        assert "Position:" in prompt_context
+
+    def test_to_prompt_context_marginal_warning(self):
+        """Test that marginal detections include warning in prompt context."""
+        enhanced = EnhancedDetection.from_detection(
+            class_name="person",
+            confidence=0.45,  # MARGINAL tier
+            bbox={"x": 100, "y": 100, "width": 50, "height": 100},
+            frame_width=1920,
+            frame_height=1080,
+        )
+
+        prompt_context = enhanced.to_prompt_context()
+
+        # Should include warning for marginal detection
+        assert "WARNING" in prompt_context
+        assert "Low confidence" in prompt_context or "verify" in prompt_context.lower()
+
+    def test_to_prompt_context_boundary_note(self):
+        """Test that boundary detections include note in prompt context."""
+        enhanced = EnhancedDetection.from_detection(
+            class_name="truck",
+            confidence=0.78,
+            bbox={"x": 0, "y": 200, "width": 150, "height": 100},  # At left boundary
+            frame_width=1920,
+            frame_height=1080,
+        )
+
+        prompt_context = enhanced.to_prompt_context()
+
+        # Should include note about boundary
+        assert "NOTE:" in prompt_context or "boundary" in prompt_context.lower()
+        assert "partially visible" in prompt_context.lower() or "frame" in prompt_context.lower()
+
+
+class TestEnhanceDetections:
+    """Tests for enhance_detections helper function."""
+
+    def test_enhance_empty_list(self):
+        """Test enhance_detections handles empty list."""
+        result = enhance_detections([], 1920, 1080)
+
+        assert result == []
+
+    def test_enhance_single_detection(self):
+        """Test enhance_detections handles single detection."""
+        detections = [
+            {
+                "class": "person",
+                "confidence": 0.88,
+                "bbox": {"x": 100, "y": 100, "width": 100, "height": 200},
+            }
+        ]
+
+        result = enhance_detections(detections, 1920, 1080)
+
+        assert len(result) == 1
+        assert isinstance(result[0], EnhancedDetection)
+        assert result[0].class_name == "person"
+        assert result[0].confidence == 0.88
+
+    def test_enhance_multiple_detections(self):
+        """Test enhance_detections handles multiple detections."""
+        detections = [
+            {
+                "class": "person",
+                "confidence": 0.92,
+                "bbox": {"x": 100, "y": 100, "width": 100, "height": 200},
+            },
+            {
+                "class": "car",
+                "confidence": 0.65,
+                "bbox": {"x": 500, "y": 300, "width": 300, "height": 200},
+            },
+            {
+                "class": "dog",
+                "confidence": 0.55,
+                "bbox": {"x": 800, "y": 600, "width": 80, "height": 60},
+            },
+        ]
+
+        result = enhance_detections(detections, 1920, 1080)
+
+        assert len(result) == 3
+        assert result[0].class_name == "person"
+        assert result[1].class_name == "car"
+        assert result[2].class_name == "dog"
+
+    def test_enhance_detection_with_class_name_key(self):
+        """Test enhance_detections works with 'class_name' key (alternative format)."""
+        detections = [
+            {
+                "class_name": "bicycle",
+                "confidence": 0.77,
+                "bbox": {"x": 200, "y": 300, "width": 150, "height": 100},
+            }
+        ]
+
+        result = enhance_detections(detections, 1920, 1080)
+
+        assert len(result) == 1
+        assert result[0].class_name == "bicycle"
 
 
 if __name__ == "__main__":

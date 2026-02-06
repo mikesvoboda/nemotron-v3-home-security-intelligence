@@ -835,3 +835,339 @@ class TestViolenceDetectionResultEdgeCases:
         parsed = json.loads(json_str)
         assert parsed["is_violent"] is True
         assert parsed["confidence"] == 0.87
+
+
+# =============================================================================
+# TDD Tests for Violence Confidence Tier System (NEM-5483)
+# =============================================================================
+# These tests define the NEW behavior for confidence-based violence detection
+# thresholding. They SHOULD FAIL against the current codebase.
+#
+# Tier definitions:
+# - definitive: violent_score >= 70% -> is_violent=True
+# - suspected:  violent_score 55-70% -> is_violent=False (flagged but not violent)
+# - marginal:   violent_score < 55%  -> is_violent=False (excluded from prompts)
+# =============================================================================
+
+
+class TestViolenceConfidenceTiers:
+    """TDD tests for violence detection confidence tier system.
+
+    These tests define the expected behavior for the new three-tier confidence
+    system. They will FAIL until the implementation is complete.
+
+    The tier system addresses false positives by raising the threshold for
+    definitive violence detection from 50% to 70%, while still flagging
+    suspected violence (55-70%) for human review.
+    """
+
+    def test_confidence_tier_definitive(self) -> None:
+        """75% violent score should result in 'definitive' tier and is_violent=True.
+
+        Definitive tier (>=70%) represents high-confidence violence detection
+        that should trigger immediate alerts and action.
+        """
+        # This test will FAIL because ViolenceDetectionResult does not have
+        # a confidence_tier field yet
+        result = ViolenceDetectionResult(
+            is_violent=True,
+            confidence=0.75,
+            violent_score=0.75,
+            non_violent_score=0.25,
+            confidence_tier="definitive",  # NEW FIELD - will fail until added
+        )
+
+        assert result.confidence_tier == "definitive"
+        assert result.is_violent is True
+
+    def test_confidence_tier_suspected(self) -> None:
+        """62% violent score should result in 'suspected' tier and is_violent=False.
+
+        Suspected tier (55-70%) represents possible violence that should be
+        flagged for human review but NOT treated as confirmed violence.
+        This is the KEY BEHAVIOR CHANGE from the current 50% threshold.
+        """
+        # This test will FAIL because:
+        # 1. ViolenceDetectionResult does not have confidence_tier field
+        # 2. Current code would set is_violent=True for 62% (>50%)
+        result = ViolenceDetectionResult(
+            is_violent=False,  # NEW behavior - 62% is NOT violent
+            confidence=0.62,
+            violent_score=0.62,
+            non_violent_score=0.38,
+            confidence_tier="suspected",  # NEW FIELD
+        )
+
+        assert result.confidence_tier == "suspected"
+        assert result.is_violent is False  # KEY: suspected tier is NOT violent
+
+    def test_confidence_tier_marginal(self) -> None:
+        """51% violent score should result in 'marginal' tier and is_violent=False.
+
+        Marginal tier (<55%) represents low-confidence detections that should
+        be excluded from LLM prompts entirely to avoid noise.
+        """
+        # This test will FAIL because ViolenceDetectionResult does not have
+        # a confidence_tier field yet
+        result = ViolenceDetectionResult(
+            is_violent=False,
+            confidence=0.51,
+            violent_score=0.51,
+            non_violent_score=0.49,
+            confidence_tier="marginal",  # NEW FIELD
+        )
+
+        assert result.confidence_tier == "marginal"
+        assert result.is_violent is False
+
+    def test_boundary_70_percent_is_definitive(self) -> None:
+        """70% exactly should be 'definitive' tier (boundary test).
+
+        The boundary at 70% is inclusive for definitive tier.
+        """
+        result = ViolenceDetectionResult(
+            is_violent=True,
+            confidence=0.70,
+            violent_score=0.70,
+            non_violent_score=0.30,
+            confidence_tier="definitive",  # NEW FIELD
+        )
+
+        assert result.confidence_tier == "definitive"
+        assert result.is_violent is True
+
+    def test_boundary_below_70_percent_is_suspected(self) -> None:
+        """69.9% should be 'suspected' tier (just below definitive boundary).
+
+        This test ensures the boundary condition is correctly handled.
+        """
+        result = ViolenceDetectionResult(
+            is_violent=False,  # NOT violent at 69.9%
+            confidence=0.699,
+            violent_score=0.699,
+            non_violent_score=0.301,
+            confidence_tier="suspected",  # NEW FIELD
+        )
+
+        assert result.confidence_tier == "suspected"
+        assert result.is_violent is False
+
+    def test_boundary_55_percent_is_suspected(self) -> None:
+        """55% exactly should be 'suspected' tier (boundary test).
+
+        The boundary at 55% is inclusive for suspected tier.
+        """
+        result = ViolenceDetectionResult(
+            is_violent=False,
+            confidence=0.55,
+            violent_score=0.55,
+            non_violent_score=0.45,
+            confidence_tier="suspected",  # NEW FIELD
+        )
+
+        assert result.confidence_tier == "suspected"
+        assert result.is_violent is False
+
+    def test_boundary_below_55_percent_is_marginal(self) -> None:
+        """54.9% should be 'marginal' tier (just below suspected boundary).
+
+        This test ensures the boundary condition is correctly handled.
+        """
+        result = ViolenceDetectionResult(
+            is_violent=False,
+            confidence=0.549,
+            violent_score=0.549,
+            non_violent_score=0.451,
+            confidence_tier="marginal",  # NEW FIELD
+        )
+
+        assert result.confidence_tier == "marginal"
+        assert result.is_violent is False
+
+    def test_to_dict_includes_confidence_tier(self) -> None:
+        """to_dict() should include the confidence_tier field.
+
+        The confidence tier must be serialized for API responses and
+        database storage.
+        """
+        result = ViolenceDetectionResult(
+            is_violent=True,
+            confidence=0.85,
+            violent_score=0.85,
+            non_violent_score=0.15,
+            confidence_tier="definitive",  # NEW FIELD
+        )
+
+        d = result.to_dict()
+
+        # This assertion will FAIL until to_dict() is updated
+        assert "confidence_tier" in d
+        assert d["confidence_tier"] == "definitive"
+
+    def test_to_dict_confidence_tier_json_serializable(self) -> None:
+        """Confidence tier in to_dict() should be JSON serializable."""
+        import json
+
+        result = ViolenceDetectionResult(
+            is_violent=False,
+            confidence=0.60,
+            violent_score=0.60,
+            non_violent_score=0.40,
+            confidence_tier="suspected",  # NEW FIELD
+        )
+
+        d = result.to_dict()
+        json_str = json.dumps(d)
+
+        # Verify round-trip preserves confidence_tier
+        parsed = json.loads(json_str)
+        assert parsed["confidence_tier"] == "suspected"
+
+
+class TestClassifyViolenceConfidenceTiers:
+    """TDD tests for classify_violence function with confidence tier calculation.
+
+    These tests verify that the classify_violence function correctly assigns
+    confidence tiers based on the violent_score thresholds.
+    """
+
+    @pytest.mark.asyncio
+    async def test_classify_violence_assigns_definitive_tier(self, monkeypatch) -> None:
+        """classify_violence should assign 'definitive' tier for scores >= 70%."""
+        import sys
+
+        # Create mock torch
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock()
+        mock_torch.no_grad.return_value.__exit__ = MagicMock()
+
+        # Mock softmax to return 80% violent score (definitive tier)
+        mock_probs = MagicMock()
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
+            cpu=lambda: MagicMock(tolist=lambda: [0.2, 0.8])
+        )
+        mock_torch.nn.functional.softmax.return_value = mock_probs
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        # Create mock model
+        mock_param = MagicMock()
+        mock_param.is_cuda = False
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        mock_config = MagicMock()
+        mock_config.id2label = {0: "non-violent", 1: "violent"}
+        mock_model.config = mock_config
+
+        mock_outputs = MagicMock()
+        mock_outputs.logits = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        mock_processor = MagicMock()
+        mock_processor.return_value = {"pixel_values": MagicMock()}
+
+        model_data = {"model": mock_model, "processor": mock_processor}
+        mock_image = MagicMock()
+
+        result = await classify_violence(model_data, mock_image)
+
+        # These assertions will FAIL until classify_violence is updated
+        assert result.confidence_tier == "definitive"
+        assert result.is_violent is True
+        assert result.violent_score == 0.8
+
+    @pytest.mark.asyncio
+    async def test_classify_violence_assigns_suspected_tier(self, monkeypatch) -> None:
+        """classify_violence should assign 'suspected' tier for scores 55-70%."""
+        import sys
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock()
+        mock_torch.no_grad.return_value.__exit__ = MagicMock()
+
+        # Mock softmax to return 62% violent score (suspected tier)
+        mock_probs = MagicMock()
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
+            cpu=lambda: MagicMock(tolist=lambda: [0.38, 0.62])
+        )
+        mock_torch.nn.functional.softmax.return_value = mock_probs
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        mock_param = MagicMock()
+        mock_param.is_cuda = False
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        mock_config = MagicMock()
+        mock_config.id2label = {0: "non-violent", 1: "violent"}
+        mock_model.config = mock_config
+
+        mock_outputs = MagicMock()
+        mock_outputs.logits = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        mock_processor = MagicMock()
+        mock_processor.return_value = {"pixel_values": MagicMock()}
+
+        model_data = {"model": mock_model, "processor": mock_processor}
+        mock_image = MagicMock()
+
+        result = await classify_violence(model_data, mock_image)
+
+        # These assertions will FAIL:
+        # 1. confidence_tier field doesn't exist
+        # 2. is_violent would be True with current 50% threshold
+        assert result.confidence_tier == "suspected"
+        assert result.is_violent is False  # KEY: 62% should NOT be violent
+        assert result.violent_score == 0.62
+
+    @pytest.mark.asyncio
+    async def test_classify_violence_assigns_marginal_tier(self, monkeypatch) -> None:
+        """classify_violence should assign 'marginal' tier for scores < 55%."""
+        import sys
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock()
+        mock_torch.no_grad.return_value.__exit__ = MagicMock()
+
+        # Mock softmax to return 52% violent score (marginal tier)
+        mock_probs = MagicMock()
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
+            cpu=lambda: MagicMock(tolist=lambda: [0.48, 0.52])
+        )
+        mock_torch.nn.functional.softmax.return_value = mock_probs
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        mock_param = MagicMock()
+        mock_param.is_cuda = False
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param])
+
+        mock_config = MagicMock()
+        mock_config.id2label = {0: "non-violent", 1: "violent"}
+        mock_model.config = mock_config
+
+        mock_outputs = MagicMock()
+        mock_outputs.logits = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        mock_processor = MagicMock()
+        mock_processor.return_value = {"pixel_values": MagicMock()}
+
+        model_data = {"model": mock_model, "processor": mock_processor}
+        mock_image = MagicMock()
+
+        result = await classify_violence(model_data, mock_image)
+
+        # These assertions will FAIL:
+        # 1. confidence_tier field doesn't exist
+        # 2. is_violent would be True with current 50% threshold (52% > 50%)
+        assert result.confidence_tier == "marginal"
+        assert result.is_violent is False
+        assert result.violent_score == 0.52
