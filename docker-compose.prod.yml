@@ -29,7 +29,7 @@
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
-#   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
+#   - GPU_LAYERS: Number of GPU layers for LLM (default: 999 = all layers on GPU)
 #   - CTX_SIZE: LLM context window size (default: 65536)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
@@ -144,11 +144,14 @@ services:
       - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-yolo26
+      # GPU assignment from .env (single source of truth)
+      - CUDA_VISIBLE_DEVICES=${GPU_YOLO26:-1}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
-      - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+      # Use .pt file to auto-rebuild TensorRT engine for target GPU (A400)
+      - YOLO26_MODEL_PATH=/models/yolo26/yolo26m.pt
       # PyTorch GPU profiling (NEM-4130)
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
       - PYTORCH_PROFILE_RATE=${PYTORCH_PROFILE_RATE:-0.05}
@@ -176,9 +179,8 @@ services:
         reservations:
           memory: 2G
           devices:
-            # GPU assignment from .env (single source of truth)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_YOLO26}']
               capabilities: [gpu]
 
   ai-llm:
@@ -204,12 +206,14 @@ services:
     environment:
       # Pyroscope continuous profiling for LLM inference analysis
       - SERVICE_NAME=ai-llm
+      # GPU assignment - LLM stays on GPU 0 (A5500)
+      - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
-      # NEM-5369: Reduced from 45 to 40 layers to leave ~2GB headroom for compute buffers
-      # With other AI services using ~3.5GB, 45 layers (20GB) + compute (1.1GB) exceeds 20.9GB free
-      - GPU_LAYERS=${GPU_LAYERS:-40}
+      # All layers on GPU - other AI services moved to GPU 1 (A400) to free up A5500 for LLM
+      # With dual-GPU setup, Nemotron can use all 53 layers on GPU 0
+      - GPU_LAYERS=${GPU_LAYERS:-999}
       # NEM-5369: Reduced context for home security analysis (was 65536, saves ~4GB VRAM)
       # 32768 tokens is sufficient for security event analysis prompts
       - CTX_SIZE=${CTX_SIZE:-32768}
@@ -233,9 +237,8 @@ services:
         reservations:
           memory: 8G
           devices:
-            # GPU assignment from .env (single source of truth)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_LLM}']
               capabilities: [gpu]
 
   # =============================================================================
@@ -311,9 +314,8 @@ services:
         reservations:
           memory: 16G
           devices:
-            # GPU assignment from .env (shares with ai-llm - run one at a time)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_LLM}']
               capabilities: [gpu]
 
   # Florence-2 vision-language model for dense captioning and visual understanding
@@ -343,6 +345,8 @@ services:
       - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-florence
+      # GPU assignment - Florence stays on GPU 0 (A5500) with LLM
+      - CUDA_VISIBLE_DEVICES=${GPU_FLORENCE:-0}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
@@ -372,9 +376,8 @@ services:
         reservations:
           memory: 3G
           devices:
-            # GPU assignment from .env (single source of truth)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_FLORENCE}']
               capabilities: [gpu]
 
   # CLIP ViT-L model for entity re-identification embeddings
@@ -406,6 +409,8 @@ services:
       - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-clip
+      # GPU assignment from .env (single source of truth)
+      - CUDA_VISIBLE_DEVICES=${GPU_CLIP:-1}
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
@@ -434,9 +439,8 @@ services:
         reservations:
           memory: 2G
           devices:
-            # GPU assignment from .env (single source of truth)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_CLIP}']
               capabilities: [gpu]
 
   # Lightweight enrichment service for small, efficient models (GPU 1)
@@ -472,6 +476,8 @@ services:
       - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-enrichment-light
+      # GPU assignment from .env (single source of truth)
+      - CUDA_VISIBLE_DEVICES=${GPU_ENRICHMENT_LIGHT:-1}
       - GPU_TIER=light
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
@@ -517,9 +523,8 @@ services:
         reservations:
           memory: 2G
           devices:
-            # GPU assignment from .env (single source of truth)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT_LIGHT}']
               capabilities: [gpu]
 
   # Heavy enrichment service for large transformer models (GPU 0)
@@ -555,6 +560,8 @@ services:
       - pytorch-profiles:/tmp/profiles
     environment:
       - SERVICE_NAME=ai-enrichment
+      # GPU assignment from .env (single source of truth)
+      - CUDA_VISIBLE_DEVICES=${GPU_ENRICHMENT:-1}
       - GPU_TIER=heavy
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
@@ -596,9 +603,8 @@ services:
         reservations:
           memory: 6G
           devices:
-            # GPU assignment from .env (single source of truth)
+            # All GPUs passed - CUDA_VISIBLE_DEVICES from .env controls selection
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT}']
               capabilities: [gpu]
 
   backend:
