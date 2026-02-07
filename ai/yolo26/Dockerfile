@@ -80,6 +80,7 @@ COPY --chown=1000:1000 ai/yolo26/build_engine.py .
 COPY --chown=1000:1000 ai/compile_utils.py .
 COPY --chown=1000:1000 ai/torch_optimizations.py .
 COPY --chown=1000:1000 ai/tensorrt_prebuild.py .
+COPY --chown=1000:1000 ai/gpu_oom_handler.py .
 
 # Environment variables
 ENV HOST=0.0.0.0

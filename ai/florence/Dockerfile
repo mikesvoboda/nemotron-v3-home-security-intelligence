@@ -61,6 +61,7 @@ COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 # Copy application files
 COPY ai/florence/model.py .
 COPY ai/torch_optimizations.py .
+COPY ai/gpu_oom_handler.py .
 
 # =============================================================================
 # Stage 2: Runtime - Minimal image without build dependencies

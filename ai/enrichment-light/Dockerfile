@@ -55,6 +55,7 @@ COPY --chown=enrichment:enrichment ai/enrichment-light/models/*.py ./models/
 COPY --chown=enrichment:enrichment ai/torch_optimizations.py ./
 # Copy shared TensorRT pre-build utilities (NEM-4999)
 COPY --chown=enrichment:enrichment ai/tensorrt_prebuild.py ./
+COPY --chown=enrichment:enrichment ai/gpu_oom_handler.py ./
 
 # Environment variables
 ENV HOST=0.0.0.0

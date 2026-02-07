@@ -61,6 +61,7 @@ COPY --chown=1000:1000 ai/clip/export_onnx.py .
 COPY --chown=1000:1000 ai/clip/build_engine.py .
 # Copy shared TensorRT pre-build utilities
 COPY --chown=1000:1000 ai/tensorrt_prebuild.py .
+COPY --chown=1000:1000 ai/gpu_oom_handler.py .
 
 # Environment variables
 ENV HOST=0.0.0.0
