@@ -1098,6 +1098,45 @@ class Settings(BaseSettings):
         "so longer timeout accommodates complex multi-model operations.",
     )
 
+    # Enrichment pipeline parallelization settings
+    enrichment_pipeline_timeout_seconds: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Hard timeout (seconds) for the entire enrichment pipeline. "
+        "If reached, returns whatever enrichment data has been collected so far. "
+        "Should be well below batch_window_seconds (90s) to leave time for "
+        "Nemotron analysis. Default: 30 seconds.",
+    )
+    enrichment_florence_concurrency: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum concurrent requests to Florence-2 service. "
+        "Limits GPU saturation when processing multiple detections.",
+    )
+    enrichment_clip_concurrency: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum concurrent requests to CLIP service. "
+        "Limits GPU saturation for embedding/classification requests.",
+    )
+    enrichment_service_concurrency: int = Field(
+        default=4,
+        ge=1,
+        le=10,
+        description="Maximum concurrent requests to enrichment HTTP services "
+        "(ai-enrichment, ai-enrichment-light). Limits GPU saturation.",
+    )
+    enrichment_quality_level: str = Field(
+        default="full",
+        description="Enrichment quality level controlling which models run. "
+        "Options: 'full' (all models), 'standard' (skip Florence enhanced + CLIP classify), "
+        "'minimal' (only detections + threat/pose/action). "
+        "Use lower levels when under load to stay within batch window.",
+    )
+
     # AI service retry settings
     detector_max_retries: int = Field(
         default=3,
@@ -1116,12 +1155,12 @@ class Settings(BaseSettings):
 
     # Nemotron context window settings (NEM-1723)
     nemotron_context_window: int = Field(
-        default=131072,
+        default=32768,
         ge=1000,
         le=131072,
+        validation_alias="CTX_SIZE",
         description="Nemotron context window size in tokens. "
-        "Production (Nemotron-3-Nano-30B-A3B): 131,072 tokens (128K). "
-        "Development (Nemotron Mini 4B): 4,096 tokens. "
+        "Reads from CTX_SIZE in .env (single source of truth, shared with llama.cpp). "
         "Prompts exceeding (context_window - max_output_tokens) will be truncated.",
     )
     nemotron_max_output_tokens: int = Field(

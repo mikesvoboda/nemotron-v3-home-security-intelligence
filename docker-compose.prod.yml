@@ -30,7 +30,7 @@
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 999 = all layers on GPU)
-#   - CTX_SIZE: LLM context window size (default: 65536)
+#   - CTX_SIZE: LLM context window size (default: 32768, defined in .env)
 #   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
 #   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
@@ -217,6 +217,8 @@ services:
       # NEM-5369: Reduced context for home security analysis (was 65536, saves ~4GB VRAM)
       # 32768 tokens is sufficient for security event analysis prompts
       - CTX_SIZE=${CTX_SIZE:-32768}
+      # 2 parallel slots (16K each) for concurrent batch processing
+      - PARALLEL=${PARALLEL:-2}
       # NEM-5369: Enable flash attention to reduce VRAM usage with minimal performance impact
       - FLASH_ATTENTION=${FLASH_ATTENTION:-true}
     healthcheck:

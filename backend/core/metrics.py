@@ -585,6 +585,29 @@ ENRICHMENT_MODEL_ERRORS_TOTAL = Counter(
     registry=_registry,
 )
 
+# Histogram for enrichment pipeline stage durations (NEM-5525)
+ENRICHMENT_PIPELINE_STAGE_DURATION = Histogram(
+    "hsi_enrichment_pipeline_stage_duration_seconds",
+    "Duration of enrichment pipeline stages",
+    labelnames=["stage"],
+    buckets=AI_REQUEST_DURATION_BUCKETS,
+    registry=_registry,
+)
+
+# Counter for enrichment pipeline timeouts
+ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL = Counter(
+    "hsi_enrichment_pipeline_timeouts_total",
+    "Total number of enrichment pipeline hard timeouts",
+    registry=_registry,
+)
+
+# Gauge for enrichment quality level in use
+ENRICHMENT_QUALITY_LEVEL = Gauge(
+    "hsi_enrichment_quality_level",
+    "Current enrichment quality level (1=minimal, 2=standard, 3=full)",
+    registry=_registry,
+)
+
 EVENTS_BY_CAMERA_TOTAL = Counter(
     "hsi_events_by_camera_total",
     "Events per camera",
@@ -2323,6 +2346,31 @@ def record_enrichment_model_error(model: str) -> None:
         model: Name of the enrichment model that errored
     """
     ENRICHMENT_MODEL_ERRORS_TOTAL.labels(model=model).inc()
+
+
+def observe_enrichment_pipeline_stage(stage: str, duration_seconds: float) -> None:
+    """Record the duration of an enrichment pipeline stage.
+
+    Args:
+        stage: Pipeline stage name (e.g., "phase1_and_florence", "phase2", "phase3", "total")
+        duration_seconds: Duration of the stage in seconds
+    """
+    ENRICHMENT_PIPELINE_STAGE_DURATION.labels(stage=stage).observe(duration_seconds)
+
+
+def record_enrichment_pipeline_timeout() -> None:
+    """Increment the counter for enrichment pipeline hard timeouts."""
+    ENRICHMENT_PIPELINE_TIMEOUTS_TOTAL.inc()
+
+
+def set_enrichment_quality_level(level: str) -> None:
+    """Set the current enrichment quality level gauge.
+
+    Args:
+        level: Quality level string ("minimal", "standard", "full")
+    """
+    level_map = {"minimal": 1, "standard": 2, "full": 3}
+    ENRICHMENT_QUALITY_LEVEL.set(level_map.get(level, 3))
 
 
 def record_event_by_camera(camera_id: str, camera_name: str) -> None:

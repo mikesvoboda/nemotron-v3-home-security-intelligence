@@ -62,7 +62,7 @@ ENV PORT=8091
 ENV GPU_LAYERS=35
 # NEM-5369: Reduced default context size from 131072 to 32768 to save ~4GB VRAM
 ENV CTX_SIZE=32768
-ENV PARALLEL=1
+ENV PARALLEL=2
 # NEM-5369: Flash attention enabled by default to reduce VRAM usage
 ENV FLASH_ATTENTION=true
 

@@ -20,10 +20,17 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_enrichment_model_duration,
+    record_enrichment_model_call,
+    record_enrichment_model_error,
+)
+from backend.core.telemetry import add_span_event
 from backend.services.bbox_validation import prepare_bbox_for_crop
 from backend.services.florence_client import (
     BoundingBox as FlorenceBoundingBox,
@@ -1369,14 +1376,11 @@ class VisionExtractor:
         Returns:
             EnvironmentContext with time, lighting, and weather info
         """
-        time_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
-        )
-        light_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
-        )
-        weather_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
+        # Run all environment VQA queries concurrently
+        time_response, light_response, weather_response = await asyncio.gather(
+            self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]),
+            self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]),
+            self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]),
         )
 
         # Parse time of day
@@ -1540,8 +1544,15 @@ class VisionExtractor:
         Returns:
             FlorenceEnhancedScene with all enhanced data, or None on total failure
         """
+        record_enrichment_model_call("florence-enhanced")
+        overall_start = time.perf_counter()
         enhanced = FlorenceEnhancedScene()
         client = self._florence_client
+
+        add_span_event(
+            "florence_enhanced.start",
+            {"detection.count": len(all_detections), "person.count": len(person_dets)},
+        )
 
         # Security-relevant phrases for phrase grounding
         security_phrases = [
@@ -1562,7 +1573,11 @@ class VisionExtractor:
                 logger.warning("Florence security objects detection unavailable")
                 return None
             except Exception as e:
-                logger.warning(f"Florence security objects detection failed: {e}")
+                record_enrichment_model_error("florence-security-objects")
+                logger.warning(
+                    f"Florence security objects detection failed: {e}",
+                    extra={"service": "florence-security-objects", "error_type": type(e).__name__},
+                )
                 return None
 
         async def _dense_caption() -> list[dict[str, Any]]:
@@ -1573,7 +1588,11 @@ class VisionExtractor:
                 logger.warning("Florence dense captioning unavailable")
                 return []
             except Exception as e:
-                logger.warning(f"Florence dense captioning failed: {e}")
+                record_enrichment_model_error("florence-dense-caption")
+                logger.warning(
+                    f"Florence dense captioning failed: {e}",
+                    extra={"service": "florence-dense-caption", "error_type": type(e).__name__},
+                )
                 return []
 
         async def _ocr_with_regions() -> list[dict[str, Any]]:
@@ -1584,7 +1603,11 @@ class VisionExtractor:
                 logger.warning("Florence OCR with regions unavailable")
                 return []
             except Exception as e:
-                logger.warning(f"Florence OCR with regions failed: {e}")
+                record_enrichment_model_error("florence-ocr-regions")
+                logger.warning(
+                    f"Florence OCR with regions failed: {e}",
+                    extra={"service": "florence-ocr-regions", "error_type": type(e).__name__},
+                )
                 return []
 
         async def _phrase_grounding() -> list[dict[str, Any]]:
@@ -1603,7 +1626,11 @@ class VisionExtractor:
                 logger.warning("Florence phrase grounding unavailable")
                 return []
             except Exception as e:
-                logger.warning(f"Florence phrase grounding failed: {e}")
+                record_enrichment_model_error("florence-phrase-grounding")
+                logger.warning(
+                    f"Florence phrase grounding failed: {e}",
+                    extra={"service": "florence-phrase-grounding", "error_type": type(e).__name__},
+                )
                 return []
 
         # Run all four scene-level tasks in parallel
@@ -1627,7 +1654,7 @@ class VisionExtractor:
         # Phase 2: Region descriptions for YOLO detections (sequential per detection)
         # Send each detection's bounding box to Florence-2 for a detailed description
         region_boxes = []
-        region_det_ids = []
+        region_det_ids: list[str] = []
         for det in all_detections:
             bbox = det.get("bbox")
             if bbox and len(bbox) == 4:
@@ -1647,7 +1674,14 @@ class VisionExtractor:
             except FlorenceUnavailableError:
                 logger.warning("Florence region description unavailable")
             except Exception as e:
-                logger.warning(f"Florence region description failed: {e}")
+                record_enrichment_model_error("florence-region-description")
+                logger.warning(
+                    f"Florence region description failed: {e}",
+                    extra={
+                        "service": "florence-region-description",
+                        "error_type": type(e).__name__,
+                    },
+                )
 
         # Phase 3: Security VQA for person detections
         for det in person_dets:
@@ -1665,7 +1699,15 @@ class VisionExtractor:
                 if vqa_answers:
                     enhanced.security_vqa[det_id] = vqa_answers
             except Exception as e:
-                logger.warning(f"Security VQA failed for detection {det_id}: {e}")
+                record_enrichment_model_error("florence-security-vqa")
+                logger.warning(
+                    f"Security VQA failed for detection {det_id}: {e}",
+                    extra={
+                        "service": "florence-security-vqa",
+                        "detection_id": det_id,
+                        "error_type": type(e).__name__,
+                    },
+                )
 
         # Check if we got any enhanced data at all
         has_data = (
@@ -1677,18 +1719,44 @@ class VisionExtractor:
             or enhanced.security_vqa
         )
 
+        overall_duration = time.perf_counter() - overall_start
+        observe_enrichment_model_duration("florence-enhanced", overall_duration)
+
         if not has_data:
-            logger.debug("No Florence enhanced data available")
+            record_enrichment_model_error("florence-enhanced")
+            logger.debug(
+                "No Florence enhanced data available",
+                extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
+            )
             return None
+
+        security_obj_count = (
+            len(enhanced.security_objects.detections) if enhanced.security_objects else 0
+        )
+        phrase_match_count = sum(1 for p in enhanced.phrase_grounding if p.get("matched"))
+
+        add_span_event(
+            "florence_enhanced.complete",
+            {
+                "security_objects.count": security_obj_count,
+                "dense_captions.count": len(enhanced.dense_captions),
+                "text_regions.count": len(enhanced.text_regions),
+                "phrase_grounding.matched": phrase_match_count,
+                "region_descriptions.count": len(enhanced.region_descriptions),
+                "security_vqa.count": len(enhanced.security_vqa),
+                "duration_ms": int(overall_duration * 1000),
+            },
+        )
 
         logger.info(
             f"Florence enhanced: "
-            f"security_objects={len(enhanced.security_objects.detections) if enhanced.security_objects else 0}, "
+            f"security_objects={security_obj_count}, "
             f"dense_captions={len(enhanced.dense_captions)}, "
             f"text_regions={len(enhanced.text_regions)}, "
-            f"phrase_grounding={sum(1 for p in enhanced.phrase_grounding if p.get('matched'))}, "
+            f"phrase_grounding={phrase_match_count}, "
             f"region_descriptions={len(enhanced.region_descriptions)}, "
-            f"security_vqa={len(enhanced.security_vqa)}"
+            f"security_vqa={len(enhanced.security_vqa)}",
+            extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
         )
         return enhanced
 
@@ -1715,11 +1783,12 @@ class VisionExtractor:
             NEM-5478: Florence vehicle type is cross-validated against YOLO
             detection to prevent misclassification (e.g., bus -> police car).
         """
-        caption = await self._query_florence(image, CAPTION_TASK)
-        color_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
-        vehicle_type_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
-        commercial_response = await self._query_florence(
-            image, VQA_TASK, VEHICLE_QUERIES["commercial"]
+        # Run all vehicle VQA queries concurrently
+        caption, color_raw, vehicle_type_raw, commercial_response = await asyncio.gather(
+            self._query_florence(image, CAPTION_TASK),
+            self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"]),
+            self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"]),
+            self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["commercial"]),
         )
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
@@ -1791,13 +1860,14 @@ class VisionExtractor:
             NEM-3304: VQA responses are validated to reject garbage outputs
             like "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>".
         """
-        caption = await self._query_florence(image, CAPTION_TASK)
-        clothing_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
-        carrying_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
-        service_response = await self._query_florence(
-            image, VQA_TASK, PERSON_QUERIES["service_worker"]
+        # Run all person VQA queries concurrently
+        caption, clothing_raw, carrying_raw, service_response, action_raw = await asyncio.gather(
+            self._query_florence(image, CAPTION_TASK),
+            self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"]),
+            self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"]),
+            self._query_florence(image, VQA_TASK, PERSON_QUERIES["service_worker"]),
+            self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"]),
         )
-        action_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
         clothing = validate_and_clean_vqa_output(clothing_raw)
@@ -1824,10 +1894,13 @@ class VisionExtractor:
         Returns:
             SceneAnalysis with detected unusual elements
         """
-        description = await self._query_florence(image, CAPTION_TASK)
-        unusual_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"])
-        tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
-        abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
+        # Run all scene VQA queries concurrently
+        description, unusual_response, tools_response, abandoned_response = await asyncio.gather(
+            self._query_florence(image, CAPTION_TASK),
+            self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"]),
+            self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"]),
+            self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"]),
+        )
 
         # Clean VQA responses to remove Florence-2 artifacts
         unusual_cleaned = clean_vqa_output(unusual_response)
