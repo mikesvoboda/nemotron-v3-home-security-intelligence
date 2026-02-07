@@ -17,6 +17,7 @@ import binascii
 import io
 import logging
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -31,11 +32,24 @@ from PIL import Image, UnidentifiedImageError
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
+# Add ai directory to path for shared GPU utilities (NEM-4996)
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from gpu_oom_handler import (
+    GPUOOMHandler,
+    check_gpu_memory_health,
+)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# GPU OOM handler for this service (NEM-4996)
+_oom_handler = GPUOOMHandler(service_name="enrichment_light")
 
 
 # =============================================================================
@@ -644,6 +658,10 @@ class HealthResponse(BaseModel):
     gpu_available: bool
     gpu_memory_used_gb: float
     uptime_seconds: float
+    gpu_memory_health: str | None = None
+    gpu_memory_allocated_mb: float | None = None
+    gpu_memory_total_mb: float | None = None
+    gpu_memory_utilization_pct: float | None = None
 
 
 # =============================================================================
@@ -671,15 +689,22 @@ def decode_image(image_base64: str) -> Image.Image:
 # =============================================================================
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    Includes GPU memory health monitoring (NEM-4996).
+    """
     gpu_mem = 0.0
     if torch.cuda.is_available():
         gpu_mem = torch.cuda.memory_allocated() / 1e9
 
     uptime = (datetime.now(UTC) - SERVICE_START_TIME).total_seconds()
 
+    # NEM-4996: GPU memory health monitoring
+    gpu_health = check_gpu_memory_health()
+    status = "degraded" if gpu_health.status.value == "critical" else "healthy"
+
     return HealthResponse(
-        status="healthy",
+        status=status,
         models_loaded={
             "pose_estimator": pose_estimator is not None,
             "threat_detector": threat_detector is not None,
@@ -690,6 +715,14 @@ async def health_check():
         gpu_available=torch.cuda.is_available(),
         gpu_memory_used_gb=round(gpu_mem, 3),
         uptime_seconds=round(uptime, 1),
+        gpu_memory_health=gpu_health.status.value,
+        gpu_memory_allocated_mb=gpu_health.memory_stats.allocated_mb
+        if gpu_health.memory_stats
+        else None,
+        gpu_memory_total_mb=gpu_health.memory_stats.total_mb if gpu_health.memory_stats else None,
+        gpu_memory_utilization_pct=gpu_health.memory_stats.utilization_pct
+        if gpu_health.memory_stats
+        else None,
     )
 
 
@@ -730,6 +763,15 @@ async def analyze_pose(request: ImageRequest):
         )
     except HTTPException:
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        # NEM-4996: Handle GPU OOM gracefully
+        _oom_handler.handle_oom("pose-analyze")
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="pose-analyze", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during pose analysis. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="pose-analyze", status="error").inc()
         logger.error(f"Pose analysis error: {e}")
@@ -762,6 +804,14 @@ async def detect_threats(request: ImageRequest):
         )
     except HTTPException:
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        _oom_handler.handle_oom("threat-detect")
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="threat-detect", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during threat detection. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="threat-detect", status="error").inc()
         logger.error(f"Threat detection error: {e}")
@@ -791,6 +841,14 @@ async def extract_reid_embedding(request: ImageRequest):
         )
     except HTTPException:
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        _oom_handler.handle_oom("person-reid")
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="person-reid", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during Re-ID extraction. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="person-reid", status="error").inc()
         logger.error(f"Person Re-ID error: {e}")
@@ -821,6 +879,14 @@ async def classify_pet(request: ImageRequest):
         )
     except HTTPException:
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        _oom_handler.handle_oom("pet-classify")
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during pet classification. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
         logger.error(f"Pet classification error: {e}")
@@ -851,6 +917,14 @@ async def estimate_depth(request: ImageRequest):
         )
     except HTTPException:
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        _oom_handler.handle_oom("depth-estimate")
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="depth-estimate", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during depth estimation. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="depth-estimate", status="error").inc()
         logger.error(f"Depth estimation error: {e}")

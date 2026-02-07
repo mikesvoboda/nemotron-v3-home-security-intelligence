@@ -530,10 +530,10 @@ class ContainerManager:
                 "port": self.config.florence_port,
                 "gpu": self.config.gpu_florence,
                 "volumes": [
-                    f"{self.config.ai_models_path}/model-zoo/florence-2-large:/models/florence-2-large:ro,z",
+                    f"{self.config.ai_models_path}/model-zoo/florence-2-base:/models/florence-2-base:ro,z",
                 ],
                 "env": {
-                    "MODEL_PATH": "/models/florence-2-large",
+                    "MODEL_PATH": "/models/florence-2-base",
                 },
             },
             {

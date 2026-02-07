@@ -99,9 +99,9 @@ services:
     ports:
       - '8092:8092'
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-base:/models/florence-2-base:ro
     environment:
-      - MODEL_PATH=/models/florence-2-large
+      - MODEL_PATH=/models/florence-2-base
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s

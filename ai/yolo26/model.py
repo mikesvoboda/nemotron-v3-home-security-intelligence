@@ -107,6 +107,11 @@ if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
 
 from compile_utils import CompileConfig, compile_model, is_compile_available
+from gpu_oom_handler import (
+    GPUOOMHandler,
+    check_gpu_memory_health,
+    check_memory_available,
+)
 
 # Import metrics from the metrics module
 from metrics import (
@@ -132,6 +137,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# GPU OOM handler for this service (NEM-4996)
+_oom_handler = GPUOOMHandler(service_name="yolo26")
+
 # Security-relevant classes for home monitoring
 # YOLO uses COCO class names - map to our security-relevant subset
 SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
@@ -149,19 +157,67 @@ COCO_CLASSES = {
     16: "dog",
 }
 
-# Class-specific confidence thresholds to reduce false positives (NEM-4522)
-# Higher thresholds for classes with common false positives
-CLASS_CONFIDENCE_THRESHOLDS = {
-    "car": 0.70,  # Higher threshold to reduce false positives from reflections, shadows
-    "truck": 0.70,  # Similar to car
-    "bus": 0.70,  # Similar to car
-    "person": 0.50,  # Keep reasonable for person detection
-    "bicycle": 0.60,  # Slightly higher for smaller objects
-    "motorcycle": 0.60,  # Slightly higher for smaller objects
-    "dog": 0.55,  # Slightly higher than default
-    "cat": 0.55,  # Slightly higher than default
-    "bird": 0.55,  # Slightly higher than default
+# Class-specific confidence thresholds tuned for home security (NEM-4522)
+# Asymmetric cost model: missing a person/threat is worse than a false positive.
+# Enrichment pipeline filters false positives downstream, so we favor recall for
+# high-priority classes (person, pets) and precision for high-FP classes (vehicles).
+#
+# Configurable via YOLO26_CLASS_THRESHOLDS env var (JSON dict).
+# Any class not in the override dict falls back to these defaults.
+_DEFAULT_CLASS_CONFIDENCE_THRESHOLDS: dict[str, float] = {
+    "person": 0.45,  # Lower — catch potential threats; FPs filtered by enrichment
+    "car": 0.70,  # Higher — reflections/shadows cause frequent false positives
+    "truck": 0.70,  # Same rationale as car
+    "bus": 0.70,  # Same rationale as car
+    "motorcycle": 0.65,  # Medium — fewer shadow FPs than cars but still common
+    "bicycle": 0.65,  # Medium-high — common false positives from shadows
+    "dog": 0.55,  # Lower — household pets should be reliably detected
+    "cat": 0.55,  # Lower — household pets should be reliably detected
+    "bird": 0.55,  # Slightly above default — occasional motion FPs
 }
+
+
+def _load_class_confidence_thresholds() -> dict[str, float]:
+    """Load class-specific confidence thresholds, with optional env var overrides.
+
+    Reads YOLO26_CLASS_THRESHOLDS environment variable (JSON dict) and merges
+    with defaults. Environment overrides take precedence.
+
+    Returns:
+        Merged dict of class name -> confidence threshold.
+    """
+    import json as _json
+
+    thresholds = dict(_DEFAULT_CLASS_CONFIDENCE_THRESHOLDS)
+    env_overrides = os.environ.get("YOLO26_CLASS_THRESHOLDS", "").strip()
+    if env_overrides:
+        try:
+            overrides = _json.loads(env_overrides)
+            if isinstance(overrides, dict):
+                for cls_name, value in overrides.items():
+                    fval = float(value)
+                    if 0.0 <= fval <= 1.0:
+                        thresholds[cls_name] = fval
+                    else:
+                        logger.warning(f"Ignoring out-of-range threshold for {cls_name}: {fval}")
+                logger.info(
+                    f"Applied {len(overrides)} class threshold overrides from YOLO26_CLASS_THRESHOLDS"
+                )
+            else:
+                logger.warning("YOLO26_CLASS_THRESHOLDS must be a JSON object, ignoring")
+        except (ValueError, _json.JSONDecodeError) as e:
+            logger.warning(f"Failed to parse YOLO26_CLASS_THRESHOLDS: {e}, using defaults")
+    return thresholds
+
+
+CLASS_CONFIDENCE_THRESHOLDS: dict[str, float] = _load_class_confidence_thresholds()
+
+# TODO(NEM-future): Temporal confidence filtering / multi-frame consistency.
+# For MARGINAL-tier detections (confidence < 0.60), require confirmation across
+# N consecutive frames before accepting. This would further reduce false positives
+# for low-threshold classes (person @ 0.45) without sacrificing recall for genuine
+# detections that persist across frames. Implementation would require frame-level
+# tracking state per camera (see FrameBuffer in backend/services/frame_buffer.py).
 
 # Size limits for image uploads (10MB is reasonable for security camera images)
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
@@ -928,6 +984,11 @@ class HealthResponse(BaseModel):
     tensorrt_version: str | None = None
     torch_compile_enabled: bool | None = None
     torch_compile_mode: str | None = None
+    gpu_memory_health: str | None = None
+    gpu_memory_allocated_mb: float | None = None
+    gpu_memory_total_mb: float | None = None
+    gpu_memory_utilization_pct: float | None = None
+    gpu_memory_message: str | None = None
 
 
 class YOLO26Model:
@@ -1287,6 +1348,11 @@ class YOLO26Model:
         Returns:
             Tuple of (detections list, inference_time_ms)
 
+        Raises:
+            torch.cuda.OutOfMemoryError: If GPU runs out of memory during inference.
+                The OOM is handled (logged, cache cleared, metrics recorded) and
+                then re-raised so the caller can return an appropriate HTTP response.
+
         Note:
             CUDA cache is cleared after each detection to prevent memory fragmentation.
             This can be controlled via cache_clear_frequency parameter.
@@ -1297,6 +1363,13 @@ class YOLO26Model:
         start_time = time.perf_counter()
 
         try:
+            # Pre-inference memory guard (NEM-4996)
+            # YOLO26 typically needs ~500MB for inference
+            if not check_memory_available(required_mb=500.0):
+                logger.warning("Low GPU memory before YOLO26 inference, clearing cache proactively")
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
             # Convert to RGB if needed
             if image.mode != "RGB":
                 image = image.convert("RGB")
@@ -1356,6 +1429,10 @@ class YOLO26Model:
             inference_time_ms = (time.perf_counter() - start_time) * 1000
 
             return detections, inference_time_ms
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("detect")
+            raise
         finally:
             # Clear CUDA cache to prevent memory fragmentation
             self._clear_cuda_cache()
@@ -1504,6 +1581,10 @@ class YOLO26Model:
             inference_time_ms = (time.perf_counter() - start_time) * 1000
 
             return detections, inference_time_ms
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("track")
+            raise
         finally:
             # Clear CUDA cache to prevent memory fragmentation
             self._clear_cuda_cache()
@@ -1581,6 +1662,73 @@ def get_gpu_metrics() -> dict[str, float | int | None]:
     return result
 
 
+def _prebuild_yolo26_engine(pt_model_path: str) -> str | None:
+    """Pre-build TensorRT engine from a .pt model at startup (NEM-4999).
+
+    Checks if a pre-built engine exists for the current GPU architecture.
+    If not, builds the engine before the server starts serving requests.
+    This front-loads the TensorRT compilation to startup time instead of
+    deferring it to the first inference request.
+
+    The engine is saved with a metadata sidecar file that records the GPU
+    architecture and TensorRT version, enabling validation on future startups.
+
+    Args:
+        pt_model_path: Path to the PyTorch .pt model file.
+
+    Returns:
+        Path to the TensorRT engine if pre-build succeeded, None otherwise.
+    """
+    try:
+        from build_engine import build_tensorrt_engine
+        from tensorrt_prebuild import validate_prebuilt_engine
+    except ImportError as e:
+        logger.warning(f"Pre-build utilities not available: {e}")
+        return None
+
+    # Derive engine path from model path
+    pt_path = Path(pt_model_path)
+    engine_dir = pt_path.parent / "exports"
+    engine_dir.mkdir(parents=True, exist_ok=True)
+    engine_path = str(engine_dir / f"{pt_path.stem}_fp16.engine")
+
+    # Check if engine already exists and is valid for this GPU
+    if Path(engine_path).exists():
+        result = validate_prebuilt_engine(engine_path)
+        if result.is_valid:
+            logger.info(f"Pre-built TensorRT engine is valid: {engine_path}")
+            return engine_path
+        else:
+            logger.warning(f"Pre-built engine invalid: {result.reason}")
+            logger.info("Rebuilding TensorRT engine for current GPU...")
+            # Delete stale engine
+            try:
+                Path(engine_path).unlink()
+            except OSError as e:
+                logger.warning(f"Failed to delete stale engine: {e}")
+
+    # Check if source .pt model exists
+    if not pt_path.exists():
+        logger.warning(f"Source model not found: {pt_model_path}")
+        return None
+
+    # Build the engine
+    logger.info(f"Pre-building TensorRT engine from {pt_model_path}...")
+    logger.info("This is a one-time operation that may take 1-5 minutes.")
+    success = build_tensorrt_engine(
+        model_path=pt_model_path,
+        output_path=engine_path,
+        imgsz=640,
+        half=True,
+    )
+
+    if success and Path(engine_path).exists():
+        return engine_path
+    else:
+        logger.warning("TensorRT engine pre-build failed, falling back to PyTorch model")
+        return None
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Lifespan context manager for FastAPI app."""
@@ -1611,6 +1759,22 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     # Cache clear frequency: default 1 (every detection), 0 to disable
     cache_clear_frequency = int(os.environ.get("YOLO26_CACHE_CLEAR_FREQUENCY", "1"))
+
+    # TensorRT engine pre-build at startup (NEM-4999)
+    # When YOLO26_PREBUILD_ENGINE=true and model_path points to a .pt file,
+    # pre-build the TensorRT engine before loading the model. This eliminates
+    # cold-start latency on first inference by front-loading the engine build
+    # to container startup time.
+    prebuild_enabled = os.environ.get("YOLO26_PREBUILD_ENGINE", "true").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    if prebuild_enabled and model_path.endswith(".pt") and torch.cuda.is_available():
+        engine_path = _prebuild_yolo26_engine(model_path)
+        if engine_path:
+            logger.info(f"Using pre-built TensorRT engine: {engine_path}")
+            model_path = engine_path
 
     try:
         model = YOLO26Model(
@@ -1651,7 +1815,14 @@ app = FastAPI(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    Includes GPU memory health monitoring (NEM-4996):
+    - gpu_memory_health: "healthy" / "warning" (>80%) / "critical" (>95%)
+    - gpu_memory_allocated_mb: Current GPU memory allocation
+    - gpu_memory_total_mb: Total GPU memory
+    - gpu_memory_utilization_pct: Memory utilization percentage
+    """
     cuda_available = torch.cuda.is_available()
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage() if cuda_available else None
@@ -1659,9 +1830,19 @@ async def health_check() -> HealthResponse:
     # Get GPU metrics (utilization, temperature, power) via pynvml
     gpu_metrics = get_gpu_metrics() if cuda_available else {}
 
+    # NEM-4996: GPU memory health monitoring
+    gpu_health = check_gpu_memory_health()
+
+    # Determine overall status: model health AND GPU memory health
+    model_loaded = model is not None and model.model is not None
+    if not model_loaded or gpu_health.status.value == "critical":
+        status = "degraded"
+    else:
+        status = "healthy"
+
     return HealthResponse(
-        status="healthy" if model is not None and model.model is not None else "degraded",
-        model_loaded=model is not None and model.model is not None,
+        status=status,
+        model_loaded=model_loaded,
         device=device,
         cuda_available=cuda_available,
         model_name=model.model_path if model else None,
@@ -1673,6 +1854,15 @@ async def health_check() -> HealthResponse:
         tensorrt_version=get_tensorrt_version(),
         torch_compile_enabled=model._is_compiled if model else None,
         torch_compile_mode=model.torch_compile_mode if model and model._is_compiled else None,
+        gpu_memory_health=gpu_health.status.value,
+        gpu_memory_allocated_mb=gpu_health.memory_stats.allocated_mb
+        if gpu_health.memory_stats
+        else None,
+        gpu_memory_total_mb=gpu_health.memory_stats.total_mb if gpu_health.memory_stats else None,
+        gpu_memory_utilization_pct=gpu_health.memory_stats.utilization_pct
+        if gpu_health.memory_stats
+        else None,
+        gpu_memory_message=gpu_health.message,
     )
 
 
@@ -1837,6 +2027,16 @@ async def detect_objects(
         record_inference(endpoint="detect", duration_seconds=0, success=False)
         record_error(error_type="http_error")
         raise
+    except torch.cuda.OutOfMemoryError as e:
+        # NEM-4996: Handle GPU OOM gracefully with 503 + Retry-After
+        record_inference(endpoint="detect", duration_seconds=0, success=False)
+        record_error(error_type="gpu_oom")
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during detection. The service is temporarily "
+            "unable to process requests. Please retry after a short delay.",
+            headers={"Retry-After": "5"},
+        ) from e
     except UnidentifiedImageError as e:
         # Handle corrupted/invalid image files - return 400 Bad Request
         record_inference(endpoint="detect", duration_seconds=0, success=False)

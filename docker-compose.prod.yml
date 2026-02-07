@@ -211,6 +211,8 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
+      # NEM-5528: Model path configurable via .env to swap quantizations without rebuild
+      - MODEL_PATH=${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}
       # All layers on GPU - other AI services moved to GPU 1 (A400) to free up A5500 for LLM
       # With dual-GPU setup, Nemotron can use all 53 layers on GPU 0
       - GPU_LAYERS=${GPU_LAYERS:-999}
@@ -219,6 +221,16 @@ services:
       - CTX_SIZE=${CTX_SIZE:-32768}
       # 2 parallel slots (16K each) for concurrent batch processing
       - PARALLEL=${PARALLEL:-2}
+      # Thread count for CPU-offloaded layers
+      - THREADS=${LLM_THREADS:-4}
+      # Batch sizes for prompt processing
+      - BATCH_SIZE=${LLM_BATCH_SIZE:-2048}
+      - UBATCH_SIZE=${LLM_UBATCH_SIZE:-512}
+      # KV cache quantization (Q8_0 saves ~50% KV memory, negligible quality loss)
+      - CACHE_TYPE_K=${LLM_CACHE_TYPE_K:-q8_0}
+      - CACHE_TYPE_V=${LLM_CACHE_TYPE_V:-q8_0}
+      # MoE expert offloading pattern (empty = disabled, set to regex matching expert FFN weights)
+      - MOE_OFFLOAD_PATTERN=${LLM_MOE_OFFLOAD_PATTERN:-}
       # NEM-5369: Enable flash attention to reduce VRAM usage with minimal performance impact
       - FLASH_ATTENTION=${FLASH_ATTENTION:-true}
     healthcheck:

@@ -33,6 +33,12 @@ from typing import Any
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    record_batch_coalesce_candidates,
+    record_batch_coalesce_detections_merged,
+    record_batch_coalesced,
+    set_batch_coalesce_merge_rate,
+)
 from backend.core.redis import get_redis_client_sync
 
 logger = get_logger(__name__)
@@ -455,6 +461,7 @@ class BatchCoalescer:
             return []
 
         compatible: list[CoalesceCandidate] = []
+        candidates_evaluated = 0
 
         for raw_batch_id in batch_ids:
             # Decode if bytes
@@ -474,6 +481,7 @@ class BatchCoalescer:
             if data is None:
                 continue
 
+            candidates_evaluated += 1
             try:
                 other = CoalesceCandidate.from_json(data)
                 if self.is_compatible(candidate, other):
@@ -484,36 +492,63 @@ class BatchCoalescer:
                     extra={"batch_id": batch_id_str, "error": str(e)},
                 )
 
+        # Track candidates evaluated for coalescing (NEM-5530)
+        if candidates_evaluated > 0:
+            record_batch_coalesce_candidates(candidates_evaluated)
+
         return compatible
 
-    async def remove_candidates(self, batch_ids: list[str]) -> None:
+    async def remove_candidates(self, batch_ids: list[str], camera_id: str | None = None) -> None:
         """Remove merged candidates from tracking.
 
-        Cleans up Redis after batches have been merged.
+        Cleans up Redis after batches have been merged. Removes both the
+        candidate data keys and the sorted set entries.
 
         Args:
             batch_ids: List of batch IDs to remove
+            camera_id: Camera ID for the sorted set key. If provided, removes
+                entries from the specific camera's sorted set. If None, reads
+                each candidate's data to determine the camera_id before deletion.
         """
         redis = self._get_redis()
         if redis is None:
             return
 
+        # Group batch_ids by camera_id for sorted set removal
+        camera_batch_map: dict[str, list[str]] = {}
+
         for batch_id in batch_ids:
-            # Delete candidate data
             candidate_key = f"{self.CANDIDATE_DATA_PREFIX}:{batch_id}"
+
+            # Determine camera_id for this batch
+            batch_camera_id = camera_id
+            if batch_camera_id is None:
+                # Read candidate data to get camera_id before deleting
+                data = await redis.get(candidate_key)
+                if data is not None:
+                    try:
+                        candidate = CoalesceCandidate.from_json(data)
+                        batch_camera_id = candidate.camera_id
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        pass
+
+            # Delete candidate data
             await redis.delete(candidate_key)
 
-            # Note: We can't easily remove from sorted sets without knowing camera_id
-            # The TTL will handle cleanup, but for immediate removal we'd need
-            # to track camera_id -> batch_id mapping
+            # Track for sorted set removal
+            if batch_camera_id:
+                if batch_camera_id not in camera_batch_map:
+                    camera_batch_map[batch_camera_id] = []
+                camera_batch_map[batch_camera_id].append(batch_id)
 
-        # For sorted sets, we use zrem with the batch_ids
-        # This requires knowing which camera's set to modify
-        await redis.zrem("coalesce:candidates:*", *batch_ids)
+        # Remove from sorted sets using explicit camera-specific keys
+        for cam_id, cam_batch_ids in camera_batch_map.items():
+            candidates_key = f"{self.CANDIDATES_KEY_PREFIX}:{cam_id}"
+            await redis.zrem(candidates_key, *cam_batch_ids)
 
         logger.debug(
             "Removed coalesce candidates",
-            extra={"batch_count": len(batch_ids)},
+            extra={"batch_count": len(batch_ids), "camera_count": len(camera_batch_map)},
         )
 
     async def merge_batches(self, batches: list[CoalesceCandidate]) -> CoalesceResult:
@@ -580,12 +615,30 @@ class BatchCoalescer:
 
         self._metrics.total_inference_reduction += result.inference_reduction_pct
 
+        # Record Prometheus metrics (NEM-5530)
+        # Count all source batches that were merged into one
+        record_batch_coalesced(len(batches))
+
+        # Count detections that were added via merging (all detections from
+        # non-primary batches, i.e. everything after the first batch)
+        additional_detections = len(combined_ids) - len(sorted_batches[0].detection_ids)
+        if additional_detections > 0:
+            record_batch_coalesce_detections_merged(additional_detections)
+
+        # Update rolling merge rate gauge
+        if self._metrics.total_batches_processed > 0:
+            merge_rate = (
+                self._metrics.total_batches_merged / self._metrics.total_batches_processed
+            ) * 100.0
+            set_batch_coalesce_merge_rate(merge_rate)
+
         logger.info(
             "Merged batches",
             extra={
                 "merged_batch_id": merged_id,
                 "source_count": len(batches),
                 "detection_count": len(combined_ids),
+                "additional_detections_merged": additional_detections,
                 "inference_reduction_pct": result.inference_reduction_pct,
             },
         )

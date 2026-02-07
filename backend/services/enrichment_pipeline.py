@@ -718,6 +718,14 @@ class EnrichmentResult:
     is_indoor_camera: bool = False  # Whether this is an indoor camera (weather N/A)
     event_timestamp: datetime | None = None  # Timestamp of the event for nighttime detection
     time_of_day: str | None = None  # Optional time context (dawn, dusk, etc.)
+    # Trajectory analysis results (NEM-5532)
+    # Keyed by track_id (int) for per-detection trajectory context
+    trajectory_analyses: dict[int, Any] = field(default_factory=dict)  # TrajectoryAnalysis
+
+    @property
+    def has_trajectory_analysis(self) -> bool:
+        """Check if any trajectory analyses are available (NEM-5532)."""
+        return bool(self.trajectory_analyses)
 
     @property
     def has_license_plates(self) -> bool:

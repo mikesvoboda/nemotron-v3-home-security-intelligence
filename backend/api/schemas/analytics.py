@@ -369,3 +369,98 @@ class CameraActivityResponse(BaseModel):
     )
     start_date: Date = Field(..., description="Start date of the date range")
     end_date: Date = Field(..., description="End date of the date range")
+
+
+# ============================================================================
+# Calibration Drift Monitoring Types (NEM-5535)
+# ============================================================================
+
+
+class CalibrationTierStatus(BaseModel):
+    """Status of a single risk tier in the calibration distribution."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "tier": "low",
+                "actual_pct": 82.5,
+                "target_pct": 85.0,
+                "deviation_pct": 2.5,
+                "is_drifting": False,
+            }
+        }
+    )
+
+    tier: str = Field(..., description="Tier name (low, elevated, moderate, high, critical)")
+    actual_pct: float = Field(..., description="Actual percentage of scores in this tier", ge=0.0)
+    target_pct: float = Field(..., description="Target percentage for this tier", ge=0.0)
+    deviation_pct: float = Field(
+        ..., description="Absolute deviation from target (percentage points)", ge=0.0
+    )
+    is_drifting: bool = Field(..., description="True if deviation exceeds the drift threshold")
+
+
+class CalibrationResponse(BaseModel):
+    """Response schema for the calibration drift monitoring endpoint."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total_scores": 1200,
+                "window_seconds": 86400,
+                "drift_threshold_pct": 5.0,
+                "is_drifting": False,
+                "drifting_tiers": [],
+                "tiers": [
+                    {
+                        "tier": "low",
+                        "actual_pct": 83.5,
+                        "target_pct": 85.0,
+                        "deviation_pct": 1.5,
+                        "is_drifting": False,
+                    },
+                    {
+                        "tier": "elevated",
+                        "actual_pct": 11.2,
+                        "target_pct": 10.0,
+                        "deviation_pct": 1.2,
+                        "is_drifting": False,
+                    },
+                    {
+                        "tier": "moderate",
+                        "actual_pct": 3.1,
+                        "target_pct": 3.0,
+                        "deviation_pct": 0.1,
+                        "is_drifting": False,
+                    },
+                    {
+                        "tier": "high",
+                        "actual_pct": 1.2,
+                        "target_pct": 1.0,
+                        "deviation_pct": 0.2,
+                        "is_drifting": False,
+                    },
+                    {
+                        "tier": "critical",
+                        "actual_pct": 1.0,
+                        "target_pct": 1.0,
+                        "deviation_pct": 0.0,
+                        "is_drifting": False,
+                    },
+                ],
+            }
+        }
+    )
+
+    total_scores: int = Field(
+        ..., description="Total number of scores in the monitoring window", ge=0
+    )
+    window_seconds: int = Field(..., description="Size of the rolling window in seconds", ge=0)
+    drift_threshold_pct: float = Field(
+        ..., description="Maximum acceptable deviation in percentage points", ge=0.0
+    )
+    is_drifting: bool = Field(..., description="True if any tier exceeds the drift threshold")
+    drifting_tiers: list[str] = Field(
+        ..., description="List of tier names that are currently drifting"
+    )
+    tiers: list[CalibrationTierStatus] = Field(..., description="Detailed status for each tier")

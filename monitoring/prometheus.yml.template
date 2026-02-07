@@ -30,6 +30,7 @@ rule_files:
   - 'profiling-recording-rules.yml'
   - 'profiling-regression-alerts.yml'
   - 'gpu-alerts.yml'
+  - 'ai-pipeline-alerts.yml'
 
 # Alertmanager configuration for alert delivery
 alerting:

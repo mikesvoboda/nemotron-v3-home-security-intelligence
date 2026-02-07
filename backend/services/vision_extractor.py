@@ -33,12 +33,13 @@ from backend.core.metrics import (
 from backend.core.telemetry import add_span_event
 from backend.services.bbox_validation import prepare_bbox_for_crop
 from backend.services.florence_client import (
-    BoundingBox as FlorenceBoundingBox,
-)
-from backend.services.florence_client import (
+    BatchExtractItem,
     FlorenceUnavailableError,
     SecurityObjectsResult,
     get_florence_client,
+)
+from backend.services.florence_client import (
+    BoundingBox as FlorenceBoundingBox,
 )
 
 if TYPE_CHECKING:
@@ -1015,6 +1016,45 @@ class VisionExtractor:
             logger.warning(f"Florence service unavailable: {e}")
             return ""
 
+    async def _batch_query_florence(
+        self,
+        image: Image.Image,
+        prompts: list[str],
+    ) -> list[str]:
+        """Send multiple prompts for the same image in a single batch HTTP request.
+
+        This reduces HTTP overhead by batching N queries into 1 network round-trip.
+        Falls back to individual _query_florence() calls if the batch endpoint
+        is unavailable or fails. This fallback also maintains compatibility with
+        tests that mock _query_florence.
+
+        Args:
+            image: PIL Image to analyze
+            prompts: List of full Florence-2 prompts (e.g., "<CAPTION>", "<VQA>What color?")
+
+        Returns:
+            List of result strings in the same order as prompts.
+            Failed items return empty strings.
+        """
+        try:
+            batch_items = [BatchExtractItem(image=image, prompt=p) for p in prompts]
+            batch_results = await self._florence_client.batch_extract(batch_items)
+            return [r.result if not r.error else "" for r in batch_results]
+        except FlorenceUnavailableError:
+            logger.debug("Batch extraction unavailable, falling back to individual calls")
+        except Exception as e:
+            logger.debug(f"Batch extraction failed ({e}), falling back to individual calls")
+
+        # Fallback: issue individual _query_florence calls concurrently
+        # Split prompts back into (task, text_input) for _query_florence compatibility
+        async def _call_single(prompt: str) -> str:
+            if prompt.startswith(VQA_TASK) and len(prompt) > len(VQA_TASK):
+                return await self._query_florence(image, VQA_TASK, prompt[len(VQA_TASK) :])
+            return await self._query_florence(image, prompt)
+
+        results = await asyncio.gather(*(_call_single(p) for p in prompts))
+        return list(results)
+
     def _crop_image(self, image: Image.Image, bbox: tuple[int, int, int, int]) -> Image.Image:
         """Crop image to bounding box with padding.
 
@@ -1783,12 +1823,20 @@ class VisionExtractor:
             NEM-5478: Florence vehicle type is cross-validated against YOLO
             detection to prevent misclassification (e.g., bus -> police car).
         """
-        # Run all vehicle VQA queries concurrently
-        caption, color_raw, vehicle_type_raw, commercial_response = await asyncio.gather(
-            self._query_florence(image, CAPTION_TASK),
-            self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"]),
-            self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"]),
-            self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["commercial"]),
+        # Batch all vehicle queries into a single HTTP request to reduce overhead
+        # (4 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            CAPTION_TASK,
+            f"{VQA_TASK}{VEHICLE_QUERIES['color']}",
+            f"{VQA_TASK}{VEHICLE_QUERIES['type']}",
+            f"{VQA_TASK}{VEHICLE_QUERIES['commercial']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        caption, color_raw, vehicle_type_raw, commercial_response = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
         )
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
@@ -1860,13 +1908,22 @@ class VisionExtractor:
             NEM-3304: VQA responses are validated to reject garbage outputs
             like "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>".
         """
-        # Run all person VQA queries concurrently
-        caption, clothing_raw, carrying_raw, service_response, action_raw = await asyncio.gather(
-            self._query_florence(image, CAPTION_TASK),
-            self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"]),
-            self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"]),
-            self._query_florence(image, VQA_TASK, PERSON_QUERIES["service_worker"]),
-            self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"]),
+        # Batch all person queries into a single HTTP request to reduce overhead
+        # (5 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            CAPTION_TASK,
+            f"{VQA_TASK}{PERSON_QUERIES['clothing']}",
+            f"{VQA_TASK}{PERSON_QUERIES['carrying']}",
+            f"{VQA_TASK}{PERSON_QUERIES['service_worker']}",
+            f"{VQA_TASK}{PERSON_QUERIES['action']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        caption, clothing_raw, carrying_raw, service_response, action_raw = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
+            results[4],
         )
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
@@ -1894,12 +1951,20 @@ class VisionExtractor:
         Returns:
             SceneAnalysis with detected unusual elements
         """
-        # Run all scene VQA queries concurrently
-        description, unusual_response, tools_response, abandoned_response = await asyncio.gather(
-            self._query_florence(image, CAPTION_TASK),
-            self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"]),
-            self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"]),
-            self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"]),
+        # Batch all scene queries into a single HTTP request to reduce overhead
+        # (4 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            CAPTION_TASK,
+            f"{VQA_TASK}{SCENE_QUERIES['unusual']}",
+            f"{VQA_TASK}{SCENE_QUERIES['tools']}",
+            f"{VQA_TASK}{SCENE_QUERIES['abandoned']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        description, unusual_response, tools_response, abandoned_response = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
         )
 
         # Clean VQA responses to remove Florence-2 artifacts
@@ -1938,14 +2003,18 @@ class VisionExtractor:
         Returns:
             EnvironmentContext with time, lighting, and weather info
         """
-        time_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
-        )
-        light_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
-        )
-        weather_response = await self._query_florence(
-            image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
+        # Batch all environment queries into a single HTTP request to reduce overhead
+        # (3 separate HTTP calls -> 1 batch call, with fallback to individual calls)
+        prompts = [
+            f"{VQA_TASK}{ENVIRONMENT_QUERIES['time_of_day']}",
+            f"{VQA_TASK}{ENVIRONMENT_QUERIES['artificial_light']}",
+            f"{VQA_TASK}{ENVIRONMENT_QUERIES['weather']}",
+        ]
+        results = await self._batch_query_florence(image, prompts)
+        time_response, light_response, weather_response = (
+            results[0],
+            results[1],
+            results[2],
         )
 
         time_lower = time_response.lower() if time_response else ""

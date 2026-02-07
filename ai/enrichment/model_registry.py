@@ -402,23 +402,27 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
 
     registry: dict[str, ModelConfig] = {}
 
-    # Vehicle Classifier (~1.5GB)
+    # Vehicle Classifier (~1.5GB FP16, ~400MB INT8)
     vehicle_path = os.environ.get("VEHICLE_MODEL_PATH", "/models/vehicle-segment-classification")
+    vehicle_quantized = os.environ.get("VEHICLE_QUANTIZED", "false").lower() == "true"
+    vehicle_vram_mb = 400 if vehicle_quantized else 1500
     registry["vehicle_classifier"] = ModelConfig(
         name="vehicle_classifier",
-        vram_mb=1500,
+        vram_mb=vehicle_vram_mb,
         priority=ModelPriority.MEDIUM,
         loader_fn=lambda: _create_and_load_model(VehicleClassifier, vehicle_path, device),
         unloader_fn=_unload_model,
     )
 
-    # Pet Classifier (~200MB)
+    # Pet Classifier (~200MB) — CPU offloaded to free GPU VRAM
+    # ResNet-18 runs acceptably on CPU (10-20ms latency)
+    pet_device = os.environ.get("PET_DEVICE", "cpu")
     pet_path = os.environ.get("PET_MODEL_PATH", "/models/pet-classifier")
     registry["pet_classifier"] = ModelConfig(
         name="pet_classifier",
-        vram_mb=200,
+        vram_mb=0 if pet_device == "cpu" else 200,
         priority=ModelPriority.MEDIUM,
-        loader_fn=lambda: _create_and_load_model(PetClassifier, pet_path, device),
+        loader_fn=lambda: _create_and_load_model(PetClassifier, pet_path, pet_device),
         unloader_fn=_unload_model,
     )
 
@@ -472,15 +476,15 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_action_recognizer,
     )
 
-    # Person Re-Identification - OSNet-x0.25 (~100MB)
-    # Trigger conditions: Person detected, need to track across cameras/time
-    # Use case: Identify if same person has been seen before
+    # Person Re-Identification - OSNet-x0.25 (~100MB) — CPU offloaded to free GPU VRAM
+    # OSNet-x0.25 is tiny (0.25x width), runs acceptably on CPU (15-25ms)
+    reid_device = os.environ.get("REID_DEVICE", "cpu")
     reid_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
     registry["person_reid"] = ModelConfig(
         name="person_reid",
-        vram_mb=100,
+        vram_mb=0 if reid_device == "cpu" else 100,
         priority=ModelPriority.MEDIUM,  # Important for tracking but not critical
-        loader_fn=lambda: _create_person_reid(reid_path, device),
+        loader_fn=lambda: _create_person_reid(reid_path, reid_device),
         unloader_fn=_unload_person_reid,
     )
 
@@ -499,30 +503,31 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_threat_detector,
     )
 
-    # Demographics Estimator - ViT-based age and gender (~500MB)
+    # Demographics Estimator - ViT-based age and gender (~500MB FP32, ~150MB INT8)
     # Trigger conditions: Person detected with visible face
     # Use case: Provide identification context (expected vs unexpected visitors)
     # Reference: nateraw/vit-age-classifier or similar ViT models
     age_model_path = os.environ.get("AGE_MODEL_PATH", "/models/vit-age-classifier")
     gender_model_path = os.environ.get("GENDER_MODEL_PATH", None)
+    demographics_quantized = os.environ.get("DEMOGRAPHICS_QUANTIZED", "false").lower() == "true"
+    demographics_vram_mb = 150 if demographics_quantized else 500
     registry["demographics"] = ModelConfig(
         name="demographics",
-        vram_mb=500,
+        vram_mb=demographics_vram_mb,
         priority=ModelPriority.HIGH,  # Important for person identification context
         loader_fn=lambda: _create_demographics_estimator(age_model_path, gender_model_path, device),
         unloader_fn=_unload_demographics_estimator,
     )
 
-    # YOLO26 Detector - Optional secondary object detector (~100MB)
-    # Trigger conditions: Used for fine-grained object detection or validation
-    # Use case: Complement YOLO26v2 with YOLO26 for specific tasks
-    # Reference: https://docs.ultralytics.com/models/
+    # YOLO26 Detector - Optional secondary object detector (~100MB) — CPU offloaded
+    # Low priority, optional secondary detector. CPU latency acceptable (20-40ms).
+    yolo26_enrich_device = os.environ.get("YOLO26_ENRICHMENT_DEVICE", "cpu")
     yolo26_path = os.environ.get("YOLO26_ENRICHMENT_MODEL_PATH", "/models/yolo26m.pt")
     registry["yolo26_detector"] = ModelConfig(
         name="yolo26_detector",
-        vram_mb=100,
+        vram_mb=0 if yolo26_enrich_device == "cpu" else 100,
         priority=ModelPriority.LOW,  # Optional secondary detector
-        loader_fn=lambda: _create_yolo26_detector(yolo26_path, device),
+        loader_fn=lambda: _create_yolo26_detector(yolo26_path, yolo26_enrich_device),
         unloader_fn=_unload_yolo26_detector,
     )
 

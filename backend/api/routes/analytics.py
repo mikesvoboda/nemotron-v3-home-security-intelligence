@@ -8,6 +8,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.analytics import (
+    CalibrationResponse,
+    CalibrationTierStatus,
     CameraActivityDataPoint,
     CameraActivityResponse,
     CameraUptimeDataPoint,
@@ -28,6 +30,7 @@ from backend.core.logging import get_logger
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.services.calibration_monitor import get_calibration_monitor
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -701,4 +704,58 @@ async def get_camera_activity(
         cameras=cameras,
         start_date=start_date,
         end_date=end_date,
+    )
+
+
+# =============================================================================
+# Calibration Drift Monitoring (NEM-5535)
+# =============================================================================
+
+
+@router.get(
+    "/calibration",
+    response_model=CalibrationResponse,
+    responses={
+        200: {"description": "Current calibration drift status"},
+        503: {"description": "Calibration monitor not available (Redis not connected)"},
+    },
+)
+async def get_calibration_status() -> CalibrationResponse:
+    """Get current risk score distribution and calibration drift status.
+
+    Returns the rolling score distribution over the monitoring window
+    (default 24 hours), the target distribution, and whether any tier
+    has drifted beyond the acceptable threshold.
+
+    Returns:
+        CalibrationResponse with current distribution, target, and drift info
+
+    Raises:
+        HTTPException: 503 if the calibration monitor is not initialized
+    """
+    monitor = get_calibration_monitor()
+    if monitor is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Calibration monitor not available. Redis may not be connected.",
+        )
+
+    cal_status = await monitor.check_calibration()
+
+    return CalibrationResponse(
+        total_scores=cal_status.total_scores,
+        window_seconds=cal_status.window_seconds,
+        drift_threshold_pct=cal_status.drift_threshold_pct,
+        is_drifting=cal_status.is_drifting,
+        drifting_tiers=cal_status.drifting_tiers,
+        tiers=[
+            CalibrationTierStatus(
+                tier=t.tier,
+                actual_pct=round(t.actual_pct, 2),
+                target_pct=t.target_pct,
+                deviation_pct=round(t.deviation_pct, 2),
+                is_drifting=t.is_drifting,
+            )
+            for t in cal_status.tiers
+        ],
     )

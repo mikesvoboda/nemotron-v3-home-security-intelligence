@@ -131,11 +131,11 @@ MODEL_ZOO: list[ModelSpec] = [
         model_type="transformers",
     ),
     ModelSpec(
-        name="florence-2-large",
-        hf_repo="microsoft/Florence-2-large",
+        name="florence-2-base",
+        hf_repo="microsoft/Florence-2-base",
         phase=2,
-        vram_mb=1200,
-        description="Vision-language queries (attributes, behavior, scene)",
+        vram_mb=450,
+        description="Vision-language queries (attributes, behavior, scene) - base variant saves ~1.2GB VRAM",
         model_type="transformers",
     ),
     ModelSpec(

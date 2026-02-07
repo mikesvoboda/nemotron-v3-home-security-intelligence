@@ -282,6 +282,10 @@ class DetectorClient:
         read_timeout = settings.yolo26_read_timeout
 
         self._confidence_threshold = settings.detection_confidence_threshold
+        # Class-specific confidence thresholds (NEM-4522)
+        # Asymmetric cost: lower for person/pets (favor recall),
+        # higher for vehicles (favor precision). Falls back to default threshold.
+        self._class_thresholds = settings.detection_class_thresholds
         # Use httpx.Timeout for proper timeout configuration from Settings
         # connect: time to establish connection, read: time to wait for response
         self._timeout = httpx.Timeout(
@@ -907,6 +911,151 @@ class DetectorClient:
                 ) from last_exception
             raise DetectorUnavailableError(error_msg)
 
+    async def detect_objects_batch(
+        self,
+        image_data_list: list[tuple[bytes, str]],
+    ) -> list[dict[str, Any]]:
+        """Send multiple images for batch detection in a single HTTP request.
+
+        Uses the YOLO26 /detect/batch endpoint to process multiple frames
+        at once, reducing HTTP overhead for multi-frame detection scenarios.
+
+        If the batch endpoint is unavailable, falls back to individual
+        detect requests.
+
+        Args:
+            image_data_list: List of (image_bytes, filename) tuples
+
+        Returns:
+            List of detection result dicts, one per image, each containing:
+            - detections: list of detection dicts
+            - image_width: int
+            - image_height: int
+
+        Raises:
+            DetectorUnavailableError: If the service is completely unavailable
+        """
+        if not image_data_list:
+            return []
+
+        semaphore = self._get_semaphore()
+        settings = get_settings()
+        explicit_timeout = self._read_timeout + settings.ai_connect_timeout
+
+        last_exception: Exception | None = None
+
+        with trace_span(
+            f"{self._detector_type}_batch_detection_request",
+            batch_size=len(image_data_list),
+        ) as span:
+            AIModelAttributes.set_on_span(
+                span,
+                model_name=self._detector_type,
+                model_version=self._model_version,
+                model_provider="huggingface",
+                device="cuda:0",
+                batch_size=len(image_data_list),
+            )
+
+            for attempt in range(self._max_retries):
+                span.set_attribute("retry_attempt", attempt)
+                try:
+                    async with semaphore:
+                        start_time = time.monotonic()
+                        async with asyncio.timeout(explicit_timeout):
+                            # Build multipart files payload
+                            files = [
+                                ("files", (name, data, "image/jpeg"))
+                                for data, name in image_data_list
+                            ]
+                            response = await self._http_client.post(
+                                f"{self._detector_url}/detect/batch",
+                                files=files,
+                                headers=self._get_auth_headers(),
+                            )
+                            response.raise_for_status()
+                            result: dict[str, Any] = response.json()
+                            inference_time_ms = (time.monotonic() - start_time) * 1000
+
+                            set_inference_result_attributes(
+                                span, duration_ms=inference_time_ms, status="success"
+                            )
+
+                            # Return the per-image results
+                            return result.get("results", [])  # type: ignore[no-any-return]
+
+                except httpx.HTTPStatusError as e:
+                    status_code = e.response.status_code
+                    if status_code in {404, 405}:
+                        # Batch endpoint not available, fall back to individual calls
+                        logger.info(
+                            "YOLO batch endpoint not available, falling back to individual calls"
+                        )
+                        return await self._detect_batch_fallback(image_data_list)
+                    if status_code >= 500:
+                        last_exception = e
+                        if attempt < self._max_retries - 1:
+                            delay = min(2**attempt, 30)
+                            await asyncio.sleep(delay)
+                        else:
+                            record_pipeline_error(f"{self._detector_type}_batch_server_error")
+                    else:
+                        # 4xx client error, fall back
+                        return await self._detect_batch_fallback(image_data_list)
+
+                except (
+                    httpx.ConnectError,
+                    httpx.TimeoutException,
+                    TimeoutError,
+                ) as e:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = min(2**attempt, 30)
+                        logger.warning(
+                            f"Batch detection failed (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s: {sanitize_error(e)}",
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        record_pipeline_error(f"{self._detector_type}_batch_error")
+
+            # All retries exhausted
+            error_msg = f"Batch detection failed after {self._max_retries} attempts"
+            span.set_attribute("error", True)
+            span.set_attribute("error.message", error_msg)
+            if last_exception:
+                raise DetectorUnavailableError(
+                    error_msg, original_error=last_exception
+                ) from last_exception
+            raise DetectorUnavailableError(error_msg)
+
+    async def _detect_batch_fallback(
+        self,
+        image_data_list: list[tuple[bytes, str]],
+    ) -> list[dict[str, Any]]:
+        """Fallback for batch detection using individual /detect calls.
+
+        Args:
+            image_data_list: List of (image_bytes, filename) tuples
+
+        Returns:
+            List of detection result dicts
+        """
+        results: list[dict[str, Any]] = []
+        for image_data, image_name in image_data_list:
+            try:
+                result = await self._send_detection_request(
+                    image_data=image_data,
+                    image_name=image_name,
+                    camera_id="batch",
+                    image_path=image_name,
+                )
+                results.append(result)
+            except (DetectorUnavailableError, ValueError) as e:
+                logger.warning(f"Individual detection failed in batch fallback: {e}")
+                results.append({"detections": [], "error": str(e)})
+        return results
+
     async def segment_image(
         self,
         image_data: bytes,
@@ -1296,12 +1445,17 @@ class DetectorClient:
             for detection_data in result["detections"]:
                 try:
                     confidence = detection_data.get("confidence", 0.0)
+                    object_class = detection_data.get("class", "unknown")
 
-                    # Filter by confidence threshold
-                    if confidence < self._confidence_threshold:
+                    # Apply class-specific confidence threshold (NEM-4522)
+                    # Use per-class threshold if defined, otherwise fall back to default
+                    effective_threshold = self._class_thresholds.get(
+                        object_class, self._confidence_threshold
+                    )
+                    if confidence < effective_threshold:
                         logger.debug(
                             f"Filtering out detection with low confidence: "
-                            f"{detection_data.get('class')} ({confidence:.2f})"
+                            f"{object_class} ({confidence:.2f} < {effective_threshold:.2f})"
                         )
                         # Record filtered detection metric (NEM-768)
                         record_detection_filtered()

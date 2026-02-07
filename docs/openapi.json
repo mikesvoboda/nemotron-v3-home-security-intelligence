@@ -6563,6 +6563,153 @@
         "title": "CalibrationResetResponse",
         "type": "object"
       },
+      "CalibrationResponse": {
+        "description": "Response schema for the calibration drift monitoring endpoint.",
+        "example": {
+          "drift_threshold_pct": 5.0,
+          "drifting_tiers": [],
+          "is_drifting": false,
+          "tiers": [
+            {
+              "actual_pct": 83.5,
+              "deviation_pct": 1.5,
+              "is_drifting": false,
+              "target_pct": 85.0,
+              "tier": "low"
+            },
+            {
+              "actual_pct": 11.2,
+              "deviation_pct": 1.2,
+              "is_drifting": false,
+              "target_pct": 10.0,
+              "tier": "elevated"
+            },
+            {
+              "actual_pct": 3.1,
+              "deviation_pct": 0.1,
+              "is_drifting": false,
+              "target_pct": 3.0,
+              "tier": "moderate"
+            },
+            {
+              "actual_pct": 1.2,
+              "deviation_pct": 0.2,
+              "is_drifting": false,
+              "target_pct": 1.0,
+              "tier": "high"
+            },
+            {
+              "actual_pct": 1.0,
+              "deviation_pct": 0.0,
+              "is_drifting": false,
+              "target_pct": 1.0,
+              "tier": "critical"
+            }
+          ],
+          "total_scores": 1200,
+          "window_seconds": 86400
+        },
+        "properties": {
+          "drift_threshold_pct": {
+            "description": "Maximum acceptable deviation in percentage points",
+            "minimum": 0.0,
+            "title": "Drift Threshold Pct",
+            "type": "number"
+          },
+          "drifting_tiers": {
+            "description": "List of tier names that are currently drifting",
+            "items": {
+              "type": "string"
+            },
+            "title": "Drifting Tiers",
+            "type": "array"
+          },
+          "is_drifting": {
+            "description": "True if any tier exceeds the drift threshold",
+            "title": "Is Drifting",
+            "type": "boolean"
+          },
+          "tiers": {
+            "description": "Detailed status for each tier",
+            "items": {
+              "$ref": "#/components/schemas/CalibrationTierStatus"
+            },
+            "title": "Tiers",
+            "type": "array"
+          },
+          "total_scores": {
+            "description": "Total number of scores in the monitoring window",
+            "minimum": 0.0,
+            "title": "Total Scores",
+            "type": "integer"
+          },
+          "window_seconds": {
+            "description": "Size of the rolling window in seconds",
+            "minimum": 0.0,
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_scores",
+          "window_seconds",
+          "drift_threshold_pct",
+          "is_drifting",
+          "drifting_tiers",
+          "tiers"
+        ],
+        "title": "CalibrationResponse",
+        "type": "object"
+      },
+      "CalibrationTierStatus": {
+        "description": "Status of a single risk tier in the calibration distribution.",
+        "example": {
+          "actual_pct": 82.5,
+          "deviation_pct": 2.5,
+          "is_drifting": false,
+          "target_pct": 85.0,
+          "tier": "low"
+        },
+        "properties": {
+          "actual_pct": {
+            "description": "Actual percentage of scores in this tier",
+            "minimum": 0.0,
+            "title": "Actual Pct",
+            "type": "number"
+          },
+          "deviation_pct": {
+            "description": "Absolute deviation from target (percentage points)",
+            "minimum": 0.0,
+            "title": "Deviation Pct",
+            "type": "number"
+          },
+          "is_drifting": {
+            "description": "True if deviation exceeds the drift threshold",
+            "title": "Is Drifting",
+            "type": "boolean"
+          },
+          "target_pct": {
+            "description": "Target percentage for this tier",
+            "minimum": 0.0,
+            "title": "Target Pct",
+            "type": "number"
+          },
+          "tier": {
+            "description": "Tier name (low, elevated, moderate, high, critical)",
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "actual_pct",
+          "target_pct",
+          "deviation_pct",
+          "is_drifting"
+        ],
+        "title": "CalibrationTierStatus",
+        "type": "object"
+      },
       "CameraActivityDataPoint": {
         "description": "Schema for camera activity data point.\n\nRepresents aggregated event data for a single camera including\nthe highest-risk detection thumbnail for visual representation.",
         "example": {
@@ -47299,6 +47446,31 @@
         "summary": "Toggle the active status of a polygon zone",
         "tags": [
           "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics/calibration": {
+      "get": {
+        "description": "Get current risk score distribution and calibration drift status.\n\nReturns the rolling score distribution over the monitoring window\n(default 24 hours), the target distribution, and whether any tier\nhas drifted beyond the acceptable threshold.\n\nReturns:\n    CalibrationResponse with current distribution, target, and drift info\n\nRaises:\n    HTTPException: 503 if the calibration monitor is not initialized",
+        "operationId": "analytics_get_calibration_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrationResponse"
+                }
+              }
+            },
+            "description": "Current calibration drift status"
+          },
+          "503": {
+            "description": "Calibration monitor not available (Redis not connected)"
+          }
+        },
+        "summary": "Get Calibration Status",
+        "tags": [
+          "analytics"
         ]
       }
     },

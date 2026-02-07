@@ -2,6 +2,11 @@
 # Lightweight Enrichment Service (GPU 1 - A400 4GB)
 # Hosts small, efficient models: pose, threat, reid, pet, depth
 # Port: 8096 | Expected VRAM: ~1.2GB (with TensorRT optimization)
+#
+# TensorRT Engine Pre-build (NEM-4999):
+#   Pose and Threat models support TensorRT acceleration. Engines are built
+#   on first startup if not cached in the persistent /cache/tensorrt volume.
+#   TensorRT engines are GPU-architecture-specific - rebuild for each target GPU.
 
 FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
 
@@ -48,6 +53,8 @@ COPY --chown=enrichment:enrichment ai/enrichment-light/*.py ./
 COPY --chown=enrichment:enrichment ai/enrichment-light/models/*.py ./models/
 # Copy shared utilities from ai/ directory
 COPY --chown=enrichment:enrichment ai/torch_optimizations.py ./
+# Copy shared TensorRT pre-build utilities (NEM-4999)
+COPY --chown=enrichment:enrichment ai/tensorrt_prebuild.py ./
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -84,8 +91,8 @@ USER enrichment
 RUN mkdir -p /cache/huggingface /cache/tensorrt
 
 # Health check using Python/httpx on /health endpoint
-# Start period of 90s allows time for loading models
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+# Start period of 120s allows time for TensorRT engine build + model loading
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD python -c "import httpx; r = httpx.get('http://localhost:8096/health'); r.raise_for_status()"
 
 # Use entrypoint for optional profiling

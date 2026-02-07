@@ -2082,6 +2082,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/calibration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calibration Status
+         * @description Get current risk score distribution and calibration drift status.
+         *
+         *     Returns the rolling score distribution over the monitoring window
+         *     (default 24 hours), the target distribution, and whether any tier
+         *     has drifted beyond the acceptable threshold.
+         *
+         *     Returns:
+         *         CalibrationResponse with current distribution, target, and drift info
+         *
+         *     Raises:
+         *         HTTPException: 503 if the calibration monitor is not initialized
+         */
+        get: operations["analytics_get_calibration_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics/camera-activity": {
         parameters: {
             query?: never;
@@ -17674,6 +17704,124 @@ export interface components {
              * @description Success message
              */
             message: string;
+        };
+        /**
+         * CalibrationResponse
+         * @description Response schema for the calibration drift monitoring endpoint.
+         * @example {
+         *       "drift_threshold_pct": 5,
+         *       "drifting_tiers": [],
+         *       "is_drifting": false,
+         *       "tiers": [
+         *         {
+         *           "actual_pct": 83.5,
+         *           "deviation_pct": 1.5,
+         *           "is_drifting": false,
+         *           "target_pct": 85,
+         *           "tier": "low"
+         *         },
+         *         {
+         *           "actual_pct": 11.2,
+         *           "deviation_pct": 1.2,
+         *           "is_drifting": false,
+         *           "target_pct": 10,
+         *           "tier": "elevated"
+         *         },
+         *         {
+         *           "actual_pct": 3.1,
+         *           "deviation_pct": 0.1,
+         *           "is_drifting": false,
+         *           "target_pct": 3,
+         *           "tier": "moderate"
+         *         },
+         *         {
+         *           "actual_pct": 1.2,
+         *           "deviation_pct": 0.2,
+         *           "is_drifting": false,
+         *           "target_pct": 1,
+         *           "tier": "high"
+         *         },
+         *         {
+         *           "actual_pct": 1,
+         *           "deviation_pct": 0,
+         *           "is_drifting": false,
+         *           "target_pct": 1,
+         *           "tier": "critical"
+         *         }
+         *       ],
+         *       "total_scores": 1200,
+         *       "window_seconds": 86400
+         *     }
+         */
+        CalibrationResponse: {
+            /**
+             * Drift Threshold Pct
+             * @description Maximum acceptable deviation in percentage points
+             */
+            drift_threshold_pct: number;
+            /**
+             * Drifting Tiers
+             * @description List of tier names that are currently drifting
+             */
+            drifting_tiers: string[];
+            /**
+             * Is Drifting
+             * @description True if any tier exceeds the drift threshold
+             */
+            is_drifting: boolean;
+            /**
+             * Tiers
+             * @description Detailed status for each tier
+             */
+            tiers: components["schemas"]["CalibrationTierStatus"][];
+            /**
+             * Total Scores
+             * @description Total number of scores in the monitoring window
+             */
+            total_scores: number;
+            /**
+             * Window Seconds
+             * @description Size of the rolling window in seconds
+             */
+            window_seconds: number;
+        };
+        /**
+         * CalibrationTierStatus
+         * @description Status of a single risk tier in the calibration distribution.
+         * @example {
+         *       "actual_pct": 82.5,
+         *       "deviation_pct": 2.5,
+         *       "is_drifting": false,
+         *       "target_pct": 85,
+         *       "tier": "low"
+         *     }
+         */
+        CalibrationTierStatus: {
+            /**
+             * Actual Pct
+             * @description Actual percentage of scores in this tier
+             */
+            actual_pct: number;
+            /**
+             * Deviation Pct
+             * @description Absolute deviation from target (percentage points)
+             */
+            deviation_pct: number;
+            /**
+             * Is Drifting
+             * @description True if deviation exceeds the drift threshold
+             */
+            is_drifting: boolean;
+            /**
+             * Target Pct
+             * @description Target percentage for this tier
+             */
+            target_pct: number;
+            /**
+             * Tier
+             * @description Tier name (low, elevated, moderate, high, critical)
+             */
+            tier: string;
         };
         /**
          * CameraActivityDataPoint
@@ -46956,6 +47104,33 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    analytics_get_calibration_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current calibration drift status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalibrationResponse"];
+                };
+            };
+            /** @description Calibration monitor not available (Redis not connected) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -118,6 +118,24 @@ class SecurityObjectsResult:
     objects_queried: list[str]
 
 
+@dataclass(slots=True)
+class BatchExtractItem:
+    """A single item for batch extraction request."""
+
+    image: Image.Image
+    prompt: str
+
+
+@dataclass(slots=True)
+class BatchExtractResult:
+    """A single result from batch extraction."""
+
+    result: str
+    prompt_used: str
+    inference_time_ms: float
+    error: str | None = None
+
+
 logger = get_logger(__name__)
 
 # Timeout configuration for Florence-2 service
@@ -480,6 +498,178 @@ class FlorenceClient:
                 f"Unexpected error during Florence extraction: {sanitize_error(e)}",
                 original_error=e,
             ) from e
+
+    async def batch_extract(self, items: list[BatchExtractItem]) -> list[BatchExtractResult]:
+        """Send multiple image+prompt pairs in a single HTTP request.
+
+        This reduces HTTP overhead by batching N extraction requests into one
+        network round-trip. Each item can have a different image and/or prompt.
+
+        Items that fail individually are returned with error set, rather than
+        failing the entire batch.
+
+        If the batch endpoint is unavailable (e.g., older Florence service version),
+        falls back to individual extract() calls.
+
+        Args:
+            items: List of BatchExtractItem with image and prompt
+
+        Returns:
+            List of BatchExtractResult in the same order as inputs
+
+        Raises:
+            FlorenceUnavailableError: If the service is completely unavailable
+        """
+        if not items:
+            return []
+
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
+        start_time = time.time()
+        logger.debug(f"Sending batch extraction request with {len(items)} items...")
+
+        try:
+            # Encode all images to base64
+            payload_items = []
+            for item in items:
+                image_b64 = self._encode_image_to_base64(item.image)
+                payload_items.append(
+                    {
+                        "image": image_b64,
+                        "prompt": item.prompt,
+                    }
+                )
+
+            payload = {"items": payload_items}
+
+            ai_start_time = time.time()
+
+            response = await self._http_client.post(
+                f"{self._base_url}/batch-extract",
+                json=payload,
+                headers=self._get_headers(),
+            )
+            response.raise_for_status()
+
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("florence_batch_extract", ai_duration)
+
+            result = response.json()
+
+            if "results" not in result:
+                logger.warning(f"Malformed batch response (missing 'results'): {result}")
+                record_pipeline_error("florence_batch_malformed_response")
+                self._circuit_breaker.record_success()
+                # Fall back to individual calls
+                return await self._batch_extract_fallback(items)
+
+            batch_results = []
+            for r in result["results"]:
+                batch_results.append(
+                    BatchExtractResult(
+                        result=r.get("result", ""),
+                        prompt_used=r.get("prompt_used", ""),
+                        inference_time_ms=r.get("inference_time_ms", 0.0),
+                        error=r.get("error"),
+                    )
+                )
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            record_florence_task("batch_extract")
+            self._circuit_breaker.record_success()
+
+            logger.debug(
+                f"Florence batch extraction completed: "
+                f"{len(batch_results)} items in {duration_ms}ms"
+            )
+            return batch_results
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code in {404, 405}:
+                # Batch endpoint not available, fall back to individual calls
+                logger.info(
+                    "Florence batch endpoint not available, falling back to individual calls"
+                )
+                return await self._batch_extract_fallback(items)
+            if status_code >= 500:
+                record_pipeline_error("florence_batch_server_error")
+                self._circuit_breaker.record_failure()
+                raise FlorenceUnavailableError(
+                    f"Florence batch returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+            record_pipeline_error("florence_batch_client_error")
+            logger.error(f"Florence batch returned client error: {status_code} - {e}")
+            # Fall back to individual calls on client errors
+            return await self._batch_extract_fallback(items)
+
+        except httpx.ConnectError as e:
+            record_pipeline_error("florence_batch_connection_error")
+            self._circuit_breaker.record_failure()
+            raise FlorenceUnavailableError(
+                f"Failed to connect to Florence service for batch: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            record_pipeline_error("florence_batch_timeout")
+            self._circuit_breaker.record_failure()
+            raise FlorenceUnavailableError(
+                f"Florence batch request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except FlorenceUnavailableError:
+            raise
+
+        except Exception as e:
+            record_pipeline_error("florence_batch_unexpected_error")
+            self._circuit_breaker.record_failure()
+            raise FlorenceUnavailableError(
+                f"Unexpected error during Florence batch extraction: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def _batch_extract_fallback(
+        self, items: list[BatchExtractItem]
+    ) -> list[BatchExtractResult]:
+        """Fallback for batch extraction using individual extract() calls.
+
+        Used when the batch endpoint is not available on the Florence service.
+
+        Args:
+            items: List of BatchExtractItem
+
+        Returns:
+            List of BatchExtractResult in same order as inputs
+        """
+        results: list[BatchExtractResult] = []
+        for item in items:
+            start = time.time()
+            try:
+                text = await self.extract(item.image, item.prompt)
+                elapsed = (time.time() - start) * 1000
+                results.append(
+                    BatchExtractResult(
+                        result=text,
+                        prompt_used=item.prompt,
+                        inference_time_ms=elapsed,
+                    )
+                )
+            except FlorenceUnavailableError as e:
+                elapsed = (time.time() - start) * 1000
+                results.append(
+                    BatchExtractResult(
+                        result="",
+                        prompt_used=item.prompt,
+                        inference_time_ms=elapsed,
+                        error=str(e),
+                    )
+                )
+        return results
 
     async def ocr(self, image: Image.Image) -> str:
         """Extract text from an image using OCR.

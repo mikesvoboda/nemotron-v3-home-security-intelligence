@@ -20,9 +20,12 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import ActionEventsPanel from './ActionEventsPanel';
 import ConfidenceIndicators from './ConfidenceIndicators';
+import DetectionQualityBadge from './DetectionQualityBadge';
 import { EnrichmentViewer } from '../enrichment';
 import EntityTrackingPanel from './EntityTrackingPanel';
+import EventEnrichmentSummary from './EventEnrichmentSummary';
 import EventVideoPlayer from './EventVideoPlayer';
+import LLMReasoningExplorer from './LLMReasoningExplorer';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import RiskFactorsBreakdown from './RiskFactorsBreakdown';
@@ -142,8 +145,8 @@ export default function EventDetailModal({
   onSnooze,
   onUnsnooze,
 }: EventDetailModalProps) {
-  // State for active tab (Details vs AI Audit vs Video Clip)
-  const [activeTab, setActiveTab] = useState<'details' | 'audit' | 'clip'>('details');
+  // State for active tab (Details vs AI Analysis vs AI Audit vs Video Clip)
+  const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'audit' | 'clip'>('details');
 
   // State for notes editing
   const [notesText, setNotesText] = useState<string>('');
@@ -624,6 +627,17 @@ export default function EventDetailModal({
                     Details
                   </button>
                   <button
+                    onClick={() => setActiveTab('analysis')}
+                    className={`px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === 'analysis'
+                        ? 'border-b-2 border-[#76B900] text-[#76B900]'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                    data-testid="ai-analysis-tab"
+                  >
+                    AI Analysis
+                  </button>
+                  <button
                     onClick={() => setActiveTab('audit')}
                     className={`px-4 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'audit'
@@ -650,6 +664,22 @@ export default function EventDetailModal({
                 <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
                   {activeTab === 'clip' ? (
                     <EventVideoPlayer eventId={parseInt(event.id, 10)} />
+                  ) : activeTab === 'analysis' ? (
+                    /* AI Analysis Tab - LLM Reasoning + Enrichment Summary */
+                    <div className="space-y-6" data-testid="ai-analysis-tab-content">
+                      {/* LLM Reasoning Explorer - Shows <think> blocks, risk factors, enrichment sources */}
+                      {!isNaN(eventIdNumber) && (
+                        <LLMReasoningExplorer
+                          eventId={eventIdNumber}
+                          defaultExpanded={true}
+                        />
+                      )}
+
+                      {/* Event Enrichment Summary - Aggregated enrichment data from all detections */}
+                      {!isNaN(eventIdNumber) && (
+                        <EventEnrichmentSummary eventId={eventIdNumber} />
+                      )}
+                    </div>
                   ) : activeTab === 'details' ? (
                     <>
                       {/* Media display: Video or Image based on selected detection */}
@@ -933,9 +963,15 @@ export default function EventDetailModal({
                                     className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
                                     title={`${confidenceLabel}`}
                                   >
-                                    <span className="text-sm font-medium text-white">
-                                      {detection.label}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium text-white">
+                                        {detection.label}
+                                      </span>
+                                      <DetectionQualityBadge
+                                        confidence={detection.confidence}
+                                        size="sm"
+                                      />
+                                    </div>
                                     <div className="flex items-center gap-2">
                                       {/* Confidence bar */}
                                       <div
@@ -966,6 +1002,13 @@ export default function EventDetailModal({
                               }
                             )}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Event-level Enrichment Summary (aggregated from all detections) */}
+                      {!isNaN(eventIdNumber) && (
+                        <div className="mb-6" data-testid="enrichment-summary-section">
+                          <EventEnrichmentSummary eventId={eventIdNumber} />
                         </div>
                       )}
 

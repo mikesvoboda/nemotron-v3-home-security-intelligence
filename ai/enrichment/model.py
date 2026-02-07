@@ -35,6 +35,17 @@ from PIL import Image, UnidentifiedImageError
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
+# Add ai directory to path for shared GPU utilities (NEM-4996)
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from gpu_oom_handler import (
+    GPUOOMHandler,
+    check_gpu_memory_health,
+    check_memory_available,
+)
+
 # Suppress transformers deprecation warning for ConvNextFeatureExtractor
 # The warning states it will be removed in transformers v5, recommending ConvNextImageProcessor.
 # We use AutoImageProcessor which handles this automatically, so we can safely suppress the warning.
@@ -51,6 +62,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# GPU OOM handler for this service (NEM-4996)
+_oom_handler = GPUOOMHandler(service_name="enrichment")
 
 
 # =============================================================================
@@ -411,11 +425,17 @@ class VehicleClassifier:
         self.model: Any = None
         self.transform: Any = None
         self.classes: list[str] = VEHICLE_SEGMENT_CLASSES
+        self._is_quantized: bool = False
 
         logger.info(f"Initializing VehicleClassifier from {self.model_path}")
 
     def load_model(self) -> None:
-        """Load the ResNet-50 model into memory."""
+        """Load the ResNet-50 model into memory.
+
+        If VEHICLE_QUANTIZED=true and an INT8 quantized model file exists,
+        loads the quantized model instead. Falls back to FP32/FP16 if the
+        quantized model is not found.
+        """
         from torchvision import models, transforms
 
         logger.info("Loading Vehicle Segment Classification model...")
@@ -428,6 +448,47 @@ class VehicleClassifier:
         if classes_file.exists() and str(classes_file).startswith(str(model_dir.resolve())):
             self.classes = classes_file.read_text().splitlines()
             logger.info(f"Loaded {len(self.classes)} classes from classes.txt")
+
+        # Check for INT8 quantized model (NEM-5533)
+        use_quantized = os.environ.get("VEHICLE_QUANTIZED", "false").lower() == "true"
+        quantized_dir = os.environ.get("QUANTIZED_MODEL_DIR", "/models/quantized")
+        quantized_path = Path(quantized_dir) / "vehicle_classifier_int8.pt"
+
+        if use_quantized and quantized_path.exists():
+            model = self._load_quantized_model(quantized_path)
+        else:
+            if use_quantized and not quantized_path.exists():
+                logger.warning(
+                    f"VEHICLE_QUANTIZED=true but quantized model not found at {quantized_path}. "
+                    "Falling back to FP32/FP16 model."
+                )
+            model = self._load_fp_model(model_dir)
+
+        model.eval()
+        self.model = model
+
+        # Define image transforms (same as training)
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
+
+        precision = "INT8" if self._is_quantized else "FP16/FP32"
+        logger.info(f"VehicleClassifier loaded successfully ({precision})")
+
+    def _load_fp_model(self, model_dir: Path) -> Any:
+        """Load the standard FP32/FP16 vehicle model.
+
+        Args:
+            model_dir: Path to the model directory
+
+        Returns:
+            Loaded PyTorch model
+        """
+        from torchvision import models
 
         # Create ResNet-50 model architecture
         model = models.resnet50(weights=None)
@@ -452,19 +513,59 @@ class VehicleClassifier:
             self.device = "cpu"
             logger.info("VehicleClassifier using CPU")
 
-        model.eval()
-        self.model = model
+        self._is_quantized = False
+        return model
 
-        # Define image transforms (same as training)
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ]
+    def _load_quantized_model(self, quantized_path: Path) -> Any:
+        """Load the INT8 quantized vehicle model.
+
+        INT8 models run on CPU (PyTorch eager-mode quantization does not support
+        CUDA for quantized ops). This is acceptable because INT8 inference on
+        modern CPUs is fast and frees GPU VRAM for other models.
+
+        Args:
+            quantized_path: Path to the quantized model state dict file
+
+        Returns:
+            Loaded quantized PyTorch model
+        """
+        import torch.ao.quantization as ao_quantization
+        from torchvision import models
+
+        logger.info(f"Loading INT8 quantized vehicle model from {quantized_path}")
+
+        # Create the same architecture
+        model = models.resnet50(weights=None)
+        num_ftrs = model.fc.in_features
+        model.fc = torch.nn.Linear(num_ftrs, len(self.classes))
+        model.eval()
+
+        # Apply same quantization config used during quantization
+        model.qconfig = ao_quantization.QConfig(
+            activation=ao_quantization.HistogramObserver.with_args(
+                dtype=torch.quint8,
+                reduce_range=True,
+            ),
+            weight=ao_quantization.PerChannelMinMaxObserver.with_args(
+                dtype=torch.qint8,
+                qscheme=torch.per_channel_symmetric,
+            ),
         )
 
-        logger.info("VehicleClassifier loaded successfully")
+        # Fuse modules (must match quantization script)
+        model = ao_quantization.fuse_modules(model, [["conv1", "bn1", "relu"]], inplace=False)
+        ao_quantization.prepare(model, inplace=True)
+        model = ao_quantization.convert(model, inplace=False)
+
+        # Load quantized weights
+        state_dict = torch.load(quantized_path, map_location="cpu", weights_only=True)
+        model.load_state_dict(state_dict)
+
+        # INT8 quantized models run on CPU
+        self.device = "cpu"
+        self._is_quantized = True
+        logger.info("VehicleClassifier loaded with INT8 quantization (CPU inference)")
+        return model
 
     def classify(self, image: Image.Image, top_k: int = 3) -> dict[str, Any]:
         """Classify vehicle type from an image.
@@ -2272,8 +2373,14 @@ async def vehicle_classify(request: VehicleClassifyRequest) -> VehicleClassifyRe
         # Decode and optionally crop image
         image = decode_and_crop_image(request.image, request.bbox)
 
-        # Run classification
-        result = classifier.classify(image)
+        # Run classification (NEM-4996: with OOM retry after eviction)
+        try:
+            result = classifier.classify(image)
+        except torch.cuda.OutOfMemoryError:
+            _oom_handler.handle_oom_with_eviction("vehicle-classify", model_manager)
+            # Retry once after cache clear and eviction
+            await model_manager._evict_lru_model()
+            result = classifier.classify(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -2295,6 +2402,14 @@ async def vehicle_classify(request: VehicleClassifyRequest) -> VehicleClassifyRe
     except ValueError as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="vehicle-classify", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except torch.cuda.OutOfMemoryError as e:
+        # NEM-4996: OOM persisted even after eviction + retry
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="vehicle-classify", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during vehicle classification. Please retry after a short delay.",
+            headers={"Retry-After": "10"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="vehicle-classify", status="error").inc()
         logger.error(f"Vehicle classification failed: {e}", exc_info=True)
@@ -2322,8 +2437,13 @@ async def pet_classify(request: PetClassifyRequest) -> PetClassifyResponse:
         # Decode and optionally crop image
         image = decode_and_crop_image(request.image, request.bbox)
 
-        # Run classification
-        result = classifier.classify(image)
+        # Run classification (NEM-4996: with OOM retry after eviction)
+        try:
+            result = classifier.classify(image)
+        except torch.cuda.OutOfMemoryError:
+            _oom_handler.handle_oom_with_eviction("pet-classify", model_manager)
+            await model_manager._evict_lru_model()
+            result = classifier.classify(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -2342,6 +2462,13 @@ async def pet_classify(request: PetClassifyRequest) -> PetClassifyResponse:
     except ValueError as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except torch.cuda.OutOfMemoryError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during pet classification. Please retry after a short delay.",
+            headers={"Retry-After": "10"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="pet-classify", status="error").inc()
         logger.error(f"Pet classification failed: {e}", exc_info=True)
@@ -2369,8 +2496,13 @@ async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassif
         # Decode and optionally crop image
         image = decode_and_crop_image(request.image, request.bbox)
 
-        # Run classification
-        result = classifier.classify(image)
+        # Run classification (NEM-4996: with OOM retry after eviction)
+        try:
+            result = classifier.classify(image)
+        except torch.cuda.OutOfMemoryError:
+            _oom_handler.handle_oom_with_eviction("clothing-classify", model_manager)
+            await model_manager._evict_lru_model()
+            result = classifier.classify(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -2395,6 +2527,13 @@ async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassif
     except ValueError as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="clothing-classify", status="error").inc()
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except torch.cuda.OutOfMemoryError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="clothing-classify", status="error").inc()
+        raise HTTPException(
+            status_code=503,
+            detail="GPU out of memory during clothing classification. Please retry after a short delay.",
+            headers={"Retry-After": "10"},
+        ) from e
     except Exception as e:
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="clothing-classify", status="error").inc()
         logger.error(f"Clothing classification failed: {e}", exc_info=True)

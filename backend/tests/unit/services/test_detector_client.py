@@ -63,7 +63,7 @@ def sample_detector_response():
             },
             {
                 "class": "dog",
-                "confidence": 0.45,  # Below default threshold
+                "confidence": 0.45,  # Below class threshold of 0.55
                 "bbox": [250, 300, 100, 80],
             },
         ],
@@ -175,7 +175,7 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
 async def test_detect_objects_filters_low_confidence(
     detector_client, mock_session, sample_detector_response
 ):
-    """Test that detections below confidence threshold are filtered out."""
+    """Test that detections below class-specific confidence threshold are filtered out."""
     image_path = "/export/foscam/back_door/image_002.jpg"
     camera_id = "back_door"
 
@@ -194,7 +194,9 @@ async def test_detect_objects_filters_low_confidence(
 
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        # Should filter out dog detection (confidence 0.45 < 0.5 threshold)
+        # person (0.95) passes class threshold of 0.45
+        # car (0.88) passes class threshold of 0.70
+        # dog (0.45) filtered by class threshold of 0.55
         object_types = [d.object_type for d in detections]
         assert "person" in object_types
         assert "car" in object_types

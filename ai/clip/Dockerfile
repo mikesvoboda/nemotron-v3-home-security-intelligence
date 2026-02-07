@@ -2,6 +2,12 @@
 # CLIP Embedding Server
 # Uses HuggingFace Transformers for model loading with optional TensorRT inference
 # Port: 8093 | Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
+#
+# TensorRT Engine Pre-build (NEM-4999):
+#   When CLIP_USE_TENSORRT=true, the TensorRT engine is exported on first startup
+#   if not already present. Set CLIP_PREBUILD_ENGINE=true (default) to build the
+#   engine during container startup before serving requests.
+#   TensorRT engines are GPU-architecture-specific - rebuild for each target GPU.
 
 FROM nvcr.io/nvidia/tensorrt:25.12-py3
 
@@ -52,6 +58,9 @@ RUN (groupadd -g 1000 clip || true) && \
 COPY --chown=1000:1000 ai/clip/model.py .
 COPY --chown=1000:1000 ai/clip/tensorrt_inference.py .
 COPY --chown=1000:1000 ai/clip/export_onnx.py .
+COPY --chown=1000:1000 ai/clip/build_engine.py .
+# Copy shared TensorRT pre-build utilities
+COPY --chown=1000:1000 ai/tensorrt_prebuild.py .
 
 # Environment variables
 ENV HOST=0.0.0.0

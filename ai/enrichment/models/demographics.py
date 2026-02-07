@@ -28,7 +28,9 @@ Privacy Note:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -152,6 +154,7 @@ class DemographicsEstimator:
         # Model metadata
         self._age_labels: list[str] = []
         self._gender_labels: list[str] = []
+        self._is_quantized: bool = False
 
         logger.info(
             f"Initialized DemographicsEstimator with age_model={self.age_model_path}, "
@@ -161,17 +164,33 @@ class DemographicsEstimator:
     def load_model(self) -> DemographicsEstimator:
         """Load the age and gender models into memory.
 
+        If DEMOGRAPHICS_QUANTIZED=true and an INT8 quantized model file exists,
+        loads the quantized model instead. Falls back to FP32 if the quantized
+        model is not found.
+
         Returns:
             Self for method chaining
 
         Raises:
             Exception: If model loading fails
         """
-        from pathlib import Path
-
         from transformers import AutoImageProcessor, ViTForImageClassification
 
         logger.info("Loading demographics models...")
+
+        # Check for INT8 quantized model (NEM-5533)
+        use_quantized = os.environ.get("DEMOGRAPHICS_QUANTIZED", "false").lower() == "true"
+        quantized_dir = os.environ.get("QUANTIZED_MODEL_DIR", "/models/quantized")
+        quantized_path = Path(quantized_dir) / "demographics_int8.pt"
+
+        if use_quantized and quantized_path.exists():
+            return self._load_quantized_model(quantized_path)
+
+        if use_quantized and not quantized_path.exists():
+            logger.warning(
+                f"DEMOGRAPHICS_QUANTIZED=true but quantized model not found at {quantized_path}. "
+                "Falling back to FP32 model."
+            )
 
         # Determine target device
         if "cuda" in self.device and torch.cuda.is_available():
@@ -265,7 +284,84 @@ class DemographicsEstimator:
 
             logger.info(f"Gender model loaded on {target_device}")
 
-        logger.info("Demographics models loaded successfully")
+        self._is_quantized = False
+        logger.info("Demographics models loaded successfully (FP32)")
+        return self
+
+    def _load_quantized_model(self, quantized_path: Path) -> DemographicsEstimator:
+        """Load the INT8 quantized demographics model.
+
+        INT8 quantized ViT models run on CPU (PyTorch eager-mode quantization
+        does not support CUDA for quantized ops). This is acceptable because
+        INT8 inference on modern CPUs is fast and frees GPU VRAM.
+
+        Args:
+            quantized_path: Path to the quantized model state dict file
+
+        Returns:
+            Self for method chaining
+        """
+        import torch.ao.quantization as ao_quantization
+        from transformers import AutoImageProcessor, ViTForImageClassification
+
+        logger.info(f"Loading INT8 quantized demographics model from {quantized_path}")
+
+        # Resolve model path for loading architecture and processor
+        age_model_dir = Path(self.age_model_path)
+        if age_model_dir.exists():
+            age_local_path = str(age_model_dir.resolve())
+        else:
+            age_local_path = self.age_model_path
+
+        # Load processor (always needed for preprocessing)
+        self.age_processor = AutoImageProcessor.from_pretrained(age_local_path)
+
+        # Load model architecture
+        model = ViTForImageClassification.from_pretrained(age_local_path)
+        model.eval()
+
+        # Apply quantization config matching the quantization script
+        vit_qconfig = ao_quantization.QConfig(
+            activation=ao_quantization.HistogramObserver.with_args(
+                dtype=torch.quint8,
+                reduce_range=True,
+            ),
+            weight=ao_quantization.PerChannelMinMaxObserver.with_args(
+                dtype=torch.qint8,
+                qscheme=torch.per_channel_symmetric,
+            ),
+        )
+        model.qconfig = vit_qconfig
+        model = ao_quantization.prepare(model, inplace=False)
+        model = ao_quantization.convert(model, inplace=False)
+
+        # Load quantized weights
+        state_dict = torch.load(quantized_path, map_location="cpu", weights_only=True)
+        model.load_state_dict(state_dict)
+
+        self.age_model = model
+        self.device = "cpu"  # INT8 models run on CPU
+        self._is_quantized = True
+
+        # Extract age labels
+        if hasattr(self.age_model.config, "id2label"):
+            self._age_labels = [
+                self.age_model.config.id2label.get(str(i), f"age_{i}")
+                for i in range(self.age_model.config.num_labels)
+            ]
+        else:
+            self._age_labels = AGE_RANGES[: self.age_model.config.num_labels]
+
+        logger.info("Demographics INT8 model loaded (CPU inference)")
+        logger.info(f"Age model labels: {self._age_labels}")
+
+        # Gender model is not quantized separately; skip if quantized age-only model
+        if self.gender_model_path:
+            logger.info(
+                "Gender model path specified but INT8 quantization only covers the age model. "
+                "Gender estimation will be unavailable with quantized model."
+            )
+
         return self
 
     def unload(self) -> None:

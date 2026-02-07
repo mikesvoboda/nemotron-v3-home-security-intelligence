@@ -20,6 +20,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from enum import Enum
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -27,6 +28,42 @@ from backend.services.prompt_sanitizer import (
     sanitize_for_prompt,
     sanitize_object_type,
 )
+
+# =============================================================================
+# Confidence Quality Tiers (NEM-5525)
+# =============================================================================
+# Local enum mirroring ai.yolo26.model.ConfidenceQuality to avoid importing
+# from the ai module which requires special path setup (metrics module).
+# Tier boundaries: EXCELLENT >= 0.90, GOOD >= 0.75, MODERATE >= 0.60, MARGINAL < 0.60
+
+
+class _ConfidenceQuality(str, Enum):
+    """Quality tier for detection confidence scores (prompt-local copy)."""
+
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    MODERATE = "moderate"
+    MARGINAL = "marginal"
+
+
+def _compute_confidence_quality(confidence: float) -> _ConfidenceQuality:
+    """Compute the quality tier for a detection confidence score.
+
+    Args:
+        confidence: Detection confidence score between 0 and 1.
+
+    Returns:
+        _ConfidenceQuality enum value indicating the quality tier.
+    """
+    if confidence >= 0.90:
+        return _ConfidenceQuality.EXCELLENT
+    elif confidence >= 0.75:
+        return _ConfidenceQuality.GOOD
+    elif confidence >= 0.60:
+        return _ConfidenceQuality.MODERATE
+    else:
+        return _ConfidenceQuality.MARGINAL
+
 
 # ==============================================================================
 # Calibrated System Prompt (NEM-3019)
@@ -974,6 +1011,8 @@ Lighting: {time_of_day}
 ## Re-Identification
 {reid_context}
 
+{cross_camera_person_tracking}
+
 ## Zone Analysis
 {zone_analysis}
 
@@ -991,6 +1030,7 @@ Deviation score: {deviation_score}
 - entry_point detections: Higher concern
 - Unknown persons/vehicles: Note if not seen before
 - Re-identified entities: Track movement patterns
+- Cross-camera person movement: Person moving from perimeter to entry point is more concerning
 - Service workers: Usually LOWER risk (delivery, utility) - score 0-15
 - Unusual objects: Tools, abandoned items increase risk
 - Time context: Late night + artificial light = concerning
@@ -1080,6 +1120,49 @@ Property crimes are criminal acts and must ALWAYS be scored as threats:
 - Wildlife (birds, squirrels)
 - Parked vehicles (without unusual context)
 
+## Scoring Examples
+Use these worked examples to calibrate your scoring. Most events (85%+) should be LOW.
+
+**Example 1 — Score: 5 (LOW)**
+Tuesday 2:45 PM. Front door camera. Known resident detected (face match confidence 0.97, household member "Sarah"). Walking from familiar sedan in driveway to front door. CLIP scene: 'normal activity' (0.89). Pose: upright walking. Action: approaching door normally.
+Reasoning: Recognized household member, daytime arrival, matched vehicle — routine homecoming. Score: 5.
+
+**Example 2 — Score: 8 (LOW)**
+Wednesday 11:20 AM. Porch camera. One person detected wearing brown uniform (Florence-2: "person in brown shorts and collared shirt carrying cardboard box"). Delivery vehicle (CLIP: 'delivery van') parked at curb. Person approached porch, placed package, departed within 40 seconds. Pose: upright, bending. Action: placing object on ground.
+Reasoning: Delivery uniform, delivery vehicle, brief visit, package placement behavior — routine delivery. Score: 8.
+
+**Example 3 — Score: 3 (LOW)**
+Saturday 10:00 AM. Backyard camera. Pet classification: dog (confidence 0.96, breed: Labrador). Known household pet re-ID match. No persons detected. CLIP scene: 'normal activity' (0.91). Zone: backyard (private, low-sensitivity).
+Reasoning: High-confidence pet detection matching known household animal, no humans present — normal pet activity. Score: 3.
+
+**Example 4 — Score: 10 (LOW)**
+Thursday 9:15 AM. Driveway camera. One person detected wearing high-visibility vest and work boots (Florence-2: "person in orange safety vest holding clipboard"). White work van with company lettering parked in driveway. Pose: standing upright. Action: walking around property perimeter. Zone: driveway (semi-private). Duration: 8 minutes.
+Reasoning: Service worker attire, marked commercial vehicle, business hours, expected maintenance-type behavior. Score: 10.
+
+**Example 5 — Score: 12 (LOW)**
+Monday 3:30 PM. Front yard camera. One person detected (unknown, no face match). Walking on public sidewalk past property, never entered private zone. CLIP scene: 'normal activity' (0.78). Pose: upright walking. Duration in frame: 15 seconds. Zone: sidewalk (public).
+Reasoning: Person remained on public sidewalk, transient presence, no approach to property — ordinary pedestrian. Score: 12.
+
+**Example 6 — Score: 25 (ELEVATED)**
+Sunday 4:10 PM. Front door camera. One person detected (unknown, no face match, no household re-ID). Approached front porch and rang doorbell. Wearing casual clothing (Florence-2: "person in jeans and blue jacket"). Pose: standing upright at door. No suspicious items. CLIP scene: 'person at door' (0.72). Zone: porch (entry point). Duration: 45 seconds then departed.
+Reasoning: Unknown visitor but used doorbell, daytime, reasonable hour, no concealment or suspicious behavior — likely solicitor or neighbor. Score: 25.
+
+**Example 7 — Score: 32 (ELEVATED)**
+Saturday 2:00 PM. Street camera. Unfamiliar dark sedan parked on street near property for 20 minutes. No vehicle match in household database. No persons exited vehicle during observation. CLIP scene: 'parked vehicle on street' (0.65). Zone: street (public). Departed without incident.
+Reasoning: Unknown vehicle but on public street, daytime, no persons approached property, short duration — unusual but benign. Score: 32.
+
+**Example 8 — Score: 50 (MODERATE)**
+Wednesday 7:30 PM. Front door camera. One person detected (unknown, no face match). Approached front door but did NOT ring doorbell. Stood at door for 35 seconds, looked through side window (action: looking through window). Casual dark clothing (Florence-2: "person in dark hoodie and jeans"). CLIP scene: 'person loitering' (0.58). Zone: porch (entry point). Departed after 50 seconds total.
+Reasoning: Unknown person at entry point, no doorbell ring, peering through window suggests possible casing behavior, but short duration and evening (not late night) temper concern. Score: 50.
+
+**Example 9 — Score: 72 (HIGH)**
+Thursday 1:15 AM. Backyard camera. One person detected (unknown, no face match). Wearing dark clothing, hood up, face partially concealed (SegFormer: face_covered=true). Crouching near back door (pose: crouching). Checking door handle (action: checking door handles). CLIP scene: 'suspicious approach' (0.71), threat pattern match: 'person checking door handles' (0.68). Zone: back door (entry point, high-sensitivity). Duration: 90 seconds. Visual anomaly score: 0.62.
+Reasoning: Late night, unknown person, face concealed, crouching at entry point, actively testing door handle — multiple high-risk indicators converging. Score: 72.
+
+**Example 10 — Score: 88 (CRITICAL)**
+Friday 2:40 AM. Front porch camera. One person detected (unknown, no face match). Grabbed delivered package from porch (action: picking up object and running). CLIP scene: 'property intrusion' (0.81), threat pattern match: 'a person stealing a package from a porch' (0.85). Person fled toward street immediately after grabbing package (pose: running, facing away). Dark clothing, face concealed. Zone: porch (entry point). Duration in frame: 8 seconds. Vehicle waiting at curb.
+Reasoning: Active theft — package taken and suspect fled to waiting vehicle. Property crime (package theft) with flight behavior and getaway vehicle. Score: 88.
+
 ## EVENT CONTEXT
 Camera: {camera_name}
 Time: {timestamp}
@@ -1095,12 +1178,17 @@ Lighting: {time_of_day}
 ## DETECTIONS WITH FULL ENRICHMENT
 {detections_with_all_attributes}
 
+{confidence_quality_summary}
+
 ## Violence Analysis
 {violence_context}
 
 ## Behavioral Analysis
 {pose_analysis}
 {action_recognition}
+
+## Trajectory Analysis (Movement Patterns)
+{trajectory_context}
 
 ## Vehicle Analysis
 {vehicle_classification_context}
@@ -1117,6 +1205,8 @@ Lighting: {time_of_day}
 
 ## Re-Identification
 {reid_context}
+
+{cross_camera_person_tracking}
 
 ## Zone Analysis
 {zone_analysis}
@@ -1138,6 +1228,12 @@ Deviation score: {deviation_score}
 {clip_analysis_context}
 
 ## Risk Interpretation Guide
+
+### Detection Confidence Quality (NEM-5525)
+- EXCELLENT/GOOD confidence: Trust detection fully, weight normally in risk assessment
+- MODERATE confidence: Consider but corroborate with other signals (pose, CLIP, behavior)
+- MARGINAL confidence (<60%): Treat as uncertain — do not base risk score primarily on this detection
+- If all detections are MARGINAL, reduce overall confidence in assessment
 
 ### Violence Detection
 - Violence detected = CRITICAL CONCERN - immediate alert required
@@ -1171,6 +1267,26 @@ Deviation score: {deviation_score}
 - Loitering > 30 seconds = increased concern
 - Running away from camera = flight response, investigate
 - Checking car doors = potential vehicle crime
+
+### Trajectory Analysis (Movement Patterns)
+- stationary at entry point for 30+ seconds = loitering, increased concern
+- approaching entry point = person moving toward door/gate, monitor closely
+- circling = person returning to same area, suspicious reconnaissance pattern
+- wandering in private zone = non-directed movement, possible casing behavior
+- departing after brief visit = likely delivery or visit, lower concern
+- Fast speed + approaching = urgent/aggressive approach, escalate
+- Multiple zone transitions (entering/exiting) = exploring the property, suspicious
+- Entry point approach warning = highest trajectory concern, consider escalating
+
+### Cross-Camera Person Tracking
+- Same person seen on multiple cameras = deliberate movement through property
+- Perimeter camera -> entry point camera = approaching access point, INCREASE risk (+10-20)
+- Entry point camera -> perimeter camera = departing, generally lower concern
+- Rapid camera transitions (<2 min) = fast movement through property, evaluate urgency
+- Extended presence across cameras (>10 min) = prolonged presence on property, INCREASE risk
+- Unknown person on multiple cameras at night = HIGH concern, possible casing/surveillance
+- Known/household person on multiple cameras = NORMAL movement, do not escalate
+- First-time person (no re-ID matches) = note as new, but do not escalate on that alone
 
 ### Threat Detection (Weapons)
 - ANY weapon detection = CRITICAL priority, immediate alert
@@ -2000,6 +2116,60 @@ def format_depth_context(
     return depth_results.to_context_string()
 
 
+def format_trajectory_context(
+    trajectory_analyses: dict[int, Any] | None = None,
+) -> str:
+    """Format trajectory analysis results for Nemotron prompt context (NEM-5532).
+
+    Creates a human-readable summary of movement patterns, dwell times, speed
+    estimates, and zone transitions for each tracked object. This gives Nemotron
+    temporal behavioral context that significantly improves risk assessment accuracy.
+
+    Args:
+        trajectory_analyses: Dictionary mapping track_id to TrajectoryAnalysis objects.
+            Each TrajectoryAnalysis has: trajectory_summary, movement_pattern,
+            dwell_seconds, speed_estimate, zone_transitions, is_approaching_entry.
+            If None or empty, returns a "not available" message.
+
+    Returns:
+        Formatted string for prompt inclusion. Each tracked object gets a line
+        summarizing its movement pattern and behavioral context.
+
+    Example:
+        >>> from backend.services.trajectory_analyzer import TrajectoryAnalysis
+        >>> analyses = {
+        ...     42: TrajectoryAnalysis(
+        ...         track_id=42, dwell_seconds=45.0, movement_pattern="stationary",
+        ...         speed_estimate=2.1, zone_transitions=["entered Front Porch"],
+        ...         is_approaching_entry=False,
+        ...         trajectory_summary="Person #42: stationary for 45s. Speed: stationary. Zone activity: entered Front Porch.",
+        ...     ),
+        ... }
+        >>> result = format_trajectory_context(analyses)
+        >>> "stationary" in result
+        True
+    """
+    if not trajectory_analyses:
+        return "Trajectory analysis: No track data available"
+
+    lines = ["Trajectory analysis:"]
+    for track_id, analysis in sorted(trajectory_analyses.items()):
+        summary = getattr(analysis, "trajectory_summary", None)
+        if summary:
+            lines.append(f"  {summary}")
+        else:
+            # Fallback if no summary available
+            pattern = getattr(analysis, "movement_pattern", "unknown")
+            dwell = getattr(analysis, "dwell_seconds", 0.0)
+            lines.append(f"  Track #{track_id}: {pattern} for {dwell:.0f}s")
+
+        # Add entry point approach warning as a separate alert line
+        if getattr(analysis, "is_approaching_entry", False):
+            lines.append(f"  ** Track #{track_id} is APPROACHING an entry point **")
+
+    return "\n".join(lines)
+
+
 def format_image_quality_context(
     quality_result: ImageQualityResult | None,
     quality_change_detected: bool = False,
@@ -2438,11 +2608,15 @@ def format_detections_with_all_enrichment(
         confidence = det.get("confidence", 0.0)
         bbox = det.get("bbox", [])
 
+        # Compute confidence quality tier (NEM-5525)
+        quality_tier = _compute_confidence_quality(confidence) if confidence > 0 else None
+        quality_label = f" {quality_tier.value.upper()}" if quality_tier else ""
+
         # Base detection info
         bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
         base_line = f"### {class_name.upper()} (ID: {det_id})"
         lines.append(base_line)
-        lines.append(f"Confidence: {confidence:.0%}, Location: {bbox_str}")
+        lines.append(f"Confidence: {confidence:.0%}{quality_label}, Location: {bbox_str}")
 
         # Add Florence-2 vision attributes if available
         # NEM-3304: Validate VQA outputs to filter garbage tokens
@@ -2845,6 +3019,281 @@ def format_enhanced_reid_context(
         lines.append("-> No risk modifier (insufficient history)")
 
     return "\n".join(lines)
+
+
+# ==============================================================================
+# Cross-Camera Person Tracking Narrative (NEM-5525)
+# ==============================================================================
+
+
+def format_cross_camera_person_tracking(
+    person_reid_matches: dict[str, list[Any]] | None,
+    vehicle_reid_matches: dict[str, list[Any]] | None = None,
+    current_camera_id: str | None = None,
+    zone_context: list[Any] | None = None,
+) -> str:
+    """Format cross-camera person tracking narrative for Nemotron prompt.
+
+    When a person detection has a re-ID match on a different camera, this function
+    builds a human-readable narrative describing the person's movement across cameras.
+    This gives Nemotron the spatial/temporal context needed to assess whether someone
+    is approaching an entry point from the property perimeter, loitering across
+    multiple cameras, or simply passing through.
+
+    Args:
+        person_reid_matches: Dict mapping detection_id to list of EntityMatch objects
+            for person detections. Each EntityMatch has entity (EntityEmbedding with
+            camera_id, timestamp, detection_id, attributes), similarity, and
+            time_gap_seconds.
+        vehicle_reid_matches: Optional dict mapping detection_id to list of EntityMatch
+            objects for vehicle detections. Same structure as person matches.
+        current_camera_id: The camera ID of the current batch being analyzed. Used to
+            identify cross-camera matches (matches from a different camera).
+        zone_context: Optional list of ZoneContext objects from the current batch.
+            Used to describe where the person is now (e.g., "now at front door zone").
+
+    Returns:
+        Formatted string for prompt inclusion. Returns a "no tracking data" message
+        if no cross-camera matches exist.
+
+    Examples:
+        >>> # With cross-camera match
+        >>> format_cross_camera_person_tracking(
+        ...     person_reid_matches={"42": [match_on_other_camera]},
+        ...     current_camera_id="front_door",
+        ... )
+        '## Cross-Camera Person Tracking\\n- Person (detection 42): ...'
+
+        >>> # No matches
+        >>> format_cross_camera_person_tracking(None)
+        'Cross-camera person tracking: No cross-camera movement detected.'
+    """
+    all_narratives: list[str] = []
+
+    # Process person matches
+    person_narratives = _build_tracking_narratives(
+        person_reid_matches, "Person", current_camera_id, zone_context
+    )
+    all_narratives.extend(person_narratives)
+
+    # Process vehicle matches
+    vehicle_narratives = _build_tracking_narratives(
+        vehicle_reid_matches, "Vehicle", current_camera_id, zone_context
+    )
+    all_narratives.extend(vehicle_narratives)
+
+    if not all_narratives:
+        return "Cross-camera person tracking: No cross-camera movement detected."
+
+    header = "## Cross-Camera Person Tracking"
+    guidance = (
+        "Cross-camera tracking context: A person moving from property perimeter "
+        "toward an entry point is more concerning than someone passing through. "
+        "Multiple camera sightings of the same unknown person suggest deliberate "
+        "movement through the property."
+    )
+    return f"{header}\n" + "\n".join(all_narratives) + f"\n\n{guidance}"
+
+
+def _build_tracking_narratives(
+    reid_matches: dict[str, list[Any]] | None,
+    entity_label: str,
+    current_camera_id: str | None,
+    zone_context: list[Any] | None,
+) -> list[str]:
+    """Build tracking narrative lines for a set of re-ID matches.
+
+    Internal helper for format_cross_camera_person_tracking.
+
+    Args:
+        reid_matches: Dict mapping detection_id to list of EntityMatch objects.
+        entity_label: Human label for the entity type ("Person" or "Vehicle").
+        current_camera_id: Current camera ID for cross-camera identification.
+        zone_context: Optional zone context list.
+
+    Returns:
+        List of formatted narrative strings, one per detection with cross-camera matches.
+    """
+    if not reid_matches:
+        return []
+
+    narratives: list[str] = []
+
+    for det_id, matches in reid_matches.items():
+        if not matches:
+            narratives.append(
+                f"- {entity_label} (detection {det_id}): First time seen on any camera "
+                "(no re-ID matches)."
+            )
+            continue
+
+        # Separate cross-camera matches from same-camera matches
+        cross_camera_matches = []
+        same_camera_matches = []
+
+        for match in matches:
+            match_entity = getattr(match, "entity", None)
+            if match_entity is None:
+                continue
+            match_camera = getattr(match_entity, "camera_id", None)
+
+            if current_camera_id and match_camera and match_camera != current_camera_id:
+                cross_camera_matches.append(match)
+            else:
+                same_camera_matches.append(match)
+
+        if not cross_camera_matches and not same_camera_matches:
+            continue
+
+        if cross_camera_matches:
+            # Build narrative for the best cross-camera match
+            best_match = cross_camera_matches[0]
+            match_entity = best_match.entity
+            similarity_pct = best_match.similarity * 100
+            time_gap = abs(best_match.time_gap_seconds)
+
+            # Format time gap
+            time_str = _format_time_gap(time_gap)
+
+            # Get camera name (use camera_id as fallback)
+            prev_camera = getattr(match_entity, "camera_id", "unknown camera")
+
+            # Get attributes from previous sighting
+            prev_attrs = getattr(match_entity, "attributes", {}) or {}
+            attr_parts: list[str] = []
+            if prev_attrs.get("clothing"):
+                attr_parts.append(f"wearing {prev_attrs['clothing']}")
+            if prev_attrs.get("carrying"):
+                attr_parts.append(f"carrying {prev_attrs['carrying']}")
+            if prev_attrs.get("color"):
+                attr_parts.append(f"color: {prev_attrs['color']}")
+            if prev_attrs.get("vehicle_type"):
+                attr_parts.append(f"type: {prev_attrs['vehicle_type']}")
+
+            prev_attrs_str = f" ({', '.join(attr_parts)})" if attr_parts else ""
+
+            # Build the current zone context if available
+            zone_str = ""
+            if zone_context:
+                zone_names = []
+                for zc in zone_context:
+                    zname = getattr(zc, "zone_name", None)
+                    ztype = getattr(zc, "zone_type", None)
+                    if zname:
+                        zone_names.append(f"{zname} ({ztype})" if ztype else zname)
+                if zone_names:
+                    zone_str = f" Current location: {', '.join(zone_names[:2])}."
+
+            # Infer movement pattern
+            movement = _infer_movement_pattern(
+                prev_camera, current_camera_id, zone_context, time_gap
+            )
+            movement_str = f" Movement pattern: {movement}." if movement else ""
+
+            # Count total cross-camera sightings
+            num_cameras = len({getattr(m.entity, "camera_id", None) for m in cross_camera_matches})
+            multi_cam_note = (
+                f" Seen on {num_cameras} other camera(s) total." if num_cameras > 1 else ""
+            )
+
+            narratives.append(
+                f"- {entity_label} (detection {det_id}): SAME {entity_label.upper()} "
+                f'seen on "{prev_camera}" camera {time_str} '
+                f"({similarity_pct:.0f}% similarity){prev_attrs_str}.{zone_str}"
+                f"{movement_str}{multi_cam_note}"
+            )
+        elif same_camera_matches:
+            # Only same-camera matches -- person seen before on this camera but not others
+            best_match = same_camera_matches[0]
+            time_gap = abs(best_match.time_gap_seconds)
+            time_str = _format_time_gap(time_gap)
+            similarity_pct = best_match.similarity * 100
+            narratives.append(
+                f"- {entity_label} (detection {det_id}): Previously seen on this same camera "
+                f"{time_str} ({similarity_pct:.0f}% similarity). No cross-camera movement."
+            )
+
+    return narratives
+
+
+def _format_time_gap(seconds: float) -> str:
+    """Format a time gap in seconds to a human-readable string.
+
+    Args:
+        seconds: Absolute time gap in seconds.
+
+    Returns:
+        Human-readable time string (e.g., "3 minutes ago", "1.5 hours ago").
+    """
+    minutes = seconds / 60
+    if minutes < 1:
+        return f"{int(seconds)} seconds ago"
+    elif minutes < 60:
+        return f"{int(minutes)} minutes ago"
+    else:
+        hours = minutes / 60
+        return f"{hours:.1f} hours ago"
+
+
+def _infer_movement_pattern(
+    previous_camera: str | None,
+    current_camera: str | None,
+    zone_context: list[Any] | None,
+    time_gap_seconds: float,
+) -> str:
+    """Infer a movement pattern description from cross-camera data.
+
+    Uses heuristics based on camera names and zone types to describe how
+    a person is moving through the property. This gives the LLM actionable
+    context for risk assessment.
+
+    Args:
+        previous_camera: Camera ID where the person was previously seen.
+        current_camera: Camera ID where the person is currently detected.
+        zone_context: Zone context for the current detection.
+        time_gap_seconds: How long ago the previous sighting was (seconds).
+
+    Returns:
+        Movement pattern description string, or empty string if no pattern
+        can be inferred.
+    """
+    if not previous_camera or not current_camera:
+        return ""
+
+    # Check if current zones include entry points
+    has_entry_point = False
+    current_zone_types: list[str] = []
+    if zone_context:
+        for zc in zone_context:
+            ztype = getattr(zc, "zone_type", "")
+            current_zone_types.append(ztype)
+            if ztype == "entry_point":
+                has_entry_point = True
+
+    # Build pattern description
+    parts: list[str] = []
+
+    # Describe the camera transition
+    parts.append(f"moved from {previous_camera} to {current_camera}")
+
+    # Time-based context
+    minutes = time_gap_seconds / 60
+    if minutes < 2:
+        parts.append("in rapid succession")
+    elif minutes < 10:
+        parts.append(f"over {int(minutes)} minutes")
+    else:
+        parts.append(f"over {int(minutes)} minutes (extended presence)")
+
+    # Zone-based risk assessment
+    if has_entry_point:
+        parts.append("now at entry point (approaching property access)")
+    elif "driveway" in current_zone_types:
+        parts.append("now in driveway area")
+    elif "yard" in current_zone_types:
+        parts.append("now in yard/private area")
+
+    return ", ".join(parts) if parts else ""
 
 
 # ==============================================================================
@@ -4214,5 +4663,104 @@ def format_detections_with_quality(
                 f"- {len(boundary_detections)} detection(s) at frame boundary: "
                 f"{', '.join(boundary_classes)} - may be partially visible"
             )
+
+    return "\n".join(lines)
+
+
+# =============================================================================
+# Detection Confidence Quality Summary for LLM Prompt (NEM-5525)
+# =============================================================================
+# Generates a confidence distribution summary and quality guidance to help
+# Nemotron appropriately weight detection reliability in risk assessment.
+
+
+def format_confidence_quality_summary(
+    detections: Sequence[Mapping[str, Any]],
+) -> str:
+    """Format a confidence quality distribution summary for the Nemotron prompt.
+
+    Computes confidence quality tiers for each detection and generates both
+    a distribution summary and interpretation guidance for the LLM.
+
+    Args:
+        detections: List of detection dicts with 'confidence' key (0-1 float).
+            Also accepts 'class_name' or 'object_type' for labeling marginal
+            detections.
+
+    Returns:
+        Formatted string with confidence distribution and guidance, or empty
+        string if no detections have confidence values.
+
+    Example output:
+        ## Detection Confidence Quality
+        - 3 detections at EXCELLENT confidence (>=0.90) - trust fully
+        - 1 detection at GOOD confidence (0.75-0.89) - trust fully
+        - 1 detection at MARGINAL confidence (<0.60) - treat with caution
+
+        Confidence guidance: EXCELLENT/GOOD detections are reliable. MODERATE
+        detections should be verified with other signals. MARGINAL detections
+        are uncertain — do not base risk score primarily on them.
+    """
+    if not detections:
+        return ""
+
+    counts: dict[_ConfidenceQuality, int] = {
+        _ConfidenceQuality.EXCELLENT: 0,
+        _ConfidenceQuality.GOOD: 0,
+        _ConfidenceQuality.MODERATE: 0,
+        _ConfidenceQuality.MARGINAL: 0,
+    }
+    marginal_classes: list[str] = []
+
+    for det in detections:
+        conf = det.get("confidence")
+        if conf is None or conf <= 0:
+            continue
+        tier = _compute_confidence_quality(conf)
+        counts[tier] += 1
+        if tier == _ConfidenceQuality.MARGINAL:
+            cls_name = det.get("class_name", det.get("object_type", "unknown"))
+            marginal_classes.append(sanitize_object_type(cls_name))
+
+    total = sum(counts.values())
+    if total == 0:
+        return ""
+
+    tier_labels = {
+        _ConfidenceQuality.EXCELLENT: ("EXCELLENT", ">=0.90"),
+        _ConfidenceQuality.GOOD: ("GOOD", "0.75-0.89"),
+        _ConfidenceQuality.MODERATE: ("MODERATE", "0.60-0.74"),
+        _ConfidenceQuality.MARGINAL: ("MARGINAL", "<0.60"),
+    }
+
+    lines = ["## Detection Confidence Quality"]
+    for tier in (
+        _ConfidenceQuality.EXCELLENT,
+        _ConfidenceQuality.GOOD,
+        _ConfidenceQuality.MODERATE,
+        _ConfidenceQuality.MARGINAL,
+    ):
+        count = counts[tier]
+        if count == 0:
+            continue
+        label, range_str = tier_labels[tier]
+        suffix = ""
+        if tier in (_ConfidenceQuality.EXCELLENT, _ConfidenceQuality.GOOD):
+            suffix = " - trust fully"
+        elif tier == _ConfidenceQuality.MODERATE:
+            suffix = " - verify with other signals"
+        elif tier == _ConfidenceQuality.MARGINAL:
+            suffix = " - treat with caution"
+        lines.append(f"- {count} detection(s) at {label} confidence ({range_str}){suffix}")
+
+    if marginal_classes:
+        lines.append(f"  MARGINAL detections: {', '.join(marginal_classes)}")
+
+    lines.append("")
+    lines.append(
+        "Confidence guidance: EXCELLENT/GOOD detections are reliable. "
+        "MODERATE detections should be corroborated with other signals. "
+        "MARGINAL detections are uncertain — do not base risk score primarily on them."
+    )
 
     return "\n".join(lines)

@@ -5,6 +5,13 @@
 #
 # Multi-stage build: Uses shared base image to reduce build time by 60-80%
 # Build order: nvcr.io/nvidia/tensorrt -> builder stage -> base image extensions
+#
+# TensorRT Engine Pre-build (NEM-4999):
+#   Build with --build-arg PREBUILD_TENSORRT=true to pre-build TensorRT engines
+#   during image build, eliminating cold-start latency on first inference.
+#   Requires GPU access at build time (DOCKER_BUILDKIT=1).
+#   TensorRT engines are GPU-architecture-specific - document the target GPU.
+#   If pre-build is skipped, engines are built on first inference (existing behavior).
 
 FROM nvcr.io/nvidia/tensorrt:26.01-py3 AS tensorrt_base
 
@@ -68,15 +75,23 @@ RUN (groupadd -g 1000 yolo26 || true) && \
 COPY --chown=1000:1000 ai/yolo26/model.py .
 COPY --chown=1000:1000 ai/yolo26/metrics.py .
 COPY --chown=1000:1000 ai/yolo26/security.py .
+COPY --chown=1000:1000 ai/yolo26/build_engine.py .
 # Copy shared utilities
 COPY --chown=1000:1000 ai/compile_utils.py .
 COPY --chown=1000:1000 ai/torch_optimizations.py .
+COPY --chown=1000:1000 ai/tensorrt_prebuild.py .
 
 # Environment variables
 ENV HOST=0.0.0.0
 ENV PORT=8095
 ENV YOLO26_CONFIDENCE=0.5
 ENV YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+# TensorRT pre-build configuration (NEM-4999)
+# Set YOLO26_PREBUILD_ENGINE=true to build TensorRT engine on first startup
+# before serving requests. This trades one-time startup latency for
+# predictable inference performance on subsequent requests.
+# When false, engine is built on first inference request (existing behavior).
+ENV YOLO26_PREBUILD_ENGINE=true
 
 # Expose port
 EXPOSE 8095
@@ -91,8 +106,8 @@ USER 1000
 RUN mkdir -p /models/yolo26/exports
 
 # Health check using Python/httpx on /health endpoint
-# Start period of 60s allows time for model loading
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# Start period of 120s allows time for TensorRT engine pre-build + model loading
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD python -c "import httpx; r = httpx.get('http://localhost:8095/health'); r.raise_for_status()"
 
 # Use entrypoint for optional profiling

@@ -193,9 +193,9 @@ class TestDetectObjectsStoresInDatabase:
                         for x in range(size[0]):
                             # Add random noise to prevent PNG compression from being too effective
 
-                            r = (x + random.randint(0, 50)) % 256  # noqa: S311
-                            g = (y + random.randint(0, 50)) % 256  # noqa: S311
-                            b = ((x + y) + random.randint(0, 50)) % 256  # noqa: S311
+                            r = (x + random.randint(0, 50)) % 256  # noqa: S311  # nosemgrep: insecure-random
+                            g = (y + random.randint(0, 50)) % 256  # noqa: S311  # nosemgrep: insecure-random
+                            b = ((x + y) + random.randint(0, 50)) % 256  # noqa: S311  # nosemgrep: insecure-random
                             pixels[x, y] = (r, g, b)
                 format_name = "JPEG" if ext in (".jpg", ".jpeg") else "PNG"
                 img.save(f.name, format_name, quality=95 if format_name == "JPEG" else None)
@@ -243,20 +243,21 @@ class TestConfidenceFiltering:
         from backend.core.database import get_session
 
         # Response with detections at varying confidence levels
+        # Class-specific thresholds (NEM-4522): person=0.45, car=0.70, dog=0.55, cat=0.55
         response_data = {
             "detections": [
                 {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]},
-                {"class": "car", "confidence": 0.60, "bbox": [200, 250, 150, 200]},
+                {"class": "car", "confidence": 0.75, "bbox": [200, 250, 150, 200]},
                 {
                     "class": "dog",
                     "confidence": 0.45,
                     "bbox": [300, 350, 100, 120],
-                },  # Below threshold
+                },  # Below dog threshold (0.55)
                 {
                     "class": "cat",
                     "confidence": 0.30,
                     "bbox": [400, 450, 80, 100],
-                },  # Below threshold
+                },  # Below cat threshold (0.55)
             ],
             "processing_time_ms": 100.0,
             "image_size": [1920, 1080],
@@ -275,7 +276,8 @@ class TestConfidenceFiltering:
                     session=session,
                 )
 
-        # Default threshold is 0.5, so only person (0.95) and car (0.60) should pass
+        # Class thresholds: person 0.45, car 0.70, dog 0.55, cat 0.55
+        # person (0.95) passes, car (0.75) passes, dog (0.45) filtered, cat (0.30) filtered
         assert len(detections) == 2
         object_types = [d.object_type for d in detections]
         assert "person" in object_types
