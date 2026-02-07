@@ -239,6 +239,7 @@ class TestDetectorClientWarmup:
         # Warmup-specific settings (NEM-1670)
         mock.ai_warmup_enabled = True
         mock.ai_cold_start_threshold_seconds = 300.0  # 5 minutes
+        mock.detection_class_thresholds = {}
         return mock
 
     @pytest.fixture
