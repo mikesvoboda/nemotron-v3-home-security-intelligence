@@ -339,4 +339,4 @@ docker compose exec -T postgres psql -U security security < backup.sql
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

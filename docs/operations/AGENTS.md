@@ -39,12 +39,12 @@ Each runbook follows a consistent structure:
 
 ## Related Documentation
 
-| Resource                   | Location                                                       |
-| -------------------------- | -------------------------------------------------------------- |
-| Operator documentation hub | [../operator/README.md](../operator/README.md)                 |
-| Monitoring guide           | [../operator/monitoring.md](../operator/monitoring.md)         |
-| Troubleshooting guides     | [../reference/troubleshooting/](../reference/troubleshooting/) |
-| User guides                | [../guides/](../guides/)                                       |
+| Resource                   | Location                                                               |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Operator documentation hub | [../operator/README.md](../operator/README.md)                         |
+| Monitoring guide           | [../operator/monitoring.md](../operator/monitoring.md)                 |
+| Troubleshooting guides     | [../reference/troubleshooting/](../reference/troubleshooting/index.md) |
+| User guides                | [../guides/](../guides/AGENTS.md)                                      |
 
 ## Future Runbooks
 

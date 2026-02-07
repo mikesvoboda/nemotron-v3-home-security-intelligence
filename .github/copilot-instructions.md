@@ -5,7 +5,7 @@ detects objects using YOLO26, and analyzes security risks using Nemotron LLM.
 
 ## Tech Stack
 
-### Backend (Python 3.11)
+### Backend (Python 3.14)
 
 - **Framework**: FastAPI with async/await patterns
 - **Database**: SQLAlchemy ORM with PostgreSQL
@@ -14,7 +14,7 @@ detects objects using YOLO26, and analyzes security risks using Nemotron LLM.
 
 ### Frontend (TypeScript)
 
-- **Framework**: React 18 with functional components and hooks
+- **Framework**: React 19 with functional components and hooks
 - **Styling**: Tailwind CSS with Tremor component library
 - **Build**: Vite with strict TypeScript
 - **Testing**: Vitest with React Testing Library

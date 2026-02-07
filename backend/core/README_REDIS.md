@@ -206,7 +206,7 @@ except ConnectionError:
 Run unit tests with mocked Redis:
 
 ```bash
-pytest backend/tests/unit/test_redis.py -v
+pytest backend/tests/unit/core/test_redis.py -v
 ```
 
 ### Integration Tests
@@ -218,7 +218,7 @@ Run integration tests with real Redis:
 export REDIS_URL=redis://localhost:6379/15
 
 # Run tests
-pytest backend/tests/unit/test_redis.py -v
+pytest backend/tests/unit/core/test_redis.py -v
 ```
 
 Integration tests are automatically skipped if `REDIS_URL` is not set.

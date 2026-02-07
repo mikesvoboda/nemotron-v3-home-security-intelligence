@@ -73,7 +73,6 @@ curl http://localhost:8000/api/health/ai-services
 # Individual service health
 curl http://localhost:8095/health  # ai-yolo26 (YOLO26)
 curl http://localhost:8091/health  # ai-llm
-curl http://localhost:8095/health  # ai-yolo26
 ```
 
 ### Service Management

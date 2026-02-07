@@ -47,7 +47,7 @@ There are two deployment paths. Choose the one that fits your setup:
 | -------------- | ----------------- | ---------------------------------------- | ------------------------- |
 | **Production** | Run in containers | Simplest setup, everything containerized | `docker-compose.prod.yml` |
 
-> **Important:** Do NOT mix host-run AI servers with `docker-compose.prod.yml`. This causes port conflicts on 8090–8094.
+> **Important:** Do NOT mix host-run AI servers with `docker-compose.prod.yml`. This causes port conflicts on 8091–8096.
 
 ---
 
@@ -70,7 +70,7 @@ docker compose -f docker-compose.prod.yml up -d
 podman-compose -f docker-compose.prod.yml up -d
 ```
 
-**What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1)):
+**What starts** ([`docker-compose.prod.yml`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/docker-compose.prod.yml)):
 
 | Service       | Port         | Purpose                                            |
 | ------------- | ------------ | -------------------------------------------------- |
@@ -135,7 +135,7 @@ cd home-security-intelligence
 ./ai/start_detector.sh
 ```
 
-**What happens** ([`ai/yolo26/model.py`](../../ai/yolo26/model.py)):
+**What happens** ([`ai/yolo26/model.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/yolo26/model.py)):
 
 - Loads YOLO26 via HuggingFace Transformers (`YOLO26_MODEL_PATH`)
 - Starts HTTP server on port 8095
@@ -158,10 +158,10 @@ cd home-security-intelligence
 ./ai/start_llm.sh
 ```
 
-**What happens** ([`ai/start_llm.sh:36-43`](../../ai/start_llm.sh:36)):
+**What happens** ([`ai/start_llm.sh:36-43`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/start_llm.sh#L36)):
 
 - Loads the Nemotron GGUF model via llama.cpp
-- Starts HTTP server on port 8091 ([line 16](../../ai/start_llm.sh:16))
+- Starts HTTP server on port 8091 ([line 16](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/start_llm.sh#L16))
 - **Production**: Nemotron-3-Nano-30B (~14.7GB VRAM, 128K context)
 - **Development**: Nemotron Mini 4B (~3GB VRAM, 4K context)
 
@@ -210,7 +210,7 @@ podman-compose -f docker-compose.prod.yml up -d
 
 > **Note:** When running AI servers natively on the host, the backend container connects to them via `AI_HOST`.
 
-**What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1) without AI services, or start AI separately):
+**What starts** ([`docker-compose.prod.yml`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/docker-compose.prod.yml) without AI services, or start AI separately):
 
 | Service    | Port         | Purpose                                            |
 | ---------- | ------------ | -------------------------------------------------- |
@@ -375,7 +375,7 @@ lsof -i :8095
 lsof -i :8091
 ```
 
-### Port conflict on 8090/8091
+### Port conflict on 8095/8091
 
 This happens when you mix host AI servers with `docker-compose.prod.yml`.
 

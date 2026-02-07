@@ -1134,6 +1134,9 @@ Deviation score: {deviation_score}
 ## On-Demand Analysis Results
 {ondemand_enrichment_context}
 
+## CLIP Scene Intelligence
+{clip_analysis_context}
+
 ## Risk Interpretation Guide
 
 ### Violence Detection
@@ -1191,6 +1194,23 @@ Property crimes are CRIMINAL ACTS, not just suspicious behavior:
 - Property destruction = 65-85 (keying cars, breaking objects)
 - Fleeing after crime = Add +10 points (awareness of wrongdoing)
 
+### CLIP Scene Intelligence
+- Scene Classification: Use the top classification label as additional context
+  - 'normal activity' with high confidence (>0.6) = routine, lower risk
+  - 'person loitering' or 'suspicious approach' = consider upgrading risk
+  - 'property intrusion' or 'trespassing' = significant risk factor
+  - 'delivery in progress' or 'service worker visiting' = routine, lower risk
+- Threat Pattern Matches: High similarity scores (>0.3) indicate visual match to known threats
+  - Multiple threat patterns matching (>0.3 each) = compound risk, consider upgrading
+  - 'person checking door handles' + nighttime = HIGH risk
+  - 'delivery person leaving a package' high score = routine activity
+- Visual Anomaly Score: Measures deviation from camera's normal baseline
+  - 0.0-0.2 = normal scene (weight other evidence normally)
+  - 0.2-0.5 = minor deviation (slight concern, note in reasoning)
+  - 0.5-0.7 = significant deviation (notable change, investigate context)
+  - 0.7-1.0 = major deviation (dramatically different from normal - high concern)
+- CLIP results are complementary to other models - use them to corroborate or adjust
+
 ### Demographics Context
 - Age and gender are contextual factors only
 - Do NOT use demographics to escalate or de-escalate risk
@@ -1236,6 +1256,177 @@ Output JSON with comprehensive analysis:
 # ==============================================================================
 # Prompt Context Formatting Functions
 # ==============================================================================
+
+
+def format_clip_scene_classification(
+    scores: dict[str, float] | None,
+    top_label: str | None,
+) -> str:
+    """Format CLIP zero-shot scene classification results for prompt context.
+
+    Presents the top classification label with confidence and the top-3 labels
+    to give Nemotron additional scene-level context for risk assessment.
+    Expected to improve accuracy by 5-10% (NEM-5525).
+
+    Args:
+        scores: Dictionary mapping labels to softmax probabilities, or None
+        top_label: The label with the highest score, or None
+
+    Returns:
+        Formatted string for prompt inclusion
+
+    Examples:
+        >>> format_clip_scene_classification(
+        ...     {"normal activity": 0.82, "person loitering": 0.12, "trespassing": 0.06},
+        ...     "normal activity",
+        ... )
+        "CLIP Scene Classification: 'normal activity' (0.82)\\n  Top-3: ..."
+        >>> format_clip_scene_classification(None, None)
+        'CLIP Scene Classification: Not performed'
+    """
+    if scores is None or top_label is None:
+        return "CLIP Scene Classification: Not performed"
+
+    # Sort scores descending and get top 3
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    top_3 = sorted_scores[:3]
+
+    top_3_str = ", ".join(f"'{label}' ({score:.2f})" for label, score in top_3)
+
+    top_score = scores.get(top_label, 0.0)
+    return f"CLIP Scene Classification: '{top_label}' ({top_score:.2f})\n  Top-3: {top_3_str}"
+
+
+def format_clip_threat_analysis(
+    threat_matches: dict[str, float] | None,
+    top_n: int = 5,
+) -> str:
+    """Format CLIP threat pattern matching results for prompt context.
+
+    Presents the top-N matching threat descriptions with their similarity scores
+    so Nemotron can factor visual threat pattern matches into risk assessment.
+    Expected to improve precision by 3-7% (NEM-5525).
+
+    Args:
+        threat_matches: Dictionary mapping threat descriptions to similarity scores, or None
+        top_n: Number of top matches to include (default: 5)
+
+    Returns:
+        Formatted string for prompt inclusion
+
+    Examples:
+        >>> format_clip_threat_analysis(
+        ...     {"a person checking door handles": 0.78, "a delivery person leaving a package": 0.65},
+        ... )
+        "CLIP Threat Pattern Matches:\\n  'a person checking door handles' (0.78)\\n  ..."
+        >>> format_clip_threat_analysis(None)
+        'CLIP Threat Pattern Matches: Not performed'
+    """
+    if threat_matches is None:
+        return "CLIP Threat Pattern Matches: Not performed"
+
+    if not threat_matches:
+        return "CLIP Threat Pattern Matches: No patterns matched"
+
+    # Sort by score descending and take top N
+    sorted_matches = sorted(threat_matches.items(), key=lambda x: x[1], reverse=True)
+    top_matches = sorted_matches[:top_n]
+
+    lines = ["CLIP Threat Pattern Matches:"]
+    for description, score in top_matches:
+        lines.append(f"  '{description}' ({score:.2f})")
+
+    return "\n".join(lines)
+
+
+def format_clip_anomaly_context(
+    anomaly_score: float | None,
+    anomaly_similarity: float | None,
+) -> str:
+    """Format CLIP visual anomaly detection results for prompt context.
+
+    Presents the anomaly score (deviation from per-camera baseline) so Nemotron
+    can factor visual scene anomalies into risk assessment.
+    Expected to improve recall by 2-5% (NEM-5525).
+
+    The anomaly score indicates how different the current frame looks from
+    the camera's normal baseline:
+    - 0.0-0.2: Normal scene (matches baseline closely)
+    - 0.2-0.5: Minor deviation (slight changes from baseline)
+    - 0.5-0.7: Significant deviation (notable scene change)
+    - 0.7-1.0: Major deviation (dramatically different from baseline)
+
+    Args:
+        anomaly_score: Anomaly score in [0, 1], or None if not computed
+        anomaly_similarity: Cosine similarity to baseline in [-1, 1], or None
+
+    Returns:
+        Formatted string for prompt inclusion
+
+    Examples:
+        >>> format_clip_anomaly_context(0.73, 0.27)
+        'CLIP Visual Anomaly Score: 0.73 (significant deviation from baseline)'
+        >>> format_clip_anomaly_context(None, None)
+        'CLIP Visual Anomaly: Not performed (no baseline available)'
+    """
+    if anomaly_score is None:
+        return "CLIP Visual Anomaly: Not performed (no baseline available)"
+
+    # Categorize the anomaly level
+    if anomaly_score < 0.2:
+        level = "normal scene, matches baseline"
+    elif anomaly_score < 0.5:
+        level = "minor deviation from baseline"
+    elif anomaly_score < 0.7:
+        level = "significant deviation from baseline"
+    else:
+        level = "major deviation from baseline - investigate"
+
+    result = f"CLIP Visual Anomaly Score: {anomaly_score:.2f} ({level})"
+    if anomaly_similarity is not None:
+        result += f"\n  Baseline similarity: {anomaly_similarity:.2f}"
+
+    return result
+
+
+def format_clip_analysis_context(
+    enrichment_result: Any,
+) -> str:
+    """Format all CLIP analysis results into a combined context section.
+
+    Aggregates scene classification, threat pattern matching, and anomaly
+    detection into a single context block for prompt inclusion (NEM-5525).
+
+    Args:
+        enrichment_result: EnrichmentResult containing CLIP analysis fields
+
+    Returns:
+        Formatted string with all available CLIP analysis, or empty string
+        if no CLIP analysis was performed
+    """
+    sections: list[str] = []
+
+    # Scene classification
+    scene_scores = getattr(enrichment_result, "clip_scene_classification", None)
+    scene_top = getattr(enrichment_result, "clip_scene_top_label", None)
+    if scene_scores is not None:
+        sections.append(format_clip_scene_classification(scene_scores, scene_top))
+
+    # Threat pattern matching
+    threat_matches = getattr(enrichment_result, "clip_threat_matches", None)
+    if threat_matches is not None:
+        sections.append(format_clip_threat_analysis(threat_matches))
+
+    # Anomaly detection
+    anomaly_score = getattr(enrichment_result, "clip_anomaly_score", None)
+    anomaly_similarity = getattr(enrichment_result, "clip_anomaly_similarity", None)
+    if anomaly_score is not None:
+        sections.append(format_clip_anomaly_context(anomaly_score, anomaly_similarity))
+
+    if not sections:
+        return ""
+
+    return "\n".join(sections)
 
 
 def format_violence_context(
@@ -2290,6 +2481,27 @@ def format_detections_with_all_enrichment(
                     lines.append(f"Florence-2: {', '.join(attr_parts)}")
                 if p_attrs.caption:
                     lines.append(f"Description: {p_attrs.caption}")
+
+            # Add Florence-2 enhanced per-detection data (region descriptions, security VQA)
+            if vision_extraction.florence_enhanced:
+                enhanced = vision_extraction.florence_enhanced
+                # Region description for this detection
+                if det_id in enhanced.region_descriptions:
+                    region_desc = enhanced.region_descriptions[det_id]
+                    if region_desc:
+                        lines.append(f"Region detail: {region_desc}")
+
+                # Security VQA answers for this detection (persons only)
+                if det_id in enhanced.security_vqa:
+                    vqa_answers = enhanced.security_vqa[det_id]
+                    if vqa_answers:
+                        vqa_parts = []
+                        for question, answer in vqa_answers.items():
+                            # Abbreviate the question for concise output
+                            short_q = question.rstrip("?").split("?")[0]
+                            vqa_parts.append(f"{short_q}: {answer}")
+                        if vqa_parts:
+                            lines.append(f"Security VQA: {'; '.join(vqa_parts)}")
 
         # Add enrichment pipeline data if available
         if enrichment_result:
@@ -3703,11 +3915,14 @@ def format_florence_scene_context(florence_result: dict[str, Any] | None) -> str
     """Format Florence-2 enhanced extraction for Nemotron.
 
     Provides detailed scene context from Florence-2 including scene description,
-    security-relevant objects, and detected text.
+    security-relevant objects, dense captions, detected text, phrase grounding,
+    region descriptions, and security VQA answers.
 
     Args:
         florence_result: Dictionary containing Florence-2 extraction results
-            with keys like "scene", "security_objects", "text_regions"
+            with keys like "scene", "security_objects", "text_regions",
+            "dense_captions", "phrase_grounding", "region_descriptions",
+            "security_vqa"
 
     Returns:
         Formatted string for prompt inclusion, or empty string if no data.
@@ -3726,12 +3941,12 @@ def format_florence_scene_context(florence_result: dict[str, Any] | None) -> str
     if florence_result.get("scene"):
         lines.append(f"\n**Scene Description:**\n{florence_result['scene']}")
 
-    # Security-relevant objects detected
+    # Security-relevant objects detected (open vocabulary detection)
     if florence_result.get("security_objects"):
         objects = florence_result["security_objects"]
         labels = objects.get("labels", []) if isinstance(objects, dict) else []
         if labels:
-            lines.append(f"\n**Objects Detected:** {', '.join(labels)}")
+            lines.append(f"\n**Security Objects Detected:** {', '.join(labels)}")
 
             # Flag high-risk objects
             high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}
@@ -3739,12 +3954,64 @@ def format_florence_scene_context(florence_result: dict[str, Any] | None) -> str
             if detected_risks:
                 lines.append(f"- **HIGH RISK OBJECTS**: {', '.join(detected_risks)}")
 
-    # Text/plates found
+    # Dense captions (per-region descriptions)
+    dense_captions = florence_result.get("dense_captions")
+    if dense_captions and isinstance(dense_captions, list):
+        caption_texts = []
+        for region in dense_captions:
+            caption = region.get("caption", "") if isinstance(region, dict) else ""
+            if caption:
+                caption_texts.append(caption)
+        if caption_texts:
+            lines.append("\n**Region Descriptions:**")
+            for caption_text in caption_texts[:10]:  # Limit to 10 regions
+                lines.append(f"- {caption_text}")
+
+    # Text/plates found (OCR with region localization)
     if florence_result.get("text_regions"):
         texts = florence_result["text_regions"]
         labels = texts.get("labels", []) if isinstance(texts, dict) else []
         if labels:
             lines.append(f"\n**Visible Text:** {', '.join(labels)}")
+
+    # Phrase grounding results (threat validation)
+    phrase_grounding = florence_result.get("phrase_grounding")
+    if phrase_grounding and isinstance(phrase_grounding, list):
+        matched_phrases = []
+        for pg in phrase_grounding:
+            if isinstance(pg, dict) and pg.get("matched"):
+                phrase = pg.get("phrase", "")
+                num_matches = len(pg.get("bboxes", []))
+                if phrase:
+                    matched_phrases.append(f"{phrase} ({num_matches} location(s))")
+        if matched_phrases:
+            lines.append(f"\n**Phrase Grounding Matches:** {', '.join(matched_phrases)}")
+
+    # Region descriptions for specific detections
+    region_descs = florence_result.get("region_descriptions")
+    if region_descs and isinstance(region_descs, dict):
+        desc_entries = []
+        for det_id, desc in region_descs.items():
+            if desc:
+                desc_entries.append(f"[{det_id}] {desc}")
+        if desc_entries:
+            lines.append("\n**Detection Region Descriptions:**")
+            for entry in desc_entries[:10]:  # Limit to 10 entries
+                lines.append(f"- {entry}")
+
+    # Security VQA answers per detection
+    security_vqa = florence_result.get("security_vqa")
+    if security_vqa and isinstance(security_vqa, dict):
+        vqa_lines = []
+        for det_id, answers in security_vqa.items():
+            if isinstance(answers, dict) and answers:
+                vqa_lines.append(f"\n[Detection {det_id}]:")
+                for question, answer in answers.items():
+                    vqa_lines.append(f"  Q: {question}")
+                    vqa_lines.append(f"  A: {answer}")
+        if vqa_lines:
+            lines.append("\n**Security Assessment (VQA):**")
+            lines.extend(vqa_lines)
 
     if len(lines) == 1:  # Only header, no content
         return ""

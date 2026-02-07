@@ -61,13 +61,13 @@ user/
 
 ## Related Resources
 
-| Resource                                     | Description                                            | Audience         |
-| -------------------------------------------- | ------------------------------------------------------ | ---------------- |
-| [docs/getting-started/](../getting-started/) | Installation, first run, quick start, and product tour | All users        |
-| [docs/ui/](../ui/)                           | UI documentation and usability guides                  | End users        |
-| [docs/reference/](../reference/)             | Reference docs including accessibility                 | All users        |
-| [docs/operator/](../operator/)               | System administration and deployment                   | Operators/admins |
-| [docs/developer/](../developer/)             | Contributing, testing, and architecture                | Developers       |
+| Resource                                              | Description                                            | Audience         |
+| ----------------------------------------------------- | ------------------------------------------------------ | ---------------- |
+| [docs/getting-started/](../getting-started/README.md) | Installation, first run, quick start, and product tour | All users        |
+| [docs/ui/](../ui/README.md)                           | UI documentation and usability guides                  | End users        |
+| [docs/reference/](../reference/README.md)             | Reference docs including accessibility                 | All users        |
+| [docs/operator/](../operator/README.md)               | System administration and deployment                   | Operators/admins |
+| [docs/developer/](../developer/README.md)             | Contributing, testing, and architecture                | Developers       |
 
 ### Content Ownership
 

@@ -4,8 +4,8 @@
 
 Two integration test jobs are failing intermittently in CI for PR #5851:
 
-1. **Integration Tests (WebSocket) - Python 3.11**: No test output, coverage file not generated
-2. **Integration Tests (Services) - Python 3.11**: Foreign key constraint violations
+1. **Integration Tests (WebSocket) - Python 3.14**: No test output, coverage file not generated
+2. **Integration Tests (Services) - Python 3.14**: Foreign key constraint violations
 
 ## Root Cause Analysis
 

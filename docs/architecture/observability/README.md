@@ -8,7 +8,9 @@ The observability infrastructure provides full visibility into system operation 
 
 All components are designed for correlation. Log entries include trace IDs and span IDs enabling navigation from logs to traces. Metrics include labels that map to trace attributes. Grafana datasources are configured with derived fields and trace-to-metrics queries for seamless navigation between observability data types.
 
-The stack runs entirely in containers alongside the application services, with Prometheus scraping metrics endpoints, Loki aggregating logs, Jaeger collecting traces, and Grafana providing unified visualization. Alertmanager routes alerts based on severity and component, with inhibition rules preventing alert storms.
+The stack runs entirely in containers alongside the application services, with Prometheus scraping metrics endpoints, Jaeger collecting traces, and Grafana providing unified visualization. Alertmanager routes alerts based on severity and component, with inhibition rules preventing alert storms.
+
+> **Note:** Loki log aggregation is planned but not currently deployed. The `docker-compose.prod.yml` does not include a Loki service. Log references to Loki in the architecture diagrams represent the intended future state.
 
 ## Documents
 

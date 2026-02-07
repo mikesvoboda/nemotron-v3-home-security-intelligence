@@ -1300,6 +1300,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics-zones/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List analytics zone types
+         * @description Return available analytics zone endpoints.
+         *
+         *     This root endpoint provides discoverability for the analytics zones API.
+         *     Without it, GET /api/zones/ (which redirects here via 308) would produce
+         *     a 404, surfacing as an empty-body response in some HTTP client stacks.
+         *
+         *     Returns:
+         *         JSON object listing available sub-endpoints.
+         */
+        get: operations["analytics-zones_list_analytics_zones_root"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analytics-zones/approach-vectors/camera/{camera_id}": {
         parameters: {
             query?: never;
@@ -10132,8 +10159,9 @@ export interface paths {
          *     - Power usage
          *     - Inference FPS
          *
-         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
-         *     database load from frequent polling. GPU stats only update every 5 seconds anyway.
+         *     Results are cached in two tiers:
+         *     - L1: In-memory cache (HEALTH_CACHE_TTL_SECONDS, ~10s) for minimal latency
+         *     - L2: Redis CacheService (SHORT_TTL, 60s) for cache hit ratio metrics
          *
          *     Returns:
          *         GPUStatsResponse with GPU statistics (null values if unavailable)
@@ -10460,9 +10488,14 @@ export interface paths {
          *     to ensure the endpoint responds under 500ms SLO. Each component has a
          *     300ms timeout and all checks run concurrently via asyncio.gather.
          *
-         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce
-         *     load from frequent health probes. Cached responses are returned immediately
-         *     without re-checking services.
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (15 seconds) to reduce
+         *     load from frequent health probes. This TTL matches the default Prometheus
+         *     scrape_interval so most scrapes return instantly from cache. Health status
+         *     change events are emitted as background tasks to avoid adding WebSocket
+         *     broadcast latency to the response.
+         *
+         *     For frequent liveness probes use GET /api/system/health/live (~0ms).
+         *     For readiness probes use GET /api/system/health/ready (~2ms).
          *
          *     Returns:
          *         HealthResponse with overall status and individual service statuses.
@@ -11492,8 +11525,9 @@ export interface paths {
          *     - Total number of detections
          *     - Application uptime
          *
-         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
-         *     database load from three sequential COUNT queries.
+         *     Results are cached in two tiers:
+         *     - L1: In-memory cache (HEALTH_CACHE_TTL_SECONDS, ~10s) for minimal latency
+         *     - L2: Redis CacheService (SHORT_TTL, 60s) for cache hit ratio metrics
          *
          *     Returns:
          *         SystemStatsResponse with system statistics
@@ -45905,6 +45939,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "analytics-zones_list_analytics_zones_root": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available analytics zone endpoints */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
         };
     };

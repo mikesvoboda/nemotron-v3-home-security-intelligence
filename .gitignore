@@ -133,3 +133,4 @@ config/gpu-assignments.yml
 .ripgreprc
 .claude/*
 !.claude/skills/
+site/

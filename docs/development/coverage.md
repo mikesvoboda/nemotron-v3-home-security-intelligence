@@ -296,5 +296,5 @@ exclude_lines = [
 
 - [Testing Guide](testing.md) - Testing philosophy and patterns
 - [CI/CD Pipeline](../architecture/decisions.md) - How coverage is enforced in CI
-- [CLAUDE.md](../../CLAUDE.md) - Coverage requirements in project instructions
+- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Coverage requirements in project instructions
 - [Mutation Testing](../developer/patterns/mutation-testing.md) - Beyond line coverage

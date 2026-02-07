@@ -63,7 +63,7 @@ troubleshooting/
 ./scripts/start-ai.sh status
 
 # Check individual services
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 
 # Check pipeline
@@ -200,7 +200,7 @@ docker compose -f docker-compose.prod.yml ps
 
 ```bash
 # YOLO26
-curl http://localhost:8090/health
+curl http://localhost:8095/health
 
 # Nemotron
 curl http://localhost:8091/health

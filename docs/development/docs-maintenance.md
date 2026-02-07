@@ -403,4 +403,4 @@ Common issues:
 - [Contributing Guide](contributing.md) - PR process and code standards
 - [Pre-commit Hooks](hooks.md) - Other automated checks
 - [Code Quality](code-quality.md) - Linting and formatting tools
-- [CLAUDE.md](../../CLAUDE.md) - Project instructions
+- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions

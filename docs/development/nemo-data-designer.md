@@ -33,7 +33,7 @@ This document covers the integration of NVIDIA NeMo Data Designer for synthetic 
 
 ### Required Software
 
-- Python 3.11+ (matching project requirements)
+- Python 3.14+ (matching project requirements)
 - NVIDIA API key with access to Nemotron 49B
 
 ### Environment Variables

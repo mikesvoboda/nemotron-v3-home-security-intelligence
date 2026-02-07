@@ -8,7 +8,9 @@
 
 This hub documents the security considerations and implementations for the Home Security Intelligence system. The system is designed for **single-user, trusted network deployment** - it operates on a local network without exposure to the public internet.
 
-While the system does not require authentication by default (configurable via `API_KEY_ENABLED`), it implements defense-in-depth security measures including input validation, secure HTTP headers, path traversal protection, and SSRF prevention.
+--8<-- "docs/\_includes/auth-model.md"
+
+The system implements defense-in-depth security measures including input validation, secure HTTP headers, path traversal protection, and SSRF prevention.
 
 **Key Assumptions:**
 
@@ -65,6 +67,29 @@ flowchart TB
     API --> DB
     WS --> REDIS
     MEDIA --> FS
+```
+
+### Auth Flow
+
+The following diagram illustrates the first-time setup guard and authentication flow. When no admin user exists, the `SetupGuardMiddleware` returns 503 until registration is completed. After the first admin is created, all requests pass through normally.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Guard as SetupGuardMiddleware
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    Client->>Guard: Any API request
+    alt No admin user exists
+        Guard-->>Client: 503 Service Unavailable
+        Note over Client: Must register first
+        Client->>API: POST /api/auth/register
+        API->>DB: Create admin user
+        API-->>Client: 201 Created (JWT token)
+    else Admin exists
+        Guard->>API: Pass through
+        API-->>Client: Normal response
+    end
 ```
 
 ## Security Documents

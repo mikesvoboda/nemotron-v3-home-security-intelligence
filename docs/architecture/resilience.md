@@ -41,8 +41,7 @@ This document details the resilience patterns implemented in the Home Security I
 6. [Graceful Degradation](#graceful-degradation)
 7. [Recovery Strategies](#recovery-strategies)
 8. [Configuration Reference](#configuration-reference)
-9. [Image Generation Prompts](#image-generation-prompts)
-10. [WebSocket Circuit Breaker and Degraded Mode](#websocket-circuit-breaker-and-degraded-mode)
+9. [WebSocket Circuit Breaker and Degraded Mode](#websocket-circuit-breaker-and-degraded-mode)
 
 ---
 
@@ -114,16 +113,18 @@ flowchart TB
 
 ### Resilience Components
 
-| Component                                                        | Location                                  | Responsibility                              |
-| ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
-| [CircuitBreaker](../../backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:270` | Prevents cascading failures by failing fast |
-| [RetryHandler](../../backend/services/retry_handler.py)          | `backend/services/retry_handler.py:184`   | Exponential backoff with DLQ support        |
-| [ServiceHealthMonitor](../../backend/services/health_monitor.py) | `backend/services/health_monitor.py:44`   | Periodic health checks and auto-recovery    |
-| DegradationManager                                               | `backend/services/degradation_manager.py` | Graceful degradation during outages         |
+| Component                                                                                                                                  | Location                                  | Responsibility                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------- |
+| [CircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:270` | Prevents cascading failures by failing fast |
+| [RetryHandler](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py)          | `backend/services/retry_handler.py:184`   | Exponential backoff with DLQ support        |
+| [ServiceHealthMonitor](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/health_monitor.py) | `backend/services/health_monitor.py:44`   | Periodic health checks and auto-recovery    |
+| DegradationManager                                                                                                                         | `backend/services/degradation_manager.py` | Graceful degradation during outages         |
 
 ---
 
 ## Circuit Breaker Pattern
+
+![Circuit Breaker Pattern](../images/concepts/circuit-breaker.png)
 
 The circuit breaker protects external services from cascading failures by monitoring failure rates and temporarily blocking calls to unhealthy services.
 
@@ -162,7 +163,7 @@ stateDiagram-v2
 
 ### Implementation Details
 
-The [CircuitBreaker](../../backend/services/circuit_breaker.py) class at line 270 implements the pattern:
+The [CircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py) class at line 270 implements the pattern:
 
 ```python
 # backend/services/circuit_breaker.py:270
@@ -189,7 +190,7 @@ class CircuitBreaker:
 
 ### Circuit Breaker Configuration
 
-The [CircuitBreakerConfig](../../backend/services/circuit_breaker.py) at line 139 defines behavior:
+The [CircuitBreakerConfig](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py) at line 139 defines behavior:
 
 | Parameter             | Default | Description                                  |
 | --------------------- | ------- | -------------------------------------------- |
@@ -223,7 +224,7 @@ except CircuitBreakerError:
 
 ### Circuit Breaker Registry
 
-The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 1018 manages multiple breakers:
+The [CircuitBreakerRegistry](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/circuit_breaker.py) at line 1018 manages multiple breakers:
 
 ![Circuit Breaker Registry](../images/resilience/circuit-breaker-registry.svg)
 
@@ -245,7 +246,7 @@ flowchart TB
     end
 
     subgraph Services["Protected Services"]
-        S1[YOLO26<br/>:8090]
+        S1[YOLO26<br/>:8095]
         S2[Nemotron LLM<br/>:8091]
         S3[Redis<br/>:6379]
     end
@@ -269,7 +270,7 @@ flowchart TB
 
 ## Retry Handler with Exponential Backoff
 
-The [RetryHandler](../../backend/services/retry_handler.py) at line 184 provides automatic retries with exponential backoff for transient failures.
+The [RetryHandler](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py) at line 184 provides automatic retries with exponential backoff for transient failures.
 
 ### Retry Flow
 
@@ -318,7 +319,7 @@ flowchart TB
 
 ### Exponential Backoff Algorithm
 
-The [RetryConfig](../../backend/services/retry_handler.py) at line 64 configures backoff behavior:
+The [RetryConfig](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py) at line 64 configures backoff behavior:
 
 ```python
 # backend/services/retry_handler.py:64
@@ -441,7 +442,7 @@ Jobs in the DLQ include failure metadata:
 
 ### DLQ Statistics
 
-The [DLQStats](../../backend/services/retry_handler.py) dataclass at line 175:
+The [DLQStats](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/retry_handler.py) dataclass at line 175:
 
 ```python
 # backend/services/retry_handler.py:175
@@ -467,7 +468,7 @@ class DLQStats:
 
 ## Service Health Monitoring
 
-The [ServiceHealthMonitor](../../backend/services/health_monitor.py) at line 44 continuously monitors external services and orchestrates automatic recovery.
+The [ServiceHealthMonitor](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/health_monitor.py) at line 44 continuously monitors external services and orchestrates automatic recovery.
 
 ### Health Check Flow
 
@@ -733,57 +734,6 @@ The system supports different restart strategies via the ServiceManager interfac
 
 ---
 
-## Image Generation Prompts
-
-### Prompt: Resilience Architecture Overview
-
-**Dimensions:** 800x1200 (vertical 2:3)
-
-```
-Technical illustration of a resilience system architecture,
-showing layered defense with circuit breakers, retry logic, and health monitoring.
-
-Visual elements:
-- Top layer: incoming requests represented as flowing data streams
-- Middle layer: circuit breaker icons (open/closed switches) with state indicators
-- Retry layer: circular arrows with backoff timing indicators
-- Bottom layer: dead-letter queue as a secure vault/buffer
-- Side panel: health monitor with heartbeat line and status indicators
-
-Color scheme:
-- Dark background #121212
-- NVIDIA green #76B900 for healthy/success states
-- Red #E74856 for failures and DLQ
-- Yellow #FFB800 for warning/half-open states
-- Blue #3B82F6 for external services
-
-Style: Isometric technical diagram, clean lines, glowing data paths, vertical orientation
-No text overlays
-```
-
-### Prompt: Circuit Breaker State Machine
-
-**Dimensions:** 800x1000 (vertical)
-
-```
-Technical illustration of a circuit breaker state machine,
-showing three states: Closed, Open, and Half-Open.
-
-Visual elements:
-- Three interconnected circular nodes representing states
-- Arrows showing state transitions with trigger conditions
-- CLOSED state: green glow, electricity flowing through
-- OPEN state: red glow, broken connection, barrier
-- HALF_OPEN state: yellow glow, partial connection, testing probe
-
-Background: Dark #121212 with subtle grid pattern
-Accent lighting: State-appropriate colors (green/red/yellow)
-Style: Modern technical diagram, glowing circuit aesthetic, vertical layout
-No text overlays
-```
-
----
-
 ## WebSocket Circuit Breaker and Degraded Mode
 
 The system includes a dedicated WebSocket circuit breaker pattern for real-time connection resilience. This provides automatic recovery when Redis pub/sub experiences failures and graceful degradation when recovery fails.
@@ -836,7 +786,7 @@ flowchart TB
 
 ### WebSocket Circuit Breaker States
 
-The [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) implements the circuit breaker pattern specifically for WebSocket broadcaster services.
+The [WebSocketCircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/websocket_circuit_breaker.py) implements the circuit breaker pattern specifically for WebSocket broadcaster services.
 
 | State         | Description                                             | Behavior                                         |
 | ------------- | ------------------------------------------------------- | ------------------------------------------------ |
@@ -880,7 +830,7 @@ stateDiagram-v2
 
 ### Configuration
 
-Both [SystemBroadcaster](../../backend/services/system_broadcaster.py) and [EventBroadcaster](../../backend/services/event_broadcaster.py) use the following circuit breaker configuration:
+Both [SystemBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/system_broadcaster.py) and [EventBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) use the following circuit breaker configuration:
 
 | Parameter             | Default                   | Description                                    |
 | --------------------- | ------------------------- | ---------------------------------------------- |
@@ -1075,7 +1025,7 @@ stateDiagram-v2
 
 #### WebSocket Manager Architecture
 
-The [WebSocketManager](../../frontend/src/hooks/webSocketManager.ts) provides connection deduplication and automatic reconnection:
+The [WebSocketManager](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/hooks/webSocketManager.ts) provides connection deduplication and automatic reconnection:
 
 ![WebSocket Manager Architecture](../images/resilience/websocket-manager.svg)
 
@@ -1354,15 +1304,15 @@ Look for these log patterns:
 
 ## Related Documentation
 
-| Document                                                         | Purpose                                                                                               |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [Resilience Patterns Guide](../developer/resilience-patterns.md) | Developer guide with code examples for circuit breakers, retry logic, and prompt injection prevention |
-| [AI Pipeline](ai-pipeline.md)                                    | Detection and analysis flow                                                                           |
-| [Real-Time](real-time.md)                                        | WebSocket and pub/sub architecture                                                                    |
-| [Data Model](data-model.md)                                      | Database schema and relationships                                                                     |
-| [Backend AGENTS.md](../../backend/services/AGENTS.md)            | Service implementation details                                                                        |
-| [Frontend Hooks](frontend-hooks.md)                              | React hooks including useWebSocket                                                                    |
-| [Backend Core](../../backend/core/AGENTS.md)                     | Core infrastructure including Redis                                                                   |
+| Document                                                                                                                        | Purpose                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [Resilience Patterns Guide](../developer/resilience-patterns.md)                                                                | Developer guide with code examples for circuit breakers, retry logic, and prompt injection prevention |
+| [AI Pipeline](ai-pipeline.md)                                                                                                   | Detection and analysis flow                                                                           |
+| [Real-Time](real-time.md)                                                                                                       | WebSocket and pub/sub architecture                                                                    |
+| [Data Model](data-model.md)                                                                                                     | Database schema and relationships                                                                     |
+| [Backend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/AGENTS.md) | Service implementation details                                                                        |
+| [Frontend Hooks](frontend-hooks.md)                                                                                             | React hooks including useWebSocket                                                                    |
+| [Backend Core](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/AGENTS.md)          | Core infrastructure including Redis                                                                   |
 
 ---
 

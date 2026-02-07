@@ -461,4 +461,4 @@ curl http://localhost:8094/health  # Enrichment
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

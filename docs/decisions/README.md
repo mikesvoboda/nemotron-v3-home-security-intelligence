@@ -14,6 +14,7 @@ Architecture Decision Records (ADRs) capture the context, options evaluated, and
 | [Documentation Reorganization](2026-01-12-docs-reorganization-design.md)            | 2026-01-12 | Approved    | Hub-and-spoke documentation architecture with role-based entry points |
 | [Grafana Integration](grafana-integration.md)                                       | 2025-12-27 | Decided     | Use native Tremor charts with link to standalone Grafana              |
 | [Entity-Detection Referential Integrity](entity-detection-referential-integrity.md) | -          | Placeholder | Database constraints between entities and detections                  |
+| [Risk Score Validation Suite](2026-01-31-risk-score-validation-suite.md)            | 2026-01-31 | Implemented | Automated risk score validation test suite for AI pipeline            |
 
 ---
 
@@ -80,8 +81,8 @@ ADRs follow this standard structure:
 ## Related Documentation
 
 - [AGENTS.md](AGENTS.md) - Agent guide for this directory
-- [Design Plans](../plans/) - Brainstorming and implementation plans
-- [Developer Hub](../developer/) - Developer documentation index
+- [Design Plans](../plans/README.md) - Brainstorming and implementation plans
+- [Developer Hub](../developer/README.md) - Developer documentation index
 
 ---
 

@@ -59,8 +59,7 @@ architecture/
 | Error Handling             | Graceful degradation, retry logic, dead-letter queues  |
 | Security Model             | Current state and production hardening recommendations |
 | Performance                | Latency characteristics and resource usage             |
-| Configuration Summary      | Key environment variables                              |
-| Image Generation Prompts   | AI prompts for generating architecture diagrams        |
+| Configuration Summary      | Key environment variables and settings                 |
 
 **Key Diagrams:**
 

@@ -50,6 +50,21 @@ The production 30B model with 128K context enables:
 - Rich historical baseline comparisons
 - Cross-camera activity correlation in a single prompt
 
+### go2rtc Video Streaming Integration
+
+![WebRTC Streaming](../images/concepts/webrtc-streaming.png)
+
+Camera streams are proxied through go2rtc, which provides WebRTC for low-latency live viewing in the dashboard and a REST API for the backend to request snapshots and manage streams.
+
+```mermaid
+flowchart LR
+    CAM["IP Camera<br/>(RTSP)"] -->|RTSP Stream| G2R["go2rtc<br/>:1984"]
+    G2R -->|"WebRTC<br/>:8555"| UI["React Dashboard"]
+    G2R -->|"REST API<br/>:1984"| BE["Backend API"]
+    BE -->|Stream URLs| UI
+    BE -->|Snapshot Request| G2R
+```
+
 ## Enrichment Services (Ports 8092–8094)
 
 In production deployments, the system can run additional AI services:
@@ -150,4 +165,4 @@ AI services can run either:
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

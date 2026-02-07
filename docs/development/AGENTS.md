@@ -12,6 +12,7 @@ development/
   AGENT_COORDINATION.md           # Parallel agent coordination protocol
   api-breaking-change-detection.md # API breaking change detection guide
   buildkit-secrets.md             # BuildKit secrets for Docker builds
+  ci-cd.md                        # CI/CD pipeline configuration and workflows
   code-quality.md                 # Code quality tooling and standards
   contributing.md                 # Contribution guidelines
   coverage.md                     # Coverage reporting and analysis
@@ -23,8 +24,10 @@ development/
   health-monitoring-di.md         # Health monitoring dependency injection patterns
   hooks.md                        # Git hooks configuration
   linear-integration.md           # Linear MCP tools and workflow states
+  metrics-implementation-status.md # Metrics implementation tracking
   migration-rollback.md           # Database migration rollback procedures
   model-testing.md                # AI model testing and validation guide
+  mqtt-client-test-summary.md     # MQTT client testing summary and results
   multi-gpu.md                    # Multi-GPU support and configuration guide
   nemo-data-designer.md           # NeMo Data Designer integration for synthetic data
   nemotron-buildkit-secrets.md    # Nemotron BuildKit secrets guide
@@ -36,6 +39,8 @@ development/
   setup.md                        # Development environment setup
   ssl-https.md                    # SSL/HTTPS configuration for development
   synthetic-data-quality.md       # Synthetic data quality metrics
+  tdd-stream-config-tests.md     # TDD stream configuration test cases
+  test-optimization-guide.md     # Test optimization strategies and guide
   testing.md                      # Testing guide
   testing-workflow.md             # TDD workflow and test patterns by layer
   validation-alignment.md         # Frontend/backend validation alignment guide

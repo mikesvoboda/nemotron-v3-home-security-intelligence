@@ -139,7 +139,7 @@ After these fixes:
 
 ## Related Issues
 
-- Addresses flaky "Integration Tests (Services) - Python 3.11" CI failures
+- Addresses flaky "Integration Tests (Services) - Python 3.14" CI failures
 - Fixes test retry issues (tests were retrying 3 times due to database constraint violations)
 - Improves test reliability and developer experience
 

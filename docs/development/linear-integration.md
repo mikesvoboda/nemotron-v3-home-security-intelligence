@@ -128,5 +128,5 @@ https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1
 
 ## Related Documentation
 
-- [Session Workflow](../../CLAUDE.md#session-workflow) - How to claim and complete tasks
-- [Task Execution Order](../../CLAUDE.md#task-execution-order) - Phase-based task organization
+- [Session Workflow](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md#session-workflow) - How to claim and complete tasks
+- [Task Execution Order](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md#task-execution-order) - Phase-based task organization

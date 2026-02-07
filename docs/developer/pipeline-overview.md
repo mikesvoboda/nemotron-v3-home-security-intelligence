@@ -135,7 +135,7 @@ flowchart LR
 
     subgraph Detection["Object Detection"]
         DQ[detection_queue]
-        YOLO["YOLO26<br/>(Port 8090)"]
+        YOLO["YOLO26<br/>(Port 8095)"]
     end
 
     subgraph Batching["Batch Aggregation"]

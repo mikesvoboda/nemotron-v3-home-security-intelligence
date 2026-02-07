@@ -11,9 +11,9 @@ This document captures the key architectural decisions made during the developme
 3. [ADR-003: Detection Batching Strategy](#adr-003-detection-batching-strategy)
 4. [ADR-004: Fully Containerized Deployment with GPU Passthrough](#adr-004-fully-containerized-deployment-with-gpu-passthrough)
 5. [ADR-005: No Authentication](#adr-005-no-authentication)
-6. [ADR-006: YOLO26 for Object Detection](#adr-006-yolo26v2-for-object-detection)
+6. [ADR-006: YOLO26 for Object Detection](#adr-006-yolo26-for-object-detection)
 7. [ADR-007: Nemotron for Risk Analysis](#adr-007-nemotron-for-risk-analysis)
-8. [ADR-008: FastAPI + React Stack](#adr-008-fastapi--react-stack)
+8. [ADR-008: FastAPI + React Stack](#adr-008-fastapi-react-stack)
 9. [ADR-009: WebSocket for Real-time Updates](#adr-009-websocket-for-real-time-updates)
 10. [ADR-010: LLM-Determined Risk Scoring](#adr-010-llm-determined-risk-scoring)
 11. [ADR-011: Native Tremor Charts over Grafana Embeds](#adr-011-native-tremor-charts-over-grafana-embeds)
@@ -151,7 +151,9 @@ A single "person walks to door" event might generate 15+ camera images over 30 s
 
 ### Decision
 
-Batch detections into **90-second time windows** with **30-second idle timeout**, then analyze the batch as a single event.
+Batch detections into time windows with idle timeout, then analyze the batch as a single event.
+
+--8<-- "docs/\_includes/batching-config.md"
 
 ### Alternatives Considered
 
@@ -276,7 +278,7 @@ flowchart TB
         BE[Backend :8000]
         RD[Redis :6379]
         PG[PostgreSQL :5432]
-        DET[YOLO26 :8090]
+        DET[YOLO26 :8095]
         LLM[Nemotron :8091]
     end
 
@@ -297,7 +299,8 @@ flowchart TB
 
 ## ADR-005: No Authentication
 
-**Status:** Accepted
+**Status: Superseded** — The system now requires first-time admin registration via SetupGuardMiddleware (returns 503 until first user is created). After registration, API endpoints are open. Per-route protections (`verify_api_key`, `require_admin_access`) guard admin/destructive operations.
+
 **Date:** 2024-12-21
 
 ### Context
@@ -306,7 +309,7 @@ This is a single-user home security system deployed on a trusted local network. 
 
 ### Decision
 
-**No authentication** for MVP. The system assumes it runs on a trusted network and is accessed by a single user.
+**No authentication** for MVP (now superseded by SetupGuardMiddleware; see status note above). The system assumes it runs on a trusted network and is accessed by a single user.
 
 ### Alternatives Considered
 
@@ -550,10 +553,8 @@ const { isConnected, lastMessage } = useWebSocket({
 ```
 
 **WebSocket Channels:**
-| Endpoint | Purpose | Message Types |
-|----------|---------|---------------|
-| `/ws/events` | Security events | `new_event`, `detection` |
-| `/ws/system` | System status | `gpu_stats`, `camera_status` |
+
+--8<-- "docs/\_includes/websocket-channels.md"
 
 ---
 
@@ -598,12 +599,7 @@ Let the **LLM determine risk scores** based on context, rather than using algori
 
 > See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
 
-```
-- 0-29 (low): Normal activity, no concern
-- 30-59 (medium): Unusual but not threatening
-- 60-84 (high): Suspicious activity requiring attention
-- 85-100 (critical): Potential security threat, immediate action needed
-```
+--8<-- "docs/\_includes/risk-scoring-levels.md"
 
 ---
 
@@ -795,142 +791,6 @@ flowchart TB
     HY --> LLM
     ST --> WS
     ST --> CH
-```
-
----
-
-## Image Generation Prompts
-
-These prompts can be used with AI image generators to create documentation infographics.
-
-### 1. Database Trade-off Comparison
-
-**Prompt:**
-
-```
-Create a documentation infographic showing PostgreSQL as the chosen database for a
-home security AI application.
-
-Style: Clean technical documentation, dark theme (#0E0E0E background),
-accent color #76B900 (NVIDIA green).
-
-Layout: Center-focused with PostgreSQL highlighted.
-
-Center "PostgreSQL" (highlighted as chosen):
-- Icon: Elephant database icon
-- Pros (green checkmarks): Concurrent writes, Full-text search, JSONB support, Transaction isolation
-- Use case: AI pipeline with parallel workers
-
-Bottom section: Decision matrix showing "Concurrent AI Pipeline + Parallel Workers = PostgreSQL"
-
-Visual hierarchy: Clean sans-serif fonts, generous whitespace, subtle borders.
-Dimensions: 1200x800 pixels, suitable for documentation.
-```
-
-### 2. Technology Stack Visualization
-
-**Prompt:**
-
-```
-Create a technology stack visualization for a home security AI system showing
-why each technology was chosen.
-
-Style: Modern tech documentation, dark theme (#1A1A1A background),
-highlight color #76B900.
-
-Layout: Layered architecture diagram with 4 horizontal layers.
-
-Top Layer "Frontend":
-- React logo + "React 18" - "Component ecosystem"
-- TypeScript logo + "TypeScript" - "Type safety"
-- Tailwind logo + "Tailwind" - "Utility-first CSS"
-- Tremor logo + "Tremor" - "Dashboard components"
-
-Second Layer "Backend":
-- Python logo + "FastAPI" - "Async-native, auto-docs"
-- WebSocket icon + "WebSocket" - "Real-time bidirectional"
-
-Third Layer "Data":
-- PostgreSQL logo + "PostgreSQL" - "Concurrent, reliable"
-- Redis logo + "Redis" - "Queues + Pub/Sub"
-
-Bottom Layer "AI":
-- PyTorch logo + "YOLO26" - "30-50ms detection"
-- NVIDIA logo + "Nemotron 30B" - "Local LLM privacy"
-- GPU icon + "RTX A5500" - "24GB VRAM"
-
-Arrows showing data flow between layers.
-Dimensions: 1400x900 pixels, suitable for README or architecture docs.
-```
-
-### 3. Deployment Decision Diagram
-
-**Prompt:**
-
-```
-Create a deployment architecture decision diagram showing fully containerized
-deployment with GPU passthrough via NVIDIA Container Toolkit (CDI).
-
-Style: Technical infrastructure diagram, dark theme, green (#76B900)
-and blue (#0066CC) accent colors.
-
-Layout: Unified container diagram showing all services in Docker/Podman.
-
-"Docker/Podman Containers" (blue container icons):
-- Frontend container (:5173) - "React dashboard"
-- Backend container (:8000) - "FastAPI API"
-- Redis container (:6379) - "Queues + Pub/Sub"
-- PostgreSQL container (:5432) - "Database"
-- YOLO26 container (:8090) - "Object detection ~4GB VRAM"
-- Nemotron container (:8091) - "Risk analysis ~14.7GB VRAM"
-- Label: "Uniform deployment, all services containerized"
-
-GPU Hardware (green GPU icons):
-- GPU hardware icon - "RTX A5500 24GB"
-- Label: "GPU access via CDI (NVIDIA Container Toolkit)"
-
-Show CDI arrows from AI containers to GPU hardware.
-Decision callout: "Fully containerized: Single docker-compose command deploys everything"
-
-Dimensions: 1400x800 pixels, landscape orientation for documentation.
-```
-
-### 4. Batching Strategy Infographic
-
-**Prompt:**
-
-```
-Create an infographic explaining the detection batching strategy with
-90-second windows and 30-second idle timeout.
-
-Style: Process flow diagram, dark theme (#0E0E0E), timeline visualization,
-accent colors green (#76B900) for normal path, orange (#FFB800) for fast path.
-
-Layout: Horizontal timeline showing batching logic.
-
-Top section "The Problem":
-- 15 camera images icon
-- Arrow to 15 separate alerts icon
-- Caption: "Without batching: 15 images = 15 noisy alerts"
-
-Middle section "The Solution" (main focus):
-- Timeline from 0s to 90s
-- Detection icons clustered along timeline
-- 90s window marker (full width)
-- 30s idle timeout marker (partial)
-- Arrow to single event icon
-- Caption: "With batching: 15 images = 1 contextual event"
-
-Bottom section "Fast Path Exception":
-- Person icon with >90% confidence badge
-- Lightning bolt arrow to immediate alert
-- Caption: "High-confidence person detections bypass batching"
-
-Include small comparison box:
-- "Per-image: 15 LLM calls, no context"
-- "Batched: 1 LLM call, full context"
-
-Dimensions: 1200x700 pixels, suitable for README.
 ```
 
 ---

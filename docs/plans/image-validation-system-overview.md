@@ -92,7 +92,7 @@ This report evaluates 11 generated images for the System Overview architecture d
 **Recommendations:**
 
 1. Add icons or labels for all technology categories from documentation
-2. Show Frontend stack: React 18.2, TypeScript 5.3, Tailwind CSS 3.4, Tremor 3.17, Vite 5.0
+2. Show Frontend stack: React 19, TypeScript 5.3, Tailwind CSS 3.4, Tremor 3.17, Vite 5.0
 3. Show Backend stack: Python 3.14+, FastAPI 0.104+, SQLAlchemy 2.0, Pydantic 2.0
 4. Show AI/ML stack: PyTorch 2.x, YOLO26, Nemotron-3-Nano-30B, llama.cpp
 5. Show Infrastructure: Docker/Podman, NVIDIA Container Toolkit, Prometheus, Grafana

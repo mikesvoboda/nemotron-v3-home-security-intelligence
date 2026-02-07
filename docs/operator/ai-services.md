@@ -387,4 +387,4 @@ _Context enrichment pipeline showing how detection data flows through zone analy
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

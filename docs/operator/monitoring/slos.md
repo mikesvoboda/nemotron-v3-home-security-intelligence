@@ -233,7 +233,7 @@ The SLO dashboard (`monitoring/grafana/dashboards/slo.json`) provides:
 
 ## Related Documentation
 
-- [Prometheus Rules](../monitoring/prometheus-rules.yml)
-- [Alerting Rules](../monitoring/alerting-rules.yml)
-- [Alertmanager Configuration](../monitoring/alertmanager.yml)
-- [SLO Dashboard](../monitoring/grafana/dashboards/slo.json)
+- [Prometheus Rules](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/monitoring/prometheus-rules.yml)
+- [Alerting Rules](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/monitoring/alerting-rules.yml)
+- [Alertmanager Configuration](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/monitoring/alertmanager.yml)
+- [SLO Dashboard](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/monitoring/grafana/dashboards/) (see dashboards directory)

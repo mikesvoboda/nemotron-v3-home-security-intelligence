@@ -948,7 +948,7 @@ service = ManagedService(
     name="ai-yolo26",
     container_id="abc123",
     image="ghcr.io/.../yolo26:latest",
-    port=8090,
+    port=8095,
     health_endpoint="/health",
     category=ServiceCategory.AI,
 )
@@ -967,7 +967,7 @@ async with DockerClient() as docker:
     await monitor.stop()
 
 # Check individual service health
-healthy = await check_http_health("localhost", 8090, "/health")
+healthy = await check_http_health("localhost", 8095, "/health")
 healthy = await check_cmd_health(docker_client, "container_id", "pg_isready")
 ```
 
@@ -2480,7 +2480,7 @@ service = ManagedService(
     display_name="YOLO26v2",
     container_id="abc123",
     image="ghcr.io/.../yolo26:latest",
-    port=8090,
+    port=8095,
     health_endpoint="/health",
     category=ServiceCategory.AI,
     status=ContainerServiceStatus.RUNNING,
@@ -3366,7 +3366,7 @@ assert clamped == (10, 10, 100, 100)
 
 ### External Services
 
-- **YOLO26v2 HTTP server** (port 8090) - Object detection
+- **YOLO26v2 HTTP server** (port 8095) - Object detection
 - **ai-florence HTTP server** (port 8092) - Florence-2 vision-language
 - **ai-clip HTTP server** (port 8093) - CLIP embeddings
 - **llama.cpp server** (port 8080) - Nemotron LLM inference

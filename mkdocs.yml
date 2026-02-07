@@ -1,0 +1,193 @@
+site_name: Home Security Intelligence
+site_description: AI-powered home security monitoring — 100% local, no cloud APIs required
+site_url: https://mikesvoboda.github.io/nemotron-v3-home-security-intelligence/
+repo_url: https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence
+repo_name: nemotron-v3-home-security-intelligence
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: blue
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: blue
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - awesome-pages
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.snippets:
+      base_path: ['.']
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.mark
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/README.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - First Run Tour: getting-started/tour.md
+      - Upgrading: getting-started/upgrading.md
+  - User Guide:
+      - user/README.md
+      - Dashboard: ui/dashboard.md
+      - Alerts: ui/alerts.md
+      - Timeline: ui/timeline.md
+      - Analytics: ui/analytics.md
+      - Entities: ui/entities.md
+      - Zones: ui/zones.md
+      - Settings: ui/settings.md
+      - AI Audit: ui/ai-audit.md
+      - AI Performance: ui/ai-performance.md
+      - Operations: ui/operations.md
+      - Mobile PWA: ui/mobile-pwa.md
+      - Keyboard Shortcuts: ui/keyboard-shortcuts.md
+      - Notification Setup: user/notification-setup.md
+  - Operator Guide:
+      - operator/README.md
+      - Deployment:
+          - operator/deployment/README.md
+          - Deployment Modes: operator/deployment-modes.md
+          - Self-Hosted Runner: operator/deployment/self-hosted-runner.md
+      - AI Services:
+          - Overview: operator/ai-overview.md
+          - Installation: operator/ai-installation.md
+          - Configuration: operator/ai-configuration.md
+          - GPU Setup: operator/gpu-setup.md
+          - Performance: operator/ai-performance.md
+          - TLS: operator/ai-tls.md
+          - Troubleshooting: operator/ai-troubleshooting.md
+      - Monitoring:
+          - operator/monitoring/README.md
+          - SLOs: operator/monitoring/slos.md
+          - Prometheus Alerting: operator/prometheus-alerting.md
+      - Administration:
+          - operator/admin/README.md
+          - API Keys: operator/admin/api-keys.md
+          - Security: operator/admin/security.md
+          - Secrets Management: operator/secrets-management.md
+      - Data Management:
+          - Database: operator/database.md
+          - Redis: operator/redis.md
+          - Backup: operator/backup.md
+          - Storage & Retention: operator/storage-retention.md
+          - DLQ Management: operator/dlq-management.md
+  - Developer Guide:
+      - developer/README.md
+      - Codebase Tour: developer/codebase-tour.md
+      - Local Setup: developer/local-setup.md
+      - API Reference:
+          - developer/api/README.md
+          - Core Resources: developer/api/core-resources.md
+          - AI Pipeline: developer/api/ai-pipeline.md
+          - System Ops: developer/api/system-ops.md
+          - System Monitoring: developer/api/system-monitoring.md
+          - Real-time: developer/api/realtime.md
+          - Webhooks: developer/api/webhooks.md
+          - Calibration: developer/api/calibration.md
+          - WebSocket Contracts: developer/api/websocket-contracts.md
+          - API Coverage: developer/api/coverage.md
+      - Patterns:
+          - developer/patterns/README.md
+          - Frontend: developer/patterns/frontend.md
+          - Backend: developer/backend-patterns.md
+          - Resilience: developer/resilience-patterns.md
+          - Form Validation: developer/patterns/form-validation.md
+          - Mutation Testing: developer/patterns/mutation-testing.md
+      - Contributing:
+          - developer/contributing/README.md
+          - Chrome DevTools: developer/contributing/chrome-devtools.md
+          - Copilot Setup: developer/contributing/copilot-setup.md
+          - Linear Setup: developer/contributing/linear-setup.md
+  - Architecture:
+      - architecture/README.md
+      - System Overview: architecture/overview.md
+      - AI Pipeline: architecture/ai-pipeline.md
+      - Data Model: architecture/data-model.md
+      - Real-time System: architecture/real-time.md
+      - Resilience: architecture/resilience.md
+      - Decisions: architecture/decisions.md
+      - Security:
+          - architecture/security/README.md
+      - Middleware:
+          - architecture/middleware/README.md
+      - Observability:
+          - architecture/observability/README.md
+      - Dataflows:
+          - architecture/dataflows/README.md
+  - AI Model Zoo:
+      - ai/model-zoo.md
+  - Feature Guides:
+      - Video Analytics: guides/video-analytics.md
+      - Zone Configuration: guides/zone-configuration.md
+      - Face Recognition: guides/face-recognition.md
+      - Household Registration: guides/household-registration.md
+      - Profiling: guides/profiling.md
+  - Reference:
+      - reference/README.md
+      - Environment Variables: reference/config/env-reference.md
+      - Risk Levels: reference/config/risk-levels.md
+      - Glossary: reference/glossary.md
+      - Keyboard Shortcuts: reference/keyboard-shortcuts.md
+      - Troubleshooting:
+          - reference/troubleshooting/index.md
+          - AI Issues: reference/troubleshooting/ai-issues.md
+          - Connection Issues: reference/troubleshooting/connection-issues.md
+          - Database Issues: reference/troubleshooting/database-issues.md
+          - GPU Issues: reference/troubleshooting/gpu-issues.md
+  - Decisions:
+      - decisions/README.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence

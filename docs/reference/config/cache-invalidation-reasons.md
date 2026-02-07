@@ -117,5 +117,3 @@ print(str(reason))  # Output: event_created
 - [Resilience Patterns](../../architecture/resilience-patterns/README.md) - Cache strategies
 
 ---
-
-[Back to Configuration Reference](./)

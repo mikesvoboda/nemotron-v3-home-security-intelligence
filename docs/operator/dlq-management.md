@@ -427,4 +427,4 @@ Read-only operations (stats, list jobs) do not require authentication.
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

@@ -356,4 +356,4 @@ services:
 
 ---
 
-[Back to Operator Hub](../../operator/)
+[Back to Operator Hub](../../operator/README.md)

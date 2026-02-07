@@ -153,9 +153,12 @@ nemo = [
 quantization = [
     "bitsandbytes>=0.44.0",
 ]
-# Documentation validation tools
+# Documentation tools (MkDocs site + validation)
 # Usage: `uv sync --extra docs` or `uv sync --group docs`
 docs = [
+    "mkdocs-material>=9.6.0",
+    "mkdocs-awesome-pages-plugin>=2.10.0",
+    "mkdocs-minify-plugin>=0.8.0",
     "tree-sitter>=0.23.0",
     "tree-sitter-python>=0.23.0",
     "tree-sitter-typescript>=0.23.0",
@@ -259,9 +262,12 @@ nemo = [
     "numpy>=1.24.0",
 ]
 
-# Documentation validation tools
+# Documentation tools (MkDocs site + validation)
 # Usage: uv sync --group docs
 docs = [
+    "mkdocs-material>=9.6.0",
+    "mkdocs-awesome-pages-plugin>=2.10.0",
+    "mkdocs-minify-plugin>=0.8.0",
     "tree-sitter>=0.23.0",
     "tree-sitter-python>=0.23.0",
     "tree-sitter-typescript>=0.23.0",

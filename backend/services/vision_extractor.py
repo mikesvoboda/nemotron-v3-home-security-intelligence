@@ -18,13 +18,21 @@ descriptions to prevent misclassification (e.g., bus -> police car hallucination
 
 from __future__ import annotations
 
+import asyncio
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
 from backend.services.bbox_validation import prepare_bbox_for_crop
-from backend.services.florence_client import FlorenceUnavailableError, get_florence_client
+from backend.services.florence_client import (
+    BoundingBox as FlorenceBoundingBox,
+)
+from backend.services.florence_client import (
+    FlorenceUnavailableError,
+    SecurityObjectsResult,
+    get_florence_client,
+)
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -769,6 +777,61 @@ class SceneAnalysis:
 
 
 @dataclass(slots=True)
+class FlorenceEnhancedScene:
+    """Enhanced scene context from Florence-2 advanced capabilities.
+
+    Aggregates results from security objects detection, dense captioning,
+    OCR with regions, phrase grounding, and security VQA queries.
+    These feed into the Nemotron prompt via format_florence_scene_context().
+
+    Attributes:
+        security_objects: Security-relevant objects detected via open vocabulary
+        dense_captions: Per-region descriptions with bounding boxes
+        text_regions: OCR text with spatial bounding box regions
+        phrase_grounding: Results of phrase grounding for security-relevant phrases
+        region_descriptions: Descriptions for YOLO detection regions
+        security_vqa: Security-focused VQA answers keyed by detection_id
+    """
+
+    security_objects: SecurityObjectsResult | None = None
+    dense_captions: list[dict[str, Any]] = field(default_factory=list)
+    text_regions: list[dict[str, Any]] = field(default_factory=list)
+    phrase_grounding: list[dict[str, Any]] = field(default_factory=list)
+    region_descriptions: dict[str, str] = field(default_factory=dict)
+    security_vqa: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        security_objs = None
+        if self.security_objects:
+            security_objs = {
+                "labels": [d.label for d in self.security_objects.detections],
+                "detections": [
+                    {
+                        "label": d.label,
+                        "bbox": d.bbox,
+                        "confidence": d.confidence,
+                    }
+                    for d in self.security_objects.detections
+                ],
+                "objects_queried": self.security_objects.objects_queried,
+            }
+        return {
+            "security_objects": security_objs,
+            "dense_captions": self.dense_captions,
+            "text_regions": {
+                "labels": [r.get("text", "") for r in self.text_regions],
+                "regions": self.text_regions,
+            }
+            if self.text_regions
+            else None,
+            "phrase_grounding": self.phrase_grounding,
+            "region_descriptions": self.region_descriptions,
+            "security_vqa": self.security_vqa,
+        }
+
+
+@dataclass(slots=True)
 class BatchExtractionResult:
     """Result of batch attribute extraction.
 
@@ -777,12 +840,16 @@ class BatchExtractionResult:
         person_attributes: Dict mapping detection_id to PersonAttributes
         scene_analysis: Scene analysis for the full frame
         environment_context: Environment context for the full frame
+        florence_enhanced: Enhanced Florence-2 scene context (security objects,
+            dense captions, OCR regions, phrase grounding, region descriptions,
+            security VQA)
     """
 
     vehicle_attributes: dict[str, VehicleAttributes] = field(default_factory=dict)
     person_attributes: dict[str, PersonAttributes] = field(default_factory=dict)
     scene_analysis: SceneAnalysis | None = None
     environment_context: EnvironmentContext | None = None
+    florence_enhanced: FlorenceEnhancedScene | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -796,6 +863,9 @@ class BatchExtractionResult:
             "scene_analysis": self.scene_analysis.to_dict() if self.scene_analysis else None,
             "environment_context": (
                 self.environment_context.to_dict() if self.environment_context else None
+            ),
+            "florence_enhanced": (
+                self.florence_enhanced.to_dict() if self.florence_enhanced else None
             ),
         }
 
@@ -1360,6 +1430,14 @@ class VisionExtractor:
         This method processes all detections via the ai-florence HTTP service,
         which keeps the Florence-2 model loaded and ready for inference.
 
+        Wires up all Florence-2 capabilities:
+        1. Security objects detection (open vocabulary)
+        2. Dense captioning (per-region descriptions)
+        3. Region description for YOLO detections
+        4. OCR with region localization
+        5. Phrase grounding for threat validation
+        6. Security VQA queries for person detections
+
         Args:
             image: Full frame image
             detections: List of detection dictionaries with:
@@ -1423,11 +1501,196 @@ class VisionExtractor:
         # Extract environment context (full frame)
         result.environment_context = await self._extract_environment_internal(image)
 
+        # =====================================================================
+        # Enhanced Florence-2 Capabilities (parallel scene-level extraction)
+        # =====================================================================
+        result.florence_enhanced = await self._extract_florence_enhanced(
+            image, detections, person_dets
+        )
+
         logger.info(
             f"Extracted attributes: {len(result.vehicle_attributes)} vehicles, "
-            f"{len(result.person_attributes)} persons"
+            f"{len(result.person_attributes)} persons, "
+            f"enhanced={result.florence_enhanced is not None}"
         )
         return result
+
+    async def _extract_florence_enhanced(
+        self,
+        image: Image.Image,
+        all_detections: list[dict[str, Any]],
+        person_dets: list[dict[str, Any]],
+    ) -> FlorenceEnhancedScene | None:
+        """Extract enhanced Florence-2 scene context using all available capabilities.
+
+        Runs the following Florence-2 tasks in parallel where possible:
+        1. Security objects detection (open vocabulary)
+        2. Dense captioning (per-region descriptions)
+        3. OCR with region localization
+        4. Phrase grounding for security-relevant phrases
+        Then sequentially:
+        5. Region descriptions for each YOLO detection
+        6. Security VQA for person detections
+
+        Args:
+            image: Full frame image
+            all_detections: All YOLO detections
+            person_dets: Person detections for security VQA
+
+        Returns:
+            FlorenceEnhancedScene with all enhanced data, or None on total failure
+        """
+        enhanced = FlorenceEnhancedScene()
+        client = self._florence_client
+
+        # Security-relevant phrases for phrase grounding
+        security_phrases = [
+            "person with tool",
+            "person near door",
+            "suspicious package",
+            "person wearing mask",
+            "person with weapon",
+            "person carrying bag",
+        ]
+
+        # Phase 1: Parallel scene-level tasks
+        # These are independent and can run concurrently
+        async def _detect_security_objects() -> SecurityObjectsResult | None:
+            try:
+                return await client.detect_security_objects(image)
+            except FlorenceUnavailableError:
+                logger.warning("Florence security objects detection unavailable")
+                return None
+            except Exception as e:
+                logger.warning(f"Florence security objects detection failed: {e}")
+                return None
+
+        async def _dense_caption() -> list[dict[str, Any]]:
+            try:
+                regions = await client.dense_caption(image)
+                return [{"caption": r.caption, "bbox": r.bbox} for r in regions]
+            except FlorenceUnavailableError:
+                logger.warning("Florence dense captioning unavailable")
+                return []
+            except Exception as e:
+                logger.warning(f"Florence dense captioning failed: {e}")
+                return []
+
+        async def _ocr_with_regions() -> list[dict[str, Any]]:
+            try:
+                regions = await client.ocr_with_regions(image)
+                return [{"text": r.text, "bbox": r.bbox} for r in regions]
+            except FlorenceUnavailableError:
+                logger.warning("Florence OCR with regions unavailable")
+                return []
+            except Exception as e:
+                logger.warning(f"Florence OCR with regions failed: {e}")
+                return []
+
+        async def _phrase_grounding() -> list[dict[str, Any]]:
+            try:
+                grounded = await client.phrase_grounding(image, security_phrases)
+                return [
+                    {
+                        "phrase": g.phrase,
+                        "bboxes": g.bboxes,
+                        "confidence_scores": g.confidence_scores,
+                        "matched": len(g.bboxes) > 0,
+                    }
+                    for g in grounded
+                ]
+            except FlorenceUnavailableError:
+                logger.warning("Florence phrase grounding unavailable")
+                return []
+            except Exception as e:
+                logger.warning(f"Florence phrase grounding failed: {e}")
+                return []
+
+        # Run all four scene-level tasks in parallel
+        (
+            security_objects_result,
+            dense_captions_result,
+            ocr_regions_result,
+            phrase_grounding_result,
+        ) = await asyncio.gather(
+            _detect_security_objects(),
+            _dense_caption(),
+            _ocr_with_regions(),
+            _phrase_grounding(),
+        )
+
+        enhanced.security_objects = security_objects_result
+        enhanced.dense_captions = dense_captions_result
+        enhanced.text_regions = ocr_regions_result
+        enhanced.phrase_grounding = phrase_grounding_result
+
+        # Phase 2: Region descriptions for YOLO detections (sequential per detection)
+        # Send each detection's bounding box to Florence-2 for a detailed description
+        region_boxes = []
+        region_det_ids = []
+        for det in all_detections:
+            bbox = det.get("bbox")
+            if bbox and len(bbox) == 4:
+                x1, y1, x2, y2 = bbox
+                # Validate bbox has positive area
+                if x2 > x1 and y2 > y1:
+                    region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
+                    det_id = det.get("detection_id", str(len(region_det_ids)))
+                    region_det_ids.append(det_id)
+
+        if region_boxes:
+            try:
+                descriptions = await client.describe_regions(image, region_boxes)
+                for i, desc in enumerate(descriptions):
+                    if i < len(region_det_ids) and desc.caption:
+                        enhanced.region_descriptions[region_det_ids[i]] = desc.caption
+            except FlorenceUnavailableError:
+                logger.warning("Florence region description unavailable")
+            except Exception as e:
+                logger.warning(f"Florence region description failed: {e}")
+
+        # Phase 3: Security VQA for person detections
+        for det in person_dets:
+            det_id = det.get("detection_id", "")
+            if not det_id:
+                continue
+
+            bbox = det.get("bbox")
+            bbox_tuple = None
+            if bbox:
+                bbox_tuple = tuple(bbox) if isinstance(bbox, list) else bbox
+
+            try:
+                vqa_answers = await self.extract_security_vqa(image, bbox=bbox_tuple)
+                if vqa_answers:
+                    enhanced.security_vqa[det_id] = vqa_answers
+            except Exception as e:
+                logger.warning(f"Security VQA failed for detection {det_id}: {e}")
+
+        # Check if we got any enhanced data at all
+        has_data = (
+            enhanced.security_objects is not None
+            or enhanced.dense_captions
+            or enhanced.text_regions
+            or enhanced.phrase_grounding
+            or enhanced.region_descriptions
+            or enhanced.security_vqa
+        )
+
+        if not has_data:
+            logger.debug("No Florence enhanced data available")
+            return None
+
+        logger.info(
+            f"Florence enhanced: "
+            f"security_objects={len(enhanced.security_objects.detections) if enhanced.security_objects else 0}, "
+            f"dense_captions={len(enhanced.dense_captions)}, "
+            f"text_regions={len(enhanced.text_regions)}, "
+            f"phrase_grounding={sum(1 for p in enhanced.phrase_grounding if p.get('matched'))}, "
+            f"region_descriptions={len(enhanced.region_descriptions)}, "
+            f"security_vqa={len(enhanced.security_vqa)}"
+        )
+        return enhanced
 
     async def _extract_vehicle_internal(
         self,
@@ -1791,6 +2054,8 @@ def format_batch_extraction_result(
     Returns:
         Formatted string for prompt
     """
+    from backend.services.prompts import format_florence_scene_context
+
     sections = []
 
     # Format vehicle attributes
@@ -1816,6 +2081,13 @@ def format_batch_extraction_result(
     if include_environment and result.environment_context:
         env_section = "## Environment\n" + format_environment_context(result.environment_context)
         sections.append(env_section)
+
+    # Format Florence-2 enhanced scene context
+    if result.florence_enhanced:
+        enhanced_dict = result.florence_enhanced.to_dict()
+        enhanced_str = format_florence_scene_context(enhanced_dict)
+        if enhanced_str:
+            sections.append(enhanced_str)
 
     if not sections:
         return "No vision extraction data available."

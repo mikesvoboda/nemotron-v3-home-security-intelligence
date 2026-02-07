@@ -322,6 +322,6 @@ sudo certbot renew
 
 ## Related Documentation
 
-- [Docker Compose Configuration](../../docker-compose.prod.yml) - Container and volume setup
-- [Nginx Configuration](../../frontend/nginx.conf) - Full nginx config
-- [Frontend AGENTS.md](../../frontend/AGENTS.md) - Frontend architecture overview
+- [Docker Compose Configuration](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/docker-compose.prod.yml) - Container and volume setup
+- [Nginx Configuration](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/nginx.conf) - Full nginx config
+- [Frontend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/AGENTS.md) - Frontend architecture overview

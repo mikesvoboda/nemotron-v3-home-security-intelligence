@@ -508,7 +508,6 @@ podman run --rm \
 
 ## Related Documentation
 
-- [YOLO26 vs YOLO26 Benchmark Results](../benchmarks/yolo26-vs-yolo26.md)
 - [YOLO26 Export Formats](../benchmarks/yolo26-export-formats.md)
 - [Container Orchestration](./container-orchestration.md)
 - [Multi-GPU Support](../development/multi-gpu.md)

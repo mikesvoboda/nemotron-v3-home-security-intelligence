@@ -360,7 +360,7 @@ nemotron_api_key: str | None = Field(
 ### Docker Network Segmentation
 
 ```yaml
-# Recommended docker-compose.yml network structure
+# Recommended docker-compose.prod.yml network structure
 networks:
   frontend:
     # Browser access
@@ -380,7 +380,7 @@ For production deployments:
 | 8000      | Backend API | Local network |
 | 5432      | PostgreSQL  | Backend only  |
 | 6379      | Redis       | Backend only  |
-| 8090-8094 | AI Services | Backend only  |
+| 8091-8096 | AI Services | Backend only  |
 
 ## Related Documentation
 

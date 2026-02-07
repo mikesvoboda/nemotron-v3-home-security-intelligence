@@ -57,7 +57,7 @@ flowchart TB
 | **Backend**      | 8000                    | `backend`       | `backend/main.py:992`         | FastAPI server with WebSocket support   |
 | **PostgreSQL**   | 5432                    | `postgres`      | `docker-compose.prod.yml:41`  | Primary database for events, detections |
 | **Redis**        | 6379                    | `redis`         | `docker-compose.prod.yml:403` | Queues, pub/sub, batch state            |
-| **YOLO26**       | 8090                    | `ai-yolo26`     | `ai/yolo26/`                  | Real-time object detection              |
+| **YOLO26**       | 8095                    | `ai-yolo26`     | `ai/yolo26/`                  | Real-time object detection              |
 | **Nemotron LLM** | 8091                    | `ai-llm`        | `ai/nemotron/`                | Risk analysis via llama.cpp             |
 | **Florence-2**   | 8092                    | `ai-florence`   | `ai/florence/`                | Vision-language extraction              |
 | **CLIP**         | 8093                    | `ai-clip`       | `ai/clip/`                    | Entity re-identification                |
@@ -75,7 +75,7 @@ flowchart TB
         direction TB
 
         subgraph FE["Frontend"]
-            React["React 18.2"]
+            React["React 19"]
             TS["TypeScript 5.3"]
             Tailwind["Tailwind CSS 3.4"]
             Tremor["Tremor 3.17"]

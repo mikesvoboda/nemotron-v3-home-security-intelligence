@@ -13,11 +13,11 @@ This document provides a streamlined guide for setting up local development. For
 
 ```bash
 # Clone repository
-git clone https://github.com/mikesvoboda/home_security_intelligence.git
-cd home_security_intelligence
+git clone https://github.com/your-org/home-security-intelligence.git
+cd home-security-intelligence
 
 # Run automated setup
-./scripts/setup.sh
+python setup.py
 ```
 
 The setup script:
@@ -71,7 +71,7 @@ podman ps
 
 ```bash
 # Run the setup script to generate .env with secure credentials (recommended)
-./setup.sh
+python setup.py
 
 # Or manually copy and edit:
 cp .env.example .env

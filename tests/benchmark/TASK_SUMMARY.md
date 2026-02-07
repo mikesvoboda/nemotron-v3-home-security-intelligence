@@ -210,9 +210,9 @@ Part of the LLM performance optimization epic focusing on benchmark infrastructu
 
 ## File Locations
 
-- **Tests**: `/home/msvoboda/.claude-squad/worktrees/msvoboda/dos13_18912c4692d904ee/tests/benchmark/test_compare.py`
-- **Implementation**: `/home/msvoboda/.claude-squad/worktrees/msvoboda/dos13_18912c4692d904ee/scripts/benchmark/compare.py`
-- **Documentation**: `/home/msvoboda/.claude-squad/worktrees/msvoboda/dos13_18912c4692d904ee/tests/benchmark/README.md`
+- **Tests**: `tests/benchmark/test_compare.py`
+- **Implementation**: `scripts/benchmark/compare.py`
+- **Documentation**: `tests/benchmark/README.md`
 
 ## TDD Progress
 

@@ -380,4 +380,4 @@ The cleanup service status is available via:
 
 - [GPU Monitor](./gpu-monitor.md) - GPU stats being cleaned up
 - [Data Model](../data-model/README.md) - Database schema for retained data
-- [Operations Guide](../../operations/backup.md) - Backup before cleanup
+- [Operations Guide](../../operator/backup.md) - Backup before cleanup

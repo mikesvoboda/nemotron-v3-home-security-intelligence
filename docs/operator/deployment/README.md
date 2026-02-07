@@ -63,7 +63,7 @@ flowchart TB
                 FLOR["<b>ai-florence</b><br/>Florence-2<br/>Port: 8092<br/>~530MB VRAM"]
             end
             subgraph GPU1["GPU 1 (Secondary - 4GB+)"]
-                YOLO["<b>ai-yolo26</b><br/>YOLO26 TensorRT<br/>Port: 8095<br/>~1GB VRAM"]
+                YOLO["<b>ai-yolo26</b><br/>YOLO26 TensorRT<br/>Port: 8095<br/>~2GB VRAM"]
                 CLIP["<b>ai-clip</b><br/>CLIP ViT-L<br/>Port: 8093<br/>~722MB VRAM"]
                 ENRL["<b>ai-enrichment-light</b><br/>Pose, Threat, ReID, Pet, Depth<br/>Port: 8096<br/>~1.2GB VRAM"]
             end
@@ -179,8 +179,8 @@ git clone https://github.com/your-org/home-security-intelligence.git
 cd home-security-intelligence
 
 # 2. Run setup (generates .env with secure passwords)
-./setup.sh              # Quick mode
-./setup.sh --guided     # Guided mode with explanations
+python setup.py              # Quick mode
+python setup.py --guided     # Guided mode with explanations
 
 # 3. Download AI models (~2.7GB)
 ./ai/download_models.sh
@@ -486,7 +486,7 @@ The system supports a multi-service AI stack:
 
 | Service    | Port | VRAM                      | Purpose                         |
 | ---------- | ---- | ------------------------- | ------------------------------- |
-| YOLO26     | 8095 | ~4GB                      | Object detection                |
+| YOLO26     | 8095 | ~2GB                      | Object detection                |
 | Nemotron   | 8091 | ~3GB (4B) / ~14.7GB (30B) | Risk reasoning                  |
 | Florence-2 | 8092 | ~2GB                      | Vision extraction (optional)    |
 | CLIP       | 8093 | ~2GB                      | Re-identification (optional)    |
@@ -632,7 +632,7 @@ backend:
 - [ ] AI models downloaded (`./ai/download_models.sh`)
 - [ ] Network ports are not in use by other services
 - [ ] Firewall rules allow required traffic
-- [ ] `.env` file created via `./setup.sh`
+- [ ] `.env` file created via `python setup.py`
 
 ### Deployment Steps
 
@@ -856,8 +856,8 @@ grep DATABASE_URL .env
 
 ## See Also
 
-- [Operator Hub](../) - Main operator documentation
+- [Operator Hub](../README.md) - Main operator documentation
 - [GPU Setup Guide](../gpu-setup.md) - Detailed GPU configuration
 - [AI Services](../ai-overview.md) - AI architecture and configuration
-- [Monitoring Guide](../monitoring/) - Health checks and metrics
-- [Administration Guide](../admin/) - Configuration and secrets
+- [Monitoring Guide](../monitoring/README.md) - Health checks and metrics
+- [Administration Guide](../admin/README.md) - Configuration and secrets

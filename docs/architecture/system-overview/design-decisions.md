@@ -9,7 +9,7 @@ This document captures the key architectural decisions in ADR (Architecture Deci
 - [DD-003: PostgreSQL with Async SQLAlchemy](#dd-003-postgresql-with-async-sqlalchemy)
 - [DD-004: Redis Multi-Pool Architecture](#dd-004-redis-multi-pool-architecture)
 - [DD-005: On-Demand Model Loading (Model Zoo)](#dd-005-on-demand-model-loading-model-zoo)
-- [DD-006: WebSocket + Redis Pub/Sub](#dd-006-websocket--redis-pubsub)
+- [DD-006: WebSocket + Redis Pub/Sub](#dd-006-websocket-redis-pubsub)
 - [DD-007: Single-User No-Auth MVP](#dd-007-single-user-no-auth-mvp)
 
 ---
@@ -372,7 +372,7 @@ This is a single-user home security system deployed on a trusted local network. 
 
 ### Decision
 
-**No authentication** for MVP. System assumes trusted network access by single user.
+**No authentication** for MVP (now superseded by SetupGuardMiddleware -- first admin registration required, after which API is open). System assumes trusted network access by single user.
 
 **Source:** `backend/main.py:1002-1003`
 

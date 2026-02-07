@@ -37,7 +37,7 @@ Camera Images
       v
 +-------------+      +-------------+      +-------------+
 |   YOLO26    |----->|  Enrichment |----->|  Florence-2 |
-|   (8090)    |      |   (8094)    |      |   (8092)    |
+|   (8095)    |      |   (8094)    |      |   (8092)    |
 +-------------+      +-------------+      +-------------+
       |                    |                    |
       v                    v                    v
@@ -192,7 +192,7 @@ See [Keyboard Shortcuts](keyboard-shortcuts.md) for complete reference.
 
 | Issue                   | Solution                                           |
 | ----------------------- | -------------------------------------------------- |
-| No detections appearing | Check YOLO26 service: `curl localhost:8090/health` |
+| No detections appearing | Check YOLO26 service: `curl localhost:8095/health` |
 | High risk scores        | Review Nemotron prompts and thresholds             |
 | GPU out of memory       | Reduce batch size or use smaller model             |
 | WebSocket disconnects   | Check Redis connection and backend logs            |

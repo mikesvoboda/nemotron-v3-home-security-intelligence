@@ -47,14 +47,13 @@ This document provides comprehensive technical documentation for the AI-powered 
 
 1. [Pipeline Overview](#pipeline-overview)
 2. [File Watcher](#file-watcher)
-3. [YOLO26 Integration](#yolo26v2-integration)
+3. [YOLO26 Integration](#yolo26-integration)
 4. [Batching Logic](#batching-logic)
-5. [Nemotron Analysis](#nemotron-analysis)
+5. [Nemotron Analysis](#nvidia-nemotron-analysis)
 6. [Risk Score Calculation](#risk-score-calculation)
 7. [Error Handling](#error-handling)
 8. [Data Models](#data-models)
 9. [Configuration Reference](#configuration-reference)
-10. [Image Generation Prompts](#image-generation-prompts)
 
 ---
 
@@ -86,7 +85,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
     participant DW as DetectionQueueWorker
-    participant RT as YOLO26 (8090)
+    participant RT as YOLO26 (8095)
     participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant AQ as analysis_queue
@@ -253,7 +252,7 @@ YOLO26 is a state-of-the-art transformer-based object detector that combines DET
 
 ### API Format
 
-**Endpoint:** `POST http://localhost:8090/detect`
+**Endpoint:** `POST http://localhost:8095/detect`
 
 **Request (multipart/form-data):**
 
@@ -357,7 +356,7 @@ Only these 9 COCO classes are returned (all others filtered):
 ### Health Check
 
 ```bash
-curl http://localhost:8090/health
+curl http://localhost:8095/health
 ```
 
 ```json
@@ -429,12 +428,7 @@ stateDiagram-v2
 
 ### Timing Parameters
 
-| Parameter      | Default | Environment Variable           | Description                                 |
-| -------------- | ------- | ------------------------------ | ------------------------------------------- |
-| Window timeout | 90s     | `BATCH_WINDOW_SECONDS`         | Maximum batch duration from first detection |
-| Idle timeout   | 30s     | `BATCH_IDLE_TIMEOUT_SECONDS`   | Close batch if no new detections            |
-| Check interval | 5s      | `BATCH_CHECK_INTERVAL_SECONDS` | How often BatchTimeoutWorker runs           |
-| Max detections | 500     | `BATCH_MAX_DETECTIONS`         | Maximum detections per batch before split   |
+--8<-- "docs/\_includes/batching-config.md"
 
 ### Redis Key Structure
 
@@ -640,12 +634,7 @@ The risk score is determined entirely by the LLM based on the prompt guidelines.
 
 > See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
 
-| Score Range | Level      | Description                                        |
-| ----------- | ---------- | -------------------------------------------------- |
-| 0-29        | `low`      | Normal activity, no concern                        |
-| 30-59       | `medium`   | Unusual but not threatening                        |
-| 60-84       | `high`     | Suspicious activity requiring attention            |
-| 85-100      | `critical` | Potential security threat, immediate action needed |
+--8<-- "docs/\_includes/risk-scoring-levels.md"
 
 ### Validation and Normalization
 
@@ -863,7 +852,7 @@ flowchart TB
 | Variable                         | Default                 | Description                            |
 | -------------------------------- | ----------------------- | -------------------------------------- |
 | `FOSCAM_BASE_PATH`               | `/export/foscam`        | Camera FTP upload directory            |
-| `YOLO26_URL`                     | `http://localhost:8090` | YOLO26 service URL                     |
+| `YOLO26_URL`                     | `http://localhost:8095` | YOLO26 service URL                     |
 | `NEMOTRON_URL`                   | `http://localhost:8091` | Nemotron LLM service URL               |
 | `FLORENCE_URL`                   | `http://localhost:8092` | Florence-2 vision-language service URL |
 | `CLIP_URL`                       | `http://localhost:8093` | CLIP embedding service URL             |
@@ -887,7 +876,7 @@ flowchart TB
 
 | Service         | Port | Protocol | Description        |
 | --------------- | ---- | -------- | ------------------ |
-| YOLO26          | 8090 | HTTP     | Object detection   |
+| YOLO26          | 8095 | HTTP     | Object detection   |
 | NVIDIA Nemotron | 8091 | HTTP     | LLM risk analysis  |
 | Florence        | 8092 | HTTP     | Vision-language    |
 | CLIP            | 8093 | HTTP     | Embeddings / re-ID |
@@ -914,7 +903,7 @@ _Host machine architecture showing GPU-accelerated AI services (YOLO26, Nemotron
 flowchart TB
     subgraph "Host Machine"
         subgraph "GPU (RTX A5500 24GB)"
-            RT[YOLO26 Server<br/>Port 8090<br/>~4GB VRAM]
+            RT[YOLO26 Server<br/>Port 8095<br/>~4GB VRAM]
             NEM[NVIDIA Nemotron llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*]
         end
 
@@ -940,130 +929,3 @@ flowchart TB
     style RT fill:#76B900
     style NEM fill:#76B900
 ```
-
----
-
-## Image Generation Prompts
-
-The following prompts can be used with AI image generators (e.g., DALL-E, Midjourney, Stable Diffusion) to create visual documentation for the AI pipeline.
-
-### 1. AI Pipeline Flow Visualization
-
-**Prompt:**
-
-```
-Technical documentation diagram showing an AI-powered security camera processing pipeline. Clean, minimalist style with a white background. Flow from left to right:
-
-1. Security camera icon (simple, line-art style)
-2. Arrow to a folder/filesystem icon labeled "FTP"
-3. Arrow to a CPU/server icon labeled "File Watcher"
-4. Arrow to a GPU chip icon with "YOLO26" label showing green glow
-5. Arrow to stacked rectangles representing "Batch Queue"
-6. Arrow to a brain/neural network icon with "NVIDIA Nemotron" label showing green glow
-7. Arrow to a database cylinder icon
-8. Arrow to a monitor/dashboard icon
-
-Use corporate blue (#3B82F6) for regular components and NVIDIA green (#76B900) for GPU components. Include subtle connection lines between components. Technical documentation style, vector graphics aesthetic.
-
-Dimensions: 1200x400 pixels, landscape format
-```
-
-### 2. Batching Concept Diagram
-
-**Prompt:**
-
-```
-Technical diagram illustrating the concept of image batching for AI analysis. White background, clean line-art style.
-
-Left side: Multiple small image frames (6-8) scattered, each containing a simple person silhouette icon, with timestamps below each (14:30:00, 14:30:15, etc.)
-
-Center: A large curved bracket or funnel shape collecting all the small frames, with "90 second window" label
-
-Right side: A single larger document/report icon showing:
-- "Event #42" header
-- Risk meter gauge showing 65/100
-- Text lines representing summary
-
-Use blue (#3B82F6) for frames, orange (#FFB800) for the collection funnel, and red (#E74856) for the risk indicator. Include dotted timeline arrow at bottom.
-
-Dimensions: 800x600 pixels
-```
-
-### 3. YOLO26 Detection Visualization
-
-**Prompt:**
-
-```
-Technical diagram showing object detection on a security camera image. Professional documentation style.
-
-Background: Simplified representation of a front door/entrance scene (line art style, grayscale)
-
-Overlays:
-- Red bounding box (#E74856) around a person figure with label "person 0.95"
-- Blue bounding box (#3B82F6) around a car shape with label "car 0.87"
-- Green bounding box (#76B900) around a dog shape with label "dog 0.72"
-
-Corner annotation panel showing:
-- "YOLO26 Output"
-- "Inference: 42ms"
-- "Resolution: 1920x1080"
-
-Clean, minimal style suitable for technical documentation. Use dashed lines for bounding boxes with rounded corners.
-
-Dimensions: 800x500 pixels
-```
-
-### 4. Risk Analysis Concept
-
-**Prompt:**
-
-```
-Technical flowchart diagram showing LLM-based risk analysis. Clean documentation style, white background.
-
-Left column (Input):
-- Stack of 5 small detection cards, each showing:
-  - Time icon + "14:30:xx"
-  - Object icon (person/car)
-  - Confidence bar
-
-Center:
-- Large brain/AI icon with circuit patterns
-- "NVIDIA Nemotron" label
-- Subtle green (#76B900) glow effect
-- Thought bubble containing "Analyzing patterns..."
-
-Right column (Output):
-- Risk gauge semicircle (0-100 scale)
-  - Green zone (0-29)
-  - Yellow zone (30-59)
-  - Orange zone (60-84)
-  - Red zone (85-100)
-  - Needle pointing to 65
-- Text box with:
-  - "Risk Level: HIGH"
-  - Summary text lines
-  - Reasoning text lines
-
-Arrows connecting left -> center -> right with labels "Context" and "Assessment"
-
-Dimensions: 1000x600 pixels
-```
-
-### General Style Guidelines for All Images
-
-- **Color Palette:**
-
-  - Primary Blue: #3B82F6
-  - NVIDIA Green: #76B900
-  - Warning Orange: #FFB800
-  - Alert Red: #E74856
-  - Background: White (#FFFFFF)
-  - Text/Lines: Dark Gray (#374151)
-
-- **Typography:** Sans-serif, clean, technical feel (like Inter or Roboto)
-
-- **Style:** Flat design, minimal shadows, clean lines, suitable for technical documentation
-
-- **Icons:** Simple, recognizable, consistent line weight (2px)
-
-- **Annotations:** Use leader lines and labels, keep text concise

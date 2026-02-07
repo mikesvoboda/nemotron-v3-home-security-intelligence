@@ -278,7 +278,7 @@ Environment variables:
 
 | Feature        | YOLO26 (TensorRT)        | YOLO26v2 (HuggingFace)   |
 | -------------- | ------------------------ | ------------------------ |
-| Port           | 8095                     | 8090                     |
+| Port           | 8095                     | 8095                     |
 | Framework      | Ultralytics + TensorRT   | HuggingFace Transformers |
 | Inference Time | 10-20ms                  | 30-50ms                  |
 | VRAM Usage     | ~2GB                     | ~3GB                     |

@@ -69,7 +69,7 @@ pytest -m e2e -v
 
 #### `integration_db` (conftest.py)
 
-- Creates isolated temporary SQLite database
+- Creates isolated temporary PostgreSQL test database
 - Initializes database schema
 - Cleans up after test completion
 - Ensures no test pollution
@@ -115,7 +115,7 @@ The E2E tests use **targeted mocking** to isolate external dependencies while te
 
 #### Real Components
 
-- **SQLite Database**: Real database with temporary file
+- **PostgreSQL Database**: Real database with test schema
 - **SQLAlchemy ORM**: Real database operations and sessions
 - **Batch Aggregator**: Real business logic
 - **Nemotron Analyzer**: Real analysis orchestration

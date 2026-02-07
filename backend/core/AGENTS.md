@@ -168,7 +168,7 @@ Provides async wrappers for common blocking operations that would otherwise bloc
 - `async_sleep()` - Non-blocking replacement for time.sleep
 - `async_open_image()` - Non-blocking PIL Image.open
 - `async_subprocess_run()` - Non-blocking subprocess.run
-- `AsyncTaskGroup` - Structured concurrency with Python 3.11+ TaskGroup
+- `AsyncTaskGroup` - Structured concurrency with Python 3.14+ TaskGroup
 - `bounded_gather()` - asyncio.gather with concurrency limits
 - `async_read_bytes()`/`async_read_text()` - Non-blocking file reading
 - `async_write_bytes()`/`async_write_text()` - Non-blocking file writing
@@ -982,7 +982,7 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **AI Service Endpoints:**
 
-- `yolo26_url: str` - YOLO26 detection service URL (default: `http://localhost:8090`)
+- `yolo26_url: str` - YOLO26 detection service URL (default: `http://localhost:8095`)
 - `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8091`)
 
 **AI Service Timeout Settings:**

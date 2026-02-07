@@ -24,7 +24,7 @@ This rule is non-negotiable. If tests are failing:
 2. **FIX THE TESTS** - If the tests are incorrect
 3. **NEVER** disable, skip, or lower coverage thresholds
 
-See [CLAUDE.md](../../CLAUDE.md:199) for the complete policy on testing requirements.
+See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for the complete policy on testing requirements.
 
 ## Test Architecture
 
@@ -208,7 +208,7 @@ Configuration details:
 
 #### Playwright Configuration
 
-See [`/frontend/playwright.config.ts`](../../frontend/playwright.config.ts) for full configuration:
+See [`/frontend/playwright.config.ts`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/playwright.config.ts) for full configuration:
 
 - Global test timeout: 15 seconds
 - Expect timeout: 3 seconds
@@ -361,7 +361,7 @@ pkill -f "vite preview"
 
 ## Pytest Configuration
 
-The pytest configuration is defined in [pyproject.toml](../../pyproject.toml:91):
+The pytest configuration is defined in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L91):
 
 ```toml
 [tool.pytest.ini_options]
@@ -378,7 +378,7 @@ timeout_method = "thread"
 
 ### Test Markers
 
-Available markers defined in [pyproject.toml](../../pyproject.toml:100):
+Available markers defined in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L100):
 
 | Marker                     | Purpose                 | Timeout |
 | -------------------------- | ----------------------- | ------- |
@@ -391,7 +391,7 @@ Available markers defined in [pyproject.toml](../../pyproject.toml:100):
 
 ### Timeout Configuration
 
-Timeouts are automatically assigned based on test location ([conftest.py](../../backend/tests/conftest.py:164)):
+Timeouts are automatically assigned based on test location ([conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/conftest.py#L164)):
 
 | Test Type         | Timeout | Configuration                                  |
 | ----------------- | ------- | ---------------------------------------------- |
@@ -487,7 +487,7 @@ This implementation keeps testmon **opt-in via --testmon flag only**. CI workflo
 
 ### Shared Fixtures
 
-Core fixtures are defined in [backend/tests/conftest.py](../../backend/tests/conftest.py:1). Integration-specific fixtures are in [backend/tests/integration/conftest.py](../../backend/tests/integration/conftest.py:1). **DO NOT duplicate these in subdirectory conftest files.**
+Core fixtures are defined in [backend/tests/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/conftest.py). Integration-specific fixtures are in [backend/tests/integration/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/conftest.py). **DO NOT duplicate these in subdirectory conftest files.**
 
 ### Synthetic Test Fixtures
 
@@ -611,7 +611,7 @@ async def test_camera_creation(isolated_db):
 
 Unit tests verify individual components in isolation. All external dependencies (Redis, HTTP, file system) must be mocked.
 
-See [backend/tests/unit/AGENTS.md](../../backend/tests/unit/AGENTS.md:1) for complete patterns.
+See [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) for complete patterns.
 
 ```python
 # Example: Mocking Redis
@@ -636,7 +636,7 @@ with patch("httpx.AsyncClient") as mock_http:
 
 Integration tests verify that multiple components work together correctly.
 
-See [backend/tests/integration/AGENTS.md](../../backend/tests/integration/AGENTS.md:1) for complete patterns.
+See [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) for complete patterns.
 
 ```python
 @pytest.mark.asyncio
@@ -696,7 +696,7 @@ async def test_handles_connection_error():
 
 ### Backend Coverage
 
-Configured in [pyproject.toml](../../pyproject.toml:109):
+Configured in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L109):
 
 ```toml
 [tool.coverage.run]
@@ -715,7 +715,7 @@ show_missing = true
 
 ### CI Coverage Thresholds
 
-From [.github/workflows/ci.yml](../../.github/workflows/ci.yml:67) and [pyproject.toml](../../pyproject.toml):
+From [.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml#L67) and [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml):
 
 | Test Type | Threshold | Rationale                                   |
 | --------- | --------- | ------------------------------------------- |
@@ -740,7 +740,7 @@ pytest backend/tests/ --cov=backend --cov-report=term-missing
 
 ### Pre-push Hook
 
-The `fast-test` hook runs unit tests before every push ([.pre-commit-config.yaml](../../.pre-commit-config.yaml:106)):
+The `fast-test` hook runs unit tests before every push ([.pre-commit-config.yaml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.pre-commit-config.yaml#L106)):
 
 ```yaml
 - id: fast-test
@@ -751,7 +751,7 @@ The `fast-test` hook runs unit tests before every push ([.pre-commit-config.yaml
 
 ### CI Pipeline
 
-The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml:1)) runs:
+The CI workflow ([.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml)) runs:
 
 1. **Backend Lint** - Ruff check and format
 2. **Backend Type Check** - MyPy
@@ -1012,5 +1012,5 @@ Snapshots are automatically validated in CI:
 - [Setup Guide](setup.md) - Development environment setup
 - [Contributing Guide](contributing.md) - PR process and code standards
 - [Code Patterns](patterns.md) - Testing patterns in detail
-- [backend/tests/AGENTS.md](../../backend/tests/AGENTS.md) - Test infrastructure overview
+- [backend/tests/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/AGENTS.md) - Test infrastructure overview
 - [Mutation Testing Guide](../developer/patterns/mutation-testing.md) - Mutation testing with mutmut and Stryker

@@ -83,10 +83,10 @@ admin/
 
 ## Related Resources
 
-- **[Operator Hub](../)** - Central operator documentation navigation
+- **[Operator Hub](../README.md)** - Central operator documentation navigation
 - **[Operator AGENTS.md](../AGENTS.md)** - Parent directory overview
-- **[Deployment Guide](../deployment/)** - Service deployment procedures
-- **[Monitoring Guide](../monitoring/)** - Health checks and metrics
+- **[Deployment Guide](../deployment/README.md)** - Service deployment procedures
+- **[Monitoring Guide](../monitoring/README.md)** - Health checks and metrics
 - **[Backup and Recovery](../backup.md)** - Database backup procedures
 - **[Redis Setup](../redis.md)** - Redis configuration and authentication
 

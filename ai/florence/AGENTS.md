@@ -435,19 +435,14 @@ curl -X POST http://localhost:8092/extract \
 The Florence-2 server is an optional service that can provide detailed scene descriptions for Nemotron risk analysis:
 
 ```python
-# Example integration (not yet implemented in backend)
-from httpx import AsyncClient
+# Backend integration via florence_client.py
+from backend.services.florence_client import get_florence_client
 
-async def get_scene_description(image_base64: str) -> str:
-    async with AsyncClient() as client:
-        response = await client.post(
-            "http://localhost:8092/extract",
-            json={"image": image_base64, "prompt": "<DETAILED_CAPTION>"}
-        )
-        return response.json()["result"]
+client = get_florence_client()
+result = await client.analyze_scene(image_base64)
 ```
 
-**Note**: Florence-2 integration is planned but not yet implemented in the backend. The service is available for future enhancements to the enrichment pipeline.
+**Note**: Florence-2 backend integration is implemented in `backend/services/florence_client.py`.
 
 ## Entry Points
 

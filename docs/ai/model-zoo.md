@@ -34,7 +34,7 @@ flowchart TB
     end
 
     subgraph EnrichmentHeavy["Enrichment Heavy (ai-enrichment:8094) - GPU 0"]
-        subgraph HeavyModels["Heavy Models (~6.8GB budget)"]
+        subgraph HeavyModels["Heavy Models (~6.0GB budget)"]
             VEHICLE[Vehicle Classification]
             FASHION[Fashion Analysis]
             DEMO[Demographics]
@@ -63,10 +63,10 @@ flowchart TB
 | Service            | Container           | Port | Model                    | VRAM    | Purpose                               |
 | ------------------ | ------------------- | ---- | ------------------------ | ------- | ------------------------------------- |
 | YOLO26             | ai-yolo26           | 8095 | YOLO26m (TensorRT FP16)  | ~2GB    | Primary object detection              |
-| Nemotron           | ai-nemotron         | 8091 | Nemotron-3-Nano-30B-A3B  | ~14.7GB | Risk reasoning and analysis           |
+| Nemotron           | ai-llm              | 8091 | Nemotron-3-Nano-30B-A3B  | ~14.7GB | Risk reasoning and analysis           |
 | Florence-2         | ai-florence         | 8092 | Florence-2-Large         | ~1.2GB  | Scene understanding, OCR              |
 | CLIP               | ai-clip             | 8093 | CLIP ViT-L/14            | ~800MB  | Embeddings, anomaly detection         |
-| Enrichment (Heavy) | ai-enrichment       | 8094 | Transformers (on-demand) | ~6.8GB  | Heavy models (vehicle, fashion, etc.) |
+| Enrichment (Heavy) | ai-enrichment       | 8094 | Transformers (on-demand) | ~6.0GB  | Heavy models (vehicle, fashion, etc.) |
 | Enrichment (Light) | ai-enrichment-light | 8096 | Small models (on-demand) | ~1.2GB  | Light models (pose, threat, reid)     |
 
 ### Enrichment Service Split
@@ -79,6 +79,30 @@ The enrichment models are split across two services based on GPU requirements:
 | **ai-enrichment-light** | 8096 | GPU 1 (4GB)  | Pose, threat, reid, pet, depth        |
 
 The backend routes requests to the appropriate service based on `ENRICHMENT_*_SERVICE` environment variables. See [AI Enrichment Light Service](../operator/services/ai-enrichment-light.md) for detailed documentation.
+
+### Enrichment Pipeline Split
+
+The enrichment router in the backend directs each detection to either the heavy or light service based on the model requirements. Heavy models run on a GPU with larger VRAM, while light models run on a separate GPU with a smaller budget.
+
+```mermaid
+flowchart TB
+    DET[Detection from YOLO26] --> ROUTER{Enrichment Router}
+    ROUTER -->|Heavy models| HEAVY["Enrichment Heavy<br/>:8094"]
+    ROUTER -->|Light models| LIGHT["Enrichment Light<br/>:8096"]
+    subgraph HEAVY_SVC["Heavy Service (full GPU models)"]
+        FC[FashionCLIP]
+        VC[Vehicle Classifier]
+        WX[Weather Classification]
+        XC[X-CLIP Action Recognition]
+    end
+    subgraph LIGHT_SVC["Light Service (minimal GPU)"]
+        PR[Person Re-ID]
+        PE[Pose Estimation]
+        TD[Threat Detection]
+    end
+    HEAVY --> HEAVY_SVC
+    LIGHT --> LIGHT_SVC
+```
 
 ### Data Flow
 
@@ -115,7 +139,7 @@ flowchart TB
 - **Model**: YOLO26m (Ultralytics with TensorRT)
 - **Architecture**: YOLO26 object detection with TensorRT FP16 optimization
 - **VRAM**: ~2GB (with TensorRT FP16 engine)
-- **Inference Time**: 30-50ms per image
+- **Inference Time**: 10-20ms (FP16 TensorRT)
 - **Output**: Bounding boxes with class labels and confidence scores
 
 **Security Classes (Filtered)**:
@@ -182,7 +206,7 @@ SECURITY_CLASSES = {
 - `POST /similarity` - Image-text similarity
 - `POST /batch-similarity` - Batch similarity comparison
 
-#### Nemotron (ai-nemotron:8091)
+#### Nemotron (ai-llm:8091)
 
 **Production Model:**
 
@@ -201,23 +225,21 @@ SECURITY_CLASSES = {
 - **Context Window**: 4,096 tokens
 
 **Risk Score Ranges**:
-| Score | Level | Description |
-| ----- | ----- | ----------- |
-| 0-29 | Low | Normal activity |
-| 30-59 | Medium | Unusual but not threatening |
-| 60-84 | High | Suspicious activity |
-| 85-100 | Critical | Potential security threat |
+
+--8<-- "docs/\_includes/risk-scoring-levels.md"
 
 ### On-Demand Models (Enrichment Services)
 
 The enrichment models are split across two services:
 
-- **ai-enrichment** (port 8094): Heavy transformer models running on GPU 0 (~6.8GB budget)
+- **ai-enrichment** (port 8094): Heavy transformer models running on GPU 0 (~6.0GB budget)
 - **ai-enrichment-light** (port 8096): Small efficient models running on GPU 1 (~1.2GB budget)
 
 The backend routes requests to the appropriate service based on the `ENRICHMENT_*_SERVICE` environment variables (e.g., `ENRICHMENT_POSE_SERVICE=light`).
 
 #### Threat Detection (CRITICAL Priority)
+
+![Threat Detection](../images/concepts/threat-detection.png)
 
 - **Model**: Subh775/Threat-Detection-YOLOv8n
 - **VRAM**: ~300MB (per model_zoo.py)
@@ -287,7 +309,7 @@ COCO_KEYPOINT_NAMES = [
 #### Clothing Analysis (HIGH Priority)
 
 - **Model**: Marqo/marqo-fashionSigLIP (FashionSigLIP) - upgraded from FashionCLIP for 57% accuracy improvement
-- **VRAM**: ~500MB
+- **VRAM**: ~800MB
 - **Purpose**: Identify clothing types, uniforms, suspicious attire
 - **Trigger**: Person detections
 
@@ -503,13 +525,15 @@ Vehicle Damage Detected (2 instances):
 
 ## VRAM Management
 
+![VRAM Management](../images/concepts/vram-management.png)
+
 ### On-Demand Loading Architecture
 
 The `OnDemandModelManager` class manages GPU memory efficiently:
 
 ```python
 class OnDemandModelManager:
-    def __init__(self, vram_budget_gb: float = 6.8):
+    def __init__(self, vram_budget_gb: float = 6.0):
         self.vram_budget = vram_budget_gb * 1024  # MB
         self.loaded_models = OrderedDict()  # LRU tracking
         self.model_registry = {}
@@ -531,6 +555,31 @@ class OnDemandModelManager:
 | HIGH     | 1     | Pose, Demographics, Clothing | Evicted only when VRAM critical           |
 | MEDIUM   | 2     | Vehicle, Pet, Re-ID          | Standard LRU eviction                     |
 | LOW      | 3     | Depth, Action                | Evicted first                             |
+
+### VRAM Allocation and Eviction Overview
+
+The following diagram shows the two-tier VRAM architecture: always-loaded core models consume a fixed budget, while on-demand models share a dynamic budget and are evicted in LRU order respecting priority levels.
+
+```mermaid
+flowchart TB
+    subgraph Always["Always Loaded (~4GB)"]
+        Y["YOLO26<br/>~2GB"]
+        F["Florence-2<br/>~1.2GB"]
+        C["CLIP<br/>~800MB"]
+    end
+    subgraph Budget["On-Demand Budget (~6GB)"]
+        CRIT["CRITICAL<br/>Threat Detection"]
+        HIGH["HIGH<br/>Pose, Demographics"]
+        MED["MEDIUM<br/>Clothing, Vehicle, Re-ID"]
+        LOW["LOW<br/>Depth, Action Recognition"]
+    end
+    subgraph Eviction["LRU Eviction Order"]
+        LOW -.->|Evicted first| FREE[Free VRAM]
+        MED -.->|Evicted second| FREE
+        HIGH -.->|Evicted when necessary| FREE
+        CRIT -.->|Never evicted if possible| FREE
+    end
+```
 
 ### Eviction Strategy
 
@@ -573,7 +622,7 @@ Based on actual values from `backend/services/model_zoo.py`:
 | weather-classification         | 200MB     |
 | segformer-b2-clothes           | 1.5GB     |
 | xclip-base                     | 2GB       |
-| fashion-clip (FashionSigLIP)   | 500MB     |
+| fashion-clip (FashionSigLIP)   | 800MB     |
 | brisque-quality                | 0MB (CPU) |
 | vehicle-segment-classification | 1.5GB     |
 | vehicle-damage-detection       | 2GB       |
@@ -870,11 +919,11 @@ The backend stores enrichment results in the detection record and passes the com
 
 ### YOLO26
 
-| Variable            | Default                                       | Description              |
-| ------------------- | --------------------------------------------- | ------------------------ |
-| `YOLO26_MODEL_PATH` | `/export/ai_models/yolo26v2/yolo26_v2_r101vd` | Model path               |
-| `YOLO26_CONFIDENCE` | `0.5`                                         | Min confidence threshold |
-| `PORT`              | `8095`                                        | Server port              |
+| Variable            | Default                                      | Description              |
+| ------------------- | -------------------------------------------- | ------------------------ |
+| `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
+| `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold |
+| `PORT`              | `8095`                                       | Server port              |
 
 ### Nemotron
 
@@ -895,7 +944,7 @@ The backend stores enrichment results in the detection record and passes the com
 | `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator       |
 | `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+              |
 | `ACTION_MODEL_PATH`   | `microsoft/xclip-base-patch32`           | X-CLIP                |
-| `VRAM_BUDGET_GB`      | `6.8`                                    | On-demand VRAM budget |
+| `VRAM_BUDGET_GB`      | `6.0`                                    | On-demand VRAM budget |
 | `PORT`                | `8094`                                   | Server port           |
 
 ## Adding New Models

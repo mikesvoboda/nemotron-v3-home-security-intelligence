@@ -30,7 +30,7 @@ Downloads:
 
 This starts:
 
-- **YOLO26 Detection Server** on port 8090 (~4GB VRAM)
+- **YOLO26 Detection Server** on port 8095 (~4GB VRAM)
 - **Nemotron LLM Server** on port 8091 (~3GB VRAM)
 
 First startup takes 2-3 minutes for model loading and GPU warmup.
@@ -50,7 +50,7 @@ Shows running services, PIDs, health status, and GPU usage.
 ./scripts/start-ai.sh health
 
 # Manual health checks
-curl http://localhost:8090/health  # YOLO26
+curl http://localhost:8095/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 ```
 
@@ -75,19 +75,19 @@ curl http://localhost:8091/health  # Nemotron
 
 ## Service Endpoints
 
-### YOLO26 Detection Server (Port 8090)
+### YOLO26 Detection Server (Port 8095)
 
 ```bash
 # Health check
-GET http://localhost:8090/health
+GET http://localhost:8095/health
 
 # Single image detection
-POST http://localhost:8090/detect
+POST http://localhost:8095/detect
 Content-Type: multipart/form-data
 Body: file=<image>
 
 # Batch detection
-POST http://localhost:8090/detect/batch
+POST http://localhost:8095/detect/batch
 Content-Type: multipart/form-data
 Body: files=<image1>, files=<image2>, ...
 ```
@@ -129,7 +129,7 @@ tail -f /tmp/nemotron-llm.log
 
 | Service   | VRAM     | CPU        | Latency | Port |
 | --------- | -------- | ---------- | ------- | ---- |
-| YOLO26    | ~4GB     | 10-20%     | 30-50ms | 8090 |
+| YOLO26    | ~4GB     | 10-20%     | 30-50ms | 8095 |
 | Nemotron  | ~3GB     | 5-10%      | 2-5s    | 8091 |
 | **Total** | **~7GB** | **15-30%** | -       | -    |
 
@@ -174,7 +174,7 @@ ps aux | grep -E "python.*model.py|llama-server"
 
 ```bash
 # Find and kill process using port
-lsof -ti:8090 | xargs kill -9  # YOLO26
+lsof -ti:8095 | xargs kill -9  # YOLO26
 lsof -ti:8091 | xargs kill -9  # Nemotron
 
 # Restart services
@@ -199,7 +199,7 @@ The FastAPI backend automatically connects to these services:
 
 ```python
 # Backend configuration (backend/core/config.py)
-yolo26_url: str = "http://localhost:8090"      # YOLO26
+yolo26_url: str = "http://localhost:8095"      # YOLO26
 nemotron_url: str = "http://localhost:8091"    # Nemotron
 ```
 
@@ -259,7 +259,7 @@ See `docs/operator/ai-installation.md` for details.
 tail -f /tmp/yolo26-detector.log
 tail -f /tmp/nemotron-llm.log
 nvidia-smi
-curl http://localhost:8090/health
+curl http://localhost:8095/health
 curl http://localhost:8091/health
 
 # Cleanup

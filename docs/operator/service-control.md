@@ -449,4 +449,4 @@ Service state (failure counts, restart history) is persisted to Redis:
 
 ---
 
-[Back to Operator Hub](./)
+[Back to Operator Hub](README.md)

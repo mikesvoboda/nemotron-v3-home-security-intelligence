@@ -418,4 +418,4 @@ except Exception as e:
 
 - [GPU Monitor](./gpu-monitor.md) - GPU health monitoring
 - [Pipeline Workers](./README.md) - Worker health status
-- [Operations Guide](../../operations/monitoring.md) - Service alerts
+- [Operations Guide](../../operator/monitoring/README.md) - Service alerts

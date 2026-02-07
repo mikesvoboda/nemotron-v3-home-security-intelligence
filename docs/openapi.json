@@ -45853,6 +45853,26 @@
         ]
       }
     },
+    "/api/analytics-zones/": {
+      "get": {
+        "description": "Return available analytics zone endpoints.\n\nThis root endpoint provides discoverability for the analytics zones API.\nWithout it, GET /api/zones/ (which redirects here via 308) would produce\na 404, surfacing as an empty-body response in some HTTP client stacks.\n\nReturns:\n    JSON object listing available sub-endpoints.",
+        "operationId": "analytics-zones_list_analytics_zones_root",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Available analytics zone endpoints"
+          }
+        },
+        "summary": "List analytics zone types",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
     "/api/analytics-zones/approach-vectors/camera/{camera_id}": {
       "get": {
         "description": "Get approach vectors for all polygon zones on a camera.\n\nAggregates approach vector data across all zones for efficient\nvisualization of approaching entities on the camera view.\n\nArgs:\n    camera_id: ID of the camera.\n    db: Database session.\n\nReturns:\n    Approach vectors for all zones on the camera.\n\nRaises:\n    HTTPException: 404 if camera not found.",
@@ -62972,7 +62992,7 @@
     },
     "/api/system/gpu": {
       "get": {
-        "description": "Get current GPU statistics.\n\nReturns the most recent GPU statistics including:\n- GPU name\n- GPU utilization percentage\n- Memory usage (used/total)\n- Temperature\n- Power usage\n- Inference FPS\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\ndatabase load from frequent polling. GPU stats only update every 5 seconds anyway.\n\nReturns:\n    GPUStatsResponse with GPU statistics (null values if unavailable)",
+        "description": "Get current GPU statistics.\n\nReturns the most recent GPU statistics including:\n- GPU name\n- GPU utilization percentage\n- Memory usage (used/total)\n- Temperature\n- Power usage\n- Inference FPS\n\nResults are cached in two tiers:\n- L1: In-memory cache (HEALTH_CACHE_TTL_SECONDS, ~10s) for minimal latency\n- L2: Redis CacheService (SHORT_TTL, 60s) for cache hit ratio metrics\n\nReturns:\n    GPUStatsResponse with GPU statistics (null values if unavailable)",
         "operationId": "system_get_gpu_stats",
         "responses": {
           "200": {
@@ -63624,7 +63644,7 @@
     },
     "/api/system/health": {
       "get": {
-        "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nNEM-3892: Health checks run in PARALLEL with short individual timeouts\nto ensure the endpoint responds under 500ms SLO. Each component has a\n300ms timeout and all checks run concurrently via asyncio.gather.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce\nload from frequent health probes. Cached responses are returned immediately\nwithout re-checking services.\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
+        "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nNEM-3892: Health checks run in PARALLEL with short individual timeouts\nto ensure the endpoint responds under 500ms SLO. Each component has a\n300ms timeout and all checks run concurrently via asyncio.gather.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (15 seconds) to reduce\nload from frequent health probes. This TTL matches the default Prometheus\nscrape_interval so most scrapes return instantly from cache. Health status\nchange events are emitted as background tasks to avoid adding WebSocket\nbroadcast latency to the response.\n\nFor frequent liveness probes use GET /api/system/health/live (~0ms).\nFor readiness probes use GET /api/system/health/ready (~2ms).\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
         "operationId": "system_get_health",
         "responses": {
           "200": {
@@ -64800,7 +64820,7 @@
     },
     "/api/system/stats": {
       "get": {
-        "description": "Get system statistics.\n\nReturns aggregate statistics about the system:\n- Total number of cameras\n- Total number of events\n- Total number of detections\n- Application uptime\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\ndatabase load from three sequential COUNT queries.\n\nReturns:\n    SystemStatsResponse with system statistics",
+        "description": "Get system statistics.\n\nReturns aggregate statistics about the system:\n- Total number of cameras\n- Total number of events\n- Total number of detections\n- Application uptime\n\nResults are cached in two tiers:\n- L1: In-memory cache (HEALTH_CACHE_TTL_SECONDS, ~10s) for minimal latency\n- L2: Redis CacheService (SHORT_TTL, 60s) for cache hit ratio metrics\n\nReturns:\n    SystemStatsResponse with system statistics",
         "operationId": "system_get_stats",
         "responses": {
           "200": {

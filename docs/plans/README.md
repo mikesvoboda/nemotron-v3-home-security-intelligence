@@ -74,8 +74,8 @@ Analysis documents that identify gaps, issues, or improvement opportunities in t
 
 ## Related Documentation
 
-- [Architecture Decisions](../decisions/) - ADRs documenting "why" decisions
-- [Developer Hub](../developer/) - Developer documentation index
+- [Architecture Decisions](../decisions/README.md) - ADRs documenting "why" decisions
+- [Developer Hub](../developer/README.md) - Developer documentation index
 - [ROADMAP.md](../ROADMAP.md) - Post-MVP feature roadmap
 
 ---

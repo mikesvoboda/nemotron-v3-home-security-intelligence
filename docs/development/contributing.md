@@ -18,7 +18,7 @@ Be respectful, professional, and constructive in all interactions. Focus on the 
 ## Getting Started
 
 1. Set up your development environment following [setup.md](setup.md)
-2. Read [CLAUDE.md](../../CLAUDE.md) for project rules and conventions
+2. Read [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for project rules and conventions
 3. Review the [testing guide](testing.md) to understand test requirements
 
 ## Development Workflow
@@ -92,7 +92,7 @@ This project uses **Linear** for issue tracking:
 - If you discover multiple issues, create separate Linear issues
 - Commit messages should reference the issue: `fix(NEM-123): description`
 
-See [CLAUDE.md](../../CLAUDE.md) for the complete one-task-one-PR policy.
+See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for the complete one-task-one-PR policy.
 
 ### Closing a Task
 
@@ -107,7 +107,7 @@ See [CLAUDE.md](../../CLAUDE.md) for the complete one-task-one-PR policy.
 # mcp__linear__update_issue(issueId="NEM-123", status="38267c1e-4458-4875-aa66-4b56381786e9")
 ```
 
-If tests fail, fix the issue and re-run before closing. See [CLAUDE.md](../../CLAUDE.md) for the complete closure checklist.
+If tests fail, fix the issue and re-run before closing. See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for the complete closure checklist.
 
 ### 2. Create a Feature Branch
 
@@ -174,7 +174,7 @@ pre-commit run --all-files
 - `git push --no-verify`
 - `SKIP=hook-name git commit` (except emergencies)
 
-See [CLAUDE.md](../../CLAUDE.md) and [git-workflow.md](git-workflow.md) for the complete policy.
+See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) and [git-workflow.md](git-workflow.md) for the complete policy.
 
 #### Commit Message Format
 
@@ -329,7 +329,7 @@ For comprehensive documentation on all code quality tools, configuration, and co
 
 ### Python (Backend)
 
-Configuration in [pyproject.toml](../../pyproject.toml:7):
+Configuration in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L7):
 
 ```toml
 [tool.ruff]
@@ -526,16 +526,16 @@ Setup guides for AI-assisted development and debugging tools.
 
 ## Related Documentation
 
-| Document                                           | Purpose                              |
-| -------------------------------------------------- | ------------------------------------ |
-| [Setup Guide](setup.md)                            | Development environment setup        |
-| [Testing Guide](testing.md)                        | Test strategy and patterns           |
-| [Testing Workflow](testing-workflow.md)            | TDD workflow and patterns by layer   |
-| [Code Quality Tools](code-quality.md)              | Linting, formatting, static analysis |
-| [Code Patterns](patterns.md)                       | Key patterns and conventions         |
-| [Git Workflow](git-workflow.md)                    | Git safety and pre-commit rules      |
-| [Pre-commit Hooks](hooks.md)                       | Hook configuration and usage         |
-| [Linear Integration](linear-integration.md)        | Linear MCP tools reference           |
-| [Diagram Style Guide](../style-guides/diagrams.md) | Mermaid themes and conventions       |
-| [Visual Style Guide](../images/style-guide.md)     | Colors and design principles         |
-| [CLAUDE.md](../../CLAUDE.md)                       | Project instructions                 |
+| Document                                                                                               | Purpose                              |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| [Setup Guide](setup.md)                                                                                | Development environment setup        |
+| [Testing Guide](testing.md)                                                                            | Test strategy and patterns           |
+| [Testing Workflow](testing-workflow.md)                                                                | TDD workflow and patterns by layer   |
+| [Code Quality Tools](code-quality.md)                                                                  | Linting, formatting, static analysis |
+| [Code Patterns](patterns.md)                                                                           | Key patterns and conventions         |
+| [Git Workflow](git-workflow.md)                                                                        | Git safety and pre-commit rules      |
+| [Pre-commit Hooks](hooks.md)                                                                           | Hook configuration and usage         |
+| [Linear Integration](linear-integration.md)                                                            | Linear MCP tools reference           |
+| [Diagram Style Guide](../style-guides/diagrams.md)                                                     | Mermaid themes and conventions       |
+| [Visual Style Guide](../images/style-guide.md)                                                         | Colors and design principles         |
+| [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) | Project instructions                 |

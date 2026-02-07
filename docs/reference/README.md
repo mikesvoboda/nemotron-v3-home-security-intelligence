@@ -13,7 +13,7 @@
 | [Environment Variables](#environment)       | All configuration options with defaults    |
 | [Service Ports](#service-ports)             | Port assignments for all services          |
 | [Glossary](#glossary)                       | Definitions of key terms                   |
-| [Troubleshooting](troubleshooting/)         | Symptom-based problem solving              |
+| [Troubleshooting](troubleshooting/index.md) | Symptom-based problem solving              |
 | [API Reference](../developer/api/README.md) | REST and WebSocket API documentation       |
 | [Risk Levels](config/risk-levels.md)        | Risk score ranges and severity definitions |
 
@@ -26,7 +26,7 @@
 | Frontend HTTP  | 5173 | HTTP     | React dashboard via nginx (configurable: `FRONTEND_PORT`)       |
 | Frontend HTTPS | 8443 | HTTPS    | React dashboard via nginx (configurable: `FRONTEND_HTTPS_PORT`) |
 | Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                        |
-| YOLO26         | 8090 | HTTP     | Object detection service                                        |
+| YOLO26         | 8095 | HTTP     | Object detection service                                        |
 | Nemotron       | 8091 | HTTP     | LLM risk analysis service                                       |
 | Florence-2     | 8092 | HTTP     | Vision extraction service (optional)                            |
 | CLIP           | 8093 | HTTP     | Re-identification service (optional)                            |
@@ -68,7 +68,7 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # p
 DATABASE_URL=postgresql+asyncpg://security:password@postgres:5432/security  # pragma: allowlist secret
 ```
 
-> **Important:** There is no default `DATABASE_URL`. Run `./setup.sh` to generate a `.env` file with secure credentials.
+> **Important:** There is no default `DATABASE_URL`. Run `python setup.py` to generate a `.env` file with secure credentials.
 
 ### Redis Configuration
 
@@ -217,7 +217,7 @@ Key terms used throughout the documentation. Full glossary: [Glossary](glossary.
 
 ## Troubleshooting
 
-Quick symptom reference. Full guide: [Troubleshooting Hub](troubleshooting/)
+Quick symptom reference. Full guide: [Troubleshooting Hub](troubleshooting/index.md)
 
 ### Quick Self-Check
 
@@ -237,19 +237,19 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 
 ### Common Issues Quick Reference
 
-| Symptom                     | Likely Cause             | Quick Fix                     |
-| --------------------------- | ------------------------ | ----------------------------- |
-| Dashboard shows no events   | File watcher or AI down  | Restart backend               |
-| Risk gauge stuck at 0       | Nemotron unavailable     | Start Nemotron LLM            |
-| Camera shows offline        | FTP or folder path issue | Check FTP and folder config   |
-| AI not responding           | Services not started     | `./scripts/start-ai.sh start` |
-| WebSocket disconnected      | Backend down             | Restart backend               |
-| "Connection refused" errors | Service not running      | Start the service             |
-| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`         |
+| Symptom                     | Likely Cause             | Quick Fix                                        |
+| --------------------------- | ------------------------ | ------------------------------------------------ |
+| Dashboard shows no events   | File watcher or AI down  | Restart backend                                  |
+| Risk gauge stuck at 0       | Nemotron unavailable     | Start Nemotron LLM                               |
+| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                      |
+| AI not responding           | Services not started     | `./ai/start_detector.sh` and `./ai/start_llm.sh` |
+| WebSocket disconnected      | Backend down             | Restart backend                                  |
+| "Connection refused" errors | Service not running      | Start the service                                |
+| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                            |
 
 ### Detailed Troubleshooting Guides
 
-- [Troubleshooting Index](troubleshooting/) - Start here for any issue
+- [Troubleshooting Index](troubleshooting/index.md) - Start here for any issue
 - [AI Issues](troubleshooting/ai-issues.md) - YOLO26, Nemotron, pipeline problems
 - [Connection Issues](troubleshooting/connection-issues.md) - Network, containers, WebSocket
 - [Database Issues](troubleshooting/database-issues.md) - PostgreSQL connection, migrations
@@ -318,7 +318,7 @@ Configuration reference documentation.
 
 Symptom-based problem-solving guides.
 
-- [Troubleshooting Index](troubleshooting/) - Quick symptom lookup
+- [Troubleshooting Index](troubleshooting/index.md) - Quick symptom lookup
 - [AI Issues](troubleshooting/ai-issues.md) - AI service problems
 - [Connection Issues](troubleshooting/connection-issues.md) - Network and connectivity
 - [Database Issues](troubleshooting/database-issues.md) - PostgreSQL problems
@@ -331,7 +331,7 @@ Symptom-based problem-solving guides.
 - [Operator Hub](../operator/README.md) - System administration guides
 - [Developer Hub](../developer/README.md) - Development guides
 - [User Hub](../user/README.md) - End-user documentation
-- [Architecture](../architecture/) - Technical architecture decisions
+- [Architecture](../architecture/README.md) - Technical architecture decisions
 
 ---
 

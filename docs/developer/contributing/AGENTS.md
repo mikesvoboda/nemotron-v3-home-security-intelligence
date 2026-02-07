@@ -97,7 +97,7 @@ Quick setup prompt for Linear on new workstations:
 
 | Resource                                                                          | Description                            |
 | --------------------------------------------------------------------------------- | -------------------------------------- |
-| [docs/development/](../../development/)                                           | Hooks, code quality, git workflow      |
+| [docs/development/](../../development/AGENTS.md)                                  | Hooks, code quality, git workflow      |
 | [docs/development/hooks.md](../../development/hooks.md)                           | Pre-commit hook details                |
 | [docs/development/code-quality.md](../../development/code-quality.md)             | Linting tools                          |
 | [docs/development/linear-integration.md](../../development/linear-integration.md) | Linear MCP tools reference             |

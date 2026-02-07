@@ -101,6 +101,23 @@ class GroundedPhrase:
     confidence_scores: list[float]
 
 
+@dataclass(slots=True)
+class SecurityObjectDetection:
+    """A detected security-relevant object with bounding box and confidence."""
+
+    label: str
+    bbox: list[float]  # [x1, y1, x2, y2]
+    confidence: float = 1.0
+
+
+@dataclass(slots=True)
+class SecurityObjectsResult:
+    """Result from security objects detection endpoint."""
+
+    detections: list[SecurityObjectDetection]
+    objects_queried: list[str]
+
+
 logger = get_logger(__name__)
 
 # Timeout configuration for Florence-2 service
@@ -1095,6 +1112,119 @@ class FlorenceClient:
             self._circuit_breaker.record_failure()
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence phrase grounding: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def detect_security_objects(self, image: Image.Image) -> SecurityObjectsResult:
+        """Detect security-relevant objects using open vocabulary detection.
+
+        Uses Florence-2's open vocabulary detection with a predefined vocabulary
+        of security-relevant objects (person, face, mask, weapon, vehicle, etc.).
+
+        Args:
+            image: PIL Image to analyze
+
+        Returns:
+            SecurityObjectsResult with detected objects and their bounding boxes
+
+        Raises:
+            FlorenceUnavailableError: If the service is unavailable or circuit breaker is open
+        """
+        # Check circuit breaker before proceeding
+        self._check_circuit_breaker()
+
+        start_time = time.time()
+
+        logger.debug("Sending security objects detection request...")
+
+        try:
+            image_b64 = self._encode_image_to_base64(image)
+            payload = {"image": image_b64}
+
+            ai_start_time = time.time()
+
+            # Use persistent HTTP client (NEM-1721)
+            # Includes W3C Trace Context headers for distributed tracing
+            response = await self._http_client.post(
+                f"{self._base_url}/detect_security_objects",
+                json=payload,
+                headers=self._get_headers(),
+            )
+            response.raise_for_status()
+
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("florence_detect_security_objects", ai_duration)
+
+            result = response.json()
+
+            if "detections" not in result:
+                logger.warning(
+                    f"Malformed security objects response (missing 'detections'): {result}"
+                )
+                record_pipeline_error("florence_security_objects_malformed_response")
+                self._circuit_breaker.record_success()
+                return SecurityObjectsResult(detections=[], objects_queried=[])
+
+            detections = [
+                SecurityObjectDetection(
+                    label=d.get("label", ""),
+                    bbox=d.get("bbox", []),
+                    confidence=d.get("confidence", 1.0),
+                )
+                for d in result["detections"]
+            ]
+            objects_queried = result.get("objects_queried", [])
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            # Record semantic metric for Florence security objects task
+            record_florence_task("detect_security_objects")
+
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
+            logger.debug(
+                f"Florence security objects completed: {len(detections)} objects in {duration_ms}ms"
+            )
+            return SecurityObjectsResult(detections=detections, objects_queried=objects_queried)
+
+        except httpx.ConnectError as e:
+            record_pipeline_error("florence_security_objects_connection_error")
+            self._circuit_breaker.record_failure()
+            raise FlorenceUnavailableError(
+                f"Failed to connect to Florence service for security objects: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            record_pipeline_error("florence_security_objects_timeout")
+            self._circuit_breaker.record_failure()
+            raise FlorenceUnavailableError(
+                f"Florence security objects request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code >= 500:
+                record_pipeline_error("florence_security_objects_server_error")
+                self._circuit_breaker.record_failure()
+                raise FlorenceUnavailableError(
+                    f"Florence security objects returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+            record_pipeline_error("florence_security_objects_client_error")
+            logger.error(f"Florence security objects returned client error: {status_code} - {e}")
+            return SecurityObjectsResult(detections=[], objects_queried=[])
+
+        except FlorenceUnavailableError:
+            # Re-raise circuit breaker errors without modification
+            raise
+
+        except Exception as e:
+            record_pipeline_error("florence_security_objects_unexpected_error")
+            self._circuit_breaker.record_failure()
+            raise FlorenceUnavailableError(
+                f"Unexpected error during Florence security objects: {sanitize_error(e)}",
                 original_error=e,
             ) from e
 

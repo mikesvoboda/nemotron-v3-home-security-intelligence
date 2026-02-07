@@ -9,7 +9,12 @@ models/
   __init__.py              # Package exports
   action_recognizer.py     # X-CLIP video action recognition
   demographics.py          # Age/gender classification (existing)
+  face_recognizer.py       # Face detection and recognition
   person_reid.py           # Person re-identification (existing)
+  plate_ocr.py             # License plate OCR (PaddleOCR)
+  pose_estimator.py        # Pose estimation (YOLOv8n-pose)
+  threat_detector.py       # Threat/weapon detection
+  yolo26_detector.py       # YOLO26 integration for secondary detection
 ```
 
 ## Model Priority Levels

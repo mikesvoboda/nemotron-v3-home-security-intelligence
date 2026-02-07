@@ -568,20 +568,62 @@ The `Dockerfile` uses a multi-stage build:
 - Media files served from `/api/media/*`
 - Dev server proxies all API/WS requests to backend
 
+## State Management - Zustand Stores
+
+Located in `src/stores/`. All stores follow Zustand 5 patterns with Immer middleware and shallow selectors.
+
+| Store File                  | Purpose                                      | Key Exports                                           |
+| --------------------------- | -------------------------------------------- | ----------------------------------------------------- |
+| `settings-store.ts`         | App settings (ambient, audio, notifications) | `useSettingsStore`, `useAudioSettings`                 |
+| `dashboard-config-store.ts` | Dashboard widget layout and theme            | `useDashboardConfigStore`, `useDashboardWidgets`       |
+| `prometheus-alert-store.ts` | Prometheus alert state                       | `usePrometheusAlertStore`, `selectCriticalAlerts`      |
+| `rate-limit-store.ts`       | API rate limit tracking                      | `useRateLimitStore`, `useRateLimitStatus`              |
+| `realtime-metrics-store.ts` | GPU, pipeline, and inference metrics         | `useRealtimeMetricsStore`, `handleGPUStatsEvent`       |
+| `storage-status-store.ts`   | Storage usage and warnings                   | `useStorageStatusStore`, `useStorageWarningStatus`     |
+| `worker-status-store.ts`    | Background worker health                     | `useWorkerStatusStore`, `usePipelineHealth`            |
+| `middleware.ts`             | Shared Zustand middleware utilities          | `createImmerStore`, `useShallow`, `shallow`            |
+| `dashboardConfig.ts`        | Legacy dashboard config (compatibility)      | `getDashboardConfig`, `setDashboardConfig`             |
+| `index.ts`                  | Barrel re-exports for all stores             | All store exports                                      |
+
 ## Application Routes
 
 Defined in `src/App.tsx`:
 
-| Path        | Component              | Description                              |
-| ----------- | ---------------------- | ---------------------------------------- |
-| `/`         | `DashboardPage`        | Main dashboard with real-time monitoring |
-| `/timeline` | `EventTimeline`        | Chronological event list                 |
-| `/alerts`   | `AlertsPage`           | Alert management (modular architecture)  |
-| `/entities` | `EntitiesPage`         | Entity tracking                          |
-| `/logs`     | `LogsDashboard`        | Application logs viewer                  |
-| `/audit`    | `AuditLogPage`         | Audit log viewer                         |
-| `/operations` | `SystemMonitoringPage` | Operations and pipeline controls        |
-| `/settings` | `SettingsPage`         | Application settings                     |
+| Path                    | Component                | Description                              |
+| ----------------------- | ------------------------ | ---------------------------------------- |
+| `/`                     | `DashboardPage`          | Main dashboard with real-time monitoring |
+| `/timeline`             | `EventTimeline`          | Chronological event list                 |
+| `/analytics`            | `AnalyticsPage`          | Analytics and baseline monitoring        |
+| `/jobs`                 | `JobsPage`               | Background job monitoring                |
+| `/alerts`               | `AlertsPage`             | Alert management (modular architecture)  |
+| `/entities`             | `EntitiesPage`           | Entity tracking                          |
+| `/logs`                 | `LogsPage`               | Application logs viewer                  |
+| `/audit`                | `AuditLogPage`           | Audit log viewer                         |
+| `/ai`                   | `AIPerformancePage`      | AI performance metrics                   |
+| `/ai-audit`             | `AIAuditPage`            | AI audit and prompt evaluation           |
+| `/ai-services`          | `AIServicesPage`         | AI service health status                 |
+| `/video-analytics`      | `VideoAnalyticsPage`     | Video analytics dashboard                |
+| `/pyroscope`            | `PyroscopePage`          | Continuous profiling                     |
+| `/performance`          | `PerformancePage`        | Performance monitoring                   |
+| `/operations`           | `OperationsPage`         | Operations and pipeline controls         |
+| `/operations-dashboard` | `OperationsDashboardPage`| Operations overview dashboard            |
+| `/gpu-metrics`          | `GpuMetricsPage`         | GPU metrics and utilization              |
+| `/request-profiling`    | `RequestProfilingPage`   | Request profiling dashboard              |
+| `/tracing`              | `TracingPage`            | Distributed tracing                      |
+| `/settings`             | `SettingsPage`           | Application settings (nested routes)     |
+| `/notifications`        | `NotificationPreferencesPage` | Notification preferences            |
+| `/trash`                | `TrashPage`              | Deleted items recovery                   |
+| `/data`                 | `DataManagementPage`     | Data management                          |
+| `/zones`                | `ZonesPage`              | Zone configuration                       |
+| `/webhooks`             | `WebhooksPage`           | Webhook management                       |
+| `/scheduled-reports`    | `ScheduledReportsPage`   | Scheduled report management              |
+| `/plate-reads`          | `PlateReadsPage`         | License plate reads                      |
+| `/household`            | `HouseholdPage`          | Household member management              |
+| `/face-recognition`     | `FaceRecognitionPage`    | Face recognition management              |
+| `/heatmaps`             | `HeatmapsPage`           | Activity heatmaps                        |
+| `/scene-changes`        | `SceneChangesPage`       | Scene change detection                   |
+| `/tracks`               | `TracksPage`             | Object tracking                          |
+| `/reid`                 | `ReIDDashboard`          | Re-identification dashboard              |
 
 ## Entry Points for Understanding the Code
 

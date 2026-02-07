@@ -394,4 +394,4 @@ GPU stats are available via:
 
 - [Retention Cleanup](./retention-cleanup.md) - GPU stats retention policy
 - [Observability Hub](../observability/README.md) - Metrics dashboards
-- [Operations Guide](../../operations/monitoring.md) - GPU monitoring alerts
+- [Operations Guide](../../operator/monitoring/README.md) - GPU monitoring alerts

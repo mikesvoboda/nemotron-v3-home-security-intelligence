@@ -626,7 +626,7 @@ Re-identification technology has privacy implications:
 
 ## See Also
 
-- [Enrichment Panel](../../frontend/src/components/events/EnrichmentPanel.tsx) - UI component
+- [Enrichment Panel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/components/events/EnrichmentPanel.tsx) - UI component
 - [Entities API Schema](api/core-resources.md) - OpenAPI spec
 - [AI Overview](../operator/ai-overview.md) - CLIP model details
 

@@ -123,18 +123,12 @@ class MyModel(Base):
 
 ## Testing
 
-Unit tests are located in `backend/tests/unit/test_database.py`.
+Unit tests are located in `backend/tests/unit/core/` (e.g., `test_database.py`, `test_config.py`, `test_redis.py`).
 
 Run tests:
 
 ```bash
-pytest backend/tests/unit/test_database.py -v
-```
-
-Verify database connection manually:
-
-```bash
-python backend/tests/verify_database.py
+pytest backend/tests/unit/core/ -v
 ```
 
 ## Configuration

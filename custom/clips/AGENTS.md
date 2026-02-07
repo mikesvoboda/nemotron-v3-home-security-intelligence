@@ -37,7 +37,7 @@ To test the detection pipeline with custom clips:
 
 ```bash
 # Run detection on a specific image
-curl -X POST http://localhost:8090/detect \
+curl -X POST http://localhost:8095/detect \
   -F "image=@custom/clips/test_image.jpg"
 
 # Or use the E2E test script

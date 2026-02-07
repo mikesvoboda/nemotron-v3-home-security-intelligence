@@ -41,7 +41,6 @@ This document details the real-time communication architecture of the Home Secur
 7. [Frontend Integration](#frontend-integration)
 8. [Connection Management](#connection-management)
 9. [Scaling Considerations](#scaling-considerations)
-10. [Image Generation Prompts](#image-generation-prompts)
 
 ---
 
@@ -128,11 +127,7 @@ The system exposes three WebSocket endpoints for real-time updates.
 
 ### Channel Overview
 
-| Channel      | Endpoint                 | Purpose                      | Message Frequency |
-| ------------ | ------------------------ | ---------------------------- | ----------------- |
-| **Events**   | `/ws/events`             | Security event notifications | On event creation |
-| **System**   | `/ws/system`             | System health and GPU stats  | Every 5 seconds   |
-| **Job Logs** | `/ws/jobs/{job_id}/logs` | Real-time job log streaming  | On log emission   |
+--8<-- "docs/\_includes/websocket-channels.md"
 
 ### Events Channel (`/ws/events`)
 
@@ -232,7 +227,7 @@ Streams real-time log entries for active jobs (pending or running status). This 
 - Connection closes when the client disconnects or the idle timeout is reached
 - Server sends periodic heartbeat pings to detect disconnected clients
 
-**Source:** [backend/api/routes/websocket.py](../../backend/api/routes/websocket.py) - `websocket_job_logs` endpoint
+**Source:** [backend/api/routes/websocket.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/routes/websocket.py) - `websocket_job_logs` endpoint
 
 ---
 
@@ -242,7 +237,7 @@ Redis pub/sub enables real-time message distribution across multiple backend ins
 
 ### Channel Configuration
 
-The channel name is configured in settings and retrieved via the [get_event_channel](../../backend/services/event_broadcaster.py) function at line 27:
+The channel name is configured in settings and retrieved via the [get_event_channel](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) function at line 27:
 
 ```python
 # backend/services/event_broadcaster.py:27
@@ -323,7 +318,7 @@ Messages published to Redis include the full event envelope:
 
 ## Event Broadcasting
 
-The [EventBroadcaster](../../backend/services/event_broadcaster.py) class at line 36 manages WebSocket connections and distributes events.
+The [EventBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) class at line 36 manages WebSocket connections and distributes events.
 
 ### EventBroadcaster Implementation
 
@@ -404,7 +399,7 @@ async def disconnect(self, websocket: WebSocket) -> None:
 
 ### Global Broadcaster Instance
 
-The [get_broadcaster](../../backend/services/event_broadcaster.py) function at line 263 provides a singleton instance:
+The [get_broadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/event_broadcaster.py) function at line 263 provides a singleton instance:
 
 ```python
 # backend/services/event_broadcaster.py:263
@@ -433,7 +428,7 @@ async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
 
 ## System Status Broadcasting
 
-The [SystemBroadcaster](../../backend/services/system_broadcaster.py) periodically sends system status updates to all connected clients. It provides real-time system health information including GPU statistics, camera status, queue depths, and AI service health.
+The [SystemBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/system_broadcaster.py) periodically sends system status updates to all connected clients. It provides real-time system health information including GPU statistics, camera status, queue depths, and AI service health.
 
 ### SystemBroadcaster Features
 
@@ -499,7 +494,7 @@ class SystemBroadcaster:
 
 ### Circuit Breaker Integration
 
-The SystemBroadcaster integrates with a [WebSocketCircuitBreaker](../../backend/core/websocket_circuit_breaker.py) to protect against cascading failures when the Redis pub/sub connection becomes unreliable.
+The SystemBroadcaster integrates with a [WebSocketCircuitBreaker](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/core/websocket_circuit_breaker.py) to protect against cascading failures when the Redis pub/sub connection becomes unreliable.
 
 #### Circuit Breaker States
 
@@ -665,7 +660,7 @@ flowchart TB
 
 ### Performance Broadcasting
 
-The SystemBroadcaster can broadcast detailed performance metrics through its `broadcast_performance()` method. This requires a [PerformanceCollector](../../backend/services/performance_collector.py) to be configured.
+The SystemBroadcaster can broadcast detailed performance metrics through its `broadcast_performance()` method. This requires a [PerformanceCollector](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/performance_collector.py) to be configured.
 
 #### Enabling Performance Broadcasting
 
@@ -795,13 +790,13 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 
 **Message Type:** `performance_update`
 
-**Source:** [SystemBroadcaster](../../backend/services/system_broadcaster.py) via [PerformanceCollector](../../backend/services/performance_collector.py)
+**Source:** [SystemBroadcaster](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/system_broadcaster.py) via [PerformanceCollector](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/services/performance_collector.py)
 
 **Redis Channel:** `performance_update`
 
 **Trigger:** Broadcast loop (every 5 seconds when clients are connected)
 
-**Frontend Consumer:** [usePerformanceMetrics](../../frontend/src/hooks/usePerformanceMetrics.ts) hook
+**Frontend Consumer:** [usePerformanceMetrics](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/hooks/usePerformanceMetrics.ts) hook
 
 #### Message Structure
 
@@ -1369,74 +1364,15 @@ location /ws/ {
 
 ---
 
-## Image Generation Prompts
-
-### Prompt: Real-Time Data Flow
-
-**Dimensions:** 800x1200 (vertical 2:3)
-
-```
-Technical illustration of a real-time event distribution system,
-showing WebSocket connections and Redis pub/sub architecture.
-
-Visual elements:
-- Top: Multiple camera icons generating events (represented as data pulses)
-- Middle layer: Redis pub/sub hub as a central glowing node with branching channels
-- Lower layer: Multiple backend instances receiving messages (server icons)
-- Bottom: WebSocket connections fanning out to browser clients
-- Data streams: Glowing green lines flowing from top to bottom
-
-Visual style:
-- Dark background #121212
-- Primary data flow: NVIDIA green #76B900
-- Redis/pub-sub: Purple #A855F7
-- WebSocket connections: Blue #3B82F6
-- Glowing effect on active connections
-- Particle effects representing real-time messages
-
-Style: Isometric technical diagram, data visualization aesthetic, vertical flow
-No text overlays
-```
-
-### Prompt: WebSocket Connection Lifecycle
-
-**Dimensions:** 800x1000 (vertical)
-
-```
-Technical illustration of WebSocket connection lifecycle,
-showing connect, message flow, and disconnect phases.
-
-Visual elements:
-- Left side: Browser/client icon
-- Center: WebSocket tunnel visualization (tube with flowing data)
-- Right side: Server icon
-- Three phases shown vertically:
-  1. Connection handshake (green glow)
-  2. Active communication (pulsing data particles)
-  3. Graceful disconnect (fading connection)
-- Status indicators for each phase
-
-Color scheme:
-- Dark background #121212
-- Connected state: Green #76B900
-- Data flow: Blue #3B82F6
-- Disconnect: Red #E74856 fading to gray
-
-Style: Modern technical diagram, connection visualization, vertical timeline
-No text overlays
-```
-
----
-
 ## Related Documentation
 
-| Document                                                  | Purpose                          |
-| --------------------------------------------------------- | -------------------------------- |
-| [Overview](overview.md)                                   | High-level system architecture   |
-| [AI Pipeline](ai-pipeline.md)                             | Detection and analysis flow      |
-| [Resilience](resilience.md)                               | Error handling and recovery      |
-| [API Reference - WebSocket](../developer/api/realtime.md) | WebSocket endpoint documentation |
-| [Frontend Hooks](../../frontend/src/hooks/AGENTS.md)      | Custom hook implementation       |
+| Document                                                                                                                       | Purpose                          |
+| ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| [Overview](overview.md)                                                                                                        | High-level system architecture   |
+| [AI Pipeline](ai-pipeline.md)                                                                                                  | Detection and analysis flow      |
+| [Resilience](resilience.md)                                                                                                    | Error handling and recovery      |
+| [API Reference - WebSocket](../developer/api/realtime.md)                                                                      | WebSocket endpoint documentation |
+| [Frontend Hooks](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/src/hooks/AGENTS.md) | Custom hook implementation       |
 
 ---
 

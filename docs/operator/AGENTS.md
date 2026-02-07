@@ -8,7 +8,7 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 
 ## Hub
 
-- **[Operator Hub](./)** - Central navigation page linking to all operator documentation
+- **[Operator Hub](README.md)** - Central navigation page linking to all operator documentation
 
 ## Available Spokes
 

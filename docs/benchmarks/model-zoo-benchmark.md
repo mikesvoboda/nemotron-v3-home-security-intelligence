@@ -354,7 +354,7 @@ uv run python scripts/benchmark_model_zoo.py --model weather-classification
 
 ## Related Documentation
 
-- [Model Zoo Service](../../ai/model-zoo.md) - Service architecture
-- [AI Orchestration](../../architecture/ai-orchestration/model-zoo.md) - Orchestration patterns
+- [Model Zoo Service](../ai/model-zoo.md) - Service architecture
+- [AI Orchestration](../architecture/ai-orchestration/model-zoo.md) - Orchestration patterns
 - [YOLO26 Performance](../reference/benchmarks/yolo26-performance.md) - Primary detection model
 - [Multi-GPU Configuration](../development/multi-gpu.md) - GPU assignment strategies

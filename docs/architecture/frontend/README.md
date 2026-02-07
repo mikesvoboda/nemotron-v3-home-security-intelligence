@@ -216,7 +216,7 @@ flowchart LR
 
 - [Frontend Hooks Architecture](../frontend-hooks.md) - Detailed WebSocket hooks documentation
 - [Real-time System](../real-time.md) - Backend WebSocket infrastructure
-- [API Reference](../../developer/api/) - REST and WebSocket API documentation
+- [API Reference](../../developer/api/README.md) - REST and WebSocket API documentation
 
 ---
 

@@ -160,7 +160,7 @@ When new model versions are released:
 # View current models
 ls -la ai/nemotron/*.gguf
 # YOLO26 weights are cached by HuggingFace; verify detector health instead:
-# curl http://localhost:8090/health
+# curl http://localhost:8095/health
 ```
 
 ### Download New Models

@@ -86,8 +86,21 @@ HTTP 401 Unauthorized
 Run unit tests:
 
 ```bash
-python -m pytest backend/tests/unit/test_auth_middleware.py -v
+pytest backend/tests/unit/core/test_auth_middleware.py -v
+pytest backend/tests/unit/core/test_middleware.py -v
 ```
+
+## Additional Middleware Modules
+
+The middleware directory contains 24 modules total. Beyond authentication, key middleware includes:
+
+- **`setup_guard.py`** - `SetupGuardMiddleware` blocks all API access with HTTP 503 until the first admin user is registered. This ensures the system is properly initialized before accepting requests.
+- **`etag.py`** - ETag support for conditional requests (If-None-Match / 304 responses)
+- **`profiling.py`** - Request profiling for performance analysis
+- **`prometheus.py`** - Prometheus metrics collection for request monitoring
+- **`baggage.py`** - W3C Baggage context propagation for distributed tracing
+
+See `backend/AGENTS.md` for the complete middleware listing.
 
 ### Future Enhancements
 

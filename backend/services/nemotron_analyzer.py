@@ -127,14 +127,18 @@ from backend.services.prompts import (
     RISK_ANALYSIS_PROMPT,
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
     format_action_recognition_context,
+    format_age_classification_context,
     format_camera_health_context,
+    format_clip_analysis_context,
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
+    format_gender_classification_context,
     format_household_context_by_detection,
     format_image_quality_context,
     format_pet_classification_context,
     format_pose_analysis_context,
+    format_scene_ocr_context,
     format_vehicle_classification_context,
     format_vehicle_damage_context,
     format_violence_context,
@@ -3365,6 +3369,42 @@ class NemotronAnalyzer:
 
         return tracking_result
 
+    @staticmethod
+    def _build_ondemand_enrichment_context(
+        enrichment_result: EnrichmentResult,
+    ) -> str:
+        """Build on-demand enrichment context string from available data.
+
+        Assembles age classification, gender classification, and scene OCR
+        contexts into a single formatted string for the Nemotron prompt.
+
+        Args:
+            enrichment_result: The enrichment pipeline result containing
+                age_classifications, gender_classifications, and scene_ocr data.
+
+        Returns:
+            Formatted string combining all on-demand enrichment sections,
+            or empty string if no meaningful data exists.
+        """
+        sections: list[str] = []
+
+        # Age classification context
+        age_text = format_age_classification_context(enrichment_result.age_classifications)
+        if age_text and age_text != "Age estimation: No persons analyzed":
+            sections.append(f"### Age Estimation\n{age_text}")
+
+        # Gender classification context
+        gender_text = format_gender_classification_context(enrichment_result.gender_classifications)
+        if gender_text and gender_text != "Gender estimation: No persons analyzed":
+            sections.append(f"### Gender Estimation\n{gender_text}")
+
+        # Scene OCR context (text from uniforms, vehicles, signs)
+        ocr_text = format_scene_ocr_context(enrichment_result.scene_ocr)
+        if ocr_text:
+            sections.append(f"### Scene Text (OCR)\n{ocr_text}")
+
+        return "\n\n".join(sections)
+
     async def _call_llm(
         self,
         camera_name: str,
@@ -3421,7 +3461,7 @@ class NemotronAnalyzer:
             enrichment_result is not None and enrichment_result.has_vision_extraction
         )
 
-        # Check for full model zoo enrichment (clothing, violence, vehicle analysis, etc.)
+        # Check for full model zoo enrichment (clothing, violence, vehicle analysis, CLIP, etc.)
         has_model_zoo_enrichment = enrichment_result is not None and (
             enrichment_result.has_violence
             or enrichment_result.has_clothing_classifications
@@ -3429,6 +3469,7 @@ class NemotronAnalyzer:
             or enrichment_result.has_vehicle_damage
             or enrichment_result.has_pet_classifications
             or enrichment_result.has_image_quality
+            or enrichment_result.has_clip_analysis
         )
 
         # Track which template is used for metrics
@@ -3543,8 +3584,12 @@ class NemotronAnalyzer:
                     enriched_context.cross_camera
                 ),
                 scene_analysis=scene_text,
-                # On-demand enrichment (future: will contain threat/pose/demographics)
-                ondemand_enrichment_context="",
+                # On-demand enrichment: age, gender, scene OCR
+                ondemand_enrichment_context=self._build_ondemand_enrichment_context(
+                    enrichment_result
+                ),
+                # CLIP scene intelligence (NEM-5525)
+                clip_analysis_context=format_clip_analysis_context(enrichment_result),
             )
         elif has_vision_extraction and has_enriched_context:
             # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis

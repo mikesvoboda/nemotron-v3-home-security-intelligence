@@ -6,6 +6,8 @@ Complete guide to configuring and using detection zones for focused security mon
 
 Detection zones allow you to define specific regions within camera views for targeted AI analysis. Instead of processing the entire frame equally, zones help the AI prioritize activity in designated areas like entry points, driveways, and restricted areas.
 
+![Zone Intelligence](../images/concepts/zone-intelligence.png)
+
 ### Benefits of Using Zones
 
 | Benefit                     | Description                                    |
@@ -23,13 +25,39 @@ Detection zones allow you to define specific regions within camera views for tar
 
 Each zone has a type that affects AI behavior and alert prioritization:
 
-| Type          | Color  | Best For                         | Alert Priority |
-| ------------- | ------ | -------------------------------- | -------------- |
-| `entry_point` | Red    | Doors, gates, garage entries     | Highest        |
-| `exit_point`  | Orange | Exit-only areas, emergency exits | High           |
-| `restricted`  | Red    | Off-limits areas, secure zones   | Highest        |
-| `monitored`   | Blue   | General monitored areas          | Medium         |
-| `other`       | Gray   | Miscellaneous areas              | Low            |
+| Type          | Color  | Best For                        | Alert Priority |
+| ------------- | ------ | ------------------------------- | -------------- |
+| `entry_point` | Red    | Doors, gates, garage entries    | Highest        |
+| `driveway`    | Orange | Driveways, vehicle access areas | High           |
+| `sidewalk`    | Blue   | Sidewalks, walkways             | Medium         |
+| `yard`        | Green  | Yards, lawn areas               | Medium         |
+| `other`       | Gray   | Miscellaneous areas             | Low            |
+
+> **Note:** These are CameraZone types. PolygonZone (analytics zones) uses a different set of types: monitored, excluded, restricted.
+
+### Zone Types Comparison
+
+The system uses two distinct zone models. **CameraZone** provides semantic labels for risk context (stored in the `camera_zones` table), while **PolygonZone** defines geometric regions for dwell time and crossing analytics (stored in the `analytics_zone` table).
+
+```mermaid
+flowchart LR
+    subgraph CZ["CameraZone<br/>(camera_zones table)"]
+        direction TB
+        CZ1[entry_point]
+        CZ2[driveway]
+        CZ3[sidewalk]
+        CZ4[yard]
+        CZ5[other]
+    end
+    subgraph PZ["PolygonZone<br/>(analytics_zone table)"]
+        direction TB
+        PZ1[monitored]
+        PZ2[excluded]
+        PZ3[restricted]
+    end
+    CZ -->|"Semantic labeling<br/>for risk context"| RISK[Risk Scoring]
+    PZ -->|"Geometric regions<br/>for dwell/crossing analytics"| ANALYTICS[Zone Analytics]
+```
 
 ### Zone Type Decision Tree
 
@@ -51,27 +79,21 @@ flowchart TD
     START["What is the primary<br/>purpose of this area?"]
 
     START --> ENTRY{"Entry/Exit<br/>to property?"}
-    START --> RESTRICTED{"Restricted<br/>access?"}
-    START --> GENERAL{"General<br/>monitoring?"}
+    START --> DRIVE{"Vehicle<br/>access?"}
+    START --> WALK{"Pedestrian<br/>path?"}
+    START --> YARD_Q{"Yard/lawn<br/>area?"}
     START --> OTHER["None of<br/>the above"]
 
-    ENTRY --> DOOR["Entry door/gate"]
-    ENTRY --> EXIT["Exit-only"]
-    ENTRY --> BOTH["Both ways"]
-
-    DOOR --> EP1[entry_point]
-    EXIT --> EX[exit_point]
-    BOTH --> EP2[entry_point]
-
-    RESTRICTED --> REST[restricted]
-    GENERAL --> MON[monitored]
+    ENTRY --> EP1[entry_point]
+    DRIVE --> DW[driveway]
+    WALK --> SW[sidewalk]
+    YARD_Q --> YD[yard]
     OTHER --> OTH[other]
 
     style EP1 fill:#EF4444,color:#fff
-    style EP2 fill:#EF4444,color:#fff
-    style EX fill:#F97316,color:#fff
-    style REST fill:#EF4444,color:#fff
-    style MON fill:#3B82F6,color:#fff
+    style DW fill:#F97316,color:#fff
+    style SW fill:#3B82F6,color:#fff
+    style YD fill:#22C55E,color:#fff
     style OTH fill:#6B7280,color:#fff
 ```
 

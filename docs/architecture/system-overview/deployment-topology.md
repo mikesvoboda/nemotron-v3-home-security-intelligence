@@ -81,7 +81,7 @@ networks:
 | backend       | 8000          | 8000          | HTTP/WS    |
 | postgres      | 5432          | 5432          | TCP        |
 | redis         | 6379          | 6379          | TCP        |
-| ai-yolo26     | 8090          | 8090          | HTTP       |
+| ai-yolo26     | 8095          | 8095          | HTTP       |
 | ai-llm        | 8091          | 8091          | HTTP       |
 | ai-florence   | 8092          | 8092          | HTTP       |
 | ai-clip       | 8093          | 8093          | HTTP       |
@@ -139,7 +139,7 @@ Total GPU VRAM: ~24GB (RTX A5500)
 +------------------------------------------------------------------+
 |                        GPU VRAM (24GB)                            |
 +------------------------------------------------------------------+
-| Nemotron LLM (Q4_K_M)                          | ~21,700 MB       |
+| Nemotron LLM (Q4_K_M)                          | ~14,700 MB       |
 | ================================================                  |
 +------------------------------------------------------------------+
 | YOLO26                                      | ~650 MB          |
@@ -164,7 +164,7 @@ Total GPU VRAM: ~24GB (RTX A5500)
 
 | Service               | VRAM       | Notes                               |
 | --------------------- | ---------- | ----------------------------------- |
-| **Nemotron LLM**      | ~21,700 MB | Q4_K_M quantization, 128K context   |
+| **Nemotron LLM**      | ~14,700 MB | Q4_K_M quantization, 128K context   |
 | **YOLO26**            | ~650 MB    | Object detection, always loaded     |
 | **Enrichment Budget** | ~6,800 MB  | On-demand model loading (Model Zoo) |
 | **Florence-2**        | ~1,500 MB  | Vision-language, optional           |

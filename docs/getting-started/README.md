@@ -84,10 +84,10 @@ See [Prerequisites](prerequisites.md) for complete requirements and verification
 
 Once your system is running, continue to the guide that matches your role:
 
-| Role           | Hub                                     | Focus                                 |
-| -------------- | --------------------------------------- | ------------------------------------- |
-| **End Users**  | [User Guide](../user/README.md)         | Dashboard usage, cameras, alerts      |
-| **Developers** | [Developer Guide](../developer/)        | Contributing, testing, architecture   |
-| **Operators**  | [Operator Guide](../operator/README.md) | Deployment, monitoring, configuration |
+| Role           | Hub                                       | Focus                                 |
+| -------------- | ----------------------------------------- | ------------------------------------- |
+| **End Users**  | [User Guide](../user/README.md)           | Dashboard usage, cameras, alerts      |
+| **Developers** | [Developer Guide](../developer/README.md) | Contributing, testing, architecture   |
+| **Operators**  | [Operator Guide](../operator/README.md)   | Deployment, monitoring, configuration |
 
 > **Recommended for all users:** Complete the [Product Tour](tour.md) to familiarize yourself with the dashboard before diving into detailed documentation.
