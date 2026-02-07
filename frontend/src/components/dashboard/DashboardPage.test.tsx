@@ -24,6 +24,7 @@ vi.mock('../../services/api', () => ({
   fetchCameras: vi.fn(),
   fetchEvents: vi.fn(),
   fetchEventStats: vi.fn(),
+  fetchSummaryDetail: vi.fn(),
   getCameraSnapshotUrl: vi.fn(),
   buildWebSocketOptions: vi.fn(() => ({ url: 'ws://localhost:8000/ws/events', protocols: [] })),
 }));
@@ -236,10 +237,12 @@ vi.mock('./SummaryCards', () => ({
     hourly,
     daily,
     isLoading,
+    onViewFull,
   }: {
-    hourly: { content: string; eventCount: number } | null;
-    daily: { content: string; eventCount: number } | null;
+    hourly: { id: number; content: string; eventCount: number } | null;
+    daily: { id: number; content: string; eventCount: number } | null;
     isLoading?: boolean;
+    onViewFull?: (summary: { id: number; content: string; eventCount: number }) => void;
   }) => (
     <div
       data-testid="summary-cards"
@@ -248,10 +251,52 @@ vi.mock('./SummaryCards', () => ({
       data-has-daily={daily ? 'true' : 'false'}
       data-hourly-content={hourly?.content ?? ''}
       data-daily-content={daily?.content ?? ''}
+      data-has-view-full={onViewFull ? 'true' : 'false'}
     >
       Summary Cards
+      {onViewFull && hourly && (
+        <button
+          data-testid="view-full-hourly"
+          onClick={() => onViewFull(hourly)}
+        >
+          View Full Hourly
+        </button>
+      )}
+      {onViewFull && daily && (
+        <button
+          data-testid="view-full-daily"
+          onClick={() => onViewFull(daily)}
+        >
+          View Full Daily
+        </button>
+      )}
     </div>
   ),
+}));
+
+vi.mock('./ExpandableDetailPanel', () => ({
+  ExpandableDetailPanel: ({
+    detail,
+    isOpen,
+    onClose,
+  }: {
+    detail: { id: number; summaryType: string; content: string; eventCount: number };
+    isOpen: boolean;
+    onClose: () => void;
+  }) =>
+    isOpen ? (
+      <div
+        data-testid="expandable-detail-panel"
+        data-detail-id={detail.id}
+        data-summary-type={detail.summaryType}
+        data-event-count={detail.eventCount}
+      >
+        <div data-testid="detail-narrative">{detail.content}</div>
+        <button data-testid="detail-panel-close" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock('../ai-performance/AIPerformanceSummaryRow', () => ({
@@ -1114,6 +1159,163 @@ describe('DashboardPage', () => {
         expect(summaryCards).toHaveAttribute('data-has-daily', 'true');
         expect(summaryCards).toHaveAttribute('data-is-loading', 'false');
       });
+    });
+  });
+
+  describe('Expandable Detail Panel Integration (NEM-5526)', () => {
+    const mockHourlySummary = {
+      id: 10,
+      content: 'Hourly summary for detail panel test.',
+      eventCount: 2,
+      windowStart: '2026-01-18T14:00:00Z',
+      windowEnd: '2026-01-18T15:00:00Z',
+      generatedAt: '2026-01-18T14:55:00Z',
+    };
+
+    const mockDetailResponse = {
+      id: 10,
+      summaryType: 'hourly' as const,
+      content: 'Hourly summary for detail panel test.',
+      eventCount: 2,
+      windowStart: '2026-01-18T14:00:00Z',
+      windowEnd: '2026-01-18T15:00:00Z',
+      generatedAt: '2026-01-18T14:55:00Z',
+      timeline: [
+        {
+          eventId: 101,
+          timestamp: '2026-01-18T14:10:00Z',
+          cameraName: 'Front Door',
+          summary: 'Person detected',
+          riskScore: 75,
+          riskLevel: 'high',
+          eventUrl: '/events/101',
+        },
+      ],
+      exportFormats: ['json', 'csv', 'pdf'],
+      focusAreas: ['Front Door'],
+      maxRiskScore: 75,
+    };
+
+    it('passes onViewFull handler to SummaryCards', async () => {
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: mockHourlySummary,
+        daily: null,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const summaryCards = screen.getByTestId('summary-cards');
+        expect(summaryCards).toHaveAttribute('data-has-view-full', 'true');
+      });
+    });
+
+    it('opens detail panel when View Full Summary is clicked', async () => {
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: mockHourlySummary,
+        daily: null,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      (api.fetchSummaryDetail as Mock).mockResolvedValue(mockDetailResponse);
+
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-full-hourly')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('view-full-hourly'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('expandable-detail-panel')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('expandable-detail-panel')).toHaveAttribute(
+        'data-detail-id',
+        '10'
+      );
+      expect(screen.getByTestId('expandable-detail-panel')).toHaveAttribute(
+        'data-summary-type',
+        'hourly'
+      );
+    });
+
+    it('closes detail panel when close button is clicked', async () => {
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: mockHourlySummary,
+        daily: null,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      (api.fetchSummaryDetail as Mock).mockResolvedValue(mockDetailResponse);
+
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-full-hourly')).toBeInTheDocument();
+      });
+
+      // Open the panel
+      await user.click(screen.getByTestId('view-full-hourly'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('expandable-detail-panel')).toBeInTheDocument();
+      });
+
+      // Close the panel
+      await user.click(screen.getByTestId('detail-panel-close'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('expandable-detail-panel')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows panel with fallback data when detail API fails', async () => {
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: mockHourlySummary,
+        daily: null,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      (api.fetchSummaryDetail as Mock).mockRejectedValue(new Error('API Error'));
+
+      const { user } = renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-full-hourly')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('view-full-hourly'));
+
+      // Panel should still open with fallback data
+      await waitFor(() => {
+        expect(screen.getByTestId('expandable-detail-panel')).toBeInTheDocument();
+      });
+
+      // Should show the summary content from the basic summary data
+      expect(screen.getByTestId('detail-narrative')).toHaveTextContent(
+        'Hourly summary for detail panel test.'
+      );
+    });
+
+    it('does not render detail panel when no summary is selected', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-cards')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('expandable-detail-panel')).not.toBeInTheDocument();
     });
   });
 

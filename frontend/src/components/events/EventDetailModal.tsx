@@ -20,7 +20,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import ActionEventsPanel from './ActionEventsPanel';
 import ConfidenceIndicators from './ConfidenceIndicators';
-import EnrichmentPanel from './EnrichmentPanel';
+import { EnrichmentViewer } from '../enrichment';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
@@ -975,9 +975,10 @@ export default function EventDetailModal({
                           {event.detections
                             .filter((d) => d.enrichment_data)
                             .map((detection, index) => (
-                              <EnrichmentPanel
+                              <EnrichmentViewer
                                 key={`enrichment-${index}`}
-                                enrichment_data={detection.enrichment_data}
+                                enrichmentData={detection.enrichment_data}
+                                variant="full"
                                 className="mb-3"
                               />
                             ))}

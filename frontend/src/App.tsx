@@ -101,6 +101,11 @@ const PyroscopePage = lazy(() =>
   import('./components/pyroscope').then((module) => ({ default: module.PyroscopePage }))
 );
 
+// Performance monitoring (real-time metrics, charts, alerts)
+const PerformancePage = lazy(() =>
+  import('./components/performance').then((module) => ({ default: module.PerformancePage }))
+);
+
 // Operations (formerly System Monitoring)
 const OperationsPage = lazy(() =>
   import('./components/system').then((module) => ({ default: module.SystemMonitoringPage }))
@@ -265,7 +270,8 @@ export default function App() {
                                   <Route path="/ai-services" element={<AIServicesPage />} />
                                   <Route path="/video-analytics" element={<VideoAnalyticsPage />} />
                                   <Route path="/pyroscope" element={<PyroscopePage />} />
-                                  <Route path="/operations" element={<OperationsPage />} />
+                                  <Route path="/performance" element={<PerformancePage />} />
+                                <Route path="/operations" element={<OperationsPage />} />
                                   <Route path="/operations-dashboard" element={<OperationsDashboardPage />} />
                                   <Route path="/gpu-metrics" element={<GpuMetricsPage />} />
                                   <Route path="/request-profiling" element={<RequestProfilingPage />} />

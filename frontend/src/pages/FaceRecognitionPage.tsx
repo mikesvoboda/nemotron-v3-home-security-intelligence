@@ -10,11 +10,15 @@
  * - Tab navigation using Headless UI TabGroup
  * - NVIDIA dark theme styling with green accents
  * - Real-time unknown stranger alerts with badge indicator (NEM-4688 Phase 4)
- * - Placeholder content for each tab (to be implemented in later phases)
+ * - Known Persons tab with real KnownPersonsTab component
+ * - Face Events tab with real FaceEventsTab component (Phase 3)
+ * - Person Tracking tab with real PersonTrackingTab component (Phase 4)
+ * - KnownPersonDetailModal and AddPersonModal integration
  *
  * @module pages/FaceRecognitionPage
  * @see NEM-4688 Phase 1 - Create Face Recognition Page with Tabs
- * @see NEM-4688 Phase 4 - Real-Time Unknown Stranger Alerts
+ * @see NEM-4688 Phase 3 - Face Events Tab
+ * @see NEM-4688 Phase 4 - Real-Time Unknown Stranger Alerts & Person Tracking
  * @see docs/plans/2025-01-31-face-recognition-ui-design.md
  */
 
@@ -24,68 +28,127 @@ import { ScanFace, Users, Activity, Wrench } from 'lucide-react';
 import { useState, useCallback } from 'react';
 
 import { FaceSimilarityDebugTool } from '../components/face-recognition';
+import AddPersonModal from '../components/face-recognition/AddPersonModal';
+import FaceEventsTab from '../components/face-recognition/FaceEventsTab';
+import KnownPersonDetailModal from '../components/face-recognition/KnownPersonDetailModal';
+import KnownPersonsTab from '../components/face-recognition/KnownPersonsTab';
+import PersonTrackingTab from '../components/face-recognition/PersonTrackingTab';
 import { useUnknownStrangerAlerts } from '../hooks/useUnknownStrangerAlerts';
 
+import type { KnownPerson } from '../types/faceRecognition';
+
 // ============================================================================
-// Tab Placeholder Components
+// Tab Content Wrapper Components
 // ============================================================================
 
 /**
- * Placeholder for Known Persons tab content.
- * Will be replaced with full implementation in Phase 2.
+ * Wrapper for the Known Persons tab content.
+ * Renders the real KnownPersonsTab component with page-level callbacks
+ * and integrates KnownPersonDetailModal and AddPersonModal.
  */
 function KnownPersonsTabContent() {
+  // Modal state for person detail
+  const [detailPersonId, setDetailPersonId] = useState<number | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  // Modal state for add/edit person
+  const [isAddPersonModalOpen, setIsAddPersonModalOpen] = useState(false);
+  const [editPerson, setEditPerson] = useState<KnownPerson | undefined>(undefined);
+
+  const handlePersonClick = useCallback((person: KnownPerson) => {
+    setDetailPersonId(person.id);
+    setIsDetailModalOpen(true);
+  }, []);
+
+  const handleAddPerson = useCallback(() => {
+    setEditPerson(undefined);
+    setIsAddPersonModalOpen(true);
+  }, []);
+
+  const handleDetailModalClose = useCallback(() => {
+    setIsDetailModalOpen(false);
+    setDetailPersonId(null);
+  }, []);
+
+  const handleDetailEdit = useCallback((person: KnownPerson) => {
+    setIsDetailModalOpen(false);
+    setEditPerson(person);
+    setIsAddPersonModalOpen(true);
+  }, []);
+
+  const handleDetailDelete = useCallback((_person: KnownPerson) => {
+    // TODO: Open delete confirmation modal
+    setIsDetailModalOpen(false);
+  }, []);
+
+  const handleDetailEnrollFace = useCallback((_personId: number) => {
+    // TODO: Open enroll face modal
+    setIsDetailModalOpen(false);
+  }, []);
+
+  const handleAddPersonModalClose = useCallback(() => {
+    setIsAddPersonModalOpen(false);
+    setEditPerson(undefined);
+  }, []);
+
   return (
-    <div
-      className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center"
-      data-testid="known-persons-tab-content"
-    >
-      <Users className="mx-auto mb-4 h-12 w-12 text-gray-600" />
-      <h3 className="mb-2 text-lg font-medium text-white">Known Persons</h3>
-      <p className="text-sm text-gray-400">
-        Manage your database of known persons. Add, edit, and view face embeddings.
-      </p>
-      <p className="mt-4 text-xs text-gray-500">Coming in Phase 2</p>
+    <div data-testid="known-persons-tab-content">
+      <KnownPersonsTab onPersonClick={handlePersonClick} onAddPerson={handleAddPerson} />
+      <KnownPersonDetailModal
+        personId={detailPersonId}
+        isOpen={isDetailModalOpen}
+        onClose={handleDetailModalClose}
+        onEdit={handleDetailEdit}
+        onDelete={handleDetailDelete}
+        onEnrollFace={handleDetailEnrollFace}
+      />
+      <AddPersonModal
+        isOpen={isAddPersonModalOpen}
+        onClose={handleAddPersonModalClose}
+        editPerson={editPerson}
+      />
     </div>
   );
 }
 
 /**
- * Placeholder for Face Events tab content.
- * Will be replaced with full implementation in Phase 3.
+ * Wrapper for Face Events tab content.
+ * Renders the real FaceEventsTab component with page-level callbacks for
+ * identifying unknown faces, adding new persons, and viewing detections.
  */
 function FaceEventsTabContent() {
+  const handleIdentify = useCallback((_eventId: number) => {
+    // TODO: Open IdentifyPersonModal with event data
+  }, []);
+
+  const handleAddNewPerson = useCallback((_eventId: number) => {
+    // TODO: Open EnrollFaceModal / AddPersonModal with event data
+  }, []);
+
+  const handleViewDetection = useCallback((_detectionId: string) => {
+    // TODO: Navigate to detection detail view
+  }, []);
+
   return (
-    <div
-      className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center"
-      data-testid="face-events-tab-content"
-    >
-      <ScanFace className="mx-auto mb-4 h-12 w-12 text-gray-600" />
-      <h3 className="mb-2 text-lg font-medium text-white">Face Events</h3>
-      <p className="text-sm text-gray-400">
-        View recent face detections, identify unknown strangers, and review match results.
-      </p>
-      <p className="mt-4 text-xs text-gray-500">Coming in Phase 3</p>
+    <div data-testid="face-events-tab-content">
+      <FaceEventsTab
+        onIdentify={handleIdentify}
+        onAddNewPerson={handleAddNewPerson}
+        onViewDetection={handleViewDetection}
+      />
     </div>
   );
 }
 
 /**
- * Placeholder for Person Tracking tab content.
- * Will be replaced with full implementation in Phase 4.
+ * Wrapper for Person Tracking tab content.
+ * Renders the real PersonTrackingTab component which is self-contained,
+ * managing its own state via internal hooks.
  */
 function PersonTrackingTabContent() {
   return (
-    <div
-      className="rounded-lg border border-gray-700 bg-[#1A1A1A] p-8 text-center"
-      data-testid="person-tracking-tab-content"
-    >
-      <Activity className="mx-auto mb-4 h-12 w-12 text-gray-600" />
-      <h3 className="mb-2 text-lg font-medium text-white">Person Tracking</h3>
-      <p className="text-sm text-gray-400">
-        Track person appearances and journeys across multiple cameras over time.
-      </p>
-      <p className="mt-4 text-xs text-gray-500">Coming in Phase 4</p>
+    <div data-testid="person-tracking-tab-content">
+      <PersonTrackingTab />
     </div>
   );
 }

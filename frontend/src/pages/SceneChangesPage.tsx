@@ -26,15 +26,18 @@ import {
   Eye,
   Filter,
   Loader2,
+  Radio,
   RefreshCw,
   ShieldAlert,
 } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 
+import { SceneChangeHistory } from '../components/cameras';
 import Button from '../components/common/Button';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useCamerasQuery } from '../hooks/useCamerasQuery';
+import { useSceneChangeEvents } from '../hooks/useSceneChangeEvents';
 import {
   useSceneChangesQuery,
   type AcknowledgementFilter,
@@ -548,6 +551,15 @@ function SceneChangesPageComponent() {
     enabled: !isCamerasLoading,
   });
 
+  // Real-time scene change events via WebSocket (NEM-3575)
+  const {
+    recentEvents: realtimeEvents,
+    isConnected: isWsConnected,
+  } = useSceneChangeEvents({
+    enabled: !isCamerasLoading,
+    showToasts: false, // Toasts are handled globally by the dashboard
+  });
+
   // Handlers
   const handleRefresh = useCallback(() => {
     void refetch();
@@ -657,7 +669,28 @@ function SceneChangesPageComponent() {
           isLoading={isLoading}
         />
 
-        {/* Scene Changes List */}
+        {/* Real-time Scene Change Events (NEM-3575) */}
+        {realtimeEvents.length > 0 && (
+          <div className="mb-6" data-testid="realtime-scene-changes">
+            <div className="mb-3 flex items-center gap-2">
+              <Radio className={clsx('h-4 w-4', isWsConnected ? 'text-green-400' : 'text-gray-500')} />
+              <h2 className="text-sm font-semibold text-white">Real-time Events</h2>
+              <span className="rounded-full bg-gray-800 px-2 py-0.5 text-xs text-gray-400">
+                {realtimeEvents.length} recent
+              </span>
+              {!isWsConnected && (
+                <span className="text-xs text-yellow-500">Reconnecting...</span>
+              )}
+            </div>
+            <SceneChangeHistory
+              events={realtimeEvents}
+              maxItems={5}
+              showEmptyState={false}
+            />
+          </div>
+        )}
+
+        {/* Historical Scene Changes List */}
         {isSceneChangesLoading && !isRefetching ? (
           <div
             className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-700 bg-gray-800/50"

@@ -23,7 +23,6 @@ from fastapi.routing import APIRoute
 
 from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
-    AuthMiddleware,
     BaggageMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
@@ -1134,8 +1133,12 @@ app.openapi = get_cached_openapi_schema  # type: ignore[method-assign]
 # Must be early in the middleware chain (after auth) to block requests before processing
 app.add_middleware(SetupGuardMiddleware)
 
-# Add authentication middleware (if enabled in settings)
-app.add_middleware(AuthMiddleware)
+# NEM-5527: Global AuthMiddleware disabled — it blocks ALL ~450 non-exempt
+# endpoints with 401, breaking Grafana dashboards, GPU settings, etc.
+# Per CLAUDE.md: "No auth: Single-user local deployment" — network binding
+# to 127.0.0.1 is the security boundary. Per-route auth dependencies
+# (verify_api_key, require_admin_access, get_current_admin_user) still
+# protect admin endpoints. Re-enable for future multi-user support.
 
 # Add Content-Type validation middleware for request body validation (NEM-1617)
 # Validates that POST/PUT/PATCH requests have acceptable Content-Type headers

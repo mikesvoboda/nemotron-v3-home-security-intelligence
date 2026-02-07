@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import DashboardLayout from './DashboardLayout';
+import { ExpandableDetailPanel } from './ExpandableDetailPanel';
 import GpuStats from './GpuStats';
 import PipelineQueues from './PipelineQueues';
 import PipelineTelemetry from './PipelineTelemetry';
@@ -22,6 +23,7 @@ import { useThreatDetection } from '../../hooks/useThreatDetection';
 import {
   fetchCameras,
   fetchEventStats,
+  fetchSummaryDetail,
   getCameraSnapshotUrl,
   type Camera,
   type EventStatsResponse,
@@ -36,6 +38,7 @@ import {
   ThreatDetectionBanner,
 } from '../common';
 
+import type { Summary, SummaryDetail } from '../../types/summary';
 import type { RiskLevel } from '../../utils/risk';
 
 /**
@@ -91,7 +94,10 @@ export default function DashboardPage() {
 
   // Scene change detection WebSocket hook (NEM-3575)
   // Provides real-time alerts for camera tampering/view changes
-  const { activeCameraIds: sceneChangeActivityIds } = useSceneChangeEvents({
+  const {
+    activeCameraIds: sceneChangeActivityIds,
+    cameraActivity: sceneChangeCameraActivity,
+  } = useSceneChangeEvents({
     showToasts: true, // Toast notifications handled by the hook
     activityTimeoutMs: 30000, // Activity indicator visible for 30 seconds
   });
@@ -115,6 +121,10 @@ export default function DashboardPage() {
     error: summariesError,
     refetch: refetchSummaries,
   } = useSummaries();
+
+  // State for the expandable summary detail panel (NEM-5526)
+  const [selectedSummaryDetail, setSelectedSummaryDetail] = useState<SummaryDetail | null>(null);
+  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
 
   // Fetch AI metrics for the AI Performance Summary Row
   const { data: aiMetrics } = useAIMetrics({
@@ -324,6 +334,47 @@ export default function DashboardPage() {
     [navigate]
   );
 
+  // Handle "View Full Summary" click - fetch detail and open panel (NEM-5526)
+  const handleViewFullSummary = useCallback(
+    async (summary: Summary) => {
+      try {
+        const detail = await fetchSummaryDetail(summary.id);
+        setSelectedSummaryDetail(detail);
+        setIsDetailPanelOpen(true);
+      } catch (err) {
+        // If the detail endpoint fails, show the panel with basic summary data
+        console.error('Failed to fetch summary detail:', err);
+        const fallbackDetail: SummaryDetail = {
+          id: summary.id,
+          summaryType: summary.windowStart && summary.windowEnd
+            ? (new Date(summary.windowEnd).getTime() - new Date(summary.windowStart).getTime() <= 3600000 * 2
+              ? 'hourly'
+              : 'daily')
+            : 'hourly',
+          content: summary.content,
+          eventCount: summary.eventCount,
+          windowStart: summary.windowStart,
+          windowEnd: summary.windowEnd,
+          generatedAt: summary.generatedAt,
+          timeline: [],
+          exportFormats: ['json', 'csv', 'pdf'],
+          focusAreas: summary.focusAreas,
+          maxRiskScore: summary.maxRiskScore,
+          dominantPatterns: summary.dominantPatterns,
+        };
+        setSelectedSummaryDetail(fallbackDetail);
+        setIsDetailPanelOpen(true);
+      }
+    },
+    []
+  );
+
+  // Handle closing the detail panel (NEM-5526)
+  const handleCloseDetailPanel = useCallback(() => {
+    setIsDetailPanelOpen(false);
+    setSelectedSummaryDetail(null);
+  }, []);
+
   // Render loading skeleton
   const renderLoadingSkeleton = useCallback(
     () => (
@@ -492,6 +543,7 @@ export default function DashboardPage() {
               cameras={props.cameras}
               onCameraClick={props.onCameraClick}
               sceneChangeActivityIds={sceneChangeActivityIds}
+              cameraActivityMap={sceneChangeCameraActivity}
             />
           ) : null
         }
@@ -523,6 +575,7 @@ export default function DashboardPage() {
                   isLoading={summariesLoading}
                   error={summariesError}
                   onRetry={() => void refetchSummaries()}
+                  onViewFull={(summary) => void handleViewFullSummary(summary)}
                 />
               </div>
               <ActivityFeed
@@ -567,6 +620,13 @@ export default function DashboardPage() {
           ) : null
         }
       />
+      {selectedSummaryDetail && (
+        <ExpandableDetailPanel
+          detail={selectedSummaryDetail}
+          isOpen={isDetailPanelOpen}
+          onClose={handleCloseDetailPanel}
+        />
+      )}
     </div>
   );
 }

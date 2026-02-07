@@ -80,7 +80,7 @@ pre-commit install && pre-commit install --hook-type pre-push
 
 - **Risk scoring:** LLM-determined (Nemotron assigns 0-100 score)
 - **Batch processing:** 90-second windows, 30-second idle timeout
-- **No auth:** Single-user local deployment
+- **Auth model:** Single-user local deployment. First-time admin registration required (SetupGuardMiddleware returns 503 until first user is created). After registration, API endpoints are open — no per-request login required. Network binding to `127.0.0.1` is the primary security boundary. Admin/destructive operations are protected by per-route dependencies (`verify_api_key`, `require_admin_access`). The global `AuthMiddleware` class exists for future multi-user support but is not active.
 - **Retention:** 30 days
 - **Deployment:** Containerized with GPU passthrough
 

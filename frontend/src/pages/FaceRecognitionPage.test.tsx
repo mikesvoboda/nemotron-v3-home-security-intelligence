@@ -1,16 +1,19 @@
 /**
  * Tests for FaceRecognitionPage component
  *
- * TDD Phase: RED - These tests define the expected behavior for the Face Recognition page.
+ * TDD Phase: GREEN - These tests validate the Face Recognition page behavior.
  * Task: NEM-4688 Phase 1 - Create Face Recognition Page with Tabs
- * Task: NEM-4688 Phase 4 - Real-Time Unknown Stranger Alerts
+ * Task: NEM-4688 Phase 3 - Face Events Tab wiring
+ * Task: NEM-4688 Phase 4 - Real-Time Unknown Stranger Alerts & Person Tracking
  *
  * This test suite covers:
  * - Page rendering with proper structure
- * - Tab navigation (Known Persons, Face Events, Person Tracking)
+ * - Tab navigation (Known Persons, Face Events, Person Tracking, Debug Tools)
  * - Tab switching behavior
  * - Accessibility requirements
  * - Unknown stranger alert integration (Phase 4)
+ * - Real component wiring for all tabs
+ * - Modal integration (KnownPersonDetailModal, AddPersonModal)
  */
 
 import { screen, waitFor, act } from '@testing-library/react';
@@ -38,6 +41,45 @@ vi.mock('../hooks/useToast', () => ({
 // Mock useUnknownStrangerAlerts hook
 vi.mock('../hooks/useUnknownStrangerAlerts', () => ({
   useUnknownStrangerAlerts: vi.fn(),
+}));
+
+// Mock KnownPersonsTab component to isolate page-level tests from API calls
+vi.mock('../components/face-recognition/KnownPersonsTab', () => ({
+  default: ({ onPersonClick, onAddPerson }: { onPersonClick: (person: unknown) => void; onAddPerson: () => void }) => (
+    <div data-testid="known-persons-tab-real">
+      Known Persons Tab Component
+      <button data-testid="mock-person-click" onClick={() => onPersonClick({ id: 1, name: 'Test Person', is_household_member: false, created_at: '2025-01-01T00:00:00Z' })}>Click Person</button>
+      <button data-testid="mock-add-person" onClick={() => onAddPerson()}>Add Person</button>
+    </div>
+  ),
+}));
+
+// Mock FaceEventsTab component to isolate page-level tests from API calls
+vi.mock('../components/face-recognition/FaceEventsTab', () => ({
+  default: ({ onIdentify: _onIdentify, onAddNewPerson: _onAddNewPerson, onViewDetection: _onViewDetection }: { onIdentify: (id: number) => void; onAddNewPerson: (id: number) => void; onViewDetection: (id: string) => void }) => (
+    <div data-testid="face-events-tab-real">Face Events Tab Component</div>
+  ),
+}));
+
+// Mock PersonTrackingTab component to isolate page-level tests from API calls
+vi.mock('../components/face-recognition/PersonTrackingTab', () => ({
+  default: () => (
+    <div data-testid="person-tracking-tab-real">Person Tracking Tab Component</div>
+  ),
+}));
+
+// Mock KnownPersonDetailModal to isolate page-level tests
+vi.mock('../components/face-recognition/KnownPersonDetailModal', () => ({
+  default: ({ isOpen, personId, onClose }: { isOpen: boolean; personId: number | null; onClose: () => void }) => (
+    isOpen ? <div data-testid="known-person-detail-modal" data-person-id={personId}><button data-testid="mock-close-detail" onClick={onClose}>Close</button></div> : null
+  ),
+}));
+
+// Mock AddPersonModal to isolate page-level tests
+vi.mock('../components/face-recognition/AddPersonModal', () => ({
+  default: ({ isOpen, onClose, editPerson }: { isOpen: boolean; onClose: () => void; editPerson?: unknown }) => (
+    isOpen ? <div data-testid="add-person-modal" data-edit-mode={editPerson ? 'true' : 'false'}><button data-testid="mock-close-add" onClick={onClose}>Close</button></div> : null
+  ),
 }));
 
 // ============================================================================
@@ -176,15 +218,15 @@ describe('FaceRecognitionPage', () => {
   // ==========================================================================
 
   describe('tab content', () => {
-    it('Known Persons tab shows placeholder content', () => {
+    it('Known Persons tab renders the real KnownPersonsTab component', () => {
       renderWithProviders(<FaceRecognitionPage />);
 
       expect(screen.getByTestId('known-persons-tab-content')).toBeInTheDocument();
-      // Check for placeholder description text unique to the tab content
-      expect(screen.getByText(/Manage your database of known persons/i)).toBeInTheDocument();
+      // Verify the real KnownPersonsTab component is rendered (mocked in this test)
+      expect(screen.getByTestId('known-persons-tab-real')).toBeInTheDocument();
     });
 
-    it('Face Events tab shows placeholder content', async () => {
+    it('Face Events tab renders the real FaceEventsTab component', async () => {
       const user = userEvent.setup();
       renderWithProviders(<FaceRecognitionPage />);
 
@@ -192,10 +234,11 @@ describe('FaceRecognitionPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('face-events-tab-content')).toBeInTheDocument();
+        expect(screen.getByTestId('face-events-tab-real')).toBeInTheDocument();
       });
     });
 
-    it('Person Tracking tab shows placeholder content', async () => {
+    it('Person Tracking tab renders the real PersonTrackingTab component', async () => {
       const user = userEvent.setup();
       renderWithProviders(<FaceRecognitionPage />);
 
@@ -203,6 +246,79 @@ describe('FaceRecognitionPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('person-tracking-tab-content')).toBeInTheDocument();
+        expect(screen.getByTestId('person-tracking-tab-real')).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ==========================================================================
+  // Modal Integration Tests
+  // ==========================================================================
+
+  describe('modal integration', () => {
+    it('opens KnownPersonDetailModal when a person is clicked in KnownPersonsTab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<FaceRecognitionPage />);
+
+      // Click on a person in the mocked KnownPersonsTab
+      const personClickButton = screen.getByTestId('mock-person-click');
+      await user.click(personClickButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('known-person-detail-modal')).toBeInTheDocument();
+        expect(screen.getByTestId('known-person-detail-modal')).toHaveAttribute('data-person-id', '1');
+      });
+    });
+
+    it('opens AddPersonModal when add person is clicked in KnownPersonsTab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<FaceRecognitionPage />);
+
+      // Click add person in the mocked KnownPersonsTab
+      const addPersonButton = screen.getByTestId('mock-add-person');
+      await user.click(addPersonButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('add-person-modal')).toBeInTheDocument();
+        expect(screen.getByTestId('add-person-modal')).toHaveAttribute('data-edit-mode', 'false');
+      });
+    });
+
+    it('closes KnownPersonDetailModal when close is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<FaceRecognitionPage />);
+
+      // Open the detail modal
+      await user.click(screen.getByTestId('mock-person-click'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('known-person-detail-modal')).toBeInTheDocument();
+      });
+
+      // Close the modal
+      await user.click(screen.getByTestId('mock-close-detail'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('known-person-detail-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('closes AddPersonModal when close is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<FaceRecognitionPage />);
+
+      // Open the add person modal
+      await user.click(screen.getByTestId('mock-add-person'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('add-person-modal')).toBeInTheDocument();
+      });
+
+      // Close the modal
+      await user.click(screen.getByTestId('mock-close-add'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('add-person-modal')).not.toBeInTheDocument();
       });
     });
   });
