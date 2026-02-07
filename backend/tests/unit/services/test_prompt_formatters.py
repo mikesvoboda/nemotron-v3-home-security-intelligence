@@ -146,12 +146,15 @@ class TestFormatViolenceContext:
         assert "ACTION REQUIRED" in result
 
     def test_non_violent_marginal_detection(self) -> None:
-        """Test formatting when violence is marginal (< 55%) - returns None.
+        """Test formatting when violence is marginal (< 55%) - returns empty string.
 
         Per tier-based violence detection:
-        - marginal (<55%): Returns None to exclude from LLM prompt
+        - marginal (<55%): Returns "" to exclude from LLM prompt
         - suspected (55-70%): Shows "Possible violence detected"
         - definitive (>=70%): Shows **VIOLENCE DETECTED**
+
+        Changed from None to "" as part of NEM-5525 prompt template consolidation
+        so format_violence_context is safe for direct use in str.format() calls.
         """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
@@ -161,8 +164,8 @@ class TestFormatViolenceContext:
         )
         result = format_violence_context(violence_result)
 
-        # Marginal tier returns None (excluded from prompts)
-        assert result is None
+        # Marginal tier returns "" (excluded from prompts, safe for str.format)
+        assert result == ""
 
     def test_suspected_violence_detection(self) -> None:
         """Test formatting for suspected tier violence (55-70%).
@@ -783,9 +786,9 @@ class TestFormattersErrorHandling:
         # Should handle missing attributes gracefully or raise informative error
         try:
             result = format_violence_context(PartialViolenceResult())
-            # If it succeeds, verify it contains expected content or returns None
-            # Note: result can be None for marginal tier, so check None first
-            assert result is None or "VIOLENCE" in result
+            # If it succeeds, verify it contains expected content or returns ""
+            # Note: result can be "" for marginal tier, so check empty first
+            assert result == "" or "VIOLENCE" in result
         except AttributeError:
             # AttributeError is acceptable for missing required attributes
             pass

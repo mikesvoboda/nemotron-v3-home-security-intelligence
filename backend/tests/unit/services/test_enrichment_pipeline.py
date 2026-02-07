@@ -22,6 +22,10 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from backend.services.enrichment_client import (
+    UnifiedEnrichmentResult,
+    UnifiedVehicleResult,
+)
 from backend.services.enrichment_pipeline import (
     BoundingBox,
     DetectionInput,
@@ -1971,14 +1975,19 @@ class TestEnrichmentServiceMode:
         vehicle_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test vehicle classification via HTTP service."""
+        """Test vehicle classification via unified /enrich endpoint."""
 
-        mock_client_result = MagicMock()
-        mock_client_result.vehicle_type = "pickup_truck"
-        mock_client_result.confidence = 0.88
-        mock_client_result.display_name = "pickup truck"
-        mock_client_result.is_commercial = False
-        mock_client_result.all_scores = {"pickup_truck": 0.88}
+        # Mock unified enrichment result with vehicle data
+        unified_result = UnifiedEnrichmentResult(
+            vehicle=UnifiedVehicleResult(
+                make=None,
+                model=None,
+                color=None,
+                type="pickup_truck",
+                confidence=0.88,
+            ),
+            inference_time_ms=50.0,
+        )
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
@@ -1987,7 +1996,7 @@ class TestEnrichmentServiceMode:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_vehicle = AsyncMock(return_value=mock_client_result)
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(
@@ -2012,9 +2021,8 @@ class TestEnrichmentServiceMode:
                 images={None: test_image},
             )
 
-            mock_client.classify_vehicle.assert_called_once()
+            mock_client.enrich_detection.assert_called_once()
             assert result.has_vehicle_classifications
-            assert "1" in result.vehicle_classifications
 
     async def test_pet_classification_via_service(
         self,
@@ -2022,11 +2030,12 @@ class TestEnrichmentServiceMode:
         dog_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test pet classification via HTTP service."""
-        mock_client_result = MagicMock()
-        mock_client_result.pet_type = "dog"
-        mock_client_result.confidence = 0.95
-        mock_client_result.is_household_pet = True
+        """Test pet classification via unified /enrich endpoint."""
+        # Mock unified enrichment result with pet data
+        unified_result = UnifiedEnrichmentResult(
+            pet={"pet_type": "dog", "confidence": 0.95, "is_household_pet": True},
+            inference_time_ms=30.0,
+        )
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
@@ -2035,7 +2044,7 @@ class TestEnrichmentServiceMode:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_pet = AsyncMock(return_value=mock_client_result)
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(
@@ -2060,7 +2069,7 @@ class TestEnrichmentServiceMode:
                 images={None: test_image},
             )
 
-            mock_client.classify_pet.assert_called_once()
+            mock_client.enrich_detection.assert_called_once()
             assert result.has_pet_classifications
 
     async def test_clothing_classification_via_service(
@@ -2069,13 +2078,23 @@ class TestEnrichmentServiceMode:
         person_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test clothing classification via HTTP service."""
-        mock_client_result = MagicMock()
-        mock_client_result.top_category = "casual clothing"
-        mock_client_result.confidence = 0.82
-        mock_client_result.is_suspicious = False
-        mock_client_result.is_service_uniform = False
-        mock_client_result.description = "casual wear"
+        """Test clothing classification via unified /enrich endpoint."""
+        from backend.services.enrichment_client import UnifiedClothingResult
+
+        # Mock unified enrichment result with clothing data
+        unified_result = UnifiedEnrichmentResult(
+            clothing=UnifiedClothingResult(
+                categories=[
+                    {
+                        "category": "casual clothing",
+                        "confidence": 0.82,
+                        "description": "casual wear",
+                    }
+                ],
+                is_suspicious=False,
+            ),
+            inference_time_ms=40.0,
+        )
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
@@ -2084,7 +2103,7 @@ class TestEnrichmentServiceMode:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_clothing = AsyncMock(return_value=mock_client_result)
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(
@@ -2109,7 +2128,7 @@ class TestEnrichmentServiceMode:
                 images={None: test_image},
             )
 
-            mock_client.classify_clothing.assert_called_once()
+            mock_client.enrich_detection.assert_called_once()
             assert result.has_clothing_classifications
 
     async def test_service_unavailable_handled(
@@ -2119,7 +2138,8 @@ class TestEnrichmentServiceMode:
         mock_model_manager: MagicMock,
     ) -> None:
         """Test HTTP service unavailable is handled gracefully."""
-        from backend.services.enrichment_client import EnrichmentUnavailableError
+        # When unified endpoint returns empty result (service error), no classifications
+        unified_result = UnifiedEnrichmentResult()
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
@@ -2128,9 +2148,7 @@ class TestEnrichmentServiceMode:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_vehicle = AsyncMock(
-                side_effect=EnrichmentUnavailableError("Service unavailable")
-            )
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(
@@ -3230,8 +3248,9 @@ class TestEnrichmentServiceModeExtended:
         dog_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test pet classification service unavailable is handled."""
-        from backend.services.enrichment_client import EnrichmentUnavailableError
+        """Test pet classification service unavailable is handled via unified endpoint."""
+        # When unified endpoint returns empty result (service error), no classifications
+        unified_result = UnifiedEnrichmentResult()
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
@@ -3240,9 +3259,7 @@ class TestEnrichmentServiceModeExtended:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_pet = AsyncMock(
-                side_effect=EnrichmentUnavailableError("Service down")
-            )
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(
@@ -3277,8 +3294,9 @@ class TestEnrichmentServiceModeExtended:
         person_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test clothing classification service unavailable is handled."""
-        from backend.services.enrichment_client import EnrichmentUnavailableError
+        """Test clothing classification service unavailable is handled via unified endpoint."""
+        # When unified endpoint returns empty result (service error), no classifications
+        unified_result = UnifiedEnrichmentResult()
 
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
@@ -3287,9 +3305,7 @@ class TestEnrichmentServiceModeExtended:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_clothing = AsyncMock(
-                side_effect=EnrichmentUnavailableError("Service down")
-            )
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(
@@ -3324,7 +3340,10 @@ class TestEnrichmentServiceModeExtended:
         vehicle_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test service returning None is handled."""
+        """Test service returning empty unified result is handled."""
+        # Unified endpoint returns empty result (no vehicle field populated)
+        unified_result = UnifiedEnrichmentResult()
+
         with (
             patch("backend.services.enrichment_pipeline.get_vision_extractor"),
             patch("backend.services.enrichment_pipeline.get_reid_service"),
@@ -3332,7 +3351,7 @@ class TestEnrichmentServiceModeExtended:
             patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
         ):
             mock_client = MagicMock()
-            mock_client.classify_vehicle = AsyncMock(return_value=None)
+            mock_client.enrich_detection = AsyncMock(return_value=unified_result)
             mock_get_client.return_value = mock_client
 
             pipeline = EnrichmentPipeline(

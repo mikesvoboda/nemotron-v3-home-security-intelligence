@@ -668,8 +668,10 @@ class TestFormatViolenceContext:
     def test_non_violent_detection(self) -> None:
         """Test formatting when no violence is detected (marginal tier).
 
-        With the new tier-based system (NEM-5483), marginal tier (violent_score < 55%)
-        returns None to exclude from LLM prompts.
+        With the tier-based system (NEM-5483), marginal tier (violent_score < 55%)
+        returns empty string to exclude from LLM prompts. Changed from None to ""
+        as part of NEM-5525 prompt template consolidation so format_violence_context
+        is safe for direct use in str.format() calls.
         """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
@@ -679,13 +681,14 @@ class TestFormatViolenceContext:
         )
         result = format_violence_context(violence_result)
 
-        # Marginal tier (violent_score < 55%) returns None to exclude from prompts
-        assert result is None
+        # Marginal tier (violent_score < 55%) returns "" to exclude from prompts
+        assert result == ""
 
     def test_edge_case_exactly_zero_confidence(self) -> None:
         """Test edge case with zero confidence (marginal tier).
 
-        With the new tier-based system (NEM-5483), marginal tier returns None.
+        With the tier-based system (NEM-5483), marginal tier returns empty string.
+        Changed from None to "" as part of NEM-5525 prompt template consolidation.
         """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
@@ -694,8 +697,8 @@ class TestFormatViolenceContext:
             non_violent_score=0.0,
         )
         result = format_violence_context(violence_result)
-        # Marginal tier (violent_score < 55%) returns None to exclude from prompts
-        assert result is None
+        # Marginal tier (violent_score < 55%) returns "" to exclude from prompts
+        assert result == ""
 
 
 # =============================================================================
@@ -782,11 +785,13 @@ class TestFormatViolenceContextTierBased:
         # Should NOT have urgent action language
         assert "ACTION REQUIRED" not in result or "Immediate" not in result
 
-    def test_format_violence_marginal_tier_returns_none(self) -> None:
-        """Marginal tier should return None to exclude from LLM prompt.
+    def test_format_violence_marginal_tier_returns_empty_string(self) -> None:
+        """Marginal tier should return empty string to exclude from LLM prompt.
 
         Low-confidence violence (<55%) should be completely excluded from
         the LLM prompt to avoid noise and false positive contamination.
+        Changed from None to "" as part of NEM-5525 prompt template consolidation
+        so format_violence_context is safe for direct use in str.format() calls.
         """
         violence_result = MockViolenceDetectionResultWithTier(
             is_violent=False,
@@ -798,9 +803,8 @@ class TestFormatViolenceContextTierBased:
 
         result = format_violence_context(violence_result)
 
-        # This test will FAIL because current code returns formatted string
-        # for any non-None input. Marginal tier should return None.
-        assert result is None
+        # Marginal tier returns "" to exclude from prompts (safe for str.format)
+        assert result == ""
 
     def test_format_violence_suspected_tier_boundary(self) -> None:
         """55% exactly should be suspected tier with appropriate formatting."""

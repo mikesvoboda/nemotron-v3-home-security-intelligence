@@ -29,9 +29,9 @@ Usage:
     # Process only specific categories
     uv run python scripts/seed-events.py --categories normal,suspicious
 
-    # Sequential mode: Process one category at a time with 90s gap
-    # (prevents cross-camera contamination inflating normal event scores)
-    uv run python scripts/seed-events.py --sequential
+    # Parallel mode: Process all categories simultaneously (faster but
+    # may cause cross-camera contamination inflating normal event scores)
+    uv run python scripts/seed-events.py --parallel
 
     # Validate results against expected labels
     uv run python scripts/seed-events.py --validate
@@ -6654,11 +6654,11 @@ This generates real data including:
         help="Path to save validation report JSON (default: data/synthetic/validation_report.json)",
     )
     parser.add_argument(
-        "--sequential",
+        "--parallel",
         action="store_true",
         help=(
-            "Process one category at a time with a 90-second gap between categories "
-            "to prevent cross-camera contamination inflating normal event scores"
+            "Process all categories simultaneously (default: sequential with 90s gaps "
+            "to prevent cross-camera contamination inflating normal event scores)"
         ),
     )
 
@@ -6796,8 +6796,16 @@ This generates real data including:
                 for cat, count in sorted(by_cat.items()):
                     print(f"    - {cat}: {count}")
 
-                if args.sequential:
-                    # --sequential: Process one category at a time with a 90-second
+                if args.parallel:
+                    # --parallel: Process all scenarios together (faster but may
+                    # have cross-camera contamination between categories)
+                    touched, _frame_paths = await seed_synthetic_scenarios(
+                        scenarios=synthetic_scenarios,
+                        frames_per_video=args.frames_per_video,
+                        delay_between=args.delay,
+                    )
+                else:
+                    # Default: Process one category at a time with a 90-second
                     # gap between categories. This prevents cross-camera contamination
                     # where normal events get inflated scores because they are processed
                     # simultaneously with threat events on different cameras, triggering
@@ -6828,14 +6836,6 @@ This generates real data including:
                                 f"window to close before next category..."
                             )
                             await asyncio.sleep(BATCH_WINDOW_GAP)
-                else:
-                    # Default: Process all scenarios together (faster but may
-                    # have cross-camera contamination between categories)
-                    touched, _frame_paths = await seed_synthetic_scenarios(
-                        scenarios=synthetic_scenarios,
-                        frames_per_video=args.frames_per_video,
-                        delay_between=args.delay,
-                    )
 
                 total_created["frames_extracted"] = touched
                 total_created["synthetic_scenarios"] = len(synthetic_scenarios)

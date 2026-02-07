@@ -760,7 +760,11 @@ Output JSON:
 <|im_start|>assistant
 """
 
-# Enhanced prompt template with context enrichment
+# DEPRECATED: This template is no longer used in the template selection cascade.
+# The _call_llm() method now uses only MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+# (with empty sections for missing data) or RISK_ANALYSIS_PROMPT (basic fallback).
+# Kept for backward compatibility with tests and evaluation harness.
+# See NEM-5525 prompt template consolidation.
 ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
 You are a home security analyst for a residential property.
 
@@ -849,8 +853,11 @@ Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "rea
 <|im_start|>assistant
 """
 
-# Full enriched prompt with vision enrichment (plates, faces, OCR)
-# Used when both context enrichment and enrichment pipeline are available
+# DEPRECATED: This template is no longer used in the template selection cascade.
+# The _call_llm() method now uses only MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+# (with empty sections for missing data) or RISK_ANALYSIS_PROMPT (basic fallback).
+# Kept for backward compatibility with tests and evaluation harness.
+# See NEM-5525 prompt template consolidation.
 FULL_ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
 You are a home security analyst for a residential property.
 
@@ -943,8 +950,11 @@ Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "rea
 <|im_start|>assistant
 """
 
-# Vision-enhanced prompt with Florence-2 attributes, re-identification, and scene analysis
-# Used when full vision extraction pipeline is available
+# DEPRECATED: This template is no longer used in the template selection cascade.
+# The _call_llm() method now uses only MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+# (with empty sections for missing data) or RISK_ANALYSIS_PROMPT (basic fallback).
+# Kept for backward compatibility with tests and evaluation harness.
+# See NEM-5525 prompt template consolidation.
 VISION_ENHANCED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
 You are a home security analyst for a residential property.
 
@@ -1541,19 +1551,19 @@ def format_clip_analysis_context(
 
 def format_violence_context(
     violence_result: ViolenceDetectionResult | None,
-) -> str | None:
+) -> str:
     """Format violence detection result with tier-based output.
 
     Uses the confidence_tier attribute to determine formatting:
     - definitive (>=70%): Shows **VIOLENCE DETECTED** with ACTION REQUIRED
     - suspected (55-70%): Shows "Possible violence detected" with review note
-    - marginal (<55%): Returns None to exclude from LLM prompt
+    - marginal (<55%): Returns empty string to exclude from LLM prompt
 
     Args:
         violence_result: ViolenceDetectionResult from violence_loader, or None
 
     Returns:
-        Formatted string for prompt inclusion, or None for marginal tier
+        Formatted string for prompt inclusion, or empty string for marginal tier
     """
     if violence_result is None:
         return "Violence analysis: Not performed"
@@ -1587,7 +1597,7 @@ def format_violence_context(
             f"  Note: Moderate confidence - consider with other context for review"
         )
     else:  # marginal tier - exclude from prompt
-        return None
+        return ""
 
 
 def format_weather_context(
