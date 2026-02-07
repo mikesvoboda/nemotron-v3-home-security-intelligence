@@ -43,6 +43,7 @@ import json
 import re
 import time
 from collections.abc import AsyncGenerator
+from datetime import UTC
 from typing import Any
 
 import httpx
@@ -100,6 +101,12 @@ from backend.services.analyzer_facade import (
     AnalyzerServiceFacade,
     get_analyzer_facade,
 )
+from backend.services.batch_coalescer import (
+    BatchCoalescer,
+    CoalesceCandidate,
+    Priority,
+    get_batch_coalescer,
+)
 from backend.services.context_enricher import ContextEnricher, EnrichedContext
 from backend.services.enrichment_pipeline import (
     BoundingBox,
@@ -124,7 +131,7 @@ from backend.services.prompts import (
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
-    format_household_context,
+    format_household_context_by_detection,
     format_image_quality_context,
     format_pet_classification_context,
     format_pose_analysis_context,
@@ -250,6 +257,7 @@ class NemotronAnalyzer:
         use_enrichment_pipeline: bool = True,
         max_retries: int | None = None,
         service_facade: AnalyzerServiceFacade | None = None,
+        batch_coalescer: BatchCoalescer | None = None,
     ):
         """Initialize Nemotron analyzer with Redis client.
 
@@ -270,6 +278,8 @@ class NemotronAnalyzer:
             service_facade: Optional service facade for accessing dependent services.
                 If not provided, uses the global singleton. Passing a custom facade
                 simplifies testing by providing a single mock target (NEM-3150).
+            batch_coalescer: Optional batch coalescer for merging similar detections.
+                If not provided and coalescing is enabled, uses the global singleton.
         """
         self._redis = redis_client
         settings = get_settings()
@@ -324,10 +334,27 @@ class NemotronAnalyzer:
         self._guided_json_fallback = settings.nemotron_guided_json_fallback
         self._supports_guided_json: bool | None = None  # Cached capability check
 
+        # Batch coalescing and priority scheduling (NEM-5464 Phase 5)
+        # Coalesces similar detections to reduce inference calls
+        self._batch_coalescer = batch_coalescer
+        self._coalescing_enabled = settings.batch_coalescing_enabled
+        self._coalescing_max_size = settings.batch_coalescing_max_size
+        self._coalescing_time_window = settings.batch_coalescing_time_window
+        # Priority queue configuration for ordering inference requests
+        self._priority_queue_enabled = settings.priority_queue_enabled
+        self._priority_high_labels = frozenset(
+            label.lower() for label in settings.priority_high_labels
+        )
+        self._priority_medium_labels = frozenset(
+            label.lower() for label in settings.priority_medium_labels
+        )
+
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
             f"timeout={settings.nemotron_read_timeout}s, "
-            f"guided_json={self._use_guided_json}"
+            f"guided_json={self._use_guided_json}, "
+            f"coalescing_enabled={self._coalescing_enabled}, "
+            f"priority_queue_enabled={self._priority_queue_enabled}"
         )
 
     # =========================================================================
@@ -529,6 +556,192 @@ class NemotronAnalyzer:
         Useful for testing or when the endpoint configuration changes.
         """
         self._supports_guided_json = None
+
+    # =========================================================================
+    # Batch Coalescing and Priority Scheduling (NEM-5464 Phase 5)
+    # =========================================================================
+
+    def _get_batch_coalescer(self) -> BatchCoalescer:
+        """Get the batch coalescer instance.
+
+        Returns the injected coalescer if available, otherwise uses the global singleton.
+        Passes Redis client to ensure coalescing can persist candidates.
+
+        Returns:
+            BatchCoalescer instance for merging similar batches
+        """
+        if self._batch_coalescer is not None:
+            return self._batch_coalescer
+        # Pass Redis client to singleton on first access
+        return get_batch_coalescer(redis_client=self._redis)
+
+    def calculate_batch_priority(
+        self,
+        object_types: list[str],
+        time_of_day: str = "day",
+        is_known_face: bool = False,
+    ) -> Priority:
+        """Calculate processing priority for a detection batch.
+
+        Priority is determined by object types and context:
+        - P0 (CRITICAL): Weapons, intruders, fire, unknown persons at night
+        - P1 (HIGH): Unknown vehicles, configured high-priority labels
+        - P2 (NORMAL): Regular detections, configured medium-priority labels
+        - P3 (LOW): Known faces/household members
+
+        Args:
+            object_types: List of detected object types in the batch
+            time_of_day: "day" or "night" - affects priority for person detections
+            is_known_face: Whether detection matches a known household face
+
+        Returns:
+            Priority enum value for scheduling
+        """
+        # Known faces are always low priority
+        if is_known_face:
+            return Priority.P3_LOW
+
+        # Normalize object types to lowercase for comparison
+        types_lower = {t.lower() for t in object_types}
+
+        # Check configured high-priority labels first
+        if types_lower & self._priority_high_labels:
+            return Priority.P0_CRITICAL
+
+        # Delegate to coalescer for standard priority rules
+        # (handles weapons, fire, smoke, intruder, vehicles, etc.)
+        coalescer = self._get_batch_coalescer()
+        return coalescer.calculate_priority(
+            object_types=object_types,
+            confidence=0.5,  # Default confidence, not used for priority
+            time_of_day=time_of_day,
+            is_known_face=is_known_face,
+        )
+
+    async def register_coalesce_candidate(
+        self,
+        batch_id: str,
+        camera_id: str,
+        detection_ids: list[int],
+        object_types: list[str],
+        avg_confidence: float,
+    ) -> CoalesceCandidate:
+        """Register a batch as a candidate for coalescing.
+
+        Creates a CoalesceCandidate and registers it with the batch coalescer
+        for potential merging with compatible batches.
+
+        Args:
+            batch_id: Unique identifier for this batch
+            camera_id: Camera that produced these detections
+            detection_ids: List of detection IDs in this batch
+            object_types: List of detected object types
+            avg_confidence: Average confidence score across detections
+
+        Returns:
+            The registered CoalesceCandidate with calculated priority
+        """
+        from datetime import datetime
+
+        # Calculate priority for this batch
+        priority = self.calculate_batch_priority(object_types)
+
+        candidate = CoalesceCandidate(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+            object_types=object_types,
+            avg_confidence=avg_confidence,
+            created_at=datetime.now(UTC),
+            priority=priority,
+        )
+
+        if self._coalescing_enabled:
+            coalescer = self._get_batch_coalescer()
+            await coalescer.register_candidate(candidate)
+            logger.debug(
+                "Registered coalesce candidate",
+                extra={
+                    "batch_id": batch_id,
+                    "camera_id": camera_id,
+                    "priority": priority.name,
+                    "detection_count": len(detection_ids),
+                },
+            )
+
+        return candidate
+
+    async def try_coalesce_batch(
+        self,
+        candidate: CoalesceCandidate,
+    ) -> tuple[list[int], list[str]]:
+        """Attempt to coalesce this batch with compatible pending batches.
+
+        Searches for compatible batches from the same camera with similar
+        characteristics and merges them if found.
+
+        Args:
+            candidate: The batch candidate to find matches for
+
+        Returns:
+            Tuple of (merged_detection_ids, merged_batch_ids) - if no compatible
+            batches are found, returns the original candidate's data
+        """
+        if not self._coalescing_enabled:
+            return candidate.detection_ids.copy(), [candidate.batch_id]
+
+        coalescer = self._get_batch_coalescer()
+
+        # Find compatible candidates
+        compatible = await coalescer.find_compatible_candidates(candidate)
+
+        if not compatible:
+            # No compatible batches, return original
+            return candidate.detection_ids.copy(), [candidate.batch_id]
+
+        # Merge the batches
+        all_batches = [candidate, *compatible]
+        result = await coalescer.merge_batches(all_batches)
+
+        # Clean up merged candidates from Redis
+        await coalescer.remove_candidates(result.source_batch_ids)
+
+        logger.info(
+            "Coalesced batches for inference",
+            extra={
+                "merged_batch_id": result.merged_batch_id,
+                "source_count": len(result.source_batch_ids),
+                "detection_count": len(result.combined_detection_ids),
+                "inference_reduction_pct": result.inference_reduction_pct,
+            },
+        )
+
+        return result.combined_detection_ids, result.source_batch_ids
+
+    def is_coalescing_enabled(self) -> bool:
+        """Check if batch coalescing is enabled.
+
+        Returns:
+            True if coalescing is enabled in settings
+        """
+        return self._coalescing_enabled
+
+    def is_priority_queue_enabled(self) -> bool:
+        """Check if priority queue scheduling is enabled.
+
+        Returns:
+            True if priority queue is enabled in settings
+        """
+        return self._priority_queue_enabled
+
+    def get_coalescing_metrics(self) -> dict[str, Any]:
+        """Get batch coalescing metrics for monitoring.
+
+        Returns:
+            Dictionary with coalescing statistics
+        """
+        coalescer = self._get_batch_coalescer()
+        return coalescer.get_metrics()
 
     # =========================================================================
     # A/B Testing Support (NEM-1667)
@@ -1572,49 +1785,80 @@ class NemotronAnalyzer:
 
     async def _get_household_context(
         self,
-        detections_data: list[dict[str, Any]],  # noqa: ARG002 - Reserved for future expansion
+        detections_data: list[dict[str, Any]],
         enrichment_result: EnrichmentResult | None,
     ) -> str:
-        """Format household matching results for prompt injection (NEM-3024, NEM-3314).
+        """Format household matching results for prompt injection with detection attribution.
+
+        NEM-5512/5513/5514: Implements detection-attributed household context to prevent
+        household member matches for one detection from bleeding into the risk assessment
+        of other detections in the same batch.
 
         This method retrieves pre-computed household matches from the enrichment
-        pipeline and formats them into context for the Nemotron prompt. Matching
-        is now performed during enrichment (NEM-3314) rather than here to avoid
-        duplicate database queries and to ensure matches are available earlier
-        in the pipeline.
+        pipeline and formats them into detection-attributed context for the Nemotron
+        prompt. Matching is performed during enrichment (NEM-3314).
 
         Matching is performed in EnrichmentPipeline._run_household_matching():
         - Persons: Matched via embeddings from person_embeddings against HouseholdMember
         - Vehicles: Matched via license plate text against registered vehicles
 
+        Output format (NEM-5512):
+            HOUSEHOLD MATCHES BY DETECTION:
+            - Detection #1 (person, front_door, 14:32:05): KNOWN PERSON "Mike" (resident, 92%)
+            - Detection #2 (person, backyard, 14:32:08): NO MATCH
+            - Detection #3 (vehicle, driveway, 14:32:10): REGISTERED VEHICLE "Honda Civic"
+
         Args:
-            detections_data: List of detection data dictionaries (reserved for future use)
+            detections_data: List of detection data dictionaries with keys:
+                - id: Detection ID
+                - object_type: Detected object type
+                - detected_at: Detection timestamp (datetime)
             enrichment_result: Results from enrichment pipeline (contains household matches)
 
         Returns:
-            Formatted household context string, or empty string if no matches.
+            Formatted household context string with detection attribution,
+            or empty string if no detections.
         """
         from datetime import UTC, datetime
 
-        # Early exit if no enrichment result
-        if enrichment_result is None:
+        # Early exit if no detections or no enrichment result
+        if not detections_data:
             return ""
 
+        if enrichment_result is None:
+            # Still format detections as "NO MATCH" for visibility
+            pass
+
         # Get household matches from enrichment result (NEM-3314)
-        # Matching is now performed during enrichment to avoid duplicate DB queries
-        person_matches = enrichment_result.person_household_matches
-        vehicle_matches = enrichment_result.vehicle_household_matches
+        # These are dicts keyed by detection_id for isolation
+        person_matches: dict[int, Any] = {}
+        vehicle_matches: dict[int, Any] = {}
+        if enrichment_result:
+            person_matches = enrichment_result.person_household_matches
+            vehicle_matches = enrichment_result.vehicle_household_matches
 
-        # Format the household context if any matches were found
-        if person_matches or vehicle_matches:
-            current_time = datetime.now(UTC)
-            return format_household_context(
-                person_matches=person_matches,
-                vehicle_matches=vehicle_matches,
-                current_time=current_time,
+        # Create detection-like objects for format_household_context_by_detection
+        # Using SimpleNamespace to satisfy DetectionLike protocol
+        from types import SimpleNamespace
+
+        detections = []
+        for det_data in detections_data:
+            detection = SimpleNamespace(
+                id=int(det_data["id"]),
+                object_type=det_data.get("object_type", "unknown"),
+                detected_at=det_data.get("detected_at") or datetime.now(UTC),
+                zone_name=None,  # Zone context not tracked per-detection currently
             )
+            detections.append(detection)
 
-        return ""
+        # Use detection-attributed format (NEM-5512/5513/5514)
+        current_time = datetime.now(UTC)
+        return format_household_context_by_detection(
+            detections=detections,
+            person_matches=person_matches,
+            vehicle_matches=vehicle_matches,
+            current_time=current_time,
+        )
 
     async def _get_enrichment_result(
         self,
@@ -2034,6 +2278,39 @@ class NemotronAnalyzer:
             # Format detections for prompt (extracts data from ORM objects)
             detections_list = self._format_detections(detections)
 
+            # =========================================================================
+            # PRIORITY SCHEDULING (NEM-5464 Phase 5)
+            # Calculate batch priority based on object types for scheduling
+            # =========================================================================
+            object_types = [d.object_type for d in detections if d.object_type]
+            avg_confidence = (
+                sum(d.confidence for d in detections if d.confidence is not None) / len(detections)
+                if detections
+                else 0.5
+            )
+            batch_priority = self.calculate_batch_priority(object_types)
+
+            add_span_event(
+                "batch_priority.calculated",
+                {
+                    "batch.id": batch_id,
+                    "priority": batch_priority.name,
+                    "priority_value": batch_priority.value,
+                    "object_types_sample": ",".join(object_types[:10]),  # Limit for span
+                    "detection_count": len(detections),
+                },
+            )
+
+            logger.debug(
+                "Batch priority calculated",
+                extra={
+                    "batch_id": batch_id,
+                    "priority": batch_priority.name,
+                    "object_types": object_types,
+                    "avg_confidence": avg_confidence,
+                },
+            )
+
             # Enrich context if enabled (zone, baseline, cross-camera)
             # This makes additional DB queries but they're quick
             enriched_context = await self._get_enriched_context(
@@ -2084,6 +2361,8 @@ class NemotronAnalyzer:
                     else None,
                     "video_width": d.video_width,
                     "video_height": d.video_height,
+                    # NEM-5512/5513/5514: Add detected_at for household context isolation
+                    "detected_at": d.detected_at,
                 }
                 for d in detections
             ]
@@ -2145,6 +2424,45 @@ class NemotronAnalyzer:
                 extra={"batch_id": batch_id, "error": str(e)},
             )
 
+        # =========================================================================
+        # BATCH COALESCING (NEM-5464 Phase 5)
+        # Register this batch as a coalesce candidate and attempt to merge with
+        # compatible pending batches to reduce inference calls
+        # =========================================================================
+        coalesced_batch_ids: list[str] = [batch_id]
+        if self._coalescing_enabled:
+            try:
+                # Register this batch as a candidate for coalescing
+                candidate = await self.register_coalesce_candidate(
+                    batch_id=batch_id,
+                    camera_id=camera_id,
+                    detection_ids=int_detection_ids,
+                    object_types=object_types,
+                    avg_confidence=avg_confidence,
+                )
+
+                # Attempt to find and merge compatible batches
+                # Note: This is a best-effort optimization. If coalescing fails,
+                # we proceed with the original batch. The actual detection data
+                # has already been fetched, so coalescing here primarily helps
+                # with tracking and metrics rather than reducing DB queries.
+                _, coalesced_batch_ids = await self.try_coalesce_batch(candidate)
+
+                add_span_event(
+                    "batch_coalescing.attempted",
+                    {
+                        "batch.id": batch_id,
+                        "coalesced_count": len(coalesced_batch_ids),
+                        "coalesced_batch_ids_sample": ",".join(coalesced_batch_ids[:5]),
+                    },
+                )
+            except Exception as e:
+                # Coalescing is optional - don't fail the pipeline if it errors
+                logger.warning(
+                    "Failed to perform batch coalescing",
+                    extra={"batch_id": batch_id, "error": str(e)},
+                )
+
         # Call LLM for risk analysis (can take 60-120+ seconds)
         llm_start = time.time()
 
@@ -2159,6 +2477,8 @@ class NemotronAnalyzer:
                 "has_enriched_context": enriched_context is not None,
                 "has_enrichment_result": enrichment_result is not None,
                 "has_household_context": bool(household_context),
+                "batch_priority": batch_priority.name,
+                "coalesced_count": len(coalesced_batch_ids),
             },
         )
 

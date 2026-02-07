@@ -138,13 +138,14 @@ class TestEnrichmentResultHouseholdFields:
         result = EnrichmentResult()
 
         # Verify fields exist and have correct default values
+        # NEM-5512/5513/5514: Household matches are now dicts keyed by detection ID
         assert hasattr(result, "person_household_matches")
         assert hasattr(result, "vehicle_household_matches")
-        assert result.person_household_matches == []
-        assert result.vehicle_household_matches == []
+        assert result.person_household_matches == {}
+        assert result.vehicle_household_matches == {}
 
-    def test_enrichment_result_household_matches_are_lists(self) -> None:
-        """Test that household match fields are lists of HouseholdMatch."""
+    def test_enrichment_result_household_matches_are_dicts(self) -> None:
+        """Test that household match fields are dicts keyed by detection ID (NEM-5512)."""
         person_match = HouseholdMatch(
             member_id=1,
             member_name="John Doe",
@@ -158,24 +159,26 @@ class TestEnrichmentResultHouseholdFields:
             match_type="license_plate",
         )
 
+        # Detection ID 1 has a person match, detection ID 2 has a vehicle match
         result = EnrichmentResult(
-            person_household_matches=[person_match],
-            vehicle_household_matches=[vehicle_match],
+            person_household_matches={1: person_match},
+            vehicle_household_matches={2: vehicle_match},
         )
 
         assert len(result.person_household_matches) == 1
         assert len(result.vehicle_household_matches) == 1
-        assert result.person_household_matches[0].member_name == "John Doe"
-        assert result.vehicle_household_matches[0].vehicle_description == "Silver Tesla Model 3"
+        assert result.person_household_matches[1].member_name == "John Doe"
+        assert result.vehicle_household_matches[2].vehicle_description == "Silver Tesla Model 3"
 
     def test_has_person_household_matches_property(self) -> None:
         """Test has_person_household_matches property."""
         result = EnrichmentResult()
         assert result.has_person_household_matches is False
 
-        result.person_household_matches = [
-            HouseholdMatch(member_id=1, member_name="Test", similarity=0.9, match_type="person")
-        ]
+        # NEM-5512: Use dict with detection ID as key
+        result.person_household_matches = {
+            1: HouseholdMatch(member_id=1, member_name="Test", similarity=0.9, match_type="person")
+        }
         assert result.has_person_household_matches is True
 
     def test_has_vehicle_household_matches_property(self) -> None:
@@ -183,14 +186,15 @@ class TestEnrichmentResultHouseholdFields:
         result = EnrichmentResult()
         assert result.has_vehicle_household_matches is False
 
-        result.vehicle_household_matches = [
-            HouseholdMatch(
+        # NEM-5512: Use dict with detection ID as key
+        result.vehicle_household_matches = {
+            2: HouseholdMatch(
                 vehicle_id=1,
                 vehicle_description="Test Car",
                 similarity=1.0,
                 match_type="license_plate",
             )
-        ]
+        }
         assert result.has_vehicle_household_matches is True
 
     def test_has_household_matches_property(self) -> None:
@@ -198,22 +202,22 @@ class TestEnrichmentResultHouseholdFields:
         result = EnrichmentResult()
         assert result.has_household_matches is False
 
-        # Add person match
-        result.person_household_matches = [
-            HouseholdMatch(member_id=1, member_name="Test", similarity=0.9, match_type="person")
-        ]
+        # Add person match (NEM-5512: dict with detection ID)
+        result.person_household_matches = {
+            1: HouseholdMatch(member_id=1, member_name="Test", similarity=0.9, match_type="person")
+        }
         assert result.has_household_matches is True
 
         # Reset and add vehicle match only
-        result.person_household_matches = []
-        result.vehicle_household_matches = [
-            HouseholdMatch(
+        result.person_household_matches = {}
+        result.vehicle_household_matches = {
+            2: HouseholdMatch(
                 vehicle_id=1,
                 vehicle_description="Test Car",
                 similarity=1.0,
                 match_type="license_plate",
             )
-        ]
+        }
         assert result.has_household_matches is True
 
 
@@ -392,10 +396,11 @@ class TestEnrichmentPipelineHouseholdMatching:
             # Now run household matching manually to test the flow
             await pipeline._run_household_matching([vehicle_detection], result)
 
-            # Verify vehicle household matching was performed
+            # Verify vehicle household matching was performed (NEM-5512: keyed by detection ID)
             assert len(result.vehicle_household_matches) == 1
-            assert result.vehicle_household_matches[0].vehicle_description == "Silver Tesla Model 3"
-            assert result.vehicle_household_matches[0].match_type == "license_plate"
+            assert 2 in result.vehicle_household_matches  # Detection ID 2 (vehicle_detection.id)
+            assert result.vehicle_household_matches[2].vehicle_description == "Silver Tesla Model 3"
+            assert result.vehicle_household_matches[2].match_type == "license_plate"
 
     @pytest.mark.asyncio
     async def test_household_matching_handles_no_matches(
@@ -580,25 +585,33 @@ class TestEnrichmentToNemotronIntegration:
         person_match: HouseholdMatch,
         vehicle_match: HouseholdMatch,
     ) -> None:
-        """Test that household matches can be accessed from EnrichmentResult."""
+        """Test that household matches can be accessed from EnrichmentResult.
+
+        NEM-5512/5513/5514: Household matches are now dicts keyed by detection ID.
+        """
+        # Detection ID 1 has person match, detection ID 2 has vehicle match
         result = EnrichmentResult(
-            person_household_matches=[person_match],
-            vehicle_household_matches=[vehicle_match],
+            person_household_matches={1: person_match},
+            vehicle_household_matches={2: vehicle_match},
         )
 
         # These should be accessible for NemotronAnalyzer._get_household_context()
-        assert result.person_household_matches[0].member_id == 1
-        assert result.vehicle_household_matches[0].vehicle_id == 1
+        assert result.person_household_matches[1].member_id == 1
+        assert result.vehicle_household_matches[2].vehicle_id == 1
 
     def test_enrichment_result_to_dict_includes_household_matches(
         self,
         person_match: HouseholdMatch,
         vehicle_match: HouseholdMatch,
     ) -> None:
-        """Test that to_dict() includes household matches for serialization."""
+        """Test that to_dict() includes household matches for serialization.
+
+        NEM-5512/5513/5514: Household matches are now dicts keyed by detection ID.
+        """
+        # Detection ID 1 has person match, detection ID 2 has vehicle match
         result = EnrichmentResult(
-            person_household_matches=[person_match],
-            vehicle_household_matches=[vehicle_match],
+            person_household_matches={1: person_match},
+            vehicle_household_matches={2: vehicle_match},
         )
 
         result_dict = result.to_dict()
@@ -608,10 +621,10 @@ class TestEnrichmentToNemotronIntegration:
         assert "vehicle_household_matches" in result_dict
         assert len(result_dict["person_household_matches"]) == 1
         assert len(result_dict["vehicle_household_matches"]) == 1
-        # Verify correct fields in serialized data
-        assert result_dict["person_household_matches"][0]["member_name"] == "John Doe"
+        # Verify correct fields in serialized data (keyed by detection ID as string)
+        assert result_dict["person_household_matches"]["1"]["member_name"] == "John Doe"
         assert (
-            result_dict["vehicle_household_matches"][0]["vehicle_description"]
+            result_dict["vehicle_household_matches"]["2"]["vehicle_description"]
             == "Silver Tesla Model 3"
         )
 
@@ -666,9 +679,10 @@ class TestRunHouseholdMatchingMethod:
 
             await pipeline._run_household_matching([person_detection], result)
 
-            # Verify person was matched
+            # Verify person was matched (NEM-5512: keyed by detection ID)
             assert len(result.person_household_matches) == 1
-            assert result.person_household_matches[0].member_name == "John Doe"
+            assert 1 in result.person_household_matches  # Detection ID 1
+            assert result.person_household_matches[1].member_name == "John Doe"
             mock_matcher.match_person.assert_called_once()
 
     @pytest.mark.asyncio
@@ -719,9 +733,10 @@ class TestRunHouseholdMatchingMethod:
 
             await pipeline._run_household_matching([vehicle_detection], result)
 
-            # Verify vehicle was matched
+            # Verify vehicle was matched (NEM-5512: keyed by detection ID)
             assert len(result.vehicle_household_matches) == 1
-            assert result.vehicle_household_matches[0].vehicle_description == "Silver Tesla Model 3"
+            assert 2 in result.vehicle_household_matches  # Detection ID 2
+            assert result.vehicle_household_matches[2].vehicle_description == "Silver Tesla Model 3"
             mock_matcher.match_vehicle.assert_called_once_with(
                 license_plate="ABC123",
                 vehicle_embedding=None,

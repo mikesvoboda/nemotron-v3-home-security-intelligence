@@ -483,6 +483,20 @@ class BoundingBox:
         """Convert to integer (x1, y1, x2, y2) tuple for cropping."""
         return (int(self.x1), int(self.y1), int(self.x2), int(self.y2))
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary containing all BoundingBox fields for storage.
+        """
+        return {
+            "x1": self.x1,
+            "y1": self.y1,
+            "x2": self.x2,
+            "y2": self.y2,
+            "confidence": self.confidence,
+        }
+
     @property
     def width(self) -> float:
         """Get bounding box width."""
@@ -517,6 +531,20 @@ class LicensePlateResult:
     ocr_confidence: float = 0.0
     source_detection_id: int | None = None
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary containing all LicensePlateResult fields for storage.
+        """
+        return {
+            "bbox": self.bbox.to_dict(),
+            "text": self.text,
+            "confidence": self.confidence,
+            "ocr_confidence": self.ocr_confidence,
+            "source_detection_id": self.source_detection_id,
+        }
+
 
 @dataclass(slots=True)
 class FaceResult:
@@ -531,6 +559,18 @@ class FaceResult:
     bbox: BoundingBox
     confidence: float = 0.0
     source_detection_id: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary containing all FaceResult fields for storage.
+        """
+        return {
+            "bbox": self.bbox.to_dict(),
+            "confidence": self.confidence,
+            "source_detection_id": self.source_detection_id,
+        }
 
 
 @dataclass(slots=True)
@@ -568,9 +608,10 @@ class EnrichmentResult:
     vision_extraction: BatchExtractionResult | None = None
     person_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
     vehicle_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
-    # Household matching results (NEM-3314)
-    person_household_matches: list[HouseholdMatch] = field(default_factory=list)
-    vehicle_household_matches: list[HouseholdMatch] = field(default_factory=list)
+    # Household matching results (NEM-3314, NEM-5512/5513/5514 - detection-attributed)
+    # Keys are detection IDs (int) to enable per-detection context isolation
+    person_household_matches: dict[int, HouseholdMatch] = field(default_factory=dict)
+    vehicle_household_matches: dict[int, HouseholdMatch] = field(default_factory=dict)
     scene_change: SceneChangeResult | None = None
     violence_detection: ViolenceDetectionResult | None = None
     weather_classification: WeatherResult | None = None
@@ -594,6 +635,10 @@ class EnrichmentResult:
         default_factory=dict
     )  # GenderClassificationResult
     person_embeddings: dict[str, Any] = field(default_factory=dict)  # PersonEmbeddingResult (OSNet)
+    # CLIP embeddings for re-identification (768-dim), keyed by detection ID
+    # These are generated during _run_reid and cached for reuse by downstream services
+    # (NEM-5517/5518/5519: Embedding Caching)
+    clip_embeddings: dict[str, list[float]] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     structured_errors: list[EnrichmentError] = field(default_factory=list)
     processing_time_ms: float = 0.0
@@ -819,6 +864,11 @@ class EnrichmentResult:
     def has_person_embeddings(self) -> bool:
         """Check if any person embeddings (OSNet) are available."""
         return bool(self.person_embeddings)
+
+    @property
+    def has_clip_embeddings(self) -> bool:
+        """Check if any CLIP embeddings are available (NEM-5517/5518/5519)."""
+        return bool(self.clip_embeddings)
 
     @property
     def has_weather(self) -> bool:
@@ -1158,25 +1208,30 @@ class EnrichmentResult:
                 det_id: result.to_dict() if hasattr(result, "to_dict") else {}
                 for det_id, result in self.person_embeddings.items()
             },
-            # Household matching results (NEM-3314)
-            "person_household_matches": [
-                {
+            # Household matching results (NEM-3314, NEM-5512/5513/5514 - detection-attributed)
+            # Now keyed by detection ID for context isolation
+            "person_household_matches": {
+                str(det_id): {
+                    "detection_id": det_id,
                     "member_id": match.member_id,
                     "member_name": match.member_name,
                     "similarity": match.similarity,
                     "match_type": match.match_type,
+                    "member_role": getattr(match, "member_role", None),
+                    "schedule_status": getattr(match, "schedule_status", None),
                 }
-                for match in self.person_household_matches
-            ],
-            "vehicle_household_matches": [
-                {
+                for det_id, match in self.person_household_matches.items()
+            },
+            "vehicle_household_matches": {
+                str(det_id): {
+                    "detection_id": det_id,
                     "vehicle_id": match.vehicle_id,
                     "vehicle_description": match.vehicle_description,
                     "similarity": match.similarity,
                     "match_type": match.match_type,
                 }
-                for match in self.vehicle_household_matches
-            ],
+                for det_id, match in self.vehicle_household_matches.items()
+            },
             "vision_extraction": (
                 self.vision_extraction.to_dict() if self.vision_extraction else None
             ),
@@ -1267,7 +1322,7 @@ class EnrichmentResult:
             "confidence": pose.pose_confidence,
         }
 
-    def to_prompt_context(self, time_of_day: str | None = None) -> dict[str, str]:
+    def to_prompt_context(self, time_of_day: str | None = None) -> dict[str, str | None]:
         """Generate all prompt context sections for MODEL_ZOO_ENHANCED template.
 
         Returns a dictionary of formatted context strings for each enrichment
@@ -1552,8 +1607,167 @@ class EnrichmentResult:
 
         return flags
 
+    def to_storage_dict(self, detection_id: int) -> dict[str, Any] | None:
+        """Create storage-ready dict that matches prompt content for a detection.
+
+        Uses to_dict() methods on result classes for full data fidelity.
+        This method preserves all fields (display_name, is_commercial, all_scores, etc.)
+        that are used in prompt generation, ensuring storage and prompt paths have
+        identical data.
+
+        Args:
+            detection_id: The detection ID to get enrichment for
+
+        Returns:
+            Dictionary with detection-specific enrichment data, or None if no data
+        """
+        enrichment: dict[str, Any] = {}
+        det_id_str = str(detection_id)
+
+        # Vehicle classification - use to_dict() for full data
+        if det_id_str in self.vehicle_classifications:
+            vc = self.vehicle_classifications[det_id_str]
+            enrichment["vehicle"] = vc.to_dict()
+
+        # Vehicle damage
+        if det_id_str in self.vehicle_damage:
+            vd = self.vehicle_damage[det_id_str]
+            if "vehicle" not in enrichment:
+                enrichment["vehicle"] = {}
+            enrichment["vehicle"]["damage"] = [
+                {"type": d.damage_type, "confidence": d.confidence} for d in vd.detections
+            ]
+
+        # Pet classification - use to_dict() for full data
+        if det_id_str in self.pet_classifications:
+            pc = self.pet_classifications[det_id_str]
+            enrichment["pet"] = pc.to_dict()
+
+        # Person: clothing classification - use to_dict()
+        if det_id_str in self.clothing_classifications:
+            cc = self.clothing_classifications[det_id_str]
+            detected_action = (
+                self.action_results.get("detected_action") if self.action_results else None
+            )
+            enrichment["person"] = (
+                cc.to_dict()
+                if hasattr(cc, "to_dict")
+                else {
+                    "clothing": cc.top_category,
+                    "action": detected_action,
+                    "carrying": None,
+                    "confidence": cc.confidence,
+                }
+            )
+            if detected_action and "action" not in enrichment["person"]:
+                enrichment["person"]["action"] = detected_action
+
+        # Person: pose estimation (ViTPose)
+        if det_id_str in self.pose_results:
+            pose = self.pose_results[det_id_str]
+            detected_action = (
+                self.action_results.get("detected_action") if self.action_results else None
+            )
+            if "person" not in enrichment:
+                enrichment["person"] = {
+                    "action": detected_action,
+                }
+            enrichment["person"]["pose"] = pose.pose_class
+            enrichment["person"]["pose_confidence"] = pose.pose_confidence
+            enrichment["pose"] = self._serialize_pose_result(pose)
+
+        # Person: clothing segmentation
+        if det_id_str in self.clothing_segmentation:
+            cs = self.clothing_segmentation[det_id_str]
+            if "person" not in enrichment:
+                enrichment["person"] = {}
+            enrichment["person"]["face_covered"] = cs.has_face_covered
+
+        # License plates associated with this detection
+        detection_plates = [
+            lp for lp in self.license_plates if lp.source_detection_id == detection_id
+        ]
+        if detection_plates:
+            best_plate = max(detection_plates, key=lambda p: p.ocr_confidence or 0.0)
+            enrichment["license_plate"] = best_plate.to_dict()
+
+        # Faces associated with this detection
+        detection_faces = [f for f in self.faces if f.source_detection_id == detection_id]
+        if detection_faces:
+            enrichment["face_detected"] = True
+            enrichment["face_count"] = len(detection_faces)
+            enrichment["faces"] = [f.to_dict() for f in detection_faces]
+
+        # Shared/global enrichment data
+        if self.weather_classification:
+            enrichment["weather"] = {
+                "condition": self.weather_classification.condition,
+                "confidence": self.weather_classification.confidence,
+            }
+
+        if self.image_quality:
+            enrichment["image_quality"] = {
+                "score": self.image_quality.quality_score,
+                "issues": list(self.image_quality.quality_issues)
+                if self.image_quality.quality_issues
+                else [],
+            }
+
+        # Cached embeddings for reuse (NEM-5517/5518/5519: Embedding Caching)
+        # Store embeddings computed during enrichment to prevent redundant computation
+        # in downstream services (household_matcher, entity_clustering, reid_service)
+        embeddings: dict[str, list[float] | None] = {}
+
+        # CLIP embedding (768-dim) from re-identification
+        # This is the primary embedding source for persons and vehicles
+        if det_id_str in self.clip_embeddings:
+            clip_emb = self.clip_embeddings[det_id_str]
+            # Determine the embedding type based on detection context
+            # Check if this detection has vehicle re-id matches (indicates vehicle)
+            if det_id_str in self.vehicle_reid_matches:
+                embeddings["vehicle_visual"] = clip_emb
+            # Check if this detection has person re-id matches (indicates person)
+            elif det_id_str in self.person_reid_matches:
+                # Use face_clip for persons (CLIP is used for face-level matching)
+                embeddings["face_clip"] = clip_emb
+            # Default: store as person_reid if we have CLIP but no matches yet
+            # Could be either person or vehicle, store based on available context
+            # If we have person_embeddings (OSNet), this is likely a person
+            elif det_id_str in self.person_embeddings:
+                embeddings["face_clip"] = clip_emb
+            else:
+                # Store as vehicle_visual by default for unmatched CLIP embeddings
+                # The extraction functions will handle both cases
+                embeddings["vehicle_visual"] = clip_emb
+
+        # Person re-ID embedding (512-dim OSNet) - separate from CLIP
+        # OSNet embeddings are more specialized for person re-identification
+        if det_id_str in self.person_embeddings:
+            embedding_result = self.person_embeddings[det_id_str]
+            if hasattr(embedding_result, "embedding"):
+                emb = embedding_result.embedding
+                # Convert numpy array to list for JSON serialization
+                if hasattr(emb, "tolist"):
+                    embeddings["person_reid"] = emb.tolist()
+                elif isinstance(emb, list):
+                    embeddings["person_reid"] = emb
+            elif isinstance(embedding_result, dict) and "embedding" in embedding_result:
+                emb = embedding_result["embedding"]
+                if hasattr(emb, "tolist"):
+                    embeddings["person_reid"] = emb.tolist()
+                elif isinstance(emb, list):
+                    embeddings["person_reid"] = emb
+
+        # Only add embeddings key if we have any embeddings to store
+        if embeddings:
+            enrichment["embeddings"] = embeddings
+
+        return enrichment if enrichment else None
+
     def get_enrichment_for_detection(self, detection_id: int) -> dict[str, Any] | None:
         """Get enrichment data for a specific detection.
+
+        DEPRECATED: Use to_storage_dict() instead for full data fidelity.
 
         Aggregates all enrichment results that apply to the given detection ID.
         Returns None if no enrichment data is available for this detection.
@@ -1564,6 +1778,13 @@ class EnrichmentResult:
         Returns:
             Dictionary with detection-specific enrichment data, or None if no data
         """
+        import warnings
+
+        warnings.warn(
+            "get_enrichment_for_detection is deprecated, use to_storage_dict() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         enrichment: dict[str, Any] = {}
         det_id_str = str(detection_id)
 
@@ -3198,6 +3419,10 @@ class EnrichmentPipeline:
                             bbox = bbox_tuple
                     embedding = await self._reid_service.generate_embedding(image, bbox=bbox)
 
+                    # Cache the CLIP embedding for reuse by downstream services
+                    # (NEM-5517/5518/5519: Embedding Caching)
+                    result.clip_embeddings[det_id] = embedding
+
                     # Find matches
                     matches = await self._reid_service.find_matching_entities(
                         redis,
@@ -3343,7 +3568,10 @@ class EnrichmentPipeline:
                     try:
                         match = await matcher.match_person(embedding, session)
                         if match:
-                            result.person_household_matches.append(match)
+                            # Store with detection ID for context isolation (NEM-5512/5513/5514)
+                            # Convert det_id to int for consistent keying
+                            int_det_id = int(det_id) if det_id else i
+                            result.person_household_matches[int_det_id] = match
                             logger.debug(
                                 "Person matched to household member",
                                 extra={
@@ -3371,10 +3599,14 @@ class EnrichmentPipeline:
                                 session=session,
                             )
                             if match:
-                                result.vehicle_household_matches.append(match)
+                                # Store with detection ID for context isolation (NEM-5512/5513/5514)
+                                vehicle_det_id = plate_result.source_detection_id
+                                if vehicle_det_id is not None:
+                                    result.vehicle_household_matches[vehicle_det_id] = match
                                 logger.debug(
                                     "Vehicle matched by license plate",
                                     extra={
+                                        "detection_id": vehicle_det_id,
                                         "plate": plate_result.text,
                                         "vehicle_description": match.vehicle_description,
                                     },

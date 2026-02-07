@@ -83,6 +83,9 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     # Fuzzy string matching for service provider OCR (Scene OCR feature)
     "rapidfuzz>=3.10.0",
+    # ONVIF camera discovery and control (NEM-4207)
+    "wsdiscovery>=2.1.2",
+    "onvif-zeep>=0.2.12",
 ]
 
 [project.optional-dependencies]

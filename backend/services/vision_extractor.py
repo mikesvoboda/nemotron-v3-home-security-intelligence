@@ -10,6 +10,10 @@ using Florence-2, a vision-language model that supports:
 The VisionExtractor calls the ai-florence HTTP service for Florence-2 inference,
 which runs as a dedicated service at http://ai-florence:8092. This architecture
 improves VRAM management by keeping Florence-2 in a separate container.
+
+NEM-5478: Florence-2 YOLO Cross-Validation
+This module implements cross-validation between YOLO detections and Florence-2
+descriptions to prevent misclassification (e.g., bus -> police car hallucinations).
 """
 
 from __future__ import annotations
@@ -26,6 +30,434 @@ if TYPE_CHECKING:
     from PIL import Image
 
 logger = get_logger(__name__)
+
+# =============================================================================
+# YOLO-Florence Semantic Equivalence Mapping (NEM-5478)
+# =============================================================================
+# Maps YOLO detection classes to semantically equivalent Florence descriptions.
+# This allows Florence to provide more specific vehicle types while still being
+# validated against YOLO's classification.
+
+YOLO_TO_FLORENCE_EQUIVALENCE: dict[str, set[str]] = {
+    "car": {"sedan", "coupe", "hatchback", "suv", "crossover", "car", "vehicle"},
+    "truck": {"pickup", "truck", "dump truck", "semi-truck", "lorry"},
+    "bus": {"bus", "minibus", "shuttle", "coach", "transit"},
+    "motorcycle": {"motorcycle", "scooter", "bike", "moped", "motorbike"},
+    "bicycle": {"bicycle", "bike", "cycle"},
+}
+
+# Confidence thresholds for cross-validation
+YOLO_HIGH_CONFIDENCE_THRESHOLD = 0.70  # Above this, YOLO wins on conflict
+YOLO_LOW_CONFIDENCE_THRESHOLD = 0.50  # Below this, Florence is trusted more
+
+# Vehicle-related terms for detecting vehicle descriptions in Florence output
+VEHICLE_TERMS = frozenset(
+    {
+        "car",
+        "truck",
+        "bus",
+        "van",
+        "suv",
+        "sedan",
+        "pickup",
+        "vehicle",
+        "automobile",
+        "motorcycle",
+        "scooter",
+        "bike",
+        "bicycle",
+        "minivan",
+    }
+)
+
+# Person-related terms for detecting person descriptions in Florence output
+PERSON_TERMS = frozenset(
+    {
+        "person",
+        "man",
+        "woman",
+        "child",
+        "people",
+        "individual",
+        "pedestrian",
+        "walking",
+        "standing",
+        "wearing",
+        "carrying",
+    }
+)
+
+
+# =============================================================================
+# Cross-Validation Dataclasses (NEM-5478)
+# =============================================================================
+
+
+@dataclass(frozen=True, slots=True)
+class ConflictResolutionResult:
+    """Result of resolving a YOLO-Florence vehicle type conflict.
+
+    Attributes:
+        resolved_type: The final vehicle type to use
+        source: Which source was trusted ("yolo", "florence", or "both")
+        conflict_detected: Whether a semantic conflict was detected
+        yolo_class: Original YOLO detection class
+        yolo_confidence: YOLO detection confidence score
+        florence_type: Florence-2 described vehicle type
+        confidence_note: Optional note about the resolution decision
+    """
+
+    resolved_type: str
+    source: str  # "yolo", "florence", "both"
+    conflict_detected: bool
+    yolo_class: str | None
+    yolo_confidence: float | None
+    florence_type: str | None
+    confidence_note: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CrossValidationError:
+    """Error detected during YOLO-Florence cross-validation.
+
+    Attributes:
+        is_critical: Whether this is a critical error (e.g., person-vehicle mismatch)
+        message: Human-readable error message
+        yolo_class: YOLO detection class
+        yolo_confidence: YOLO detection confidence
+        florence_description: Florence-2 description that caused the error
+    """
+
+    is_critical: bool
+    message: str
+    yolo_class: str | None
+    yolo_confidence: float | None
+    florence_description: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "is_critical": self.is_critical,
+            "message": self.message,
+            "yolo_class": self.yolo_class,
+            "yolo_confidence": self.yolo_confidence,
+            "florence_description": self.florence_description,
+        }
+
+
+# =============================================================================
+# Cross-Validation Helper Functions (NEM-5478)
+# =============================================================================
+
+
+def is_semantically_equivalent(yolo_class: str, florence_type: str) -> bool:
+    """Check if Florence output is semantically equivalent to YOLO class.
+
+    This function determines whether Florence-2's description is consistent
+    with what YOLO detected. For example, if YOLO detects 'car' and Florence
+    says 'sedan', they are semantically equivalent since a sedan is a type of car.
+
+    Args:
+        yolo_class: YOLO detection class (e.g., "car", "bus", "truck")
+        florence_type: Florence-2 described type (e.g., "sedan", "police car")
+
+    Returns:
+        True if Florence's description is semantically equivalent to YOLO's class,
+        False otherwise.
+
+    Examples:
+        >>> is_semantically_equivalent("car", "sedan")
+        True
+        >>> is_semantically_equivalent("bus", "police car")
+        False
+        >>> is_semantically_equivalent("truck", "pickup")
+        True
+    """
+    if not yolo_class or not florence_type:
+        return False
+
+    yolo_lower = yolo_class.lower().strip()
+    florence_lower = florence_type.lower().strip()
+
+    # Exact match
+    if yolo_lower == florence_lower:
+        return True
+
+    # Check equivalence mapping
+    equivalents = YOLO_TO_FLORENCE_EQUIVALENCE.get(yolo_lower, set())
+
+    # Direct match in equivalents
+    if florence_lower in equivalents:
+        return True
+
+    # Check if any equivalent term appears in the Florence description
+    # This handles cases like "white sedan" or "blue pickup truck"
+    return any(equiv in florence_lower for equiv in equivalents)
+
+
+def resolve_vehicle_type_conflict(
+    yolo_class: str | None,
+    yolo_confidence: float | None,
+    florence_type: str | None,
+) -> ConflictResolutionResult:
+    """Resolve conflict between YOLO and Florence vehicle type.
+
+    This function decides which source to trust when YOLO and Florence disagree
+    on vehicle type. The decision is based on:
+    1. YOLO confidence level
+    2. Semantic equivalence between the two descriptions
+
+    Args:
+        yolo_class: YOLO detection class (e.g., "bus", "car")
+        yolo_confidence: YOLO detection confidence (0.0-1.0)
+        florence_type: Florence-2 described vehicle type
+
+    Returns:
+        ConflictResolutionResult with the resolved type and decision metadata.
+
+    Examples:
+        >>> result = resolve_vehicle_type_conflict("bus", 0.91, "police car")
+        >>> result.resolved_type
+        'bus'
+        >>> result.conflict_detected
+        True
+    """
+    # Handle missing inputs
+    if not yolo_class and not florence_type:
+        return ConflictResolutionResult(
+            resolved_type="unknown",
+            source="both",
+            conflict_detected=False,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_type=florence_type,
+            confidence_note="No classification available from either source",
+        )
+
+    if not yolo_class:
+        return ConflictResolutionResult(
+            resolved_type=florence_type or "unknown",
+            source="florence",
+            conflict_detected=False,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_type=florence_type,
+            confidence_note="Only Florence classification available",
+        )
+
+    if not florence_type:
+        return ConflictResolutionResult(
+            resolved_type=yolo_class,
+            source="yolo",
+            conflict_detected=False,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_type=florence_type,
+            confidence_note="Only YOLO classification available",
+        )
+
+    # Check semantic equivalence
+    semantically_equivalent = is_semantically_equivalent(yolo_class, florence_type)
+
+    # Get confidence, default to medium if not provided
+    confidence = yolo_confidence if yolo_confidence is not None else 0.75
+
+    # If semantically equivalent, prefer Florence for more specific description
+    if semantically_equivalent:
+        return ConflictResolutionResult(
+            resolved_type=florence_type,
+            source="florence",
+            conflict_detected=False,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_type=florence_type,
+            confidence_note=f"Semantic match: YOLO '{yolo_class}' matches Florence '{florence_type}'",
+        )
+
+    # Semantic mismatch - decide based on confidence
+    if confidence >= YOLO_HIGH_CONFIDENCE_THRESHOLD:
+        # High confidence YOLO - trust YOLO
+        return ConflictResolutionResult(
+            resolved_type=yolo_class,
+            source="yolo",
+            conflict_detected=True,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_type=florence_type,
+            confidence_note=f"High confidence YOLO ({confidence:.0%}) overrides Florence '{florence_type}'",
+        )
+    else:
+        # Low confidence YOLO - trust Florence
+        return ConflictResolutionResult(
+            resolved_type=florence_type,
+            source="florence",
+            conflict_detected=False,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_type=florence_type,
+            confidence_note=f"Low YOLO confidence ({confidence:.0%}), using Florence '{florence_type}'",
+        )
+
+
+def generate_validation_note(  # noqa: PLR0911
+    yolo_class: str | None,
+    yolo_confidence: float | None,
+    florence_type: str | None,
+    resolved_type: str,
+    conflict_detected: bool,
+) -> str:
+    """Generate validation note for Nemotron prompt.
+
+    This function creates a human-readable note explaining how the vehicle type
+    was determined through cross-validation.
+
+    Args:
+        yolo_class: YOLO detection class
+        yolo_confidence: YOLO detection confidence
+        florence_type: Florence-2 described type
+        resolved_type: Final resolved type
+        conflict_detected: Whether a conflict was detected
+
+    Returns:
+        Human-readable validation note string.
+    """
+    confidence_str = f"{yolo_confidence:.0%}" if yolo_confidence is not None else "unknown"
+
+    if conflict_detected:
+        # Check for critical person-vehicle mismatch
+        yolo_lower = (yolo_class or "").lower()
+        florence_lower = (florence_type or "").lower()
+        is_person_vehicle_mismatch = (
+            yolo_lower == "person" and any(v in florence_lower for v in VEHICLE_TERMS)
+        ) or (yolo_lower in VEHICLE_TERMS and "person" in florence_lower)
+
+        if is_person_vehicle_mismatch:
+            return (
+                f"Cross-validation mismatch error: YOLO detected '{yolo_class}' ({confidence_str} conf), "
+                f"but Florence described '{florence_type}'. Resolved to '{resolved_type}'."
+            )
+
+        return (
+            f"Cross-validation conflict: YOLO detected '{yolo_class}' ({confidence_str} conf), "
+            f"Florence described '{florence_type}'. Resolved to '{resolved_type}'."
+        )
+
+    if yolo_class and florence_type:
+        if is_semantically_equivalent(yolo_class, florence_type):
+            return (
+                f"Cross-validation confirmed: YOLO '{yolo_class}' ({confidence_str}) "
+                f"matches Florence '{florence_type}'."
+            )
+        else:
+            return (
+                f"Cross-validation: YOLO '{yolo_class}' ({confidence_str}), "
+                f"Florence '{florence_type}'. Using '{resolved_type}'."
+            )
+
+    if yolo_class:
+        return f"YOLO detected '{yolo_class}' ({confidence_str})."
+
+    if florence_type:
+        return f"Florence detected '{florence_type}'."
+
+    return "No cross-validation data available."
+
+
+def build_vehicle_type_query(yolo_class: str) -> str:
+    """Build VQA query that includes YOLO context.
+
+    Including what YOLO detected in the query helps Florence-2 provide a more
+    consistent and accurate response.
+
+    Args:
+        yolo_class: YOLO detection class
+
+    Returns:
+        VQA query string with YOLO context.
+    """
+    return f"YOLO detected this as: {yolo_class}. What specific type of vehicle is visible?"
+
+
+def _extract_vehicle_terms(text: str) -> set[str]:
+    """Extract vehicle-related terms from text."""
+    text_lower = text.lower()
+    found = set()
+    for term in VEHICLE_TERMS:
+        if term in text_lower:
+            found.add(term)
+    return found
+
+
+def _extract_person_terms(text: str) -> set[str]:
+    """Extract person-related terms from text."""
+    text_lower = text.lower()
+    found = set()
+    for term in PERSON_TERMS:
+        if term in text_lower:
+            found.add(term)
+    return found
+
+
+def detect_cross_validation_error(
+    yolo_class: str | None,
+    yolo_confidence: float | None,
+    florence_description: str | None,
+) -> CrossValidationError | None:
+    """Detect critical cross-validation errors.
+
+    This function checks for serious mismatches between YOLO and Florence
+    that indicate a fundamental classification error, such as YOLO detecting
+    a person but Florence describing a vehicle.
+
+    Args:
+        yolo_class: YOLO detection class
+        yolo_confidence: YOLO detection confidence
+        florence_description: Florence-2 description text
+
+    Returns:
+        CrossValidationError if a critical error is detected, None otherwise.
+    """
+    if not yolo_class or not florence_description:
+        return None
+
+    yolo_lower = yolo_class.lower().strip()
+
+    # Check for person-vehicle mismatch
+    is_yolo_person = yolo_lower == "person"
+    is_yolo_vehicle = yolo_lower in VEHICLE_TERMS or yolo_lower in YOLO_TO_FLORENCE_EQUIVALENCE
+
+    # Extract what Florence describes
+    florence_vehicle_terms = _extract_vehicle_terms(florence_description)
+    florence_person_terms = _extract_person_terms(florence_description)
+
+    # Person detected by YOLO, but Florence describes a vehicle
+    if is_yolo_person and florence_vehicle_terms and not florence_person_terms:
+        return CrossValidationError(
+            is_critical=True,
+            message=(
+                f"Person-vehicle mismatch: YOLO detected 'person' ({yolo_confidence:.0%} conf) "
+                f"but Florence described vehicle terms: {florence_vehicle_terms}"
+            ),
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_description=florence_description,
+        )
+
+    # Vehicle detected by YOLO, but Florence describes a person
+    if is_yolo_vehicle and florence_person_terms and not florence_vehicle_terms:
+        return CrossValidationError(
+            is_critical=True,
+            message=(
+                f"Vehicle-person mismatch: YOLO detected '{yolo_class}' ({yolo_confidence:.0%} conf) "
+                f"but Florence described person terms: {florence_person_terms}"
+            ),
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
+            florence_description=florence_description,
+        )
+
+    return None
+
 
 # Regex pattern to match Florence-2 location tokens like <loc_123>
 # Replace with a space to preserve word boundaries
@@ -227,6 +659,20 @@ DETAILED_CAPTION_TASK = "<DETAILED_CAPTION>"
 MORE_DETAILED_CAPTION_TASK = "<MORE_DETAILED_CAPTION>"
 VQA_TASK = "<VQA>"
 
+# =============================================================================
+# Detail Level Mapping (NEM-5507/5508/5509)
+# =============================================================================
+# Maps detail_level parameter to Florence-2 caption tasks.
+# - "basic": <CAPTION> - Brief 10-20 word caption
+# - "detailed": <DETAILED_CAPTION> - Richer 50-100 word description (default)
+# - "more_detailed": <MORE_DETAILED_CAPTION> - Extensive description
+
+DETAIL_LEVEL_TO_TASK: dict[str, str] = {
+    "basic": CAPTION_TASK,
+    "detailed": DETAILED_CAPTION_TASK,
+    "more_detailed": MORE_DETAILED_CAPTION_TASK,
+}
+
 
 @dataclass(frozen=True, slots=True)
 class VehicleAttributes:
@@ -238,6 +684,9 @@ class VehicleAttributes:
         is_commercial: Whether this appears to be a commercial vehicle
         commercial_text: Visible company name/logo text if commercial
         caption: Full description of the vehicle
+        validation_note: Note about YOLO-Florence cross-validation (NEM-5478)
+        yolo_class: Original YOLO detection class for reference
+        yolo_confidence: Original YOLO detection confidence
     """
 
     color: str | None
@@ -245,6 +694,10 @@ class VehicleAttributes:
     is_commercial: bool
     commercial_text: str | None
     caption: str
+    # Cross-validation fields (NEM-5478)
+    validation_note: str | None = None
+    yolo_class: str | None = None
+    yolo_confidence: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -254,6 +707,9 @@ class VehicleAttributes:
             "is_commercial": self.is_commercial,
             "commercial_text": self.commercial_text,
             "caption": self.caption,
+            "validation_note": self.validation_note,
+            "yolo_class": self.yolo_class,
+            "yolo_confidence": self.yolo_confidence,
         }
 
 
@@ -748,6 +1204,43 @@ class VisionExtractor:
         caption = await self._query_florence(image, DETAILED_CAPTION_TASK)
         return caption.strip() if caption else ""
 
+    async def get_scene_caption(
+        self,
+        image: Image.Image,
+        detail_level: str = "detailed",
+    ) -> str:
+        """Extract scene caption with configurable detail level.
+
+        NEM-5507/5508/5509: Florence Caption Upgrade to DETAILED_CAPTION.
+
+        This method allows callers to specify the detail level for scene
+        captioning, mapping to different Florence-2 caption tasks:
+        - "basic": <CAPTION> - Brief 10-20 word caption
+        - "detailed": <DETAILED_CAPTION> - Richer 50-100 word description (default)
+        - "more_detailed": <MORE_DETAILED_CAPTION> - Extensive description
+
+        Args:
+            image: Full frame image
+            detail_level: Level of detail for caption.
+                         One of: "basic", "detailed", "more_detailed"
+                         Defaults to "detailed".
+
+        Returns:
+            Scene description string at the specified detail level
+
+        Examples:
+            >>> # Default detailed caption
+            >>> caption = await extractor.get_scene_caption(image)
+            >>> # Basic short caption
+            >>> caption = await extractor.get_scene_caption(image, detail_level="basic")
+            >>> # Most detailed caption
+            >>> caption = await extractor.get_scene_caption(image, detail_level="more_detailed")
+        """
+        # Map detail_level to Florence-2 task, defaulting to detailed
+        task = DETAIL_LEVEL_TO_TASK.get(detail_level, DETAILED_CAPTION_TASK)
+        caption = await self._query_florence(image, task)
+        return caption.strip() if caption else ""
+
     async def extract_scene_analysis(
         self,
         image: Image.Image,
@@ -890,7 +1383,7 @@ class VisionExtractor:
             elif class_name == PERSON_CLASS:
                 person_dets.append(det)
 
-        # Extract vehicle attributes
+        # Extract vehicle attributes with YOLO cross-validation (NEM-5478)
         for det in vehicle_dets:
             bbox = det.get("bbox")
             if bbox:
@@ -899,7 +1392,15 @@ class VisionExtractor:
             else:
                 cropped = image
 
-            vehicle_attrs = await self._extract_vehicle_internal(cropped)
+            # Extract YOLO context for cross-validation
+            yolo_class = det.get("class_name", "").lower()
+            yolo_confidence = det.get("confidence")
+
+            vehicle_attrs = await self._extract_vehicle_internal(
+                cropped,
+                yolo_class=yolo_class,
+                yolo_confidence=yolo_confidence,
+            )
             det_id = det.get("detection_id", str(len(result.vehicle_attributes)))
             result.vehicle_attributes[det_id] = vehicle_attrs
 
@@ -931,18 +1432,25 @@ class VisionExtractor:
     async def _extract_vehicle_internal(
         self,
         image: Image.Image,
+        yolo_class: str | None = None,
+        yolo_confidence: float | None = None,
     ) -> VehicleAttributes:
-        """Extract vehicle attributes via HTTP service.
+        """Extract vehicle attributes via HTTP service with YOLO cross-validation.
 
         Args:
             image: Cropped vehicle image
+            yolo_class: YOLO detection class for cross-validation (NEM-5478)
+            yolo_confidence: YOLO detection confidence for cross-validation
 
         Returns:
-            VehicleAttributes with extracted information
+            VehicleAttributes with extracted information and validation metadata
 
         Note:
             NEM-3304: VQA responses are validated to reject garbage outputs
             containing <loc_> tokens or VQA> prefix artifacts.
+
+            NEM-5478: Florence vehicle type is cross-validated against YOLO
+            detection to prevent misclassification (e.g., bus -> police car).
         """
         caption = await self._query_florence(image, CAPTION_TASK)
         color_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
@@ -953,7 +1461,7 @@ class VisionExtractor:
 
         # Validate VQA responses to reject garbage outputs (NEM-3304)
         color = validate_and_clean_vqa_output(color_raw)
-        vehicle_type = validate_and_clean_vqa_output(vehicle_type_raw)
+        florence_vehicle_type = validate_and_clean_vqa_output(vehicle_type_raw)
 
         is_commercial = self._parse_yes_no(commercial_response)
 
@@ -967,12 +1475,41 @@ class VisionExtractor:
                 self._parse_none_response(commercial_text_clean) if commercial_text_clean else None
             )
 
+        # Cross-validate Florence vehicle type against YOLO detection (NEM-5478)
+        validation_note: str | None = None
+        resolved_vehicle_type = florence_vehicle_type
+
+        if yolo_class:
+            # Perform cross-validation
+            resolution = resolve_vehicle_type_conflict(
+                yolo_class=yolo_class,
+                yolo_confidence=yolo_confidence,
+                florence_type=florence_vehicle_type,
+            )
+            resolved_vehicle_type = resolution.resolved_type
+            validation_note = generate_validation_note(
+                yolo_class=yolo_class,
+                yolo_confidence=yolo_confidence,
+                florence_type=florence_vehicle_type,
+                resolved_type=resolved_vehicle_type,
+                conflict_detected=resolution.conflict_detected,
+            )
+
+            if resolution.conflict_detected:
+                logger.warning(
+                    f"YOLO-Florence conflict detected: YOLO={yolo_class} ({yolo_confidence}), "
+                    f"Florence={florence_vehicle_type}, resolved to {resolved_vehicle_type}"
+                )
+
         return VehicleAttributes(
             color=color,
-            vehicle_type=vehicle_type,
+            vehicle_type=resolved_vehicle_type,
             is_commercial=is_commercial,
             commercial_text=commercial_text,
             caption=caption,
+            validation_note=validation_note,
+            yolo_class=yolo_class,
+            yolo_confidence=yolo_confidence,
         )
 
     async def _extract_person_internal(

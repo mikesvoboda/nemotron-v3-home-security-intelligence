@@ -231,6 +231,8 @@ class SupervisorConfig:
         max_restart_history: Maximum number of restart events to keep in history.
         default_heartbeat_timeout: Default heartbeat timeout for workers (NEM-4148).
         heartbeat_check_enabled: Whether to check for missed heartbeats (NEM-4148).
+        missed_heartbeat_restart_threshold: Number of consecutive missed heartbeats
+            before forcing a worker restart (NEM-4148). Set to 0 to disable.
     """
 
     check_interval: float = 5.0
@@ -240,6 +242,7 @@ class SupervisorConfig:
     max_restart_history: int = 100
     default_heartbeat_timeout: float = 30.0  # NEM-4148
     heartbeat_check_enabled: bool = True  # NEM-4148
+    missed_heartbeat_restart_threshold: int = 5  # NEM-4148: Auto-restart stuck workers
 
 
 class WorkerSupervisor:
@@ -497,9 +500,11 @@ class WorkerSupervisor:
                     if worker.status == WorkerStatus.CRASHED:
                         await self._handle_crashed_worker(name)
 
-                    # NEM-4148: Check for missed heartbeats
+                    # NEM-4148: Check for missed heartbeats and auto-restart stuck workers
                     elif worker.status == WorkerStatus.RUNNING:
-                        self._check_worker_heartbeat(name)
+                        needs_restart = self._check_worker_heartbeat(name)
+                        if needs_restart:
+                            await self._handle_stuck_worker(name)
 
                 await asyncio.sleep(self._config.check_interval)
 
@@ -512,18 +517,22 @@ class WorkerSupervisor:
 
         logger.info("Monitor loop stopped")
 
-    def _check_worker_heartbeat(self, name: str) -> None:
+    def _check_worker_heartbeat(self, name: str) -> bool:
         """Check if a worker has missed its heartbeat deadline (NEM-4148).
 
         Args:
             name: Name of the worker to check.
+
+        Returns:
+            True if the worker should be force-restarted due to exceeding the
+            missed heartbeat threshold, False otherwise.
         """
         if not self._config.heartbeat_check_enabled:
-            return
+            return False
 
         worker = self._workers.get(name)
         if worker is None or worker.last_heartbeat_at is None:
-            return
+            return False
 
         # Calculate time since last heartbeat
         now = datetime.now(UTC)
@@ -537,6 +546,67 @@ class WorkerSupervisor:
                 f"Worker '{name}' missed heartbeat #{worker.missed_heartbeat_count} "
                 f"(last: {seconds_since_heartbeat:.1f}s ago, timeout: {worker.heartbeat_timeout}s)"
             )
+
+            # Check if we should force-restart due to exceeding threshold
+            threshold = self._config.missed_heartbeat_restart_threshold
+            if threshold > 0 and worker.missed_heartbeat_count >= threshold:
+                logger.error(
+                    f"Worker '{name}' exceeded missed heartbeat threshold "
+                    f"({worker.missed_heartbeat_count}/{threshold}), forcing restart"
+                )
+                return True
+
+        return False
+
+    async def _handle_stuck_worker(self, name: str) -> None:
+        """Handle a stuck worker by force-cancelling and restarting it (NEM-4148).
+
+        This is called when a worker has exceeded the missed heartbeat threshold,
+        indicating it's stuck/hung rather than crashed. We force-cancel the task
+        and transition to CRASHED status to trigger the normal restart flow.
+
+        Args:
+            name: Name of the stuck worker.
+        """
+        worker = self._workers.get(name)
+        if worker is None:
+            return
+
+        error_msg = (
+            f"Worker stuck - missed {worker.missed_heartbeat_count} consecutive "
+            f"heartbeats (threshold: {self._config.missed_heartbeat_restart_threshold})"
+        )
+
+        logger.warning(f"Force-cancelling stuck worker '{name}': {error_msg}")
+
+        # Cancel the stuck task if it exists
+        if worker.task is not None and not worker.task.done():
+            worker.task.cancel()
+            try:
+                # Give the task a moment to handle cancellation
+                await asyncio.wait_for(
+                    asyncio.shield(worker.task),
+                    timeout=2.0,
+                )
+            except (TimeoutError, asyncio.CancelledError):
+                pass
+            except Exception as e:
+                logger.debug(f"Exception while cancelling stuck worker '{name}': {e}")
+
+        # Transition to CRASHED status - this will trigger normal restart flow
+        worker.status = WorkerStatus.CRASHED
+        worker.last_crashed_at = datetime.now(UTC)
+        worker.error = error_msg
+        worker.missed_heartbeat_count = 0  # Reset counter
+
+        # Record metrics
+        record_worker_crash(name, error_msg)
+        set_worker_status(name, WorkerStatus.CRASHED.value)
+        set_pipeline_worker_state(name, "crashed")
+
+        await self._broadcast_status(name, WorkerStatus.CRASHED, error_msg)
+
+        logger.info(f"Worker '{name}' marked as crashed, will restart on next monitor cycle")
 
     async def _handle_crashed_worker(self, name: str) -> None:
         """Handle a crashed worker by attempting restart.

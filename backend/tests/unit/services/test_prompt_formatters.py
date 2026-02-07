@@ -145,8 +145,14 @@ class TestFormatViolenceContext:
         assert "95%" in result
         assert "ACTION REQUIRED" in result
 
-    def test_non_violent_detection(self) -> None:
-        """Test formatting when no violence is detected."""
+    def test_non_violent_marginal_detection(self) -> None:
+        """Test formatting when violence is marginal (< 55%) - returns None.
+
+        Per tier-based violence detection:
+        - marginal (<55%): Returns None to exclude from LLM prompt
+        - suspected (55-70%): Shows "Possible violence detected"
+        - definitive (>=70%): Shows **VIOLENCE DETECTED**
+        """
         violence_result = MockViolenceDetectionResult(
             is_violent=False,
             confidence=0.85,
@@ -155,8 +161,25 @@ class TestFormatViolenceContext:
         )
         result = format_violence_context(violence_result)
 
-        assert "No violence detected" in result
-        assert "85%" in result
+        # Marginal tier returns None (excluded from prompts)
+        assert result is None
+
+    def test_suspected_violence_detection(self) -> None:
+        """Test formatting for suspected tier violence (55-70%).
+
+        violent_score between 55-70% is in the "suspected" tier.
+        """
+        violence_result = MockViolenceDetectionResult(
+            is_violent=False,
+            confidence=0.62,
+            violent_score=0.62,
+            non_violent_score=0.38,
+        )
+        result = format_violence_context(violence_result)
+
+        assert result is not None
+        assert "Possible violence detected" in result
+        assert "62%" in result
         assert "**VIOLENCE DETECTED**" not in result
 
 
@@ -760,8 +783,9 @@ class TestFormattersErrorHandling:
         # Should handle missing attributes gracefully or raise informative error
         try:
             result = format_violence_context(PartialViolenceResult())
-            # If it succeeds, verify it contains expected content
-            assert "VIOLENCE" in result or result is not None
+            # If it succeeds, verify it contains expected content or returns None
+            # Note: result can be None for marginal tier, so check None first
+            assert result is None or "VIOLENCE" in result
         except AttributeError:
             # AttributeError is acceptable for missing required attributes
             pass

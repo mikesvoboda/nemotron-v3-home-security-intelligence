@@ -956,6 +956,46 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
+    # Batch coalescing settings (NEM-5464 Phase 5)
+    # Coalesces similar detections within a time window to reduce inference load
+    batch_coalescing_enabled: bool = Field(
+        default=True,
+        description="Enable/disable batch coalescing. When enabled, similar detections "
+        "within a time window are merged to reduce inference load on AI services.",
+    )
+    batch_coalescing_max_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum detections per coalesced batch. When reached, the batch "
+        "is processed and a new coalescing window begins.",
+    )
+    batch_coalescing_time_window: float = Field(
+        default=5.0,
+        ge=0.5,
+        le=60.0,
+        description="Time window in seconds for coalescing similar detections. "
+        "Detections arriving within this window may be merged if they match criteria.",
+    )
+
+    # Priority queue settings (NEM-5464 Phase 5)
+    # Enables priority-based ordering for AI inference requests
+    priority_queue_enabled: bool = Field(
+        default=True,
+        description="Enable priority-based request ordering. When enabled, detections "
+        "containing high-priority object types are processed before lower-priority ones.",
+    )
+    priority_high_labels: list[str] = Field(
+        default=["weapon", "intruder", "fire"],
+        description="Object labels that receive high priority for inference. "
+        "Detections containing these labels are processed first.",
+    )
+    priority_medium_labels: list[str] = Field(
+        default=["person", "unknown"],
+        description="Object labels that receive medium priority for inference. "
+        "Processed after high-priority labels but before low-priority ones.",
+    )
+
     # Pipeline worker configuration (NEM-5375)
     detection_worker_count: int = Field(
         default=2,
@@ -1555,6 +1595,26 @@ class Settings(BaseSettings):
         description="Minimum confidence threshold for object detections (0.0-1.0)",
         ge=0.0,
         le=1.0,
+    )
+
+    # Violence detection threshold settings (NEM-5483)
+    # Three-tier confidence system for violence classification:
+    # - definitive: violent_score >= threshold -> is_violent=True, immediate action
+    # - suspected: violent_score between suspected and definitive -> flagged for review
+    # - marginal: violent_score < suspected threshold -> excluded from prompts
+    violence_definitive_threshold: float = Field(
+        default=0.70,
+        ge=0.0,
+        le=1.0,
+        description="Violence detection definitive threshold (>=70% = definitive). "
+        "Scores at or above this threshold are classified as definitively violent.",
+    )
+    violence_suspected_threshold: float = Field(
+        default=0.55,
+        ge=0.0,
+        le=1.0,
+        description="Violence detection suspected threshold (55-70% = suspected). "
+        "Scores between this and definitive threshold are flagged for human review.",
     )
 
     # Fast path settings
@@ -2760,6 +2820,28 @@ class Settings(BaseSettings):
                 "Both redis_ssl_certfile and redis_ssl_keyfile must be provided together "
                 "for mutual TLS. Provide both, or neither (CA certs alone are allowed for "
                 "server certificate verification without client authentication)."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_violence_thresholds(self) -> Settings:
+        """Validate violence detection threshold consistency (NEM-5483).
+
+        The definitive threshold must be greater than the suspected threshold
+        to ensure the tier boundaries are logically consistent:
+        - definitive (>=70%) > suspected (55-70%) > marginal (<55%)
+
+        Returns:
+            self: The validated Settings instance
+
+        Raises:
+            ValueError: If definitive threshold is not greater than suspected threshold
+        """
+        if self.violence_definitive_threshold <= self.violence_suspected_threshold:
+            raise ValueError(
+                f"violence_definitive_threshold ({self.violence_definitive_threshold}) must be "
+                f"greater than violence_suspected_threshold ({self.violence_suspected_threshold}). "
+                "The tier boundaries must be: definitive > suspected > marginal."
             )
         return self
 

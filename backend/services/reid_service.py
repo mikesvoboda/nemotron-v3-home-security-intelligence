@@ -198,6 +198,19 @@ class EntityMatch:
     similarity: float
     time_gap_seconds: float
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization.
+
+        Returns:
+            Dictionary containing all EntityMatch fields for storage,
+            including nested entity data via EntityEmbedding.to_dict().
+        """
+        return {
+            "entity": self.entity.to_dict(),
+            "similarity": self.similarity,
+            "time_gap_seconds": self.time_gap_seconds,
+        }
+
 
 def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     """Calculate cosine similarity between two vectors.

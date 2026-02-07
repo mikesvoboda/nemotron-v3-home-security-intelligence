@@ -1641,3 +1641,102 @@ class TestHeartbeatMonitoring:
         info = supervisor.get_worker_info("test_worker")
         assert info is not None
         assert info.missed_heartbeat_count == 0  # Should remain 0 because disabled
+
+    async def test_stuck_worker_auto_restart(
+        self,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that stuck workers are auto-restarted after exceeding heartbeat threshold."""
+        from datetime import timedelta
+
+        config = SupervisorConfig(
+            check_interval=0.05,
+            default_heartbeat_timeout=0.1,
+            missed_heartbeat_restart_threshold=3,  # Restart after 3 missed heartbeats
+            default_backoff_base=0.1,  # Fast backoff for testing
+            default_backoff_max=0.2,
+        )
+        supervisor = WorkerSupervisor(config=config, broadcaster=mock_broadcaster)
+
+        call_count = 0
+
+        async def worker() -> None:
+            nonlocal call_count
+            call_count += 1
+            # First call: simulate stuck worker (no heartbeats)
+            # Subsequent calls: work normally
+            if call_count == 1:
+                await asyncio.sleep(10)  # Will be cancelled
+            else:
+                while True:
+                    supervisor.record_heartbeat("test_worker")
+                    await asyncio.sleep(0.05)
+
+        await supervisor.register_worker("test_worker", worker)
+        await supervisor.start()
+
+        try:
+            # Start the worker
+            await supervisor.start_worker("test_worker")
+            await asyncio.sleep(0.1)
+
+            # Simulate old heartbeat to trigger stuck detection
+            from datetime import UTC, datetime
+
+            supervisor._workers["test_worker"].last_heartbeat_at = datetime.now(UTC) - timedelta(
+                seconds=10
+            )
+
+            # Wait for monitor to detect stuck worker and restart
+            # Need time for: detection (~0.15s) + backoff (0.1s) + startup
+            for _ in range(40):  # Up to 2 seconds
+                await asyncio.sleep(0.05)
+                if call_count >= 2:
+                    break
+
+            # Worker should have been restarted
+            assert call_count >= 2, f"Worker should have been restarted, call_count={call_count}"
+
+            # Worker should be running again
+            status = supervisor.get_worker_status("test_worker")
+            assert status == WorkerStatus.RUNNING
+
+        finally:
+            await supervisor.stop()
+
+    async def test_stuck_worker_threshold_disabled(
+        self,
+        mock_broadcaster: AsyncMock,
+    ) -> None:
+        """Test that stuck worker restart is disabled when threshold is 0."""
+        from datetime import timedelta
+
+        config = SupervisorConfig(
+            check_interval=0.05,
+            default_heartbeat_timeout=0.1,
+            missed_heartbeat_restart_threshold=0,  # Disabled
+        )
+        supervisor = WorkerSupervisor(config=config, broadcaster=mock_broadcaster)
+
+        async def worker() -> None:
+            await asyncio.sleep(10)  # cancelled - worker never started in this test
+
+        await supervisor.register_worker("test_worker", worker)
+
+        # Set old heartbeat
+        from datetime import UTC, datetime
+
+        supervisor._workers["test_worker"].last_heartbeat_at = datetime.now(UTC) - timedelta(
+            seconds=10
+        )
+        supervisor._workers["test_worker"].status = WorkerStatus.RUNNING
+
+        # Check heartbeat multiple times - should not trigger restart
+        for _ in range(10):
+            needs_restart = supervisor._check_worker_heartbeat("test_worker")
+            assert not needs_restart, "Should not request restart when threshold is 0"
+
+        # Missed count should still increment (monitoring still works)
+        info = supervisor.get_worker_info("test_worker")
+        assert info is not None
+        assert info.missed_heartbeat_count == 10

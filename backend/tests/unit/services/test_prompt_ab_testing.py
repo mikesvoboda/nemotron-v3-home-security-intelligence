@@ -668,6 +668,14 @@ class TestNemotronAnalyzerABIntegration:
         # Guided JSON settings (NEM-3726)
         mock.nemotron_use_guided_json = False
         mock.nemotron_guided_json_fallback = True
+        # Batch coalescing settings (Phase 5)
+        mock.batch_coalescing_enabled = False
+        mock.batch_coalescing_max_size = 10
+        mock.batch_coalescing_time_window = 5.0
+        # Priority queue settings (Phase 5)
+        mock.priority_queue_enabled = False
+        mock.priority_high_labels = ["person", "weapon"]
+        mock.priority_medium_labels = ["vehicle", "car"]
         return mock
 
     @pytest.mark.asyncio
@@ -800,6 +808,12 @@ class TestMetricsCollectionDuringAnalysis:
         mock_settings.ai_warmup_enabled = False
         mock_settings.prompt_ab_testing_enabled = False
         mock_settings.prompt_shadow_mode_enabled = False
+        mock_settings.batch_coalescing_enabled = False
+        mock_settings.batch_coalescing_max_size = 10
+        mock_settings.batch_coalescing_time_window = 5.0
+        mock_settings.priority_queue_enabled = False
+        mock_settings.priority_high_labels = ["person", "weapon"]
+        mock_settings.priority_medium_labels = ["vehicle", "car"]
 
         with (
             patch(

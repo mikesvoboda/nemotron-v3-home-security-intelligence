@@ -638,3 +638,124 @@ class TestProductionPasswordValidation:
 
             with pytest.raises(ValidationError, match=r"(?i)weak|password"):
                 Settings()
+
+
+# =============================================================================
+# TDD Tests for Violence Confidence Threshold Configuration (NEM-5483)
+# =============================================================================
+# These tests define the NEW configuration settings for violence detection
+# confidence thresholds. They SHOULD FAIL against the current codebase.
+#
+# Configuration requirements:
+# - violence_definitive_threshold: default 0.70 (70%)
+# - violence_suspected_threshold: default 0.55 (55%)
+# - Both must be between 0.0 and 1.0
+# - definitive threshold must be > suspected threshold
+# =============================================================================
+
+
+class TestViolenceThresholdConfiguration:
+    """TDD tests for violence detection threshold configuration settings.
+
+    These tests define the expected configuration options for the new
+    three-tier violence confidence system. They will FAIL until the
+    implementation is complete.
+    """
+
+    def test_violence_definitive_threshold_default(self, clean_env):
+        """Settings should have violence_definitive_threshold with default 0.70.
+
+        The definitive threshold (70%) is the minimum confidence required
+        to classify an image as definitively violent.
+        """
+        settings = Settings()
+
+        # This test will FAIL because the setting doesn't exist yet
+        assert hasattr(settings, "violence_definitive_threshold")
+        assert settings.violence_definitive_threshold == 0.70
+
+    def test_violence_suspected_threshold_default(self, clean_env):
+        """Settings should have violence_suspected_threshold with default 0.55.
+
+        The suspected threshold (55%) is the minimum confidence required
+        to flag an image as possibly violent for human review.
+        """
+        settings = Settings()
+
+        # This test will FAIL because the setting doesn't exist yet
+        assert hasattr(settings, "violence_suspected_threshold")
+        assert settings.violence_suspected_threshold == 0.55
+
+    def test_violence_definitive_threshold_from_env(self, clean_env):
+        """VIOLENCE_DEFINITIVE_THRESHOLD env var should override default."""
+        clean_env.setenv("VIOLENCE_DEFINITIVE_THRESHOLD", "0.80")
+        settings = Settings()
+
+        # This test will FAIL because the setting doesn't exist yet
+        assert settings.violence_definitive_threshold == 0.80
+
+    def test_violence_suspected_threshold_from_env(self, clean_env):
+        """VIOLENCE_SUSPECTED_THRESHOLD env var should override default."""
+        clean_env.setenv("VIOLENCE_SUSPECTED_THRESHOLD", "0.60")
+        settings = Settings()
+
+        # This test will FAIL because the setting doesn't exist yet
+        assert settings.violence_suspected_threshold == 0.60
+
+    def test_violence_threshold_validation_bounds_low(self, clean_env):
+        """Violence thresholds must be >= 0.0."""
+        clean_env.setenv("VIOLENCE_DEFINITIVE_THRESHOLD", "-0.1")
+        get_settings.cache_clear()
+
+        # This test will FAIL because the setting doesn't exist yet
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_violence_threshold_validation_bounds_high(self, clean_env):
+        """Violence thresholds must be <= 1.0."""
+        clean_env.setenv("VIOLENCE_DEFINITIVE_THRESHOLD", "1.5")
+        get_settings.cache_clear()
+
+        # This test will FAIL because the setting doesn't exist yet
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_violence_threshold_validation_definitive_gt_suspected(self, clean_env):
+        """Definitive threshold must be greater than suspected threshold.
+
+        This ensures the tier boundaries are logically consistent:
+        definitive (>=70%) > suspected (55-70%) > marginal (<55%)
+        """
+        # Set definitive lower than suspected - should fail validation
+        clean_env.setenv("VIOLENCE_DEFINITIVE_THRESHOLD", "0.50")
+        clean_env.setenv("VIOLENCE_SUSPECTED_THRESHOLD", "0.60")
+        get_settings.cache_clear()
+
+        # This test will FAIL because the setting doesn't exist yet
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_violence_threshold_validation_allows_equal(self, clean_env):
+        """Equal thresholds should be rejected (must have tier separation).
+
+        Setting both thresholds to the same value would collapse the
+        suspected tier to zero width, which is not meaningful.
+        """
+        clean_env.setenv("VIOLENCE_DEFINITIVE_THRESHOLD", "0.65")
+        clean_env.setenv("VIOLENCE_SUSPECTED_THRESHOLD", "0.65")
+        get_settings.cache_clear()
+
+        # Equal thresholds should raise validation error
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_violence_threshold_valid_custom_values(self, clean_env):
+        """Custom valid threshold values should be accepted."""
+        clean_env.setenv("VIOLENCE_DEFINITIVE_THRESHOLD", "0.75")
+        clean_env.setenv("VIOLENCE_SUSPECTED_THRESHOLD", "0.50")
+        get_settings.cache_clear()
+
+        # This test will FAIL because the settings don't exist yet
+        settings = Settings()
+        assert settings.violence_definitive_threshold == 0.75
+        assert settings.violence_suspected_threshold == 0.50
