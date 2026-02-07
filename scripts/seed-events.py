@@ -108,7 +108,9 @@ def _load_env_and_fix_database_url() -> None:
     except socket.gaierror:
         # Hostname doesn't resolve - we're running locally
         # Check for external port override (container may expose different port)
-        external_port = os.environ.get("POSTGRES_EXTERNAL_PORT", "5432")
+        external_port = os.environ.get(
+            "POSTGRES_EXTERNAL_PORT", os.environ.get("POSTGRES_PORT", "5432")
+        )
 
         # Replace container hostname with localhost and optionally fix port
         new_url = database_url.replace(f"@{hostname}:", "@localhost:")
@@ -126,12 +128,13 @@ def _load_env_and_fix_database_url() -> None:
 # Service container-to-localhost port mappings
 # Format: container_hostname -> (container_port, localhost_port)
 _SERVICE_PORT_MAPPINGS = {
-    "ai-clip": (8093, 8093),
-    "ai-yolo26": (8090, 8090),
-    "ai-florence": (8091, 8091),
-    "ai-llm": (8092, 8092),
-    "ai-enrichment": (8094, 8094),
-    "backend": (8000, 8000),
+    "ai-clip": (8093, int(os.environ.get("CLIP_PORT", "8093"))),
+    "ai-yolo26": (8095, int(os.environ.get("YOLO26_PORT", "8095"))),
+    "ai-florence": (8092, int(os.environ.get("FLORENCE_PORT", "8092"))),
+    "ai-llm": (8091, int(os.environ.get("LLM_PORT", "8091"))),
+    "ai-enrichment": (8094, int(os.environ.get("ENRICHMENT_PORT", "8094"))),
+    "ai-enrichment-light": (8096, int(os.environ.get("ENRICHMENT_LIGHT_PORT", "8096"))),
+    "backend": (8000, int(os.environ.get("API_PORT", "8000"))),
 }
 
 
@@ -219,6 +222,7 @@ from backend.models.enrichment import (  # noqa: E402
 )
 from backend.models.entity import Entity  # noqa: E402
 from backend.models.event import Event  # noqa: E402
+from backend.models.event_detection import EventDetection  # noqa: E402
 
 # Phase 5 imports
 from backend.models.event_feedback import EventFeedback, FeedbackType  # noqa: E402
@@ -250,6 +254,7 @@ from backend.models.notification_preferences import (  # noqa: E402
     QuietHoursPeriod,
     RiskLevel,
 )
+from backend.models.plate_read import PlateRead  # noqa: E402
 from backend.models.prometheus_alert import PrometheusAlert, PrometheusAlertStatus  # noqa: E402
 from backend.models.prompt_config import PromptConfig  # noqa: E402
 from backend.models.prompt_version import AIModel, PromptVersion  # noqa: E402
@@ -363,6 +368,8 @@ class ValidationResult:
     actual_risk_score: int | None = None
     expected_risk_range: tuple[int, int] | None = None
     detection_matches: dict[str, bool] = field(default_factory=dict)
+    enrichment_results: dict[str, bool] = field(default_factory=dict)
+    enrichment_errors: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
 
@@ -752,7 +759,15 @@ async def validate_synthetic_results(
     """Validate pipeline results against expected labels.
 
     Compares actual events created by the pipeline against the expected
-    labels defined in each scenario's expected_labels.json.
+    labels defined in each scenario's expected_labels.json. Validates:
+    - Risk score range (Nemotron LLM)
+    - Detection classes and confidence (YOLO26)
+    - Pose estimation (enrichment-light)
+    - Action recognition (enrichment-heavy)
+    - Threat detection (enrichment-light)
+    - Re-ID embeddings (enrichment-light)
+    - Demographics (enrichment-heavy)
+    - Florence captions
 
     Args:
         scenarios: List of scenarios that were processed
@@ -807,8 +822,10 @@ async def validate_synthetic_results(
                 )
                 continue
 
-            # Validate risk score range
+            # Validate risk score range (Nemotron)
             errors = []
+            enrichment_results = {}
+            enrichment_errors = []
             risk_config = expected.get("risk", {})
             expected_range = (risk_config.get("min_score", 0), risk_config.get("max_score", 100))
             actual_score = matched_event.risk_score or 0
@@ -817,20 +834,200 @@ async def validate_synthetic_results(
             if not risk_valid:
                 errors.append(f"Risk score {actual_score} outside expected range {expected_range}")
 
-            # Validate detection classes (if we have detection data)
+            # Get detections for this event via junction table
+            det_result = await session.execute(
+                select(Detection)
+                .join(EventDetection, EventDetection.detection_id == Detection.id)
+                .where(EventDetection.event_id == matched_event.id)
+            )
+            event_detections = list(det_result.scalars().all())
+            detection_ids = [d.id for d in event_detections]
+
+            # --- Detection class validation (YOLO26) ---
             detection_matches = {}
+            actual_classes = {d.object_type for d in event_detections if d.object_type}
             for det_spec in expected.get("detections", []):
                 det_class = det_spec.get("class", "unknown")
-                detection_matches[det_class] = True  # Placeholder - would check actual detections
+                min_conf = det_spec.get("min_confidence", 0)
+                # Check if class was detected
+                class_found = det_class in actual_classes
+                if class_found and min_conf > 0:
+                    # Also validate confidence
+                    class_dets = [d for d in event_detections if d.object_type == det_class]
+                    max_confidence = max((d.confidence or 0 for d in class_dets), default=0)
+                    class_found = max_confidence >= min_conf
+                    if not class_found:
+                        errors.append(
+                            f"Detection '{det_class}' confidence {max_confidence:.2f} "
+                            f"below threshold {min_conf}"
+                        )
+                elif not class_found:
+                    errors.append(f"Expected detection class '{det_class}' not found")
+                detection_matches[det_class] = class_found
 
+            # --- Enrichment-light: Pose validation ---
+            pose_expected = expected.get("pose")
+            if pose_expected and detection_ids:
+                pose_result = await session.execute(
+                    select(PoseResult).where(PoseResult.detection_id.in_(detection_ids))
+                )
+                pose_records = list(pose_result.scalars().all())
+
+                if not pose_records:
+                    enrichment_results["pose"] = False
+                    enrichment_errors.append("No pose results found for detections")
+                else:
+                    pose_ok = True
+                    expected_posture = pose_expected.get("posture")
+                    expected_suspicious = pose_expected.get("is_suspicious")
+                    if expected_posture:
+                        actual_postures = {p.pose for p in pose_records if p.pose}
+                        # Allow partial match (e.g., "standing_or_bending" matches "standing")
+                        posture_match = any(
+                            expected_posture in p or p in expected_posture for p in actual_postures
+                        )
+                        if not posture_match:
+                            pose_ok = False
+                            enrichment_errors.append(
+                                f"Pose: expected '{expected_posture}', got {actual_postures}"
+                            )
+                    if expected_suspicious is not None:
+                        actual_suspicious = any(p.is_suspicious for p in pose_records)
+                        if actual_suspicious != expected_suspicious:
+                            pose_ok = False
+                            enrichment_errors.append(
+                                f"Pose suspicious: expected {expected_suspicious}, "
+                                f"got {actual_suspicious}"
+                            )
+                    enrichment_results["pose"] = pose_ok
+
+            # --- Enrichment-light: Threat detection ---
+            threat_expected = expected.get("threats")
+            if threat_expected and detection_ids:
+                threat_result = await session.execute(
+                    select(ThreatDetection).where(ThreatDetection.detection_id.in_(detection_ids))
+                )
+                threat_records = list(threat_result.scalars().all())
+                has_threat_expected = threat_expected.get("has_threat", False)
+
+                if has_threat_expected:
+                    if not threat_records:
+                        enrichment_results["threat"] = False
+                        enrichment_errors.append("Expected threat detection but none found")
+                    else:
+                        expected_types = set(threat_expected.get("types", []))
+                        actual_types = {t.threat_type for t in threat_records if t.threat_type}
+                        type_match = (
+                            expected_types.issubset(actual_types) if expected_types else True
+                        )
+                        enrichment_results["threat"] = type_match
+                        if not type_match:
+                            enrichment_errors.append(
+                                f"Threat types: expected {expected_types}, got {actual_types}"
+                            )
+                else:
+                    # No threat expected - having threats is a false positive
+                    enrichment_results["threat"] = len(threat_records) == 0
+                    if threat_records:
+                        enrichment_errors.append(
+                            f"No threat expected but {len(threat_records)} found"
+                        )
+
+            # --- Enrichment-light: Re-ID embeddings ---
+            if detection_ids:
+                reid_result = await session.execute(
+                    select(ReIDEmbedding).where(ReIDEmbedding.detection_id.in_(detection_ids))
+                )
+                reid_records = list(reid_result.scalars().all())
+                # Re-ID should exist for person detections
+                person_dets = [d for d in event_detections if d.object_type == "person"]
+                if person_dets:
+                    has_reid = len(reid_records) > 0
+                    enrichment_results["reid"] = has_reid
+                    if not has_reid:
+                        enrichment_errors.append("No re-ID embeddings for person detections")
+
+            # --- Enrichment-heavy: Action recognition ---
+            action_expected = expected.get("action")
+            if action_expected and detection_ids:
+                action_result = await session.execute(
+                    select(ActionResult).where(ActionResult.detection_id.in_(detection_ids))
+                )
+                action_records = list(action_result.scalars().all())
+
+                if not action_records:
+                    enrichment_results["action"] = False
+                    enrichment_errors.append("No action recognition results found")
+                else:
+                    action_ok = True
+                    expected_action = action_expected.get("action")
+                    expected_suspicious = action_expected.get("is_suspicious")
+                    if expected_action:
+                        actual_actions = {a.action for a in action_records if a.action}
+                        action_match = any(
+                            expected_action in a or a in expected_action for a in actual_actions
+                        )
+                        if not action_match:
+                            action_ok = False
+                            enrichment_errors.append(
+                                f"Action: expected '{expected_action}', got {actual_actions}"
+                            )
+                    if expected_suspicious is not None:
+                        actual_suspicious = any(a.is_suspicious for a in action_records)
+                        if actual_suspicious != expected_suspicious:
+                            action_ok = False
+                            enrichment_errors.append(
+                                f"Action suspicious: expected {expected_suspicious}, "
+                                f"got {actual_suspicious}"
+                            )
+                    enrichment_results["action"] = action_ok
+
+            # --- Enrichment-heavy: Demographics ---
+            face_expected = expected.get("face")
+            if face_expected and face_expected.get("detected") and detection_ids:
+                demo_result = await session.execute(
+                    select(DemographicsResult).where(
+                        DemographicsResult.detection_id.in_(detection_ids)
+                    )
+                )
+                demo_records = list(demo_result.scalars().all())
+                enrichment_results["demographics"] = len(demo_records) > 0
+                if not demo_records:
+                    enrichment_errors.append("Face detected but no demographics results")
+
+            # --- Florence caption validation ---
+            caption_expected = expected.get("florence_caption")
+            if caption_expected and matched_event.summary:
+                summary_lower = matched_event.summary.lower()
+                caption_ok = True
+
+                must_contain = caption_expected.get("must_contain", [])
+                for keyword in must_contain:
+                    if keyword.lower() not in summary_lower:
+                        caption_ok = False
+                        enrichment_errors.append(f"Florence caption missing keyword '{keyword}'")
+
+                must_not_contain = caption_expected.get("must_not_contain", [])
+                for keyword in must_not_contain:
+                    if keyword.lower() in summary_lower:
+                        caption_ok = False
+                        enrichment_errors.append(
+                            f"Florence caption contains unwanted keyword '{keyword}'"
+                        )
+
+                enrichment_results["florence"] = caption_ok
+
+            all_errors = errors + enrichment_errors
             results.append(
                 ValidationResult(
                     scenario=scenario,
-                    success=len(errors) == 0,
+                    success=len(all_errors) == 0,
                     event_id=matched_event.id,
                     actual_risk_score=actual_score,
                     expected_risk_range=expected_range,
                     detection_matches=detection_matches,
+                    enrichment_results=enrichment_results,
+                    enrichment_errors=enrichment_errors,
                     errors=errors,
                 )
             )
@@ -884,6 +1081,19 @@ def generate_validation_report(
                 }
             )
 
+    # Enrichment accuracy by service
+    enrichment_services = ["pose", "threat", "reid", "action", "demographics", "florence"]
+    by_service: dict[str, dict[str, int]] = {}
+    for svc in enrichment_services:
+        tested = sum(1 for r in results if svc in r.enrichment_results)
+        svc_passed = sum(1 for r in results if r.enrichment_results.get(svc, False))
+        if tested > 0:
+            by_service[svc] = {
+                "tested": tested,
+                "passed": svc_passed,
+                "failed": tested - svc_passed,
+            }
+
     # Failed scenarios details
     failures = []
     for result in results:
@@ -894,6 +1104,7 @@ def generate_validation_report(
                     "name": result.scenario.name,
                     "category": result.scenario.category,
                     "errors": result.errors,
+                    "enrichment_errors": result.enrichment_errors,
                 }
             )
 
@@ -906,6 +1117,7 @@ def generate_validation_report(
             "pass_rate": f"{(passed / total * 100):.1f}%" if total > 0 else "N/A",
         },
         "by_category": by_category,
+        "enrichment_accuracy": by_service,
         "risk_calibration": risk_calibration,
         "failures": failures,
     }
@@ -937,11 +1149,28 @@ def print_validation_summary(report: dict[str, Any]) -> None:
         rate = f"{(stats['passed'] / stats['total'] * 100):.1f}%" if stats["total"] > 0 else "N/A"
         print(f"  {category}: {stats['passed']}/{stats['total']} ({rate})")
 
+    # Enrichment accuracy by service
+    enrichment = report.get("enrichment_accuracy", {})
+    if enrichment:
+        print("\nEnrichment service accuracy:")
+        print(f"  {'Service':<15} {'Tested':>7} {'Passed':>7} {'Failed':>7} {'Rate':>8}")
+        print(f"  {'-' * 46}")
+        for svc, stats in enrichment.items():
+            rate = (
+                f"{(stats['passed'] / stats['tested'] * 100):.1f}%"
+                if stats["tested"] > 0
+                else "N/A"
+            )
+            print(
+                f"  {svc:<15} {stats['tested']:>7} {stats['passed']:>7} {stats['failed']:>7} {rate:>8}"
+            )
+
     failures = report.get("failures", [])
     if failures:
         print(f"\nFailed scenarios ({len(failures)}):")
         for fail in failures[:10]:  # Show first 10
-            print(f"  - {fail['scenario']}: {', '.join(fail['errors'][:2])}")
+            all_errors = fail.get("errors", []) + fail.get("enrichment_errors", [])
+            print(f"  - {fail['scenario']}: {', '.join(all_errors[:3])}")
         if len(failures) > 10:
             print(f"  ... and {len(failures) - 10} more")
 
@@ -1077,6 +1306,10 @@ async def verify_pipeline_data() -> dict[str, int]:
         # Count alerts
         result = await session.execute(select(func.count()).select_from(Alert))
         counts["alerts"] = result.scalar() or 0
+
+        # Count plate reads
+        result = await session.execute(select(func.count()).select_from(PlateRead))
+        counts["plate_reads"] = result.scalar() or 0
 
     return counts
 
@@ -1613,6 +1846,181 @@ async def seed_trash(num_deleted: int = 10) -> int:
 
     print(f"  Soft-deleted {deleted_count} events for trash")
     return deleted_count
+
+
+async def seed_plate_reads(num_reads: int = 60) -> int:
+    """Create license plate detection records.
+
+    Generates realistic plate reads across cameras with a mix of known
+    (registered household) and unknown plates, varied confidence scores,
+    and quality conditions.
+
+    Args:
+        num_reads: Total number of plate reads to create
+
+    Returns:
+        Number of plate reads created
+    """
+    cameras = await get_cameras()
+    if not cameras:
+        print("  Warning: No cameras found. Create cameras first.")
+        return 0
+
+    # Known plates from seed_registered_vehicles templates
+    known_plates = ["ABC1234", "XYZ5678", "DEF9012", "GHI3456", "JKL7890"]
+    # Unknown plates for variety
+    unknown_plates = [
+        "MNO2468",
+        "PQR1357",
+        "STU8024",
+        "VWX9135",
+        "YZA4680",
+        "BCD7531",
+        "EFG2864",
+        "HIJ9753",
+        "KLM0642",
+        "NOP3197",
+    ]
+    all_plates = known_plates + unknown_plates
+
+    created = 0
+
+    async with get_session() as session:
+        for _ in range(num_reads):
+            camera = random.choice(cameras)  # noqa: S311
+
+            # Weighted toward known plates (more frequent visitors)
+            if random.random() < 0.6:  # noqa: S311
+                plate_text = random.choice(known_plates)  # noqa: S311
+            else:
+                plate_text = random.choice(unknown_plates)  # noqa: S311
+
+            # Vary time distribution over past 7 days
+            hours_ago = random.uniform(0.1, 168)  # noqa: S311
+            timestamp = datetime.now(UTC) - timedelta(hours=hours_ago)
+
+            # Generate realistic confidence scores
+            detection_confidence = round(random.uniform(0.65, 0.99), 3)  # noqa: S311
+            # OCR confidence correlates with quality
+            base_ocr = random.uniform(0.50, 0.98)  # noqa: S311
+            is_blurry = random.random() < 0.12  # noqa: S311
+            is_enhanced = random.random() < 0.20  # noqa: S311
+            quality_score = round(random.uniform(0.3, 0.95), 3)  # noqa: S311
+
+            # Blurry images have lower OCR confidence
+            if is_blurry:
+                base_ocr *= 0.7
+                quality_score = min(quality_score, 0.5)
+            # Enhanced images slightly lower quality but OCR stays reasonable
+            if is_enhanced:
+                quality_score = min(quality_score, 0.6)
+
+            ocr_confidence = round(min(base_ocr, 0.99), 3)
+
+            # Generate bounding box in image coordinates
+            x1 = round(random.uniform(100, 500), 1)  # noqa: S311
+            y1 = round(random.uniform(200, 600), 1)  # noqa: S311
+            x2 = round(x1 + random.uniform(80, 200), 1)  # noqa: S311
+            y2 = round(y1 + random.uniform(30, 80), 1)  # noqa: S311
+
+            # raw_text may include dash formatting
+            raw_plate = (
+                plate_text[:3] + "-" + plate_text[3:] if len(plate_text) >= 6 else plate_text
+            )
+
+            plate_read = PlateRead(
+                camera_id=camera.id,
+                timestamp=timestamp,
+                plate_text=plate_text,
+                raw_text=raw_plate,
+                detection_confidence=detection_confidence,
+                ocr_confidence=ocr_confidence,
+                bbox=[x1, y1, x2, y2],
+                image_quality_score=quality_score,
+                is_enhanced=is_enhanced,
+                is_blurry=is_blurry,
+            )
+            session.add(plate_read)
+            created += 1
+
+        await session.commit()
+
+    print(
+        f"  Created {created} plate reads ({len(known_plates)} known plates, {len(unknown_plates)} unknown)"
+    )
+    return created
+
+
+async def seed_cost_tracking_data(days: int = 30) -> int:
+    """Seed historical cost tracking data for the Cost Analytics Dashboard.
+
+    Populates the CostTracker's in-memory daily usage with synthetic
+    historical data so the cost trend charts have data to display.
+
+    Args:
+        days: Number of days of historical data to generate
+
+    Returns:
+        Number of daily records seeded
+    """
+    from backend.services.cost_tracker import get_cost_tracker
+
+    tracker = get_cost_tracker()
+    today = datetime.now(UTC).date()
+    seeded = 0
+
+    for day_offset in range(days, 0, -1):
+        target_date = today - timedelta(days=day_offset)
+
+        # Simulate varying daily activity
+        base_events = random.randint(20, 80)  # noqa: S311
+        base_detections = base_events * random.randint(3, 8)  # noqa: S311
+
+        # Weekend vs weekday variation
+        is_weekend = target_date.weekday() >= 5
+        if is_weekend:
+            base_events = int(base_events * 0.6)
+            base_detections = int(base_detections * 0.6)
+
+        # LLM usage (Nemotron)
+        for _ in range(base_events):
+            input_tokens = random.randint(200, 800)  # noqa: S311
+            output_tokens = random.randint(100, 400)  # noqa: S311
+            duration = random.uniform(0.5, 3.0)  # noqa: S311
+            record = tracker.track_llm_usage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                model="nemotron",
+                duration_seconds=duration,
+            )
+            # Override the date to the historical day
+            if target_date in tracker._daily_usage:
+                usage = tracker._daily_usage[target_date]
+            else:
+                from backend.services.cost_tracker import DailyUsage
+
+                usage = DailyUsage(date=target_date)
+                tracker._daily_usage[target_date] = usage
+            usage.total_input_tokens += input_tokens
+            usage.total_output_tokens += output_tokens
+            usage.total_gpu_seconds += duration
+            usage.total_estimated_cost_usd += record.estimated_cost_usd
+            usage.event_count += 1
+
+        # Detection usage (YOLO26, Florence, CLIP)
+        for model in ["yolo26", "florence", "clip"]:
+            count = base_detections if model == "yolo26" else base_detections // 3
+            duration = count * random.uniform(0.01, 0.05)  # noqa: S311
+            tracker.track_detection_usage(
+                model=model,
+                duration_seconds=duration,
+                images_processed=count,
+            )
+
+        seeded += 1
+
+    print(f"  Seeded {seeded} days of cost tracking data")
+    return seeded
 
 
 async def seed_activity_baselines(min_samples_per_slot: int = 15) -> int:
@@ -5839,13 +6247,16 @@ async def clear_all_data() -> None:
         print("  Clearing household members...")
         await session.execute(delete(HouseholdMember))
 
-        print("  Clearing households...")
-        await session.execute(delete(Household))
-
         print("  Clearing properties...")
         await session.execute(delete(Property))
 
+        print("  Clearing households...")
+        await session.execute(delete(Household))
+
         # Original tables
+        print("  Clearing plate reads...")
+        await session.execute(delete(PlateRead))
+
         print("  Clearing alerts...")
         await session.execute(delete(Alert))
 
@@ -6222,6 +6633,9 @@ This generates real data including:
                 print(f"\nSoft-deleting {args.trash} events for trash...")
                 total_created["trash"] = await seed_trash(args.trash)
 
+            print("\nSeeding plate reads...")
+            total_created["plate_reads"] = await seed_plate_reads()
+
         # ==========================================================================
         # PHASE 3: AI ENRICHMENT LAYER (unless --minimal, requires detections)
         # ==========================================================================
@@ -6285,6 +6699,11 @@ This generates real data including:
             print("\nSeeding pipeline latency data...")
             total_created["pipeline_latency_samples"] = await seed_pipeline_latency()
 
+        # Seed cost tracking data for Cost Analytics Dashboard
+        if not args.no_metrics:
+            print("\nSeeding cost tracking data (30 days)...")
+            total_created["cost_tracking_days"] = await seed_cost_tracking_data()
+
         # ==========================================================================
         # PHASE 7: METRICS LAYER (unless --minimal or --no-metrics)
         # ==========================================================================
@@ -6315,6 +6734,7 @@ This generates real data including:
     print(f"  Total detections: {counts['detections']}")
     print(f"  Total entities: {counts['entities']}")
     print(f"  Total alerts: {counts['alerts']}")
+    print(f"  Total plate reads: {counts['plate_reads']}")
     print("  Events by risk level:")
     print(f"    - Critical: {counts['events_critical']}")
     print(f"    - High: {counts['events_high']}")

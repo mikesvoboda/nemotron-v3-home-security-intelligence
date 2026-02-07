@@ -546,12 +546,13 @@ class TestConnectionPoolSettings:
 
         from backend.core.config import Settings
 
-        # Test valid overflow values
+        # Test valid overflow values (minimum is 5 to prevent latency
+        # degradation under concurrent request spikes)
         settings = Settings(
             database_url="postgresql+asyncpg://user:pass@localhost/db",
-            database_pool_overflow=0,
+            database_pool_overflow=5,
         )
-        assert settings.database_pool_overflow == 0
+        assert settings.database_pool_overflow == 5
 
         settings = Settings(
             database_url="postgresql+asyncpg://user:pass@localhost/db",
@@ -563,7 +564,13 @@ class TestConnectionPoolSettings:
         with pytest.raises(ValidationError):
             Settings(
                 database_url="postgresql+asyncpg://user:pass@localhost/db",
-                database_pool_overflow=-1,  # Below minimum of 0
+                database_pool_overflow=0,  # Below minimum of 5
+            )
+
+        with pytest.raises(ValidationError):
+            Settings(
+                database_url="postgresql+asyncpg://user:pass@localhost/db",
+                database_pool_overflow=4,  # Below minimum of 5
             )
 
         with pytest.raises(ValidationError):

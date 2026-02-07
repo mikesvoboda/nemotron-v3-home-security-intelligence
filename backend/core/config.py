@@ -431,9 +431,10 @@ class Settings(BaseSettings):
     )
     database_pool_overflow: int = Field(
         default=30,
-        ge=0,
+        ge=5,
         le=100,
-        description="Additional connections beyond pool_size when under load",
+        description="Additional connections beyond pool_size when under load. "
+        "Minimum 5 to prevent latency degradation under concurrent request spikes.",
     )
     database_pool_timeout: int = Field(
         default=30,

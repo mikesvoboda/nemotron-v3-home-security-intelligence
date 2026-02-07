@@ -13,12 +13,18 @@ The pipeline can use either:
 - Remote HTTP service at ai-enrichment:8094 (for containerized deployments)
 
 Set use_enrichment_service=True to use the HTTP service for vehicle, pet,
-and clothing classification instead of loading models locally.
+clothing classification, pose estimation, action recognition, threat detection,
+demographics analysis, and person re-identification instead of loading models
+locally. Threat detection and re-ID route to ai-enrichment-light:8096, demographics
+and action route to ai-enrichment:8094 by default (configurable via
+ENRICHMENT_*_SERVICE env vars).
 """
 
 from __future__ import annotations
 
 __all__ = [
+    "CLIP_SCENE_LABELS",
+    "CLIP_THREAT_DESCRIPTIONS",
     "BoundingBox",
     "DetectionInput",
     "EnrichmentError",
@@ -72,8 +78,14 @@ from backend.services.depth_anything_loader import (
 
 # Import enrichment client for remote HTTP service
 from backend.services.enrichment_client import (
+    ActionClassificationResult as RemoteActionResult,
+)
+from backend.services.enrichment_client import (
     EnrichmentClient,
     get_enrichment_client,
+)
+from backend.services.enrichment_client import (
+    PoseAnalysisResult as RemotePoseResult,
 )
 from backend.services.fashion_clip_loader import (
     ClothingClassification,
@@ -119,6 +131,10 @@ from backend.services.scene_ocr_service import (
 from backend.services.segformer_loader import (
     ClothingSegmentationResult,
 )
+from backend.services.threat_detection_loader import (
+    ThreatDetection,
+    ThreatDetectionResult,
+)
 from backend.services.vehicle_classifier_loader import (
     VehicleClassificationResult,
     classify_vehicle,
@@ -137,6 +153,7 @@ from backend.services.vision_extractor import (
     get_vision_extractor,
 )
 from backend.services.vitpose_loader import (
+    Keypoint,
     PoseResult,
     extract_poses_batch,
 )
@@ -154,6 +171,46 @@ if TYPE_CHECKING:
     from backend.services.frame_buffer import FrameBuffer
 
 logger = get_logger(__name__)
+
+# =============================================================================
+# CLIP Zero-Shot Scene Classification Labels (NEM-5525)
+# =============================================================================
+# These labels are used by CLIP's /classify endpoint for surveillance-relevant
+# scene-level zero-shot classification. The results provide additional context
+# to Nemotron for more accurate threat analysis (+5-10% accuracy).
+
+CLIP_SCENE_LABELS: list[str] = [
+    "normal activity",
+    "person loitering",
+    "property intrusion",
+    "delivery in progress",
+    "service worker visiting",
+    "suspicious approach",
+    "person with tool or weapon",
+    "vehicle break-in attempt",
+    "package theft",
+    "trespassing",
+]
+
+# =============================================================================
+# CLIP Threat Pattern Descriptions (NEM-5525)
+# =============================================================================
+# These text descriptions are compared against the scene via CLIP's
+# /batch-similarity endpoint. High-scoring matches indicate threat patterns
+# that Nemotron should factor into risk assessment (+3-7% precision).
+
+CLIP_THREAT_DESCRIPTIONS: list[str] = [
+    "a person checking door handles",
+    "a person looking through windows",
+    "a person hiding their face from camera",
+    "a person carrying tools near a building",
+    "a delivery person leaving a package",
+    "a person walking a dog",
+    "a vehicle circling a neighborhood",
+    "a person crouching behind a car",
+    "a person attempting to break into a vehicle",
+    "a person stealing a package from a porch",
+]
 
 
 class EnrichmentStatus(str, Enum):
@@ -639,6 +696,17 @@ class EnrichmentResult:
     # These are generated during _run_reid and cached for reuse by downstream services
     # (NEM-5517/5518/5519: Embedding Caching)
     clip_embeddings: dict[str, list[float]] = field(default_factory=dict)
+    # CLIP zero-shot scene classification results (NEM-5525)
+    # Contains {label: score} dict and top_label from CLIP /classify endpoint
+    clip_scene_classification: dict[str, float] | None = None
+    clip_scene_top_label: str | None = None
+    # CLIP batch similarity threat pattern matching results (NEM-5525)
+    # Contains {threat_description: similarity_score} from CLIP /batch-similarity endpoint
+    clip_threat_matches: dict[str, float] | None = None
+    # CLIP visual anomaly detection score (NEM-5525)
+    # Anomaly score (0-1) comparing current frame against per-camera baseline embedding
+    clip_anomaly_score: float | None = None
+    clip_anomaly_similarity: float | None = None
     errors: list[str] = field(default_factory=list)
     structured_errors: list[EnrichmentError] = field(default_factory=list)
     processing_time_ms: float = 0.0
@@ -869,6 +937,30 @@ class EnrichmentResult:
     def has_clip_embeddings(self) -> bool:
         """Check if any CLIP embeddings are available (NEM-5517/5518/5519)."""
         return bool(self.clip_embeddings)
+
+    @property
+    def has_clip_scene_classification(self) -> bool:
+        """Check if CLIP scene classification results are available (NEM-5525)."""
+        return self.clip_scene_classification is not None
+
+    @property
+    def has_clip_threat_matches(self) -> bool:
+        """Check if CLIP threat pattern matches are available (NEM-5525)."""
+        return self.clip_threat_matches is not None
+
+    @property
+    def has_clip_anomaly_score(self) -> bool:
+        """Check if CLIP anomaly score is available (NEM-5525)."""
+        return self.clip_anomaly_score is not None
+
+    @property
+    def has_clip_analysis(self) -> bool:
+        """Check if any CLIP analysis results are available (NEM-5525)."""
+        return (
+            self.has_clip_scene_classification
+            or self.has_clip_threat_matches
+            or self.has_clip_anomaly_score
+        )
 
     @property
     def has_weather(self) -> bool:
@@ -2015,8 +2107,9 @@ class EnrichmentPipeline:
                          If provided, frames are buffered per camera and X-CLIP runs on frame sequences
                          (8 frames) for better action recognition. If None, falls back to single-frame.
             redis_client: Redis client for re-id storage (optional)
-            use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
-                                    for vehicle, pet, and clothing classification
+            use_enrichment_service: Use HTTP service at ai-enrichment:8094 / ai-enrichment-light:8096
+                                    instead of local models for vehicle, pet, clothing classification,
+                                    pose estimation, and action recognition
             enrichment_client: Optional EnrichmentClient instance (uses global if not provided)
             reid_service: Optional ReIdentificationService instance with HybridEntityStorage
                          configured. When provided, entities will be persisted to PostgreSQL.
@@ -2257,7 +2350,12 @@ class EnrichmentPipeline:
 
         # Pose Estimation (persons only)
         if self.pose_estimation_enabled and persons:
-            phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
+            if self.use_enrichment_service:
+                phase1_tasks["pose_estimation"] = self._estimate_poses_via_service(
+                    persons, pil_image
+                )
+            else:
+                phase1_tasks["pose_estimation"] = self._safe_estimate_poses(persons, pil_image)
 
         # Depth Estimation (all detections)
         if self.depth_estimation_enabled and high_conf_detections:
@@ -2267,7 +2365,14 @@ class EnrichmentPipeline:
 
         # Action Recognition (persons only)
         if self.action_recognition_enabled and persons:
-            phase1_tasks["action_recognition"] = self._safe_recognize_actions(pil_image, camera_id)
+            if self.use_enrichment_service:
+                phase1_tasks["action_recognition"] = self._recognize_actions_via_service(
+                    pil_image, camera_id
+                )
+            else:
+                phase1_tasks["action_recognition"] = self._safe_recognize_actions(
+                    pil_image, camera_id
+                )
 
         # Vehicle Classification (vehicles only)
         if self.vehicle_classification_enabled and vehicles:
@@ -2299,10 +2404,30 @@ class EnrichmentPipeline:
                 persons, pil_image
             )
 
+        # Threat Detection (persons only, via enrichment-light service)
+        if self.use_enrichment_service and persons:
+            phase1_tasks["threat_detection"] = self._detect_threats_via_service(pil_image)
+
+        # Demographics Analysis (persons only, via heavy enrichment service)
+        if self.use_enrichment_service and persons:
+            phase1_tasks["demographics"] = self._analyze_demographics_via_service(
+                persons, pil_image
+            )
+
         # Scene OCR - Full Frame (Phase 1, runs in parallel)
         # Extracts text from signs, house numbers, etc.
         if self.scene_ocr_enabled:
             phase1_tasks["scene_ocr_frame"] = self._safe_run_scene_ocr_frame(pil_image)
+
+        # CLIP Scene Classification (NEM-5525) - full frame zero-shot classification
+        # Uses CLIP /classify with surveillance-relevant labels for scene-level context
+        if self.reid_enabled:
+            phase1_tasks["clip_scene_classification"] = self._safe_clip_scene_classify(pil_image)
+
+        # CLIP Threat Pattern Matching (NEM-5525) - full frame batch similarity
+        # Uses CLIP /batch-similarity with threat description texts
+        if self.reid_enabled:
+            phase1_tasks["clip_threat_matching"] = self._safe_clip_threat_match(pil_image)
 
         # Execute Phase 1 tasks in parallel
         if phase1_tasks:
@@ -2346,11 +2471,27 @@ class EnrichmentPipeline:
                 self._handle_enrichment_error("vision_extraction", e, result)
 
         # Re-ID: Depends on having face/person detections
-        if self.reid_enabled and self.redis_client and pil_image:
+        # When use_enrichment_service is True, also extract OSNet embeddings via service
+        if self.reid_enabled and pil_image:
+            if self.use_enrichment_service:
+                try:
+                    await self._compute_reid_via_service(high_conf_detections, pil_image, result)
+                except Exception as e:
+                    self._handle_enrichment_error("re_identification", e, result)
+            elif self.redis_client:
+                try:
+                    await self._run_reid(high_conf_detections, pil_image, camera_id, result)
+                except Exception as e:
+                    self._handle_enrichment_error("re_identification", e, result)
+
+        # CLIP Visual Anomaly Detection (NEM-5525)
+        # Compares current frame against per-camera baseline embedding stored in Redis
+        # Runs after re-id since it needs the same CLIP service and Redis
+        if self.reid_enabled and pil_image and camera_id and self.redis_client:
             try:
-                await self._run_reid(high_conf_detections, pil_image, camera_id, result)
+                await self._run_clip_anomaly_detection(pil_image, camera_id, result)
             except Exception as e:
-                self._handle_enrichment_error("re_identification", e, result)
+                self._handle_enrichment_error("clip_anomaly_detection", e, result)
 
         # Scene Change Detection
         if self.scene_change_enabled and camera_id and pil_image:
@@ -2523,6 +2664,45 @@ class EnrichmentPipeline:
             elif ocr_frame_result:
                 # Store partial result; Phase 2 will complete with crop OCR
                 result.scene_ocr = ocr_frame_result
+
+        # Threat Detection (via enrichment-light service)
+        if "threat_detection" in phase1_dict:
+            threat_result = phase1_dict["threat_detection"]
+            if isinstance(threat_result, Exception):
+                self._handle_enrichment_error("threat_detection", threat_result, result)
+            elif threat_result:
+                result.threat_detection = threat_result
+
+        # Demographics Analysis (via heavy enrichment service)
+        if "demographics" in phase1_dict:
+            demo_result = phase1_dict["demographics"]
+            if isinstance(demo_result, Exception):
+                self._handle_enrichment_error("demographics", demo_result, result)
+            elif demo_result:
+                # Unpack tuple of (age_classifications, gender_classifications)
+                age_cls, gender_cls = demo_result
+                if age_cls:
+                    result.age_classifications = age_cls
+                if gender_cls:
+                    result.gender_classifications = gender_cls
+
+        # CLIP Scene Classification (NEM-5525)
+        if "clip_scene_classification" in phase1_dict:
+            classify_result = phase1_dict["clip_scene_classification"]
+            if isinstance(classify_result, Exception):
+                self._handle_enrichment_error("clip_scene_classification", classify_result, result)
+            elif classify_result:
+                scores, top_label = classify_result
+                result.clip_scene_classification = scores
+                result.clip_scene_top_label = top_label
+
+        # CLIP Threat Pattern Matching (NEM-5525)
+        if "clip_threat_matching" in phase1_dict:
+            threat_result = phase1_dict["clip_threat_matching"]
+            if isinstance(threat_result, Exception):
+                self._handle_enrichment_error("clip_threat_matching", threat_result, result)
+            elif threat_result:
+                result.clip_threat_matches = threat_result
 
     # ==========================================================================
     # Safe wrapper methods for Phase 1 parallel execution
@@ -2713,6 +2893,132 @@ class EnrichmentPipeline:
             logger.warning(f"Scene OCR crop processing failed: {e}")
             # Return the frame-only results if we have them
             return frame_ocr_result
+
+    # ==========================================================================
+    # CLIP Analysis Methods (NEM-5525)
+    # ==========================================================================
+
+    async def _safe_clip_scene_classify(
+        self,
+        image: Image.Image,
+    ) -> tuple[dict[str, float], str] | None:
+        """Classify the scene using CLIP zero-shot classification with surveillance labels.
+
+        Runs CLIP /classify with surveillance-relevant labels to provide scene-level
+        context for Nemotron threat analysis. Expected to improve accuracy by 5-10%.
+
+        Args:
+            image: Full frame PIL Image
+
+        Returns:
+            Tuple of (scores dict, top_label), or None on error
+        """
+        try:
+            from backend.services.clip_client import get_clip_client
+
+            clip_client = get_clip_client()
+            scores, top_label = await clip_client.classify(image, CLIP_SCENE_LABELS)
+            logger.debug(
+                f"CLIP scene classification: top='{top_label}' ({scores.get(top_label, 0):.2f})"
+            )
+            return scores, top_label
+        except Exception as e:
+            logger.warning(f"CLIP scene classification failed: {e}")
+            return None
+
+    async def _safe_clip_threat_match(
+        self,
+        image: Image.Image,
+    ) -> dict[str, float] | None:
+        """Match the scene against threat description patterns using CLIP batch similarity.
+
+        Runs CLIP /batch-similarity with a library of threat description texts.
+        High-scoring matches indicate visual similarity to known threat patterns.
+        Expected to improve precision by 3-7%.
+
+        Args:
+            image: Full frame PIL Image
+
+        Returns:
+            Dictionary mapping threat descriptions to similarity scores, or None on error
+        """
+        try:
+            from backend.services.clip_client import get_clip_client
+
+            clip_client = get_clip_client()
+            similarities = await clip_client.batch_similarity(image, CLIP_THREAT_DESCRIPTIONS)
+            # Log top matches for debugging
+            if similarities:
+                top_matches = sorted(similarities.items(), key=lambda x: x[1], reverse=True)[:3]
+                top_str = ", ".join(f"'{desc}' ({score:.2f})" for desc, score in top_matches)
+                logger.debug(f"CLIP threat matches (top 3): {top_str}")
+            return similarities
+        except Exception as e:
+            logger.warning(f"CLIP threat matching failed: {e}")
+            return None
+
+    async def _run_clip_anomaly_detection(
+        self,
+        image: Image.Image,
+        camera_id: str,
+        result: EnrichmentResult,
+    ) -> None:
+        """Run CLIP visual anomaly detection by comparing against per-camera baseline.
+
+        Uses the SceneBaselineService to compare the current frame against
+        a stored baseline embedding for the camera. Also updates the baseline
+        when the scene is normal (low anomaly score).
+
+        Expected to improve recall by 2-5%.
+
+        Args:
+            image: Full frame PIL Image
+            camera_id: Camera identifier for baseline lookup
+            result: EnrichmentResult to populate with anomaly score
+        """
+        try:
+            from backend.services.clip_client import get_clip_client
+            from backend.services.scene_baseline import (
+                BaselineNotFoundError,
+                get_scene_baseline_service,
+            )
+
+            clip_client = get_clip_client()
+            baseline_service = get_scene_baseline_service(self.redis_client, clip_client)
+
+            # Check if baseline exists for this camera
+            has_baseline = await baseline_service.has_baseline(camera_id)
+
+            if has_baseline:
+                # Compute anomaly score against baseline
+                anomaly_score, similarity = await baseline_service.get_anomaly_score(
+                    camera_id, image
+                )
+                result.clip_anomaly_score = anomaly_score
+                result.clip_anomaly_similarity = similarity
+
+                logger.debug(
+                    f"CLIP anomaly detection for camera={camera_id}: "
+                    f"score={anomaly_score:.3f}, similarity={similarity:.3f}"
+                )
+
+                # Update baseline with current frame if scene is normal
+                # (anomaly score < 0.3 indicates a normal scene)
+                if anomaly_score < 0.3:
+                    await baseline_service.update_baseline_from_image(camera_id, image)
+            else:
+                # No baseline yet - initialize with current frame
+                logger.info(
+                    f"No CLIP baseline for camera={camera_id}, initializing with current frame"
+                )
+                await baseline_service.update_baseline_from_image(camera_id, image)
+                # Skip anomaly scoring on first frame (no reference point)
+
+        except BaselineNotFoundError:
+            # Should not happen given has_baseline check, but handle gracefully
+            logger.debug(f"No CLIP baseline for camera={camera_id}, skipping anomaly detection")
+        except Exception as e:
+            logger.warning(f"CLIP anomaly detection failed for camera={camera_id}: {e}")
 
     async def _classify_vehicle_via_service(
         self,
@@ -3221,6 +3527,501 @@ class EnrichmentPipeline:
 
         return results
 
+    async def _estimate_poses_via_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PoseResult]:
+        """Estimate poses using the remote enrichment HTTP service.
+
+        Routes to the appropriate service (heavy or light) based on
+        ENRICHMENT_POSE_SERVICE configuration.
+
+        Args:
+            persons: List of person detections with bounding boxes
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to PoseResult
+        """
+        results: dict[str, PoseResult] = {}
+
+        if not persons:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+
+            try:
+                # Crop person from full frame
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result: RemotePoseResult | None = await client.analyze_pose(
+                    person_crop, bbox_tuple
+                )
+
+                if remote_result:
+                    # Convert remote PoseAnalysisResult to local PoseResult
+                    # Remote keypoints are a list of KeypointData; local expects dict[str, Keypoint]
+                    keypoints_dict: dict[str, Keypoint] = {}
+                    for kp in remote_result.keypoints:
+                        keypoints_dict[kp.name] = Keypoint(
+                            x=kp.x,
+                            y=kp.y,
+                            confidence=kp.confidence,
+                            name=kp.name,
+                        )
+
+                    # Map posture to pose_class and compute confidence from keypoints
+                    avg_confidence = (
+                        sum(kp.confidence for kp in remote_result.keypoints)
+                        / len(remote_result.keypoints)
+                        if remote_result.keypoints
+                        else 0.0
+                    )
+
+                    results[det_id] = PoseResult(
+                        keypoints=keypoints_dict,
+                        pose_class=remote_result.posture,
+                        pose_confidence=avg_confidence,
+                        bbox=list(bbox_tuple) if bbox_tuple else None,
+                    )
+
+                    logger.debug(
+                        f"Person {det_id} pose (via service): {remote_result.posture} "
+                        f"({avg_confidence:.0%} confidence, {len(remote_result.keypoints)} keypoints)"
+                    )
+
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                EnrichmentUnavailableError,
+            ) as e:
+                # Transient error - log warning, continue to next person
+                logger.warning(
+                    f"Enrichment service unavailable for pose estimation {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                )
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    # Client error - likely a bug
+                    logger.error(
+                        f"Pose estimation client error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                        exc_info=True,
+                    )
+                else:
+                    # Server error - transient
+                    logger.warning(
+                        f"Pose estimation server error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                # Parse error
+                logger.error(
+                    f"Pose estimation parse error for {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
+            except Exception as e:
+                # Unexpected error
+                logger.error(
+                    f"Pose estimation unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
+
+        return results
+
+    async def _recognize_actions_via_service(  # noqa: PLR0911
+        self,
+        image: Image.Image,
+        camera_id: str | None,
+    ) -> dict[str, Any] | None:
+        """Recognize actions using the remote enrichment HTTP service.
+
+        Routes to the appropriate service (heavy or light) based on
+        ENRICHMENT_ACTION_SERVICE configuration. Collects frames from
+        the frame buffer (if available) for temporal action recognition.
+
+        Args:
+            image: Full frame image (current frame)
+            camera_id: Camera ID for looking up buffered frames
+
+        Returns:
+            Dictionary with detected_action, confidence, top_actions, all_scores
+            or None if recognition fails
+        """
+        # Collect frames for temporal analysis (same as local path)
+        frames = await self._get_action_frames(camera_id, image)
+        if not frames:
+            return None
+
+        client = self._get_enrichment_client()
+
+        try:
+            # Call remote service with frame sequence
+            remote_result: RemoteActionResult | None = await client.classify_action(frames)
+
+            if remote_result:
+                # Convert remote ActionClassificationResult to local dict format
+                # that matches the output of xclip_loader.classify_actions()
+                result: dict[str, Any] = {
+                    "detected_action": remote_result.action,
+                    "confidence": remote_result.confidence,
+                    "top_actions": sorted(
+                        remote_result.all_scores.items(),
+                        key=lambda x: x[1],
+                        reverse=True,
+                    )[:5],
+                    "all_scores": remote_result.all_scores,
+                }
+
+                logger.debug(
+                    f"Action recognition (via service): {remote_result.action} "
+                    f"({remote_result.confidence:.0%} confidence, "
+                    f"suspicious={remote_result.is_suspicious})"
+                )
+                return result
+
+            return None
+
+        except (
+            httpx.ConnectError,
+            httpx.TimeoutException,
+            EnrichmentUnavailableError,
+        ) as e:
+            # Transient error - log warning, return None
+            logger.warning(
+                "Enrichment service unavailable for action recognition",
+                extra={"error_type": type(e).__name__, "camera_id": camera_id},
+            )
+            return None
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if 400 <= status_code < 500:
+                # Client error - likely a bug
+                logger.error(
+                    f"Action recognition client error (HTTP {status_code})",
+                    extra={"camera_id": camera_id, "status_code": status_code},
+                    exc_info=True,
+                )
+            else:
+                # Server error - transient
+                logger.warning(
+                    f"Action recognition server error (HTTP {status_code})",
+                    extra={"camera_id": camera_id, "status_code": status_code},
+                )
+            return None
+        except (ValueError, KeyError, TypeError) as e:
+            # Parse error
+            logger.error(
+                "Action recognition parse error",
+                extra={"error_type": type(e).__name__, "camera_id": camera_id},
+                exc_info=True,
+            )
+            return None
+        except Exception as e:
+            # Unexpected error
+            logger.error(
+                f"Action recognition unexpected error: {sanitize_error(e)}",
+                extra={"error_type": type(e).__name__, "camera_id": camera_id},
+                exc_info=True,
+            )
+            return None
+
+    async def _detect_threats_via_service(
+        self,
+        image: Image.Image,
+    ) -> ThreatDetectionResult | None:
+        """Detect threats/weapons using the remote enrichment HTTP service.
+
+        Routes to enrichment-light service (/threat-detect endpoint).
+        Scans the full frame for weapons and threatening objects.
+
+        Args:
+            image: Full frame PIL Image to scan for threats
+
+        Returns:
+            ThreatDetectionResult or None if detection fails
+        """
+        client = self._get_enrichment_client()
+
+        try:
+            remote_result: Any | None = await client.detect_threats(image)
+
+            if remote_result:
+                # Convert remote ThreatDetectionClientResult to local ThreatDetectionResult
+                threats = []
+                for t in remote_result.threats_detected:
+                    threat_class = t.get("class_name", t.get("type", "unknown"))
+                    threats.append(
+                        ThreatDetection(
+                            class_name=threat_class,
+                            confidence=t.get("confidence", 0.0),
+                            bbox=tuple(t["bbox"]) if "bbox" in t else (0.0, 0.0, 0.0, 0.0),
+                            is_high_priority=threat_class.lower()
+                            in {
+                                "gun",
+                                "pistol",
+                                "rifle",
+                                "firearm",
+                                "handgun",
+                                "knife",
+                                "machete",
+                                "sword",
+                            },
+                        )
+                    )
+
+                result = ThreatDetectionResult(threats=threats)
+
+                logger.debug(
+                    f"Threat detection (via service): "
+                    f"has_threats={result.has_threats}, "
+                    f"has_high_priority={result.has_high_priority}, "
+                    f"count={len(threats)}"
+                )
+                return result
+
+            return None
+
+        except (
+            httpx.ConnectError,
+            httpx.TimeoutException,
+            EnrichmentUnavailableError,
+        ) as e:
+            logger.warning(
+                "Enrichment service unavailable for threat detection",
+                extra={"error_type": type(e).__name__},
+            )
+            return None
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if 400 <= status_code < 500:
+                logger.error(
+                    f"Threat detection client error (HTTP {status_code})",
+                    extra={"status_code": status_code},
+                    exc_info=True,
+                )
+            else:
+                logger.warning(
+                    f"Threat detection server error (HTTP {status_code})",
+                    extra={"status_code": status_code},
+                )
+            return None
+        except (ValueError, KeyError, TypeError) as e:
+            logger.error(
+                "Threat detection parse error",
+                extra={"error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                f"Threat detection unexpected error: {sanitize_error(e)}",
+                extra={"error_type": type(e).__name__},
+                exc_info=True,
+            )
+            return None
+
+    async def _analyze_demographics_via_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Analyze demographics using the remote enrichment HTTP service.
+
+        Routes to the heavy enrichment service (/demographics endpoint).
+        Extracts age and gender estimates for each person detection.
+
+        Args:
+            persons: List of person detections with bounding boxes
+            image: Full frame image to crop persons from
+
+        Returns:
+            Tuple of (age_classifications, gender_classifications) dictionaries
+            keyed by detection ID
+        """
+        age_results: dict[str, Any] = {}
+        gender_results: dict[str, Any] = {}
+
+        if not persons:
+            return age_results, gender_results
+
+        client = self._get_enrichment_client()
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+
+            try:
+                # Crop person from full frame
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result: Any | None = await client.analyze_demographics(
+                    person_crop, bbox_tuple
+                )
+
+                if remote_result:
+                    # Use SimpleNamespace so getattr/hasattr works in to_context_string()
+                    from types import SimpleNamespace
+
+                    is_minor = remote_result.age_range in (
+                        "0-10",
+                        "11-20",
+                        "child",
+                        "teenager",
+                    )
+                    age_results[det_id] = SimpleNamespace(
+                        age_group=remote_result.age_range,
+                        display_name=remote_result.age_range,
+                        confidence=remote_result.age_confidence,
+                        is_minor=is_minor,
+                    )
+
+                    gender_results[det_id] = SimpleNamespace(
+                        gender=remote_result.gender,
+                        confidence=remote_result.gender_confidence,
+                    )
+
+                    logger.debug(
+                        f"Person {det_id} demographics (via service): "
+                        f"age={remote_result.age_range} ({remote_result.age_confidence:.0%}), "
+                        f"gender={remote_result.gender} ({remote_result.gender_confidence:.0%})"
+                    )
+
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                EnrichmentUnavailableError,
+            ) as e:
+                logger.warning(
+                    f"Enrichment service unavailable for demographics {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                )
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    logger.error(
+                        f"Demographics client error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                        exc_info=True,
+                    )
+                else:
+                    logger.warning(
+                        f"Demographics server error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                logger.error(
+                    f"Demographics parse error for {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Demographics unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
+
+        return age_results, gender_results
+
+    async def _compute_reid_via_service(
+        self,
+        detections: list[DetectionInput],
+        image: Image.Image,
+        result: EnrichmentResult,
+    ) -> None:
+        """Compute person re-ID embeddings using the remote enrichment HTTP service.
+
+        Routes to enrichment-light service (/person-reid endpoint).
+        Extracts OSNet embeddings for each person detection and stores
+        them in the EnrichmentResult for downstream matching.
+
+        Args:
+            detections: List of detections to extract embeddings for
+            image: Full frame image to crop persons from
+            result: EnrichmentResult to populate with embeddings
+        """
+        client = self._get_enrichment_client()
+
+        persons = [d for d in detections if d.class_name == PERSON_CLASS]
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+
+            try:
+                # Crop person from full frame
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result: Any | None = await client.compute_reid_embedding(
+                    person_crop, bbox_tuple
+                )
+
+                if remote_result and remote_result.embedding:
+                    # Store the embedding in person_embeddings for context generation
+                    result.person_embeddings[det_id] = {
+                        "embedding": remote_result.embedding,
+                        "embedding_dim": remote_result.embedding_dim,
+                        "detection_id": det_id,
+                    }
+
+                    logger.debug(
+                        f"Person {det_id} re-ID embedding (via service): "
+                        f"dim={remote_result.embedding_dim}"
+                    )
+
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                EnrichmentUnavailableError,
+            ) as e:
+                logger.warning(
+                    f"Enrichment service unavailable for re-ID {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                )
+            except httpx.HTTPStatusError as e:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    logger.error(
+                        f"Re-ID client error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                        exc_info=True,
+                    )
+                else:
+                    logger.warning(
+                        f"Re-ID server error for {det_id} (HTTP {status_code})",
+                        extra={"detection_id": det_id, "status_code": status_code},
+                    )
+            except (ValueError, KeyError, TypeError) as e:
+                logger.error(
+                    f"Re-ID parse error for {det_id}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Re-ID unexpected error for {det_id}: {sanitize_error(e)}",
+                    extra={"error_type": type(e).__name__, "detection_id": det_id},
+                    exc_info=True,
+                )
+
     async def enrich_batch(
         self,
         detections: list[DetectionInput],
@@ -3328,6 +4129,9 @@ class EnrichmentPipeline:
                 "image_quality.assessed": result.image_quality is not None,
                 "household_person_match.count": len(result.person_household_matches),
                 "household_vehicle_match.count": len(result.vehicle_household_matches),
+                "clip_scene_classification.available": result.has_clip_scene_classification,
+                "clip_threat_matches.available": result.has_clip_threat_matches,
+                "clip_anomaly_score.available": result.has_clip_anomaly_score,
                 "error.count": len(result.errors),
                 "processing.duration_ms": int(result.processing_time_ms),
             },
@@ -3349,7 +4153,10 @@ class EnrichmentPipeline:
             f"action={'yes' if result.action_results else 'no'}, "
             f"quality={'yes' if result.image_quality else 'no'}, "
             f"household_persons={len(result.person_household_matches)}, "
-            f"household_vehicles={len(result.vehicle_household_matches)} "
+            f"household_vehicles={len(result.vehicle_household_matches)}, "
+            f"clip_scene={'yes' if result.has_clip_scene_classification else 'no'}, "
+            f"clip_threats={'yes' if result.has_clip_threat_matches else 'no'}, "
+            f"clip_anomaly={'yes' if result.has_clip_anomaly_score else 'no'} "
             f"in {result.processing_time_ms:.1f}ms"
         )
 

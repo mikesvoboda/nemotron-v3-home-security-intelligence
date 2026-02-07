@@ -86,8 +86,12 @@ def test_app() -> FastAPI:
     """Create test FastAPI app with system router.
 
     Includes a mock Redis dependency override to prevent
-    endpoints with RateLimiter from connecting to real Redis.
+    endpoints with RateLimiter from connecting to real Redis,
+    and a mock CacheService that always returns cache misses
+    to keep existing DB-hitting tests working as expected.
     """
+    from backend.api.dependencies import get_cache_service_dep
+
     app = FastAPI()
     app.include_router(router)
 
@@ -98,7 +102,17 @@ def test_app() -> FastAPI:
     async def mock_get_redis():
         yield mock_redis
 
+    # Create a mock CacheService that always misses (returns None on get)
+    # so tests that verify DB interaction still see expected DB call counts.
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock(return_value=True)
+
+    async def mock_get_cache():
+        yield mock_cache
+
     app.dependency_overrides[get_redis] = mock_get_redis
+    app.dependency_overrides[get_cache_service_dep] = mock_get_cache
     return app
 
 
@@ -1418,7 +1432,11 @@ class TestGetGPUStatsEndpointUnit:
         test_app: FastAPI,
         mock_settings: Settings,
     ) -> None:
-        """Test GPU stats cache expires after TTL."""
+        """Test GPU stats in-memory cache expires after TTL.
+
+        After expiry, the endpoint should check the L2 Redis cache (mocked
+        to always miss) and then fall through to the database.
+        """
         import time
         from datetime import UTC, datetime
 
@@ -1459,20 +1477,20 @@ class TestGetGPUStatsEndpointUnit:
         async with AsyncClient(
             transport=ASGITransport(app=test_app), base_url="http://test"
         ) as client:  # type: ignore[arg-type]
-            # First request
+            # First request - L1 miss, L2 miss, DB hit
             response1 = await client.get("/api/system/gpu")
             assert response1.status_code == 200
             assert mock_db.execute.call_count == 1
 
-            # Manually expire the cache by creating a new cache entry with old timestamp
+            # Manually expire the L1 in-memory cache
             if system_module._gpu_stats_cache:
                 expired_response = system_module._gpu_stats_cache.response
                 system_module._gpu_stats_cache = GPUStatsCacheEntry(
                     response=expired_response,
-                    cached_at=time.time() - 10,  # Expired 10 seconds ago
+                    cached_at=time.time() - 20,  # Expired 20 seconds ago
                 )
 
-            # Second request - cache expired, should hit database again
+            # Second request - L1 expired, L2 miss (mock), DB hit
             response2 = await client.get("/api/system/gpu")
             assert response2.status_code == 200
             assert mock_db.execute.call_count == 2

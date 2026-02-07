@@ -4,8 +4,8 @@
 # Environment variables with defaults are substituted before Prometheus loads this config.
 #
 # Variable substitution:
-#   - ${CADVISOR_PORT}: Port for cAdvisor metrics (default: 8082)
-#   - ${DCGM_EXPORTER_PORT}: Port for DCGM GPU metrics (default: 9400)
+#   - ${CADVISOR_PORT}: Port for cAdvisor metrics (default: 8083)
+#   - ${DCGM_EXPORTER_PORT}: Port for DCGM GPU metrics (default: 9401)
 #
 # PORT CONFIGURATION NOTE:
 # Internal Docker service names (e.g., backend:8000, alertmanager:9093) use FIXED
@@ -161,6 +161,24 @@ scrape_configs:
           - 'ai-enrichment:8094'
         labels:
           service: enrichment
+          model_type: classification
+    honor_labels: true
+
+  # Enrichment Light Service metrics (ai-enrichment-light)
+  # Lightweight enrichment for pose, threat, reid, pet, depth models (~1.2GB total)
+  # Key metrics:
+  # - enrichment_inference_requests_total: Total requests by endpoint/status
+  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
+  # - enrichment_gpu_memory_used_gb: GPU memory usage
+  - job_name: 'ai-enrichment-light-metrics'
+    metrics_path: /metrics
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - 'ai-enrichment-light:8096'
+        labels:
+          service: enrichment-light
           model_type: classification
     honor_labels: true
 

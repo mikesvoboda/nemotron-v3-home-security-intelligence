@@ -20,8 +20,10 @@ Whitelist (endpoints allowed during setup):
 - GET /api/system/stats - System stats for Prometheus
 - GET /api/system/telemetry - Pipeline telemetry for Prometheus
 - GET /api/metrics - Native Prometheus metrics endpoint
+- /ws/* - WebSocket endpoints (events, system status, detections)
 """
 
+import time
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response, status
@@ -33,6 +35,10 @@ from starlette.types import ASGIApp
 from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# TTL for caching the user-exists check to reduce sequential scans on the users table.
+# Before setup is complete, the DB is queried at most once per this interval.
+_SETUP_CHECK_TTL_SECONDS = 60.0
 
 # Paths that are always allowed, even when setup is required
 # These are essential for:
@@ -64,6 +70,12 @@ SETUP_WHITELIST_PREFIXES = (
     "/docs",
     "/redoc",
     "/api/system/health",
+    # WebSocket endpoints must be reachable before setup completes so the
+    # frontend can establish its real-time connection immediately.  Without
+    # this, the nginx-proxied /ws/* requests hit the BaseHTTPMiddleware
+    # dispatch path (HTTP upgrade negotiation uses scope "http") and get
+    # blocked with 503, causing the "WebSocket max retries exhausted" loop.
+    "/ws/",
 )
 
 
@@ -91,6 +103,10 @@ class SetupGuardMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
         self._setup_complete = False
+        # In-memory TTL cache to avoid querying users table on every request.
+        # Stores (result: bool, timestamp: float). Checked before hitting DB.
+        self._cached_result: bool = False
+        self._cached_at: float = 0.0
 
     def _is_whitelisted(self, path: str) -> bool:
         """Check if a path is in the setup whitelist.
@@ -109,12 +125,21 @@ class SetupGuardMiddleware(BaseHTTPMiddleware):
     async def _check_setup_complete(self) -> bool:
         """Check if initial setup is complete (at least one user exists).
 
+        Uses an in-memory TTL cache to avoid querying the users table on
+        every single request, which was causing excessive sequential scans
+        (22k+ seq scans on a 1-row table).
+
         Returns:
             True if setup is complete, False if setup is required.
         """
         # Short-circuit: once setup is complete, it stays complete
         if self._setup_complete:
             return True
+
+        # Check TTL cache before hitting the database
+        now = time.monotonic()
+        if (now - self._cached_at) < _SETUP_CHECK_TTL_SECONDS:
+            return self._cached_result
 
         try:
             from backend.core.database import get_session
@@ -130,8 +155,13 @@ class SetupGuardMiddleware(BaseHTTPMiddleware):
                         "Setup complete: found existing users",
                         extra={"user_count": count},
                     )
+                    self._cached_result = True
+                    self._cached_at = now
                     return True
 
+                # Cache the negative result too, so we don't re-query for TTL seconds
+                self._cached_result = False
+                self._cached_at = now
                 return False
 
         except Exception as e:

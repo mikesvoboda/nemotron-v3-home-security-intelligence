@@ -1611,6 +1611,26 @@ class ModelRegistryResponse(BaseModel):
 # =============================================================================
 
 
+class DemographicsRequest(BaseModel):
+    """Request format for demographics estimation endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image (person or face crop)")
+    bbox: list[float] | None = Field(
+        default=None,
+        description="Optional bounding box [x1, y1, x2, y2] to crop before analysis",
+    )
+
+
+class DemographicsResponse(BaseModel):
+    """Response format for demographics estimation endpoint."""
+
+    age_range: str = Field(..., description="Estimated age range (e.g., '21-35', '51-65')")
+    age_confidence: float = Field(..., description="Confidence in age estimation (0-1)")
+    gender: str = Field(..., description="Estimated gender ('male', 'female', 'unknown')")
+    gender_confidence: float = Field(..., description="Confidence in gender estimation (0-1)")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
 class EnrichmentRequest(BaseModel):
     """Request format for unified enrichment endpoint.
 
@@ -2488,6 +2508,85 @@ async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceRespo
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="object-distance", status="error").inc()
         logger.error(f"Object distance estimation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Distance estimation failed: {e!s}") from e
+
+
+# =============================================================================
+# Demographics Endpoint
+# =============================================================================
+
+
+async def _run_demographics_estimation(face_image: Image.Image) -> DemographicsResult | None:
+    """Run demographics estimation on a face/person crop.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        estimator = await model_manager.get_model("demographics")
+        result = estimator.estimate_demographics(face_image)
+        return DemographicsResult(
+            age_range=result.age_range,
+            age_confidence=result.age_confidence,
+            gender=result.gender,
+            gender_confidence=result.gender_confidence,
+        )
+    except Exception as e:
+        logger.warning(f"Demographics estimation failed: {e}")
+        return None
+
+
+@app.post("/demographics", response_model=DemographicsResponse)
+async def analyze_demographics(request: DemographicsRequest) -> DemographicsResponse:
+    """Estimate age and gender from a person or face crop.
+
+    Input: Base64 encoded image (face crop recommended for best results)
+    Output: Age range, gender, and confidence scores
+
+    Model is loaded on-demand if not already in memory.
+    """
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+
+    start_time = time.perf_counter()
+
+    try:
+        # Decode image
+        cropped_image = decode_and_crop_image(request.image, request.bbox)
+
+        # Run demographics estimation
+        result = await _run_demographics_estimation(cropped_image)
+
+        if result is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Demographics model not available",
+            )
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="demographics").observe(inference_time_ms / 1000)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="demographics", status="success").inc()
+
+        return DemographicsResponse(
+            age_range=result.age_range,
+            age_confidence=result.age_confidence,
+            gender=result.gender,
+            gender_confidence=result.gender_confidence,
+            inference_time_ms=round(inference_time_ms, 2),
+        )
+
+    except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="demographics", status="error").inc()
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="demographics", status="error").inc()
+        raise
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="demographics", status="error").inc()
+        logger.error(f"Demographics analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Demographics analysis failed: {e!s}") from e
 
 
 # =============================================================================

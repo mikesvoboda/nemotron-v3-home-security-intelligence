@@ -32,7 +32,7 @@ from redis.exceptions import RedisError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_baseline_service_dep
+from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.baseline import (
     AnomalyConfig,
@@ -141,6 +141,7 @@ from backend.models.audit import AuditAction
 from backend.models.event_audit import EventAudit
 from backend.services.audit import AuditService
 from backend.services.baseline import BaselineService
+from backend.services.cache_service import SHORT_TTL, CacheService
 from backend.services.health_event_emitter import get_health_event_emitter
 from backend.services.model_zoo import (
     get_model_config,
@@ -333,7 +334,7 @@ HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
 # With caching, most requests return instantly from cache, and only cache
 # misses trigger the parallel health checks.
 
-HEALTH_CACHE_TTL_SECONDS = 10.0  # Increased from 5s to reduce check frequency
+HEALTH_CACHE_TTL_SECONDS = 15.0  # Matches Prometheus scrape_interval to avoid redundant checks
 
 
 @dataclass(slots=True)
@@ -1269,9 +1270,14 @@ async def get_health(
     to ensure the endpoint responds under 500ms SLO. Each component has a
     300ms timeout and all checks run concurrently via asyncio.gather.
 
-    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 10 seconds) to reduce
-    load from frequent health probes. Cached responses are returned immediately
-    without re-checking services.
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (15 seconds) to reduce
+    load from frequent health probes. This TTL matches the default Prometheus
+    scrape_interval so most scrapes return instantly from cache. Health status
+    change events are emitted as background tasks to avoid adding WebSocket
+    broadcast latency to the response.
+
+    For frequent liveness probes use GET /api/system/health/live (~0ms).
+    For readiness probes use GET /api/system/health/ready (~2ms).
 
     Returns:
         HealthResponse with overall status and individual service statuses.
@@ -1329,15 +1335,19 @@ async def get_health(
     http_status = 200 if overall_status == "healthy" else 503
     response.status_code = http_status
 
-    # Emit WebSocket events for health status changes
-    # This only emits when status actually transitions (not on every check)
-    await _emit_health_status_changes(
-        db_status=db_status.status,
-        redis_status=redis_status.status,
-        ai_status=ai_status.status,
-        db_details=db_status.details,
-        redis_details=redis_status.details,
-        ai_details=ai_status.details,
+    # Fire-and-forget: emit WebSocket events for health status changes.
+    # This only emits when status actually transitions (not on every check).
+    # Running as a background task avoids adding WebSocket broadcast latency
+    # to the health check response, which is critical for Prometheus SLO.
+    asyncio.create_task(
+        _emit_health_status_changes(
+            db_status=db_status.status,
+            redis_status=redis_status.status,
+            ai_status=ai_status.status,
+            db_details=db_status.details,
+            redis_details=redis_status.details,
+            ai_details=ai_status.details,
+        )
     )
 
     # Collect recent health events for debugging intermittent issues
@@ -2229,7 +2239,10 @@ async def list_websocket_event_types(
 
 
 @router.get("/gpu", response_model=GPUStatsResponse)
-async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
+async def get_gpu_stats(
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> GPUStatsResponse:
     """Get current GPU statistics.
 
     Returns the most recent GPU statistics including:
@@ -2240,19 +2253,35 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     - Power usage
     - Inference FPS
 
-    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
-    database load from frequent polling. GPU stats only update every 5 seconds anyway.
+    Results are cached in two tiers:
+    - L1: In-memory cache (HEALTH_CACHE_TTL_SECONDS, ~10s) for minimal latency
+    - L2: Redis CacheService (SHORT_TTL, 60s) for cache hit ratio metrics
 
     Returns:
         GPUStatsResponse with GPU statistics (null values if unavailable)
     """
     global _gpu_stats_cache  # noqa: PLW0603
 
-    # Check if we have a valid cached response
+    # L1: Check in-memory cache (fastest)
     if _gpu_stats_cache is not None and _gpu_stats_cache.is_valid():
         return _gpu_stats_cache.response
 
-    # Cache miss or expired - query database
+    # L2: Check Redis cache (generates hit/miss metrics for Prometheus)
+    _redis_cache_key = "system:gpu:latest"
+    try:
+        cached_data = await cache.get(_redis_cache_key, cache_type="system")
+        if cached_data is not None:
+            gpu_response = GPUStatsResponse(**dict(cached_data))
+            # Populate L1 from L2
+            _gpu_stats_cache = GPUStatsCacheEntry(
+                response=gpu_response,
+                cached_at=time.time(),
+            )
+            return gpu_response
+    except Exception as e:
+        logger.debug(f"Redis cache read failed for GPU stats: {e}")
+
+    # L3: Cache miss - query database
     stats = await get_latest_gpu_stats(db)
 
     if stats is None:
@@ -2315,11 +2344,21 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
         bar1_used=stats.get("bar1_used"),
     )
 
-    # Cache the response for future requests
+    # Populate L1 in-memory cache
     _gpu_stats_cache = GPUStatsCacheEntry(
         response=gpu_response,
         cached_at=time.time(),
     )
+
+    # Populate L2 Redis cache (generates hit metrics on subsequent requests)
+    try:
+        await cache.set(
+            _redis_cache_key,
+            gpu_response.model_dump(mode="json"),
+            ttl=SHORT_TTL,
+        )
+    except Exception as e:
+        logger.debug(f"Redis cache write failed for GPU stats: {e}")
 
     return gpu_response
 
@@ -2772,7 +2811,10 @@ async def update_anomaly_config(
 
 
 @router.get("/stats", response_model=SystemStatsResponse)
-async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
+async def get_stats(
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> SystemStatsResponse:
     """Get system statistics.
 
     Returns aggregate statistics about the system:
@@ -2781,19 +2823,37 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
     - Total number of detections
     - Application uptime
 
-    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
-    database load from three sequential COUNT queries.
+    Results are cached in two tiers:
+    - L1: In-memory cache (HEALTH_CACHE_TTL_SECONDS, ~10s) for minimal latency
+    - L2: Redis CacheService (SHORT_TTL, 60s) for cache hit ratio metrics
 
     Returns:
         SystemStatsResponse with system statistics
     """
     global _system_stats_cache  # noqa: PLW0603
 
-    # Check if we have a valid cached response
+    # L1: Check in-memory cache (fastest)
     if _system_stats_cache is not None and _system_stats_cache.is_valid():
         return _system_stats_cache.response
 
-    # Cache miss or expired - query database
+    # L2: Check Redis cache (generates hit/miss metrics for Prometheus)
+    _redis_cache_key = "system:stats:latest"
+    try:
+        cached_data = await cache.get(_redis_cache_key, cache_type="system")
+        if cached_data is not None:
+            # Uptime must be recalculated (not from cache)
+            cached_data["uptime_seconds"] = time.time() - _app_start_time
+            stats_response = SystemStatsResponse(**dict(cached_data))
+            # Populate L1 from L2
+            _system_stats_cache = SystemStatsCacheEntry(
+                response=stats_response,
+                cached_at=time.time(),
+            )
+            return stats_response
+    except Exception as e:
+        logger.debug(f"Redis cache read failed for system stats: {e}")
+
+    # L3: Cache miss - query database
     # Count cameras
     camera_count_stmt = select(func.count()).select_from(Camera)
     camera_result = await db.execute(camera_count_stmt)
@@ -2819,11 +2879,21 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
         uptime_seconds=uptime,
     )
 
-    # Cache the response for future requests
+    # Populate L1 in-memory cache
     _system_stats_cache = SystemStatsCacheEntry(
         response=stats_response,
         cached_at=time.time(),
     )
+
+    # Populate L2 Redis cache (generates hit metrics on subsequent requests)
+    try:
+        await cache.set(
+            _redis_cache_key,
+            stats_response.model_dump(mode="json"),
+            ttl=SHORT_TTL,
+        )
+    except Exception as e:
+        logger.debug(f"Redis cache write failed for system stats: {e}")
 
     return stats_response
 

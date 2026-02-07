@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-02-06T05:02:23.216799+00:00",
+  "generated_at": "2026-02-07T13:07:39.482310+00:00",
   "summary": {
     "total_scenarios": 30,
-    "passed": 10,
-    "failed": 20,
-    "pass_rate": "33.3%"
+    "passed": 0,
+    "failed": 30,
+    "pass_rate": "0.0%"
   },
   "by_category": {
     "normal": {
@@ -14,8 +14,8 @@
     },
     "suspicious": {
       "total": 10,
-      "passed": 10,
-      "failed": 0
+      "passed": 0,
+      "failed": 10
     },
     "threats": {
       "total": 10,
@@ -23,85 +23,187 @@
       "failed": 10
     }
   },
+  "enrichment_accuracy": {
+    "pose": {
+      "tested": 20,
+      "passed": 0,
+      "failed": 20
+    },
+    "reid": {
+      "tested": 20,
+      "passed": 0,
+      "failed": 20
+    },
+    "action": {
+      "tested": 20,
+      "passed": 0,
+      "failed": 20
+    },
+    "demographics": {
+      "tested": 15,
+      "passed": 0,
+      "failed": 15
+    }
+  },
   "risk_calibration": [
     {
-      "scenario": "C01",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E01",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C02",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E02",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C03",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E03",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C04",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E04",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C05",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E05",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C06",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E06",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C07",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E07",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C08",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E08",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C09",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E09",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
       "in_range": true
     },
     {
-      "scenario": "C10",
-      "category": "suspicious",
-      "actual": 50,
-      "expected_min": 26,
-      "expected_max": 60,
+      "scenario": "E10",
+      "category": "normal",
+      "actual": 0,
+      "expected_min": 0,
+      "expected_max": 25,
+      "in_range": true
+    },
+    {
+      "scenario": "P07",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "P08",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "P09",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "P11",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "R01",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "R02",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "R03",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "R04",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "R05",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
+      "in_range": true
+    },
+    {
+      "scenario": "R06",
+      "category": "threats",
+      "actual": 75,
+      "expected_min": 61,
+      "expected_max": 100,
       "in_range": true
     }
   ],
@@ -110,121 +212,330 @@
       "scenario": "E01",
       "name": "Amazon Delivery",
       "category": "normal",
-      "errors": ["No matching event found for E01"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "E02",
       "name": "UPS Delivery",
       "category": "normal",
-      "errors": ["No matching event found for E02"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "E03",
       "name": "FedEx Delivery",
       "category": "normal",
-      "errors": ["No matching event found for E03"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "E04",
       "name": "UPS Delivery V2",
       "category": "normal",
-      "errors": ["No matching event found for E04"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found"
+      ]
     },
     {
       "scenario": "E05",
       "name": "Doordash Delivery",
       "category": "normal",
-      "errors": ["No matching event found for E05"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "E06",
       "name": "Instacart Delivery",
       "category": "normal",
-      "errors": ["No matching event found for E06"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "E07",
       "name": "Drone Delivery",
       "category": "normal",
-      "errors": ["No matching event found for E07"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found"
+      ]
     },
     {
       "scenario": "E08",
       "name": "Landscaper",
       "category": "normal",
-      "errors": ["No matching event found for E08"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found"
+      ]
     },
     {
       "scenario": "E09",
       "name": "Pool Cleaner",
       "category": "normal",
-      "errors": ["No matching event found for E09"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found"
+      ]
     },
     {
       "scenario": "E10",
       "name": "House Cleaner",
       "category": "normal",
-      "errors": ["No matching event found for E10"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found"
+      ]
+    },
+    {
+      "scenario": "C01",
+      "name": "Night Rain Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C01"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C02",
+      "name": "Snowfall Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C02"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C03",
+      "name": "Fog Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C03"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C04",
+      "name": "Day Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C04"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C05",
+      "name": "Windy Day Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C05"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C06",
+      "name": "Backlight Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C06"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C07",
+      "name": "Headlight Sweep",
+      "category": "suspicious",
+      "errors": ["No matching event found for C07"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C08",
+      "name": "Side Yard Night",
+      "category": "suspicious",
+      "errors": ["No matching event found for C08"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C09",
+      "name": "Driveway Night",
+      "category": "suspicious",
+      "errors": ["No matching event found for C09"],
+      "enrichment_errors": []
+    },
+    {
+      "scenario": "C10",
+      "name": "Garage Approach",
+      "category": "suspicious",
+      "errors": ["No matching event found for C10"],
+      "enrichment_errors": []
     },
     {
       "scenario": "P07",
       "name": "Crouching",
       "category": "threats",
-      "errors": ["No matching event found for P07"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "P08",
       "name": "Tool Visible",
       "category": "threats",
-      "errors": ["No matching event found for P08"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "P09",
       "name": "Forced Entry",
       "category": "threats",
-      "errors": ["No matching event found for P09"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "P11",
       "name": "Multiple Checks",
       "category": "threats",
-      "errors": ["No matching event found for P11"]
+      "errors": [],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "R01",
       "name": "Package Grab",
       "category": "threats",
-      "errors": ["No matching event found for R01"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "R02",
       "name": "Distraction Theft",
       "category": "threats",
-      "errors": ["No matching event found for R02"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "R03",
       "name": "Follow Delivery",
       "category": "threats",
-      "errors": ["No matching event found for R03"]
+      "errors": [
+        "Expected detection class 'vehicle' not found",
+        "Expected detection class 'package' not found"
+      ],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "R04",
       "name": "Vehicle Break-in",
       "category": "threats",
-      "errors": ["No matching event found for R04"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "R05",
       "name": "Car Handle Check",
       "category": "threats",
-      "errors": ["No matching event found for R05"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     },
     {
       "scenario": "R06",
       "name": "Vehicle Theft",
       "category": "threats",
-      "errors": ["No matching event found for R06"]
+      "errors": ["Expected detection class 'vehicle' not found"],
+      "enrichment_errors": [
+        "No pose results found for detections",
+        "No re-ID embeddings for person detections",
+        "No action recognition results found",
+        "Face detected but no demographics results"
+      ]
     }
   ]
 }

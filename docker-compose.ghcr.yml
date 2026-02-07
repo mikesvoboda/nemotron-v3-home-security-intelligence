@@ -162,7 +162,7 @@ services:
       - SERVICE_NAME=ai-yolo26
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
       - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
       - PYTORCH_PROFILE_ENABLED=${PYTORCH_PROFILE_ENABLED:-false}
@@ -208,7 +208,7 @@ services:
       - SERVICE_NAME=ai-llm
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       # Q2_K_L quantization for single-GPU deployment (20.9GB VRAM)
       - MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q2_K_L.gguf
       - GPU_LAYERS=${GPU_LAYERS:-999}
@@ -249,7 +249,7 @@ services:
       - SERVICE_NAME=ai-florence
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       # Florence-2-Base for single-GPU deployment
       - MODEL_PATH=/models/florence-2-base
       - FLORENCE_MODEL_PATH=/models/florence-2-base
@@ -295,7 +295,7 @@ services:
       - SERVICE_NAME=ai-clip
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - CLIP_MODEL_PATH=/models/clip-vit-b-32
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
       - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
@@ -343,7 +343,7 @@ services:
       - PORT=8096
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
       - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
       - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
@@ -401,7 +401,7 @@ services:
       - GPU_TIER=heavy
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
+      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - AGE_MODEL_PATH=/models/vit-age-classifier
@@ -658,7 +658,7 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: ${ES_MEMORY_LIMIT:-4G}
+          memory: ${ES_MEMORY_LIMIT:-6G}
 
   jaeger:
     security_opt:
@@ -784,7 +784,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 256M
+          memory: 512M
 
   redis-exporter:
     security_opt:
@@ -916,7 +916,7 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 512M
+          memory: 1G
 
   pyroscope:
     security_opt:
