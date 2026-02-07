@@ -42,6 +42,7 @@ import {
 import { formatRelativeTime, formatSecondsAsHumanReadable, isTimestampStale } from '../../utils/time';
 import CameraBaselinePanel from '../analytics/CameraBaselinePanel';
 import SceneChangePanel from '../analytics/SceneChangePanel';
+import { CameraAnomalyTimeline } from '../cameras';
 import IconButton from '../common/IconButton';
 import PasswordInput from '../common/PasswordInput';
 import PTZControls from '../ptz/PTZControls';
@@ -1374,10 +1375,20 @@ export default function CamerasSettings() {
                   </div>
 
                   {baselineCamera && (
-                    <CameraBaselinePanel
-                      cameraId={baselineCamera.id}
-                      cameraName={baselineCamera.name}
-                    />
+                    <>
+                      <CameraBaselinePanel
+                        cameraId={baselineCamera.id}
+                        cameraName={baselineCamera.name}
+                      />
+                      {/* Anomaly timeline shows deviations from the baseline (NEM-3577) */}
+                      <div className="mt-6">
+                        <CameraAnomalyTimeline
+                          cameraId={baselineCamera.id}
+                          cameraName={baselineCamera.name}
+                          days={7}
+                        />
+                      </div>
+                    </>
                   )}
                 </Dialog.Panel>
               </Transition.Child>
