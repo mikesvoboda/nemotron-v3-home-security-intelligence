@@ -824,7 +824,7 @@ class EnhancedDetection:
         bbox: dict[str, int],
         frame_width: int,
         frame_height: int,
-    ) -> EnhancedDetection:
+    ) -> "EnhancedDetection":
         """Create an EnhancedDetection from raw detection data.
 
         Args:
